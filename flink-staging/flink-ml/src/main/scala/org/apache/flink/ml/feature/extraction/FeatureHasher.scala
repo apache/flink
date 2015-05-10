@@ -72,7 +72,7 @@ class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
   def setNumFeatures(numFeatures: Int): FeatureHasher = {
     // number of features must be greater zero
     if(numFeatures < 1) {
-      return this
+      throw new IllegalArgumentException("numFeatures must be greater than zero")
     }
     parameters.add(NumFeatures, numFeatures)
     this
@@ -113,7 +113,6 @@ class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
         val myVector = SparseVector.fromCOO(numFeatures, entries)
         // in case of non negative output, return the absolute of the vector
         if(nonNegative) {
-          // maybe there's a straightforward way of applying a function element wise to a vector
           for(index <- myVector.indices) {
             myVector(index) = Math.abs(myVector(index))
           }

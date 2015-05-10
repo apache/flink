@@ -73,24 +73,15 @@ class FeatureHasherSuite
     }
   }
 
-  it should "transform a sequence of strings into a sparse feature vector of default size," +
-    " when parameter is less than 1" in {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+  it should "fail when the parameter numFeatures is set to a value less than 1" in {
+    intercept[IllegalArgumentException] {
+      val transformer = FeatureHasher()
+        .setNumFeatures(0).setNonNegative(true)
+    }
 
-    env.setParallelism(2)
-
-    val inputDS = env.fromCollection(input)
-
-    val numFeatures = 0
-
-    val transformer = FeatureHasher()
-      .setNumFeatures(numFeatures).setNonNegative(false)
-
-    val transformedDS = transformer.transform(inputDS)
-    val results = transformedDS.collect()
-
-    for (result <- results) {
-      result.size should equal(Math.pow(2, 20).toInt)
+    intercept[IllegalArgumentException] {
+      val transformer = FeatureHasher()
+        .setNumFeatures(0).setNonNegative(false)
     }
   }
 }
