@@ -20,13 +20,14 @@ package org.apache.flink.api.java.operators;
 
 import java.util.Arrays;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+
+import com.google.common.base.Preconditions;
 
 /**
  * The DeltaIteration represents the start of a delta iteration. It is created from the DataSet that
@@ -171,7 +172,7 @@ public class DeltaIteration<ST, WT> {
 	 * @return The iteration object, for function call chaining.
 	 */
 	public DeltaIteration<ST, WT> parallelism(int parallelism) {
-		Validate.isTrue(parallelism > 0 || parallelism == -1, "The parallelism must be positive, or -1 (use default).");
+		Preconditions.checkArgument(parallelism > 0 || parallelism == -1, "The parallelism must be positive, or -1 (use default).");
 		this.parallelism = parallelism;
 		return this;
 	}

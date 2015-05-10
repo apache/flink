@@ -31,14 +31,13 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.avro.specific.SpecificRecordBase;
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
-import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -1125,7 +1124,7 @@ public class TypeExtractor {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private <OUT,IN1,IN2> TypeInformation<OUT> privateGetForClass(Class<OUT> clazz, ArrayList<Type> typeHierarchy,
 			ParameterizedType parameterizedType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		Validate.notNull(clazz);
+		Preconditions.checkNotNull(clazz);
 		
 		if (clazz.equals(Object.class)) {
 			return new GenericTypeInfo<OUT>(clazz);
@@ -1449,7 +1448,8 @@ public class TypeExtractor {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private <X> TypeInformation<X> privateGetForObject(X value) {
-		Validate.notNull(value);
+		Preconditions.checkNotNull(value);
+
 		// check if we can extract the types from tuples, otherwise work with the class
 		if (value instanceof Tuple) {
 			Tuple t = (Tuple) value;

@@ -18,21 +18,20 @@
 
 package org.apache.flink.streaming.api.scala
 
+import java.util.concurrent.TimeUnit
+
 import org.apache.flink.api.common.ExecutionConfig
-import scala.reflect.ClassTag
-import org.apache.commons.lang.Validate
 import org.apache.flink.api.common.functions.CrossFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.scala.typeutils.CaseClassSerializer
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
-import org.apache.flink.streaming.api.functions.co.CrossWindowFunction
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
+import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.streaming.api.datastream.temporal.TemporalWindow
-import java.util.concurrent.TimeUnit
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, SingleOutputStreamOperator}
+import org.apache.flink.streaming.api.functions.co.CrossWindowFunction
 import org.apache.flink.streaming.api.operators.co.CoStreamWindow
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
+
+import scala.reflect.ClassTag
 
 class StreamCrossOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends
   TemporalOperator[I1, I2, StreamCrossOperator.CrossWindow[I1, I2]](i1, i2) {
@@ -109,7 +108,7 @@ object StreamCrossOperator {
   private[flink] def getCrossWindowFunction[I1, I2, R](op: StreamCrossOperator[I1, I2],
                                                        crossFunction: (I1, I2) => R):
   CrossWindowFunction[I1, I2, R] = {
-    Validate.notNull(crossFunction, "Join function must not be null.")
+    require(crossFunction != null, "Join function must not be null.")
 
     val crossFun = new CrossFunction[I1, I2, R] {
       val cleanFun = op.input1.clean(crossFunction)

@@ -19,16 +19,15 @@
 package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
+import org.apache.flink.api.scala.ClosureCleaner
+import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
+import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
+import org.apache.flink.streaming.api.functions.source.{FromElementsFunction, SourceFunction}
+import org.apache.flink.util.Collector
 
 import scala.reflect.ClassTag
-import org.apache.commons.lang.Validate
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
-import org.apache.flink.streaming.api.functions.source.{ FromElementsFunction, SourceFunction }
-import org.apache.flink.util.Collector
-import org.apache.flink.api.scala.ClosureCleaner
-import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
@@ -266,7 +265,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def fromCollection[T: ClassTag: TypeInformation](
     data: Seq[T]): DataStream[T] = {
-    Validate.notNull(data, "Data must not be null.")
+    require(data != null, "Data must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
 
     val sourceFunction = new FromElementsFunction[T](scala.collection.JavaConversions
@@ -285,7 +284,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    */
   def addSource[T: ClassTag: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
-    Validate.notNull(function, "Function must not be null.")
+    require(function != null, "Function must not be null.")
     val cleanFun = StreamExecutionEnvironment.clean(function)
     val typeInfo = implicitly[TypeInformation[T]]
     javaEnv.addSource(cleanFun).returns(typeInfo)
@@ -297,7 +296,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    */
   def addSource[T: ClassTag: TypeInformation](function: Collector[T] => Unit): DataStream[T] = {
-    Validate.notNull(function, "Function must not be null.")
+    require(function != null, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {
       val cleanFun = StreamExecutionEnvironment.clean(function)
       override def run(out: Collector[T]) {

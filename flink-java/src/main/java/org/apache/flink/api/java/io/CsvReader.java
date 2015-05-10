@@ -21,8 +21,6 @@ package org.apache.flink.api.java.io;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import com.google.common.base.Preconditions;
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.operators.DataSource;
@@ -34,6 +32,8 @@ import org.apache.flink.core.fs.Path;
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
+
+import com.google.common.base.Preconditions;
 
 /**
  * A builder class to instantiate a CSV parsing data source. The CSV reader configures the field types,
@@ -66,15 +66,15 @@ public class CsvReader {
 	// --------------------------------------------------------------------------------------------
 	
 	public CsvReader(Path filePath, ExecutionEnvironment executionContext) {
-		Validate.notNull(filePath, "The file path may not be null.");
-		Validate.notNull(executionContext, "The execution context may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(executionContext, "The execution context may not be null.");
 		
 		this.path = filePath;
 		this.executionContext = executionContext;
 	}
 	
 	public CsvReader(String filePath, ExecutionEnvironment executionContext) {
-		this(new Path(Validate.notNull(filePath, "The file path may not be null.")), executionContext);
+		this(new Path(Preconditions.checkNotNull(filePath, "The file path may not be null.")), executionContext);
 	}
 	
 	public Path getFilePath() {
@@ -318,7 +318,7 @@ public class CsvReader {
 	 * @return The DataSet representing the parsed CSV data.
 	 */
 	public <T extends Tuple> DataSource<T> tupleType(Class<T> targetType) {
-		Validate.notNull(targetType, "The target type class must not be null.");
+		Preconditions.checkNotNull(targetType, "The target type class must not be null.");
 		if (!Tuple.class.isAssignableFrom(targetType)) {
 			throw new IllegalArgumentException("The target type must be a subclass of " + Tuple.class.getName());
 		}

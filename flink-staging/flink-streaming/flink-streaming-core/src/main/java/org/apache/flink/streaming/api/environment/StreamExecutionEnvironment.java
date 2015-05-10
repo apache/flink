@@ -22,7 +22,6 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -59,6 +58,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 
 import com.esotericsoftware.kryo.Serializer;
+import com.google.common.base.Preconditions;
 
 /**
  * {@link ExecutionEnvironment} for streaming jobs. An instance of it is
@@ -388,7 +388,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the text file.
 	 */
 	public DataStreamSource<String> readTextFile(String filePath) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
 		TypeInformation<String> typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
 
@@ -405,7 +405,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the text file.
 	 */
 	public DataStreamSource<String> readTextFile(String filePath, String charsetName) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
 		TypeInformation<String> typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
 		format.setCharsetName(charsetName);
