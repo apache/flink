@@ -22,9 +22,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -33,12 +34,12 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.AggregationFunctionFactory;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+
+import com.google.common.base.Preconditions;
 
 /**
  * This operator represents the application of a "aggregate" operation on a data set, and the
@@ -61,8 +62,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	 * Non grouped aggregation
 	 */
 	public AggregateOperator(DataSet<IN> input, Aggregations function, int field, String aggregateLocationName) {
-		super(Validate.notNull(input), input.getType());
-		Validate.notNull(function);
+		super(Preconditions.checkNotNull(input), input.getType());
+		Preconditions.checkNotNull(function);
 		
 		this.aggregateLocationName = aggregateLocationName;
 		
@@ -94,8 +95,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	 * @param field
 	 */
 	public AggregateOperator(Grouping<IN> input, Aggregations function, int field, String aggregateLocationName) {
-		super(Validate.notNull(input).getDataSet(), input.getDataSet().getType());
-		Validate.notNull(function);
+		super(Preconditions.checkNotNull(input).getDataSet(), input.getDataSet().getType());
+		Preconditions.checkNotNull(function);
 		
 		this.aggregateLocationName = aggregateLocationName;
 		
@@ -120,7 +121,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	
 	
 	public AggregateOperator<IN> and(Aggregations function, int field) {
-		Validate.notNull(function);
+		Preconditions.checkNotNull(function);
 		
 		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) getType();
 		
@@ -256,9 +257,9 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		
 		
 		public AggregatingUdf(AggregationFunction<Object>[] aggFunctions, int[] fieldPositions) {
-			Validate.notNull(aggFunctions);
-			Validate.notNull(aggFunctions);
-			Validate.isTrue(aggFunctions.length == fieldPositions.length);
+			Preconditions.checkNotNull(aggFunctions);
+			Preconditions.checkNotNull(aggFunctions);
+			Preconditions.checkArgument(aggFunctions.length == fieldPositions.length);
 			
 			this.aggFunctions = aggFunctions;
 			this.fieldPositions = fieldPositions;

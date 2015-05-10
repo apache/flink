@@ -21,14 +21,13 @@ package org.apache.flink.graph.spargel;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.aggregators.Aggregator;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -37,6 +36,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
+
+import com.google.common.base.Preconditions;
 
 /**
  * This class represents iterative graph computations, programmed in a vertex-centric perspective.
@@ -92,10 +93,10 @@ public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue>
 			DataSet<Edge<VertexKey, EdgeValue>> edgesWithValue, 
 			int maximumNumberOfIterations)
 	{
-		Validate.notNull(uf);
-		Validate.notNull(mf);
-		Validate.notNull(edgesWithValue);
-		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
+		Preconditions.checkNotNull(uf);
+		Preconditions.checkNotNull(mf);
+		Preconditions.checkNotNull(edgesWithValue);
+		Preconditions.checkArgument(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
 
 		this.updateFunction = uf;
 		this.messagingFunction = mf;

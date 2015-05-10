@@ -18,21 +18,19 @@
 
 package org.apache.flink.api.scala
 
-import org.apache.commons.lang3.Validate
-import org.apache.commons.lang3.tuple.Pair
-import org.apache.commons.lang3.tuple.ImmutablePair
-import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.commons.lang3.tuple.{ImmutablePair, Pair}
 import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.common.functions.{RichCoGroupFunction, CoGroupFunction}
-import org.apache.flink.api.common.functions.Partitioner
+import org.apache.flink.api.common.functions.{CoGroupFunction, Partitioner, RichCoGroupFunction}
 import org.apache.flink.api.common.operators.Order
-import org.apache.flink.api.java.operators._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.util.Collector
-import scala.collection.mutable
-import scala.collection.JavaConverters._
-import scala.reflect.ClassTag
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
+import org.apache.flink.api.java.operators._
+import org.apache.flink.util.Collector
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.reflect.ClassTag
 
 /**
  * A specific [[DataSet]] that results from a `coGroup` operation. The result of a default coGroup
@@ -82,7 +80,7 @@ class CoGroupDataSet[L, R](
    */
   def apply[O: TypeInformation: ClassTag](
       fun: (Iterator[L], Iterator[R]) => O): DataSet[O] = {
-    Validate.notNull(fun, "CoGroup function must not be null.")
+    require(fun != null, "CoGroup function must not be null.")
     val coGrouper = new CoGroupFunction[L, R, O] {
       val cleanFun = clean(fun)
       def coGroup(left: java.lang.Iterable[L], right: java.lang.Iterable[R], out: Collector[O]) = {
@@ -112,7 +110,7 @@ class CoGroupDataSet[L, R](
    */
   def apply[O: TypeInformation: ClassTag](
       fun: (Iterator[L], Iterator[R], Collector[O]) => Unit): DataSet[O] = {
-    Validate.notNull(fun, "CoGroup function must not be null.")
+    require(fun != null, "CoGroup function must not be null.")
     val coGrouper = new CoGroupFunction[L, R, O] {
       val cleanFun = clean(fun)
       def coGroup(left: java.lang.Iterable[L], right: java.lang.Iterable[R], out: Collector[O]) = {
@@ -143,7 +141,7 @@ class CoGroupDataSet[L, R](
    * broadcast variables and the [[org.apache.flink.api.common.functions.RuntimeContext]].
    */
   def apply[O: TypeInformation: ClassTag](coGrouper: CoGroupFunction[L, R, O]): DataSet[O] = {
-    Validate.notNull(coGrouper, "CoGroup function must not be null.")
+    require(coGrouper != null, "CoGroup function must not be null.")
     val coGroupOperator = new CoGroupOperator[L, R, O](
       leftInput.javaSet,
       rightInput.javaSet,

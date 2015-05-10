@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.gsa;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -38,6 +37,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
+
+import com.google.common.base.Preconditions;
 
 /**
  * This class represents iterative graph computations, programmed in a gather-sum-apply perspective.
@@ -63,11 +64,11 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 	private GatherSumApplyIteration(GatherFunction<VV, EV, M> gather, SumFunction<VV, EV, M> sum,
 			ApplyFunction<K, VV, M> apply, DataSet<Edge<K, EV>> edges, int maximumNumberOfIterations) {
 
-		Validate.notNull(gather);
-		Validate.notNull(sum);
-		Validate.notNull(apply);
-		Validate.notNull(edges);
-		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
+		Preconditions.checkNotNull(gather);
+		Preconditions.checkNotNull(sum);
+		Preconditions.checkNotNull(apply);
+		Preconditions.checkNotNull(edges);
+		Preconditions.checkArgument(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
 
 		this.gather = gather;
 		this.sum = sum;

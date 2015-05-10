@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.RecordOperator;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
@@ -35,6 +34,8 @@ import org.apache.flink.api.java.record.functions.FunctionAnnotation;
 import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
+
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -214,7 +215,7 @@ public class JoinOperator extends JoinOperatorBase<Record, Record, Record, JoinF
 		 * @param input The first input.
 		 */
 		public Builder input1(Operator<Record> input) {
-			Validate.notNull(input, "The input must not be null");
+			Preconditions.checkNotNull(input, "The input must not be null");
 			
 			this.inputs1.clear();
 			this.inputs1.add(input);
@@ -227,7 +228,7 @@ public class JoinOperator extends JoinOperatorBase<Record, Record, Record, JoinF
 		 * @param input The second input.
 		 */
 		public Builder input2(Operator<Record> input) {
-			Validate.notNull(input, "The input must not be null");
+			Preconditions.checkNotNull(input, "The input must not be null");
 			
 			this.inputs2.clear();
 			this.inputs2.add(input);
