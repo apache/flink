@@ -209,7 +209,7 @@ object StreamJoinOperator {
 
   private[flink] def getJoinWindowFunction[I1, I2, R](jp: JoinPredicate[I1, I2],
     joinFunction: (I1, I2) => R) = {
-    Validate.notNull(joinFunction, "Join function must not be null.")
+    Preconditions.checkNotNull(joinFunction, "Join function must not be null.")
 
     val joinFun = new JoinFunction[I1, I2, R] {
 

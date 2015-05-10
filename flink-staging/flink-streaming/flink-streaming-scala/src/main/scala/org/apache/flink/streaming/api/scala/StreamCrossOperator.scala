@@ -109,7 +109,7 @@ object StreamCrossOperator {
   private[flink] def getCrossWindowFunction[I1, I2, R](op: StreamCrossOperator[I1, I2],
                                                        crossFunction: (I1, I2) => R):
   CrossWindowFunction[I1, I2, R] = {
-    Validate.notNull(crossFunction, "Join function must not be null.")
+    Preconditions.checkNotNull(crossFunction, "Join function must not be null.")
 
     val crossFun = new CrossFunction[I1, I2, R] {
       val cleanFun = op.input1.clean(crossFunction)

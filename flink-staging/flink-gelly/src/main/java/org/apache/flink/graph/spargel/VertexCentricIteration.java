@@ -92,10 +92,10 @@ public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue>
 			DataSet<Edge<VertexKey, EdgeValue>> edgesWithValue, 
 			int maximumNumberOfIterations)
 	{
-		Validate.notNull(uf);
-		Validate.notNull(mf);
-		Validate.notNull(edgesWithValue);
-		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
+		Preconditions.checkNotNull(uf);
+		Preconditions.checkNotNull(mf);
+		Preconditions.checkNotNull(edgesWithValue);
+		Preconditions.checkArgument(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
 
 		this.updateFunction = uf;
 		this.messagingFunction = mf;

@@ -22,13 +22,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -38,10 +37,10 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.Order;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FirstReducer;
@@ -64,8 +63,8 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
 import org.apache.flink.api.java.operators.FlatMapOperator;
-import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.GroupCombineOperator;
+import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
@@ -1041,7 +1040,7 @@ public abstract class DataSet<T> {
 	 * @return The data set produced by the operation.
 	 */
 	public <X> DataSet<X> runOperation(CustomUnaryOperation<T, X> operation) {
-		Validate.notNull(operation, "The custom operator must not be null.");
+		Preconditions.checkNotNull(operation, "The custom operator must not be null.");
 		operation.setInput(this);
 		return operation.createResult();
 	}
@@ -1326,7 +1325,7 @@ public abstract class DataSet<T> {
 	
 	@SuppressWarnings("unchecked")
 	private <X extends Tuple> DataSink<T> internalWriteAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter, WriteMode wm) {
-		Validate.isTrue(getType().isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
+		Preconditions.checkArgument(getType().isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(filePath, rowDelimiter, fieldDelimiter);
 		if(wm != null) {
 			of.setWriteMode(wm);
@@ -1387,8 +1386,8 @@ public abstract class DataSet<T> {
 	 * @see FileOutputFormat
 	 */
 	public DataSink<T> write(FileOutputFormat<T> outputFormat, String filePath) {
-		Validate.notNull(filePath, "File path must not be null.");
-		Validate.notNull(outputFormat, "Output format must not be null.");
+		Preconditions.checkNotNull(filePath, "File path must not be null.");
+		Preconditions.checkNotNull(outputFormat, "Output format must not be null.");
 
 		outputFormat.setOutputFilePath(new Path(filePath));
 		return output(outputFormat);
@@ -1406,9 +1405,9 @@ public abstract class DataSet<T> {
 	 * @see FileOutputFormat
 	 */
 	public DataSink<T> write(FileOutputFormat<T> outputFormat, String filePath, WriteMode writeMode) {
-		Validate.notNull(filePath, "File path must not be null.");
-		Validate.notNull(writeMode, "Write mode must not be null.");
-		Validate.notNull(outputFormat, "Output format must not be null.");
+		Preconditions.checkNotNull(filePath, "File path must not be null.");
+		Preconditions.checkNotNull(writeMode, "Write mode must not be null.");
+		Preconditions.checkNotNull(outputFormat, "Output format must not be null.");
 
 		outputFormat.setOutputFilePath(new Path(filePath));
 		outputFormat.setWriteMode(writeMode);
@@ -1427,7 +1426,7 @@ public abstract class DataSet<T> {
 	 * @see DataSink
 	 */
 	public DataSink<T> output(OutputFormat<T> outputFormat) {
-		Validate.notNull(outputFormat);
+		Preconditions.checkNotNull(outputFormat);
 		
 		// configure the type if needed
 		if (outputFormat instanceof InputTypeConfigurable) {

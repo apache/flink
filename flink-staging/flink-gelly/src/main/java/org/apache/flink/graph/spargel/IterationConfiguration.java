@@ -93,7 +93,7 @@ public class IterationConfiguration {
 	 * @param parallelism The parallelism.
 	 */
 	public void setParallelism(int parallelism) {
-		Validate.isTrue(parallelism > 0 || parallelism == -1, "The parallelism must be positive, or -1 (use default).");
+		Preconditions.checkArgument(parallelism > 0 || parallelism == -1, "The parallelism must be positive, or -1 (use default).");
 		this.parallelism = parallelism;
 	}
 	

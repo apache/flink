@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import org.apache.commons.lang3.Validate;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -26,8 +28,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.google.common.base.Preconditions;
 
 /**
  * An abstract base class for a job vertex.
@@ -155,7 +156,7 @@ public class AbstractJobVertex implements java.io.Serializable {
 	}
 	
 	public void setInvokableClass(Class<? extends AbstractInvokable> invokable) {
-		Validate.notNull(invokable);
+		Preconditions.checkNotNull(invokable);
 		this.invokableClassName = invokable.getName();
 	}
 	

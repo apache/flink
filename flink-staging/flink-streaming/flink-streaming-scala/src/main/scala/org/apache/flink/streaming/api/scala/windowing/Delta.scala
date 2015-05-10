@@ -36,7 +36,7 @@ object Delta {
    * the eviction stops.
    */
   def of[T](threshold: Double, deltaFunction: (T, T) => Double, initVal: T): JavaDelta[T] = {
-    Validate.notNull(deltaFunction, "Delta function must not be null")
+    Preconditions.checkNotNull(deltaFunction, "Delta function must not be null")
     val df = new DeltaFunction[T] {
       val cleanFun = clean(deltaFunction)
       override def getDelta(first: T, second: T) = cleanFun(first, second)

@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.RecordOperator;
@@ -39,6 +38,8 @@ import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
+
+import com.google.common.base.Preconditions;
 
 /**
  * CoGroupOperator that applies a {@link CoGroupFunction} to groups of records sharing
@@ -249,7 +250,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record,
 		 * @param input The input operator for input 1. 
 		 */
 		public Builder input1(Operator<Record> input) {
-			Validate.notNull(input, "The input must not be null");
+			Preconditions.checkNotNull(input, "The input must not be null");
 			
 			this.inputs1.clear();
 			this.inputs1.add(input);
@@ -275,7 +276,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record,
 		 * @param input The input operator for input 2. 
 		 */
 		public Builder input2(Operator<Record> input) {
-			Validate.notNull(input, "The input must not be null");
+			Preconditions.checkNotNull(input, "The input must not be null");
 			
 			this.inputs2.clear();
 			this.inputs2.add(input);

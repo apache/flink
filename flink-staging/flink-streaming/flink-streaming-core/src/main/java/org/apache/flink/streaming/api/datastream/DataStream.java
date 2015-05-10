@@ -1081,7 +1081,7 @@ public class DataStream<OUT> {
 	 */
 	@SuppressWarnings("unchecked")
 	public <X extends Tuple> DataStreamSink<OUT> writeAsCsv(String path) {
-		Validate.isTrue(getType().isTupleType(),
+		Preconditions.checkArgument(getType().isTupleType(),
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1103,7 +1103,7 @@ public class DataStream<OUT> {
 	 */
 	@SuppressWarnings("unchecked")
 	public <X extends Tuple> DataStreamSink<OUT> writeAsCsv(String path, long millis) {
-		Validate.isTrue(getType().isTupleType(),
+		Preconditions.checkArgument(getType().isTupleType(),
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1125,7 +1125,7 @@ public class DataStream<OUT> {
 	 */
 	@SuppressWarnings("unchecked")
 	public <X extends Tuple> DataStreamSink<OUT> writeAsCsv(String path, WriteMode writeMode) {
-		Validate.isTrue(getType().isTupleType(),
+		Preconditions.checkArgument(getType().isTupleType(),
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1154,7 +1154,7 @@ public class DataStream<OUT> {
 	@SuppressWarnings("unchecked")
 	public <X extends Tuple> DataStreamSink<OUT> writeAsCsv(String path, WriteMode writeMode,
 			long millis) {
-		Validate.isTrue(getType().isTupleType(),
+		Preconditions.checkArgument(getType().isTupleType(),
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala
 
+import com.google.common.base.Preconditions
 import org.apache.commons.lang3.Validate
 import org.apache.flink.api.common.{ExecutionConfig, InvalidProgramException}
 import org.apache.flink.api.common.functions.{JoinFunction, RichFlatJoinFunction, FlatJoinFunction}
@@ -73,7 +74,7 @@ class JoinDataSet[L, R](
    * of the given function.
    */
   def apply[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] = {
-    Validate.notNull(fun, "Join function must not be null.")
+    Preconditions.checkNotNull(fun, "Join function must not be null.")
     val joiner = new FlatJoinFunction[L, R, O] {
       val cleanFun = clean(fun)
       def join(left: L, right: R, out: Collector[O]) = {
@@ -103,7 +104,7 @@ class JoinDataSet[L, R](
    * result.
    */
   def apply[O: TypeInformation: ClassTag](fun: (L, R, Collector[O]) => Unit): DataSet[O] = {
-    Validate.notNull(fun, "Join function must not be null.")
+    Preconditions.checkNotNull(fun, "Join function must not be null.")
     val joiner = new FlatJoinFunction[L, R, O] {
       val cleanFun = clean(fun)
       def join(left: L, right: R, out: Collector[O]) = {
@@ -136,7 +137,7 @@ class JoinDataSet[L, R](
    * broadcast variables and the [[org.apache.flink.api.common.functions.RuntimeContext]].
    */
   def apply[O: TypeInformation: ClassTag](joiner: FlatJoinFunction[L, R, O]): DataSet[O] = {
-    Validate.notNull(joiner, "Join function must not be null.")
+    Preconditions.checkNotNull(joiner, "Join function must not be null.")
 
     val joinOperator = new EquiJoin[L, R, O](
       leftInput.javaSet,
@@ -163,7 +164,7 @@ class JoinDataSet[L, R](
    * broadcast variables and the [[org.apache.flink.api.common.functions.RuntimeContext]].
    */
   def apply[O: TypeInformation: ClassTag](fun: JoinFunction[L, R, O]): DataSet[O] = {
-    Validate.notNull(fun, "Join function must not be null.")
+    Preconditions.checkNotNull(fun, "Join function must not be null.")
 
     val generatedFunction: FlatJoinFunction[L, R, O] = new WrappingFlatJoinFunction[L, R, O](fun)
 

@@ -28,10 +28,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
-import com.esotericsoftware.kryo.Serializer;
-
-import com.google.common.base.Joiner;
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -73,6 +69,10 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.esotericsoftware.kryo.Serializer;
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 
 /**
  * The ExecutionEnviroment is the context in which a program is executed. A
@@ -329,7 +329,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet that represents the data read from the given file as text lines.
 	 */
 	public DataSource<String> readTextFile(String filePath) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 		
 		return new DataSource<String>(this, new TextInputFormat(new Path(filePath)), BasicTypeInfo.STRING_TYPE_INFO, Utils.getCallLocationName());
 	}
@@ -343,7 +343,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet that represents the data read from the given file as text lines.
 	 */
 	public DataSource<String> readTextFile(String filePath, String charsetName) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
 		format.setCharsetName(charsetName);
@@ -364,7 +364,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet that represents the data read from the given file as text lines.
 	 */
 	public DataSource<StringValue> readTextFileWithValue(String filePath) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 		
 		return new DataSource<StringValue>(this, new TextValueInputFormat(new Path(filePath)), new ValueTypeInfo<StringValue>(StringValue.class), Utils.getCallLocationName());
 	}
@@ -384,7 +384,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet that represents the data read from the given file as text lines.
 	 */
 	public DataSource<StringValue> readTextFileWithValue(String filePath, String charsetName, boolean skipInvalidLines) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 		
 		TextValueInputFormat format = new TextValueInputFormat(new Path(filePath));
 		format.setCharsetName(charsetName);
@@ -404,7 +404,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet that represents the data read from the given file as primitive type.
 	 */
 	public <X> DataSource<X> readFileOfPrimitives(String filePath, Class<X> typeClass) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 
 		return new DataSource<X>(this, new PrimitiveInputFormat<X>(new Path(filePath), typeClass), TypeExtractor.getForClass(typeClass), Utils.getCallLocationName());
 	}
@@ -420,7 +420,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet that represents the data read from the given file as primitive type.
 	 */
 	public <X> DataSource<X> readFileOfPrimitives(String filePath, String delimiter, Class<X> typeClass) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 
 		return new DataSource<X>(this, new PrimitiveInputFormat<X>(new Path(filePath), delimiter, typeClass), TypeExtractor.getForClass(typeClass), Utils.getCallLocationName());
 	}

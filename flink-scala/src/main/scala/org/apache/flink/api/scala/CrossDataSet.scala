@@ -59,7 +59,7 @@ class CrossDataSet[L, R](
    * of the given function.
    */
   def apply[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] = {
-    Validate.notNull(fun, "Cross function must not be null.")
+    Preconditions.checkNotNull(fun, "Cross function must not be null.")
     val crosser = new CrossFunction[L, R, O] {
       val cleanFun = clean(fun)
       def cross(left: L, right: R): O = {
@@ -85,7 +85,7 @@ class CrossDataSet[L, R](
    * broadcast variables and the [[org.apache.flink.api.common.functions.RuntimeContext]].
    */
   def apply[O: TypeInformation: ClassTag](crosser: CrossFunction[L, R, O]): DataSet[O] = {
-    Validate.notNull(crosser, "Cross function must not be null.")
+    Preconditions.checkNotNull(crosser, "Cross function must not be null.")
     val crossOperator = new CrossOperator[L, R, O](
       leftInput.javaSet,
       rightInput.javaSet,

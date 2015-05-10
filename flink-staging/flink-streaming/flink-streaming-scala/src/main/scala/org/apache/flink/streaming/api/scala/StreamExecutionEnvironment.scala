@@ -266,7 +266,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def fromCollection[T: ClassTag: TypeInformation](
     data: Seq[T]): DataStream[T] = {
-    Validate.notNull(data, "Data must not be null.")
+    Preconditions.checkNotNull(data, "Data must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
 
     val sourceFunction = new FromElementsFunction[T](scala.collection.JavaConversions
@@ -285,7 +285,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    */
   def addSource[T: ClassTag: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
-    Validate.notNull(function, "Function must not be null.")
+    Preconditions.checkNotNull(function, "Function must not be null.")
     val cleanFun = StreamExecutionEnvironment.clean(function)
     val typeInfo = implicitly[TypeInformation[T]]
     javaEnv.addSource(cleanFun).returns(typeInfo)
@@ -297,7 +297,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    */
   def addSource[T: ClassTag: TypeInformation](function: Collector[T] => Unit): DataStream[T] = {
-    Validate.notNull(function, "Function must not be null.")
+    Preconditions.checkNotNull(function, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {
       val cleanFun = StreamExecutionEnvironment.clean(function)
       override def run(out: Collector[T]) {
