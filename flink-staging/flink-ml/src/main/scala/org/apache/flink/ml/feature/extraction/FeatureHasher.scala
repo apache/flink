@@ -18,7 +18,7 @@
 
 package org.apache.flink.ml.feature.extraction
 
-import java.nio.charset.StandardCharsets
+import java.nio.charset.Charset
 
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{Parameter, ParameterMap, Transformer}
@@ -102,7 +102,7 @@ class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
           s => {
             // unicode strings are converted to utf-8
             // bytesHash is faster than arrayHash, because it hashes 4 bytes at once
-            val h = MurmurHash3.bytesHash(s.getBytes(StandardCharsets.UTF_8), Seed) % numFeatures
+            val h = MurmurHash3.bytesHash(s.getBytes(Charset.forName("UTF-8")), Seed) % numFeatures
             val index = Math.abs(h)
             /* instead of using two hash functions (Weinberger et al.), assume the sign is in-
                dependent of the other bits */
