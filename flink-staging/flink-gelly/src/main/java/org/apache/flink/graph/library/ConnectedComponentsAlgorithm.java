@@ -20,6 +20,7 @@ package org.apache.flink.graph.library;
 
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
@@ -60,7 +61,7 @@ public class ConnectedComponentsAlgorithm implements GraphAlgorithm<Long, Long, 
 	public static final class CCUpdater extends VertexUpdateFunction<Long, Long, Long> {
 
 		@Override
-		public void updateVertex(Long id, Long currentMin, MessageIterator<Long> messages) throws Exception {
+		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> messages) throws Exception {
 			long min = Long.MAX_VALUE;
 
 			for (long msg : messages) {
@@ -68,7 +69,7 @@ public class ConnectedComponentsAlgorithm implements GraphAlgorithm<Long, Long, 
 			}
 
 			// update vertex value, if new minimum
-			if (min < currentMin) {
+			if (min < vertex.getValue()) {
 				setNewVertexValue(min);
 			}
 		}
@@ -80,9 +81,9 @@ public class ConnectedComponentsAlgorithm implements GraphAlgorithm<Long, Long, 
 	public static final class CCMessenger extends MessagingFunction<Long, Long, Long, NullValue> {
 
 		@Override
-		public void sendMessages(Long id, Long currentMin) throws Exception {
+		public void sendMessages(Vertex<Long, Long> vertex) throws Exception {
 			// send current minimum to neighbors
-			sendMessageToAllNeighbors(currentMin);
+			sendMessageToAllNeighbors(vertex.getValue());
 		}
 	}
 }
