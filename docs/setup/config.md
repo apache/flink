@@ -89,7 +89,7 @@ job by calling `setParallelism(int parallelism)` on the `ExecutionEnvironment`
 or by passing `-p <parallelism>` to the Flink Command-line frontend. It can be
 overwritten for single transformations by calling `setParallelism(int
 parallelism)` on an operator. See the [programming
-guide](programming_guide.html#parallel-execution) for more information about the
+guide]({{site.baseurl}}/apis/programming_guide.html#parallel-execution) for more information about the
 parallelism.
 
 - `fs.hdfs.hadoopconf`: The absolute path to the Hadoop File System's (HDFS)
@@ -391,7 +391,7 @@ As a general recommendation, the number of available CPU cores is a good default
 
 When starting a Flink application, users can supply the default number of slots to use for that job.
 The command line value therefore is called `-p` (for parallelism). In addition, it is possible
-to [set the number of slots in the programming APIs](programming_guide.html#parallel-execution) for 
+to [set the number of slots in the programming APIs]({{site.baseurl}}/apis/programming_guide.html#parallel-execution) for 
 the whole application and individual operators.
 
 <img src="fig/slots_parallelism.svg" class="img-responsive" />

@@ -70,7 +70,7 @@ The command line can be used to
                                ./examples/flink-java-examples-{{ site.version }}-WordCount.jar \
                                file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
--   Run example program using a [per-job YARN cluster](yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
+-   Run example program using a [per-job YARN cluster]({{site.baseurl}}/setup/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster -yn 2 \
                                ./examples/flink-java-examples-{{ site.version }}-WordCount.jar \

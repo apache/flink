@@ -27,7 +27,7 @@ programs consisting of large DAGs of operations.
 
 If you quickly want to try out the system, please look at one of the available quickstarts. For
 a thorough introduction of the Flink API please refer to the
-[Programming Guide](programming_guide.html).
+[Programming Guide](apis/programming_guide.html).
 
 ## Stack
 

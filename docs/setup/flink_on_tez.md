@@ -31,7 +31,7 @@ located in the *org.apache.flink.tez* package.
 
 ## Why Flink on Tez
 
-[Apache Tez](tez.apache.org) is a scalable data processing
+[Apache Tez](http://tez.apache.org) is a scalable data processing
 platform. Tez provides an API for specifying a directed acyclic
 graph (DAG), and functionality for placing the DAG vertices in YARN
 containers, as well as data shuffling.  In Flink's architecture,
@@ -264,7 +264,7 @@ that the elements are destined to.
 
 Currently, Flink on Tez does not support all features of the Flink API. We are working
 to enable all of the missing features listed below. In the meantime, if your project depends on these features, we suggest
-to use [Flink on YARN]({{site.baseurl}}/yarn_setup.html) or [Flink standalone]({{site.baseurl}}/setup_quickstart.html).
+to use [Flink on YARN]({{site.baseurl}}/setup/yarn_setup.html) or [Flink standalone]({{site.baseurl}}/quickstart/setup_quickstart.html).
 
 The following features are currently missing.
 

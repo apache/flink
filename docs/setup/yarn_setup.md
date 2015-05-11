@@ -56,7 +56,7 @@ Apache [Hadoop YARN](http://hadoop.apache.org/) is a cluster resource management
 - Apache Hadoop 2.2
 - HDFS (Hadoop Distributed File System) (or another distributed file system supported by Hadoop)
 
-If you have troubles using the Flink YARN client, have a look in the [FAQ section](faq.html).
+If you have troubles using the Flink YARN client, have a look in the [FAQ section]({{ site.baseurl }}/faq.html).
 
 ### Start Flink Session
 
@@ -141,7 +141,7 @@ Use the following command to submit a Flink program to the YARN cluster:
 ./bin/flink
 ~~~
 
-Please refer to the documentation of the [commandline client](cli.html).
+Please refer to the documentation of the [commandline client]({{ site.baseurl }}/apis/cli.html).
 
 The command will show you a help menu like this:
 
