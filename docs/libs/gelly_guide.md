@@ -389,10 +389,12 @@ all aggregates globally once per superstep and makes them available in the next 
 * <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({{site.baseurl}}/apis/programming_guide.html#broadcast-variables) to the `VertexUpdateFunction` and `MessagingFunction`, using the `addBroadcastSetForUpdateFunction()` and `addBroadcastSetForMessagingFunction()` methods, respectively.
 
 * <strong>Number of Vertices</strong>: Accessing the total number of vertices within the iteration. This property can be set using the `setOptNumVertices()` method.
-The number of vertices can then be accessed in the vertex update function and in the messaging function using the `getNumberOfVertices()` method.
+The number of vertices can then be accessed in the vertex update function and in the messaging function using the `getNumberOfVertices()` method. If the option is not set in the configuration, this method will return -1.
 
 * <strong>Degrees</strong>: Accessing the in/out degree for a vertex within an iteration. This property can be set using the `setOptDegrees()` method.
-The in/out degrees can then be accessed in the vertex update function and in the messaging function, per vertex using `vertex.getInDegree()` or `vertex.getOutDegree()`.
+The in/out degrees can then be accessed in the vertex update function and in the messaging function, per vertex using the `getInDegree()` and `getOutDegree()` methods.
+If the degrees option is not set in the configuration, these methods will return -1.
+
 
 * <strong>Messaging Direction</strong>: By default, a vertex sends messages to its out-neighbors and updates its value based on messages received from its in-neighbors. This configuration option allows users to change the messaging direction to either `EdgeDirection.IN`, `EdgeDirection.OUT`, `EdgeDirection.ALL`. The messaging direction also dictates the update direction which would be `EdgeDirection.OUT`, `EdgeDirection.IN` and `EdgeDirection.ALL`, respectively. This property can be set using the `setDirection()` method.
 
@@ -453,7 +455,7 @@ The following example illustrates the usage of the degree as well as the number 
 Graph<Long, Double, Double> graph = ...
 
 // configure the iteration
-IterationConfiguration parameters = new IterationConfiguration();
+VertexCentricConfiguration parameters = new VertexCentricConfiguration();
 
 // set the number of vertices option to true
 parameters.setOptNumVertices(true);
@@ -476,8 +478,8 @@ public static final class VertexUpdater {
 
 public static final class Messenger {
 	...
-	// decrement the number of out-degrees
-	outDegree = vertex.getOutDegree() - 1;
+	// retrieve the vertex out-degree
+	outDegree = getOutDegree();
 	...
 }
 
@@ -490,7 +492,7 @@ The following example illustrates the usage of the edge direction option. Vertic
 Graph<Long, HashSet<Long>, Double> graph = ...
 
 // configure the iteration
-IterationConfiguration parameters = new IterationConfiguration();
+VertexCentricConfiguration parameters = new VertexCentricConfiguration();
 
 // set the messaging direction
 parameters.setDirection(EdgeDirection.IN);
