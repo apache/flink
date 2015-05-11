@@ -26,24 +26,21 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
-import org.apache.flink.graph.InaccessibleMethodException;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.VertexWithDegrees;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
 /**
  * The base class for functions that produce messages between vertices as a part of a {@link VertexCentricIteration}.
  * 
- * @param <VertexKey> The type of the vertex key (the vertex identifier).
- * @param <VertexValue> The type of the vertex value (the state of the vertex).
+ * @param <K> The type of the vertex key (the vertex identifier).
+ * @param <VV> The type of the vertex value (the state of the vertex).
  * @param <Message> The type of the message sent between vertices along the edges.
- * @param <EdgeValue> The type of the values that are associated with the edges.
+ * @param <EV> The type of the values that are associated with the edges.
  */
-public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> implements Serializable {
+public abstract class MessagingFunction<K, VV, Message, EV> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -54,11 +51,12 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 
 	private long numberOfVertices = -1L;
 
-	public long getNumberOfVertices() throws Exception{
-		if (numberOfVertices == -1) {
-			throw new InaccessibleMethodException("The number of vertices option is not set. " +
-					"To access the number of vertices, call iterationConfiguration.setOptNumVertices(true).");
-		}
+	/**
+	 * Retrieves the number of vertices in the graph.
+	 * @return the number of vertices if the {@link IterationConfiguration#setOptNumVertices(boolean)}
+	 * option has been set; -1 otherwise.
+	 */
+	public long getNumberOfVertices() {
 		return numberOfVertices;
 	}
 
@@ -73,11 +71,15 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 
 	private EdgeDirection direction;
 
+	/**
+	 * Retrieves the edge direction in which messages are propagated in the vertex-centric iteration.
+	 * @return the messaging {@link EdgeDirection}
+	 */
 	public EdgeDirection getDirection() {
 		return direction;
 	}
 
-	public void setDirection(EdgeDirection direction) {
+	void setDirection(EdgeDirection direction) {
 		this.direction = direction;
 	}
 
@@ -93,7 +95,7 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 	 * 
 	 * @throws Exception The computation may throw exceptions, which causes the superstep to fail.
 	 */
-	public abstract void sendMessages(Vertex<VertexKey, VertexValue> vertex) throws Exception;
+	public abstract void sendMessages(Vertex<K, VV> vertex) throws Exception;
 	
 	/**
 	 * This method is executed one per superstep before the vertex update function is invoked for each vertex.
@@ -117,12 +119,12 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 	 * @return An iterator with all outgoing edges.
 	 */
 	@SuppressWarnings("unchecked")
-	public Iterable<Edge<VertexKey, EdgeValue>> getEdges() {
+	public Iterable<Edge<K, EV>> getEdges() {
 		if (edgesUsed) {
 			throw new IllegalStateException("Can use either 'getEdges()' or 'sendMessageToAllTargets()' exactly once.");
 		}
 		edgesUsed = true;
-		this.edgeIterator.set((Iterator<Edge<VertexKey, EdgeValue>>) edges);
+		this.edgeIterator.set((Iterator<Edge<K, EV>>) edges);
 		return this.edgeIterator;
 	}
 
@@ -143,7 +145,7 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 		
 		while (edges.hasNext()) {
 			Tuple next = (Tuple) edges.next();
-			VertexKey k = next.getField(1);
+			K k = next.getField(1);
 			outValue.f0 = k;
 			out.collect(outValue);
 		}
@@ -156,7 +158,7 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 	 * @param target The key (id) of the target vertex to message.
 	 * @param m The message.
 	 */
-	public void sendMessageTo(VertexKey target, Message m) {
+	public void sendMessageTo(K target, Message m) {
 		outValue.f0 = target;
 		outValue.f1 = m;
 		out.collect(outValue);
@@ -210,39 +212,42 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 	//  internal methods and state
 	// --------------------------------------------------------------------------------------------
 	
-	private Tuple2<VertexKey, Message> outValue;
+	private Tuple2<K, Message> outValue;
 	
 	private IterationRuntimeContext runtimeContext;
 	
 	private Iterator<?> edges;
 	
-	private Collector<Tuple2<VertexKey, Message>> out;
+	private Collector<Tuple2<K, Message>> out;
 	
-	private EdgesIterator<VertexKey, EdgeValue> edgeIterator;
+	private EdgesIterator<K, EV> edgeIterator;
 	
 	private boolean edgesUsed;
-	
+
+	private long inDegree = -1;
+
+	private long outDegree = -1;
 	
 	void init(IterationRuntimeContext context) {
 		this.runtimeContext = context;
-		this.outValue = new Tuple2<VertexKey, Message>();
-		this.edgeIterator = new EdgesIterator<VertexKey, EdgeValue>();
+		this.outValue = new Tuple2<K, Message>();
+		this.edgeIterator = new EdgesIterator<K, EV>();
 	}
 	
-	void set(Iterator<?> edges, Collector<Tuple2<VertexKey, Message>> out) {
+	void set(Iterator<?> edges, Collector<Tuple2<K, Message>> out) {
 		this.edges = edges;
 		this.out = out;
 		this.edgesUsed = false;
 	}
 	
-	private static final class EdgesIterator<VertexKey, EdgeValue> 
-		implements Iterator<Edge<VertexKey, EdgeValue>>, Iterable<Edge<VertexKey, EdgeValue>>
+	private static final class EdgesIterator<K, EV> 
+		implements Iterator<Edge<K, EV>>, Iterable<Edge<K, EV>>
 	{
-		private Iterator<Edge<VertexKey, EdgeValue>> input;
+		private Iterator<Edge<K, EV>> input;
 		
-		private Edge<VertexKey, EdgeValue> edge = new Edge<VertexKey, EdgeValue>();
+		private Edge<K, EV> edge = new Edge<K, EV>();
 		
-		void set(Iterator<Edge<VertexKey, EdgeValue>> input) {
+		void set(Iterator<Edge<K, EV>> input) {
 			this.input = input;
 		}
 		
@@ -252,8 +257,8 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 		}
 
 		@Override
-		public Edge<VertexKey, EdgeValue> next() {
-			Edge<VertexKey, EdgeValue> next = input.next();
+		public Edge<K, EV> next() {
+			Edge<K, EV> next = input.next();
 			edge.setSource(next.f0);
 			edge.setTarget(next.f1);
 			edge.setValue(next.f2);
@@ -265,28 +270,34 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 			throw new UnsupportedOperationException();
 		}
 		@Override
-		public Iterator<Edge<VertexKey, EdgeValue>> iterator() {
+		public Iterator<Edge<K, EV>> iterator() {
 			return this;
 		}
 	}
 
 	/**
-	 * In order to hide the Tuple3(actualValue, inDegree, outDegree) vertex value from the user,
-	 * another function will be called from {@link org.apache.flink.graph.spargel.VertexCentricIteration}.
-	 *
-	 * This function will retrieve the vertex from the vertexState and will set its degrees, afterwards calling
-	 * the regular sendMessages function.
-	 *
-	 * @param newVertexState
-	 * @throws Exception
+	 * Retrieves the vertex in-degree (number of in-coming edges).
+	 * @return The in-degree of this vertex if the {@link IterationConfiguration#setOptDegrees(boolean)}
+	 * option has been set; -1 otherwise. 
 	 */
-	void sendMessagesFromVertexCentricIteration(Vertex<VertexKey, Tuple3<VertexValue, Long, Long>> newVertexState)
-			throws Exception {
-		VertexWithDegrees<VertexKey, VertexValue> vertex = new VertexWithDegrees<VertexKey, VertexValue>(newVertexState.getId(),
-				newVertexState.getValue().f0);
-		vertex.setInDegree(newVertexState.getValue().f1);
-		vertex.setOutDegree(newVertexState.getValue().f2);
+	public long getInDegree() {
+		return inDegree;
+	}
 
-		sendMessages(vertex);
+	void setInDegree(long inDegree) {
+		this.inDegree = inDegree;
+	}
+
+	/**
+	 * Retrieve the vertex out-degree (number of out-going edges).
+	 * @return The out-degree of this vertex if the {@link IterationConfiguration#setOptDegrees(boolean)}
+	 * option has been set; -1 otherwise. 
+	 */
+	public long getOutDegree() {
+		return outDegree;
+	}
+
+	void setOutDegree(long outDegree) {
+		this.outDegree = outDegree;
 	}
 }

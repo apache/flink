@@ -24,9 +24,7 @@ import java.util.Collection;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.graph.InaccessibleMethodException;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.VertexWithDegrees;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
@@ -35,11 +33,11 @@ import org.apache.flink.util.Collector;
  * incoming messages. The central method is {@link #updateVertex(Comparable, Object, MessageIterator)}, which is
  * invoked once per vertex per superstep.
  * 
- * <VertexKey> The vertex key type.
- * <VertexValue> The vertex value type.
+ * <K> The vertex key type.
+ * <VV> The vertex value type.
  * <Message> The message type.
  */
-public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> implements Serializable {
+public abstract class VertexUpdateFunction<K, VV, Message> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -50,11 +48,12 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 
 	private long numberOfVertices = -1L;
 
-	public long getNumberOfVertices() throws Exception{
-		if (numberOfVertices == -1) {
-			throw new InaccessibleMethodException("The number of vertices option is not set. " +
-					"To access the number of vertices, call iterationConfiguration.setOptNumVertices(true).");
-		}
+	/**
+	 * Retrieves the number of vertices in the graph.
+	 * @return the number of vertices if the {@link IterationConfiguration#setOptNumVertices(boolean)}
+	 * option has been set; -1 otherwise.
+	 */
+	public long getNumberOfVertices() {
 		return numberOfVertices;
 	}
 
@@ -66,7 +65,7 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 
 	private boolean optDegrees;
 
-	public boolean isOptDegrees() {
+	boolean isOptDegrees() {
 		return optDegrees;
 	}
 
@@ -80,7 +79,7 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	
 	/**
 	 * This method is invoked once per vertex per superstep. It receives the current state of the vertex, as well as
-	 * the incoming messages. It may set a new vertex state via {@link #setNewVertexValue(Object)}. If the vertex
+	 * the incoming messages. It may set a new vertex state via {@link #setNewVV(Object)}. If the vertex
 	 * state is changed, it will trigger the sending of messages via the {@link MessagingFunction}.
 	 * 
 	 * @param vertex The vertex.
@@ -88,7 +87,7 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	 * 
 	 * @throws Exception The computation may throw exceptions, which causes the superstep to fail.
 	 */
-	public abstract void updateVertex(Vertex<VertexKey, VertexValue> vertex, MessageIterator<Message> inMessages) throws Exception;
+	public abstract void updateVertex(Vertex<K, VV> vertex, MessageIterator<Message> inMessages) throws Exception;
 	
 	/**
 	 * This method is executed one per superstep before the vertex update function is invoked for each vertex.
@@ -109,7 +108,7 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	 * 
 	 * @param newValue The new vertex value.
 	 */
-	public void setNewVertexValue(VertexValue newValue) {
+	public void setNewVertexValue(VV newValue) {
 		if(isOptDegrees()) {
 			outValWithDegrees.f1.f0 = newValue;
 			outWithDegrees.collect(outValWithDegrees);
@@ -167,30 +166,58 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	
 	private IterationRuntimeContext runtimeContext;
 
-	private Collector<Vertex<VertexKey, VertexValue>> out;
+	private Collector<Vertex<K, VV>> out;
 	
-	private Collector<Vertex<VertexKey, Tuple3<VertexValue, Long, Long>>> outWithDegrees;
+	private Collector<Vertex<K, Tuple3<VV, Long, Long>>> outWithDegrees;
 
-	private Vertex<VertexKey, VertexValue> outVal;
+	private Vertex<K, VV> outVal;
 
-	private Vertex<VertexKey, Tuple3<VertexValue, Long, Long>> outValWithDegrees;
+	private Vertex<K, Tuple3<VV, Long, Long>> outValWithDegrees;
 
+	private long inDegree = -1;
+
+	private long outDegree = -1;
 
 	void init(IterationRuntimeContext context) {
 		this.runtimeContext = context;
 	}
 
-
-
-	void setOutputWithDegrees(Vertex<VertexKey, Tuple3<VertexValue, Long, Long>> outValWithDegrees,
-							Collector<Vertex<VertexKey, Tuple3<VertexValue, Long, Long>>> outWithDegrees) {
-		this.outValWithDegrees = outValWithDegrees;
-		this.outWithDegrees = outWithDegrees;
-	}
-
-	void setOutput(Vertex<VertexKey, VertexValue> outVal, Collector<Vertex<VertexKey, VertexValue>> out) {
+	void setOutput(Vertex<K, VV> outVal, Collector<Vertex<K, VV>> out) {
 		this.outVal = outVal;
 		this.out = out;
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	<ValueWithDegree> void setOutputWithDegrees(Vertex<K, ValueWithDegree> outVal,
+			Collector out) {
+		this.outValWithDegrees = (Vertex<K, Tuple3<VV, Long, Long>>) outVal;
+		this.outWithDegrees = out;
+	}
+
+	/**
+	 * Retrieves the vertex in-degree (number of in-coming edges).
+	 * @return The in-degree of this vertex if the {@link IterationConfiguration#setOptDegrees(boolean)}
+	 * option has been set; -1 otherwise. 
+	 */
+	public long getInDegree() {
+		return inDegree;
+	}
+
+	void setInDegree(long inDegree) {
+		this.inDegree = inDegree;
+	}
+
+	/**
+	 * Retrieve the vertex out-degree (number of out-going edges).
+	 * @return The out-degree of this vertex if the {@link IterationConfiguration#setOptDegrees(boolean)}
+	 * option has been set; -1 otherwise. 
+	 */
+	public long getOutDegree() {
+		return outDegree;
+	}
+
+	void setOutDegree(long outDegree) {
+		this.outDegree = outDegree;
 	}
 
 	/**
@@ -204,12 +231,12 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	 * @param inMessages
 	 * @throws Exception
 	 */
-	void updateVertexFromVertexCentricIteration(Vertex<VertexKey, Tuple3<VertexValue, Long, Long>> vertexState,
+	@SuppressWarnings("unchecked")
+	<VertexWithDegree> void updateVertexFromVertexCentricIteration(Vertex<K, VertexWithDegree> vertexState,
 												MessageIterator<Message> inMessages) throws Exception {
-		VertexWithDegrees<VertexKey, VertexValue> vertex = new VertexWithDegrees<VertexKey, VertexValue>(vertexState.getId(),
-				vertexState.getValue().f0);
-		vertex.setInDegree(vertexState.getValue().f1);
-		vertex.setOutDegree(vertexState.getValue().f2);
+
+		Vertex<K, VV> vertex = new Vertex<K, VV>(vertexState.f0,
+				((Tuple3<VV, Long, Long>)vertexState.getValue()).f0);
 
 		updateVertex(vertex, inMessages);
 	}

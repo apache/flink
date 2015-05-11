@@ -26,11 +26,10 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.VertexWithDegrees;
 import org.apache.flink.graph.example.utils.IncrementalSSSPData;
-import org.apache.flink.graph.spargel.IterationConfiguration;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
+import org.apache.flink.graph.spargel.VertexCentricConfiguration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
@@ -95,7 +94,7 @@ public class IncrementalSSSPExample implements ProgramDescription {
 		graph.removeEdge(edgeToBeRemoved);
 
 		// configure the iteration
-		IterationConfiguration parameters = new IterationConfiguration();
+		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
 
 		if(isInSSSP(edgeToBeRemoved, edgesInSSSP)) {
 
@@ -160,7 +159,7 @@ public class IncrementalSSSPExample implements ProgramDescription {
 		@Override
 		public void updateVertex(Vertex<Long, Double> vertex, MessageIterator<Double> inMessages) throws Exception {
 			if (inMessages.hasNext()) {
-				Long outDegree = ((VertexWithDegrees)vertex).getOutDegree() - 1;
+				Long outDegree = getOutDegree() - 1;
 				// check if the vertex has another SP-Edge
 				if (outDegree > 0) {
 					// there is another shortest path from the source to this vertex

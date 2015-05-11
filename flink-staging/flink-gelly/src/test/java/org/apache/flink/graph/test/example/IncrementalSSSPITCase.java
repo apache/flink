@@ -28,7 +28,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.IncrementalSSSPExample;
 import org.apache.flink.graph.example.utils.IncrementalSSSPData;
-import org.apache.flink.graph.spargel.IterationConfiguration;
+import org.apache.flink.graph.spargel.VertexCentricConfiguration;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
 import org.junit.Before;
@@ -101,7 +101,7 @@ public class IncrementalSSSPITCase extends MultipleProgramsTestBase {
 		graph.removeEdge(edgeToBeRemoved);
 
 		// configure the iteration
-		IterationConfiguration parameters = new IterationConfiguration();
+		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
 
 		if(IncrementalSSSPExample.isInSSSP(edgeToBeRemoved, edgesInSSSP)) {
 
