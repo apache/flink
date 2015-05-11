@@ -16,30 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.exampleJavaPrograms;
+package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.examples.java.wordcount.WordCount;
-import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import java.io.IOException;
 
-public class WordCountITCase extends JavaProgramTestBase {
+public class PartitionNotFoundException extends IOException {
 
-	protected String textPath;
-	protected String resultPath;
+	private static final long serialVersionUID = 0L;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", WordCountData.TEXT);
-		resultPath = getTempDirPath("result");
+	private final ResultPartitionID partitionId;
+
+	public PartitionNotFoundException(ResultPartitionID partitionId) {
+		this.partitionId = partitionId;
+	}
+
+	public ResultPartitionID getPartitionId() {
+		return partitionId;
 	}
 
 	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
-		WordCount.main(new String[] { textPath, resultPath });
+	public String getMessage() {
+		return "Partition " + partitionId + " not found.";
 	}
 }

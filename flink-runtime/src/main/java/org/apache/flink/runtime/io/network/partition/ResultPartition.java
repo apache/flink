@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkElementIndex;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -310,6 +311,8 @@ public class ResultPartition implements BufferPoolOwner {
 
 		checkState(refCnt != -1, "Partition released.");
 		checkState(refCnt > 0, "Partition not pinned.");
+
+		checkElementIndex(index, subpartitions.length, "Subpartition not found.");
 
 		return subpartitions[index].createReadView(bufferProvider);
 	}

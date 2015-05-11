@@ -27,49 +27,49 @@ import akka.japi.Creator;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.Tasks;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
+import org.apache.flink.runtime.messages.TaskMessages.PartitionState;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
+import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.testingUtils.TestingTaskManager;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -78,6 +78,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.messages.JobManagerMessages.ConsumerNotificationResult;
+import static org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
+import static org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
+import static org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
@@ -160,11 +164,11 @@ public class TaskManagerTest {
 						} while (System.currentTimeMillis() < deadline);
 
 						// task should have switched to running
-						Object toRunning = new TaskMessages.UpdateTaskExecutionState(
+						Object toRunning = new UpdateTaskExecutionState(
 								new TaskExecutionState(jid, eid, ExecutionState.RUNNING));
 
 						// task should have switched to finished
-						Object toFinished = new TaskMessages.UpdateTaskExecutionState(
+						Object toFinished = new UpdateTaskExecutionState(
 								new TaskExecutionState(jid, eid, ExecutionState.FINISHED));
 						
 						deadline = System.currentTimeMillis() + 10000;
@@ -682,6 +686,91 @@ public class TaskManagerTest {
 		}};
 	}
 
+	/**
+	 * Tests that repeated {@link PartitionNotFoundException}s fail the receiver.
+	 */
+	@Test
+	public void testPartitionNotFound() throws Exception {
+
+		new JavaTestKit(system){{
+
+			ActorRef jobManager = null;
+			ActorRef taskManager = null;
+
+			try {
+				final IntermediateDataSetID resultId = new IntermediateDataSetID();
+
+				// Create the JM
+				jobManager = system.actorOf(Props.create(
+						new SimplePartitionStateLookupJobManagerCreator(resultId, getTestActor())));
+
+				final int dataPort = NetUtils.getAvailablePort();
+				taskManager = createTaskManager(jobManager, true, false, dataPort);
+
+				// ---------------------------------------------------------------------------------
+
+				final ActorRef tm = taskManager;
+
+				final JobID jid = new JobID();
+				final JobVertexID vid = new JobVertexID();
+				final ExecutionAttemptID eid = new ExecutionAttemptID();
+
+				final ResultPartitionID partitionId = new ResultPartitionID();
+
+				// Remote location (on the same TM though) for the partition
+				final ResultPartitionLocation loc = ResultPartitionLocation
+						.createRemote(new ConnectionID(
+								new InetSocketAddress("localhost", dataPort), 0));
+
+				final InputChannelDeploymentDescriptor[] icdd =
+						new InputChannelDeploymentDescriptor[] {
+								new InputChannelDeploymentDescriptor(partitionId, loc)};
+
+				final InputGateDeploymentDescriptor igdd =
+						new InputGateDeploymentDescriptor(resultId, 0, icdd);
+
+				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
+						jid, vid, eid, "Receiver", 0, 1,
+						new Configuration(), new Configuration(),
+						Tasks.AgnosticReceiver.class.getName(),
+						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+						Collections.singletonList(igdd),
+						Collections.<BlobKey>emptyList(), 0);
+
+				new Within(d) {
+					@Override
+					protected void run() {
+						// Submit the task
+						tm.tell(new SubmitTask(tdd), getTestActor());
+						expectMsgClass(Messages.getAcknowledge().getClass());
+
+						// Wait to be notified about the final execution state by the mock JM
+						TaskExecutionState msg = expectMsgClass(TaskExecutionState.class);
+
+						// The task should fail after repeated requests
+						assertEquals(msg.getExecutionState(), ExecutionState.FAILED);
+						assertEquals(msg.getError(ClassLoader.getSystemClassLoader()).getClass(),
+								PartitionNotFoundException.class);
+					}
+				};
+			}
+			catch(Exception e) {
+				e.printStackTrace();
+				fail(e.getMessage());
+			}
+			finally {
+				if (taskManager != null) {
+					taskManager.tell(Kill.getInstance(), ActorRef.noSender());
+				}
+
+				if (jobManager != null) {
+					jobManager.tell(Kill.getInstance(), ActorRef.noSender());
+				}
+			}
+		}};
+	}
+
+
 	// --------------------------------------------------------------------------------------------
 
 	public static class SimpleJobManager extends UntypedActor {
@@ -693,7 +782,7 @@ public class TaskManagerTest {
 				final ActorRef self = getSelf();
 				getSender().tell(new RegistrationMessages.AcknowledgeRegistration(self, iid, 12345), self);
 			}
-			else if(message instanceof TaskMessages.UpdateTaskExecutionState){
+			else if(message instanceof UpdateTaskExecutionState){
 				getSender().tell(true, getSelf());
 			}
 		}
@@ -703,8 +792,8 @@ public class TaskManagerTest {
 
 		@Override
 		public void onReceive(Object message) throws Exception {
-			if (message instanceof JobManagerMessages.ScheduleOrUpdateConsumers) {
-				getSender().tell(new JobManagerMessages.ConsumerNotificationResult(true, scala.Option.<Throwable>apply(null)), getSelf());
+			if (message instanceof ScheduleOrUpdateConsumers) {
+				getSender().tell(new ConsumerNotificationResult(true, scala.Option.<Throwable>apply(null)), getSelf());
 			} else {
 				super.onReceive(message);
 			}
@@ -721,14 +810,48 @@ public class TaskManagerTest {
 
 		@Override
 		public void onReceive(Object message) throws Exception{
-			if (message instanceof TaskMessages.UpdateTaskExecutionState) {
-				TaskMessages.UpdateTaskExecutionState updateMsg =
-						(TaskMessages.UpdateTaskExecutionState) message;
+			if (message instanceof UpdateTaskExecutionState) {
+				UpdateTaskExecutionState updateMsg =
+						(UpdateTaskExecutionState) message;
 
 				if(validIDs.contains(updateMsg.taskExecutionState().getID())) {
 					getSender().tell(true, getSelf());
 				} else {
 					getSender().tell(false, getSelf());
+				}
+			} else {
+				super.onReceive(message);
+			}
+		}
+	}
+
+	public static class SimplePartitionStateLookupJobManager extends SimpleJobManager {
+
+		private final ActorRef testActor;
+
+		public SimplePartitionStateLookupJobManager(ActorRef testActor) {
+			this.testActor = testActor;
+		}
+
+		@Override
+		public void onReceive(Object message) throws Exception {
+			if (message instanceof RequestPartitionState) {
+				final RequestPartitionState msg = (RequestPartitionState) message;
+
+				PartitionState resp = new PartitionState(
+						msg.taskExecutionId(),
+						msg.taskResultId(),
+						msg.partitionId().getPartitionId(),
+						ExecutionState.RUNNING);
+
+				getSender().tell(resp, getSelf());
+			}
+			else if (message instanceof UpdateTaskExecutionState) {
+				final TaskExecutionState msg = ((UpdateTaskExecutionState) message)
+						.taskExecutionState();
+
+				if (msg.getExecutionState().isTerminal()) {
+					testActor.tell(msg, self());
 				}
 			} else {
 				super.onReceive(message);
@@ -762,11 +885,30 @@ public class TaskManagerTest {
 		}
 	}
 
+	public static class SimplePartitionStateLookupJobManagerCreator implements Creator<SimplePartitionStateLookupJobManager>{
+
+		private final ActorRef testActor;
+
+		public SimplePartitionStateLookupJobManagerCreator(IntermediateDataSetID dataSetId, ActorRef testActor) {
+			this.testActor = testActor;
+		}
+
+		@Override
+		public SimplePartitionStateLookupJobManager create() throws Exception {
+			return new SimplePartitionStateLookupJobManager(testActor);
+		}
+	}
+
 	public static ActorRef createTaskManager(ActorRef jobManager, boolean waitForRegistration) {
+		return createTaskManager(jobManager, waitForRegistration, true, NetUtils.getAvailablePort());
+	}
+
+	public static ActorRef createTaskManager(ActorRef jobManager, boolean waitForRegistration, boolean useLocalCommunication, int dataPort) {
 		ActorRef taskManager = null;
 		try {
 			Configuration cfg = new Configuration();
 			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10);
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort);
 
 			Option<String> jobMangerUrl = Option.apply(jobManager.path().toString());
 
@@ -774,7 +916,7 @@ public class TaskManagerTest {
 					cfg, system, "localhost",
 					Option.<String>empty(),
 					jobMangerUrl,
-					true, TestingTaskManager.class);
+					useLocalCommunication, TestingTaskManager.class);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
