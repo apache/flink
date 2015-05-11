@@ -117,7 +117,7 @@ To write programs with Flink, you need to include the Flink library correspondin
 your programming language in your project.
 
 The simplest way to do this is to use one of the quickstart scripts: either for
-[Java](java_api_quickstart.html) or for [Scala](scala_api_quickstart.html). They
+[Java]({{ site.baseurl }}/quickstart/java_api_quickstart.html) or for [Scala]({{ site.baseurl }}/quickstart/scala_api_quickstart.html). They
 create a blank project from a template (a Maven Archetype), which sets up everything for you. To
 manually create the project, you can use the archetype and create a project by calling:
 
@@ -1221,7 +1221,7 @@ data.map(new MapFunction<String, Integer> () {
 
 #### Java 8 Lambdas
 
-Flink also supports Java 8 Lambdas in the Java API. Please see the full [Java 8 Guide](java8_programming_guide.html).
+Flink also supports Java 8 Lambdas in the Java API. Please see the full [Java 8 Guide](java8.html).
 
 {% highlight java %}
 DataSet<String> data = // [...]
@@ -2836,7 +2836,7 @@ The parallelism of a task can be specified in Flink on different levels.
 
 The parallelism of an individual operator, data source, or data sink can be defined by calling its
 `setParallelism()` method.  For example, the parallelism of the `Sum` operator in the
-[WordCount](#example-program) example program can be set to `5` as follows :
+[WordCount](examples.html#word-count) example program can be set to `5` as follows :
 
 
 <div class="codetabs" markdown="1">
@@ -2970,7 +2970,7 @@ try {
 
 A system-wide default parallelism for all execution environments can be defined by setting the
 `parallelism.default` property in `./conf/flink-conf.yaml`. See the
-[Configuration](config.html) documentation for details.
+[Configuration]({{ site.baseurl }}/setup/config.html) documentation for details.
 
 [Back to top](#top)
 
