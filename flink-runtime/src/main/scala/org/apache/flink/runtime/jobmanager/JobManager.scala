@@ -30,12 +30,14 @@ import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.client._
+import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
-import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
+import org.apache.flink.runtime.messages.TaskMessages
+import org.apache.flink.runtime.messages.TaskMessages.{FailTask, PartitionState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.messages.checkpoint.{AcknowledgeCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.process.ProcessReaper
@@ -280,7 +282,7 @@ class JobManager(protected val flinkConfiguration: Configuration,
 
     case checkpointMessage : AbstractCheckpointMessage =>
       handleCheckpointMessage(checkpointMessage)
-      
+
     case JobStatusChanged(jobID, newJobStatus, timeStamp, error) =>
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
@@ -337,6 +339,23 @@ class JobManager(protected val flinkConfiguration: Configuration,
           sender ! Failure(new IllegalStateException("Cannot find execution graph for job ID " +
             s"$jobId to schedule or update consumers."))
       }
+
+    case RequestPartitionState(jobId, partitionId, taskExecutionId, taskResultId) =>
+      val state = currentJobs.get(jobId) match {
+        case Some((executionGraph, _)) =>
+          val execution = executionGraph.getRegisteredExecutions.get(partitionId.getProducerId)
+
+          if (execution != null) execution.getState else null
+        case None =>
+          // Nothing to do. This is not an error, because the request is received when a sending
+          // task fails during a remote partition request.
+          log.debug(s"Cannot find execution graph for job $jobId.")
+
+          null
+      }
+
+      sender ! PartitionState(
+        taskExecutionId, taskResultId, partitionId.getPartitionId, state)
 
     case RequestJobStatus(jobID) =>
       currentJobs.get(jobID) match {

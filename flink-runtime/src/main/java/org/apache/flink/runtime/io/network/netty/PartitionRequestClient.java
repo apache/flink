@@ -26,8 +26,11 @@ import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.util.AtomicDisposableReferenceCounter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
@@ -40,6 +43,8 @@ import static org.apache.flink.runtime.io.network.netty.NettyMessage.TaskEventRe
  * from the same {@link ConnectionID}.
  */
 public class PartitionRequestClient {
+
+	private static final Logger LOG = LoggerFactory.getLogger(PartitionRequestClient.class);
 
 	private final Channel tcpChannel;
 
@@ -79,21 +84,41 @@ public class PartitionRequestClient {
 	 * The request goes to the remote producer, for which this partition
 	 * request client instance has been created.
 	 */
-	public void requestSubpartition(final ResultPartitionID partitionId, int requestedQueueIndex, final RemoteInputChannel inputChannel) throws IOException {
+	public void requestSubpartition(
+			final ResultPartitionID partitionId,
+			final int subpartitionIndex,
+			final RemoteInputChannel inputChannel,
+			int delayMs) throws IOException {
+
+		LOG.debug("Requesting subpartition {} of partition {} with {} ms delay.",
+				subpartitionIndex, partitionId, delayMs);
+
 		partitionRequestHandler.addInputChannel(inputChannel);
 
-		tcpChannel.writeAndFlush(new PartitionRequest(partitionId, requestedQueueIndex, inputChannel.getInputChannelId()))
-				.addListener(
-						new ChannelFutureListener() {
-							@Override
-							public void operationComplete(ChannelFuture future) throws Exception {
-								if (!future.isSuccess()) {
-									partitionRequestHandler.removeInputChannel(inputChannel);
-									inputChannel.onError(future.cause());
-								}
-							}
-						}
-				);
+		final PartitionRequest request = new PartitionRequest(
+				partitionId, subpartitionIndex, inputChannel.getInputChannelId());
+
+		final ChannelFutureListener listener = new ChannelFutureListener() {
+			@Override
+			public void operationComplete(ChannelFuture future) throws Exception {
+				if (!future.isSuccess()) {
+					partitionRequestHandler.removeInputChannel(inputChannel);
+					inputChannel.onError(future.cause());
+				}
+			}
+		};
+
+		if (delayMs == 0) {
+			tcpChannel.writeAndFlush(request).addListener(listener);
+		}
+		else {
+			tcpChannel.eventLoop().schedule(new Runnable() {
+				@Override
+				public void run() {
+					tcpChannel.writeAndFlush(request).addListener(listener);
+				}
+			}, delayMs, TimeUnit.MILLISECONDS);
+		}
 	}
 
 	/**

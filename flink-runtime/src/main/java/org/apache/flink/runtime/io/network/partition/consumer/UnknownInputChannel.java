@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import scala.Tuple2;
 
 import java.io.IOException;
 
@@ -43,19 +44,24 @@ public class UnknownInputChannel extends InputChannel {
 
 	private final ConnectionManager connectionManager;
 
+	/** Initial and maximum backoff (in ms) after failed partition requests. */
+	private final Tuple2<Integer, Integer> partitionRequestInitialAndMaxBackoff;
+
 	public UnknownInputChannel(
 			SingleInputGate gate,
 			int channelIndex,
 			ResultPartitionID partitionId,
 			ResultPartitionManager partitionManager,
 			TaskEventDispatcher taskEventDispatcher,
-			ConnectionManager connectionManager) {
+			ConnectionManager connectionManager,
+			Tuple2<Integer, Integer> partitionRequestInitialAndMaxBackoff) {
 
 		super(gate, channelIndex, partitionId);
 
-		this.partitionManager = partitionManager;
-		this.taskEventDispatcher = taskEventDispatcher;
-		this.connectionManager = connectionManager;
+		this.partitionManager = checkNotNull(partitionManager);
+		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
+		this.connectionManager = checkNotNull(connectionManager);
+		this.partitionRequestInitialAndMaxBackoff = checkNotNull(partitionRequestInitialAndMaxBackoff);
 	}
 
 	@Override
@@ -106,7 +112,7 @@ public class UnknownInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	public RemoteInputChannel toRemoteInputChannel(ConnectionID producerAddress) {
-		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress), connectionManager);
+		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress), connectionManager, partitionRequestInitialAndMaxBackoff);
 	}
 
 	public LocalInputChannel toLocalInputChannel() {

@@ -47,7 +47,7 @@ public class NettyConfig {
 
 	// ------------------------------------------------------------------------
 
-	static enum TransportType {
+	enum TransportType {
 		NIO, EPOLL, AUTO
 	}
 

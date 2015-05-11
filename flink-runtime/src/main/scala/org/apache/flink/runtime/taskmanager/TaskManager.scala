@@ -20,10 +20,9 @@ package org.apache.flink.runtime.taskmanager
 
 import java.io.{File, IOException}
 import java.net.{InetAddress, InetSocketAddress}
-import java.util
 import java.util.concurrent.TimeUnit
 import java.lang.reflect.Method
-import java.lang.management.{GarbageCollectorMXBean, ManagementFactory, MemoryMXBean}
+import java.lang.management.ManagementFactory
 
 import akka.actor._
 import akka.pattern.ask
@@ -392,6 +391,14 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
           log.debug(s"Cannot find task to cancel for execution ${executionID})")
           sender ! new TaskOperationResult(executionID, false,
               "No task with that execution ID was found.")
+        }
+
+      case PartitionState(taskExecutionId, taskResultId, partitionId, state) =>
+        Option(runningTasks.get(taskExecutionId)) match {
+          case Some(task) =>
+            task.onPartitionStateUpdate(taskResultId, partitionId, state)
+          case None =>
+            log.debug(s"Cannot find task $taskExecutionId to respond with partition state.")
         }
     }
   }
@@ -1560,8 +1567,8 @@ object TaskManager {
 
     val ioMode : IOMode = if (syncOrAsync == "async") IOMode.ASYNC else IOMode.SYNC
 
-    val networkConfig = NetworkEnvironmentConfiguration(numNetworkBuffers, pageSize,
-                                                        ioMode, nettyConfig)
+    val networkConfig = NetworkEnvironmentConfiguration(
+      numNetworkBuffers, pageSize, ioMode, nettyConfig)
 
     // ----> timeouts, library caching, profiling
 

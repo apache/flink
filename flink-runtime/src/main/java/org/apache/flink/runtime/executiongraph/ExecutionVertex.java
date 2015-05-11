@@ -219,6 +219,10 @@ public class ExecutionVertex implements Serializable {
 		return this.jobVertex.getGraph();
 	}
 
+	public Map<IntermediateResultPartitionID, IntermediateResultPartition> getProducedPartitions() {
+		return resultPartitions;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Graph building
 	// --------------------------------------------------------------------------------------------
