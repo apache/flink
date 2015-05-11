@@ -23,7 +23,7 @@ import org.apache.flink.runtime.client.{SerializedJobExecutionResult, JobStatusM
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{InstanceID, Instance}
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID
-import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
+import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, JobGraph, JobStatus, JobVertexID}
 
 import scala.collection.JavaConverters._
 
@@ -69,6 +69,21 @@ object JobManagerMessages {
    * @param splitData
    */
   case class NextInputSplit(splitData: Array[Byte])
+
+  /**
+   * Requests the current state of the partition.
+   *
+   * The state of a partition is currently bound to the state of the producing execution.
+   * 
+   * @param jobId The job ID of the job, which produces the partition.
+   * @param partitionId The partition ID of the partition to request the state of.
+   * @param taskExecutionId The execution attempt ID of the task requesting the partition state.
+   * @param taskResultId The input gate ID of the task requesting the partition state.
+   */
+  case class RequestPartitionState(jobId: JobID,
+                                   partitionId: ResultPartitionID,
+                                   taskExecutionId: ExecutionAttemptID,
+                                   taskResultId: IntermediateDataSetID)
 
   /**
    * Notifies the [[org.apache.flink.runtime.jobmanager.JobManager]] about available data for a

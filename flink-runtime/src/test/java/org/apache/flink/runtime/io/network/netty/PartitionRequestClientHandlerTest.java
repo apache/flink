@@ -24,6 +24,9 @@ import io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
@@ -35,6 +38,7 @@ import java.io.IOException;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -96,7 +100,6 @@ public class PartitionRequestClientHandlerTest {
 				emptyBuffer, 0, inputChannel.getInputChannelId());
 
 		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
-
 		client.addInputChannel(inputChannel);
 
 		// Read the empty buffer
@@ -105,6 +108,34 @@ public class PartitionRequestClientHandlerTest {
 		// This should not throw an exception
 		verify(inputChannel, never()).onError(any(Throwable.class));
 	}
+
+	/**
+	 * Verifies that {@link RemoteInputChannel#onFailedPartitionRequest()} is called when a
+	 * {@link PartitionNotFoundException} is received.
+	 */
+	@Test
+	public void testReceivePartitionNotFoundException() throws Exception {
+		// Minimal mock of a remote input channel
+		final BufferProvider bufferProvider = mock(BufferProvider.class);
+		when(bufferProvider.requestBuffer()).thenReturn(TestBufferFactory.createBuffer());
+
+		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
+		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
+		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
+
+		final ErrorResponse partitionNotFound = new ErrorResponse(
+				new PartitionNotFoundException(new ResultPartitionID()),
+				inputChannel.getInputChannelId());
+
+		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
+		client.addInputChannel(inputChannel);
+
+		client.channelRead(mock(ChannelHandlerContext.class), partitionNotFound);
+
+		verify(inputChannel, times(1)).onFailedPartitionRequest();
+	}
+
+	// ---------------------------------------------------------------------------------------------
 
 	/**
 	 * Returns a deserialized buffer message as it would be received during runtime.

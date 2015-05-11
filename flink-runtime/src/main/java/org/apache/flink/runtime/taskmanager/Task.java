@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorRef;
 import akka.util.Timeout;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
@@ -43,23 +42,24 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCommittingOperator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
-import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateUtils;
 import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -181,7 +181,6 @@ public class Task implements Runnable {
 
 	/** The thread that executes the task */
 	private final Thread executingThread;
-	
 
 	// ------------------------------------------------------------------------
 	//  Fields that control the task execution. All these fields are volatile
@@ -204,7 +203,6 @@ public class Task implements Runnable {
 	 * initialization, to be memory friendly */
 	private volatile SerializedValue<StateHandle<?>> operatorState;
 
-	
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to 
 	 * be undone in the case of a failing task deployment.</p>
@@ -287,7 +285,7 @@ public class Task implements Runnable {
 
 		for (int i = 0; i < this.inputGates.length; i++) {
 			SingleInputGate gate = SingleInputGate.create(
-					taskNameWithSubtasksAndId, consumedPartitions.get(i), networkEnvironment);
+					taskNameWithSubtasksAndId, jobId, executionId, consumedPartitions.get(i), networkEnvironment);
 
 			this.inputGates[i] = gate;
 			inputGatesById.put(gate.getConsumedResultId(), gate);
@@ -401,6 +399,7 @@ public class Task implements Runnable {
 	/**
 	 * The core work method that bootstraps the task and executes it code
 	 */
+	@Override
 	public void run() {
 
 		// ----------------------------
@@ -913,12 +912,52 @@ public class Task implements Runnable {
 			LOG.debug("Ignoring checkpoint commit notification for non-running task.");
 		}
 	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Answer to a partition state check issued after a failed partition request.
+	 */
+	public void onPartitionStateUpdate(
+			IntermediateDataSetID resultId,
+			IntermediateResultPartitionID partitionId,
+			ExecutionState partitionState) throws IOException, InterruptedException {
+
+		if (executionState == ExecutionState.RUNNING) {
+			final SingleInputGate inputGate = inputGatesById.get(resultId);
+
+			if (inputGate != null) {
+				if (partitionState == ExecutionState.RUNNING) {
+					// Retrigger the partition request
+					inputGate.retriggerPartitionRequest(partitionId);
+				}
+				else if (partitionState == ExecutionState.CANCELED
+						|| partitionState == ExecutionState.CANCELING
+						|| partitionState == ExecutionState.FAILED) {
+
+					cancelExecution();
+				}
+				else {
+					failExternally(new IllegalStateException("Received unexpected partition state "
+							+ partitionState + " for partition request. This is a bug."));
+				}
+			}
+			else {
+				failExternally(new IllegalStateException("Received partition state for " +
+						"unknown input gate " + resultId + ". This is a bug."));
+			}
+		}
+		else {
+			LOG.debug("Ignoring partition state notification for not running task.");
+		}
+	}
 	
 	private void executeAsyncCallRunnable(Runnable runnable, String callName) {
 		Thread thread = new Thread(runnable, callName);
 		thread.setDaemon(true);
 		thread.start();
 	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------

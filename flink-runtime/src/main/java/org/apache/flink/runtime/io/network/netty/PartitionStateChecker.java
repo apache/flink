@@ -16,30 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.exampleJavaPrograms;
+package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.examples.java.wordcount.WordCount;
-import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
-public class WordCountITCase extends JavaProgramTestBase {
+public interface PartitionStateChecker {
 
-	protected String textPath;
-	protected String resultPath;
+	void triggerPartitionStateCheck(
+			JobID jobId,
+			ExecutionAttemptID executionId,
+			IntermediateDataSetID resultId,
+			ResultPartitionID partitionId);
 
-	@Override
-	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", WordCountData.TEXT);
-		resultPath = getTempDirPath("result");
-	}
-
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
-		WordCount.main(new String[] { textPath, resultPath });
-	}
 }

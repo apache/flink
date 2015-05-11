@@ -24,15 +24,19 @@ import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Tuple2;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -53,6 +57,12 @@ public class RemoteInputChannel extends InputChannel {
 	private final ConnectionManager connectionManager;
 
 	/**
+	 * An asynchronous error notification. Set by either the network I/O thread or the thread
+	 * failing a partition request.
+	 */
+	private final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
+
+	/**
 	 * The received buffers. Received buffers are enqueued by the network I/O thread and the queue
 	 * is consumed by the receiving task thread.
 	 */
@@ -65,7 +75,7 @@ public class RemoteInputChannel extends InputChannel {
 	private final AtomicBoolean isReleased = new AtomicBoolean();
 
 	/** Client to establish a (possibly shared) TCP connection and request the partition. */
-	private PartitionRequestClient partitionRequestClient;
+	private volatile PartitionRequestClient partitionRequestClient;
 
 	/**
 	 * The next expected sequence number for the next buffer. This is modified by the network
@@ -73,10 +83,11 @@ public class RemoteInputChannel extends InputChannel {
 	 */
 	private int expectedSequenceNumber = 0;
 
-	/**
-	 * An error possibly set by the network I/O thread.
-	 */
-	private volatile Throwable error;
+	/** The current backoff time (in ms) for partition requests. */
+	private int nextRequestBackoffMs;
+
+	/** The maximum backoff time (in ms) after which a request fails */
+	private final int maxRequestBackoffMs;
 
 	RemoteInputChannel(
 			SingleInputGate inputGate,
@@ -85,27 +96,67 @@ public class RemoteInputChannel extends InputChannel {
 			ConnectionID connectionId,
 			ConnectionManager connectionManager) {
 
+		this(inputGate, channelIndex, partitionId, connectionId, connectionManager,
+				new Tuple2<Integer, Integer>(0, 0));
+	}
+
+	RemoteInputChannel(
+			SingleInputGate inputGate,
+			int channelIndex,
+			ResultPartitionID partitionId,
+			ConnectionID connectionId,
+			ConnectionManager connectionManager,
+			Tuple2<Integer, Integer> initialAndMaxBackoff) {
+
 		super(inputGate, channelIndex, partitionId);
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
+
+		checkArgument(initialAndMaxBackoff._1() <= initialAndMaxBackoff._2());
+
+		this.nextRequestBackoffMs = initialAndMaxBackoff._1();
+		this.maxRequestBackoffMs = initialAndMaxBackoff._2();
 	}
 
 	// ------------------------------------------------------------------------
 	// Consume
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Requests a remote subpartition.
+	 */
 	@Override
 	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
 		if (partitionRequestClient == null) {
-			LOG.debug("{}: Requesting REMOTE subpartition {} of partition {}.",
-					this, subpartitionIndex, partitionId);
-
 			// Create a client and request the partition
 			partitionRequestClient = connectionManager
 					.createPartitionRequestClient(connectionId);
 
-			partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this);
+			partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this, 0);
+		}
+	}
+
+	/**
+	 * Retriggers a remote subpartition request.
+	 */
+	void retriggerSubpartitionRequest(int subpartitionIndex) throws IOException, InterruptedException {
+		checkState(partitionRequestClient != null, "Missing initial subpartition request.");
+
+		// Disabled
+		if (nextRequestBackoffMs == 0) {
+			failPartitionRequest();
+		}
+		else if (nextRequestBackoffMs <= maxRequestBackoffMs) {
+			partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this, nextRequestBackoffMs);
+
+			// Exponential backoff
+			nextRequestBackoffMs = nextRequestBackoffMs < maxRequestBackoffMs
+					? Math.min(nextRequestBackoffMs * 2, maxRequestBackoffMs)
+					: maxRequestBackoffMs + 1; // Fail the next request
+		}
+		else {
+			failPartitionRequest();
 		}
 	}
 
@@ -178,6 +229,10 @@ public class RemoteInputChannel extends InputChannel {
 		}
 	}
 
+	public void failPartitionRequest() {
+		onError(new PartitionNotFoundException(partitionId));
+	}
+
 	@Override
 	public String toString() {
 		return "RemoteInputChannel [" + partitionId + " at " + connectionId + "]";
@@ -245,23 +300,30 @@ public class RemoteInputChannel extends InputChannel {
 		}
 	}
 
-	public void onError(Throwable cause) {
-		if (error == null) {
-			error = cause;
+	public void onFailedPartitionRequest() {
+		inputGate.triggerPartitionStateCheck(partitionId);
+	}
 
+	public void onError(Throwable cause) {
+		if (error.compareAndSet(null, cause)) {
 			// Notify the input gate to trigger querying of this channel
 			notifyAvailableBuffer();
 		}
 	}
 
 	/**
-	 * Checks whether this channel got notified by the network I/O thread about an error.
+	 * Checks whether this channel got notified about an error.
 	 */
 	private void checkError() throws IOException {
-		final Throwable t = error;
+		final Throwable t = error.get();
 
 		if (t != null) {
-			throw new IOException(t);
+			if (t instanceof IOException) {
+				throw (IOException) t;
+			}
+			else {
+				throw new IOException(t);
+			}
 		}
 	}
 
