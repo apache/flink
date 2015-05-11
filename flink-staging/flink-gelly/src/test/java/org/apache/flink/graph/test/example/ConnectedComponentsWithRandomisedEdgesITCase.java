@@ -66,6 +66,7 @@ public class ConnectedComponentsWithRandomisedEdgesITCase extends JavaProgramTes
 		result.writeAsCsv(resultPath, "\n", " ");
 		env.execute();
 	}
+
 	/**
 	 * A map function that takes a Long value and creates a 2-tuple out of it:
 	 * <pre>(Long value) -> (value, value)</pre>
