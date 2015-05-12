@@ -115,7 +115,7 @@ public abstract class AbstractProcessFailureRecoveryTest {
 			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms");
 			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "6 s");
 			jmConfig.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 9);
-			jmConfig.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "4 s");
+			jmConfig.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "10 s");
 
 			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<Tuple2<String, Object>>(localAddress));
 			ActorRef jmActor = JobManager.startJobManagerActors(jmConfig, jmActorSystem)._1();
