@@ -54,7 +54,7 @@ trait FlinkTestBase extends BeforeAndAfter {
   val parallelism = 4
 
   before {
-    val cl = TestBaseUtils.startCluster(1, parallelism, StreamingMode.BATCH_ONLY, false)
+    val cl = TestBaseUtils.startCluster(1, parallelism, StreamingMode.BATCH_ONLY, false, true)
     val clusterEnvironment = new TestEnvironment(cl, parallelism)
     clusterEnvironment.setAsContext()
 
