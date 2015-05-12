@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.types
 
 import java.io.{DataInput, DataOutput}
 
+import org.apache.flink.api.java.`type`.extractor.TypeExtractorTest.CustomTuple
 import org.apache.hadoop.io.Writable
 import org.junit.{Assert, Test}
 
@@ -51,6 +52,41 @@ class MyObject[A](var a: A) {
 }
 
 class TypeInformationGenTest {
+
+  @Test
+  def testJavaTuple(): Unit = {
+    val ti = createTypeInformation[org.apache.flink.api.java.tuple.Tuple3[Int, String, Integer]]
+
+    Assert.assertTrue(ti.isTupleType)
+    Assert.assertEquals(3, ti.getArity)
+    Assert.assertTrue(ti.isInstanceOf[TupleTypeInfoBase[_]])
+    val tti = ti.asInstanceOf[TupleTypeInfoBase[_]]
+    Assert.assertEquals(classOf[org.apache.flink.api.java.tuple.Tuple3[_, _, _]], tti.getTypeClass)
+    for (i <- 0 until 3) {
+      Assert.assertTrue(tti.getTypeAt(i).isInstanceOf[BasicTypeInfo[_]])
+    }
+
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tti.getTypeAt(0))
+    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1))
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tti.getTypeAt(2))
+  }
+
+  @Test
+  def testCustomJavaTuple(): Unit = {
+    val ti = createTypeInformation[CustomTuple]
+
+    Assert.assertTrue(ti.isTupleType)
+    Assert.assertEquals(2, ti.getArity)
+    Assert.assertTrue(ti.isInstanceOf[TupleTypeInfoBase[_]])
+    val tti = ti.asInstanceOf[TupleTypeInfoBase[_]]
+    Assert.assertEquals(classOf[CustomTuple], tti.getTypeClass)
+    for (i <- 0 until 2) {
+      Assert.assertTrue(tti.getTypeAt(i).isInstanceOf[BasicTypeInfo[_]])
+    }
+
+    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0))
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tti.getTypeAt(1))
+  }
 
   @Test
   def testBasicType(): Unit = {
@@ -162,7 +198,7 @@ class TypeInformationGenTest {
     Assert.assertTrue(ti.isInstanceOf[TupleTypeInfoBase[_]])
     val tti = ti.asInstanceOf[TupleTypeInfoBase[_]]
     Assert.assertEquals(classOf[Tuple9[_,_,_,_,_,_,_,_,_]], tti.getTypeClass)
-    for (i <- 0 until 0) {
+    for (i <- 0 until 9) {
       Assert.assertTrue(tti.getTypeAt(i).isInstanceOf[BasicTypeInfo[_]])
     }
 

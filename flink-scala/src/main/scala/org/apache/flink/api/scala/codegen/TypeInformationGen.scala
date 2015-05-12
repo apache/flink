@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo._
 
 import org.apache.flink.api.common.typeutils._
+import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.types.Value
@@ -82,6 +83,8 @@ private[flink] trait TypeInformationGen[C <: Context] {
         .asInstanceOf[c.Expr[TypeInformation[T]]]
 
     case pojo: PojoDescriptor => mkPojo(pojo)
+
+    case javaTuple: JavaTupleDescriptor => mkJavaTuple(javaTuple)
 
     case d => mkGenericTypeInfo(d)
   }
@@ -274,6 +277,23 @@ private[flink] trait TypeInformationGen[C <: Context] {
       new WritableTypeInfo[T](tpeClazz.splice)
     }
   }
+
+  def mkJavaTuple[T: c.WeakTypeTag](desc: JavaTupleDescriptor): c.Expr[TypeInformation[T]] = {
+
+    val fieldsTrees = desc.fields map { f => mkTypeInfo(f)(c.WeakTypeTag(f.tpe)).tree }
+
+    val fieldsList = c.Expr[List[TypeInformation[_]]](mkList(fieldsTrees.toList))
+
+    val tpeClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))
+
+    reify {
+      val fields =  fieldsList.splice
+      val clazz = tpeClazz.splice.asInstanceOf[Class[org.apache.flink.api.java.tuple.Tuple]]
+      new TupleTypeInfo[org.apache.flink.api.java.tuple.Tuple](clazz, fields: _*)
+        .asInstanceOf[TypeInformation[T]]
+    }
+  }
+
 
   def mkPojo[T: c.WeakTypeTag](desc: PojoDescriptor): c.Expr[TypeInformation[T]] = {
     val tpeClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))

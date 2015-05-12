@@ -40,11 +40,13 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
 
   case class TypeParameterDescriptor(id: Int, tpe: Type) extends UDTDescriptor
 
-  case class PrimitiveDescriptor(id: Int, tpe: Type, default: Literal, wrapper: Type) extends UDTDescriptor
+  case class PrimitiveDescriptor(id: Int, tpe: Type, default: Literal, wrapper: Type)
+    extends UDTDescriptor
 
   case class NothingDesciptor(id: Int, tpe: Type) extends UDTDescriptor
 
-  case class EitherDescriptor(id: Int, tpe: Type, left: UDTDescriptor, right: UDTDescriptor) extends UDTDescriptor
+  case class EitherDescriptor(id: Int, tpe: Type, left: UDTDescriptor, right: UDTDescriptor)
+    extends UDTDescriptor
 
   case class TryDescriptor(id: Int, tpe: Type, elem: UDTDescriptor) extends UDTDescriptor
 
@@ -94,7 +96,8 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
     }
   }
 
-  case class PojoDescriptor(id: Int, tpe: Type, getters: Seq[FieldDescriptor]) extends UDTDescriptor {
+  case class PojoDescriptor(id: Int, tpe: Type, getters: Seq[FieldDescriptor])
+    extends UDTDescriptor {
 
     // Hack: ignore the ctorTpe, since two Type instances representing
     // the same ctor function type don't appear to be considered equal.
@@ -143,6 +146,24 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
   case class ValueDescriptor(id: Int, tpe: Type) extends UDTDescriptor
 
   case class WritableDescriptor(id: Int, tpe: Type) extends UDTDescriptor
+
+  case class JavaTupleDescriptor(
+      id: Int,
+      tpe: Type,
+      fields: Seq[UDTDescriptor])
+    extends UDTDescriptor {
+
+    // Hack: ignore the ctorTpe, since two Type instances representing
+    // the same ctor function type don't appear to be considered equal.
+    // Equality of the tpe and ctor fields implies equality of ctorTpe anyway.
+    override def hashCode = (id, tpe, fields).hashCode
+
+    override def equals(that: Any) = that match {
+      case JavaTupleDescriptor(thatId, thatTpe, thatFields) =>
+        (id, tpe, fields).equals(
+          thatId, thatTpe, thatFields)
+      case _ => false
+    }
 
   }
 }
