@@ -144,6 +144,26 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
 
   case class WritableDescriptor(id: Int, tpe: Type) extends UDTDescriptor
 
+  case class JavaTupleDescriptor(
+      id: Int,
+      tpe: Type,
+      fie Int,
+      tpe: Type,
+      fields: Seq[UDTDescriptor])
+    extends UDTDescriptor {
+
+    // Hack: ignore the ctorTpe, since two Type instances representing
+    // the same ctor function type don't appear to be considered equal.
+    // Equality of the tpe and ctor fields implies equality of ctorTpe anyway.
+    override def hashCode = (id, tpe, fields).hashCode
+
+    override def equals(that: Any) = that match {
+      case JavaTupleDescriptor(thatId, thatTpe, thatFields) =>
+        (id, tpe, fields).equals(
+          thatId, thatTpe, thatFields)
+      case _ => false
+    }
+
   }
 }
 

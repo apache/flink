@@ -83,6 +83,8 @@ private[flink] trait TypeInformationGen[C <: Context] {
 
     case pojo: PojoDescriptor => mkPojo(pojo)
 
+    case javaTuple: JavaTupleDescriptor => mkJavaTuple(javaTuple)
+
     case d => mkGenericTypeInfo(d)
   }
 
@@ -274,6 +276,19 @@ private[flink] trait TypeInformationGen[C <: Context] {
       new WritableTypeInfo[T](tpeClazz.splice)
     }
   }
+
+  def mkJavaTuple[T: c.WeakTypeTag](desc: JavaTupleDescriptor): c.Expr[TypeInformation[T]] = {
+
+    val fieldsTrees = desc.fields map { f => mkTypeInfo(f)(c.WeakTypeTag(f.tpe)).tree }
+
+    val fieldsList = c.Expr[List[TypeInformation[_]]](mkList(fieldsTrees.toList))
+
+    reify {
+      val fields =  fieldsList.splice
+      new TupleTypeInfo[org.apache.flink.api.java.tuple.Tuple](fields: _*).asInstanceOf[TypeInformation[T]]
+    }
+  }
+
 
   def mkPojo[T: c.WeakTypeTag](desc: PojoDescriptor): c.Expr[TypeInformation[T]] = {
     val tpeClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))

@@ -17,20 +17,12 @@
  */
 package org.apache.flink.api.scala.codegen
 
+import org.apache.flink.types.{BooleanValue, ByteValue, CharValue, DoubleValue, FloatValue, IntValue, LongValue, ShortValue, StringValue}
+
 import scala.collection._
 import scala.collection.generic.CanBuildFrom
 import scala.reflect.macros.Context
 import scala.util.DynamicVariable
-
-import org.apache.flink.types.BooleanValue
-import org.apache.flink.types.ByteValue
-import org.apache.flink.types.CharValue
-import org.apache.flink.types.DoubleValue
-import org.apache.flink.types.FloatValue
-import org.apache.flink.types.IntValue
-import org.apache.flink.types.StringValue
-import org.apache.flink.types.LongValue
-import org.apache.flink.types.ShortValue
 
 private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
   with TypeDescriptors[C] =>
@@ -80,6 +72,8 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
           case ValueType() => ValueDescriptor(id, tpe)
 
           case WritableType() => WritableDescriptor(id, tpe)
+
+          case JavaTupleType() => analyzeJavaTuple(id, tpe)
 
           case JavaType() =>
             // It's a Java Class, let the TypeExtractor deal with it...
@@ -133,6 +127,20 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       case UnsupportedDescriptor(_, _, errs) => UnsupportedDescriptor(id, tpe, errs)
       case elemDesc => OptionDescriptor(id, tpe, elemDesc)
     }
+
+    private def analyzeJavaTuple(id: Int, tpe: Type): UDTDescriptor = {
+      // check how many tuple fields we have and determine type
+      val fields = (0 until org.apache.flink.api.java.tuple.Tuple.MAX_ARITY ) flatMap { i =>
+        tpe.members find { m => m.name.toString.equals("f" + i)} match {
+          case Some(m) => Some(analyze(m.typeSignatureIn(tpe)))
+
+          case _ => None
+        }
+      }
+
+      JavaTupleDescriptor(id, tpe, fields)
+    }
+
 
     private def analyzePojo(id: Int, tpe: Type): UDTDescriptor = {
       val immutableFields = tpe.members filter { _.isTerm } map { _.asTerm } filter { _.isVal }
@@ -384,6 +392,10 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
     private object JavaType {
       def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.isJava
+    }
+
+    private object JavaTupleType {
+      def unapply(tpe: Type): Boolean = tpe <:< typeOf[org.apache.flink.api.java.tuple.Tuple]
     }
 
     private class UDTAnalyzerCache {
