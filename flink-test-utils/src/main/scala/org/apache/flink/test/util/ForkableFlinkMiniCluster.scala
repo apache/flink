@@ -42,7 +42,7 @@ import scala.concurrent.Await
 class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem: Boolean)
   extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem) {
 
-  def this(userConfiguration: Configuration) = this(userConfiguration, true)
+  def this(userConfiguration: Configuration) = this(userConfiguration, false)
 
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
     val forNumberString = System.getProperty("forkNumber")

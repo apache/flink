@@ -45,7 +45,8 @@ under the License.
 		<module>flink-hcatalog</module>
 		<module>flink-table</module>
 		<module>flink-ml</module>
-		<module>flink-language-binding</module>
+		<module>flink-scala-shell</module>
+		<module>flink-scala-shell</module>
 	</modules>
 	
 	<!-- See main pom.xml for explanation of profiles -->

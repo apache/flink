@@ -34,7 +34,15 @@ under the License.
 	<packaging>jar</packaging>
 
 	<dependencies>
+
+
 		<!-- BINARIES -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-scala-shell</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
