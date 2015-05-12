@@ -34,7 +34,10 @@ public class JobEdge implements java.io.Serializable {
 	/** The distribution pattern that should be used for this job edge. */
 	private final DistributionPattern distributionPattern;
 	
-	/** The data set at the source of the edge, may be null if the edge is not yet connected*/
+	/**
+	 *  The data set at the source of the edge, may be null if the edge is not yet connected
+	 *  or this edge belong to a Source
+	 */
 	private IntermediateDataSet source;
 	
 	/** The id of the source intermediate data set */
@@ -111,9 +114,13 @@ public class JobEdge implements java.io.Serializable {
 	public IntermediateDataSetID getSourceId() {
 		return sourceId;
 	}
-	
+
+	/**
+	 * Returns true if this edge is simply referenced by an id and not by a produced intermediate result
+	 * @return
+	 */
 	public boolean isIdReference() {
-		return this.source == null;
+		return this.source == null && this.sourceId != null;
 	}
 	
 	// --------------------------------------------------------------------------------------------

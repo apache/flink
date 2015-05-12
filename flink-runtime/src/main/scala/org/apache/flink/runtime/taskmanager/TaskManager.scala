@@ -50,6 +50,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.disk.iomanager.{IOManager, IOManagerAsync}
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.NettyConfig
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.memorymanager.{MemoryManager, DefaultMemoryManager}
@@ -333,6 +334,14 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
                 "Fatal leak: Unable to release intermediate result partition data", t)
           }
         }
+
+      /**
+       * Pin a ResultPartition corresponding to an IntermediateResultPartition
+       */
+      case LockResultPartition(partitionID, numConsumers) =>
+        val partitionManager: ResultPartitionManager = this.network.getPartitionManager
+        val result: Boolean = partitionManager.pinCachedResultPartition(partitionID, numConsumers)
+        sender ! LockResultPartitionReply(result)
 
       // notifies the TaskManager that the state of a task has changed.
       // the TaskManager informs the JobManager and cleans up in case the transition

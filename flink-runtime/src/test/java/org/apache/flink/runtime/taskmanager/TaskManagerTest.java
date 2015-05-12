@@ -337,7 +337,25 @@ public class TaskManagerTest {
 			}
 		}};
 	}
-	
+
+	@Test
+	public void testPartitionReject() {
+		new JavaTestKit(system){{
+
+			ActorRef jobManager = system.actorOf(Props.create(SimpleJobManager.class));
+			ActorRef taskManager = createTaskManager(jobManager, true);
+
+			// send a non-existing partition id to the task manager
+			IntermediateResultPartitionID partitionID = new IntermediateResultPartitionID();
+			taskManager.tell(
+					new TaskMessages.LockResultPartition(partitionID, 1),
+					getRef());
+
+			expectMsgEquals(duration("1 second"),
+					new TaskMessages.LockResultPartitionReply(false));
+		}};
+	}
+
 	@Test
 	public void testGateChannelEdgeMismatch() {
 

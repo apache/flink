@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,11 +54,22 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	private final Object factoryLock = new Object();
 
+	/**
+	 * Buffer pools that do NOT have a fixed memory size
+	 */
 	private final Set<LocalBufferPool> managedBufferPools = new HashSet<LocalBufferPool>();
 
+	/**
+	 * All available pools (non-fixed and fixed memory size)
+	 */
 	public final Set<LocalBufferPool> allBufferPools = new HashSet<LocalBufferPool>();
 
 	private int numTotalRequiredBuffers;
+
+	/**
+	 * Reference to the ResultPartitionManager which can be called to give back memory segments.
+	 */
+	private ResultPartitionManager resultPartitionManager;
 
 	/**
 	 * Allocates all {@link MemorySegment} instances managed by this pool.
@@ -100,6 +112,14 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 		LOG.info("Allocated {} MB for network buffer pool (number of memory segments: {}, bytes per segment: {}).",
 				allocatedMb, availableMemorySegments.size(), segmentSize);
+	}
+
+	/**
+	 * Set the refrence to the ResultPartitionManager which is not available at constructor time
+	 * @param resultPartitionManager
+	 */
+	public void setResultPartitionManager(ResultPartitionManager resultPartitionManager) {
+		this.resultPartitionManager = resultPartitionManager;
 	}
 
 	public MemorySegment requestMemorySegment() {
@@ -170,16 +190,25 @@ public class NetworkBufferPool implements BufferPoolFactory {
 				throw new IllegalStateException("Network buffer pool has already been destroyed.");
 			}
 
+
 			// Ensure that the number of required buffers can be satisfied.
 			// With dynamic memory management this should become obsolete.
 			if (numTotalRequiredBuffers + numRequiredBuffers > totalNumberOfMemorySegments) {
-				throw new IOException(String.format("Insufficient number of network buffers: " +
-								"required %d, but only %d available. The total number of network " +
-								"buffers is currently set to %d. You can increase this " +
-								"number by setting the configuration key '" +
-								ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY +  "'.",
-						numRequiredBuffers, totalNumberOfMemorySegments - numTotalRequiredBuffers,
-						totalNumberOfMemorySegments));
+				int remaining = totalNumberOfMemorySegments - numTotalRequiredBuffers;
+				// try to free the amount of memory segments required for the buffer pool
+				if (resultPartitionManager != null) {
+					resultPartitionManager.releaseLeastRecentlyUsedCachedPartitions(numRequiredBuffers - remaining);
+				}
+				// check again if we were able to free enough memory
+				if (numTotalRequiredBuffers + numRequiredBuffers > totalNumberOfMemorySegments) {
+					throw new IOException(String.format("Insufficient number of network buffers: " +
+									"required %d, but only %d available. The total number of network " +
+									"buffers is currently set to %d. You can increase this " +
+									"number by setting the configuration key '" +
+									ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY + "'.",
+							numRequiredBuffers, totalNumberOfMemorySegments - numTotalRequiredBuffers,
+							totalNumberOfMemorySegments));
+				}
 			}
 
 			this.numTotalRequiredBuffers += numRequiredBuffers;

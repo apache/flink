@@ -25,9 +25,11 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.Messages.Disconnect
-import org.apache.flink.runtime.messages.TaskMessages.{TaskInFinalState, UpdateTaskExecutionState}
+import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState
+import org.apache.flink.runtime.messages.TaskMessages.{SubmitTask, LockResultPartition, UpdateTaskExecutionState}
 import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
@@ -57,6 +59,10 @@ class TestingTaskManager(config: TaskManagerConfiguration,
   val waitForJobManagerToBeTerminated = scala.collection.mutable.HashMap[String, Set[ActorRef]]()
   val waitForRunning = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
   val unregisteredTasks = scala.collection.mutable.HashSet[ExecutionAttemptID]()
+
+  val waitForResultPartitionChanges =
+    scala.collection.mutable.HashMap[IntermediateResultPartitionID, Set[ActorRef]]()
+  val waitForSubmitTask = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
 
   var disconnectDisabled = false
 
@@ -94,16 +100,26 @@ class TestingTaskManager(config: TaskManagerConfiguration,
               waitForRemoval += (executionID -> (set + sender))
           }
       }
-      
+
     case TaskInFinalState(executionID) =>
       super.receiveWithLogMessages(TaskInFinalState(executionID))
       waitForRemoval.remove(executionID) match {
         case Some(actors) => for(actor <- actors) actor ! true
         case None =>
       }
-
       unregisteredTasks += executionID
-      
+
+    case NotifyWhenTaskSubmitted(jobID: JobID) =>
+      val set = waitForSubmitTask.getOrElse(jobID, Set())
+      waitForSubmitTask += (jobID -> (set + sender))
+
+    case msg: SubmitTask =>
+      super.receiveWithLogMessages(msg)
+      waitForSubmitTask.get(msg.tasks.getJobID) match {
+        case Some(actors) => (actors) foreach (_ ! msg)
+        case None =>
+      }
+
     case RequestBroadcastVariablesWithReferences =>
       sender ! ResponseBroadcastVariablesWithReferences(
         bcVarManager.getNumberOfVariablesWithReferences)
@@ -177,5 +193,17 @@ class TestingTaskManager(config: TaskManagerConfiguration,
           _ foreach (_ ! true)
         }
       }
+
+    case NotifyWhenResultPartitionChanges(id: IntermediateResultPartitionID) =>
+      val set = waitForResultPartitionChanges.getOrElse(id, Set())
+      waitForResultPartitionChanges += (id -> (set + sender))
+
+    case msg: LockResultPartition  =>
+      super.receiveWithLogMessages(msg)
+      waitForResultPartitionChanges.remove(msg.partitionID) match {
+        case Some(actors) => for(actor <- actors) actor ! ResultPartitionLocked(msg.partitionID)
+        case None =>
+      }
+
   }
 }

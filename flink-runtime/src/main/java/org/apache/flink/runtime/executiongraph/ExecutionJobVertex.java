@@ -244,7 +244,7 @@ public class ExecutionJobVertex implements Serializable {
 			}
 			
 			this.inputs.add(ires);
-			
+
 			int consumerIndex = ires.registerConsumer();
 			
 			for (int i = 0; i < parallelism; i++) {
@@ -257,7 +257,7 @@ public class ExecutionJobVertex implements Serializable {
 	//---------------------------------------------------------------------------------------------
 	//  Actions
 	//---------------------------------------------------------------------------------------------
-	
+
 	public void scheduleAll(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
 		
 		ExecutionVertex[] vertices = this.taskVertices;

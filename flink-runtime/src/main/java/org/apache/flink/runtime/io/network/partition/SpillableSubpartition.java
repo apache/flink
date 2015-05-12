@@ -29,7 +29,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -62,7 +64,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	private boolean isReleased;
 
 	/** The read view to consume this subpartition. */
-	private ResultSubpartitionView readView;
+	private Deque<ResultSubpartitionView> readView = new ArrayDeque<ResultSubpartitionView>(1);
 
 	SpillableSubpartition(int index, ResultPartition parent, IOManager ioManager, IOMode ioMode) {
 		super(index, parent);
@@ -110,7 +112,6 @@ class SpillableSubpartition extends ResultSubpartition {
 
 	@Override
 	public void release() throws IOException {
-		final ResultSubpartitionView view;
 
 		synchronized (buffers) {
 			if (isReleased) {
@@ -130,16 +131,12 @@ class SpillableSubpartition extends ResultSubpartition {
 				spillWriter.closeAndDelete();
 			}
 
-			// Get the view...
-			view = readView;
-			readView = null;
-
 			isReleased = true;
 		}
 
 		// Release the view outside of the synchronized block
-		if (view != null) {
-			view.notifySubpartitionConsumed();
+		if (!readView.isEmpty()) {
+			readView.pop().notifySubpartitionConsumed();
 		}
 	}
 
@@ -176,38 +173,35 @@ class SpillableSubpartition extends ResultSubpartition {
 						"been finished.");
 			}
 
-			if (readView != null) {
-				throw new IllegalStateException("Subpartition is being or already has been " +
-						"consumed, but we currently allow subpartitions to only be consumed once.");
-			}
-
 			// Spilled if closed and no outstanding write requests
 			boolean isSpilled = spillWriter != null && (spillWriter.isClosed()
 					|| spillWriter.getNumberOfOutstandingRequests() == 0);
 
 			if (isSpilled) {
 				if (ioMode.isSynchronous()) {
-					readView = new SpilledSubpartitionViewSyncIO(
-							this,
-							bufferProvider.getMemorySegmentSize(),
-							spillWriter.getChannelID(),
-							0);
+					readView.push(new SpilledSubpartitionViewSyncIO(
+										this,
+										bufferProvider.getMemorySegmentSize(),
+										spillWriter.getChannelID(),
+										0)
+					);
 				}
 				else {
-					readView = new SpilledSubpartitionViewAsyncIO(
-							this,
-							bufferProvider,
-							ioManager,
-							spillWriter.getChannelID(),
-							0);
+					readView.push(new SpilledSubpartitionViewAsyncIO(
+										this,
+										bufferProvider,
+										ioManager,
+										spillWriter.getChannelID(),
+										0)
+					);
 				}
 			}
 			else {
-				readView = new SpillableSubpartitionView(
-						this, bufferProvider, buffers.size(), ioMode);
+				readView.push(new SpillableSubpartitionView(
+						this, bufferProvider, buffers.size(), ioMode));
 			}
 
-			return readView;
+			return readView.peek();
 		}
 	}
 
@@ -215,7 +209,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	public String toString() {
 		return String.format("SpillableSubpartition [%d number of buffers (%d bytes)," +
 						"finished? %s, read view? %s, spilled? %s]",
-				getTotalNumberOfBuffers(), getTotalNumberOfBytes(), isFinished, readView != null,
+				getTotalNumberOfBuffers(), getTotalNumberOfBytes(), isFinished, !readView.isEmpty(),
 				spillWriter != null);
 	}
 }

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
@@ -102,9 +103,9 @@ public class Execution implements Serializable {
 
 	private static final AtomicReferenceFieldUpdater<Execution, ExecutionState> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(Execution.class, ExecutionState.class, "state");
-	
+
 	private static final Logger LOG = ExecutionGraph.LOG;
-	
+
 	private static final int NUM_CANCEL_CALL_TRIES = 3;
 
 	// --------------------------------------------------------------------------------------------
@@ -122,21 +123,29 @@ public class Execution implements Serializable {
 	private ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor> partialInputChannelDeploymentDescriptors;
 
 	private volatile ExecutionState state = CREATED;
-	
+
+	/**
+	 * Flag indicating whether this Execution has been marked to be scheduled
+	 */
+	private volatile boolean scheduled;
+
 	private volatile SimpleSlot assignedResource;     // once assigned, never changes until the execution is archived
-	
+
 	private volatile Throwable failureCause;          // once assigned, never changes
-	
+
 	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
-	
+
+	/** Hint for the backtracking to query for a ResultPartition */
+	private volatile Instance resultPartitionLocation;
+
 	private StateHandle operatorState;
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public Execution(ExecutionVertex vertex, int attemptNumber, long startTimestamp, FiniteDuration timeout) {
 		this.vertex = checkNotNull(vertex);
 		this.attemptId = new ExecutionAttemptID();
-		
+
 		this.attemptNumber = attemptNumber;
 
 		this.stateTimestamps = new long[ExecutionState.values().length];
@@ -146,7 +155,7 @@ public class Execution implements Serializable {
 
 		this.partialInputChannelDeploymentDescriptors = new ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor>();
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//   Properties
 	// --------------------------------------------------------------------------------------------
@@ -165,6 +174,31 @@ public class Execution implements Serializable {
 
 	public ExecutionState getState() {
 		return state;
+	}
+
+	public Instance getResultPartitionLocation() {
+		return resultPartitionLocation;
+	}
+
+	public void setResultPartitionLocation(Instance instance) {
+		resultPartitionLocation = instance;
+	}
+
+	/**
+	 * Returns whether this Execution should be scheduled. Always true if schedule modes other than
+	 * Backtracking are used.
+	 * @return true when Execution should be scheduled, false otherwise
+	 */
+	public boolean isScheduled() {
+		return scheduled || getVertex().getExecutionGraph().getScheduleMode() != ScheduleMode.BACKTRACKING;
+	}
+
+	/**
+	 * Sets the current execution to the scheduled mode. This is only relevant for backtracking scheduling
+	 * where we only want to trigger execution if the backtracking decided to mark this Execution as scheduled.
+	 */
+	public void setScheduled() {
+		this.scheduled = true;
 	}
 
 	public SimpleSlot getAssignedResource() {
@@ -233,7 +267,7 @@ public class Execution implements Serializable {
 			throw new RuntimeException("Trying to schedule with co-location constraint but without slot sharing allowed.");
 		}
 
-		if (transitionState(CREATED, SCHEDULED)) {
+		if (isScheduled() && transitionState(CREATED, SCHEDULED)) {
 
 			ScheduledUnit toSchedule = locationConstraint == null ?
 				new ScheduledUnit(this, sharingGroup) :
@@ -319,14 +353,14 @@ public class Execution implements Serializable {
 				slot.releaseSlot();
 				return;
 			}
-			
+
 			if (LOG.isInfoEnabled()) {
 				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getSimpleName(),
 						attemptNumber, slot.getInstance().getInstanceConnectionInfo().getHostname()));
 			}
-			
+
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot);
-			
+
 			// register this execution at the execution graph, to receive call backs
 			vertex.getExecutionGraph().registerExecution(this);
 
@@ -426,7 +460,7 @@ public class Execution implements Serializable {
 	}
 
 	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> allConsumers) {
-		if (allConsumers.size() != 1) {
+		if (allConsumers.size() > 1) {
 			fail(new IllegalStateException("Currently, only a single consumer group per partition is supported."));
 		}
 
@@ -443,6 +477,7 @@ public class Execution implements Serializable {
 			// descriptors if there is a deployment race
 			// ----------------------------------------------------------------
 			if (consumerState == CREATED) {
+
 				final Execution partitionExecution = partition.getProducer()
 						.getCurrentExecutionAttempt();
 
@@ -457,12 +492,10 @@ public class Execution implements Serializable {
 				// TODO The current approach may send many update messages even though the consuming
 				// task has already been deployed with all necessary information. We have to check
 				// whether this is a problem and fix it, if it is.
-				future(new Callable<Boolean>(){
+				future(new Callable<Boolean>() {
 					@Override
 					public Boolean call() throws Exception {
 						try {
-							final ExecutionGraph consumerGraph = consumerVertex.getExecutionGraph();
-
 							consumerVertex.scheduleForExecution(
 									consumerVertex.getExecutionGraph().getScheduler(),
 									consumerVertex.getExecutionGraph().isQueuedSchedulingAllowed());
@@ -476,7 +509,7 @@ public class Execution implements Serializable {
 				}, AkkaUtils.globalExecutionContext());
 
 				// double check to resolve race conditions
-				if(consumerVertex.getExecutionState() == RUNNING){
+				if (consumerVertex.getExecutionState() == RUNNING) {
 					consumerVertex.sendPartitionInfos();
 				}
 			}
@@ -577,12 +610,16 @@ public class Execution implements Serializable {
 			if (current == RUNNING || current == DEPLOYING) {
 
 				if (transitionState(current, FINISHED)) {
+					// store the location of the ResultPartition
+					resultPartitionLocation = assignedResource.getInstance();
+
 					try {
 						for (IntermediateResultPartition finishedPartition
 								: getVertex().finishAllBlockingPartitions()) {
 
 							IntermediateResultPartition[] allPartitions = finishedPartition
 									.getIntermediateResult().getPartitions();
+
 
 							for (IntermediateResultPartition partition : allPartitions) {
 								scheduleOrUpdateConsumers(partition.getConsumers());

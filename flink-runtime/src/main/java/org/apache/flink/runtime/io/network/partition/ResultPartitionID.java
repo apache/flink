@@ -35,7 +35,7 @@ public final class ResultPartitionID implements Serializable {
 
 	private final IntermediateResultPartitionID partitionId;
 
-	private final ExecutionAttemptID producerId;
+	private ExecutionAttemptID producerId;
 
 	public ResultPartitionID() {
 		this(new IntermediateResultPartitionID(), new ExecutionAttemptID());

@@ -52,6 +52,9 @@ public class AbstractJobVertex implements java.io.Serializable {
 	/** List of edges with incoming data. One per Reader. */
 	private final ArrayList<JobEdge> inputs = new ArrayList<JobEdge>();
 
+	/** Indicator whether this vertex reads directly from an intermediate result */
+	private boolean resumesFromIntermediateResult = false;
+
 	/** Number of subtasks to split this task into at runtime.*/
 	private int parallelism = -1;
 
@@ -364,7 +367,7 @@ public class AbstractJobVertex implements java.io.Serializable {
 	public boolean isOutputVertex() {
 		return this.results.isEmpty();
 	}
-	
+
 	public boolean hasNoConnectedInputs() {
 		for (JobEdge edge : inputs) {
 			if (!edge.isIdReference()) {
@@ -373,6 +376,14 @@ public class AbstractJobVertex implements java.io.Serializable {
 		}
 		
 		return true;
+	}
+
+	public void setResumeFromIntermediateResult() {
+		this.resumesFromIntermediateResult = true;
+	}
+
+	public boolean resumesFromIntermediateResult() {
+		return this.resumesFromIntermediateResult;
 	}
 	
 	// --------------------------------------------------------------------------------------------

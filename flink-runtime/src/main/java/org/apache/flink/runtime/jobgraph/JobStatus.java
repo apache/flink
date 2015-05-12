@@ -43,7 +43,7 @@ public enum JobStatus {
 
 	/** All of the job's tasks have successfully finished. */
 	FINISHED(true),
-	
+
 	/** The job is currently undergoing a reset and total restart */
 	RESTARTING(false);
 	

@@ -157,8 +157,8 @@ object JobManagerMessages {
   case object RequestRunningJobs
 
   /**
-   * This message is the response to the [[RequestRunningJobs]] message. It contains all
-   * execution graphs of the currently running jobs.
+   * This message is the response to the [[RequestRunningJobs]] message. It contains the
+   * ExecutionGraph of the running job.
    */
   case class RunningJobs(runningJobs: Iterable[ExecutionGraph]) {
     def this() = this(Seq())
