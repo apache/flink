@@ -70,7 +70,7 @@ cd flink
 export TESTS_PASSED=true
 # Store output of results in a file in the qa dir
 QA_OUTPUT="$VAR_DIR/qa_results.txt"
-rm "$QA_OUTPUT"
+rm -f "$QA_OUTPUT"
 
 append_output() {
 	echo "$1"
@@ -115,7 +115,8 @@ checkCompilerWarnings() {
 	if [ "$NEW_COMPILER_ERR_CNT" -gt "$OLD_COMPILER_ERR_CNT" ]; then
 		append_output ":-1: The change increases the number of compiler warnings from $OLD_COMPILER_ERR_CNT to $NEW_COMPILER_ERR_CNT"
 		append_output '```diff'
-		append_output `diff $VAR_DIR/_COMPILER_REFERENCE_WARNINGS $VAR_DIR/_COMPILER_NEW_WARNINGS`
+		append_output "First 100 warnings:"
+		append_output "`diff $VAR_DIR/_COMPILER_REFERENCE_WARNINGS $VAR_DIR/_COMPILER_NEW_WARNINGS | head -n 100`"
 		append_output '```'
 		TESTS_PASSED=false
 	else
