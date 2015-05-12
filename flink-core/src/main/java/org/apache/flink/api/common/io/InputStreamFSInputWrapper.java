@@ -20,6 +20,7 @@ package org.apache.flink.api.common.io;
 
 import org.apache.flink.core.fs.FSDataInputStream;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -42,12 +43,15 @@ public class InputStreamFSInputWrapper extends FSDataInputStream {
 	public void seek(long desired) throws IOException {
 		if (desired < this.pos) {
 			throw new IllegalArgumentException("Wrapped InputStream: cannot search backwards.");
-		} else if (desired == pos) {
-			return;
 		}
 
-		this.inStream.skip(desired - pos);
-		this.pos = desired;
+		while (this.pos < desired) {
+			long numReadBytes = this.inStream.skip(desired - pos);
+			if (numReadBytes == -1) {
+				throw new EOFException("Unexpected EOF during forward seek.");
+			}
+			this.pos += numReadBytes;
+		}
 	}
 
 	@Override
