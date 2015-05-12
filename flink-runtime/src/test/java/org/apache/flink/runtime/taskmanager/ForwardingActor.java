@@ -16,40 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages
+package org.apache.flink.runtime.taskmanager;
 
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.taskmanager.Task
+import akka.actor.UntypedActor;
 
-object TaskManagerProfilerMessages {
+import java.util.concurrent.BlockingQueue;
 
-  /**
-   * Requests to monitor the specified [[task]].
-   *
-   * @param task
-   */
-  case class MonitorTask(task: Task)
+/**
+ * Actor for testing that simply puts all its messages into a 
+ * blocking queue.
+ */
+class ForwardingActor extends UntypedActor {
 
-  /**
-   * Requests to unmonitor the task associated to [[executionID]].
-   *
-   * @param executionID
-   */
-  case class UnmonitorTask(executionID: ExecutionAttemptID)
+	private final BlockingQueue<Object> queue;
+	
+	public ForwardingActor(BlockingQueue<Object> queue) {
+		this.queue = queue;
+	}
 
-  /**
-   * Registers the sender as a profiling event listener.
-   */
-  case object RegisterProfilingListener
-
-  /**
-   * Unregisters the sender as a profiling event listener.
-   */
-  case object UnregisterProfilingListener
-
-  /**
-   * Makes the task manager profiling the running tasks.
-   */
-  case object ProfileTasks
-
+	@Override
+	public void onReceive(Object message) {
+		queue.add(message);
+	}
 }

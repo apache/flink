@@ -46,6 +46,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import scala.concurrent.Future;
@@ -330,7 +331,7 @@ public class Execution implements Serializable {
 			vertex.getExecutionGraph().registerExecution(this);
 
 			final Instance instance = slot.getInstance();
-			Future<Object> deployAction = Patterns.ask(instance.getTaskManager(),
+			final Future<Object> deployAction = Patterns.ask(instance.getTaskManager(),
 					new SubmitTask(deployment), new Timeout(timeout));
 
 			deployAction.onComplete(new OnComplete<Object>(){
@@ -339,9 +340,13 @@ public class Execution implements Serializable {
 				public void onComplete(Throwable failure, Object success) throws Throwable {
 					if (failure != null) {
 						if (failure instanceof TimeoutException) {
+							String taskname = Task.getTaskNameWithSubtaskAndID(deployment.getTaskName(),
+									deployment.getIndexInSubtaskGroup(), deployment.getNumberOfSubtasks(),
+									attemptId);
+							
 							markFailed(new Exception(
-									"Cannot deploy task - TaskManager " + instance + " not responding.",
-									failure));
+									"Cannot deploy task " + taskname + " - TaskManager (" + instance
+											+ ") not responding after a timeout of " + timeout, failure));
 						}
 						else {
 							markFailed(failure);

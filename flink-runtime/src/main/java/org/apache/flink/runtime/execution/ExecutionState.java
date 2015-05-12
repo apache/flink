@@ -35,10 +35,10 @@ package org.apache.flink.runtime.execution;
  *                                               ... -> FAILED
  * </pre>
  *
- * It is possible to enter the {@code FAILED} state from any other state.
+ * <p>It is possible to enter the {@code FAILED} state from any other state.</p>
  *
- * The states {@code FINISHED}, {@code CANCELED}, and {@code FAILED} are
- * considered terminal states.
+ * <p>The states {@code FINISHED}, {@code CANCELED}, and {@code FAILED} are
+ * considered terminal states.</p>
  */
 public enum ExecutionState {
 

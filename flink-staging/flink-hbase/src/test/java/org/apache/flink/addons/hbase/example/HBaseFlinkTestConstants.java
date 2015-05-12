@@ -16,19 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages
+package org.apache.flink.addons.hbase.example;
 
-import org.apache.flink.runtime.profiling.impl.types.ProfilingDataContainer
-
-/**
- * This object contains the job manager profiler messages
- */
-object JobManagerProfilerMessages {
-
-  /**
-   * Reports profiling data to the profiler.
-   * @param profilingDataContainer
-   */
-  case class ReportProfilingData(profilingDataContainer: ProfilingDataContainer)
-
+public class HBaseFlinkTestConstants {
+	
+	public static final byte[] CF_SOME = "someCf".getBytes();
+	public static final byte[] Q_SOME = "someQual".getBytes();
+	public static final String TEST_TABLE_NAME = "test-table";
+	public static final String TMP_DIR = "/tmp/test";
+	
 }

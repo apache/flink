@@ -35,7 +35,7 @@ and stop it by calling:
 
     ./bin/stop-webclient.sh
 
-The web interface runs on port 8080 by default. To specify a custom port set the ```webclient.port``` property in the *./conf/flink.yaml* configuration file. Jobs are submitted to the JobManager specified by ```jobmanager.rpc.address``` and ```jobmanager.rpc.port```. Please consult the [configuration](config.html#webclient) page for details and further configuration options.
+The web interface runs on port 8080 by default. To specify a custom port set the ```webclient.port``` property in the *./conf/flink.yaml* configuration file. Jobs are submitted to the JobManager specified by ```jobmanager.rpc.address``` and ```jobmanager.rpc.port```. Please consult the [configuration]({{ site.baseurl }}/setup/config.html#webclient) page for details and further configuration options.
 
 ## Using the Web Interface
 

@@ -27,7 +27,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.Messages.Disconnect
-import org.apache.flink.runtime.messages.TaskMessages.{UpdateTaskExecutionState, UnregisterTask}
+import org.apache.flink.runtime.messages.TaskMessages.{TaskInFinalState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
@@ -95,8 +95,8 @@ class TestingTaskManager(config: TaskManagerConfiguration,
           }
       }
       
-    case UnregisterTask(executionID) =>
-      super.receiveWithLogMessages(UnregisterTask(executionID))
+    case TaskInFinalState(executionID) =>
+      super.receiveWithLogMessages(TaskInFinalState(executionID))
       waitForRemoval.remove(executionID) match {
         case Some(actors) => for(actor <- actors) actor ! true
         case None =>

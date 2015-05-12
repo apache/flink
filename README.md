@@ -41,7 +41,7 @@ cd flink
 mvn clean package -DskipTests # this will take up to 5 minutes
 ```
 
-Flink is now installed in `flink-dist/target`
+Flink is now installed in `build-target`
 
 
 ## Developing Flink
@@ -60,7 +60,7 @@ The IntelliJ IDE supports Maven out of the box and offers a plugin for Scala dev
 * IntelliJ download: [https://www.jetbrains.com/idea/](https://www.jetbrains.com/idea/)
 * IntelliJ Scala Plugin: [http://plugins.jetbrains.com/plugin/?id=1347](http://plugins.jetbrains.com/plugin/?id=1347)
 
-Check out our [Setting up IntelliJ](https://github.com/apache/flink/blob/master/docs/internal_setup_intellij.md) guide for details.
+Check out our [Setting up IntelliJ](https://github.com/apache/flink/blob/master/docs/internals/ide_setup.md#intellij-idea) guide for details.
 
 ### Eclipse Scala IDE
 
@@ -68,13 +68,13 @@ For Eclipse users, we recommend using Scala IDE 3.0.3, based on Eclipse Kepler. 
 we found it to be the version that works most robustly for a complex project like Flink.
 
 Further details, and a guide to newer Scala IDE versions can be found in the
-[How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internal_setup_eclipse.md) docs.
+[How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internals/ide_setup.md#eclipse) docs.
 
 **Note:** Before following this setup, make sure to run the build from the command line once
 (`mvn clean package -DskipTests`, see above)
 
 1. Download the Scala IDE (preferred) or install the plugin to Eclipse Kepler. See 
-   [How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internal_setup_eclipse.md) for download links and instructions.
+   [How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internals/ide_setup.md#eclipse) for download links and instructions.
 2. Add the "macroparadise" compiler plugin to the Scala compiler.
    Open "Window" -> "Preferences" -> "Scala" -> "Compiler" -> "Advanced" and put into the "Xplugin" field the path to
    the *macroparadise* jar file (typically "/home/*-your-user-*/.m2/repository/org/scalamacros/paradise_2.10.4/2.0.1/paradise_2.10.4-2.0.1.jar").

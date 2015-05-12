@@ -68,7 +68,14 @@ cd flink
 
 # Initialize variables
 export TESTS_PASSED=true
-export MESSAGES="Flink QA-Check results:"$'\n'
+# Store output of results in a file in the qa dir
+QA_OUTPUT="$VAR_DIR/qa_results.txt"
+rm -f "$QA_OUTPUT"
+
+append_output() {
+	echo "$1"
+	echo "$1" >> "$QA_OUTPUT"
+}
 
 goToTestDirectory() {
 	cd $flink_home
@@ -88,10 +95,10 @@ checkJavadocsErrors() {
 	OLD_JAVADOC_ERR_CNT=`cat $VAR_DIR/_JAVADOCS_NUM_WARNINGS` 
 	NEW_JAVADOC_ERR_CNT=`eval $JAVADOC_MVN_COMMAND`
 	if [ "$NEW_JAVADOC_ERR_CNT" -gt "$OLD_JAVADOC_ERR_CNT" ]; then
-		MESSAGES+=":-1: The change increases the number of javadoc errors from $OLD_JAVADOC_ERR_CNT to $NEW_JAVADOC_ERR_CNT"$'\n'
+		append_output ":-1: The change increases the number of javadoc errors from $OLD_JAVADOC_ERR_CNT to $NEW_JAVADOC_ERR_CNT"
 		TESTS_PASSED=false
 	else
-		MESSAGES+=":+1: The number of javadoc errors was $OLD_JAVADOC_ERR_CNT and is now $NEW_JAVADOC_ERR_CNT"$'\n'
+		append_output ":+1: The number of javadoc errors was $OLD_JAVADOC_ERR_CNT and is now $NEW_JAVADOC_ERR_CNT"
 	fi
 }
 
@@ -106,13 +113,14 @@ checkCompilerWarnings() {
 	OLD_COMPILER_ERR_CNT=`cat $VAR_DIR/_COMPILER_NUM_WARNINGS` 
 	NEW_COMPILER_ERR_CNT=`eval $COMPILER_WARN_MVN_COMMAND | tee $VAR_DIR/_COMPILER_NEW_WARNINGS | wc -l`
 	if [ "$NEW_COMPILER_ERR_CNT" -gt "$OLD_COMPILER_ERR_CNT" ]; then
-		MESSAGES+=":-1: The change increases the number of compiler warnings from $OLD_COMPILER_ERR_CNT to $NEW_COMPILER_ERR_CNT"$'\n'
-		MESSAGES+='```diff'$'\n'
-		MESSAGES+=`diff $VAR_DIR/_COMPILER_REFERENCE_WARNINGS $VAR_DIR/_COMPILER_NEW_WARNINGS`$'\n'
-		MESSAGES+='```'$'\n'
+		append_output ":-1: The change increases the number of compiler warnings from $OLD_COMPILER_ERR_CNT to $NEW_COMPILER_ERR_CNT"
+		append_output '```diff'
+		append_output "First 100 warnings:"
+		append_output "`diff $VAR_DIR/_COMPILER_REFERENCE_WARNINGS $VAR_DIR/_COMPILER_NEW_WARNINGS | head -n 100`"
+		append_output '```'
 		TESTS_PASSED=false
 	else
-		MESSAGES+=":+1: The number of compiler warnings was $OLD_COMPILER_ERR_CNT and is now $NEW_COMPILER_ERR_CNT"$'\n'
+		append_output ":+1: The number of compiler warnings was $OLD_COMPILER_ERR_CNT and is now $NEW_COMPILER_ERR_CNT"
 	fi
 }
 
@@ -129,10 +137,10 @@ checkLibFiles() {
 	eval $BUILD_MVN_COMMAND > /dev/null
 	NEW_LIB_FILES_CNT=`eval $COUNT_LIB_FILES`
 	if [ "$NEW_LIB_FILES_CNT" -gt "$OLD_LIB_FILES_CNT" ]; then
-		MESSAGES+=":-1: The change increases the number of dependencies in the lib/ folder from $OLD_LIB_FILES_CNT to $NEW_LIB_FILES_CNT"$'\n'
+		append_output ":-1: The change increases the number of dependencies in the lib/ folder from $OLD_LIB_FILES_CNT to $NEW_LIB_FILES_CNT"
 		TESTS_PASSED=false
 	else
-		MESSAGES+=":+1: The number of files in the lib/ folder was $OLD_LIB_FILES_CNT before the change and is now $NEW_LIB_FILES_CNT"$'\n'
+		append_output ":+1: The number of files in the lib/ folder was $OLD_LIB_FILES_CNT before the change and is now $NEW_LIB_FILES_CNT"
 	fi
 }
 
@@ -141,13 +149,15 @@ checkLibFiles() {
 checkAuthorTag() {
 	# we are grep-ing for "java" but we've messed up the string a bit so that it doesn't find exactly this line.
 	if [ `grep -r "@author" . | grep "ja""va" | wc -l` -gt "0" ]; then
-		MESSAGES+=":-1: The change contains @author tags"$'\n'
+		append_output ":-1: The change contains @author tags"
 		TESTS_PASSED=false
 	fi
 }
 
 
 ################################### QA checks ###################################
+
+append_output "Computing Flink QA-Check results (please be patient)."
 
 ##### Methods to be executed on the current 'master'
 referenceJavadocsErrors
@@ -163,13 +173,9 @@ checkLibFiles
 checkAuthorTag
 
 
-MESSAGES+=$'\n'"Test finished."$'\n'
+append_output "QA-Check finished."
 if [ "$TESTS_PASSED" == "true" ]; then
-	MESSAGES+="Overall result: :+1:. All tests passed"$'\n'
+	append_output "Overall result: :+1:. All tests passed"
 else 
-	MESSAGES+="Overall result: :-1:. Some tests failed. Please check messages above"$'\n'
+	append_output "Overall result: :-1:. Some tests failed. Please check messages above"
 fi
-
-echo "$MESSAGES"
-
-

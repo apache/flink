@@ -21,11 +21,13 @@ package org.apache.flink.api.common.cache;
 
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.FutureTask;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -37,6 +39,7 @@ import org.apache.flink.core.fs.Path;
 public class DistributedCache {
 	
 	public static class DistributedCacheEntry {
+		
 		public String filePath;
 		public Boolean isExecutable;
 		
@@ -45,19 +48,45 @@ public class DistributedCache {
 			this.isExecutable=isExecutable;
 		}
 	}
-
-	final static String CACHE_FILE_NUM = "DISTRIBUTED_CACHE_FILE_NUM";
-
-	final static String CACHE_FILE_NAME = "DISTRIBUTED_CACHE_FILE_NAME_";
-
-	final static String CACHE_FILE_PATH = "DISTRIBUTED_CACHE_FILE_PATH_";
 	
-	final static String CACHE_FILE_EXE = "DISTRIBUTED_CACHE_FILE_EXE_";
+	// ------------------------------------------------------------------------
 
-	public final static String TMP_PREFIX = "tmp_";
+	private final Map<String, Future<Path>> cacheCopyTasks;
 
-	private Map<String, FutureTask<Path>> cacheCopyTasks = new HashMap<String, FutureTask<Path>>();
+	public DistributedCache(Map<String, Future<Path>> cacheCopyTasks) {
+		this.cacheCopyTasks = cacheCopyTasks;
+	}
 
+	// ------------------------------------------------------------------------
+
+	public File getFile(String name) {
+		if (name == null) {
+			throw new NullPointerException("name must not be null");
+		}
+		
+		Future<Path> future = cacheCopyTasks.get(name);
+		if (future == null) {
+			throw new IllegalArgumentException("File with name '" + name + "' is not available." +
+					" Did you forget to register the file?");
+		}
+		
+		try {
+			Path tmp = future.get();
+			return new File(tmp.toString());
+		}
+		catch (ExecutionException e) {
+			throw new RuntimeException("An error occurred while copying the file.", e.getCause());
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Error while getting the file registered under '" + name +
+					"' from the distributed cache", e);
+		}
+	}
+	
+	// ------------------------------------------------------------------------
+	//  Utilities to read/write cache files from/to the configuration
+	// ------------------------------------------------------------------------
+	
 	public static void writeFileInfoToConfig(String name, DistributedCacheEntry e, Configuration conf) {
 		int num = conf.getInteger(CACHE_FILE_NUM,0) + 1;
 		conf.setInteger(CACHE_FILE_NUM, num);
@@ -67,29 +96,26 @@ public class DistributedCache {
 	}
 
 	public static Set<Entry<String, DistributedCacheEntry>> readFileInfoFromConfig(Configuration conf) {
-		Map<String, DistributedCacheEntry> cacheFiles = new HashMap<String, DistributedCacheEntry>();
 		int num = conf.getInteger(CACHE_FILE_NUM, 0);
+		if (num == 0) {
+			return Collections.emptySet();
+		}
+
+		Map<String, DistributedCacheEntry> cacheFiles = new HashMap<String, DistributedCacheEntry>();
 		for (int i = 1; i <= num; i++) {
-			String name = conf.getString(CACHE_FILE_NAME + i, "");
-			String filePath = conf.getString(CACHE_FILE_PATH + i, "");
+			String name = conf.getString(CACHE_FILE_NAME + i, null);
+			String filePath = conf.getString(CACHE_FILE_PATH + i, null);
 			Boolean isExecutable = conf.getBoolean(CACHE_FILE_EXE + i, false);
 			cacheFiles.put(name, new DistributedCacheEntry(filePath, isExecutable));
 		}
 		return cacheFiles.entrySet();
 	}
 
-	public void setCopyTasks(Map<String, FutureTask<Path>> cpTasks) {
-			this.cacheCopyTasks = cpTasks;
-	}
+	private static final String CACHE_FILE_NUM = "DISTRIBUTED_CACHE_FILE_NUM";
 
-	public File getFile(String name) {
-		Path tmp = null;
-		//The FutureTask.get() method will block until the file is ready.
-		try {
-			tmp = cacheCopyTasks.get(name).get();
-		} catch (Exception  e) {
-			throw new RuntimeException("Error while getting file from distributed cache", e);
-		}
-		return new File(tmp.toString());
-	}
+	private static final String CACHE_FILE_NAME = "DISTRIBUTED_CACHE_FILE_NAME_";
+
+	private static final String CACHE_FILE_PATH = "DISTRIBUTED_CACHE_FILE_PATH_";
+
+	private static final String CACHE_FILE_EXE = "DISTRIBUTED_CACHE_FILE_EXE_";
 }
