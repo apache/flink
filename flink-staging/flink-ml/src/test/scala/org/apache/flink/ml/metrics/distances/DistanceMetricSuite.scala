@@ -18,8 +18,10 @@
 
 package org.apache.flink.ml.metrics.distances
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
+
 import org.apache.flink.ml.math.DenseVector
-import org.scalatest.{Matchers, FlatSpec}
+import org.scalatest.{FlatSpec, Matchers}
 
 class DistanceMetricSuite extends FlatSpec with Matchers {
   val EPSILON = 1e-8
@@ -73,5 +75,21 @@ class DistanceMetricSuite extends FlatSpec with Matchers {
     val vec2 = DenseVector(1, 1, 0)
 
     TanimotoDistanceMetric().distance(vec1, vec2) should be(1 - (1.0 / (2 + 2 - 1)) +- EPSILON)
+  }
+
+  it should "be serialized" in {
+    val metric = EuclideanDistanceMetric()
+    val byteOutput = new ByteArrayOutputStream()
+    val output = new ObjectOutputStream(byteOutput)
+
+    output.writeObject(metric)
+    output.close()
+
+    val byteInput = new ByteArrayInputStream(byteOutput.toByteArray)
+    val input = new ObjectInputStream(byteInput)
+
+    val restoredMetric = input.readObject().asInstanceOf[DistanceMetric]
+
+    restoredMetric should be(an[EuclideanDistanceMetric])
   }
 }
