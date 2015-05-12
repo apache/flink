@@ -106,7 +106,6 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 					@Override
 					public Vertex<Long, HashMap<Long, Tuple3<Double, Double, Double>>> map(
 							Vertex<Long, Long> v) throws Exception {
-						// TODO Auto-generated method stub
 						HashMap<Long, Tuple3<Double, Double, Double>> hashmap = 
 								new HashMap<Long, Tuple3<Double, Double,Double>>();
 						hashmap.put(v.getId(),new Tuple3<Double, Double, Double>(0.0, 0.0, 0.0));
@@ -135,12 +134,12 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 				MessageIterator<Tuple2<Long, Double>> inMessages)
 				throws Exception {
 			for (Tuple2<Long, Double> message: inMessages){
-				/*Remove degeneracies*/
-				Double newS = message.f1 + (1e-12) * 66.2 * Math.random();
+				/*Remove degeneracies?*/
+				Double newSimilarity = message.f1;
 				if (!vertexValue.containsValue(message.f0)){
-					vertexValue.put(message.f0, new Tuple3<Double, Double,Double>(newS, 0.0, 0.0));					
+					vertexValue.put(message.f0, new Tuple3<Double, Double,Double>(newSimilarity, 0.0, 0.0));					
 				}else{
-					vertexValue.get(message.f0).f0 = newS;
+					vertexValue.get(message.f0).f0 = newSimilarity;
 				}
 			}
 			setNewVertexValue(vertexValue);
@@ -206,7 +205,7 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 		if (!input.validate(new SelfEdgeValidator())){
 			throw new Exception("Self-edges checking error");
 		}
-			
+		
 		Graph<Long, HashMap<Long, Tuple3<Double, Double,Double>>, Double> graph = transferGraph(input);
 		
 		//Run the vertex centric iteration
@@ -300,13 +299,13 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 				}
 				/*Update responsibility*/
 				for (Entry<Long, Tuple3<Double, Double, Double>> entry: vertexValue.entrySet()){
-					Double newRespons = 0.0;
+					Double newResponse = 0.0;
 					if (entry.getKey() != maxKey){
-						newRespons = entry.getValue().f0 - maxSum;
+						newResponse = entry.getValue().f0 - maxSum;
 					}else{
-						newRespons = entry.getValue().f0 - secondMaxSum;
+						newResponse = entry.getValue().f0 - secondMaxSum;
 					}
-					entry.getValue().f1 = (1 - lambda) * newRespons + lambda * entry.getValue().f1;
+					entry.getValue().f1 = (1 - lambda) * newResponse + lambda * entry.getValue().f1;
 				}
 				/*reset the hashmap of the vertex*/
 				setNewVertexValue(vertexValue);

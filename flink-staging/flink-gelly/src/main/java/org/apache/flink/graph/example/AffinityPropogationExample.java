@@ -57,7 +57,7 @@ public class AffinityPropogationExample implements ProgramDescription{
 			System.out.println("Executing Affinity propogation example with default parameters and built-in default data.");
 			System.out.println("Provide parameters to read input data from files.");
 			System.out.println("See the documentation for the correct format of input files.");
-			System.out.println("Usage:  AffinityPropogation <similarity graph path> <vertex preference path> <result path> <num of iterations> <lambda>");
+			System.out.println("Usage:  AffinityPropogation <similarity graph path> <result path> <num of iterations> <lambda>");
 		}
 		return true;
 	}
@@ -77,7 +77,7 @@ public class AffinityPropogationExample implements ProgramDescription{
 			public Long map(Long value) throws Exception {
 				return value;
 			}
-		},env);		
+		},env);	
 		//Run affinity propagation algorithm
 		Graph<Long, Long, Double> result = graph.run(new AffinityPropogation(maxIterations, lambda));
 		
@@ -89,6 +89,7 @@ public class AffinityPropogationExample implements ProgramDescription{
 		}
 		env.execute("Affinity Propogation Example");
 	}
+	
 	@SuppressWarnings("serial")
 	public static DataSet<Edge<Long, Double>> getEdgeDataSet(ExecutionEnvironment env){
 		if (fileOutput){

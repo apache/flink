@@ -27,6 +27,18 @@ import org.apache.flink.graph.Edge;
 
 public class AffinityPropogationData {
 	
+	public static final long MAX_ITERATIONS = 100;
+	
+	public static final double LAMBDA = 0.5f;
+	int b[][]={{1,5,2,8},{5,9,10,-3},{2,7,-5,-18}};
+	public static final long[][] VERTICES_WITH_CLUSTER_ID ={ 
+			{1L, 3L},{2L, 3L},{3L, 3L},{4L, 3L}, 
+			{5L, 3L},{6L, 3L},{7L, 7L},{8L, 7L},
+			{9L, 7L},{10L, 7L},{11L, 3L},{12L, 7L},
+			{13L, 3L},{14L, 7L},{15L, 7L},{16L, 20L},
+			{17L, 20L},{18L, 20L},{19L, 20L},{20L, 20L},
+			{21L, 20L},{22L, 3L},{23L, 20L},{24L, 20L},{25, 7}
+		};
 	public static DataSet<Edge<Long, Double>> getDefautEdgeDataSet(ExecutionEnvironment env){
 		List<Edge<Long, Double>> edgeList = new LinkedList<Edge<Long, Double>>();
 		for (Object[] o: ToyProblemSimlarities){
