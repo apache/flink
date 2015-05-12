@@ -19,8 +19,8 @@
 package org.apache.flink.api.scala.actions
 
 import org.apache.flink.api.scala._
+import org.apache.flink.test.util.AbstractMultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.MultipleProgramsTestBase
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 
 import org.junit.Test
 import org.junit.Assert._

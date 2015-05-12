@@ -18,13 +18,11 @@
 
 package org.apache.flink.test.util;
 
-import org.junit.runners.Parameterized;
-
-import java.util.Arrays;
-import java.util.Collection;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
 /**
- * Base class for unit tests that run multiple tests and want to reuse the same
+ * Abstract base class for unit tests that run multiple tests and want to reuse the same
  * Flink cluster. This saves a significant amount of time, since the startup and
  * shutdown of the Flink clusters (including actor systems, etc) usually dominates
  * the execution of the actual tests.
@@ -51,25 +49,36 @@ import java.util.Collection;
  *
  * }</pre>
  */
-public class MultipleProgramsTestBase extends AbstractMultipleProgramsTestBase {
+public abstract class AbstractMultipleProgramsTestBase extends TestBaseUtils {
 
-	public MultipleProgramsTestBase(TestExecutionMode mode){
-		super(mode);
-		switch(this.mode){
-			case CLUSTER:
-				TestEnvironment clusterEnv = new TestEnvironment(cluster, 4);
-				clusterEnv.setAsContext();
-				break;
-			case COLLECTION:
-				CollectionTestEnvironment collectionEnv = new CollectionTestEnvironment();
-				collectionEnv.setAsContext();
-				break;
-		}
+	/**
+	 * Enum that defines which execution environment to run the next test on:
+	 * An embedded local flink cluster, or the collection execution backend.
+	 */
+	public enum TestExecutionMode {
+		CLUSTER,
+		COLLECTION
 	}
 
-	@Parameterized.Parameters(name = "Execution mode = {0}")
-	public static Collection<TestExecutionMode[]> executionModes(){
-		return Arrays.asList(new TestExecutionMode[]{TestExecutionMode.CLUSTER},
-				new TestExecutionMode[]{TestExecutionMode.COLLECTION});
+	// -----------------------------------------------------------------------------------------...
+
+	private static final int DEFAULT_PARALLELISM = 4;
+
+	protected static ForkableFlinkMiniCluster cluster = null;
+
+	protected transient TestExecutionMode mode;
+
+	public AbstractMultipleProgramsTestBase(TestExecutionMode mode){
+		this.mode = mode;
+	}
+
+	@BeforeClass
+	public static void setup() throws Exception{
+		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, false);
+	}
+
+	@AfterClass
+	public static void teardown() throws Exception {
+		stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
 	}
 }

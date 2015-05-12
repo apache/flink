@@ -41,7 +41,6 @@ import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.streaming.api.windowing.helper.Delta;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
-import org.apache.flink.streaming.util.RectangleClass;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
@@ -64,8 +63,11 @@ import java.util.HashMap;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase implements Serializable {
-	private static final long serialVersionUID = 1L;
+public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
+
+	// *************************************************************************
+	// GENERAL SETUP
+	// *************************************************************************
 
 	private String resultPath1;
 	private String resultPath2;
@@ -93,6 +95,10 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 		compareResultsByLinesInMemory(expected2, resultPath2);
 	}
 
+	// *************************************************************************
+	// INTEGRATION TESTS
+	// *************************************************************************
+
 	@Test
 	public void complexIntegrationTest1() throws Exception {
 		//Testing data stream splitting with tuples
@@ -113,7 +119,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 
 		//We create a separate environment for this test because of the slot-related to iteration issues.
 		StreamExecutionEnvironment env = new TestStreamEnvironment(4, 32); //StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
 		DataStream<Tuple2<Long, Tuple2<String, Long>>> sourceStream1 = env.addSource(new TupleSource()).setParallelism(1);
 
 		IterativeDataStream<Tuple2<Long, Tuple2<String, Long>>> it = sourceStream1.sum(0).setParallelism(1).filter(new FilterFunction
@@ -131,7 +136,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 
 		step.select("firstOutput")
 				.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
-		step.select("secondOutput")//.print();
+		step.select("secondOutput")
 				.writeAsText(resultPath2, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -173,8 +178,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 				new Tuple5<Integer, String, Character, Double, Boolean>(17, "peach", 'd', 1.0, true));
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setBufferTimeout(100);
-		env.setParallelism(4);
 
 		SingleOutputStreamOperator<Tuple5<Integer, String, Character, Double, Boolean>, DataStreamSource<Tuple5<Integer, String, Character, Double, Boolean>>> sourceStream21 = env.fromCollection(input);
 		DataStream<OuterPojo> sourceStream22 = env.addSource(new PojoSource());
@@ -215,7 +218,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 		expected2 += "(" + 20000 + "," + 1 + ")";
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
 
 		DataStream<Long> sourceStream31 = env.generateSequence(1, 10000);
 		DataStream<Long> sourceStream32 = env.generateSequence(10001, 20000);
@@ -237,8 +239,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 				return new Tuple2<Long, Integer>(value, 1);
 			}
 		})
-//				.groupBy(0)
-//				.sum(1)
 				.groupBy(0)
 				.window(Count.of(10000)).sum(1).flatten()
 				.filter(new FilterFunction<Tuple2<Long, Integer>>() {
@@ -269,7 +269,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 				"((499,587),90)\n" + "((516,606),93)\n" + "((517,609),94)\n" + "((534,628),97)\n" + "((535,631),98)";
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
 
 		env.addSource(new RectangleSource())
 				.global()
@@ -303,7 +302,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 				"12\n" + "15\n" + "16\n" + "20\n" + "25\n";
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
 
 		DataStream<Long> dataStream51 = env.generateSequence(1, 5)
 				.map(new MapFunction<Long, Long>() {
@@ -345,7 +343,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 		});
 
 
-		dataStream53.merge(dataStream52)//.print();
+		dataStream53.merge(dataStream52)
 				.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -445,7 +443,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 		sales.add(new Tuple2<Date, HashMap<Character, Integer>>(ft.parse("01-10-2014"), sale10));
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
 
 		DataStream<Tuple2<Date, HashMap<Character, Integer>>> sourceStream6 = env.fromCollection(sales);
 		sourceStream6.window(Time.of(1, new Timestamp6()))
@@ -461,6 +458,10 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 
 	}
 
+	// *************************************************************************
+	// FUNCTIONS
+	// *************************************************************************
+
 	private static class MyMapFunction2 implements MapFunction<Tuple5<Integer, String, Character, Double, Boolean>, Tuple4<Integer, String,
 			Double, Boolean>> {
 
@@ -471,36 +472,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 					value.f3, value.f4);
 		}
 
-	}
-
-	public static class InnerPojo {
-		public Long f0;
-		public String f1;
-
-		public InnerPojo(Long f0, String f1) {
-			this.f0 = f0;
-			this.f1 = f1;
-		}
-
-		@Override
-		public String toString() {
-			return "POJO(" + f0 + "," + f1 + ")";
-		}
-	}
-
-	public static class OuterPojo {
-		public InnerPojo f0;
-		public Long f1;
-
-		public OuterPojo(InnerPojo f0, Long f1) {
-			this.f0 = f0;
-			this.f1 = f1;
-		}
-
-		@Override
-		public String toString() {
-			return "POJO(" + f0 + "," + f1 + ")";
-		}
 	}
 
 	private static class PojoSource implements SourceFunction<OuterPojo> {
@@ -744,6 +715,71 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase im
 			Collections.sort(list);
 			return list;
 		}
+	}
+
+	// *************************************************************************
+	// DATA TYPES
+	// *************************************************************************
+
+	//Flink Pojo
+	public static class InnerPojo {
+		public Long f0;
+		public String f1;
+
+		//default constructor to qualify as Flink POJO
+		InnerPojo(){}
+
+		public InnerPojo(Long f0, String f1) {
+			this.f0 = f0;
+			this.f1 = f1;
+		}
+
+		@Override
+		public String toString() {
+			return "POJO(" + f0 + "," + f1 + ")";
+		}
+	}
+
+	// Nested class serialized with Kryo
+	public static class OuterPojo {
+		public InnerPojo f0;
+		public Long f1;
+
+		public OuterPojo(InnerPojo f0, Long f1) {
+			this.f0 = f0;
+			this.f1 = f1;
+		}
+
+		@Override
+		public String toString() {
+			return "POJO(" + f0 + "," + f1 + ")";
+		}
+	}
+
+	public static class RectangleClass implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		public int a;
+		public int b;
+
+		//default constructor to qualify as Flink POJO
+		public RectangleClass() {}
+
+		public RectangleClass(int a, int b) {
+			this.a = a;
+			this.b = b;
+		}
+
+		public RectangleClass next() {
+			return new RectangleClass(a + (b % 11), b + (a % 9));
+		}
+
+		@Override
+		public String toString() {
+			return "(" + a + "," + b + ")";
+		}
+
 	}
 
 }
