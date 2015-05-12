@@ -69,9 +69,11 @@ public class SlidingTimeGroupedPreReducer<T> extends SlidingGroupedPreReducer<T>
 
 	@Override
 	protected void afterEmit() {
-		long lastTime = timestampWrapper.getTimestamp(lastStored);
-		if (lastTime - windowStartTime >= slideSize) {
-			windowStartTime = windowStartTime + slideSize;
+		if (lastStored != null) {
+			long lastTime = timestampWrapper.getTimestamp(lastStored);
+			if (lastTime - windowStartTime >= slideSize) {
+				windowStartTime = windowStartTime + slideSize;
+			}
 		}
 	}
 
