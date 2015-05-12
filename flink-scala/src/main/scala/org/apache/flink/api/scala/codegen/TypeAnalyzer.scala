@@ -148,6 +148,7 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
         .filter { _.isTerm }
         .map { _.asTerm }
         .filter { _.isVar }
+        .filter { !_.isStatic }
         .filterNot { _.annotations.exists( _.tpe <:< typeOf[scala.transient]) }
 
       if (fields.isEmpty) {
@@ -186,7 +187,7 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
       val fieldDescriptors = fields map {
         f =>
-          val fieldTpe = f.getter.asMethod.returnType.asSeenFrom(tpe, tpe.typeSymbol)
+          val fieldTpe = f.typeSignatureIn(tpe)
           FieldDescriptor(f.name.toString.trim, f.getter, f.setter, fieldTpe, analyze(fieldTpe))
       }
 
