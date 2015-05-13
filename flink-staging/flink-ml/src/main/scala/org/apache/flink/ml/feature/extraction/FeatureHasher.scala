@@ -18,13 +18,16 @@
 
 package org.apache.flink.ml.feature.extraction
 
-import java.nio.charset.Charset
+import javassist.bytecode.stackmap.TypeTag
 
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{Parameter, ParameterMap, Transformer}
 import org.apache.flink.ml.feature.extraction.FeatureHasher.{NonNegative, NumFeatures}
 import org.apache.flink.ml.math.{Vector, SparseVector}
 
+import scala.reflect.ClassTag
+
+//import scala.reflect.ClassTag
 import scala.util.hashing.MurmurHash3
 
 
@@ -43,12 +46,12 @@ import scala.util.hashing.MurmurHash3
   * [[Vector]].
   *
   * @example
-  *          {{{
-  *            val trainingDS: DataSet[Seq[String]] = env.fromCollection(data)
-  *            val transformer = FeatureHasher().setNumFeatures(65536).setNonNegative(false)
+  * {{{
+  *             val trainingDS: DataSet[Seq[String]] = env.fromCollection(data)
+  *             val transformer = FeatureHasher().setNumFeatures(65536).setNonNegative(false)
   *
-  *            transformer.transform(trainingDS)
-  *          }}}
+  *             transformer.transform(trainingDS)
+  * }}}
   *
   * =Parameters=
   *
@@ -58,7 +61,7 @@ import scala.util.hashing.MurmurHash3
   * When True, output values can be interpreted as frequencies. When False, output values will have
   * expected value zero; by default equal to false
   */
-class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
+class FeatureHasher[T: ClassTag] extends Transformer[Seq[T], Vector] with Serializable {
 
   // The seed used to initialize the hasher
   val Seed = 0
@@ -69,9 +72,9 @@ class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
     *                    than 1, numFeatures is set to its default value: 2&#94;20
     * @return the FeatureHasher instance with its numFeatures value set to the user-specified value
     */
-  def setNumFeatures(numFeatures: Int): FeatureHasher = {
+  def setNumFeatures(numFeatures: Int): FeatureHasher[T] = {
     // number of features must be greater zero
-    if(numFeatures < 1) {
+    if (numFeatures < 1) {
       throw new IllegalArgumentException("numFeatures must be greater than zero")
     }
     parameters.add(NumFeatures, numFeatures)
@@ -83,12 +86,12 @@ class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
     * @param nonNegative the user-specified nonNegative value.
     * @return the FeatureHasher instance with its nonNegative value set to the user-specified value
     */
-  def setNonNegative(nonNegative: Boolean): FeatureHasher = {
+  def setNonNegative(nonNegative: Boolean): FeatureHasher[T] = {
     parameters.add(NonNegative, nonNegative)
     this
   }
 
-  override def transform(input: DataSet[Seq[String]], parameters: ParameterMap):
+  override def transform(input: DataSet[Seq[T]], parameters: ParameterMap):
   DataSet[Vector] = {
     val resultingParameters = this.parameters ++ parameters
 
@@ -99,21 +102,19 @@ class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
     input.map {
       inputSeq => {
         val entries = inputSeq.map {
-          s => {
-            // unicode strings are converted to utf-8
-            // bytesHash is faster than arrayHash, because it hashes 4 bytes at once
-            val h = MurmurHash3.bytesHash(s.getBytes(Charset.forName("UTF-8")), Seed) % numFeatures
+          entry => {
+            val h = MurmurHash3.arrayHash(Array[T](entry)) % numFeatures
             val index = Math.abs(h)
             /* instead of using two hash functions (Weinberger et al.), assume the sign is in-
                dependent of the other bits */
-            val value = if(h >= 0) 1.0 else -1.0
+            val value = if (h >= 0) 1.0 else -1.0
             (index, value)
           }
         }
         val myVector = SparseVector.fromCOO(numFeatures, entries)
         // in case of non negative output, return the absolute of the vector
-        if(nonNegative) {
-          for(index <- myVector.indices) {
+        if (nonNegative) {
+          for (index <- myVector.indices) {
             myVector(index) = Math.abs(myVector(index))
           }
         }
@@ -135,7 +136,7 @@ object FeatureHasher {
     override val defaultValue: Option[Boolean] = Some(false)
   }
 
-  def apply(): FeatureHasher = {
-    new FeatureHasher()
+  def apply[T: ClassTag](): FeatureHasher[T] = {
+    new FeatureHasher[T]()
   }
 }
