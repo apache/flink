@@ -369,8 +369,8 @@ public class CsvInputFormatTest {
 		try {
 			final String fileContent = "|0|0|0|0|0|\n" +
 				"1||1|1|1|1|\n" +
-				"2|2||2|2|1|\n" +
-				"3|3|3|1.0 |3|1|\n" +
+				"2|2||2|2|2|\n" +
+				"3|3|3| |3|3|\n" +
 				"4|4|4|4||4|\n" +
 				"5|5|5|5|5||\n";
 			final FileInputSplit split = createTempFile(fileContent);
