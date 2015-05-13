@@ -471,14 +471,15 @@ public abstract class YarnTestBase {
 				expectedStringSeen = true;
 				LOG.info("Found expected output in redirected streams");
 				// send "stop" command to command line interface
+				LOG.info("RunWithArgs: request runner to stop");
 				runner.sendStop();
 				// wait for the thread to stop
 				try {
-					runner.join(1000);
+					runner.join(10000);
 				} catch (InterruptedException e) {
-					LOG.warn("Interrupted while stopping runner", e);
+					LOG.debug("Interrupted while stopping runner", e);
 				}
-				LOG.warn("stopped");
+				LOG.warn("RunWithArgs runner stopped.");
 				break;
 			}
 			// check if thread died

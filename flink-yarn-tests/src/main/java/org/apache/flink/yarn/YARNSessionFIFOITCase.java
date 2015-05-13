@@ -472,7 +472,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 				LOG.info("waiting for the job with appId {} to finish", tmpAppId);
 				// wait until the app has finished
-				while(yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING)).size() == 0) {
+				while(yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING)).size() > 0) {
 					sleep(500);
 				}
 			} else {
