@@ -71,8 +71,8 @@ class TestingTaskManager(config: TaskManagerConfiguration,
   def receiveTestMessages: Receive = {
     case NotifyWhenTaskIsRunning(executionID) => {
       Option(runningTasks.get(executionID)) match {
-        case Some(_) => sender ! true
-        case None =>
+        case Some(task) if task.getExecutionState == ExecutionState.RUNNING => sender ! true
+        case _ =>
           val listeners = waitForRunning.getOrElse(executionID, Set())
           waitForRunning += (executionID -> (listeners + sender))
       }
