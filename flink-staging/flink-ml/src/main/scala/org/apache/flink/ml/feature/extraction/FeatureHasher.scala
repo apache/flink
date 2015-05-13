@@ -18,27 +18,23 @@
 
 package org.apache.flink.ml.feature.extraction
 
-import javassist.bytecode.stackmap.TypeTag
-
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{Parameter, ParameterMap, Transformer}
 import org.apache.flink.ml.feature.extraction.FeatureHasher.{NonNegative, NumFeatures}
 import org.apache.flink.ml.math.{Vector, SparseVector}
 
 import scala.reflect.ClassTag
-
-//import scala.reflect.ClassTag
 import scala.util.hashing.MurmurHash3
 
 
-/** This transformer turns sequences of symbolic feature names (strings) into
+/** This transformer turns sequences of symbolic feature names (objects) into
   * flink.ml.math.SparseVectors, using a hash function to compute the matrix column corresponding
   * to a name. Aka the hashing trick.
   * The hash function employed is the signed 32-bit version of Murmurhash3.
   *
   * By default for [[FeatureHasher]] transformer numFeatures=2#94;20 and nonNegative=false.
   *
-  * This transformer takes a [[Seq]] of strings and maps it to a
+  * This transformer takes a [[Seq]] of objects and maps it to a
   * feature [[Vector]].
   *
   * This transformer can be prepended to all [[Transformer]] and
