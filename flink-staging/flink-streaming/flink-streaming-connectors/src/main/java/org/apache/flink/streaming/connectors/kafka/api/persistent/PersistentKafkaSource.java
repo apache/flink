@@ -162,18 +162,18 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 					LOG.info("Skipping message with offset {} from partition {}", message.offset(), message.partition());
 					continue;
 				}
+				OUT out = deserializationSchema.deserialize(message.message());
+				if (LOG.isTraceEnabled()) {
+					LOG.trace("Processed record with offset {} from partition {}", message.offset(), message.partition());
+				}
 				lastOffsets[message.partition()] = message.offset();
 
-				OUT out = deserializationSchema.deserialize(message.message());
 				if (deserializationSchema.isEndOfStream(out)) {
 					LOG.info("DeserializationSchema signaled end of stream for this source");
 					break;
 				}
 
 				collector.collect(out);
-				if (LOG.isTraceEnabled()) {
-					LOG.trace("Processed record with offset {} from partition {}", message.offset(), message.partition());
-				}
 			}
 		} catch(Exception ie) {
 			// this exception is coming from Scala code.
