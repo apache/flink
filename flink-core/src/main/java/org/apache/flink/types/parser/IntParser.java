@@ -32,23 +32,20 @@ public class IntParser extends FieldParser<Integer> {
 	private int result;
 
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Integer reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Integer 
+		reusable) {
 		long val = 0;
 		boolean neg = false;
 
-		final int delimLimit = limit-delimiter.length+1;
-
-		if (bytes.length == 0) {
-			setErrorState(ParseErrorState.EMPTY_STRING);
-			return -1;
-		}
+		final int delimLimit = limit - delimiter.length + 1;
 
 		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;
 
 			// check for empty field with only the sign
-			if (startPos == limit || ( startPos < delimLimit && delimiterNext(bytes, startPos, delimiter))) {
+			if (startPos == limit || (startPos < delimLimit && delimiterNext(bytes, startPos, 
+				delimiter))) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ORPHAN_SIGN);
 				return -1;
 			}
@@ -91,38 +88,35 @@ public class IntParser extends FieldParser<Integer> {
 	}
 
 	/**
-	 * Static utility to parse a field of type int from a byte sequence that represents text characters
+	 * Static utility to parse a field of type int from a byte sequence that represents text 
+	 * characters
 	 * (such as when read from a file stream).
 	 *
-	 * @param bytes The bytes containing the text data that should be parsed.
+	 * @param bytes    The bytes containing the text data that should be parsed.
 	 * @param startPos The offset to start the parsing.
-	 * @param length The length of the byte sequence (counting from the offset).
-	 *
+	 * @param length   The length of the byte sequence (counting from the offset).
 	 * @return The parsed value.
-	 *
-	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text represents not a correct number.
+	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text 
+	 * represents not a correct number.
 	 */
 	public static final int parseField(byte[] bytes, int startPos, int length) {
 		return parseField(bytes, startPos, length, (char) 0xffff);
 	}
 
 	/**
-	 * Static utility to parse a field of type int from a byte sequence that represents text characters
+	 * Static utility to parse a field of type int from a byte sequence that represents text 
+	 * characters
 	 * (such as when read from a file stream).
 	 *
-	 * @param bytes The bytes containing the text data that should be parsed.
-	 * @param startPos The offset to start the parsing.
-	 * @param length The length of the byte sequence (counting from the offset).
+	 * @param bytes     The bytes containing the text data that should be parsed.
+	 * @param startPos  The offset to start the parsing.
+	 * @param length    The length of the byte sequence (counting from the offset).
 	 * @param delimiter The delimiter that terminates the field.
-	 *
 	 * @return The parsed value.
-	 *
-	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text represents not a correct number.
+	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text 
+	 * represents not a correct number.
 	 */
 	public static final int parseField(byte[] bytes, int startPos, int length, char delimiter) {
-		if (length <= 0) {
-			throw new NumberFormatException("Invalid input: Empty string");
-		}
 		long val = 0;
 		boolean neg = false;
 
@@ -137,7 +131,7 @@ public class IntParser extends FieldParser<Integer> {
 
 		for (; length > 0; startPos++, length--) {
 			if (bytes[startPos] == delimiter) {
-				return (int) (neg ? -val : val);
+				throw new NumberFormatException("Empty field.");
 			}
 			if (bytes[startPos] < 48 || bytes[startPos] > 57) {
 				throw new NumberFormatException("Invalid character.");

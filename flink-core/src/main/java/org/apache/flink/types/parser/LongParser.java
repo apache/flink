@@ -34,11 +34,6 @@ public class LongParser extends FieldParser<Long> {
 
 		final int delimLimit = limit - delimiter.length + 1;
 		
-		if (bytes.length == 0) {
-			setErrorState(ParseErrorState.EMPTY_STRING);
-			return -1;
-		}
-		
 		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;
@@ -132,9 +127,6 @@ public class LongParser extends FieldParser<Long> {
 	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text represents not a correct number.
 	 */
 	public static final long parseField(byte[] bytes, int startPos, int length, char delimiter) {
-		if (length <= 0) {
-			throw new NumberFormatException("Invalid input: Empty string");
-		}
 		long val = 0;
 		boolean neg = false;
 
@@ -149,7 +141,7 @@ public class LongParser extends FieldParser<Long> {
 
 		for (; length > 0; startPos++, length--) {
 			if (bytes[startPos] == delimiter) {
-				return neg ? -val : val;
+				throw new NumberFormatException("Empty field.");
 			}
 			if (bytes[startPos] < 48 || bytes[startPos] > 57) {
 				throw new NumberFormatException("Invalid character.");

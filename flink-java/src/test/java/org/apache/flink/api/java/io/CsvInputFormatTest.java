@@ -367,23 +367,24 @@ public class CsvInputFormatTest {
 	@Test
 	public void testEmptyFields() throws IOException {
 		try {
-			final String fileContent = "|0|0|0|0\n" +
-				"1||1|1|1|\n" +
-				"2|2| |2|2|\n" +
-				"3 |3|3|  |3|\n" +
-				"4|4|4|4| |\n";
+			final String fileContent = "|0|0|0|0|0|\n" +
+				"1||1|1|1|1|\n" +
+				"2|2||2|2|1|\n" +
+				"3|3|3|1.0 |3|1|\n" +
+				"4|4|4|4||4|\n" +
+				"5|5|5|5|5||\n";
 			final FileInputSplit split = createTempFile(fileContent);
 
-			final TupleTypeInfo<Tuple5<Short, Integer, Long, Float, Double>> typeInfo =
-				TupleTypeInfo.getBasicTupleTypeInfo(Short.class, Integer.class, Long.class, Float.class, Double.class);
-			final CsvInputFormat<Tuple5<Short, Integer, Long, Float, Double>> format = new CsvInputFormat<Tuple5<Short, Integer, Long, Float, Double>>(PATH, typeInfo);
+			final TupleTypeInfo<Tuple6<Short, Integer, Long, Float, Double, Byte>> typeInfo =
+				TupleTypeInfo.getBasicTupleTypeInfo(Short.class, Integer.class, Long.class, Float.class, Double.class, Byte.class);
+			final CsvInputFormat<Tuple6<Short, Integer, Long, Float, Double, Byte>> format = new CsvInputFormat<Tuple6<Short, Integer, Long, Float, Double, Byte>>(PATH, typeInfo);
 
 			format.setFieldDelimiter("|");
 
 			format.configure(new Configuration());
 			format.open(split);
 
-			Tuple5<Short, Integer, Long, Float, Double> result = new Tuple5<Short, Integer, Long, Float, Double>();
+			Tuple6<Short, Integer, Long, Float, Double, Byte> result = new Tuple6<Short, Integer, Long, Float, Double, Byte>();
 
 			try {
 				result = format.nextRecord(result);
@@ -404,6 +405,10 @@ public class CsvInputFormatTest {
 			try {
 				result = format.nextRecord(result);
 				fail("Empty String Parse Exception was not thrown! (DoubleParser)");
+			} catch (ParseException e) {}
+			try {
+				result = format.nextRecord(result);
+				fail("Empty String Parse Exception was not thrown! (ByteParser)");
 			} catch (ParseException e) {}
 
 			result = format.nextRecord(result);
@@ -461,7 +466,7 @@ public class CsvInputFormatTest {
 	public void testReadFirstN() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555|\n666|777|888|999|000|\n";
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple2<Integer, Integer>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class);
 			final CsvInputFormat<Tuple2<Integer, Integer>> format = new CsvInputFormat<Tuple2<Integer, Integer>>(PATH, typeInfo);
@@ -642,7 +647,7 @@ public class CsvInputFormatTest {
 
 		Object[][] failures = {
 				{"\"string\" trailing", FieldParser.ParseErrorState.UNQUOTED_CHARS_AFTER_QUOTED_STRING},
-				{"\"unterminated ", 		FieldParser.ParseErrorState.UNTERMINATED_QUOTED_STRING}
+				{"\"unterminated ", FieldParser.ParseErrorState.UNTERMINATED_QUOTED_STRING}
 		};
 
 		for (Object[] failure : failures) {
