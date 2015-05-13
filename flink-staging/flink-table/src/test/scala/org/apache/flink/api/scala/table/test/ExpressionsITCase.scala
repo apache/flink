@@ -123,5 +123,17 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
     expected = "1,7,6,-4"
   }
 
+  @Test
+  def testCaseInsensitiveForAs: Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val ds = env.fromElements((3, 5.toByte)).as('a, 'b)
+      .groupBy("a").select("a, a.count As cnt")
+
+    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "3,1"
+  }
 
 }
