@@ -26,6 +26,8 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
+
 public class ClusterUtil {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClusterUtil.class);
@@ -42,8 +44,9 @@ public class ClusterUtil {
 	 *            memorySize
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize,
-																boolean printDuringExecution) throws Exception {
+	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize, boolean printDuringExecution)
+			throws Exception {
+
 		Configuration configuration = jobGraph.getJobConfiguration();
 
 		LocalFlinkMiniCluster exec = null;
@@ -56,19 +59,53 @@ public class ClusterUtil {
 
 		try {
 			exec = new LocalFlinkMiniCluster(configuration, true);
-
 			SerializedJobExecutionResult result = exec.submitJobAndWait(jobGraph, printDuringExecution);
 			return result.toJobExecutionResult(ClusterUtil.class.getClassLoader());
-		}
-		finally {
+		} catch (Exception e) {
+			throw e;
+		} finally {
 			if (exec != null) {
 				exec.stop();
 			}
 		}
 	}
 
-	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int numOfSlots,
-														boolean printDuringExecution) throws Exception {
+	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int numOfSlots, boolean printDuringExecution) throws Exception {
 		return runOnMiniCluster(jobGraph, numOfSlots, -1, printDuringExecution);
 	}
+
+	private static LocalFlinkMiniCluster exec = null;
+
+	public static void startOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize)
+			throws Exception {
+
+			Configuration configuration = jobGraph.getJobConfiguration();
+
+			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
+			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
+			if (LOG.isInfoEnabled()) {
+				LOG.info("Running on mini cluster");
+			}
+
+			try {
+				exec = new LocalFlinkMiniCluster(configuration, true);
+				exec.submitJobDetached(jobGraph);
+			} catch (Exception e) {
+				throw e;
+			}
+	}
+
+	public static void startOnMiniCluster(JobGraph jobGraph, int numOfSlots) throws Exception {
+		startOnMiniCluster(jobGraph, numOfSlots, -1);
+	}
+
+	public static void stopOnMiniCluster() {
+		if(exec != null) {
+			exec.stop();
+			exec = null;
+		} else {
+			throw new IllegalStateException("Cluster was not started via .start(...)");
+		}
+	}
+
 }
