@@ -168,6 +168,9 @@ public class ExecutionGraph implements Serializable {
 
 	/** Flag that indicate whether the executed dataflow should be periodically snapshotted */
 	private boolean snapshotCheckpointsEnabled;
+
+	/** Flag to indicate whether the Graph has been archived */
+	private boolean isArchived = false;
 		
 
 	// ------ Execution status and progress. These values are volatile, and accessed under the lock -------
@@ -281,6 +284,10 @@ public class ExecutionGraph implements Serializable {
 
 	public ScheduleMode getScheduleMode() {
 		return scheduleMode;
+	}
+
+	public boolean isArchived() {
+		return isArchived;
 	}
 
 	public void enableSnaphotCheckpointing(long interval, long checkpointTimeout,
@@ -641,6 +648,8 @@ public class ExecutionGraph implements Serializable {
 		requiredJarFiles.clear();
 		jobStatusListenerActors.clear();
 		executionListenerActors.clear();
+
+		isArchived = true;
 	}
 
 	public ExecutionConfig getExecutionConfig() {

@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
@@ -70,15 +71,20 @@ public class JobGraph implements Serializable {
 
 	/** Set of blob keys identifying the JAR files required to run this job. */
 	private final List<BlobKey> userJarBlobKeys = new ArrayList<BlobKey>();
-	
-	/** ID of this job. */
-	private final JobID jobID;
+
+	/** ID of this job. May be set if specific job id is desired (e.g. session management) */
+	private JobID jobID;
 
 	/** Name of this job. */
 	private String jobName;
 	
 	/** The number of times that failed tasks should be re-executed */
 	private int numExecutionRetries;
+
+	/** The number of seconds after which the corresponding ExecutionGraph is removed at the
+	 * job manager after it has been executed.
+	 */
+	private long sessionTimeout = 0;
 	
 	/** flag to enable queued scheduling */
 	private boolean allowQueuedScheduling;
@@ -100,16 +106,16 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
-	 * Constructs a new job graph with the given name and a random job ID.
+	 * Constructs a new job graph with the given name, a random job ID.
 	 * 
 	 * @param jobName The name of the job
 	 */
 	public JobGraph(String jobName) {
 		this(null, jobName);
 	}
-	
+
 	/**
-	 * Constructs a new job graph with the given name and a random job ID.
+	 * Constructs a new job graph with the given name and a random job ID if null supplied as an id.
 	 * 
 	 * @param jobId The id of the job
 	 * @param jobName The name of the job
@@ -120,7 +126,7 @@ public class JobGraph implements Serializable {
 	}
 	
 	/**
-	 * Constructs a new job graph with no name and a random job ID.
+	 * Constructs a new job graph with no name and a random job ID if null supplied as an id.
 	 * 
 	 * @param vertices The vertices to add to the graph.
 	 */
@@ -139,7 +145,7 @@ public class JobGraph implements Serializable {
 	}
 	
 	/**
-	 * Constructs a new job graph with the given name and a random job ID.
+	 * Constructs a new job graph with the given name and a random job ID if null supplied as an id.
 	 * 
 	 * @param jobId The id of the job.
 	 * @param jobName The name of the job.
@@ -163,7 +169,17 @@ public class JobGraph implements Serializable {
 	public JobID getJobID() {
 		return this.jobID;
 	}
-	
+
+	/**
+	 * May be set if specific job id is desired (e.g. session management).
+	 *
+	 * @param jobID
+	 */
+	public void setJobID(JobID jobID) {
+		Preconditions.checkNotNull(jobID);
+		this.jobID = jobID;
+	}
+
 	/**
 	 * Returns the name assigned to the job graph.
 	 * 
@@ -206,11 +222,29 @@ public class JobGraph implements Serializable {
 	public int getNumberOfExecutionRetries() {
 		return numExecutionRetries;
 	}
+
+	/**
+	 * Gets the timeout after which the corresponding ExecutionGraph is removed at the
+	 * job manager after it has been executed.
+	 * @return a timeout as a long in seconds.
+	 */
+	public long getSessionTimeout() {
+		return sessionTimeout;
+	}
+
+	/**
+	 * Sets the timeout of the session in seconds. The timeout specifies how long a job will be kept
+	 * in the job manager after it finishes.
+	 * @param sessionTimeout The timeout in seconds
+	 */
+	public void setSessionTimeout(long sessionTimeout) {
+		this.sessionTimeout = sessionTimeout;
+	}
 	
 	public void setAllowQueuedScheduling(boolean allowQueuedScheduling) {
 		this.allowQueuedScheduling = allowQueuedScheduling;
 	}
-	
+
 	public boolean getAllowQueuedScheduling() {
 		return allowQueuedScheduling;
 	}

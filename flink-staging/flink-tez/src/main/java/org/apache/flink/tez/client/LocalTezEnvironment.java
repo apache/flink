@@ -68,4 +68,9 @@ public class LocalTezEnvironment extends ExecutionEnvironment {
 		};
 		initializeContextEnvironment(factory);
 	}
+
+	@Override
+	public void startNewSession() throws Exception {
+		throw new UnsupportedOperationException("Session management is not implemented in Flink on Tez.");
+	}
 }

@@ -22,6 +22,7 @@ import java.io.File;
 import java.util.List;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -60,6 +61,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		Plan p = createProgramPlan(jobName);
 		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.userCodeClassLoader);
 
+		this.client.setJobID(jobID);
+		this.client.setSessionTimeout(sessionTimeout);
 		JobSubmissionResult result = this.client.run(toRun, getParallelism(), wait);
 		if(result instanceof JobExecutionResult) {
 			this.lastJobExecutionResult = (JobExecutionResult) result;
@@ -79,6 +82,12 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 		return gen.getOptimizerPlanAsJSON(op);
+	}
+
+	@Override
+	public void startNewSession() throws Exception {
+		client.endSession();
+		jobID = JobID.generate();
 	}
 
 	public boolean isWait() {

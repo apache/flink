@@ -196,6 +196,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		JobGraph graph = new JobGraph(program.getJobName());
 		graph.setNumberOfExecutionRetries(program.getOriginalPactPlan().getNumberOfExecutionRetries());
 		graph.setAllowQueuedScheduling(false);
+		// TODO
 		
 		// add vertices to the graph
 		for (AbstractJobVertex vertex : this.vertices.values()) {
