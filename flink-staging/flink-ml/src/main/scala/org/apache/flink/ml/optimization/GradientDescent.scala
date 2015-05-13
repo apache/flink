@@ -43,11 +43,9 @@ import org.apache.flink.ml.optimization.Solver._
   *                      [[IterativeSolver.Iterations]] for the maximum number of iteration,
   *                      [[IterativeSolver.Stepsize]] for the learning rate used.
   */
-class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
+class GradientDescent(runParameters: ParameterMap) extends IterativeSolver(runParameters) {
 
   import Solver.WEIGHTVECTOR_BROADCAST
-
-  var parameterMap: ParameterMap = parameters ++ runParameters
 
   /** Performs one iteration of Stochastic Gradient Descent using mini batches
     *
@@ -79,80 +77,23 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
   /** Provides a solution for the given optimization problem
     *
     * @param data A Dataset of LabeledVector (label, features) pairs
-    * @param initWeights The initial weights that will be optimized
+    * @param initialWeights The initial weights that will be optimized
     * @return The weights, optimized for the provided data.
     */
   override def optimize(
     data: DataSet[LabeledVector],
-    initWeights: Option[DataSet[WeightVector]]): DataSet[WeightVector] = {
-    // TODO: Faster way to do this?
-    val dimensionsDS = data.map(_.vector.size).reduce((a, b) => b)
-
+    initialWeights: Option[DataSet[WeightVector]]): DataSet[WeightVector] = {
     val numberOfIterations: Int = parameterMap(Iterations)
 
     // Initialize weights
-    val initialWeightsDS: DataSet[WeightVector] = initWeights match {
-      // Ensure provided weight vector is a DenseVector
-      case Some(wvDS) => {
-        wvDS.map{wv => {
-          val denseWeights = wv.weights match {
-            case dv: DenseVector => dv
-            case sv: SparseVector => sv.toDenseVector
-          }
-          WeightVector(denseWeights, wv.intercept)
-        }
-
-        }
-      }
-      case None => createInitialWeightVector(dimensionsDS)
-    }
+    val initialWeightsDS: DataSet[WeightVector] = createInitialWeightsDS(initialWeights, data)
 
     // Perform the iterations
     // TODO: Enable convergence stopping criterion, as in Multiple Linear regression
     initialWeightsDS.iterate(numberOfIterations) {
-      weightVector => {
-        SGDStep(data, weightVector)
+      weightVectorDS => {
+        SGDStep(data, weightVectorDS)
       }
-    }
-  }
-
-  /** Mapping function that calculates the weight gradients from the data.
-    *
-    */
-  private class GradientCalculation extends
-    RichMapFunction[LabeledVector, (WeightVector, Double, Int)] {
-
-    var weightVector: WeightVector = null
-
-    @throws(classOf[Exception])
-    override def open(configuration: Configuration): Unit = {
-      val list = this.getRuntimeContext.
-        getBroadcastVariable[WeightVector](WEIGHTVECTOR_BROADCAST)
-
-      weightVector = list.get(0)
-    }
-
-    override def map(example: LabeledVector): (WeightVector, Double, Int) = {
-
-      val lossFunction = parameterMap(LossFunction)
-      val regType = parameterMap(RegularizationType)
-      val regParameter = parameterMap(RegularizationParameter)
-      val predictionFunction = parameterMap(PredictionFunctionParameter)
-      val dimensions = example.vector.size
-      // TODO(tvas): Any point in carrying the weightGradient vector for in-place replacement?
-      // The idea in spark is to avoid object creation, but here we have to do it anyway
-      val weightGradient = new DenseVector(new Array[Double](dimensions))
-
-      // TODO(tvas): Indentation here?
-      val (loss, lossDeriv) = lossFunction.lossAndGradient(
-                                example,
-                                weightVector,
-                                weightGradient,
-                                regType,
-                                regParameter,
-                                predictionFunction)
-
-      (new WeightVector(weightGradient, lossDeriv), loss, 1)
     }
   }
 

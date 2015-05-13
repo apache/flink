@@ -18,9 +18,11 @@
 
 package org.apache.flink.ml.optimization
 
+import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala.DataSet
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.math.{Vector => FlinkVector, BLAS, DenseVector}
+import org.apache.flink.ml.math.{Vector => FlinkVector, SparseVector, BLAS, DenseVector}
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.optimization.IterativeSolver._
 import org.apache.flink.ml.optimization.Solver._
@@ -28,7 +30,9 @@ import org.apache.flink.ml.optimization.Solver._
 /** Base class for optimization algorithms
  *
  */
-abstract class Solver extends Serializable with WithParameters {
+abstract class Solver(runParameters: ParameterMap) extends Serializable with WithParameters {
+
+  var parameterMap: ParameterMap = parameters ++ runParameters
 
   /** Provides a solution for the given optimization problem
     *
@@ -39,6 +43,32 @@ abstract class Solver extends Serializable with WithParameters {
   def optimize(
     data: DataSet[LabeledVector],
     initialWeights: Option[DataSet[WeightVector]]): DataSet[WeightVector]
+
+  /** Creates initial weights vector, creating a DataSet with a WeightVector element
+    *
+    * @param initialWeights An Option that may contain an initial set of weights
+    * @param data The data for which we optimize the weights
+    * @return A DataSet containing a single WeightVector element
+    */
+  def createInitialWeightsDS(initialWeights: Option[DataSet[WeightVector]],
+                             data: DataSet[LabeledVector]):  DataSet[WeightVector] = {
+    // TODO: Faster way to do this?
+    val dimensionsDS = data.map(_.vector.size).reduce((a, b) => b)
+
+    initialWeights match {
+      // Ensure provided weight vector is a DenseVector
+      case Some(wvDS) =>
+        wvDS.map { wv => {
+          val denseWeights = wv.weights match {
+            case dv: DenseVector => dv
+            case sv: SparseVector => sv.toDenseVector
+          }
+          WeightVector(denseWeights, wv.intercept)
+          }
+        }
+      case None => createInitialWeightVector(dimensionsDS)
+    }
+  }
 
   /** Creates a DataSet with one zero vector. The zero vector has dimension d, which is given
     * by the dimensionDS.
@@ -56,6 +86,7 @@ abstract class Solver extends Serializable with WithParameters {
   }
 
   //Setters for parameters
+  // TODO(tvas): Provide an option to fit an intercept or not
   def setLossFunction(lossFunction: LossFunction): Solver = {
     parameters.add(LossFunction, lossFunction)
     this
@@ -106,7 +137,7 @@ object Solver {
   * See [[https://en.wikipedia.org/wiki/Iterative_method Iterative Methods on Wikipedia]] for more
   * info
   */
-abstract class IterativeSolver extends Solver {
+abstract class IterativeSolver(runParameters: ParameterMap) extends Solver(runParameters) {
 
   //Setters for parameters
   def setIterations(iterations: Int): IterativeSolver = {
@@ -117,6 +148,51 @@ abstract class IterativeSolver extends Solver {
   def setStepsize(stepsize: Double): IterativeSolver = {
     parameters.add(Stepsize, stepsize)
     this
+  }
+
+  def setConvergenceThreshold(convergenceThreshold: Double): IterativeSolver = {
+    parameters.add(ConvergenceThreshold, convergenceThreshold)
+    this
+  }
+
+  /** Mapping function that calculates the weight gradients from the data.
+    *
+    */
+  protected class GradientCalculation extends
+  RichMapFunction[LabeledVector, (WeightVector, Double, Int)] {
+
+    var weightVector: WeightVector = null
+
+    @throws(classOf[Exception])
+    override def open(configuration: Configuration): Unit = {
+      val list = this.getRuntimeContext.
+        getBroadcastVariable[WeightVector](WEIGHTVECTOR_BROADCAST)
+
+      weightVector = list.get(0)
+    }
+
+    override def map(example: LabeledVector): (WeightVector, Double, Int) = {
+
+      val lossFunction = parameterMap(LossFunction)
+      val regType = parameterMap(RegularizationType)
+      val regParameter = parameterMap(RegularizationParameter)
+      val predictionFunction = parameterMap(PredictionFunctionParameter)
+      val dimensions = example.vector.size
+      // TODO(tvas): Any point in carrying the weightGradient vector for in-place replacement?
+      // The idea in spark is to avoid object creation, but here we have to do it anyway
+      val weightGradient = new DenseVector(new Array[Double](dimensions))
+
+      // TODO(tvas): Indentation here?
+      val (loss, lossDeriv) = lossFunction.lossAndGradient(
+        example,
+        weightVector,
+        weightGradient,
+        regType,
+        regParameter,
+        predictionFunction)
+
+      (new WeightVector(weightGradient, lossDeriv), loss, 1)
+    }
   }
 }
 
@@ -131,5 +207,9 @@ object IterativeSolver {
 
   case object Iterations extends Parameter[Int] {
     val defaultValue = Some(10)
+  }
+
+  case object ConvergenceThreshold extends Parameter[Double] {
+    val defaultValue = None
   }
 }
