@@ -55,6 +55,7 @@ under the License.
 		<module>flink-java</module>
 		<module>flink-scala</module>
 		<module>flink-runtime</module>
+		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
@@ -172,22 +173,22 @@ under the License.
 			<dependency>
 				<groupId>org.eclipse.jetty</groupId>
 				<artifactId>jetty-server</artifactId>
-				<version>8.0.0.M1</version>
+				<version>9.2.3.v20140905</version>
 			</dependency>
 			<dependency>
 				<groupId>org.eclipse.jetty</groupId>
 				<artifactId>jetty-security</artifactId>
-				<version>8.0.0.M1</version>
+				<version>9.2.3.v20140905</version>
 			</dependency>
 			<dependency>
 				<groupId>org.eclipse.jetty</groupId>
 				<artifactId>jetty-servlet</artifactId>
-				<version>8.0.0.M1</version>
+				<version>9.2.3.v20140905</version>
 			</dependency>
 			<dependency>
 				<groupId>org.eclipse.jetty</groupId>
 				<artifactId>jetty-util</artifactId>
-				<version>8.0.0.M1</version>
+				<version>9.2.3.v20140905</version>
 			</dependency>
 
 			<!-- Make sure we use a consistent avro version throughout the project -->

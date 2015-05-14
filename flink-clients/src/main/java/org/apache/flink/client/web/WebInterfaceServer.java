@@ -28,11 +28,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.eclipse.jetty.http.security.Constraint;
-import org.eclipse.jetty.security.ConstraintMapping;
-import org.eclipse.jetty.security.ConstraintSecurityHandler;
-import org.eclipse.jetty.security.HashLoginService;
-import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
@@ -182,32 +177,7 @@ public class WebInterfaceServer {
 				af = null;
 			}
 		}
-		if (af != null) {
-			HashLoginService loginService = new HashLoginService("Flink Query Engine Interface", authFile);
-			server.addBean(loginService);
-
-			Constraint constraint = new Constraint();
-			constraint.setName(Constraint.__BASIC_AUTH);
-			constraint.setAuthenticate(true);
-			constraint.setRoles(new String[] { "user" });
-
-			ConstraintMapping mapping = new ConstraintMapping();
-			mapping.setPathSpec("/*");
-			mapping.setConstraint(constraint);
-
-			ConstraintSecurityHandler sh = new ConstraintSecurityHandler();
-			sh.addConstraintMapping(mapping);
-			sh.setAuthenticator(new BasicAuthenticator());
-			sh.setLoginService(loginService);
-			sh.setStrict(true);
-
-			// set the handers: the server hands the request to the security handler,
-			// which hands the request to the other handlers when authenticated
-			sh.setHandler(handlers);
-			server.setHandler(sh);
-		} else {
-			server.setHandler(handlers);
-		}
+		server.setHandler(handlers);
 	}
 
 	/**

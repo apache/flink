@@ -231,7 +231,7 @@ public final class ConfigConstants {
 	public static final String YARN_APPLICATION_ATTEMPTS = "yarn.application-attempts";
 
 	/**
-	 * The heartbeat intervall between the Application Master and the YARN Resource Manager.
+	 * The heartbeat interval between the Application Master and the YARN Resource Manager.
 	 *
 	 * The default value is 5 (seconds).
 	 */
@@ -295,9 +295,14 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_WEB_PORT_KEY = "jobmanager.web.port";
 
 	/**
-	 * The config parameter defining the path to the htaccess file protecting the web frontend.
+	 * The option that specifies whether to use the new web frontend
 	 */
-	public static final String JOB_MANAGER_WEB_ACCESS_FILE_KEY = "jobmanager.web.access";
+	public static final String JOB_MANAGER_NEW_WEB_FRONTEND_KEY = "jobmanager.new-web-frontend";
+
+	/**
+	 * The port for the runtime monitor web-frontend server.
+	 */
+	public static final String JOB_MANAGER_NEW_WEB_PORT_KEY = "jobmanager.new-web.port";
 	
 	/**
 	 * The config parameter defining the number of archived jobs for the jobmanager
@@ -569,6 +574,12 @@ public final class ConfigConstants {
 	 */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
 
+	/**
+	 * The config key for the port of the JobManager new web frontend.
+	 * Setting this value to {@code -1} disables the web frontend.
+	 */
+	public static final int DEFAULT_JOB_MANAGER_NEW_WEB_FRONTEND_PORT = 8082;
+	
 	/**
 	 * The default number of archived jobs for the jobmanager
 	 */

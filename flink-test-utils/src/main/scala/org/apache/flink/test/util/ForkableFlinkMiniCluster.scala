@@ -87,6 +87,8 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
     if (userConfiguration.getBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER,false)){
       val webServer = new WebInfoServer(configuration, jobManager, archive)
       webServer.start()
+
+      JobManager.startWebRuntimeMonitor(userConfiguration, jobManager, archive)
     }
 
     jobManager
