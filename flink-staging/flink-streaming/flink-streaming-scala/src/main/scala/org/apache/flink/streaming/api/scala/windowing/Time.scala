@@ -43,7 +43,7 @@ object Time {
    *
    */
   def of[R](windowSize: Long, timestamp: R => Long, startTime: Long = 0): JavaTime[R] = {
-    Preconditions.checkNotNull(timestamp, "Timestamp must not be null.")
+    require(timestamp != null, "Timestamp must not be null.")
     val ts = new Timestamp[R] {
       val fun = clean(timestamp, true)
       override def getTimestamp(in: R) = fun(in)

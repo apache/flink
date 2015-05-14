@@ -17,20 +17,18 @@
  */
 package org.apache.flink.api.scala
 
-import com.google.common.base.Preconditions
-import org.apache.commons.lang3.Validate
-import org.apache.flink.api.common.{ExecutionConfig, InvalidProgramException}
-import org.apache.flink.api.common.functions.{JoinFunction, RichFlatJoinFunction, FlatJoinFunction}
-import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction, Partitioner, RichFlatJoinFunction}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin.WrappingFlatJoinFunction
 import org.apache.flink.api.java.operators.JoinOperator.EquiJoin
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.Collector
+
 import scala.reflect.ClassTag
-import org.apache.flink.api.common.functions.Partitioner
 
 /**
  * A specific [[DataSet]] that results from a `join` operation. The result of a default join is a
@@ -74,7 +72,7 @@ class JoinDataSet[L, R](
    * of the given function.
    */
   def apply[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] = {
-    Preconditions.checkNotNull(fun, "Join function must not be null.")
+    require(fun != null, "Join function must not be null.")
     val joiner = new FlatJoinFunction[L, R, O] {
       val cleanFun = clean(fun)
       def join(left: L, right: R, out: Collector[O]) = {
@@ -104,7 +102,7 @@ class JoinDataSet[L, R](
    * result.
    */
   def apply[O: TypeInformation: ClassTag](fun: (L, R, Collector[O]) => Unit): DataSet[O] = {
-    Preconditions.checkNotNull(fun, "Join function must not be null.")
+    require(fun != null, "Join function must not be null.")
     val joiner = new FlatJoinFunction[L, R, O] {
       val cleanFun = clean(fun)
       def join(left: L, right: R, out: Collector[O]) = {
@@ -137,7 +135,7 @@ class JoinDataSet[L, R](
    * broadcast variables and the [[org.apache.flink.api.common.functions.RuntimeContext]].
    */
   def apply[O: TypeInformation: ClassTag](joiner: FlatJoinFunction[L, R, O]): DataSet[O] = {
-    Preconditions.checkNotNull(joiner, "Join function must not be null.")
+    require(joiner != null, "Join function must not be null.")
 
     val joinOperator = new EquiJoin[L, R, O](
       leftInput.javaSet,
@@ -164,7 +162,7 @@ class JoinDataSet[L, R](
    * broadcast variables and the [[org.apache.flink.api.common.functions.RuntimeContext]].
    */
   def apply[O: TypeInformation: ClassTag](fun: JoinFunction[L, R, O]): DataSet[O] = {
-    Preconditions.checkNotNull(fun, "Join function must not be null.")
+    require(fun != null, "Join function must not be null.")
 
     val generatedFunction: FlatJoinFunction[L, R, O] = new WrappingFlatJoinFunction[L, R, O](fun)
 

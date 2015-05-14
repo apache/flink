@@ -20,7 +20,6 @@ package org.apache.flink.api.scala
 import java.util.UUID
 
 import com.esotericsoftware.kryo.Serializer
-import com.google.common.base.Preconditions
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult}
@@ -192,7 +191,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * @param charsetName The name of the character set used to read the file. Default is UTF-0
    */
   def readTextFile(filePath: String, charsetName: String = "UTF-8"): DataSet[String] = {
-    Preconditions.checkNotNull(filePath, "The file path may not be null.")
+    require(filePath != null, "The file path may not be null.")
     val format = new TextInputFormat(new Path(filePath))
     format.setCharsetName(charsetName)
     val source = new DataSource[String](javaEnv, format, BasicTypeInfo.STRING_TYPE_INFO,
@@ -213,7 +212,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def readTextFileWithValue(
       filePath: String,
       charsetName: String = "UTF-8"): DataSet[StringValue] = {
-    Preconditions.checkNotNull(filePath, "The file path may not be null.")
+    require(filePath != null, "The file path may not be null.")
     val format = new TextValueInputFormat(new Path(filePath))
     format.setCharsetName(charsetName)
     val source = new DataSource[StringValue](
@@ -288,7 +287,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     }
 
     if (includedFields != null) {
-      Preconditions.checkArgument(classesBuf.size == includedFields.length, "Number of tuple fields and" +
+      require(classesBuf.size == includedFields.length, "Number of tuple fields and" +
         " included fields must match.")
       inputFormat.setFields(includedFields, classesBuf.toArray)
     } else {
@@ -315,7 +314,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def readFileOfPrimitives[T : ClassTag : TypeInformation](
       filePath : String,
       delimiter : String = "\n") : DataSet[T] = {
-    Preconditions.checkNotNull(filePath, "File path must not be null.")
+    require(filePath != null, "File path must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
     val datasource = new DataSource[T](
       javaEnv,
@@ -332,8 +331,8 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def readFile[T : ClassTag : TypeInformation](
       inputFormat: FileInputFormat[T],
       filePath: String): DataSet[T] = {
-    Preconditions.checkNotNull(inputFormat, "InputFormat must not be null.")
-    Preconditions.checkNotNull(filePath, "File path must not be null.")
+    require(inputFormat != null, "InputFormat must not be null.")
+    require(filePath != null, "File path must not be null.")
     inputFormat.setFilePath(new Path(filePath))
     createInput(inputFormat, implicitly[TypeInformation[T]])
   }
@@ -359,7 +358,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     if (inputFormat == null) {
       throw new IllegalArgumentException("InputFormat must not be null.")
     }
-    Preconditions.checkNotNull(producedType, "Produced type must not be null")
+    require(producedType != null, "Produced type must not be null")
     wrap(new DataSource[T](javaEnv, inputFormat, producedType, getCallLocationName()))
   }
 
@@ -458,7 +457,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def fromCollection[T: ClassTag : TypeInformation](
       data: Seq[T]): DataSet[T] = {
-    Preconditions.checkNotNull(data, "Data must not be null.")
+    require(data != null, "Data must not be null.")
 
     val typeInfo = implicitly[TypeInformation[T]]
     CollectionInputFormat.checkCollection(data.asJavaCollection, typeInfo.getTypeClass)
@@ -479,7 +478,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def fromCollection[T: ClassTag : TypeInformation] (
     data: Iterator[T]): DataSet[T] = {
-    Preconditions.checkNotNull(data, "Data must not be null.")
+    require(data != null, "Data must not be null.")
 
     val typeInfo = implicitly[TypeInformation[T]]
     val dataSource = new DataSource[T](
@@ -498,7 +497,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * a parallelism of one.
    */
   def fromElements[T: ClassTag : TypeInformation](data: T*): DataSet[T] = {
-    Preconditions.checkNotNull(data, "Data must not be null.")
+    require(data != null, "Data must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
     fromCollection(data)(implicitly[ClassTag[T]], typeInfo)
   }

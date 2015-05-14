@@ -17,7 +17,6 @@
  */
 package org.apache.flink.api.scala
 
-import com.google.common.base.Preconditions
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
@@ -84,7 +83,7 @@ import scala.reflect.ClassTag
  * @tparam T The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
 class DataSet[T: ClassTag](set: JavaDataSet[T]) {
-  Preconditions.checkNotNull(set, "Java DataSet must not be null.")
+  require(set != null, "Java DataSet must not be null.")
 
   /**
    * Returns the TypeInformation for the elements of this DataSet.
@@ -1086,7 +1085,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 //   * operators that are composed of multiple steps.
 //   */
 //  def runOperation[R: ClassTag](operation: CustomUnaryOperation[T, R]): DataSet[R] = {
-//    Preconditions.checkNotNull(operation, "The custom operator must not be null.")
+//    require(operation != null, "The custom operator must not be null.")
 //    operation.setInput(this.set)
 //    wrap(operation.createResult)
 //  }
@@ -1289,7 +1288,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       rowDelimiter: String = ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
       fieldDelimiter: String = ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER,
       writeMode: FileSystem.WriteMode = null): DataSink[T] = {
-    Preconditions.checkArgument(javaSet.getType.isTupleType, "CSV output can only be used with Tuple DataSets.")
+    require(javaSet.getType.isTupleType, "CSV output can only be used with Tuple DataSets.")
     val of = new ScalaCsvOutputFormat[Product](new Path(filePath), rowDelimiter, fieldDelimiter)
     if (writeMode != null) {
       of.setWriteMode(writeMode)
@@ -1305,8 +1304,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       outputFormat: FileOutputFormat[T],
       filePath: String,
       writeMode: FileSystem.WriteMode = null): DataSink[T] = {
-    Preconditions.checkNotNull(filePath, "File path must not be null.")
-    Preconditions.checkNotNull(outputFormat, "Output format must not be null.")
+    require(filePath != null, "File path must not be null.")
+    require(outputFormat != null, "Output format must not be null.")
     outputFormat.setOutputFilePath(new Path(filePath))
     if (writeMode != null) {
       outputFormat.setWriteMode(writeMode)

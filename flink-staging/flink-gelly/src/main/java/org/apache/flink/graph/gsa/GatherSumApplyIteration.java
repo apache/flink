@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.gsa;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -38,6 +37,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
+
+import com.google.common.base.Preconditions;
 
 /**
  * This class represents iterative graph computations, programmed in a gather-sum-apply perspective.
