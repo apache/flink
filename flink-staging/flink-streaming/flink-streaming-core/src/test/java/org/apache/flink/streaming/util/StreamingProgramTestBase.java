@@ -29,6 +29,8 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 
 	private static final int DEFAULT_PARALLELISM = 4;
 
+	private TestStreamEnvironment env;
+
 	private JobExecutionResult latestExecutionResult;
 
 	private int parallelism = DEFAULT_PARALLELISM;
@@ -86,7 +88,7 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 			}
 
 			// prepare the test environment
-			TestStreamEnvironment env = new TestStreamEnvironment(this.executor, this.parallelism);
+			env = new TestStreamEnvironment(this.executor, this.parallelism);
 			env.setAsContext();
 
 			// call the test program
@@ -112,7 +114,10 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 				Assert.fail("Post-submit work caused an error: " + e.getMessage());
 			}
 		} finally {
-			stopCluster();
+			if(env.clusterRunsSynchronous()) {
+				stopCluster();
+			}
 		}
 	}
+
 }
