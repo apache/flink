@@ -30,9 +30,7 @@ import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.runtime.util.SerializedValue;
-
 import org.junit.Test;
-
 import org.mockito.Mockito;
 
 import java.util.HashMap;
@@ -46,6 +44,8 @@ import static org.mockito.Mockito.*;
  * Tests concerning the restoring of state from a checkpoint to the task executions.
  */
 public class CheckpointStateRestoreTest {
+	
+	ClassLoader cl = Thread.currentThread().getContextClassLoader();
 	
 	@Test
 	public void testSetState() {
@@ -82,7 +82,7 @@ public class CheckpointStateRestoreTest {
 			CheckpointCoordinator coord = new CheckpointCoordinator(jid, 1, 200000L, 
 					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-					new ExecutionVertex[0]);
+					new ExecutionVertex[0], cl);
 			
 			// create ourselves a checkpoint with state
 			final long timestamp = 34623786L;
@@ -151,7 +151,7 @@ public class CheckpointStateRestoreTest {
 			CheckpointCoordinator coord = new CheckpointCoordinator(jid, 1, 200000L,
 					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-					new ExecutionVertex[0]);
+					new ExecutionVertex[0], cl);
 
 			// create ourselves a checkpoint with state
 			final long timestamp = 34623786L;
@@ -191,7 +191,7 @@ public class CheckpointStateRestoreTest {
 			CheckpointCoordinator coord = new CheckpointCoordinator(new JobID(), 1, 200000L,
 					new ExecutionVertex[] { mock(ExecutionVertex.class) },
 					new ExecutionVertex[] { mock(ExecutionVertex.class) },
-					new ExecutionVertex[0]);
+					new ExecutionVertex[0], cl);
 
 			try {
 				coord.restoreLatestCheckpointedState(new HashMap<JobVertexID, ExecutionJobVertex>(), true, false);

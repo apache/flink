@@ -25,6 +25,12 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 
+/**
+ * Statehandle that writes/reads the contents of the serializable checkpointed
+ * state to the provided input and outputstreams using default java
+ * serialization.
+ * 
+ */
 public abstract class ByteStreamStateHandle implements StateHandle<Serializable> {
 
 	private static final long serialVersionUID = -962025800339325828L;
@@ -35,8 +41,14 @@ public abstract class ByteStreamStateHandle implements StateHandle<Serializable>
 		this.state = state;
 	}
 
+	/**
+	 * The state will be written to the stream returned by this method.
+	 */
 	protected abstract OutputStream getOutputStream() throws Exception;
 
+	/**
+	 * The state will be read from the stream returned by this method.
+	 */
 	protected abstract InputStream getInputStream() throws Exception;
 
 	@Override

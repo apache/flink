@@ -38,6 +38,8 @@ import java.util.List;
  */
 public class CheckpointCoordinatorTest {
 	
+	ClassLoader cl = Thread.currentThread().getContextClassLoader();
+	
 	@Test
 	public void testCheckpointAbortsIfTriggerTasksAreNotExecuted() {
 		try {
@@ -59,7 +61,7 @@ public class CheckpointCoordinatorTest {
 					jid, 1, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
-					new ExecutionVertex[] {} );
+					new ExecutionVertex[] {}, cl );
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -101,7 +103,7 @@ public class CheckpointCoordinatorTest {
 					jid, 1, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
-					new ExecutionVertex[] {} );
+					new ExecutionVertex[] {}, cl );
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -139,7 +141,7 @@ public class CheckpointCoordinatorTest {
 					jid, 1, 600000,
 					new ExecutionVertex[] { vertex1, vertex2 },
 					new ExecutionVertex[] { vertex1, vertex2 },
-					new ExecutionVertex[] { vertex1, vertex2 });
+					new ExecutionVertex[] { vertex1, vertex2 }, cl);
 			
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -282,7 +284,7 @@ public class CheckpointCoordinatorTest {
 					jid, 2, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
-					new ExecutionVertex[] { commitVertex });
+					new ExecutionVertex[] { commitVertex }, cl);
 			
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -409,7 +411,7 @@ public class CheckpointCoordinatorTest {
 					jid, 10, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
-					new ExecutionVertex[] { commitVertex });
+					new ExecutionVertex[] { commitVertex }, cl);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -523,7 +525,7 @@ public class CheckpointCoordinatorTest {
 					jid, 2, 200,
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
-					new ExecutionVertex[] { commitVertex });
+					new ExecutionVertex[] { commitVertex }, cl);
 			
 			// trigger a checkpoint, partially acknowledged
 			assertTrue(coord.triggerCheckpoint(timestamp));
@@ -581,7 +583,7 @@ public class CheckpointCoordinatorTest {
 					jid, 2, 200000,
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
-					new ExecutionVertex[] { commitVertex });
+					new ExecutionVertex[] { commitVertex }, cl);
 
 			assertTrue(coord.triggerCheckpoint(timestamp));
 			

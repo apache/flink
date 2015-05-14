@@ -21,7 +21,7 @@ package org.apache.flink.runtime.state;
 import java.io.Serializable;
 
 /**
- * A StateHandle that includes a map of operator states directly.
+ * A StateHandle that includes the operator states directly.
  */
 public class LocalStateHandle implements StateHandle<Serializable> {
 
@@ -36,5 +36,9 @@ public class LocalStateHandle implements StateHandle<Serializable> {
 	@Override
 	public Serializable getState() {
 		return state;
+	}
+
+	@Override
+	public void discardState() throws Exception {
 	}
 }

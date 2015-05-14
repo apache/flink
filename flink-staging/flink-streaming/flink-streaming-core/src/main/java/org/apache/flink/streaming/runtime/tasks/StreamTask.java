@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCommittingOperator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.state.LocalStateHandle;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -41,7 +42,7 @@ import org.slf4j.LoggerFactory;
 
 
 public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends AbstractInvokable implements
-		OperatorStateCarrier<LocalStateHandle>, CheckpointedOperator, CheckpointCommittingOperator {
+		OperatorStateCarrier<StateHandle<Serializable>>, CheckpointedOperator, CheckpointCommittingOperator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
 
@@ -136,7 +137,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	 * Re-injects the user states into the map. Also set the state on the functions.
 	 */
 	@Override
-	public void setInitialState(LocalStateHandle stateHandle) throws Exception {
+	public void setInitialState(StateHandle<Serializable> stateHandle) throws Exception {
 		// here, we later resolve the state handle into the actual state by
 		// loading the state described by the handle from the backup store
 		Serializable state = stateHandle.getState();
@@ -184,7 +185,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 					LOG.info("Starting checkpoint {} on task {}", checkpointId, getName());
 					
 					// first draw the state that should go into checkpoint
-					LocalStateHandle state;
+					StateHandle<Serializable> state;
 					try {
 
 						Serializable userState = null;

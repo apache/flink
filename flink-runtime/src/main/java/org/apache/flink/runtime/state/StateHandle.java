@@ -34,4 +34,11 @@ public interface StateHandle<T> extends Serializable {
 	 * @throws java.lang.Exception Thrown, if the state cannot be fetched.
 	 */
 	T getState() throws Exception;
+	
+	/**
+	 * Discards the state referred to by this handle, to free up resources in
+	 * the persistent storage. This method is called when the handle will not be
+	 * used any more.
+	 */
+	void discardState() throws Exception;
 }
