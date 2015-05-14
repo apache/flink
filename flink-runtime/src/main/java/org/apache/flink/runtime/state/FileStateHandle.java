@@ -31,11 +31,18 @@ import org.apache.flink.util.StringUtils;
 
 import scala.util.Random;
 
+/**
+ * Statehandle that writes the checkpointed state to a random file in the
+ * provided checkpoint directory. Any Flink supported File system can be used
+ * but it is advised to use a filesystem that is persistent in case of node
+ * failures, such as HDFS or Tachyon.
+ * 
+ */
 public class FileStateHandle extends ByteStreamStateHandle {
 
 	private static final long serialVersionUID = 1L;
 
-	String pathString;
+	private String pathString;
 
 	public FileStateHandle(Serializable state, String folder) throws IOException {
 		super(state);
@@ -55,4 +62,10 @@ public class FileStateHandle extends ByteStreamStateHandle {
 		new Random().nextBytes(bytes);
 		return StringUtils.byteToHexString(bytes);
 	}
+
+	@Override
+	public void discardState() throws Exception {
+		FileSystem.get(new URI(pathString)).delete(new Path(pathString), false);
+	}
+
 }

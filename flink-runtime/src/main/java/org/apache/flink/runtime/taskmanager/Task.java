@@ -53,10 +53,8 @@ import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.state.StateHandle;
-
 import org.apache.flink.runtime.state.StateUtils;
 import org.apache.flink.runtime.util.SerializedValue;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -522,7 +520,7 @@ public class Task implements Runnable {
 						StateUtils.setOperatorState(op, state);
 					}
 					catch (Exception e) {
-						throw new Exception("Failed to deserialize state handle and setup initial operator state");
+						throw new RuntimeException("Failed to deserialize state handle and setup initial operator state.", e);
 					}
 				}
 				else {

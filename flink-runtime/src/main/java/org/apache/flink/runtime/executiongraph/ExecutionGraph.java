@@ -307,7 +307,7 @@ public class ExecutionGraph implements Serializable {
 		// create the coordinator that triggers and commits checkpoints and holds the state 
 		snapshotCheckpointsEnabled = true;
 		checkpointCoordinator = new CheckpointCoordinator(jobID, NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN,
-				checkpointTimeout, tasksToTrigger, tasksToWaitFor, tasksToCommitTo);
+				checkpointTimeout, tasksToTrigger, tasksToWaitFor, tasksToCommitTo, userClassLoader);
 		
 		// the periodic checkpoint scheduler is activated and deactivated as a result of
 		// job status changes (running -> on, all other states -> off)
