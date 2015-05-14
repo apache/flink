@@ -56,7 +56,9 @@ public interface Checkpointed<T extends Serializable> {
 	/**
 	 * Restores the state of the function or operator to that of a previous checkpoint.
 	 * This method is invoked when a function is executed as part of a recovery run.
-	 * 	 * 
+	 *
+	 * Note that restoreState() is called before open().
+	 *
 	 * @param state The state to be restored. 
 	 */
 	void restoreState(T state);
