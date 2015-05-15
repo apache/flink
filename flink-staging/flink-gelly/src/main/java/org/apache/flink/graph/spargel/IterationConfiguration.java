@@ -60,6 +60,9 @@ public class IterationConfiguration {
 	/** flag that defines whether the solution set is kept in managed memory **/
 	private boolean unmanagedSolutionSet = false;
 	
+	/** flag that defines whether to use a bulk iteration instead of a delta iteration **/
+	private boolean useBulkIteration = false;
+	
 	public IterationConfiguration() {}
 
 
@@ -188,5 +191,23 @@ public class IterationConfiguration {
 	 */
 	public List<Tuple2<String, DataSet<?>>> getMessagingBcastVars() {
 		return this.bcVarsMessaging;
+	}
+	
+	/**
+	 * Defines whether to use a bulk iteration or a delta iteration
+	 * as internal runtime representation of the vertex-centric iteration.
+	 */
+	public void useBulkIteration(boolean useBulkIteration) {
+		this.useBulkIteration = useBulkIteration;
+	}
+	
+	/**
+	 * Get the flag useBulkIteration
+	 * 
+	 * @return a boolean indicating whether to use a bulk iteration or a delta iteration
+	 * as internal runtime representation of the vertex-centric iteration.
+	 */
+	public boolean getUseBulkIteration() {
+		return this.useBulkIteration;
 	}
 }

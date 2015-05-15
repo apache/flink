@@ -29,6 +29,7 @@ import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -137,6 +138,11 @@ public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue>
 			throw new IllegalStateException("The input data set has not been set.");
 		}
 		
+		// check if a bulk iteration should be used
+		if (this.configuration != null && this.configuration.getUseBulkIteration()) {
+			return this.createBulkResult();
+		}
+		
 		// prepare some type information
 		TypeInformation<Vertex<VertexKey, VertexValue>> vertexTypes = initialVertices.getType();
 		TypeInformation<VertexKey> keyType = ((TupleTypeInfo<?>) initialVertices.getType()).getTypeAt(0);
@@ -200,6 +206,79 @@ public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue>
 		return iteration.closeWith(updates, updates);
 		
 	}
+	
+	/**
+	 * Creates the operator that represents this vertex-centric graph computation.
+	 * This is different from createResult because it uses a bulk iteration instead of 
+	 * a delta iteration to represent the computation.
+	 * 
+	 * @return The operator that represents this vertex-centric graph computation.
+	 */
+	private DataSet<Vertex<VertexKey, VertexValue>> createBulkResult() {
+		if (this.initialVertices == null) {
+			throw new IllegalStateException("The input data set has not been set.");
+		}
+
+		// prepare some type information
+		TypeInformation<Vertex<VertexKey, VertexValue>> vertexTypes = initialVertices.getType();
+		TypeInformation<VertexKey> keyType = ((TupleTypeInfo<?>) initialVertices.getType()).getTypeAt(0);
+		TypeInformation<Tuple2<VertexKey, Message>> messageTypeInfo = new TupleTypeInfo<Tuple2<VertexKey,Message>>(keyType, messageType);
+	
+		final IterativeDataSet<Vertex<VertexKey, VertexValue>> iteration =
+			this.initialVertices.iterate(this.maximumNumberOfIterations);
+
+		// set up the iteration operator
+		if (this.configuration != null) {
+
+			iteration.name(this.configuration.getName(
+					"Vertex-centric iteration (" + updateFunction + " | " + messagingFunction + ")"));
+			iteration.setParallelism(this.configuration.getParallelism());
+
+			// register all aggregators
+			for (Map.Entry<String, Aggregator<?>> entry : this.configuration.getAggregators().entrySet()) {
+				iteration.registerAggregator(entry.getKey(), entry.getValue());
+			}
+		}
+		else {
+			// no configuration provided; set default name
+			iteration.name("Vertex-centric iteration (" + updateFunction + " | " + messagingFunction + ")");
+		}
+		
+		// build the messaging function (co group)
+		CoGroupOperator<?, ?, Tuple2<VertexKey, Message>> messages;
+		MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue> messenger = new MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue>(messagingFunction, messageTypeInfo);
+		messages = this.edgesWithValue.coGroup(iteration).where(0).equalTo(0).with(messenger);
+		
+		// configure coGroup message function with name and broadcast variables
+		messages = messages.name("Messaging");
+
+		if (this.configuration != null) {
+			for (Tuple2<String, DataSet<?>> e : this.configuration.getMessagingBcastVars()) {
+				messages = messages.withBroadcastSet(e.f1, e.f0);
+			}			
+		}
+		
+		VertexUpdateUdf<VertexKey, VertexValue, Message> updateUdf = new VertexUpdateUdf<VertexKey, VertexValue, Message>(updateFunction, vertexTypes, true);
+		
+		// build the update function (co group)
+		CoGroupOperator<?, ?, Vertex<VertexKey, VertexValue>> updates =
+				messages.coGroup(iteration).where(0).equalTo(0).with(updateUdf);
+		
+		// configure coGroup update function with name and broadcast variables
+		updates = updates.name("Vertex State Updates");
+
+		if (this.configuration != null) {
+			for (Tuple2<String, DataSet<?>> e : this.configuration.getUpdateBcastVars()) {
+				updates = updates.withBroadcastSet(e.f1, e.f0);
+			}			
+		}
+
+		// let the operator know that we preserve the key field
+		updates.withForwardedFieldsFirst("0").withForwardedFieldsSecond("0");
+		
+		return iteration.closeWith(updates, updates);
+		
+	}
 
 	/**
 	 * Creates a new vertex-centric iteration operator for graphs where the edges are associated with a value (such as
@@ -242,12 +321,21 @@ public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue>
 		
 		private transient TypeInformation<Vertex<VertexKey, VertexValue>> resultType;
 		
+		private boolean inBulkIteration = false;
+		
 		
 		private VertexUpdateUdf(VertexUpdateFunction<VertexKey, VertexValue, Message> vertexUpdateFunction,
 				TypeInformation<Vertex<VertexKey, VertexValue>> resultType)
 		{
 			this.vertexUpdateFunction = vertexUpdateFunction;
 			this.resultType = resultType;
+		}
+		
+		private VertexUpdateUdf(VertexUpdateFunction<VertexKey, VertexValue, Message> vertexUpdateFunction,
+				TypeInformation<Vertex<VertexKey, VertexValue>> resultType, boolean inBulkIteration)
+		{
+			this(vertexUpdateFunction, resultType);
+			this.inBulkIteration = inBulkIteration;
 		}
 
 		@Override
@@ -266,6 +354,10 @@ public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue>
 				
 				vertexUpdateFunction.setOutput(vertexState, out);
 				vertexUpdateFunction.updateVertex(vertexState.f0, vertexState.f1, messageIter);
+				
+				if(inBulkIteration && !vertexUpdateFunction.lastVertexCollected()) {
+					out.collect(vertexState);
+				}
 			}
 			else {
 				final Iterator<Tuple2<VertexKey, Message>> messageIter = messages.iterator();

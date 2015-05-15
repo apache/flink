@@ -40,6 +40,8 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 
 	private static final long serialVersionUID = 1L;
 	
+	private boolean lastVertexCollected = false;
+	
 	// --------------------------------------------------------------------------------------------
 	//  Public API Methods
 	// --------------------------------------------------------------------------------------------
@@ -79,6 +81,7 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	public void setNewVertexValue(VertexValue newValue) {
 		outVal.f1 = newValue;
 		out.collect(outVal);
+		this.lastVertexCollected = true;
 	}
 	
 	/**
@@ -123,6 +126,10 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 		return this.runtimeContext.<T>getBroadcastVariable(name);
 	}
 	
+	public boolean lastVertexCollected() {
+		return lastVertexCollected;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  internal methods
 	// --------------------------------------------------------------------------------------------
@@ -141,5 +148,6 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	void setOutput(Vertex<VertexKey, VertexValue> val, Collector<Vertex<VertexKey, VertexValue>> out) {
 		this.out = out;
 		this.outVal = val;
+		this.lastVertexCollected = false;
 	}
 }
