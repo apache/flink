@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.compiler.plandump;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.client.program.Client.ProgramAbortException;
 import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
@@ -90,6 +91,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 	}
 	
 	private void dump(Plan p) {
+		p.setExecutionConfig(new ExecutionConfig());
 		try {
 			OptimizedPlan op = compileNoStats(p);
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();

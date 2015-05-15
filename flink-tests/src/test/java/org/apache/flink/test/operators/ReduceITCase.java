@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.ReduceFunction;
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
@@ -132,7 +133,7 @@ public class ReduceITCase extends RecordAPITestBase {
 		testReducer.setInput(input);
 
 		Plan plan = new Plan(output);
-
+		plan.setExecutionConfig(new ExecutionConfig());
 		Optimizer pc = new Optimizer(new DataStatistics(), this.config);
 		OptimizedPlan op = pc.compile(plan);
 
