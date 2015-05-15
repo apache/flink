@@ -75,7 +75,7 @@ public class Plan implements Visitable<Operator<?>> {
 	/**
 	 * Config object for runtime execution parameters.
 	 */
-	protected ExecutionConfig executionConfig = new ExecutionConfig();
+	protected ExecutionConfig executionConfig = null;
 
 	// ------------------------------------------------------------------------
 
@@ -270,7 +270,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @return The number of times the system will try to re-execute failed tasks.
 	 */
 	public int getNumberOfExecutionRetries() {
-		return executionConfig.getNumberOfExecutionRetries();
+		return getExecutionConfig().getNumberOfExecutionRetries();
 	}
 	
 	/**
@@ -289,6 +289,9 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @return The execution config object.
 	 */
 	public ExecutionConfig getExecutionConfig() {
+		if(executionConfig == null) {
+			throw new RuntimeException("Execution config has not been set properly for this plan");
+		}
 		return executionConfig;
 	}
 

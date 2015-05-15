@@ -20,6 +20,7 @@ package org.apache.flink.test.compiler.iterations;
 
 import java.io.Serializable;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.record.functions.JoinFunction;
@@ -80,6 +81,7 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 
 		Plan plan = cc.getPlan(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(100));
+		plan.setExecutionConfig(new ExecutionConfig());
 
 		OptimizedPlan optPlan = compileNoStats(plan);
 		OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(optPlan);
@@ -161,6 +163,7 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 
 		Plan plan = getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(DEFAULT_PARALLELISM,
 				IN_FILE, IN_FILE, OUT_FILE, 100);
+		plan.setExecutionConfig(new ExecutionConfig());
 
 		OptimizedPlan optPlan = compileNoStats(plan);
 		OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(optPlan);

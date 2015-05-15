@@ -46,7 +46,7 @@ import java.util.Map;
  * </ul>
  */
 public class ExecutionConfig implements Serializable {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	// Key for storing it in the Job Configuration
