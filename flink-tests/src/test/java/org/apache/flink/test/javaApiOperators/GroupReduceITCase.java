@@ -40,6 +40,7 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.PojoContainingTupleAndWritable;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -51,9 +52,7 @@ import org.junit.runners.Parameterized;
 import scala.math.BigInt;
 
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
 
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
@@ -1083,6 +1082,23 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			"2\n" +
 			"3\n" +
 			"4";
+	}
+
+	/**
+	 * Fix for FLINK-2019.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testJodatimeDateTimeWithKryo() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple2<Integer, DateTime>> ds = env.fromElements(new Tuple2<Integer, DateTime>(1, DateTime.now()));
+		DataSet<Tuple2<Integer, DateTime>> reduceDs = ds.groupBy("f1").sum(0).project(0);
+
+		reduceDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "(1)\n";
 	}
 
 	public static class GroupReducer8 implements GroupReduceFunction<CollectionDataSets.PojoWithCollection, String> {

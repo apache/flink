@@ -102,7 +102,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			LOG.debug(getLogString("Starting data source operator"));
 		}
 
-		ExecutionConfig executionConfig = new ExecutionConfig();
+		ExecutionConfig executionConfig;
 		try {
 			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
 					getJobConfiguration(),
@@ -110,6 +110,9 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 					getUserCodeClassLoader());
 			if (c != null) {
 				executionConfig = c;
+			} else {
+				LOG.warn("ExecutionConfig from job configuration is null. Creating empty config");
+				executionConfig = new ExecutionConfig();
 			}
 		} catch (IOException e) {
 			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: ", e);

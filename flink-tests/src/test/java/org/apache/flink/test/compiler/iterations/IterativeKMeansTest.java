@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.record.operators.FileDataSource;
@@ -66,7 +67,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 		
 		KMeansBroadcast kmi = new KMeansBroadcast();
 		Plan p = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM), IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
-		
+		p.setExecutionConfig(new ExecutionConfig());
 		// set the statistics
 		OperatorResolver cr = getContractResolver(p);
 		FileDataSource pointsSource = cr.getNode(DATAPOINTS);
@@ -85,7 +86,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 		
 		KMeansBroadcast kmi = new KMeansBroadcast();
 		Plan p = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM), IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
-		
+		p.setExecutionConfig(new ExecutionConfig());
 		OptimizedPlan plan = compileNoStats(p);
 		checkPlan(plan);
 		

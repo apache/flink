@@ -108,7 +108,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			LOG.debug(getLogString("Starting data sink operator"));
 		}
 
-		ExecutionConfig executionConfig = new ExecutionConfig();
+		ExecutionConfig executionConfig;
 		try {
 			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
 					getJobConfiguration(),
@@ -116,6 +116,9 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 					getUserCodeClassLoader());
 			if (c != null) {
 				executionConfig = c;
+			} else {
+				LOG.warn("The execution config returned by the configuration was null");
+				executionConfig = new ExecutionConfig();
 			}
 		} catch (IOException e) {
 			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);

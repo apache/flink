@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.compiler.iterations;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.optimizer.dag.TempMode;
@@ -62,7 +63,7 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 
 		Plan plan = cc.getPlan(String.valueOf(DEFAULT_PARALLELISM),
 				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(100));
-
+		plan.setExecutionConfig(new ExecutionConfig());
 		OptimizedPlan optPlan = compileNoStats(plan);
 		OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(optPlan);
 		

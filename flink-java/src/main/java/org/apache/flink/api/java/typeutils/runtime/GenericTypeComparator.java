@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import com.esotericsoftware.kryo.Kryo;
 
 import java.io.IOException;
 
@@ -47,8 +46,6 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 
 	private transient T tmpReference;
 
-	private transient Kryo kryo;
-
 	@SuppressWarnings("rawtypes")
 	private final TypeComparator[] comparators = new TypeComparator[] {this};
 
@@ -73,8 +70,7 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 
 	@Override
 	public void setReference(T toCompare) {
-		checkKryoInitialized();
-		this.reference = this.kryo.copy(toCompare);
+		this.reference = this.serializer.copy(toCompare);
 	}
 
 	@Override
@@ -147,14 +143,6 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 	@Override
 	public TypeComparator<T> duplicate() {
 		return new GenericTypeComparator<T>(this);
-	}
-
-	private void checkKryoInitialized() {
-		if (this.kryo == null) {
-			this.kryo = new Kryo();
-			this.kryo.setAsmEnabled(true);
-			this.kryo.register(this.type);
-		}
 	}
 
 	@Override
