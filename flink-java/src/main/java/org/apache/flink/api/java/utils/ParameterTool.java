@@ -130,16 +130,6 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return fromMap((Map)props);
 	}
 
-	/**
-	 * Parse the arguments similar to Hadoop's GenericOptionsParser
-	 * See https://hadoop.apache.org/docs/r1.0.4/api/org/apache/hadoop/util/GenericOptionsParser.html
-	 *
-	 * @return
-
-	public static ParameterUtil fromGenericOptionsParser(String[] args) {
-		return null;
-	}  */
-
 	public static ParameterTool fromMap(Map<String, String> map) {
 		Preconditions.checkNotNull(map, "Unable to initialize from empty map");
 		return new ParameterTool(map);

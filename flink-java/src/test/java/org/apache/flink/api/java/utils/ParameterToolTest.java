@@ -37,7 +37,6 @@ public class ParameterToolTest {
 	@Rule
 	public TemporaryFolder tmp = new TemporaryFolder();
 
-
 	// ----- Parser tests -----------------
 
 	@Test(expected = RuntimeException.class)
@@ -100,31 +99,6 @@ public class ParameterToolTest {
 		Assert.assertTrue(parameter.has("b"));
 	}
 
-
-
-	/*@Test
-	public void requiredParameters() {
-		RequiredParameters required = new RequiredParameters();
-		Option input = required.add("input").alt("i").help("Path to input file or directory"); // parameter with long and short variant
-		required.add("output"); // parameter only with long variant
-		Option parallelism = required.add("parallelism").alt("p").type(Integer.class); // parameter with type
-		Option spOption = required.add("sourceParallelism").alt("sp").defaultValue(12).help("Number specifying the number of parallel data source instances"); // parameter with default value, specifying the type.
-		Option executionType = required.add("executionType").alt("et").defaultValue("pipelined").choices("pipelined", "batch");
-		ParameterUtil parameter = ParameterUtil.fromArgs(new String[]{"-i", "someinput", "--output", "someout", "-p", "15"});
-
-		required.check(parameter);
-		required.printHelp();
-		required.checkAndPopulate(parameter);
-
-		String inputString = input.get();
-		int par = parallelism.getInteger();
-		String output = parameter.get("output");
-		int sourcePar = parameter.getInteger(spOption.getName());
-	} */
-
-	public static void main(String[] args) {
-		ParameterTool parameter = ParameterTool.fromArgs(args);
-	}
 	@Test
 	public void testFromCliArgs() {
 		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--input", "myInput", "-expectedCount", "15", "--withoutValues", "--negativeFloat", "-0.58"});
@@ -167,16 +141,6 @@ public class ParameterToolTest {
 		validate(parameter);
 	}
 
-	/**
-	 * Compatibility to Hadoop's testFromGenericOptionsParser
-	 * See https://hadoop.apache.org/docs/r1.0.4/api/org/apache/hadoop/util/GenericOptionsParser.html
-
-	@Test
-	public void testFromGenericOptionsParser() {
-		ParameterUtil parameter = ParameterUtil.fromGenericOptionsParser(new String[]{"-D", "input=myinput", "-DexpectedCount=15"});
-		validate(parameter);
-	}  */
-
 	@Test
 	public void testMerged() {
 		ParameterTool parameter1 = ParameterTool.fromArgs(new String[]{"--input", "myInput"});
@@ -185,7 +149,6 @@ public class ParameterToolTest {
 		ParameterTool parameter = parameter1.mergeWith(parameter2);
 		validate(parameter);
 	}
-
 
 	private void validate(ParameterTool parameter) {
 		ClosureCleaner.ensureSerializable(parameter);

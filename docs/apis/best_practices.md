@@ -35,9 +35,10 @@ This page contains a collection of best practices for Flink programmers on how t
 Almost all Flink applications, both batch and streaming rely on external configuration parameters.
 For example for specifying input and output sources (like paths or addresses), also system parameters (parallelism, runtime configuration) and application specific parameters (often used within the user functions).
 
-Since version 0.9 we are providing a simple called `ParameterTool` to provide at least some basic tooling for solving these problems.
+Since version 0.9 we are providing a simple utility called `ParameterTool` to provide at least some basic tooling for solving these problems.
 
-As you'll see Flink is very flexible when it comes to parsing input parameters. You are free to choose any other framework, like [Commons CLI](https://commons.apache.org/proper/commons-cli/), [argparse4j](http://argparse4j.sourceforge.net/), or others.
+Please note that you don't have to use the `ParameterTool` explained here. Other frameworks such as [Commons CLI](https://commons.apache.org/proper/commons-cli/), 
+[argparse4j](http://argparse4j.sourceforge.net/) and others work well with Flink as well.
 
 
 ### Getting your configuration values into the `ParameterTool`
@@ -94,7 +95,8 @@ For example you could set the parallelism of a operator like this:
 
 {% highlight java %}
 ParameterTool parameters = ParameterTool.fromArgs(args);
-DataSet<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).setParallelism(parameters.getInt("mapParallelism", 2));
+int parallelism = parameters.get("mapParallelism", 2);
+DataSet<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).setParallelism(parallelism);
 {% endhighlight %}
 
 Since the `ParameterTool` is serializable, you can pass it to the functions itself:
