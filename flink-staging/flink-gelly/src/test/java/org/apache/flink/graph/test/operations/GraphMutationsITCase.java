@@ -606,7 +606,6 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"5,1,51\n";
 	}
 
-	//!!!!!BUG!!!! Daca ii dai invalid edge, ii face union...
 	@Test
 	public void testRemoveOneValidOneInvalidEdge() throws Exception {
 		/*
