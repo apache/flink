@@ -30,6 +30,7 @@ import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, Val
 import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
 import org.apache.flink.api.scala.hadoop.{mapred, mapreduce}
 import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.{NumberSequenceIterator, SplittableIterator}
