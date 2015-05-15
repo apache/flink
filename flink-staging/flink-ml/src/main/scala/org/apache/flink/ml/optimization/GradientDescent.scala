@@ -36,14 +36,14 @@ import org.apache.flink.ml.optimization.Solver._
   * At the moment, the whole partition is used for SGD, making it effectively a batch gradient
   * descent. Once a sampling operator has been introduced, the algorithm can be optimized
   *
-  * @param runParameters The parameters to tune the algorithm. Currently these include:
-  *                      [[Solver.LossFunction]] for the loss function to be used,
-  *                      [[Solver.RegularizationType]] for the type of regularization,
-  *                      [[Solver.RegularizationParameter]] for the regularization parameter,
+  *  The parameters to tune the algorithm are:
+  *                      [[Solver.LossFunctionParameter]] for the loss function to be used,
+  *                      [[Solver.RegularizationTypeParameter]] for the type of regularization,
+  *                      [[Solver.RegularizationValueParameter]] for the regularization parameter,
   *                      [[IterativeSolver.Iterations]] for the maximum number of iteration,
   *                      [[IterativeSolver.Stepsize]] for the learning rate used.
   */
-class GradientDescent(runParameters: ParameterMap) extends IterativeSolver(runParameters) {
+class GradientDescent() extends IterativeSolver() {
 
   import Solver.WEIGHTVECTOR_BROADCAST
 
@@ -83,7 +83,7 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver(runPa
   override def optimize(
     data: DataSet[LabeledVector],
     initialWeights: Option[DataSet[WeightVector]]): DataSet[WeightVector] = {
-    val numberOfIterations: Int = parameterMap(Iterations)
+    val numberOfIterations: Int = parameters(Iterations)
 
     // Initialize weights
     val initialWeightsDS: DataSet[WeightVector] = createInitialWeightsDS(initialWeights, data)
@@ -114,9 +114,9 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver(runPa
     }
 
     override def map(gradientLossAndCount: (WeightVector, Double, Int)): WeightVector = {
-      val regType = parameterMap(RegularizationType)
-      val regParameter = parameterMap(RegularizationParameter)
-      val stepsize = parameterMap(Stepsize)
+      val regType = parameters(RegularizationTypeParameter)
+      val regParameter = parameters(RegularizationValueParameter)
+      val stepsize = parameters(Stepsize)
       val weightGradients = gradientLossAndCount._1
       val lossSum = gradientLossAndCount._2
       val count = gradientLossAndCount._3
@@ -172,11 +172,7 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver(runPa
 
 object GradientDescent {
   def apply(): GradientDescent = {
-    new GradientDescent(new ParameterMap())
-  }
-
-  def apply(parameterMap: ParameterMap): GradientDescent = {
-    new GradientDescent(parameterMap)
+    new GradientDescent()
   }
 }
 

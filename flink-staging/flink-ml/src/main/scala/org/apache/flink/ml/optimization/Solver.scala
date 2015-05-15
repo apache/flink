@@ -25,14 +25,14 @@ import org.apache.flink.ml.common._
 import org.apache.flink.ml.math.{Vector => FlinkVector, SparseVector, BLAS, DenseVector}
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.optimization.IterativeSolver._
+// TODO(tvas): Kind of ugly that we have to do this. Why not define the parameters inside the class?
 import org.apache.flink.ml.optimization.Solver._
 
 /** Base class for optimization algorithms
  *
  */
-abstract class Solver(runParameters: ParameterMap) extends Serializable with WithParameters {
+abstract class Solver() extends Serializable with WithParameters {
 
-  var parameterMap: ParameterMap = parameters ++ runParameters
 
   /** Provides a solution for the given optimization problem
     *
@@ -88,17 +88,19 @@ abstract class Solver(runParameters: ParameterMap) extends Serializable with Wit
   //Setters for parameters
   // TODO(tvas): Provide an option to fit an intercept or not
   def setLossFunction(lossFunction: LossFunction): Solver = {
-    parameters.add(LossFunction, lossFunction)
+    parameters.add(LossFunctionParameter, lossFunction)
     this
   }
 
+  // TODO(tvas): Sanitize the input, i.e. depending on Solver type allow only certain types of
+  // regularization to be set.
   def setRegularizationType(regularization: Regularization): Solver = {
-    parameters.add(RegularizationType, regularization)
+    parameters.add(RegularizationTypeParameter, regularization)
     this
   }
 
   def setRegularizationParameter(regularizationParameter: Double): Solver = {
-    parameters.add(RegularizationParameter, regularizationParameter)
+    parameters.add(RegularizationValueParameter, regularizationParameter)
     this
   }
 
@@ -113,17 +115,17 @@ object Solver {
   val WEIGHTVECTOR_BROADCAST = "weights_broadcast"
 
   // Define parameters for Solver
-  case object LossFunction extends Parameter[LossFunction] {
+  case object LossFunctionParameter extends Parameter[LossFunction] {
     // TODO(tvas): Should depend on problem, here is where differentiating between classification
     // and regression could become useful
     val defaultValue = Some(new SquaredLoss)
   }
 
-  case object RegularizationType extends Parameter[Regularization] {
+  case object RegularizationTypeParameter extends Parameter[Regularization] {
     val defaultValue = Some(new NoRegularization)
   }
 
-  case object RegularizationParameter extends Parameter[Double] {
+  case object RegularizationValueParameter extends Parameter[Double] {
     val defaultValue = Some(0.0) // TODO(tvas): Properly initialize this, ensure Parameter > 0!
   }
 
@@ -137,7 +139,7 @@ object Solver {
   * See [[https://en.wikipedia.org/wiki/Iterative_method Iterative Methods on Wikipedia]] for more
   * info
   */
-abstract class IterativeSolver(runParameters: ParameterMap) extends Solver(runParameters) {
+abstract class IterativeSolver() extends Solver() {
 
   //Setters for parameters
   def setIterations(iterations: Int): IterativeSolver = {
@@ -173,16 +175,13 @@ abstract class IterativeSolver(runParameters: ParameterMap) extends Solver(runPa
 
     override def map(example: LabeledVector): (WeightVector, Double, Int) = {
 
-      val lossFunction = parameterMap(LossFunction)
-      val regType = parameterMap(RegularizationType)
-      val regParameter = parameterMap(RegularizationParameter)
-      val predictionFunction = parameterMap(PredictionFunctionParameter)
+      val lossFunction = parameters(LossFunctionParameter)
+      val regType = parameters(RegularizationTypeParameter)
+      val regParameter = parameters(RegularizationValueParameter)
+      val predictionFunction = parameters(PredictionFunctionParameter)
       val dimensions = example.vector.size
-      // TODO(tvas): Any point in carrying the weightGradient vector for in-place replacement?
-      // The idea in spark is to avoid object creation, but here we have to do it anyway
       val weightGradient = new DenseVector(new Array[Double](dimensions))
 
-      // TODO(tvas): Indentation here?
       val (loss, lossDeriv) = lossFunction.lossAndGradient(
         example,
         weightVector,

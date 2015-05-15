@@ -95,6 +95,7 @@ abstract class DiffRegularization extends Regularization {
       regParameter: Double)
 }
 
+// TODO(tvas): I think NoRegularization should extend DiffRegularization
 /** Performs no regularization, equivalent to $R(w) = 0$ **/
 class NoRegularization extends Regularization {
   /** Adds the regularization term to the loss value
@@ -108,6 +109,12 @@ class NoRegularization extends Regularization {
     loss: Double,
     weightVector: FlinkVector,
     regParameter: Double):  Double = {loss}
+}
+
+object NoRegularization {
+  def apply(): NoRegularization = {
+    new NoRegularization
+  }
 }
 
 /** $L_2$ regularization penalty.
@@ -140,6 +147,12 @@ class L2Regularization extends DiffRegularization {
       lossGradient: FlinkVector,
       regParameter: Double): Unit = {
     BLAS.axpy(regParameter, weightVector, lossGradient)
+  }
+}
+
+object L2Regularization {
+  def apply(): L2Regularization = {
+    new L2Regularization
   }
 }
 
@@ -194,5 +207,11 @@ class L1Regularization extends Regularization {
   /** $L_1$ norm of a Vector **/
   private def l1Norm(vector: FlinkVector) : Double = {
     vector.valueIterator.fold(0.0){(a,b) => math.abs(a) + math.abs(b)}
+  }
+}
+
+object L1Regularization {
+  def apply(): L1Regularization = {
+    new L1Regularization
   }
 }

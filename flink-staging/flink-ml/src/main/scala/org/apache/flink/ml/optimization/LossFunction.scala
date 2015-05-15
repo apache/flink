@@ -117,3 +117,9 @@ class SquaredLoss extends RegressionLoss {
   }
 
 }
+
+object SquaredLoss {
+  def apply(): SquaredLoss = {
+    new SquaredLoss
+  }
+}

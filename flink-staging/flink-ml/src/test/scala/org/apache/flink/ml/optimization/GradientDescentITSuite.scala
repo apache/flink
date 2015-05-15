@@ -38,15 +38,12 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
-    val parameters = ParameterMap()
-
-    parameters.add(IterativeSolver.Stepsize, 0.01)
-    parameters.add(IterativeSolver.Iterations, 2000)
-    parameters.add(Solver.LossFunction, new SquaredLoss)
-    parameters.add(Solver.RegularizationType, new L1Regularization)
-    parameters.add(Solver.RegularizationParameter, 0.3)
-
-    val sgd = GradientDescent(parameters)
+    val sgd = GradientDescent()
+      .setStepsize(0.01)
+      .setIterations(2000)
+      .setLossFunction(SquaredLoss())
+      .setRegularizationType(L1Regularization())
+      .setRegularizationParameter(0.3)
 
     val inputDS: DataSet[LabeledVector] = env.fromCollection(regularizationData)
 
@@ -72,15 +69,12 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
-    val parameters = ParameterMap()
-
-    parameters.add(IterativeSolver.Stepsize, 0.1)
-    parameters.add(IterativeSolver.Iterations, 1)
-    parameters.add(Solver.LossFunction, new SquaredLoss)
-    parameters.add(Solver.RegularizationType, new L2Regularization)
-    parameters.add(Solver.RegularizationParameter, 1.0)
-
-    val sgd = GradientDescent(parameters)
+    val sgd = GradientDescent()
+      .setStepsize(0.1)
+      .setIterations(1)
+      .setLossFunction(SquaredLoss())
+      .setRegularizationType(L2Regularization())
+      .setRegularizationParameter(1.0)
 
     val inputDS: DataSet[LabeledVector] = env.fromElements(LabeledVector(1.0, DenseVector(2.0)))
     val currentWeights = new WeightVector(DenseVector(1.0), 1.0)
@@ -106,15 +100,12 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
-    val parameters = ParameterMap()
-
-    parameters.add(IterativeSolver.Stepsize, 1.0)
-    parameters.add(IterativeSolver.Iterations, 800)
-    parameters.add(Solver.LossFunction, new SquaredLoss)
-    parameters.add(Solver.RegularizationType, new NoRegularization)
-    parameters.add(Solver.RegularizationParameter, 0.0)
-
-    val sgd = GradientDescent(parameters)
+    val sgd = GradientDescent()
+      .setStepsize(1.0)
+      .setIterations(800)
+      .setLossFunction(SquaredLoss())
+      .setRegularizationType(NoRegularization())
+      .setRegularizationParameter(0.0)
 
     val inputDS = env.fromCollection(data)
     val weightDS = sgd.optimize(inputDS, None)
@@ -141,15 +132,12 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
-    val parameters = ParameterMap()
-
-    parameters.add(IterativeSolver.Stepsize, 0.0001)
-    parameters.add(IterativeSolver.Iterations, 100)
-    parameters.add(Solver.LossFunction, new SquaredLoss)
-    parameters.add(Solver.RegularizationType, new NoRegularization)
-    parameters.add(Solver.RegularizationParameter, 0.0)
-
-    val sgd = GradientDescent(parameters)
+    val sgd = GradientDescent()
+      .setStepsize(0.0001)
+      .setIterations(100)
+      .setLossFunction(SquaredLoss())
+      .setRegularizationType(NoRegularization())
+      .setRegularizationParameter(0.0)
 
     val inputDS = env.fromCollection(noInterceptData)
     val weightDS = sgd.optimize(inputDS, None)
@@ -175,15 +163,12 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
-    val parameters = ParameterMap()
-
-    parameters.add(IterativeSolver.Stepsize, 0.1)
-    parameters.add(IterativeSolver.Iterations, 1)
-    parameters.add(Solver.LossFunction, new SquaredLoss)
-    parameters.add(Solver.RegularizationType, new NoRegularization)
-    parameters.add(Solver.RegularizationParameter, 0.0)
-
-    val sgd = GradientDescent(parameters)
+    val sgd = GradientDescent()
+      .setStepsize(0.1)
+      .setIterations(1)
+      .setLossFunction(SquaredLoss())
+      .setRegularizationType(NoRegularization())
+      .setRegularizationParameter(0.0)
 
     val inputDS: DataSet[LabeledVector] = env.fromElements(LabeledVector(1.0, DenseVector(2.0)))
     val currentWeights = new WeightVector(DenseVector(1.0), 1.0)
