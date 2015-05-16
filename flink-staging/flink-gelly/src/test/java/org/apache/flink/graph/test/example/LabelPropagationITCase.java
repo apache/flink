@@ -20,7 +20,7 @@ package org.apache.flink.graph.test.example;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.graph.example.LabelPropagationExample;
+import org.apache.flink.graph.example.LabelPropagation;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
 import org.junit.Before;
@@ -79,7 +79,7 @@ public class LabelPropagationITCase extends MultipleProgramsTestBase {
 		String verticesPath = createTempFile(vertices);
 		String edgesPath = createTempFile(edges);
 
-		LabelPropagationExample.main(new String[]{verticesPath, edgesPath, resultPath, "1"});
+		LabelPropagation.main(new String[]{verticesPath, edgesPath, resultPath, "1"});
 
 		expectedResult = "1,10\n" +
 			"2,10\n" +
@@ -118,7 +118,7 @@ public class LabelPropagationITCase extends MultipleProgramsTestBase {
 		String verticesPath = createTempFile(vertices);
 		String edgesPath = createTempFile(edges);
 
-		LabelPropagationExample.main(new String[]{verticesPath, edgesPath, resultPath, "1"});
+		LabelPropagation.main(new String[]{verticesPath, edgesPath, resultPath, "1"});
 
 		expectedResult = "1,10\n" +
 				"2,10\n" +

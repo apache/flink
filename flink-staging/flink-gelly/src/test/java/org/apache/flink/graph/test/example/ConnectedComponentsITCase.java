@@ -20,8 +20,8 @@ package org.apache.flink.graph.test.example;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.graph.example.ConnectedComponentsExample;
-import org.apache.flink.graph.example.utils.ConnectedComponentsExampleData;
+import org.apache.flink.graph.example.ConnectedComponents;
+import org.apache.flink.graph.example.utils.ConnectedComponentsDefaultData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
 import org.junit.Before;
@@ -54,14 +54,14 @@ public class ConnectedComponentsITCase extends MultipleProgramsTestBase {
 		resultPath = tempFolder.newFile().toURI().toString();
 
 		File edgesFile = tempFolder.newFile();
-		Files.write(ConnectedComponentsExampleData.EDGES, edgesFile, Charsets.UTF_8);
+		Files.write(ConnectedComponentsDefaultData.EDGES, edgesFile, Charsets.UTF_8);
 		edgesPath = edgesFile.toURI().toString();
 	}
 
 	@Test
 	public void testConnectedComponentsExample() throws Exception {
-		ConnectedComponentsExample.main(new String[]{edgesPath, resultPath, ConnectedComponentsExampleData.MAX_ITERATIONS + ""});
-		expected = ConnectedComponentsExampleData.VERTICES_WITH_MIN_ID;
+		ConnectedComponents.main(new String[]{edgesPath, resultPath, ConnectedComponentsDefaultData.MAX_ITERATIONS + ""});
+		expected = ConnectedComponentsDefaultData.VERTICES_WITH_MIN_ID;
 	}
 
 	@After

@@ -27,7 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.library.PageRank;
+import org.apache.flink.graph.library.PageRankAlgorithm;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 import org.apache.flink.util.Collector;
 
@@ -41,7 +41,7 @@ import org.apache.flink.util.Collector;
  * and random edge weights.
  *
  */
-public class PageRankExample implements ProgramDescription {
+public class PageRank implements ProgramDescription {
 
 	@SuppressWarnings("serial")
 	public static void main(String[] args) throws Exception {
@@ -73,7 +73,7 @@ public class PageRankExample implements ProgramDescription {
 						});
 
 		DataSet<Vertex<Long, Double>> pageRanks = networkWithWeights.run(
-				new PageRank<Long>(DAMPENING_FACTOR, maxIterations))
+				new PageRankAlgorithm<Long>(DAMPENING_FACTOR, maxIterations))
 				.getVertices();
 
 		if (fileOutput) {

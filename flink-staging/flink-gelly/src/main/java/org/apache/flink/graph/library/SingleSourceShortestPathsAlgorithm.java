@@ -27,13 +27,16 @@ import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
+import java.io.Serializable;
+
 @SuppressWarnings("serial")
-public class SingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, Double> {
+public class SingleSourceShortestPathsAlgorithm<K extends Comparable<K> & Serializable>
+		implements GraphAlgorithm<K, Double, Double> {
 
 	private final K srcVertexId;
 	private final Integer maxIterations;
 
-	public SingleSourceShortestPaths(K srcVertexId, Integer maxIterations) {
+	public SingleSourceShortestPathsAlgorithm(K srcVertexId, Integer maxIterations) {
 		this.srcVertexId = srcVertexId;
 		this.maxIterations = maxIterations;
 	}

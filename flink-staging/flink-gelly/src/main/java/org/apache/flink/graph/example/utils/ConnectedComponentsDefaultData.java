@@ -30,7 +30,7 @@ import java.util.List;
  * Provides the default data sets used for the connected components example program.
  * If no parameters are given to the program, the default data sets are used.
  */
-public class ConnectedComponentsExampleData {
+public class ConnectedComponentsDefaultData {
 
 	public static final Integer MAX_ITERATIONS = 4;
 
@@ -48,5 +48,5 @@ public class ConnectedComponentsExampleData {
 
 	public static final String VERTICES_WITH_MIN_ID = "1,1\n" + "2,1\n" + "3,1\n" + "4,1";
 
-	private ConnectedComponentsExampleData() {}
+	private ConnectedComponentsDefaultData() {}
 }

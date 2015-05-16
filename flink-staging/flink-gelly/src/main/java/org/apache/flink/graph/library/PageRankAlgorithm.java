@@ -25,12 +25,16 @@ import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
-public class PageRank<K> implements	GraphAlgorithm<K, Double, Double> {
+import java.io.Serializable;
+
+
+public class PageRankAlgorithm<K extends Comparable<K> & Serializable> implements
+		GraphAlgorithm<K, Double, Double> {
 
 	private double beta;
 	private int maxIterations;
 
-	public PageRank(double beta, int maxIterations) {
+	public PageRankAlgorithm(double beta, int maxIterations) {
 		this.beta = beta;
 		this.maxIterations = maxIterations;
 	}
