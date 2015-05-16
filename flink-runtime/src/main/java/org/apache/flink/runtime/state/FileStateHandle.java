@@ -29,7 +29,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.StringUtils;
 
-import scala.util.Random;
+import java.util.Random;
 
 /**
  * Statehandle that writes the checkpointed state to a random file in the
@@ -44,7 +44,7 @@ public class FileStateHandle extends ByteStreamStateHandle {
 
 	private String pathString;
 
-	public FileStateHandle(Serializable state, String folder) throws IOException {
+	public FileStateHandle(Serializable state, String folder) {
 		super(state);
 		this.pathString = folder + "/" + randomString();
 	}
@@ -66,6 +66,36 @@ public class FileStateHandle extends ByteStreamStateHandle {
 	@Override
 	public void discardState() throws Exception {
 		FileSystem.get(new URI(pathString)).delete(new Path(pathString), false);
+	}
+
+	/**
+	 * Creates a {@link StateHandleProvider} for creating
+	 * {@link FileStateHandle}s for a given checkpoint directory.
+	 * 
+	 */
+	public static StateHandleProvider<Serializable> createProvider(String checkpointDir) {
+		return new FileStateHandleProvider(checkpointDir);
+	}
+
+	/**
+	 * {@link StateHandleProvider} to generate {@link FileStateHandle}s for the
+	 * given checkpoint directory.
+	 * 
+	 */
+	private static class FileStateHandleProvider implements StateHandleProvider<Serializable> {
+
+		private static final long serialVersionUID = 3496670017955260518L;
+		private String path;
+
+		public FileStateHandleProvider(String path) {
+			this.path = path;
+		}
+
+		@Override
+		public FileStateHandle createStateHandle(Serializable state) {
+			return new FileStateHandle(state, path);
+		}
+
 	}
 
 }

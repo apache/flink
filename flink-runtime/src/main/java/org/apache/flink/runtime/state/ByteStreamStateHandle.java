@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -37,7 +36,7 @@ public abstract class ByteStreamStateHandle implements StateHandle<Serializable>
 
 	transient Serializable state;
 
-	public ByteStreamStateHandle(Serializable state) throws IOException {
+	public ByteStreamStateHandle(Serializable state) {
 		this.state = state;
 	}
 

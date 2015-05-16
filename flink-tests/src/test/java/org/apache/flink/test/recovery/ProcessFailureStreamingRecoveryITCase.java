@@ -18,16 +18,11 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -40,7 +35,17 @@ import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.UUID;
 
-import static org.junit.Assert.*;
+import org.apache.commons.io.FileUtils;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FileStateHandle;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 
 /**
  * Test for streaming program behaviour in case of TaskManager failure
@@ -62,11 +67,16 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 
 	@Override
 	public void testProgram(int jobManagerPort, final File coordinateDir) throws Exception {
-
+		
 		final File tempTestOutput = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH),
 												UUID.randomUUID().toString());
 
 		assertTrue("Cannot create directory for temp output", tempTestOutput.mkdirs());
+		
+		final File tempCheckpointDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH),
+				UUID.randomUUID().toString());
+
+		assertTrue("Cannot create directory for checkpoints", tempCheckpointDir.mkdirs());
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 									.createRemoteEnvironment("localhost", jobManagerPort);
@@ -74,6 +84,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		env.getConfig().disableSysoutLogging();
 		env.setNumberOfExecutionRetries(1);
 		env.enableCheckpointing(200);
+		env.setStateHandleProvider(FileStateHandle.createProvider(tempCheckpointDir.getAbsolutePath()));
 
 		DataStream<Long> result = env.addSource(new SleepyDurableGenerateSequence(coordinateDir, DATA_COUNT))
 				// add a non-chained no-op map to test the chain state restore logic
@@ -125,11 +136,18 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 
 			// validate
 			fileBatchHasEveryNumberLower(PARALLELISM, DATA_COUNT, tempTestOutput);
+			
+			// TODO: Figure out why this fails when ran with other tests
+			// Check whether checkpoints have been cleaned up properly
+			// assertDirectoryEmpty(tempCheckpointDir);
 		}
 		finally {
 			// clean up
 			if (tempTestOutput.exists()) {
 				FileUtils.deleteDirectory(tempTestOutput);
+			}
+			if (tempCheckpointDir.exists()) {
+				FileUtils.deleteDirectory(tempCheckpointDir);
 			}
 		}
 	}
@@ -155,7 +173,6 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public void open(Configuration config) {
 			stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
 			congruence = getRuntimeContext().getIndexOfThisSubtask();
@@ -266,5 +283,11 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 				fail("Missing number: " + i);
 			}
 		}
+	}
+	
+	private static void assertDirectoryEmpty(File path){
+		File[] files = path.listFiles();
+		assertNotNull(files);
+		assertEquals("Checkpoint dir is not empty", 0, files.length);
 	}
 }

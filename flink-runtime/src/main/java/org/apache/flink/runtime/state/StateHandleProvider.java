@@ -21,39 +21,19 @@ package org.apache.flink.runtime.state;
 import java.io.Serializable;
 
 /**
- * A StateHandle that includes the operator states directly.
+ * Stateful streaming operators use a StateHandleProvider to create new
+ * {@link StateHandle}s to store each checkpoint in a persistent storage layer.
  */
-public class LocalStateHandle implements StateHandle<Serializable> {
+public interface StateHandleProvider<T> extends Serializable {
 
-	private static final long serialVersionUID = 2093619217898039610L;
+	/**
+	 * Creates a new {@link StateHandle} instance that will be used to store the
+	 * state checkpoint. This method is called for each state checkpoint saved.
+	 * 
+	 * @param state
+	 *            State to be stored in the handle.
+	 * 
+	 */
+	public StateHandle<T> createStateHandle(T state);
 
-	private final Serializable state;
-
-	public LocalStateHandle(Serializable state) {
-		this.state = state;
-	}
-
-	@Override
-	public Serializable getState() {
-		return state;
-	}
-
-	@Override
-	public void discardState() throws Exception {
-	}
-	
-	public static LocalStateHandleProvider createProvider(){
-		return new LocalStateHandleProvider();
-	}
-
-	private static class LocalStateHandleProvider implements StateHandleProvider<Serializable> {
-
-		private static final long serialVersionUID = 4665419208932921425L;
-
-		@Override
-		public LocalStateHandle createStateHandle(Serializable state) {
-			return new LocalStateHandle(state);
-		}
-
-	}
 }
