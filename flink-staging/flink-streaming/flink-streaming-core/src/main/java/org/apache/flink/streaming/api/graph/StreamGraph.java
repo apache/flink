@@ -38,6 +38,8 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.state.LocalStateHandle;
+import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -76,6 +78,7 @@ public class StreamGraph extends StreamingPlan {
 
 	private Map<Integer, StreamLoop> streamLoops;
 	protected Map<Integer, StreamLoop> vertexIDtoLoop;
+	private StateHandleProvider<?> stateHandleProvider = LocalStateHandle.createProvider();
 
 	public StreamGraph(StreamExecutionEnvironment environment) {
 
@@ -114,6 +117,14 @@ public class StreamGraph extends StreamingPlan {
 
 	public void setCheckpointingInterval(long checkpointingInterval) {
 		this.checkpointingInterval = checkpointingInterval;
+	}
+
+	public void setStateHandleProvider(StateHandleProvider<?> provider) {
+		this.stateHandleProvider = provider;
+	}
+
+	public StateHandleProvider<?> getStateHandleProvider() {
+		return this.stateHandleProvider;
 	}
 
 	public long getCheckpointingInterval() {

@@ -66,7 +66,7 @@ public class SuccessfulCheckpoint {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public void dispose(ClassLoader userClassLoader) {
+	public void discard(ClassLoader userClassLoader) {
 		for(StateForTask state: states){
 			state.discard(userClassLoader);
 		}

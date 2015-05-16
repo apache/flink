@@ -30,8 +30,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCommittingOperator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
-import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -61,6 +61,8 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	protected StreamingRuntimeContext context;
 
 	protected ClassLoader userClassLoader;
+	
+	private StateHandleProvider<Serializable> stateHandleProvider;
 
 	private EventListener<TaskEvent> superstepListener;
 
@@ -74,6 +76,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		this.userClassLoader = getUserCodeClassLoader();
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.context = createRuntimeContext(getEnvironment().getTaskName());
+		this.stateHandleProvider = configuration.getStateHandleProvider(userClassLoader);
 
 		outputHandler = new OutputHandler<OUT>(this);
 
@@ -212,7 +215,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 									: null;
 						}
 						
-						state = userState == null ? null : new LocalStateHandle(userState);
+						state = userState == null ? null : stateHandleProvider.createStateHandle(userState);
 					}
 					catch (Exception e) {
 						throw new Exception("Error while drawing snapshot of the user state.", e);

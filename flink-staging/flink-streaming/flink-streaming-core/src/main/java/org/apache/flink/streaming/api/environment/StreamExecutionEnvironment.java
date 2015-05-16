@@ -40,6 +40,8 @@ import org.apache.flink.client.program.Client.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.FileStateHandle;
+import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType;
@@ -233,6 +235,19 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public StreamExecutionEnvironment enableCheckpointing() {
 		streamGraph.setCheckpointingEnabled(true);
+		return this;
+	}
+
+	/**
+	 * Sets the {@link StateHandleProvider} used for storing operator state
+	 * checkpoints when checkpointing is enabled.
+	 * <p>
+	 * An example would be using a {@link FileStateHandle#createProvider(Path)}
+	 * to use any Flink supported file system as a state backend
+	 * 
+	 */
+	public StreamExecutionEnvironment setStateHandleProvider(StateHandleProvider<?> provider) {
+		streamGraph.setStateHandleProvider(provider);
 		return this;
 	}
 

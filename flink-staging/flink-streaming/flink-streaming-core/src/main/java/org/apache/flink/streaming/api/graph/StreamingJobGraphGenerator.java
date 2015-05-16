@@ -258,6 +258,7 @@ public class StreamingJobGraphGenerator {
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
 		config.setStateMonitoring(streamGraph.isCheckpointingEnabled());
+		config.setStateHandleProvider(streamGraph.getStateHandleProvider());
 
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 

@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import java.io.IOException;
-
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.SerializedValue;

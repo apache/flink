@@ -176,7 +176,7 @@ public class CheckpointCoordinator {
 			
 			// clean and discard all successful checkpoints
 			for (SuccessfulCheckpoint checkpoint : completedCheckpoints) {
-				checkpoint.dispose(userClassLoader);
+				checkpoint.discard(userClassLoader);
 			}
 			completedCheckpoints.clear();
 		}
@@ -334,7 +334,7 @@ public class CheckpointCoordinator {
 						completed = checkpoint.toCompletedCheckpoint();
 						completedCheckpoints.addLast(completed);
 						if (completedCheckpoints.size() > numSuccessfulCheckpointsToRetain) {
-							completedCheckpoints.removeFirst().dispose(userClassLoader);;
+							completedCheckpoints.removeFirst().discard(userClassLoader);
 						}
 						pendingCheckpoints.remove(checkpointId);
 						rememberRecentCheckpointId(checkpointId);
@@ -409,7 +409,7 @@ public class CheckpointCoordinator {
 												boolean allOrNothingState) throws Exception {
 		synchronized (lock) {
 			if (shutdown) {
-				throw new IllegalStateException("CheckpointCoordinator is hut down");
+				throw new IllegalStateException("CheckpointCoordinator is shut down");
 			}
 			
 			if (completedCheckpoints.isEmpty()) {

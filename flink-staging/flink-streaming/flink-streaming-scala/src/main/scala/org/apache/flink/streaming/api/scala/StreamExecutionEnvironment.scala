@@ -19,19 +19,17 @@
 package org.apache.flink.streaming.api.scala
 
 import scala.reflect.ClassTag
-
 import com.esotericsoftware.kryo.Serializer
 import org.apache.commons.lang.Validate
 import org.joda.time.Instant
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 import org.apache.flink.streaming.api.functions.source.{FromElementsFunction, SourceFunction}
-
 import scala.reflect.ClassTag
+import org.apache.flink.runtime.state.StateHandleProvider
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
@@ -125,7 +123,16 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     javaEnv.enableCheckpointing()
     this
   }
-  
+
+  /**
+   * Sets the given StateHandleProvider to be used for storing operator state
+   * checkpoints when checkpointing is enabled.
+   */
+  def setStateHandleProvider(provider: StateHandleProvider[_]): StreamExecutionEnvironment = {
+    javaEnv.setStateHandleProvider(provider)
+    this
+  }
+ 
   /**
    * Disables operator chaining for streaming operators. Operator chaining
    * allows non-shuffle operations to be co-located in the same thread fully
