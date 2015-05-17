@@ -17,10 +17,10 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.Configuration;
-
 import java.io.Serializable;
+
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 /**
  * Basic interface for stream operators. Implementers would implement one of
@@ -37,7 +37,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	/**
 	 * Initializes the {@link StreamOperator} for input and output handling.
 	 */
-	public void setup(Output<OUT> output, RuntimeContext runtimeContext);
+	public void setup(Output<OUT> output, StreamingRuntimeContext runtimeContext);
 
 	/**
 	 * This method is called before any elements are processed.

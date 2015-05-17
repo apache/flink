@@ -19,6 +19,8 @@ package org.apache.flink.streaming.api.operators;
 
 import java.io.Serializable;
 
+import org.apache.flink.runtime.state.StateHandle;
+
 /**
  * Interface for Stream operators that can have state. This interface is used for checkpointing
  * and restoring that state.
@@ -31,5 +33,5 @@ public interface StatefulStreamOperator<OUT> extends StreamOperator<OUT> {
 
 	Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception;
 
-	void confirmCheckpointCompleted(long checkpointId, long timestamp) throws Exception;
+	void confirmCheckpointCompleted(long checkpointId, long timestamp, StateHandle<Serializable> checkpointedState) throws Exception;
 }

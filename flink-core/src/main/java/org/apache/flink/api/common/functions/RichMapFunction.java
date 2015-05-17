@@ -34,7 +34,7 @@ import org.apache.flink.api.common.functions.RichFunction;
 public abstract class RichMapFunction<IN, OUT> extends AbstractRichFunction implements MapFunction<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
-
+	
 	@Override
 	public abstract OUT map(IN value) throws Exception;
 }

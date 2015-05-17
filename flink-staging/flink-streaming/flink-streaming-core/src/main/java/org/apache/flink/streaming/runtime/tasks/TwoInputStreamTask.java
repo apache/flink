@@ -30,7 +30,6 @@ import org.apache.flink.streaming.runtime.io.CoRecordReader;
 import org.apache.flink.streaming.runtime.io.InputGateFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

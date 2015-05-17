@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.functors.NotNullPredicate;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.event.task.TaskEvent;
@@ -41,6 +42,8 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StatefulStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.state.PartitionedStreamOperatorState;
+import org.apache.flink.streaming.api.state.StreamOperatorState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,10 +105,19 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		return getEnvironment().getTaskName();
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public StreamingRuntimeContext createRuntimeContext(StreamConfig conf) {
 		Environment env = getEnvironment();
-		return new StreamingRuntimeContext(conf.getStreamOperator(userClassLoader).getClass()
-				.getSimpleName(), env, getUserCodeClassLoader(), getExecutionConfig());
+		String operatorName = conf.getStreamOperator(userClassLoader).getClass().getSimpleName();
+		
+		KeySelector<?,Serializable> statePartitioner = conf.getStatePartitioner(userClassLoader);
+		
+		StreamOperatorState state = statePartitioner == null ? new StreamOperatorState(
+				getStateHandleProvider()) : new PartitionedStreamOperatorState(
+				getStateHandleProvider(), statePartitioner);
+		
+		return new StreamingRuntimeContext(operatorName, env, getUserCodeClassLoader(),
+				getExecutionConfig(), state);
 	}
 	
 	private StateHandleProvider<Serializable> getStateHandleProvider() {
@@ -129,7 +141,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 			switch (backend) {
 				case JOBMANAGER:
 					LOG.info("State backend for state checkpoints is set to jobmanager.");
-					return LocalStateHandle.createProvider();
+					return new LocalStateHandle.LocalStateHandleProvider<Serializable>();
 				case FILESYSTEM:
 					String checkpointDir = GlobalConfiguration.getString(ConfigConstants.STATE_BACKEND_FS_DIR, null);
 					if (checkpointDir != null) {
@@ -294,13 +306,13 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		// we do nothing here so far. this should call commit on the source function, for example
 		synchronized (checkpointLock) {
 			if (streamOperator instanceof StatefulStreamOperator) {
-				((StatefulStreamOperator) streamOperator).confirmCheckpointCompleted(checkpointId, timestamp);
+				((StatefulStreamOperator) streamOperator).confirmCheckpointCompleted(checkpointId, timestamp, null);
 			}
 
 			if (hasChainedOperators) {
 				for (OneInputStreamOperator<?, ?> chainedOperator : outputHandler.getChainedOperators()) {
 					if (chainedOperator instanceof StatefulStreamOperator) {
-						((StatefulStreamOperator) chainedOperator).confirmCheckpointCompleted(checkpointId, timestamp);
+						((StatefulStreamOperator) chainedOperator).confirmCheckpointCompleted(checkpointId, timestamp, null);
 					}
 				}
 			}

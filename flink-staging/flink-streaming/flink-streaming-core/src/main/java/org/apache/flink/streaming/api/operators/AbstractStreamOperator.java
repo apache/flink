@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 /**
  * Base class for operators that do not contain a user-defined function.
@@ -31,7 +31,7 @@ public abstract class AbstractStreamOperator<OUT> implements StreamOperator<OUT>
 
 	private static final long serialVersionUID = 1L;
 
-	protected transient RuntimeContext runtimeContext;
+	protected transient StreamingRuntimeContext runtimeContext;
 
 	protected transient ExecutionConfig executionConfig;
 
@@ -43,7 +43,7 @@ public abstract class AbstractStreamOperator<OUT> implements StreamOperator<OUT>
 	protected ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;
 
 	@Override
-	public void setup(Output<OUT> output, RuntimeContext runtimeContext) {
+	public void setup(Output<OUT> output, StreamingRuntimeContext runtimeContext) {
 		this.output = output;
 		this.executionConfig = runtimeContext.getExecutionConfig();
 		this.runtimeContext = runtimeContext;
