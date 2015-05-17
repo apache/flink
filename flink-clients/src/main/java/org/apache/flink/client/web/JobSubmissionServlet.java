@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 
 
 public class JobSubmissionServlet extends HttpServlet {
-	
+
 	/**
 	 * Serial UID for serialization interoperability.
 	 */
@@ -71,6 +71,8 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	private static final String JOB_PARAM_NAME = "job";
 
+	private static final String CLASS_PARAM_NAME = "assemblerClass";
+
 	private static final String ARGUMENTS_PARAM_NAME = "arguments";
 
 	private static final String SHOW_PLAN_PARAM_NAME = "show_plan";
@@ -88,7 +90,7 @@ public class JobSubmissionServlet extends HttpServlet {
 	private final Map<Long, JobGraph> submittedJobs;	// map from UIDs to the running jobs
 
 	private final Random rand;							// random number generator for UID
-	
+
 	private final Configuration config;
 
 
@@ -115,16 +117,18 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// get the parameters
 			String jobName = req.getParameter(JOB_PARAM_NAME);
+			String assemblerClass = req.getParameter(CLASS_PARAM_NAME);
 			String args = req.getParameter(ARGUMENTS_PARAM_NAME);
 			String showPlan = req.getParameter(SHOW_PLAN_PARAM_NAME);
 			String suspendPlan = req.getParameter(SUSPEND_PARAM_NAME);
 
 			// check that all parameters are set
-			if (checkParameterSet(resp, jobName, JOB_PARAM_NAME) || checkParameterSet(resp, args, ARGUMENTS_PARAM_NAME)
+			// do NOT check 'assemblerClass' -> it is OK if it is not set
+			if (checkParameterSet(resp, jobName, JOB_PARAM_NAME)
+				|| checkParameterSet(resp, args, ARGUMENTS_PARAM_NAME)
 				|| checkParameterSet(resp, showPlan, SHOW_PLAN_PARAM_NAME)
 				|| checkParameterSet(resp, suspendPlan, SUSPEND_PARAM_NAME))
 			{
-				showErrorPage(resp, "Invalid request, missing parameters.");
 				return;
 			}
 
@@ -147,7 +151,6 @@ public class JobSubmissionServlet extends HttpServlet {
 				return;
 			}
 
-			String assemblerClass = null;
 			int parallelism = -1;
 			while(params.size() >= 2) {
 				if (params.get(0).equals("-c")) {
@@ -170,18 +173,18 @@ public class JobSubmissionServlet extends HttpServlet {
 			PackagedProgram program;
 			FlinkPlan optPlan;
 			Client client;
-			
+
 			try {
 				if (assemblerClass == null) {
 					program = new PackagedProgram(jarFile, options);
 				} else {
 					program = new PackagedProgram(jarFile, assemblerClass, options);
 				}
-				
+
 				client = new Client(config, program.getUserCodeClassLoader());
-				
+
 				optPlan = client.getOptimizedPlan(program, parallelism);
-				
+
 				if (optPlan == null) {
 					throw new Exception("The optimized plan could not be produced.");
 				}
@@ -190,7 +193,7 @@ public class JobSubmissionServlet extends HttpServlet {
 				// collect the stack trace
 				StringWriter sw = new StringWriter();
 				PrintWriter w = new PrintWriter(sw);
-				
+
 				if (e.getCause() == null) {
 					e.printStackTrace(w);
 				} else {
@@ -199,7 +202,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 				String message = sw.toString();
 				message = StringEscapeUtils.escapeHtml4(message);
-				
+
 				showErrorPage(resp, "An error occurred while invoking the program:<br/><br/>"
 					+ e.getMessage() + "<br/>"
 					+ "<br/><br/><pre>" + message + "</pre>");
@@ -210,7 +213,7 @@ public class JobSubmissionServlet extends HttpServlet {
 				StringWriter sw = new StringWriter();
 				PrintWriter w = new PrintWriter(sw);
 				cex.printStackTrace(w);
-				
+
 				String message = sw.toString();
 				message = StringEscapeUtils.escapeHtml4(message);
 
@@ -228,7 +231,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 				String message = sw.toString();
 				message = StringEscapeUtils.escapeHtml4(message);
-				
+
 				showErrorPage(resp, "An unexpected error occurred:<br/><br/>" + t.getMessage() + "<br/><br/><pre>"
 					+ message + "</pre>");
 				return;
@@ -247,7 +250,7 @@ public class JobSubmissionServlet extends HttpServlet {
 				// dump the job to a JSON file
 				String planName = uid + ".json";
 				File jsonFile = new File(this.planDumpDirectory, planName);
-				
+
 				if (optPlan instanceof StreamingPlan) {
 					((StreamingPlan) optPlan).dumpStreamingPlanAsJSON(jsonFile);
 				}
@@ -256,7 +259,7 @@ public class JobSubmissionServlet extends HttpServlet {
 					jsonGen.setEncodeForHTML(true);
 					jsonGen.dumpOptimizerPlanAsJSON((OptimizedPlan) optPlan, jsonFile);
 				}
-				
+
 				// submit the job only, if it should not be suspended
 				if (!suspend) {
 					if (optPlan instanceof OptimizedPlan) {

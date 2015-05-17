@@ -77,6 +77,7 @@ function toggleCheckboxes(box)
     $('.jobItemCheckbox').attr('checked', false);
     box.attr('checked', true);
     var id = box.parentsUntil('.JobListItems').parent().attr('id').substr(4);
+    var assemblerClass = box.attr('id');
 
     $('#mainCanvas').html('');
     $('#planDescription').html('');
@@ -85,7 +86,7 @@ function toggleCheckboxes(box)
     $.ajax({
         type: "GET",
         url: "pactPlan",
-        data: { job: id },
+        data: { job: id, assemblerClass: assemblerClass},
         success: function(response) { showPreviewPlan(response); }
     });
   }
@@ -154,34 +155,35 @@ function createJobList(data)
   {
     if (lines[i] == null || lines[i].length == 0) {
       continue;
-
     }
     
-    var name = null;
-    var date = null;
-    var tabIx = lines[i].indexOf("\t");
-
-    if (tabIx > 0) {
-      name = lines[i].substr(0, tabIx);
-      if (tabIx < lines[i].length - 1) {
-        date = lines[i].substr(tabIx + 1);
+    var name = lines[i];
+    var date = "unknown date";
+    var assemblerClass = "<em>no entry class specified</em>";
+    
+    var tokens = lines[i].split("\t");
+    if (tokens.length > 0) {
+      name = tokens[0];
+      if (tokens.length > 1) {
+        date = tokens[1];
+        if (tokens.length > 2) {
+          assemblerClass = tokens[2];
+        }
       }
-      else {
-        date = "unknown date";
-      }
-    }
-    else {
-      name = lines[i];
-      date = "unknown date";
     }
     
+    var classes = assemblerClass.split(",");
     
     markup += '<div id="job_' + name + '" class="JobListItems"><table class="table"><tr>';
-    markup += '<td width="30px;"><input class="jobItemCheckbox" type="checkbox"></td>';
-    markup += '<td><p class="JobListItemsName">' + name + '</p></td>';
+    markup += '<td colspan="2"><p class="JobListItemsName">' + name + '</p></td>';
     markup += '<td><p class="JobListItemsDate">' + date + '</p></td>';
-    markup += '<td width="30px"><img class="jobItemDeleteIcon" src="img/delete-icon.png" width="24" height="24" /></td>';
-    markup += '</tr></table></div>';
+    markup += '<td width="30px"><img class="jobItemDeleteIcon" src="img/delete-icon.png" width="24" height="24" /></td></tr>';
+    
+    for (var idx in classes) {
+      markup += '<tr><td width="30px;"><input id="' + classes[idx] + '" class="jobItemCheckbox" type="checkbox"></td>';
+      markup += '<td colspan="3"><p class="JobListItemsDate">' + classes[idx] + '</p></td></tr>';
+    }
+    markup += '</table></div>';
   }
   
   // add the contents
@@ -207,11 +209,18 @@ function runJob ()
    }
    
    var jobName = job.parentsUntil('.JobListItems').parent().attr('id').substr(4);
+   var assemblerClass = job.attr('id');
+   
    var showPlan = $('#showPlanCheck').is(':checked');
    var suspendPlan = $('#suspendJobDuringPlanCheck').is(':checked');
    var args = $('#commandLineArgsField').attr('value'); //TODO? Replace with .val() ?
    
-   var url = "runJob?" + $.param({ action: "submit", job: jobName, arguments: args, show_plan: showPlan, suspend: suspendPlan});
+   var url;
+   if (assemblerClass == "<em>no entry class specified</em>") {
+      url = "runJob?" + $.param({ action: "submit", job: jobName, arguments: args, show_plan: showPlan, suspend: suspendPlan});
+   } else {
+      url = "runJob?" + $.param({ action: "submit", job: jobName, assemblerClass: assemblerClass, arguments: args, show_plan: showPlan, suspend: suspendPlan});
+   }
    
    window.location = url;
 }
