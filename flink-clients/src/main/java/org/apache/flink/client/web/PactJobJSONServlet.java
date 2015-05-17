@@ -44,6 +44,8 @@ public class PactJobJSONServlet extends HttpServlet {
 
 	private static final String JOB_PARAM_NAME = "job";
 
+	private static final String CLASS_PARAM_NAME = "assemblerClass";
+
 	// ------------------------------------------------------------------------
 
 	private final File jobStoreDirectory; // the directory in which the jobs are stored
@@ -74,7 +76,7 @@ public class PactJobJSONServlet extends HttpServlet {
 		// create the pact plan
 		PackagedProgram pactProgram;
 		try {
-			pactProgram = new PackagedProgram(jarFile, new String[0]);
+			pactProgram = new PackagedProgram(jarFile, req.getParameter(CLASS_PARAM_NAME), new String[0]);
 		}
 		catch (Throwable t) {
 			LOG.info("Instantiating the PactProgram for '" + jarFile.getName() + "' failed.", t);
