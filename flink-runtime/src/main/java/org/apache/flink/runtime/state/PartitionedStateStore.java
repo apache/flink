@@ -19,38 +19,29 @@
 package org.apache.flink.runtime.state;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
- * A StateHandle that includes the operator states directly.
+ * Interface for storing and accessing partitioned state. The interface is
+ * designed in a way that allows implementations for lazily state access.
+ * 
+ * @param <S>
+ *            Type of the state.
+ * @param <C>
+ *            Type of the state snapshot.
  */
-public class LocalStateHandle<T extends Serializable> implements StateHandle<T> {
+public interface PartitionedStateStore<S, C extends Serializable> {
 
-	private static final long serialVersionUID = 2093619217898039610L;
+	S getStateForKey(Serializable key) throws Exception;
 
-	private final T state;
+	void setStateForKey(Serializable key, S state);
 
-	public LocalStateHandle(T state) {
-		this.state = state;
-	}
+	Map<Serializable, S> getPartitionedState() throws Exception;
 
-	@Override
-	public T getState() {
-		return state;
-	}
+	Map<Serializable, StateHandle<C>> snapshotStates(long checkpointId, long checkpointTimestamp) throws Exception;
 
-	@Override
-	public void discardState() throws Exception {
-	}
+	void restoreStates(Map<Serializable, StateHandle<C>> snapshots) throws Exception;
 
-	public static class LocalStateHandleProvider<R extends Serializable> implements
-			StateHandleProvider<R> {
+	boolean containsKey(Serializable key);
 
-		private static final long serialVersionUID = 4665419208932921425L;
-
-		@Override
-		public LocalStateHandle<R> createStateHandle(R state) {
-			return new LocalStateHandle<R>(state);
-		}
-
-	}
 }

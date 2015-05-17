@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import org.apache.flink.api.common.functions.Function;
-
 import java.io.Serializable;
+
+import org.apache.flink.api.common.functions.Function;
 
 /**
  * Base interface for all stream data sources in Flink. The contract of a stream source

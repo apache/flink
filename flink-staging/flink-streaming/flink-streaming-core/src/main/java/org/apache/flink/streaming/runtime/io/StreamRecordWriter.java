@@ -17,13 +17,13 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import java.io.IOException;
+
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
-
-import java.io.IOException;
 
 public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
 

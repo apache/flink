@@ -16,41 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.streaming.api.state;
 
 import java.io.Serializable;
 
-/**
- * A StateHandle that includes the operator states directly.
- */
-public class LocalStateHandle<T extends Serializable> implements StateHandle<T> {
+import org.apache.flink.api.common.state.StateCheckpointer;
 
-	private static final long serialVersionUID = 2093619217898039610L;
-
-	private final T state;
-
-	public LocalStateHandle(T state) {
-		this.state = state;
-	}
+public class BasicCheckpointer implements StateCheckpointer<Serializable, Serializable> {
 
 	@Override
-	public T getState() {
+	public Serializable snapshotState(Serializable state, long checkpointId, long checkpointTimestamp) {
 		return state;
 	}
 
 	@Override
-	public void discardState() throws Exception {
+	public Serializable restoreState(Serializable stateSnapshot) {
+		return stateSnapshot;
 	}
 
-	public static class LocalStateHandleProvider<R extends Serializable> implements
-			StateHandleProvider<R> {
-
-		private static final long serialVersionUID = 4665419208932921425L;
-
-		@Override
-		public LocalStateHandle<R> createStateHandle(R state) {
-			return new LocalStateHandle<R>(state);
-		}
-
-	}
 }

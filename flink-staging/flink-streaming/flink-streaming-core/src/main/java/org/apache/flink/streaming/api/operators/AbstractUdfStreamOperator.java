@@ -18,20 +18,25 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import java.io.Serializable;
+import java.util.Map;
+
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.checkpoint.CheckpointCommitter;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
-
-import java.io.Serializable;
+import org.apache.flink.streaming.api.state.StreamOperatorState;
+import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 /**
- * This is used as the base class for operators that have a user-defined function.
+ * This is used as the base class for operators that have a user-defined
+ * function.
  * 
- * @param <OUT> The output type of the operator
- * @param <F> The type of the user function
+ * @param <OUT>
+ *            The output type of the operator
+ * @param <F>
+ *            The type of the user function
  */
 public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serializable> extends AbstractStreamOperator<OUT> implements StatefulStreamOperator<OUT> {
 
@@ -44,7 +49,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 	}
 
 	@Override
-	public final void setup(Output<OUT> output, RuntimeContext runtimeContext) {
+	public void setup(Output<OUT> output, StreamingRuntimeContext runtimeContext) {
 		super.setup(output, runtimeContext);
 		FunctionUtils.setFunctionRuntimeContext(userFunction, runtimeContext);
 	}
@@ -57,35 +62,37 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 	}
 
 	@Override
-	public void close() throws Exception{
+	public void close() throws Exception {
 		super.close();
 		FunctionUtils.closeFunction(userFunction);
 	}
 
+	@SuppressWarnings("unchecked")
 	public void restoreInitialState(Serializable state) throws Exception {
-		if (userFunction instanceof Checkpointed) {
-			setStateOnFunction(state, userFunction);
-		}
-		else {
-			throw new IllegalStateException("Trying to restore state of a non-checkpointed function");
-		}
+
+		Map<Serializable, StateHandle<Serializable>> snapshots = (Map<Serializable, StateHandle<Serializable>>) state;
+
+		StreamOperatorState<?, Serializable> operatorState = (StreamOperatorState<?, Serializable>) runtimeContext
+				.getOperatorState();
+
+		operatorState.restoreState(snapshots);
+
 	}
 
-	public Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception {
-		if (userFunction instanceof Checkpointed) {
-			return ((Checkpointed<?>) userFunction).snapshotState(checkpointId, timestamp);
-		}
-		else {
-			return null;
-		}
+	public Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp)
+			throws Exception {
+		
+		StreamOperatorState<?,?> operatorState = (StreamOperatorState<?,?>) runtimeContext.getOperatorState();
+		
+		return (Serializable) operatorState.snapshotState(checkpointId, timestamp); 
 	}
 
-	public void confirmCheckpointCompleted(long checkpointId, long timestamp) throws Exception {
+	public void confirmCheckpointCompleted(long checkpointId, long timestamp,
+			StateHandle<Serializable> checkpointedState) throws Exception {
 		if (userFunction instanceof CheckpointCommitter) {
 			try {
-				((CheckpointCommitter) userFunction).commitCheckpoint(checkpointId);
-			}
-			catch (Exception e) {
+				((CheckpointCommitter) userFunction).commitCheckpoint(checkpointId, checkpointedState);
+			} catch (Exception e) {
 				throw new Exception("Error while confirming checkpoint " + checkpointId + " to the stream function", e);
 			}
 		}
@@ -93,14 +100,5 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 
 	public F getUserFunction() {
 		return userFunction;
-	}
-
-	private static <T extends Serializable> void setStateOnFunction(Serializable state, Function function) {
-		@SuppressWarnings("unchecked")
-		T typedState = (T) state;
-		@SuppressWarnings("unchecked")
-		Checkpointed<T> typedFunction = (Checkpointed<T>) function;
-
-		typedFunction.restoreState(typedState);
 	}
 }

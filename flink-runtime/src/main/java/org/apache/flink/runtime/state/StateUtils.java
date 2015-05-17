@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import java.util.List;
+
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 
 /**
@@ -26,20 +28,23 @@ import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 public class StateUtils {
 
 	/**
-	 * Utility method to define a common generic bound to be used for setting a generic state
-	 * handle on a generic state carrier.
+	 * Utility method to define a common generic bound to be used for setting a
+	 * generic state handle on a generic state carrier.
 	 * 
-	 * This has no impact on runtime, since internally, it performs
-	 * unchecked casts. The purpose is merely to allow the use of generic interfaces without resorting
-	 * to raw types, by giving the compiler a common type bound. 
+	 * This has no impact on runtime, since internally, it performs unchecked
+	 * casts. The purpose is merely to allow the use of generic interfaces
+	 * without resorting to raw types, by giving the compiler a common type
+	 * bound.
 	 * 
-	 * @param op The state carrier operator.
-	 * @param state The state handle.
-	 * @param <T> Type bound for the  
+	 * @param op
+	 *            The state carrier operator.
+	 * @param state
+	 *            The state handle.
+	 * @param <T>
+	 *            Type bound for the
 	 */
-	public static <T extends StateHandle<?>> void setOperatorState(OperatorStateCarrier<?> op, StateHandle<?> state) 
-				throws Exception
-	{
+	public static <T extends StateHandle<?>> void setOperatorState(OperatorStateCarrier<?> op,
+			StateHandle<?> state) throws Exception {
 		@SuppressWarnings("unchecked")
 		OperatorStateCarrier<T> typedOp = (OperatorStateCarrier<T>) op;
 		@SuppressWarnings("unchecked")
@@ -47,10 +52,15 @@ public class StateUtils {
 
 		typedOp.setInitialState(typedHandle);
 	}
-	
-	
+
+	public static List<PartitionedStateHandle> rePartitionHandles(
+			List<PartitionedStateHandle> handles, int numPartitions) {
+		return null;
+	}
+
 	// ------------------------------------------------------------------------
-	
+
 	/** Do not instantiate */
-	private StateUtils() {}
+	private StateUtils() {
+	}
 }

@@ -33,6 +33,8 @@ import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.StateCheckpointer;
 import org.apache.flink.core.fs.Path;
 
 /**
@@ -169,5 +171,15 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 			accumulators.put(name, accumulator);
 		}
 		return (Accumulator<V, A>) accumulator;
+	}
+	
+	@Override
+	public <S, C extends Serializable> OperatorState<S> getOperatorState(S defaultState, StateCheckpointer<S, C> checkpointer) {
+		throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
+	}
+
+	@Override
+	public <S extends Serializable> OperatorState<S> getOperatorState(S defaultState) {
+		throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
 	}
 }

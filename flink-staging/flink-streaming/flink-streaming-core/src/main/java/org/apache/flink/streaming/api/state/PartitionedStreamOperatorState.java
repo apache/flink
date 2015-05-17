@@ -1,0 +1,126 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.streaming.api.state;
+
+import java.io.Serializable;
+import java.util.Map;
+
+import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.StateCheckpointer;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.PartitionedStateStore;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+
+/**
+ * Implementation of the {@link OperatorState} interface for partitioned user
+ * states. It provides methods for checkpointing and restoring partitioned
+ * operator states upon failure.
+ * 
+ * @param <IN>
+ *            Input type of the underlying {@link OneInputStreamOperator}
+ * @param <S>
+ *            Type of the underlying {@link OperatorState}.
+ * @param <C>
+ *            Type of the state snapshot.
+ */
+public class PartitionedStreamOperatorState<IN, S, C extends Serializable> extends
+		StreamOperatorState<S, C> {
+
+	// KeySelector for getting the state partition key for each input
+	private KeySelector<IN, Serializable> keySelector;
+
+	private PartitionedStateStore<S, C> stateStore;
+	
+	private S defaultState;
+
+	// The currently processed input, used to extract the appropriate key
+	private IN currentInput;
+
+	public PartitionedStreamOperatorState(StateCheckpointer<S, C> checkpointer,
+			StateHandleProvider<C> provider, KeySelector<IN, Serializable> keySelector) {
+		super(checkpointer, provider);
+		this.keySelector = keySelector;
+		this.stateStore = new EagerStateStore<S, C>(checkpointer, provider);
+	}
+	
+	@SuppressWarnings("unchecked")
+	public PartitionedStreamOperatorState(StateHandleProvider<C> provider,
+			KeySelector<IN, Serializable> keySelector) {
+		this((StateCheckpointer<S, C>) new BasicCheckpointer(), provider, keySelector);
+	}
+
+	@Override
+	public S getState() {
+		if (currentInput == null) {
+			return null;
+		} else {
+			try {
+				Serializable key = keySelector.getKey(currentInput);
+				if(stateStore.containsKey(key)){
+					return stateStore.getStateForKey(key);
+				}else{
+					return defaultState;
+				}
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
+
+	@Override
+	public void updateState(S state) {
+		if (currentInput == null) {
+			throw new RuntimeException("Need a valid input for updating a state.");
+		} else {
+			try {
+				stateStore.setStateForKey(keySelector.getKey(currentInput), state);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
+	
+	@Override
+	public void setDefaultState(S defaultState){
+		this.defaultState = defaultState;
+	}
+
+	public void setCurrentInput(IN input) {
+		currentInput = input;
+	}
+
+	@Override
+	public Map<Serializable, StateHandle<C>> snapshotState(long checkpointId,
+			long checkpointTimestamp) throws Exception{
+		return stateStore.snapshotStates(checkpointId, checkpointTimestamp);
+	}
+
+	@Override
+	public void restoreState(Map<Serializable, StateHandle<C>> snapshots) throws Exception {
+		stateStore.restoreStates(snapshots);
+	}
+
+	@Override
+	public Map<Serializable, S> getPartitionedState() throws Exception {
+		return stateStore.getPartitionedState();
+	}
+
+}

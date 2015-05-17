@@ -29,6 +29,8 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.StateCheckpointer;
 
 /**
  * A RuntimeContext contains information about the context in which functions are executed. Each parallel instance
@@ -160,4 +162,49 @@ public interface RuntimeContext {
 	 * @return The distributed cache of the worker executing this instance.
 	 */
 	DistributedCache getDistributedCache();
+	
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Returns the {@link OperatorState} of this operator instance, which can be
+	 * used to store and update user state in a fault tolerant fashion. The
+	 * state will be initialized by the provided default value, and the
+	 * {@link StateCheckpointer} will be used to draw the state snapshots.
+	 * 
+	 * <p>
+	 * When storing a {@link Serializable} state the user can omit the
+	 * {@link StateCheckpointer} in which case the full state will be written as
+	 * the snapshot.
+	 * </p>
+	 * 
+	 * @param defaultState
+	 *            Default value for the operator state. This will be returned
+	 *            the first time {@link OperatorState#getState()} (for every
+	 *            state partition) is called before
+	 *            {@link OperatorState#updateState(Object)}.
+	 * @param checkpointer
+	 *            The {@link StateCheckpointer} that will be used to draw
+	 *            snapshots from the user state.
+	 * @return The {@link OperatorState} for this instance.
+	 */
+	<S,C extends Serializable> OperatorState<S> getOperatorState(S defaultState, StateCheckpointer<S,C> checkpointer);
+
+	/**
+	 * Returns the {@link OperatorState} of this operator instance, which can be
+	 * used to store and update user state in a fault tolerant fashion. The
+	 * state will be initialized by the provided default value.
+	 * 
+	 * <p>
+	 * When storing a non-{@link Serializable} state the user needs to specify a
+	 * {@link StateCheckpointer} for drawing snapshots.
+	 * </p>
+	 * 
+	 * @param defaultState
+	 *            Default value for the operator state. This will be returned
+	 *            the first time {@link OperatorState#getState()} (for every
+	 *            state partition) is called before
+	 *            {@link OperatorState#updateState(Object)}.
+	 * @return The {@link OperatorState} for this instance.
+	 */
+	<S extends Serializable> OperatorState<S> getOperatorState(S defaultState);
 }

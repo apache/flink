@@ -18,13 +18,18 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import java.io.Serializable;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
+import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.StateCheckpointer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.streaming.api.state.StreamOperatorState;
 
 /**
  * Implementation of the {@link RuntimeContext}, created by runtime stream UDF
@@ -33,13 +38,16 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 public class StreamingRuntimeContext extends RuntimeUDFContext {
 
 	private final Environment env;
+	@SuppressWarnings("rawtypes")
+	private StreamOperatorState state;
 
 
 	public StreamingRuntimeContext(String name, Environment env, ClassLoader userCodeClassLoader,
-			ExecutionConfig executionConfig) {
+			ExecutionConfig executionConfig, StreamOperatorState<?, ?> state) {
 		super(name, env.getNumberOfSubtasks(), env.getIndexInSubtaskGroup(), userCodeClassLoader,
 				executionConfig, env.getDistributedCacheEntries());
 		this.env = env;
+		this.state = state;
 	}
 
 	/**
@@ -59,6 +67,26 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	 */
 	public Configuration getTaskStubParameters() {
 		return new TaskConfig(env.getTaskConfiguration()).getStubParameters();
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Override
+	public <S, C extends Serializable> OperatorState<S> getOperatorState(S defaultState,
+			StateCheckpointer<S, C> checkpointer) {
+		state.setCheckpointer(checkpointer);
+		return (OperatorState<S>) state;
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Override
+	public <S extends Serializable> OperatorState<S> getOperatorState(S defaultState) {
+		state.setDefaultState(defaultState);
+		return (OperatorState<S>) state;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public <S extends Serializable> OperatorState<S> getOperatorState() {
+		return (OperatorState<S>) state;
 	}
 
 }
