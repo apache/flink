@@ -51,6 +51,11 @@ public class ShortValueParserTest extends ParserTestBase<ShortValue> {
 	}
 
 	@Override
+	public boolean allowsEmptyField() {
+		return false;
+	}
+
+	@Override
 	public FieldParser<ShortValue> getParser() {
 		return new ShortValueParser();
 	}

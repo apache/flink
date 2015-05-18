@@ -51,6 +51,11 @@ public class IntValueParserTest extends ParserTestBase<IntValue> {
 	}
 
 	@Override
+	public boolean allowsEmptyField() {
+		return false;
+	}
+
+	@Override
 	public FieldParser<IntValue> getParser() {
 		return new IntValueParser();
 	}
