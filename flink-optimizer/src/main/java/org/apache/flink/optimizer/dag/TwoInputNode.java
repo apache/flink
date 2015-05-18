@@ -61,14 +61,15 @@ import org.apache.flink.util.Visitor;
 import com.google.common.collect.Sets;
 
 /**
- * A node in the optimizer plan that represents a PACT with a two different inputs, such as MATCH or CROSS.
+ * A node in the optimizer plan that represents an operator with a two different inputs, such as Join,
+ * Cross, CoGroup, or Union.
  * The two inputs are not substitutable in their sides.
  */
 public abstract class TwoInputNode extends OptimizerNode {
 	
-	protected final FieldList keys1; // The set of key fields for the first input
+	protected final FieldList keys1; // The set of key fields for the first input. may be null.
 	
-	protected final FieldList keys2; // The set of key fields for the second input
+	protected final FieldList keys2; // The set of key fields for the second input. may be null.
 	
 	protected DagConnection input1; // The first input edge
 
@@ -79,16 +80,15 @@ public abstract class TwoInputNode extends OptimizerNode {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a new node with a single input for the optimizer plan.
+	 * Creates a new two input node for the optimizer plan, representing the given operator.
 	 * 
-	 * @param pactContract
-	 *        The PACT that the node represents.
+	 * @param operator The operator that the optimizer DAG node should represent.
 	 */
-	public TwoInputNode(DualInputOperator<?, ?, ?, ?> pactContract) {
-		super(pactContract);
+	public TwoInputNode(DualInputOperator<?, ?, ?, ?> operator) {
+		super(operator);
 
-		int[] k1 = pactContract.getKeyColumns(0);
-		int[] k2 = pactContract.getKeyColumns(1);
+		int[] k1 = operator.getKeyColumns(0);
+		int[] k2 = operator.getKeyColumns(1);
 		
 		this.keys1 = k1 == null || k1.length == 0 ? null : new FieldList(k1);
 		this.keys2 = k2 == null || k2.length == 0 ? null : new FieldList(k2);
@@ -114,7 +114,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	}
 
 	/**
-	 * Gets the <tt>PactConnection</tt> through which this node receives its <i>first</i> input.
+	 * Gets the DagConnection through which this node receives its <i>first</i> input.
 	 * 
 	 * @return The first input connection.
 	 */
@@ -123,7 +123,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	}
 
 	/**
-	 * Gets the <tt>PactConnection</tt> through which this node receives its <i>second</i> input.
+	 * Gets the DagConnection through which this node receives its <i>second</i> input.
 	 * 
 	 * @return The second input connection.
 	 */
@@ -630,7 +630,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	protected void placePipelineBreakersIfNecessary(DriverStrategy strategy, Channel in1, Channel in2) {
 		// before we instantiate, check for deadlocks by tracing back to the open branches and checking
 		// whether either no input, or all of them have a dam
-		if (this.hereJoinedBranches != null && this.hereJoinedBranches.size() > 0) {
+		if (in1.isOnDynamicPath() && in2.isOnDynamicPath() && this.hereJoinedBranches != null && this.hereJoinedBranches.size() > 0) {
 			boolean someDamOnLeftPaths = false;
 			boolean damOnAllLeftPaths = true;
 			boolean someDamOnRightPaths = false;
