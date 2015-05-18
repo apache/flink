@@ -42,11 +42,13 @@ public class DoubleValueParser extends FieldParser<DoubleValue> {
 			i++;
 		}
 		
-		String str = new String(bytes, startPos, i - startPos);
-		if (Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[Math.max(i - 1, 0)])) {
-			setErrorState(ParseErrorState.WHITESPACE_IN_NUMERIC_FIELD);
+		if (i > startPos &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[i - 1]))) {
+			setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
 			return -1;
 		}
+
+		String str = new String(bytes, startPos, i - startPos);
 		try {
 			double value = Double.parseDouble(str);
 			reusable.setValue(value);

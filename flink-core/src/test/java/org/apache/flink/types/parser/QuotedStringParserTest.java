@@ -47,6 +47,11 @@ public class QuotedStringParserTest extends ParserTestBase<String> {
         };
     }
 
+	@Override
+	public boolean allowsEmptyField() {
+		return true;
+	}
+
     @Override
     public FieldParser<String> getParser() {
         StringParser p = new StringParser();

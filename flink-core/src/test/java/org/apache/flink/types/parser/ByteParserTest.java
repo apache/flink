@@ -52,6 +52,11 @@ public class ByteParserTest extends ParserTestBase<Byte> {
 	}
 
 	@Override
+	public boolean allowsEmptyField() {
+		return false;
+	}
+
+	@Override
 	public FieldParser<Byte> getParser() {
 		return new ByteParser();
 	}

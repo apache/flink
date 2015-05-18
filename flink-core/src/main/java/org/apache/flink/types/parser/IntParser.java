@@ -120,6 +120,10 @@ public class IntParser extends FieldParser<Integer> {
 		long val = 0;
 		boolean neg = false;
 
+		if (bytes[startPos] == delimiter) {
+			throw new NumberFormatException("Empty field.");
+		}
+
 		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;
@@ -131,7 +135,7 @@ public class IntParser extends FieldParser<Integer> {
 
 		for (; length > 0; startPos++, length--) {
 			if (bytes[startPos] == delimiter) {
-				throw new NumberFormatException("Empty field.");
+				return (int) (neg ? -val : val);
 			}
 			if (bytes[startPos] < 48 || bytes[startPos] > 57) {
 				throw new NumberFormatException("Invalid character.");

@@ -25,10 +25,7 @@ import static org.junit.Assert.fail;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 
-import org.apache.flink.types.StringValue;
-import org.apache.flink.types.parser.FieldParser;
 import org.junit.Test;
 
 
@@ -42,6 +39,8 @@ public abstract class ParserTestBase<T> {
 	public abstract T[] getValidTestResults();
 	
 	public abstract String[] getInvalidTestValues();
+
+	public abstract boolean allowsEmptyField();
 	
 	public abstract FieldParser<T> getParser();
 	
@@ -414,19 +413,11 @@ public abstract class ParserTestBase<T> {
 				byte[] bytes = emptyString.getBytes();
 				int numRead = parser.parseField(bytes, 0, bytes.length, new byte[]{'|'}, parser.createValue());
 
-				if (getTypeClass() == String.class) {
+				if(this.allowsEmptyField()) {
 					assertTrue("Parser declared the empty string as invalid.", numRead != -1);
 					assertEquals("Invalid number of bytes read returned.", bytes.length, numRead);
-
-					T result = parser.getLastResult();
-					assertEquals("Parser parsed wrong.", "", result);
-				} else if(getTypeClass() == StringValue.class) {
-					assertTrue("Parser declared the empty string as invalid.", numRead != -1);
-					assertEquals("Invalid number of bytes read returned.", bytes.length, numRead);
-
-					T result = parser.getLastResult();
-					assertEquals("Parser parsed wrong.", new StringValue(""), result);
-				} else {
+				}
+				else {
 					assertTrue("Parser accepted the empty string.", numRead == -1);
 				}
 			}

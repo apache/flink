@@ -112,6 +112,10 @@ public class ByteParser extends FieldParser<Byte> {
 		long val = 0;
 		boolean neg = false;
 
+		if(bytes[startPos] == delimiter) {
+			throw new NumberFormatException("Empty field.");
+		}
+
 		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;
@@ -123,7 +127,7 @@ public class ByteParser extends FieldParser<Byte> {
 
 		for (; length > 0; startPos++, length--) {
 			if (bytes[startPos] == delimiter) {
-				throw new NumberFormatException("Empty field.");
+				return (byte) (neg ? -val : val);
 			}
 			if (bytes[startPos] < 48 || bytes[startPos] > 57) {
 				throw new NumberFormatException("Invalid character.");

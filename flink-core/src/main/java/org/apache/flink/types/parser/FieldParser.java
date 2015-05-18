@@ -67,10 +67,7 @@ public abstract class FieldParser<T> {
 		UNQUOTED_CHARS_AFTER_QUOTED_STRING,
 		
 		/** The string is empty. */
-		EMPTY_STRING,
-
-		/** There is whitespace in a numeric field. */
-		WHITESPACE_IN_NUMERIC_FIELD
+		EMPTY_STRING
 	}
 	
 	private ParseErrorState errorState = ParseErrorState.NONE;

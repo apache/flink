@@ -41,12 +41,13 @@ public class DoubleParser extends FieldParser<Double> {
 			i++;
 		}
 
-		String str = new String(bytes, startPos, i - startPos);
-		int len = str.length();
-		if (Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[Math.max(i - 1, 0)])) {
-			setErrorState(ParseErrorState.WHITESPACE_IN_NUMERIC_FIELD);
+		if (i > startPos &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[(i - 1)]))) {
+			setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
 			return -1;
 		}
+
+		String str = new String(bytes, startPos, i - startPos);
 		try {
 			this.result = Double.parseDouble(str);
 			return (i == limit) ? limit : i + delimiter.length;
@@ -102,16 +103,16 @@ public class DoubleParser extends FieldParser<Double> {
 		int i = 0;
 		final byte delByte = (byte) delimiter;
 
-		while (i < length && bytes[i] != delByte) {
+		while (i < length && bytes[startPos + i] != delByte) {
 			i++;
 		}
 
-		String str = new String(bytes, startPos, i - startPos);
-		int len = str.length();
-		if (Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[Math.max(i - 1, 0)])) {
-			throw new NumberFormatException("There is leading or trailing whitespace in the " +
-				"numeric field: " + str);
+		if (i > 0 &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[startPos + i - 1]))) {
+			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field.");
 		}
+
+		String str = new String(bytes, startPos, i);
 		return Double.parseDouble(str);
 	}
 }

@@ -48,6 +48,11 @@ public class IntParserTest extends ParserTestBase<Integer> {
 	}
 
 	@Override
+	public boolean allowsEmptyField() {
+		return false;
+	}
+
+	@Override
 	public FieldParser<Integer> getParser() {
 		return new IntParser();
 	}

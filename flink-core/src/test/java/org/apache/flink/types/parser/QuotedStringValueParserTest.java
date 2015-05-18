@@ -51,6 +51,11 @@ public class QuotedStringValueParserTest extends ParserTestBase<StringValue> {
         };
     }
 
+	@Override
+	public boolean allowsEmptyField() {
+		return true;
+	}
+
     @Override
     public FieldParser<StringValue> getParser() {
         StringValueParser p = new StringValueParser();

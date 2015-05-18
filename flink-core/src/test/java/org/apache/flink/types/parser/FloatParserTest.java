@@ -55,6 +55,11 @@ public class FloatParserTest extends ParserTestBase<Float> {
 	}
 
 	@Override
+	public boolean allowsEmptyField() {
+		return false;
+	}
+
+	@Override
 	public FieldParser<Float> getParser() {
 		return new FloatParser();
 	}

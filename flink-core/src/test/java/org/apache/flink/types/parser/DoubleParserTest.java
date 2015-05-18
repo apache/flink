@@ -55,6 +55,11 @@ public class DoubleParserTest extends ParserTestBase<Double> {
 	}
 
 	@Override
+	public boolean allowsEmptyField() {
+		return false;
+	}
+
+	@Override
 	public FieldParser<Double> getParser() {
 		return new DoubleParser();
 	}

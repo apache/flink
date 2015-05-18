@@ -52,6 +52,11 @@ public class LongValueParserTest extends ParserTestBase<LongValue> {
 	}
 
 	@Override
+	public boolean allowsEmptyField() {
+		return false;
+	}
+
+	@Override
 	public FieldParser<LongValue> getParser() {
 		return new LongValueParser();
 	}
