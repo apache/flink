@@ -231,3 +231,5 @@ val weightVector = weightDS
 // We can now use the weightVector to make predictions
 
 {% endhighlight %}
+
+Note: Some of the Latex math notation was adapted from Apache Spark MLlib's documentation
