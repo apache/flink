@@ -34,7 +34,7 @@ public class StreamFold<IN, OUT>
 		super(folder);
 		this.accumulator = initialValue;
 		this.outTypeInformation = outTypeInformation;
-		this.chainingStrategy = ChainingStrategy.ALWAYS;
+		this.chainingStrategy = ChainingStrategy.FORCE_ALWAYS;
 	}
 
 	@Override

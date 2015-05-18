@@ -23,6 +23,8 @@ public class StreamSource<OUT> extends AbstractUdfStreamOperator<OUT, SourceFunc
 
 	public StreamSource(SourceFunction<OUT> sourceFunction) {
 		super(sourceFunction);
+
+		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
 	public void run() throws Exception {

@@ -37,7 +37,7 @@ public class WindowMerger<T> extends AbstractStreamOperator<StreamWindow<T>>
 	public WindowMerger() {
 		this.windows = new HashMap<Integer, StreamWindow<T>>();
 
-		chainingStrategy = ChainingStrategy.ALWAYS;
+		chainingStrategy = ChainingStrategy.FORCE_ALWAYS;
 	}
 
 	@Override

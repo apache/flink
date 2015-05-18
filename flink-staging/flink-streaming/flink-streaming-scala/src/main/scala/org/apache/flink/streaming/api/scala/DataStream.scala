@@ -103,7 +103,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   /**
    * Turns off chaining for this operator so thread co-location will not be
    * used as an optimization. </p> Chaining can be turned off for the whole
-   * job by {@link StreamExecutionEnvironment#disableOperatorChaning()}
+   * job by {@link StreamExecutionEnvironment#disableOperatorChaining()}
    * however it is not advised for performance considerations.
    * 
    */

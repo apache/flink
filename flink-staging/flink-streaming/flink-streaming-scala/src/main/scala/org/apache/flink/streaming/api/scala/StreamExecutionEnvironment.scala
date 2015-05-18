@@ -133,7 +133,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * 
    */
   def disableOperatorChaning(): StreamExecutionEnvironment = {
-    javaEnv.disableOperatorChaning()
+    javaEnv.disableOperatorChaining()
     this
   }
 
