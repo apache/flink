@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import com.twitter.hbc.ClientBuilder;
 import com.twitter.hbc.core.Constants;
+import com.twitter.hbc.core.endpoint.DefaultStreamingEndpoint;
 import com.twitter.hbc.core.endpoint.StatusesSampleEndpoint;
 import com.twitter.hbc.core.processor.StringDelimitedProcessor;
 import com.twitter.hbc.httpclient.BasicClient;
@@ -49,8 +50,8 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 
 	private static final long serialVersionUID = 1L;
 	private String authPath;
-	private transient BlockingQueue<String> queue;
-	private int queueSize = 10000;
+	protected transient BlockingQueue<String> queue;
+	protected int queueSize = 10000;
 	private transient BasicClient client;
 	private int waitSec = 5;
 
@@ -109,7 +110,7 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	/**
 	 * Initialize Hosebird Client to be able to consume Twitter's Streaming API
 	 */
-	private void initializeConnection() {
+	protected void initializeConnection() {
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Initializing Twitter Streaming API connection");
@@ -129,7 +130,7 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 		}
 	}
 
-	private OAuth1 authenticate() {
+	protected OAuth1 authenticate() {
 
 		Properties authenticationProperties = loadAuthenticationProperties();
 
@@ -156,7 +157,7 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 		return properties;
 	}
 
-	private void initializeClient(StatusesSampleEndpoint endpoint, Authentication auth) {
+	protected void initializeClient(DefaultStreamingEndpoint endpoint, Authentication auth) {
 
 		client = new ClientBuilder().name("twitterSourceClient").hosts(Constants.STREAM_HOST)
 				.endpoint(endpoint).authentication(auth)
