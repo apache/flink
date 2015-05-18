@@ -12,7 +12,6 @@ val counts = text.flatMap { _.split("\\W+") }
   .map { WordWithCount(_, 1) }
   .groupBy("word")
   .sum("count")
-
 counts.writeAsCsv(outputPath)
 ```
 
@@ -26,8 +25,6 @@ Flink is highlighted by some unique features:
 
 
 Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
-
-
 ## Building Apache Flink from Source
 
 * Unix-like environment (We use Linux, Mac OS X, Cygwin)
@@ -70,9 +67,11 @@ we found it to be the version that works most robustly for a complex project lik
 Further details, and a guide to newer Scala IDE versions can be found in the
 [How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internals/ide_setup.md#eclipse) docs.
 
+
+
+
 **Note:** Before following this setup, make sure to run the build from the command line once
 (`mvn clean package -DskipTests`, see above)
-
 1. Download the Scala IDE (preferred) or install the plugin to Eclipse Kepler. See 
    [How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internals/ide_setup.md#eclipse) for download links and instructions.
 2. Add the "macroparadise" compiler plugin to the Scala compiler.
@@ -105,9 +104,7 @@ This is an active open-source project. We are always open to people who want to 
 Contact us if you are looking for implementation tasks that fit your skills.
 This article describes [how to contribute to Apache Flink](http://flink.apache.org/how-to-contribute.html).
 
-
 ## About
-
 Apache Flink is an open source project of The Apache Software Foundation (ASF).
 The Apache Flink project originated from the [Stratosphere](http://stratosphere.eu) research project.
 
