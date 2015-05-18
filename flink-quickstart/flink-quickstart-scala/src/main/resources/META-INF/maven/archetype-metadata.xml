@@ -30,7 +30,7 @@ under the License.
 			</includes>
 		</fileSet>
 		<fileSet encoding="UTF-8">
-			<directory>src/assembly</directory>
+			<directory>src/main/resources</directory>
 		</fileSet>
 	</fileSets>
 </archetype-descriptor>
