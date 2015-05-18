@@ -51,6 +51,8 @@ abstract class LossFunction extends Serializable{
     * @param example The features and the label associated with the example
     * @param weights The current weight vector
     * @param cumGradient The vector to which the gradient will be added to, in place.
+    * @param predictionFunction A [[PredictionFunction]] object which provides a way to calculate
+    *                           a prediction and its gradient from the features and weights
     * @return A tuple containing the computed loss as its first element and a the loss derivative as
     *         its second element. The gradient is updated in-place.
     */
@@ -58,8 +60,6 @@ abstract class LossFunction extends Serializable{
       example: LabeledVector,
       weights: WeightVector,
       cumGradient: FlinkVector,
-      regType: Regularization,
-      regParameter: Double,
       predictionFunction: PredictionFunction):
   (Double, Double) = {
     val features = example.vector

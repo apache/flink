@@ -176,8 +176,6 @@ abstract class IterativeSolver() extends Solver() {
     override def map(example: LabeledVector): (WeightVector, Double, Int) = {
 
       val lossFunction = parameters(LossFunctionParameter)
-      val regType = parameters(RegularizationTypeParameter)
-      val regParameter = parameters(RegularizationValueParameter)
       val predictionFunction = parameters(PredictionFunctionParameter)
       val dimensions = example.vector.size
       val weightGradient = new DenseVector(new Array[Double](dimensions))
@@ -186,8 +184,6 @@ abstract class IterativeSolver() extends Solver() {
         example,
         weightVector,
         weightGradient,
-        regType,
-        regParameter,
         predictionFunction)
 
       (new WeightVector(weightGradient, lossDeriv), loss, 1)
