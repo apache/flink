@@ -82,7 +82,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		initDefaultsFromConfiguration();
 	}
 	
-	private static final void initDefaultsFromConfiguration() {
+	private static void initDefaultsFromConfiguration() {
 		
 		final long to = GlobalConfiguration.getLong(ConfigConstants.FS_STREAM_OPENING_TIMEOUT_KEY,
 			ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
@@ -97,7 +97,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		}
 	}
 	
-	static final long getDefaultOpeningTimeout() {
+	static long getDefaultOpeningTimeout() {
 		return DEFAULT_OPENING_TIMEOUT;
 	}
 	
@@ -284,9 +284,8 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		else if (this.filePath == null) {
 			throw new IllegalArgumentException("File path was not specified in input format, or configuration."); 
 		}
-
-		Boolean nestedFilesFlag = parameters.getBoolean(ENUMERATE_NESTED_FILES_FLAG, false);
-		this.enumerateNestedFiles = nestedFilesFlag;
+		
+		this.enumerateNestedFiles = parameters.getBoolean(ENUMERATE_NESTED_FILES_FLAG, false);
 	}
 	
 	/**
