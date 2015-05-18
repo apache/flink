@@ -113,6 +113,9 @@ public class DataStream<OUT> {
 	@SuppressWarnings("rawtypes")
 	protected TypeInformation typeInfo;
 	protected List<DataStream<OUT>> mergedStreams;
+	
+	protected Integer iterationID = null;
+	protected Long iterationWaitTime = null;
 
 	protected final StreamGraph streamGraph;
 	private boolean typeUsed;
@@ -160,6 +163,8 @@ public class DataStream<OUT> {
 		this.partitioner = dataStream.partitioner.copy();
 		this.streamGraph = dataStream.streamGraph;
 		this.typeInfo = dataStream.typeInfo;
+		this.iterationID = dataStream.iterationID;
+		this.iterationWaitTime = dataStream.iterationWaitTime;
 		this.mergedStreams = new ArrayList<DataStream<OUT>>();
 		this.mergedStreams.add(this);
 		if (dataStream.mergedStreams.size() > 1) {
@@ -1224,8 +1229,19 @@ public class DataStream<OUT> {
 				operatorName);
 
 		connectGraph(inputStream, returnStream.getId(), 0);
+		
+		if (iterationID != null) {
+			//This data stream is an input to some iteration
+			addIterationSource(returnStream);
+		}
 
 		return returnStream;
+	}
+	
+	private <X> void addIterationSource(DataStream<X> dataStream) {
+		Integer id = ++counter;
+		streamGraph.addIterationHead(id, dataStream.getId(), iterationID, iterationWaitTime);
+		streamGraph.setParallelism(id, dataStream.getParallelism());
 	}
 
 	/**
