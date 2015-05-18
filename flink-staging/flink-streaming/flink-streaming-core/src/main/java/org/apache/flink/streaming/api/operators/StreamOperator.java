@@ -61,9 +61,12 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * to <b>NEVER</b>, the operator will not be chained to the preceding or succeeding
 	 * operators.</p> <b>HEAD</b> strategy marks a start of a new chain, so that the
 	 * operator will not be chained to preceding operators, only succeding ones.
-	 * 
+	 *
+	 * <b>FORCE_ALWAYS</b> will enable chaining even if chaining is disabled on the execution
+	 * environment. This should only be used by system-level operators, not operators implemented
+	 * by users.
 	 */
 	public static enum ChainingStrategy {
-		ALWAYS, NEVER, HEAD
+		FORCE_ALWAYS, ALWAYS, NEVER, HEAD
 	}
 }
