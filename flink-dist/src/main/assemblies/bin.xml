@@ -28,6 +28,22 @@ under the License.
 	<includeBaseDirectory>true</includeBaseDirectory>
 	<baseDirectory>flink-${project.version}</baseDirectory>
 
+	<!-- Include flink-python.jar in lib/ -->
+	<dependencySets>
+		<dependencySet>
+			<outputDirectory>lib</outputDirectory>
+			<unpack>false</unpack>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
+			<useProjectArtifact>false</useProjectArtifact>
+			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveFiltering>true</useTransitiveFiltering>
+
+			<includes>
+				<include>org.apache.flink:flink-python</include>
+			</includes>
+		</dependencySet>
+	</dependencySets>
+
 	<files>
 		<!-- copy fat jar -->
 		<file>
