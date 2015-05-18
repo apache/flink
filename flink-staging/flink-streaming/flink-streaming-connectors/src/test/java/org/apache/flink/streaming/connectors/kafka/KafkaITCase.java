@@ -68,6 +68,7 @@ import org.apache.flink.streaming.connectors.kafka.util.KafkaLocalSystemTime;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.StringUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -908,13 +909,13 @@ public class KafkaITCase {
 			while (!(t instanceof SuccessException)) {
 				if(t == null) {
 					LOG.warn("Test failed with exception", good);
-					Assert.fail("Test failed with: " + good.getMessage());
+					Assert.fail("Test failed with: " + StringUtils.stringifyException(good));
 				}
 
 				t = t.getCause();
 				if (limit++ == 20) {
 					LOG.warn("Test failed with exception", good);
-					Assert.fail("Test failed with: " + good.getMessage());
+					Assert.fail("Test failed with: " + StringUtils.stringifyException(good));
 				}
 			}
 		}
