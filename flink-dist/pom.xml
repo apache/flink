@@ -314,6 +314,7 @@ under the License.
 									<exclude>org.apache.flink:flink-java-examples</exclude>
 									<exclude>org.apache.flink:flink-scala-examples</exclude>
 									<exclude>org.apache.flink:flink-streaming-examples</exclude>
+									<exclude>org.apache.flink:flink-python</exclude>
 								</excludes>
 							</artifactSet>
 							<transformers>
