@@ -115,6 +115,9 @@ public abstract class ExecutionEnvironment {
 
 	private ExecutionConfig config = new ExecutionConfig();
 
+	/** Flag to indicate whether sinks have been cleared in previous executions */
+	private boolean wasExecuted = false;
+
 	// --------------------------------------------------------------------------------------------
 	//  Constructor and Properties
 	// --------------------------------------------------------------------------------------------
@@ -914,7 +917,15 @@ public abstract class ExecutionEnvironment {
 	 */
 	public JavaPlan createProgramPlan(String jobName, boolean clearSinks) {
 		if (this.sinks.isEmpty()) {
-			throw new RuntimeException("No data sinks have been created yet. A program needs at least one sink that consumes data. Examples are writing the data set or printing it.");
+			if (wasExecuted) {
+				throw new RuntimeException("No new data sinks have been defined since the " +
+						"last execution. The last execution refers to the latest call to " +
+						"'execute()', 'count()', 'collect()', or 'print()'.");
+			} else {
+				throw new RuntimeException("No data sinks have been created yet. " +
+						"A program needs at least one sink that consumes data. " +
+						"Examples are writing the data set or printing it.");
+			}
 		}
 		
 		if (jobName == null) {
@@ -962,6 +973,7 @@ public abstract class ExecutionEnvironment {
 		// clear all the sinks such that the next execution does not redo everything
 		if (clearSinks) {
 			this.sinks.clear();
+			wasExecuted = true;
 		}
 
 		// All types are registered now. Print information.
