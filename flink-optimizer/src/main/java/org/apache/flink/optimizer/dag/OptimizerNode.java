@@ -86,7 +86,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	protected Set<OptimizerNode> closedBranchingNodes; 	// stack of branching nodes which have already been closed
 	
 	protected List<OptimizerNode> hereJoinedBranches;	// the branching nodes (node with multiple outputs)
-	// 										that are partially joined (through multiple inputs or broadcast vars)
+														// that are partially joined (through multiple inputs or broadcast vars)
 
 	// ---------------------------- Estimates and Annotations -------------------------------------
 	

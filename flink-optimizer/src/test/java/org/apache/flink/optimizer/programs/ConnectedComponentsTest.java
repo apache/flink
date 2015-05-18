@@ -16,23 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.compiler.iterations;
+package org.apache.flink.optimizer.programs;
 
-import java.io.Serializable;
-
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.util.FieldList;
-import org.apache.flink.api.java.record.functions.JoinFunction;
-import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecond;
-import org.apache.flink.api.java.record.io.CsvInputFormat;
-import org.apache.flink.api.java.record.io.CsvOutputFormat;
-import org.apache.flink.api.java.record.operators.DeltaIteration;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.JoinOperator;
-import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -40,23 +34,18 @@ import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.apache.flink.test.recordJobs.graph.WorksetConnectedComponents;
-import org.apache.flink.test.recordJobs.graph.WorksetConnectedComponents.DuplicateLongMap;
-import org.apache.flink.test.recordJobs.graph.WorksetConnectedComponents.MinimumComponentIDReduce;
-import org.apache.flink.test.recordJobs.graph.WorksetConnectedComponents.NeighborWithComponentIDJoin;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
-@SuppressWarnings("deprecation")
+@SuppressWarnings("serial")
 public class ConnectedComponentsTest extends CompilerTestBase {
 	
 	private static final String VERTEX_SOURCE = "Vertices";
@@ -70,27 +59,15 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 	
 	private static final String SINK = "Result";
 	
-	private static final boolean PRINT_PLAN = false;
-	
 	private final FieldList set0 = new FieldList(0);
 	
 	
 	@Test
 	public void testWorksetConnectedComponents() {
-		WorksetConnectedComponents cc = new WorksetConnectedComponents();
-
-		Plan plan = cc.getPlan(String.valueOf(DEFAULT_PARALLELISM),
-				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(100));
-		plan.setExecutionConfig(new ExecutionConfig());
+		Plan plan = getConnectedComponentsPlan(DEFAULT_PARALLELISM, 100, false);
 
 		OptimizedPlan optPlan = compileNoStats(plan);
 		OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(optPlan);
-		
-		if (PRINT_PLAN) {
-			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-			String json = dumper.getOptimizerPlanAsJSON(optPlan);
-			System.out.println(json);
-		}
 		
 		SourcePlanNode vertexSource = or.getNode(VERTEX_SOURCE);
 		SourcePlanNode edgesSource = or.getNode(EDGES_SOURCE);
@@ -151,8 +128,11 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(LocalStrategy.NONE, updatingMatch.getInput2().getLocalStrategy()); // solution set
 		
 		// check the dams
-		Assert.assertTrue(TempMode.PIPELINE_BREAKER == iter.getInitialWorksetInput().getTempMode() ||
-							LocalStrategy.SORT == iter.getInitialWorksetInput().getLocalStrategy());
+		Assert.assertEquals(TempMode.NONE, iter.getInitialWorksetInput().getTempMode());
+		Assert.assertEquals(TempMode.NONE, iter.getInitialSolutionSetInput().getTempMode());
+
+		Assert.assertEquals(DataExchangeMode.BATCH, iter.getInitialWorksetInput().getDataExchangeMode());
+		Assert.assertEquals(DataExchangeMode.BATCH, iter.getInitialSolutionSetInput().getDataExchangeMode());
 		
 		JobGraphGenerator jgg = new JobGraphGenerator();
 		jgg.compileJobGraph(optPlan);
@@ -161,18 +141,10 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 	@Test
 	public void testWorksetConnectedComponentsWithSolutionSetAsFirstInput() {
 
-		Plan plan = getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(DEFAULT_PARALLELISM,
-				IN_FILE, IN_FILE, OUT_FILE, 100);
-		plan.setExecutionConfig(new ExecutionConfig());
+		Plan plan = getConnectedComponentsPlan(DEFAULT_PARALLELISM, 100, true);
 
 		OptimizedPlan optPlan = compileNoStats(plan);
 		OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(optPlan);
-		
-		if (PRINT_PLAN) {
-			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-			String json = dumper.getOptimizerPlanAsJSON(optPlan);
-			System.out.println(json);
-		}
 		
 		SourcePlanNode vertexSource = or.getNode(VERTEX_SOURCE);
 		SourcePlanNode edgesSource = or.getNode(EDGES_SOURCE);
@@ -233,82 +205,81 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(LocalStrategy.NONE, updatingMatch.getInput2().getLocalStrategy()); // solution set
 		
 		// check the dams
-		Assert.assertTrue(TempMode.PIPELINE_BREAKER == iter.getInitialWorksetInput().getTempMode() ||
-							LocalStrategy.SORT == iter.getInitialWorksetInput().getLocalStrategy());
+		Assert.assertEquals(TempMode.NONE, iter.getInitialWorksetInput().getTempMode());
+		Assert.assertEquals(TempMode.NONE, iter.getInitialSolutionSetInput().getTempMode());
+
+		Assert.assertEquals(DataExchangeMode.BATCH, iter.getInitialWorksetInput().getDataExchangeMode());
+		Assert.assertEquals(DataExchangeMode.BATCH, iter.getInitialSolutionSetInput().getDataExchangeMode());
 		
 		JobGraphGenerator jgg = new JobGraphGenerator();
 		jgg.compileJobGraph(optPlan);
 	}
 	
 	
-	@ConstantFieldsSecond(0)
-	public static final class UpdateComponentIdMatchMirrored extends JoinFunction implements Serializable {
-		
-		private static final long serialVersionUID = 1L;
+	private static Plan getConnectedComponentsPlan(int parallelism, int iterations, boolean solutionSetFirst) {
 
-		@Override
-		public void join(Record currentVertexWithComponent, Record newVertexWithComponent, Collector<Record> out){
-	
-			long candidateComponentID = newVertexWithComponent.getField(1, LongValue.class).getValue();
-			long currentComponentID = currentVertexWithComponent.getField(1, LongValue.class).getValue();
-	
-			if (candidateComponentID < currentComponentID) {
-				out.collect(newVertexWithComponent);
-			}
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(parallelism);
+		
+		DataSet<Tuple2<Long, Long>> verticesWithId = env.generateSequence(0, 1000).name("Vertices")
+				.map(new MapFunction<Long, Tuple2<Long, Long>>() {
+					@Override
+					public Tuple2<Long, Long> map(Long value) {
+						return new Tuple2<Long, Long>(value, value);
+					}
+				}).name("Assign Vertex Ids");
+
+		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration = 
+				verticesWithId.iterateDelta(verticesWithId, iterations, 0).name("Connected Components Iteration");
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> edges = env.fromElements(new Tuple2<Long, Long>(0L, 0L)).name("Edges");
+
+		DataSet<Tuple2<Long, Long>> minCandidateId = iteration.getWorkset().join(edges)
+				.where(0).equalTo(0)
+				.projectSecond(1).<Tuple2<Long, Long>>projectFirst(1).name("Join Candidate Id With Neighbor")
+				
+				.groupBy(0)
+				.min(1)
+				.name("Find Minimum Candidate Id");
+
+		DataSet<Tuple2<Long, Long>> updateComponentId;
+		
+		if (solutionSetFirst) {
+			updateComponentId = iteration.getSolutionSet().join(minCandidateId)
+					.where(0).equalTo(0)
+					.with(new FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>>() {
+						@Override
+						public void join(Tuple2<Long, Long> current, Tuple2<Long, Long> candidate,
+										 Collector<Tuple2<Long, Long>> out) {
+							if (candidate.f1 < current.f1) {
+								out.collect(candidate);
+							}
+						}
+					})
+					.withForwardedFieldsFirst("0")
+					.withForwardedFieldsSecond("0")
+					.name("Update Component Id");
+		} else {
+			updateComponentId = minCandidateId.join(iteration.getSolutionSet())
+					.where(0).equalTo(0)
+					.with(new FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>>() {
+						@Override
+						public void join(Tuple2<Long, Long> candidate, Tuple2<Long, Long> current,
+										 Collector<Tuple2<Long, Long>> out) {
+							if (candidate.f1 < current.f1) {
+								out.collect(candidate);
+							}
+						}
+					})
+					.withForwardedFieldsFirst("0")
+					.withForwardedFieldsSecond("0")
+					.name("Update Component Id");
 		}
-	}
-	
-	@SuppressWarnings("unchecked")
-	private static Plan getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(
-			int numSubTasks, String verticesInput, String edgeInput, String output, int maxIterations)
-	{
-		// create DataSourceContract for the vertices
-		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', LongValue.class), verticesInput, "Vertices");
 		
-		MapOperator verticesWithId = MapOperator.builder(DuplicateLongMap.class).input(initialVertices).name("Assign Vertex Ids").build();
+		iteration.closeWith(updateComponentId, updateComponentId)
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>()).name("Result");
 		
-		DeltaIteration iteration = new DeltaIteration(0, "Connected Components Iteration");
-		iteration.setInitialSolutionSet(verticesWithId);
-		iteration.setInitialWorkset(verticesWithId);
-		iteration.setMaximumNumberOfIterations(maxIterations);
-		
-		// create DataSourceContract for the edges
-		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', LongValue.class, LongValue.class), edgeInput, "Edges");
-
-		// create CrossOperator for distance computation
-		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), LongValue.class, 0, 0)
-				.input1(iteration.getWorkset())
-				.input2(edges)
-				.name("Join Candidate Id With Neighbor")
-				.build();
-
-		// create ReduceOperator for finding the nearest cluster centers
-		ReduceOperator minCandidateId = ReduceOperator.builder(new MinimumComponentIDReduce(), LongValue.class, 0)
-				.input(joinWithNeighbors)
-				.name("Find Minimum Candidate Id")
-				.build();
-		
-		// create CrossOperator for distance computation
-		JoinOperator updateComponentId = JoinOperator.builder(new UpdateComponentIdMatchMirrored(), LongValue.class, 0, 0)
-				.input1(iteration.getSolutionSet())
-				.input2(minCandidateId)
-				.name("Update Component Id")
-				.build();
-		
-		iteration.setNextWorkset(updateComponentId);
-		iteration.setSolutionSetDelta(updateComponentId);
-
-		// create DataSinkContract for writing the new cluster positions
-		FileDataSink result = new FileDataSink(new CsvOutputFormat(), output, iteration, "Result");
-		CsvOutputFormat.configureRecordFormat(result)
-			.recordDelimiter('\n')
-			.fieldDelimiter(' ')
-			.field(LongValue.class, 0)
-			.field(LongValue.class, 1);
-
-		// return the plan
-		Plan plan = new Plan(result, "Workset Connected Components");
-		plan.setDefaultParallelism(numSubTasks);
-		return plan;
+		return env.createProgramPlan();
 	}
 }
