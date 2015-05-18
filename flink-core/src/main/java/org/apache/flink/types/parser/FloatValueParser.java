@@ -33,7 +33,7 @@ public class FloatValueParser extends FieldParser<FloatValue> {
 		
 		int i = startPos;
 
-		final int delimLimit = limit-delimiter.length+1;
+		final int delimLimit = limit - delimiter.length + 1;
 
 		while (i < limit) {
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
@@ -42,7 +42,11 @@ public class FloatValueParser extends FieldParser<FloatValue> {
 			i++;
 		}
 		
-		String str = new String(bytes, startPos, i-startPos);
+		String str = new String(bytes, startPos, i - startPos);
+		if (Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[Math.max(i - 1, 0)])) {
+			setErrorState(ParseErrorState.WHITESPACE_IN_NUMERIC_FIELD);
+			return -1;
+		}
 		try {
 			float value = Float.parseFloat(str);
 			reusable.setValue(value);

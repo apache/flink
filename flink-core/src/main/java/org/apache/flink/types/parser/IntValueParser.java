@@ -54,6 +54,10 @@ public class IntValueParser extends FieldParser<IntValue> {
 		
 		for (int i = startPos; i < limit; i++) {
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
+				if (i == startPos) {
+					setErrorState(ParseErrorState.EMPTY_STRING);
+					return -1;
+				}
 				reusable.setValue((int) (neg ? -val : val));
 				return i + delimiter.length;
 			}
