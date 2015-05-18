@@ -35,7 +35,7 @@ public class WindowPartitioner<T> extends AbstractStreamOperator<StreamWindow<T>
 	public WindowPartitioner(KeySelector<T, ?> keySelector) {
 		this.keySelector = keySelector;
 
-		chainingStrategy = ChainingStrategy.ALWAYS;
+		chainingStrategy = ChainingStrategy.FORCE_ALWAYS;
 	}
 
 	public WindowPartitioner(int numberOfSplits) {

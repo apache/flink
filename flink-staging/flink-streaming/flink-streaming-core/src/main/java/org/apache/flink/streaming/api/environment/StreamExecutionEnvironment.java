@@ -195,7 +195,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @return StreamExecutionEnvironment with chaining disabled.
 	 */
-	public StreamExecutionEnvironment disableOperatorChaning() {
+	public StreamExecutionEnvironment disableOperatorChaining() {
 		streamGraph.setChaining(false);
 		return this;
 	}

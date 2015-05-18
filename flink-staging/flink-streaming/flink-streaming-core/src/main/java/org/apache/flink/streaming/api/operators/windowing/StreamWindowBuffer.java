@@ -34,7 +34,7 @@ public class StreamWindowBuffer<T>
 
 	public StreamWindowBuffer(WindowBuffer<T> buffer) {
 		this.buffer = buffer;
-		setChainingStrategy(ChainingStrategy.ALWAYS);
+		setChainingStrategy(ChainingStrategy.FORCE_ALWAYS);
 	}
 
 	@Override

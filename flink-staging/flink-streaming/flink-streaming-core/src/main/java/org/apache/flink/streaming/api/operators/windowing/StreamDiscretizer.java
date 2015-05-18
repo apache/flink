@@ -56,6 +56,8 @@ public class StreamDiscretizer<IN>
 
 		this.isActiveTrigger = triggerPolicy instanceof ActiveTriggerPolicy;
 		this.isActiveEviction = evictionPolicy instanceof ActiveEvictionPolicy;
+
+		this.chainingStrategy = ChainingStrategy.FORCE_ALWAYS;
 	}
 
 	public TriggerPolicy<IN> getTrigger() {

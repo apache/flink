@@ -29,7 +29,7 @@ public class WindowFlattener<T> extends AbstractStreamOperator<T>
 		implements OneInputStreamOperator<StreamWindow<T>, T> {
 
 	public WindowFlattener() {
-		chainingStrategy = ChainingStrategy.ALWAYS;
+		chainingStrategy = ChainingStrategy.FORCE_ALWAYS;
 	}
 
 	@Override

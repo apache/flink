@@ -315,13 +315,16 @@ public class StreamingJobGraphGenerator {
 				&& outOperator != null
 				&& upStreamVertex.getSlotSharingID() == downStreamVertex.getSlotSharingID()
 				&& upStreamVertex.getSlotSharingID() != -1
-				&& outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
-				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD || headOperator
-						.getChainingStrategy() == ChainingStrategy.ALWAYS)
+				&& (outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS ||
+					outOperator.getChainingStrategy() == ChainingStrategy.FORCE_ALWAYS)
+				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
+					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS ||
+					headOperator.getChainingStrategy() == ChainingStrategy.FORCE_ALWAYS)
 				&& (edge.getPartitioner().getStrategy() == PartitioningStrategy.FORWARD || downStreamVertex
 						.getParallelism() == 1)
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
-				&& streamGraph.isChainingEnabled();
+				&& (streamGraph.isChainingEnabled() ||
+					outOperator.getChainingStrategy() == ChainingStrategy.FORCE_ALWAYS);
 	}
 
 	private void setSlotSharing() {
