@@ -484,12 +484,18 @@ public class TaskManagerTest {
 									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid2),
 									timeout);
 
+							// submit the sender task
 							tm.tell(new SubmitTask(tdd1), getRef());
 							expectMsgEquals(Messages.getAcknowledge());
+
+							// wait until the sender task is running
+							Await.ready(t1Running, d);
+
+							// only now (after the sender is running), submit the receiver task
 							tm.tell(new SubmitTask(tdd2), getRef());
 							expectMsgEquals(Messages.getAcknowledge());
-
-							Await.ready(t1Running, d);
+							
+							// wait until the receiver task is running
 							Await.ready(t2Running, d);
 
 							tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
@@ -499,7 +505,7 @@ public class TaskManagerTest {
 							Task t1 = tasks.get(eid1);
 							Task t2 = tasks.get(eid2);
 
-							// wait until the tasks are done. rare thread races may cause the tasks to be done before
+							// wait until the tasks are done. thread races may cause the tasks to be done before
 							// we get to the check, so we need to guard the check
 							if (t1 != null) {
 								Future<Object> response = Patterns.ask(tm, new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
