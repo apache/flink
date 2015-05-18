@@ -34,7 +34,7 @@ public abstract class ByteStreamStateHandle implements StateHandle<Serializable>
 
 	private static final long serialVersionUID = -962025800339325828L;
 
-	transient Serializable state;
+	private transient Serializable state;
 
 	public ByteStreamStateHandle(Serializable state) {
 		this.state = state;
@@ -52,9 +52,11 @@ public abstract class ByteStreamStateHandle implements StateHandle<Serializable>
 
 	@Override
 	public Serializable getState() throws Exception {
-		ObjectInputStream stream = new ObjectInputStream(getInputStream());
-		state = (Serializable) stream.readObject();
-		stream.close();
+		if (!stateFetched()) {
+			ObjectInputStream stream = new ObjectInputStream(getInputStream());
+			state = (Serializable) stream.readObject();
+			stream.close();
+		}
 		return state;
 	}
 
@@ -63,5 +65,13 @@ public abstract class ByteStreamStateHandle implements StateHandle<Serializable>
 		stream.writeObject(state);
 		stream.close();
 		oos.defaultWriteObject();
+	}
+
+	/**
+	 * Checks whether the state has already been fetched from the remote
+	 * storage.
+	 */
+	public boolean stateFetched() {
+		return state != null;
 	}
 }
