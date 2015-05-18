@@ -19,12 +19,13 @@
 
 package org.apache.flink.ml.optimization
 
+import com.github.fommil.netlib.BLAS._
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common._
 import org.apache.flink.ml.math._
-import org.apache.flink.ml.optimization.IterativeSolver.{Iterations, Stepsize}
+import org.apache.flink.ml.optimization.IterativeSolver.{ConvergenceThreshold, Iterations, Stepsize}
 import org.apache.flink.ml.optimization.Solver._
 
 /** This [[Solver]] performs Stochastic Gradient Descent optimization using mini batches
@@ -74,6 +75,8 @@ class GradientDescent() extends IterativeSolver() {
     }.withBroadcastSet(currentWeights, WEIGHTVECTOR_BROADCAST)
   }
 
+
+
   /** Provides a solution for the given optimization problem
     *
     * @param data A Dataset of LabeledVector (label, features) pairs
@@ -84,16 +87,108 @@ class GradientDescent() extends IterativeSolver() {
     data: DataSet[LabeledVector],
     initialWeights: Option[DataSet[WeightVector]]): DataSet[WeightVector] = {
     val numberOfIterations: Int = parameters(Iterations)
+    // TODO(tvas): This looks out of place, why don't we get back an Option from
+    // parameters(ConvergenceThreshold)?
+    val convergenceThresholdOption = parameters.get(ConvergenceThreshold)
 
     // Initialize weights
     val initialWeightsDS: DataSet[WeightVector] = createInitialWeightsDS(initialWeights, data)
 
     // Perform the iterations
-    // TODO: Enable convergence stopping criterion, as in Multiple Linear regression
-    initialWeightsDS.iterate(numberOfIterations) {
-      weightVectorDS => {
-        SGDStep(data, weightVectorDS)
-      }
+    val optimizedWeights = convergenceThresholdOption match {
+      // No convergence criterion
+      case None =>
+        initialWeightsDS.iterate(numberOfIterations) {
+          weightVectorDS => {
+            SGDStep(data, weightVectorDS)
+          }
+        }
+      case Some(convergence) =>
+        // we have to calculate for each weight vector the sum of squared residuals
+        val initialLossSumDS = data.map {
+          new LossCalculation
+        }.withBroadcastSet(initialWeightsDS, WEIGHTVECTOR_BROADCAST).reduce {
+          _ + _
+        }
+        // TODO(tvas): Apply regularization to loss value
+
+        // combine weight vector with current sum of squared residuals
+        val initialWeightsWithLossSum = initialWeightsDS.
+          crossWithTiny(initialLossSumDS).setParallelism(1)
+
+        val resultWithLoss = initialWeightsWithLossSum.
+          iterateWithTermination(numberOfIterations) {
+          weightsWithLossSum =>
+
+            // extract weight vector and squared residual sum
+            val currentWeightsDS = weightsWithLossSum.map{_._1}
+            val currentLossSumDS = weightsWithLossSum.map{_._2}
+
+            val updatedWeightsDS = SGDStep(data, currentWeightsDS)
+
+            val updatedLossSumDS = data.map {
+              new LossCalculation
+            }.withBroadcastSet(updatedWeightsDS, WEIGHTVECTOR_BROADCAST).reduce {
+              _ + _
+            }
+            // TODO(tvas): Apply regularization to loss value
+
+            // Check if the relative change in the squared residual sum is smaller than the
+            // convergence threshold. If yes, then terminate => return empty termination data set
+            val termination = currentLossSumDS.crossWithTiny(updatedLossSumDS).setParallelism(1).
+              filter{
+              pair => {
+                val (loss, newLoss) = pair
+
+                if (loss <= 0) {
+                  false
+                } else {
+                  math.abs((loss - newLoss)/loss) >= convergence
+                }
+              }
+            }
+
+            // result for new iteration
+            (updatedWeightsDS cross updatedLossSumDS, termination)
+        }
+        resultWithLoss.map{_._1}
+    }
+    optimizedWeights
+  }
+
+  /** Calculates the loss value, given a labeled vector and the current weight vector
+    *
+    * The weight vector is received as a broadcast variable.
+    */
+  private class LossCalculation extends RichMapFunction[LabeledVector, Double] {
+
+    var weightVector: WeightVector = null
+
+
+    @throws(classOf[Exception])
+    override def open(configuration: Configuration): Unit = {
+      val list = this.getRuntimeContext.
+        getBroadcastVariable[WeightVector](WEIGHTVECTOR_BROADCAST)
+
+      weightVector = list.get(0)
+
+    }
+
+    override def map(example: LabeledVector): Double = {
+      val lossFunction = parameters(LossFunctionParameter)
+      val predictionFunction = parameters(PredictionFunctionParameter)
+      val dimensions = example.vector.size
+      // TODO(tvas): Avoid needless creation of WeightGradient object
+      // Create a lossValue function in LossFunction?
+      val weightGradient = new DenseVector(new Array[Double](dimensions))
+
+      val (loss, _) = lossFunction.lossAndGradient(
+        example,
+        weightVector,
+        weightGradient,
+        predictionFunction)
+
+      loss
     }
   }
 
