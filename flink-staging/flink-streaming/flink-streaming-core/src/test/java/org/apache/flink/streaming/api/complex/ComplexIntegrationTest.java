@@ -46,6 +46,7 @@ import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -142,7 +143,10 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		env.execute();
 	}
 
+	// Disabled, because it depends on strange behaviour, for example of the sum() function.
+	// This test evens fails, for example, if the order of only two lines in the "input" is changed.
 	@SuppressWarnings("unchecked")
+	@Ignore
 	@Test
 	public void complexIntegrationTest2() throws Exception {
 		//Testing POJO source, grouping by multiple filds and windowing with timestamp
