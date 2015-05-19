@@ -605,7 +605,7 @@ public class ExecutionConfig implements Serializable {
 	}
 
 	/**
-	 * Interface for custom user configuration object registered at the execution config.
+	 * Abstract class for a custom user configuration object registered at the execution config.
 	 *
 	 * This user config is accessible at runtime through
 	 * getRuntimeContext().getExecutionConfig().getUserConfig()
