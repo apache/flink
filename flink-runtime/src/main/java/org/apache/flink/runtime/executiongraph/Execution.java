@@ -415,13 +415,13 @@ public class Execution implements Serializable {
 					markTimestamp(CANCELING, getStateTimestamp(CANCELED));
 					
 					try {
-						vertex.executionCanceled();
-					}
-					finally {
 						vertex.getExecutionGraph().deregisterExecution(this);
 						if (assignedResource != null) {
 							assignedResource.releaseSlot();
 						}
+					}
+					finally {
+						vertex.executionCanceled();
 					}
 					return;
 				}
