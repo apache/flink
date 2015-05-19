@@ -402,6 +402,18 @@ public final class ConfigConstants {
 	 */
 	public static final String AKKA_LOOKUP_TIMEOUT = "akka.lookup.timeout";
 	
+	// ----------------------------- Streaming --------------------------------
+	
+	/**
+	 * State backend for checkpoints;
+	 */
+	public static final String STATE_BACKEND = "state.backend";
+	
+	/**
+	 * Directory for saving streaming checkpoints
+	 */
+	public static final String STATE_BACKEND_FS_DIR = "state.backend.fs.checkpointdir";
+	
 	// ----------------------------- Miscellaneous ----------------------------
 	
 	/**
@@ -624,6 +636,9 @@ public final class ConfigConstants {
 
 	public static String DEFAULT_AKKA_LOOKUP_TIMEOUT = "10 s";
 	
+	// ----------------------------- Streaming Values --------------------------
+	
+	public static String DEFAULT_STATE_BACKEND = "jobmanager";
 
 	// ----------------------------- LocalExecution ----------------------------
 

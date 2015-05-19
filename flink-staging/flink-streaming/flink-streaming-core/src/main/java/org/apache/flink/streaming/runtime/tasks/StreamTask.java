@@ -24,12 +24,16 @@ import java.util.List;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.functors.NotNullPredicate;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCommittingOperator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
+import org.apache.flink.runtime.state.FileStateHandle;
+import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.runtime.util.event.EventListener;
@@ -76,7 +80,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		this.userClassLoader = getUserCodeClassLoader();
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.context = createRuntimeContext(getEnvironment().getTaskName());
-		this.stateHandleProvider = configuration.getStateHandleProvider(userClassLoader);
+		this.stateHandleProvider = getStateHandleProvider();
 
 		outputHandler = new OutputHandler<OUT>(this);
 
@@ -97,6 +101,52 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		Environment env = getEnvironment();
 		return new StreamingRuntimeContext(taskName, env, getUserCodeClassLoader(),
 				getExecutionConfig());
+	}
+	
+	private StateHandleProvider<Serializable> getStateHandleProvider() {
+
+		StateHandleProvider<Serializable> provider = configuration
+				.getStateHandleProvider(userClassLoader);
+
+		// If the user did not specify a provider in the program we try to get it from the config
+		if (provider == null) {
+			String backendName = GlobalConfiguration.getString(ConfigConstants.STATE_BACKEND,
+					ConfigConstants.DEFAULT_STATE_BACKEND).toUpperCase();
+
+			StateBackend backend;
+
+			try {
+				backend = StateBackend.valueOf(backendName);
+			} catch (Exception e) {
+				throw new RuntimeException(backendName + " is not a valid state backend.\nSupported backends: jobmanager, filesystem.");
+			}
+			
+			switch (backend) {
+				case JOBMANAGER:
+					LOG.info("State backend for state checkpoints is set to jobmanager.");
+					return LocalStateHandle.createProvider();
+				case FILESYSTEM:
+					String checkpointDir = GlobalConfiguration.getString(ConfigConstants.STATE_BACKEND_FS_DIR, null);
+					if (checkpointDir != null) {
+						LOG.info("State backend for state checkpoints is set to filesystem with directory: "
+								+ checkpointDir);
+						return FileStateHandle.createProvider(checkpointDir);
+					} else {
+						throw new RuntimeException(
+								"For filesystem checkpointing, a checkpoint directory needs to be specified.\nFor example: \"state.backend.dir: hdfs://checkpoints\"");
+					}
+				default:
+					throw new RuntimeException("Backend " + backend + " is not supported yet.");
+			}
+			
+		} else {
+			LOG.info("Using user defined state backend for streaming checkpoitns.");
+			return provider;
+		}
+	}
+
+	private enum StateBackend {
+		JOBMANAGER, FILESYSTEM
 	}
 
 	protected void openOperator() throws Exception {
