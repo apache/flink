@@ -745,9 +745,7 @@ public class Task implements Runnable {
 	 */
 	public void cancelExecution() {
 		LOG.info("Attempting to cancel task " + taskNameWithSubtask);
-		if (cancelOrFailAndCancelInvokable(ExecutionState.CANCELING)) {
-			notifyObservers(ExecutionState.CANCELING, null);
-		}
+		cancelOrFailAndCancelInvokable(ExecutionState.CANCELING, null);
 	}
 
 	/**
@@ -761,27 +759,27 @@ public class Task implements Runnable {
 	 */
 	public void failExternally(Throwable cause) {
 		LOG.info("Attempting to fail task externally " + taskNameWithSubtask);
-		if (cancelOrFailAndCancelInvokable(ExecutionState.FAILED)) {
-			failureCause = cause;
-			notifyObservers(ExecutionState.FAILED, cause);
-		}
+		cancelOrFailAndCancelInvokable(ExecutionState.FAILED, cause);
 	}
 
-	private boolean cancelOrFailAndCancelInvokable(ExecutionState targetState) {
+	private void cancelOrFailAndCancelInvokable(ExecutionState targetState, Throwable cause) {
 		while (true) {
 			ExecutionState current = this.executionState;
 
 			// if the task is already canceled (or canceling) or finished or failed,
 			// then we need not do anything
 			if (current.isTerminal() || current == ExecutionState.CANCELING) {
-				return false;
+				LOG.info("Task " + taskNameWithSubtask + " is already in state " + current);
+				return;
 			}
 
 			if (current == ExecutionState.DEPLOYING || current == ExecutionState.CREATED) {
 				if (STATE_UPDATER.compareAndSet(this, current, targetState)) {
 					// if we manage this state transition, then the invokable gets never called
 					// we need not call cancel on it
-					return true;
+					this.failureCause = cause;
+					notifyObservers(targetState, cause);
+					return;
 				}
 			}
 			else if (current == ExecutionState.RUNNING) {
@@ -789,6 +787,8 @@ public class Task implements Runnable {
 					// we are canceling / failing out of the running state
 					// we need to cancel the invokable
 					if (invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
+						this.failureCause = cause;
+						notifyObservers(targetState, cause);
 						LOG.info("Triggering cancellation of task code {} ({}).", taskNameWithSubtask, executionId);
 
 						// because the canceling may block on user code, we cancel from a separate thread
@@ -799,7 +799,7 @@ public class Task implements Runnable {
 								"Canceler for " + taskNameWithSubtask);
 						cancelThread.start();
 					}
-					return true;
+					return;
 				}
 			}
 			else {

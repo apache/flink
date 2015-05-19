@@ -365,8 +365,7 @@ public class TaskTest {
 			assertNull(task.getFailureCause());
 			
 			validateUnregisterTask(task.getExecutionId());
-			validateListenerMessage(ExecutionState.CANCELING, task, false);
-			validateListenerMessage(ExecutionState.CANCELED, task, false);
+			validateCancelingAndCanceledListenerMessage(task);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -431,8 +430,7 @@ public class TaskTest {
 			validateUnregisterTask(task.getExecutionId());
 			
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateListenerMessage(ExecutionState.CANCELING, task, false);
-			validateListenerMessage(ExecutionState.CANCELED, task, false);
+			validateCancelingAndCanceledListenerMessage(task);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -553,8 +551,7 @@ public class TaskTest {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateListenerMessage(ExecutionState.CANCELING, task, false);
-			validateListenerMessage(ExecutionState.CANCELED, task, false);
+			validateCancelingAndCanceledListenerMessage(task);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -716,6 +713,46 @@ public class TaskTest {
 			} else {
 				assertNull(taskState.getError(getClass().getClassLoader()));
 			}
+		}
+		catch (InterruptedException e) {
+			fail("interrupted");
+		}
+	}
+
+	private void validateCancelingAndCanceledListenerMessage(Task task) {
+		try {
+			// we may have to wait for a bit to give the actors time to receive the message
+			// and put it into the queue
+			TaskMessages.UpdateTaskExecutionState message1 =
+					(TaskMessages.UpdateTaskExecutionState) listenerMessages.poll(10, TimeUnit.SECONDS);
+			TaskMessages.UpdateTaskExecutionState message2 =
+					(TaskMessages.UpdateTaskExecutionState) listenerMessages.poll(10, TimeUnit.SECONDS);
+			
+			
+			assertNotNull("There is no additional listener message", message1);
+			assertNotNull("There is no additional listener message", message2);
+
+			TaskExecutionState taskState1 =  message1.taskExecutionState();
+			TaskExecutionState taskState2 =  message2.taskExecutionState();
+
+			assertEquals(task.getJobID(), taskState1.getJobID());
+			assertEquals(task.getJobID(), taskState2.getJobID());
+			assertEquals(task.getExecutionId(), taskState1.getID());
+			assertEquals(task.getExecutionId(), taskState2.getID());
+			
+			ExecutionState state1 = taskState1.getExecutionState();
+			ExecutionState state2 = taskState2.getExecutionState();
+			
+			// it may be (very rarely) that the following race happens:
+			//  - OUTSIDE THREAD: call to cancel()
+			//  - OUTSIDE THREAD: atomic state change from running to canceling
+			//  - TASK THREAD: finishes, atomic change from canceling to canceled
+			//  - TASK THREAD: send notification that state is canceled
+			//  - OUTSIDE THREAD: send notification that state is canceling
+			
+			// for that reason, we allow the notification messages in any order.
+			assertTrue( (state1 == ExecutionState.CANCELING && state2 == ExecutionState.CANCELED) ||
+						(state2 == ExecutionState.CANCELING && state1 == ExecutionState.CANCELED));
 		}
 		catch (InterruptedException e) {
 			fail("interrupted");
