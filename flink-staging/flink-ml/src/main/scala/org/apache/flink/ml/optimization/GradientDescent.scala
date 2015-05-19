@@ -121,35 +121,35 @@ class GradientDescent() extends IterativeSolver() {
           weightsWithLossSum =>
 
             // extract weight vector and squared residual sum
-            val currentWeightsDS = weightsWithLossSum.map{_._1}
-            val currentLossSumDS = weightsWithLossSum.map{_._2}
+            val previousWeightsDS = weightsWithLossSum.map{_._1}
+            val previousLossSumDS = weightsWithLossSum.map{_._2}
 
-            val updatedWeightsDS = SGDStep(data, currentWeightsDS)
+            val currentWeightsDS = SGDStep(data, previousWeightsDS)
 
-            val updatedLossSumDS = data.map {
+            val currentLossSumDS = data.map {
               new LossCalculation
-            }.withBroadcastSet(updatedWeightsDS, WEIGHTVECTOR_BROADCAST).reduce {
+            }.withBroadcastSet(currentWeightsDS, WEIGHTVECTOR_BROADCAST).reduce {
               _ + _
             }
             // TODO(tvas): Apply regularization to loss value
 
             // Check if the relative change in the squared residual sum is smaller than the
             // convergence threshold. If yes, then terminate => return empty termination data set
-            val termination = currentLossSumDS.crossWithTiny(updatedLossSumDS).setParallelism(1).
+            val termination = previousLossSumDS.crossWithTiny(currentLossSumDS).setParallelism(1).
               filter{
               pair => {
-                val (loss, newLoss) = pair
+                val (previousLoss, currentLoss) = pair
 
-                if (loss <= 0) {
+                if (previousLoss <= 0) {
                   false
                 } else {
-                  math.abs((loss - newLoss)/loss) >= convergence
+                  math.abs((previousLoss - currentLoss)/previousLoss) >= convergence
                 }
               }
             }
 
             // result for new iteration
-            (updatedWeightsDS cross updatedLossSumDS, termination)
+            (currentWeightsDS cross currentLossSumDS, termination)
         }
         resultWithLoss.map{_._1}
     }

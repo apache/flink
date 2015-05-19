@@ -190,6 +190,61 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   }
 
-  // TODO: Need more corner cases
+  it should "terminate early if the convergence criterion is reached" in {
+    // TODO(tvas): We need a better way to check the convergence of the weights.
+    // Ideally we want to have a Breeze-like system, where the optimizers carry a history and that
+    // can tell us whether we have converged and at which iteration
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
+    val sgdEarlyTerminate = GradientDescent()
+      .setConvergenceThreshold(1e2)
+      .setStepsize(1.0)
+      .setIterations(800)
+      .setLossFunction(SquaredLoss())
+      .setRegularizationType(NoRegularization())
+      .setRegularizationParameter(0.0)
+
+    val inputDS = env.fromCollection(data)
+
+    val weightDSEarlyTerminate = sgdEarlyTerminate.optimize(inputDS, None)
+
+    val weightListEarly: Seq[WeightVector] = weightDSEarlyTerminate.collect()
+
+    weightListEarly.size should equal(1)
+
+    val weightVectorEarly: WeightVector = weightListEarly.head
+    val weightsEarly = weightVectorEarly.weights.asInstanceOf[DenseVector].data
+    val weight0Early = weightVectorEarly.intercept
+
+    val sgdNoConvergence = GradientDescent()
+      .setStepsize(1.0)
+      .setIterations(800)
+      .setLossFunction(SquaredLoss())
+      .setRegularizationType(NoRegularization())
+      .setRegularizationParameter(0.0)
+
+
+    val weightDSNoConvergence = sgdNoConvergence.optimize(inputDS, None)
+
+    val weightListNoConvergence: Seq[WeightVector] = weightDSNoConvergence.collect()
+
+    weightListNoConvergence.size should equal(1)
+
+    val weightVectorNoConvergence: WeightVector = weightListNoConvergence.head
+    val weightsNoConvergence = weightVectorNoConvergence.weights.asInstanceOf[DenseVector].data
+    val weight0NoConvergence = weightVectorNoConvergence.intercept
+
+    // Since the first optimizer was set to terminate early, its weights should be different
+    weightsEarly zip weightsNoConvergence foreach {
+      case (earlyWeight, weightNoConvergence) =>
+        weightNoConvergence should not be (earlyWeight +- 0.1)
+    }
+    weight0NoConvergence should not be (weight0Early +- 0.1)
+  }
+
+  // TODO: Need more corner cases, see sklearn tests for SGD linear model
 
 }
