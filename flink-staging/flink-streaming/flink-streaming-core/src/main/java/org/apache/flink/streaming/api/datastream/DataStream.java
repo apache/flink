@@ -941,6 +941,7 @@ public class DataStream<OUT> {
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public WindowedDataStream<OUT> window(WindowingHelper policyHelper) {
+		policyHelper.setExecutionConfig(getExecutionConfig());
 		return new WindowedDataStream<OUT>(this, policyHelper);
 	}
 
@@ -972,6 +973,7 @@ public class DataStream<OUT> {
 	 */
 	@SuppressWarnings("rawtypes")
 	public WindowedDataStream<OUT> every(WindowingHelper policyHelper) {
+		policyHelper.setExecutionConfig(getExecutionConfig());
 		return window(FullStream.window()).every(policyHelper);
 	}
 

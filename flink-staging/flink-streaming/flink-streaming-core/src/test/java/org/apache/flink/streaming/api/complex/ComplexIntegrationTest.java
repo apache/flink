@@ -25,6 +25,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -35,6 +36,7 @@ import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.WindowMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.deltafunction.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.helper.Count;
@@ -611,10 +613,15 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	private static class RectangleSource implements SourceFunction<RectangleClass> {
+	private static class RectangleSource extends RichSourceFunction<RectangleClass> {
 		private static final long serialVersionUID = 1L;
-		RectangleClass rectangle = new RectangleClass(100, 100);
-		int cnt = 0;
+		private transient RectangleClass rectangle;
+		private transient int cnt;
+
+		public void open(Configuration parameters) throws Exception {
+			rectangle = new RectangleClass(100, 100);
+			cnt = 0;
+		}
 
 		@Override
 		public boolean reachedEnd() throws Exception {
@@ -764,7 +771,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	public static class RectangleClass implements Serializable {
+	public static class RectangleClass {
 
 		private static final long serialVersionUID = 1L;
 

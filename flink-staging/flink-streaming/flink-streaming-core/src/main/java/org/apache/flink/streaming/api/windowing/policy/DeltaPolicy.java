@@ -17,9 +17,15 @@
 
 package org.apache.flink.streaming.api.windowing.policy;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.util.DataInputDeserializer;
+import org.apache.flink.runtime.util.DataOutputSerializer;
 import org.apache.flink.streaming.api.windowing.deltafunction.DeltaFunction;
 
 /**
@@ -47,34 +53,45 @@ public class DeltaPolicy<DATA> implements CloneableTriggerPolicy<DATA>,
 	 */
 	private static final long serialVersionUID = -7797538922123394967L;
 
+	//Used for serializing the threshold
+	private final static int INITIAL_SERIALIZER_BYTES = 1024;
+
 	protected DeltaFunction<DATA> deltaFuntion;
 	private List<DATA> windowBuffer;
 	protected double threshold;
-	protected DATA triggerDataPoint;
+	private TypeSerializer<DATA> typeSerializer;
+	protected transient DATA triggerDataPoint;
 
 	/**
-	 * Crates a delta policy which calculates a delta between the data point
+	 * Creates a delta policy which calculates a delta between the data point
 	 * which triggered last and the currently arrived data point. It triggers if
-	 * the delta is higher than a specified threshold.
-	 * 
+	 * the delta is higher than a specified threshold. As the data may be sent to
+	 * the cluster a {@link TypeSerializer} is needed for the initial value.
+	 *
+	 * <p>
 	 * In case it gets used for eviction, this policy starts from the first
 	 * element of the buffer and removes all elements from the buffer which have
 	 * a higher delta then the threshold. As soon as there is an element with a
 	 * lower delta, the eviction stops.
-	 * 
+	 * </p>
+	 *
 	 * @param deltaFuntion
-	 *            The delta function to be used.
+	 * 				The delta function to be used.
 	 * @param init
-	 *            The initial to be used for the calculation of a delta before
-	 *            the first trigger.
+	 *				The initial to be used for the calculation of a delta before
+	 *				the first trigger.
 	 * @param threshold
-	 *            The threshold upon which a triggering should happen.
+	 * 				The threshold upon which a triggering should happen.
+	 * @param typeSerializer
+	 * 				TypeSerializer to properly forward the initial value to
+	 * 				the cluster
 	 */
-	public DeltaPolicy(DeltaFunction<DATA> deltaFuntion, DATA init, double threshold) {
+	public DeltaPolicy(DeltaFunction<DATA> deltaFuntion, DATA init, double threshold, TypeSerializer typeSerializer) {
 		this.deltaFuntion = deltaFuntion;
 		this.triggerDataPoint = init;
 		this.windowBuffer = new LinkedList<DATA>();
 		this.threshold = threshold;
+		this.typeSerializer = typeSerializer;
 	}
 
 	@Override
@@ -107,7 +124,7 @@ public class DeltaPolicy<DATA> implements CloneableTriggerPolicy<DATA>,
 
 	@Override
 	public DeltaPolicy<DATA> clone() {
-		return new DeltaPolicy<DATA>(deltaFuntion, triggerDataPoint, threshold);
+		return new DeltaPolicy<DATA>(deltaFuntion, triggerDataPoint, threshold, typeSerializer);
 	}
 
 	@Override
@@ -130,5 +147,20 @@ public class DeltaPolicy<DATA> implements CloneableTriggerPolicy<DATA>,
 	@Override
 	public String toString() {
 		return "DeltaPolicy(" + threshold + ", " + deltaFuntion.getClass().getSimpleName() + ")";
+	}
+
+	private void writeObject(ObjectOutputStream stream) throws IOException{
+		stream.defaultWriteObject();
+		DataOutputSerializer dataOutputSerializer = new DataOutputSerializer(INITIAL_SERIALIZER_BYTES);
+		typeSerializer.serialize(triggerDataPoint, dataOutputSerializer);
+		stream.write(dataOutputSerializer.getByteArray());
+	}
+
+	@SuppressWarnings("unchecked")
+	private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
+		stream.defaultReadObject();
+		byte[] bytes = new byte[stream.available()];
+		stream.readFully(bytes);
+		triggerDataPoint = typeSerializer.deserialize(new DataInputDeserializer(bytes, 0, bytes.length));
 	}
 }
