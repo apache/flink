@@ -19,7 +19,6 @@
 
 package org.apache.flink.ml.optimization
 
-import com.github.fommil.netlib.BLAS._
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
@@ -43,6 +42,9 @@ import org.apache.flink.ml.optimization.Solver._
   *                      [[Solver.RegularizationValueParameter]] for the regularization parameter,
   *                      [[IterativeSolver.Iterations]] for the maximum number of iteration,
   *                      [[IterativeSolver.Stepsize]] for the learning rate used.
+  *                      [[IterativeSolver.ConvergenceThreshold]] when provided the algorithm will
+  *                      stop the iterations if the change in the value of the objective
+  *                      function between successive iterations is is smaller than this value.
   */
 class GradientDescent() extends IterativeSolver() {
 
@@ -104,15 +106,26 @@ class GradientDescent() extends IterativeSolver() {
           }
         }
       case Some(convergence) =>
-        // we have to calculate for each weight vector the sum of squared residuals
-        val initialLossSumDS = data.map {
-          new LossCalculation
-        }.withBroadcastSet(initialWeightsDS, WEIGHTVECTOR_BROADCAST).reduce {
-          _ + _
+        /** Calculates the regularized loss, from the data and given weights **/
+        def lossCalculation(data: DataSet[LabeledVector], weightDS: DataSet[WeightVector]):
+        DataSet[Double] = {
+          data.map {
+            new LossCalculation
+          }.withBroadcastSet(weightDS, WEIGHTVECTOR_BROADCAST)
+            .reduce {
+            (left, right) =>
+              val (leftLoss, leftCount) = left
+              val (rightLoss, rightCount) = right
+              (leftLoss + rightLoss, rightCount + leftCount)
+          }
+            .map{new RegularizedLossCalculation}
+            .withBroadcastSet(weightDS, WEIGHTVECTOR_BROADCAST)
         }
-        // TODO(tvas): Apply regularization to loss value
+        // We have to calculate for each weight vector the sum of squared residuals,
+        // and then sum them and apply regularization
+        val initialLossSumDS = lossCalculation(data, initialWeightsDS)
 
-        // combine weight vector with current sum of squared residuals
+        // Combine weight vector with the current loss
         val initialWeightsWithLossSum = initialWeightsDS.
           crossWithTiny(initialLossSumDS).setParallelism(1)
 
@@ -120,21 +133,16 @@ class GradientDescent() extends IterativeSolver() {
           iterateWithTermination(numberOfIterations) {
           weightsWithLossSum =>
 
-            // extract weight vector and squared residual sum
+            // Extract weight vector and loss
             val previousWeightsDS = weightsWithLossSum.map{_._1}
             val previousLossSumDS = weightsWithLossSum.map{_._2}
 
             val currentWeightsDS = SGDStep(data, previousWeightsDS)
 
-            val currentLossSumDS = data.map {
-              new LossCalculation
-            }.withBroadcastSet(currentWeightsDS, WEIGHTVECTOR_BROADCAST).reduce {
-              _ + _
-            }
-            // TODO(tvas): Apply regularization to loss value
+            val currentLossSumDS = lossCalculation(data, currentWeightsDS)
 
-            // Check if the relative change in the squared residual sum is smaller than the
-            // convergence threshold. If yes, then terminate => return empty termination data set
+            // Check if the relative change in the loss is smaller than the
+            // convergence threshold. If yes, then terminate i.e. return empty termination data set
             val termination = previousLossSumDS.crossWithTiny(currentLossSumDS).setParallelism(1).
               filter{
               pair => {
@@ -148,9 +156,10 @@ class GradientDescent() extends IterativeSolver() {
               }
             }
 
-            // result for new iteration
+            // Result for new iteration
             (currentWeightsDS cross currentLossSumDS, termination)
         }
+        // Return just the weights
         resultWithLoss.map{_._1}
     }
     optimizedWeights
@@ -160,7 +169,7 @@ class GradientDescent() extends IterativeSolver() {
     *
     * The weight vector is received as a broadcast variable.
     */
-  private class LossCalculation extends RichMapFunction[LabeledVector, Double] {
+  private class LossCalculation extends RichMapFunction[LabeledVector, (Double, Int)] {
 
     var weightVector: WeightVector = null
 
@@ -174,7 +183,7 @@ class GradientDescent() extends IterativeSolver() {
 
     }
 
-    override def map(example: LabeledVector): Double = {
+    override def map(example: LabeledVector): (Double, Int) = {
       val lossFunction = parameters(LossFunctionParameter)
       val predictionFunction = parameters(PredictionFunctionParameter)
       val dimensions = example.vector.size
@@ -188,9 +197,42 @@ class GradientDescent() extends IterativeSolver() {
         weightGradient,
         predictionFunction)
 
-      loss
+      (loss, 1)
     }
   }
+
+/** Calculates the regularized loss value, given the loss and the current weight vector
+  *
+  * The weight vector is received as a broadcast variable.
+  */
+private class RegularizedLossCalculation extends RichMapFunction[(Double, Int), Double] {
+
+  var weightVector: WeightVector = null
+
+
+  @throws(classOf[Exception])
+  override def open(configuration: Configuration): Unit = {
+    val list = this.getRuntimeContext.
+      getBroadcastVariable[WeightVector](WEIGHTVECTOR_BROADCAST)
+
+    weightVector = list.get(0)
+
+  }
+
+  override def map(lossAndCount: (Double, Int)): Double = {
+    val (lossSum, count) = lossAndCount
+    val regType = parameters(RegularizationTypeParameter)
+    val regParameter = parameters(RegularizationValueParameter)
+
+    val regularizedLoss = {
+      regType.regLoss(
+        lossSum/count,
+        weightVector.weights,
+        regParameter)
+    }
+    regularizedLoss
+  }
+}
 
   /** Performs the update of the weights, according to the given gradients and regularization type.
     *
