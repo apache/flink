@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
-
 import com.google.common.base.Preconditions;
 
 /**
