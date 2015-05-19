@@ -154,6 +154,23 @@ class NettyClient {
 	ChannelFuture connect(SocketAddress serverSocketAddress) {
 		checkState(bootstrap != null, "Client has not been initialized yet.");
 
-		return bootstrap.connect(serverSocketAddress);
+		try {
+			return bootstrap.connect(serverSocketAddress);
+		}
+		catch (io.netty.channel.ChannelException e) {
+			if ( (e.getCause() instanceof java.net.SocketException &&
+					e.getCause().getMessage().equals("Too many open files")) ||
+				(e.getCause() instanceof io.netty.channel.ChannelException &&
+						e.getCause().getCause() instanceof java.net.SocketException &&
+						e.getCause().getCause().getMessage().equals("Too many open files")))
+			{
+				throw new io.netty.channel.ChannelException(
+						"The operating system does not offer enough file handles to open the network connection. " +
+								"Please increase the number of of available file handles.", e.getCause());
+			}
+			else {
+				throw e;
+			}
+		}
 	}
 }
