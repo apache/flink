@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.connectors.twitter;
 
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -26,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,23 +37,25 @@ import com.twitter.hbc.httpclient.auth.Authentication;
 import com.twitter.hbc.httpclient.auth.OAuth1;
 
 /**
- * Implementation of {@link SourceFunction} specialized to emit tweets from
- * Twitter. It can connect to Twitter Streaming API, collect tweets and
+ * Implementation of {@link RichParallelSourceFunction} specialized to emit tweets from
+ * Twitter. It can connect to Twitter Streaming API and collect the tweets consumed using 
+ * the given {@link Collector}.  The incoming tweets are buffered in an internal queue that is
+ * used to communicate the asynchronous Twitter Streaming API and the call to the function's collector.
+ * 
  */
 public class TwitterSource extends RichParallelSourceFunction<String> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TwitterSource.class);
 
 	private static final long serialVersionUID = 1L;
-	private String authPath;
+	
+	private Properties authenticationProperties;
 	private transient BlockingQueue<String> queue;
 	private int queueSize = 10000;
 	private transient BasicClient client;
 	private int waitSec = 5;
-
 	private boolean streaming;
 	private int numberOfTweets;
-
 	private volatile boolean isRunning = false;
 
 	/**
@@ -66,9 +65,9 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	 *            Location of the properties file containing the required
 	 *            authentication information.
 	 */
-	public TwitterSource(String authPath) {
-		this.authPath = authPath;
-		streaming = true;
+	public TwitterSource(Properties authenticationProperties) {
+		this.authenticationProperties = authenticationProperties;
+		this.streaming = true;
 	}
 
 	/**
@@ -80,9 +79,9 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	 * @param numberOfTweets
 	 * 
 	 */
-	public TwitterSource(String authPath, int numberOfTweets) {
-		this.authPath = authPath;
-		streaming = false;
+	public TwitterSource(Properties authenticationProperties, int numberOfTweets) {
+		this.authenticationProperties = authenticationProperties;
+		this.streaming = false;
 		this.numberOfTweets = numberOfTweets;
 	}
 
@@ -110,7 +109,6 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	 * Initialize Hosebird Client to be able to consume Twitter's Streaming API
 	 */
 	private void initializeConnection() {
-
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Initializing Twitter Streaming API connection");
 		}
@@ -130,34 +128,13 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	}
 
 	private OAuth1 authenticate() {
-
-		Properties authenticationProperties = loadAuthenticationProperties();
-
 		return new OAuth1(authenticationProperties.getProperty("consumerKey"),
 				authenticationProperties.getProperty("consumerSecret"),
 				authenticationProperties.getProperty("token"),
 				authenticationProperties.getProperty("secret"));
 	}
 
-	/**
-	 * Reads the given properties file for the authentication data.
-	 * 
-	 * @return the authentication data.
-	 */
-	private Properties loadAuthenticationProperties() {
-		Properties properties = new Properties();
-		try {
-			InputStream input = new FileInputStream(authPath);
-			properties.load(input);
-			input.close();
-		} catch (Exception e) {
-			throw new RuntimeException("Cannot open .properties file: " + authPath, e);
-		}
-		return properties;
-	}
-
 	private void initializeClient(StatusesSampleEndpoint endpoint, Authentication auth) {
-
 		client = new ClientBuilder().name("twitterSourceClient").hosts(Constants.STREAM_HOST)
 				.endpoint(endpoint).authentication(auth)
 				.processor(new StringDelimitedProcessor(queue)).build();
@@ -172,7 +149,6 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	 *            Collector in which the tweets are collected.
 	 */
 	protected void collectFiniteMessages(Collector<String> collector) {
-
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Collecting tweets");
 		}
@@ -193,7 +169,6 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	 *            Collector in which the tweets are collected.
 	 */
 	protected void collectMessages(Collector<String> collector) {
-
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Tweet-stream begins");
 		}
@@ -233,7 +208,6 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	}
 
 	private void closeConnection() {
-
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Initiating connection close");
 		}

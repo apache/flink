@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.twitter;
 
+import java.util.Properties;
+
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -71,7 +73,7 @@ public class TwitterStreaming {
 			} 
 		}
 	}
-
+	
 	public static void main(String[] args) throws Exception {
 
 		String path = new String();
@@ -82,11 +84,13 @@ public class TwitterStreaming {
 			System.err.println("USAGE:\nTwitterStreaming <pathToPropertiesFile>");
 			return;
 		}
+		
+		Properties authenticationProperties = PropertiesUtil.load(path);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(PARALLELISM);
 
-		DataStream<String> streamSource = env.addSource(new TwitterSource(path, NUMBEROFTWEETS))
+		DataStream<String> streamSource = env.addSource(new TwitterSource(authenticationProperties, NUMBEROFTWEETS))
 				.setParallelism(SOURCE_PARALLELISM);
 
 		DataStream<Tuple5<Long, Integer, String, String, String>> selectedDataStream = streamSource

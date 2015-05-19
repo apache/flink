@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.twitter;
 
+import java.util.Properties;
+
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -55,7 +57,7 @@ public class TwitterTopology {
 		}
 
 	}
-
+	
 	public static void main(String[] args) throws Exception {
 
 		String path = new String();
@@ -66,10 +68,12 @@ public class TwitterTopology {
 			System.err.println("USAGE:\nTwitterLocal <pathToPropertiesFile>");
 			return;
 		}
+		
+		Properties authenticationProperties = PropertiesUtil.load(path);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStream<String> streamSource = env.addSource(new TwitterSource(path, NUMBEROFTWEETS));
+		DataStream<String> streamSource = env.addSource(new TwitterSource(authenticationProperties, NUMBEROFTWEETS));
 
 
 		DataStream<Tuple2<String, Integer>> dataStream = streamSource
