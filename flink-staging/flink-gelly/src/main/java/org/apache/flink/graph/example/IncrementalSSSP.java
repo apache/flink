@@ -60,14 +60,14 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
  * The propagation stops when a vertex with an alternative shortest path is reached
  * or when we reach a vertex with no SP-in-neighbors.
  *
- * Usage <code>IncrementalSSSPExample &lt;vertex path&gt; &lt;edge path&gt; &lt;edges in SSSP&gt;
+ * Usage <code>IncrementalSSSP &lt;vertex path&gt; &lt;edge path&gt; &lt;edges in SSSP&gt;
  * &lt;src id edge to be removed&gt; &lt;trg id edge to be removed&gt; &lt;val edge to be removed&gt;
  * &lt;result path&gt; &lt;number of iterations&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link org.apache.flink.graph.example.utils.IncrementalSSSPData}
  */
 @SuppressWarnings("serial")
-public class IncrementalSSSPExample implements ProgramDescription {
+public class IncrementalSSSP implements ProgramDescription {
 
 	public static void main(String [] args) throws Exception {
 
