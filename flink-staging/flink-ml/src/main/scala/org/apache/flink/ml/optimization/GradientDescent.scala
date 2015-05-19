@@ -43,7 +43,7 @@ import org.apache.flink.ml.optimization.Solver._
   *                      [[IterativeSolver.Iterations]] for the maximum number of iteration,
   *                      [[IterativeSolver.Stepsize]] for the learning rate used.
   *                      [[IterativeSolver.ConvergenceThreshold]] when provided the algorithm will
-  *                      stop the iterations if the change in the value of the objective
+  *                      stop the iterations if the relative change in the value of the objective
   *                      function between successive iterations is is smaller than this value.
   */
 class GradientDescent() extends IterativeSolver() {

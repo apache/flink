@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.math.{Vector => FlinkVector, SparseVector, BLAS, DenseVector}
+import org.apache.flink.ml.math.{SparseVector, DenseVector}
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.optimization.IterativeSolver._
 // TODO(tvas): Kind of ugly that we have to do this. Why not define the parameters inside the class?
@@ -87,24 +87,24 @@ abstract class Solver() extends Serializable with WithParameters {
 
   //Setters for parameters
   // TODO(tvas): Provide an option to fit an intercept or not
-  def setLossFunction(lossFunction: LossFunction): Solver = {
+  def setLossFunction(lossFunction: LossFunction): this.type = {
     parameters.add(LossFunctionParameter, lossFunction)
     this
   }
 
   // TODO(tvas): Sanitize the input, i.e. depending on Solver type allow only certain types of
   // regularization to be set.
-  def setRegularizationType(regularization: Regularization): Solver = {
+  def setRegularizationType(regularization: Regularization): this.type = {
     parameters.add(RegularizationTypeParameter, regularization)
     this
   }
 
-  def setRegularizationParameter(regularizationParameter: Double): Solver = {
+  def setRegularizationParameter(regularizationParameter: Double): this.type = {
     parameters.add(RegularizationValueParameter, regularizationParameter)
     this
   }
 
-  def setPredictionFunction(predictionFunction: PredictionFunction): Solver = {
+  def setPredictionFunction(predictionFunction: PredictionFunction): this.type = {
     parameters.add(PredictionFunctionParameter, predictionFunction)
     this
   }
@@ -142,17 +142,17 @@ object Solver {
 abstract class IterativeSolver() extends Solver() {
 
   //Setters for parameters
-  def setIterations(iterations: Int): IterativeSolver = {
+  def setIterations(iterations: Int): this.type = {
     parameters.add(Iterations, iterations)
     this
   }
 
-  def setStepsize(stepsize: Double): IterativeSolver = {
+  def setStepsize(stepsize: Double): this.type = {
     parameters.add(Stepsize, stepsize)
     this
   }
 
-  def setConvergenceThreshold(convergenceThreshold: Double): IterativeSolver = {
+  def setConvergenceThreshold(convergenceThreshold: Double): this.type = {
     parameters.add(ConvergenceThreshold, convergenceThreshold)
     this
   }
