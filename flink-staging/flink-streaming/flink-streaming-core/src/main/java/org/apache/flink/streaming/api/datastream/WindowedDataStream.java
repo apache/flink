@@ -149,6 +149,7 @@ public class WindowedDataStream<OUT> {
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public WindowedDataStream<OUT> every(WindowingHelper policyHelper) {
+		policyHelper.setExecutionConfig(getExecutionConfig());
 		WindowedDataStream<OUT> ret = this.copy();
 		if (ret.evictionHelper == null) {
 			ret.evictionHelper = ret.triggerHelper;
