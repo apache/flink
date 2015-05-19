@@ -36,11 +36,11 @@ import org.apache.flink.types.NullValue;
  * is reached.
  */
 @SuppressWarnings("serial")
-public class ConnectedComponents implements GraphAlgorithm<Long, Long, NullValue>{
+public class ConnectedComponentsAlgorithm implements GraphAlgorithm<Long, Long, NullValue>{
 
 	private Integer maxIterations;
 
-	public ConnectedComponents(Integer maxIterations) {
+	public ConnectedComponentsAlgorithm(Integer maxIterations) {
 		this.maxIterations = maxIterations;
 	}
 

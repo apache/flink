@@ -26,7 +26,7 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
-import org.apache.flink.graph.library.SingleSourceShortestPaths;
+import org.apache.flink.graph.library.SingleSourceShortestPathsAlgorithm;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
@@ -40,7 +40,7 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
  * If no arguments are provided, the example runs with default data from {@link SingleSourceShortestPathsData}.
  *
  */
-public class SingleSourceShortestPathsExample implements ProgramDescription {
+public class SingleSourceShortestPaths implements ProgramDescription {
 
 	@SuppressWarnings("serial")
 	public static void main(String[] args) throws Exception {
@@ -62,7 +62,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 		}, env);
 
 		DataSet<Vertex<Long, Double>> singleSourceShortestPaths = graph
-				.run(new SingleSourceShortestPaths<Long>(srcVertexId, maxIterations))
+				.run(new SingleSourceShortestPathsAlgorithm<Long>(srcVertexId, maxIterations))
 				.getVertices();
 
 		// emit result

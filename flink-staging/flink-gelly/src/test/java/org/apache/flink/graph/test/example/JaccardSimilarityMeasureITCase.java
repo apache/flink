@@ -20,8 +20,8 @@ package org.apache.flink.graph.test.example;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.graph.example.EuclideanGraphExample;
-import org.apache.flink.graph.example.utils.EuclideanGraphData;
+import org.apache.flink.graph.example.JaccardSimilarityMeasure;
+import org.apache.flink.graph.example.utils.JaccardSimilarityMeasureData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
 import org.junit.Before;
@@ -34,9 +34,7 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 
 @RunWith(Parameterized.class)
-public class EuclideanGraphExampleITCase extends MultipleProgramsTestBase {
-
-	private String verticesPath;
+public class JaccardSimilarityMeasureITCase extends MultipleProgramsTestBase {
 
 	private String edgesPath;
 
@@ -47,27 +45,24 @@ public class EuclideanGraphExampleITCase extends MultipleProgramsTestBase {
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	public EuclideanGraphExampleITCase(TestExecutionMode mode) {
+	public JaccardSimilarityMeasureITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
 	@Before
 	public void before() throws Exception {
 		resultPath = tempFolder.newFile().toURI().toString();
-		File verticesFile = tempFolder.newFile();
-		Files.write(EuclideanGraphData.VERTICES, verticesFile, Charsets.UTF_8);
 
 		File edgesFile = tempFolder.newFile();
-		Files.write(EuclideanGraphData.EDGES, edgesFile, Charsets.UTF_8);
+		Files.write(JaccardSimilarityMeasureData.EDGES, edgesFile, Charsets.UTF_8);
 
-		verticesPath = verticesFile.toURI().toString();
 		edgesPath = edgesFile.toURI().toString();
 	}
 
 	@Test
-	public void testGraphWeightingExanple() throws Exception {
-		EuclideanGraphExample.main(new String[]{verticesPath, edgesPath, resultPath});
-		expected = EuclideanGraphData.RESULTED_WEIGHTED_EDGES;
+	public void testJaccardSimilarityMeasureExample() throws Exception {
+		JaccardSimilarityMeasure.main(new String[]{edgesPath, resultPath});
+		expected = JaccardSimilarityMeasureData.JACCARD_EDGES;
 	}
 
 	@After

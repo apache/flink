@@ -27,7 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.library.LabelPropagation;
+import org.apache.flink.graph.library.LabelPropagationAlgorithm;
 import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
@@ -48,7 +48,7 @@ import org.apache.flink.util.Collector;
  *
  * If no arguments are provided, the example runs with a random graph of 100 vertices.
  */
-public class LabelPropagationExample implements ProgramDescription {
+public class LabelPropagation implements ProgramDescription {
 
 	public static void main(String[] args) throws Exception {
 
@@ -67,7 +67,7 @@ public class LabelPropagationExample implements ProgramDescription {
 
 		// Set up the program
 		DataSet<Vertex<Long, Long>> verticesWithCommunity = graph.run(
-				new LabelPropagation<Long>(maxIterations)).getVertices();
+				new LabelPropagationAlgorithm<Long>(maxIterations)).getVertices();
 
 		// Emit results
 		if(fileOutput) {

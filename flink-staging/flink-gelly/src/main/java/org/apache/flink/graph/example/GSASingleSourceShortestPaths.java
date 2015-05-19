@@ -35,7 +35,7 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 /**
  * This is an implementation of the Single Source Shortest Paths algorithm, using a gather-sum-apply iteration
  */
-public class GSASingleSourceShortestPathsExample implements ProgramDescription {
+public class GSASingleSourceShortestPaths implements ProgramDescription {
 
 	// --------------------------------------------------------------------------------------------
 	//  Program
@@ -68,7 +68,7 @@ public class GSASingleSourceShortestPathsExample implements ProgramDescription {
 			singleSourceShortestPaths.print();
 		}
 
-		env.execute("GSA Single Source Shortest Paths Example");
+		env.execute("GSA Single Source Shortest Paths");
 	}
 
 	@SuppressWarnings("serial")
@@ -118,7 +118,7 @@ public class GSASingleSourceShortestPathsExample implements ProgramDescription {
 				setResult(newDistance);
 			}
 		}
-	};
+	}
 
 	// --------------------------------------------------------------------------------------------
 	//  Util methods

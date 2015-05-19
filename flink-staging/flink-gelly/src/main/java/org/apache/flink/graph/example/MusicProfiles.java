@@ -37,7 +37,7 @@ import org.apache.flink.graph.EdgesFunctionWithVertexValue;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.MusicProfilesData;
-import org.apache.flink.graph.library.LabelPropagation;
+import org.apache.flink.graph.library.LabelPropagationAlgorithm;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
@@ -140,7 +140,7 @@ public class MusicProfiles implements ProgramDescription {
 							public Long map(Tuple2<Long, Long> value) {
 								return value.f1;
 							}
-						}).run(new LabelPropagation<String>(maxIterations))
+						}).run(new LabelPropagationAlgorithm<String>(maxIterations))
 				.getVertices();
 
 		if (fileOutput) {
