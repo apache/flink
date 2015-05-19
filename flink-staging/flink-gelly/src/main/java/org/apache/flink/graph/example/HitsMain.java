@@ -19,44 +19,53 @@ public class HitsMain {
 
     public static void main(String args [] ) throws Exception {
 
-
-
-
-
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<Vertex<Long, Double>> vertices = getVertices(env);
 
+        DataSet<Edge<Long, Double>> edges = getEdges(env);
 
-        DataSet<Edge<Long, Double>> edges = getlinks(env);
-
-
-
+        //create a graph from vertices(list of vertices created with getVertices function)
+        // and edges(list of Edges created with getEdges function).
         Graph<Long, Double, Double> graph = Graph.fromDataSet(vertices, edges, env);
 
+        // add  graph to Hits_Class with iteration value.
         DataSet<Tuple3<Long, Double, Double>> hubAndAuthority = new Hits_Class(graph,3).run();
 
+
+        // print the retrieved data set.
         hubAndAuthority.print();
 
-        env.execute("javid");
+        env.execute("Hits Example");
 
     }
 
-    public static DataSet<Edge<Long, Double> > getlinks(ExecutionEnvironment en){
+    /**
+     * this function create a set of links (Edges).
+     * @param en (environment variable)
+     * @return Datset of Edges.
+     */
+
+    public static DataSet<Edge<Long, Double> > getEdges(ExecutionEnvironment en){
         return en.generateSequence(1,1).flatMap(new FlatMapFunction<Long, Edge<Long,Double>>() {
             @Override
             public void flatMap(Long value, Collector<Edge<Long,Double>> out) throws Exception {
 
-                out.collect(new Edge<Long, Double>(1l,2l, 2.0));
-                out.collect(new Edge<Long, Double>(2l,1l, 4.0));
-                out.collect(new Edge<Long, Double>(2l,3l, 3.0));
-                out.collect(new Edge<Long, Double>(3l,1l, 5.0));
-                out.collect(new Edge<Long, Double>(3l,2l, 6.0));
+                out.collect(new Edge<Long, Double>(1l,2l, 0.0));
+                out.collect(new Edge<Long, Double>(2l,1l, 0.0));
+                out.collect(new Edge<Long, Double>(2l,3l, 0.0));
+                out.collect(new Edge<Long, Double>(3l,1l, 0.0));
+                out.collect(new Edge<Long, Double>(3l,2l, 0.0));
             }
         });
 
     }
 
+    /**
+     * this function create a set of nodes (Vertices).
+     * @param en (environment variable)
+     * @return DataSet of Vertices.
+     */
     public static DataSet<Vertex<Long, Double>> getVertices(ExecutionEnvironment en){
         return en.generateSequence(1,1).flatMap(new FlatMapFunction<Long, Vertex<Long,Double>>() {
             @Override

@@ -24,7 +24,13 @@ public class Hits_Class {
 
     }
 
-
+    /**
+     * This function compute the hub and authority values from graph
+     * and update the graph in each iteration with hubValues and authorityValues
+     *
+     * return Dataset< Tuple3 > with IDs, Hub Values, Authority Values
+     *
+     */
     public static DataSet<Tuple3<Long, Double, Double>> run(){
 
         DataSet<Tuple2<Long, Double>> authorityValues = null;
