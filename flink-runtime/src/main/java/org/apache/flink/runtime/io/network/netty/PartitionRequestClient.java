@@ -23,6 +23,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.util.AtomicDisposableReferenceCounter;
@@ -84,7 +85,7 @@ public class PartitionRequestClient {
 	 * The request goes to the remote producer, for which this partition
 	 * request client instance has been created.
 	 */
-	public void requestSubpartition(
+	public ChannelFuture requestSubpartition(
 			final ResultPartitionID partitionId,
 			final int subpartitionIndex,
 			final RemoteInputChannel inputChannel,
@@ -103,21 +104,31 @@ public class PartitionRequestClient {
 			public void operationComplete(ChannelFuture future) throws Exception {
 				if (!future.isSuccess()) {
 					partitionRequestHandler.removeInputChannel(inputChannel);
-					inputChannel.onError(future.cause());
+					inputChannel.onError(
+							new LocalTransportException(
+									"Sending the partition request failed.",
+									future.channel().localAddress(), future.cause()
+							));
 				}
 			}
 		};
 
 		if (delayMs == 0) {
-			tcpChannel.writeAndFlush(request).addListener(listener);
+			ChannelFuture f = tcpChannel.writeAndFlush(request);
+			f.addListener(listener);
+			return f;
 		}
 		else {
+			final ChannelFuture[] f = new ChannelFuture[1];
 			tcpChannel.eventLoop().schedule(new Runnable() {
 				@Override
 				public void run() {
-					tcpChannel.writeAndFlush(request).addListener(listener);
+					f[0] = tcpChannel.writeAndFlush(request);
+					f[0].addListener(listener);
 				}
 			}, delayMs, TimeUnit.MILLISECONDS);
+
+			return f[0];
 		}
 	}
 
@@ -137,7 +148,10 @@ public class PartitionRequestClient {
 							@Override
 							public void operationComplete(ChannelFuture future) throws Exception {
 								if (!future.isSuccess()) {
-									inputChannel.onError(future.cause());
+									inputChannel.onError(new LocalTransportException(
+											"Sending the task event failed.",
+											future.channel().localAddress(), future.cause()
+									));
 								}
 							}
 						});

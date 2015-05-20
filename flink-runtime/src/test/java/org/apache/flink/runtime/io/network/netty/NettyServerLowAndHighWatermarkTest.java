@@ -21,18 +21,19 @@ package org.apache.flink.runtime.io.network.netty;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelPipeline;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.net.NetUtils;
 import org.junit.Test;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
+import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.awaitClose;
+import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
+import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.createConfig;
+import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
+import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -53,43 +54,31 @@ public class NettyServerLowAndHighWatermarkTest {
 	 */
 	@Test
 	public void testLowAndHighWatermarks() throws Throwable {
-		final NettyConfig conf = new NettyConfig(
-				InetAddress.getLocalHost(),
-				NetUtils.getAvailablePort(),
-				PageSize,
-				new Configuration());
-
 		final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 		final NettyProtocol protocol = new NettyProtocol() {
 			@Override
-			public void setServerChannelPipeline(ChannelPipeline channelPipeline) {
+			public ChannelHandler[] getServerChannelHandlers() {
 				// The channel handler implements the test
-				channelPipeline.addLast(new TestLowAndHighWatermarkHandler(error));
+				return new ChannelHandler[] {new TestLowAndHighWatermarkHandler(error)};
 			}
 
 			@Override
-			public void setClientChannelPipeline(ChannelPipeline channelPipeline) {
+			public ChannelHandler[] getClientChannelHandlers() {
+				return new ChannelHandler[0];
 			}
 		};
 
-		final NettyServer server = new NettyServer(conf);
-		final NettyClient client = new NettyClient(conf);
+		final NettyConfig conf = createConfig(PageSize);
+
+		final NettyServerAndClient serverAndClient = initServerAndClient(protocol, conf);
 
 		try {
-			server.init(protocol);
-			client.init(protocol);
-
 			// We can't just check the config of this channel as it is the client's channel. We need
 			// to check the server channel, because it is doing the data transfers.
-			final Channel ch = client
-					.connect(new InetSocketAddress(conf.getServerAddress(), conf.getServerPort()))
-					.sync()
-					.channel();
+			final Channel ch = connect(serverAndClient);
 
 			// Wait for the channel to be closed
-			while (ch.isActive()) {
-				ch.closeFuture().await(1, TimeUnit.SECONDS);
-			}
+			awaitClose(ch);
 
 			final Throwable t = error.get();
 			if (t != null) {
@@ -97,13 +86,7 @@ public class NettyServerLowAndHighWatermarkTest {
 			}
 		}
 		finally {
-			if (server != null) {
-				server.shutdown();
-			}
-
-			if (client != null) {
-				client.shutdown();
-			}
+			shutdown(serverAndClient);
 		}
 	}
 

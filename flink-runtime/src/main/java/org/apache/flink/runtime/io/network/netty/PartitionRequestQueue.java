@@ -35,9 +35,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
@@ -60,36 +57,6 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 	private ChannelHandlerContext ctx;
 
-	private int numTotalSubscribeCalls;
-
-	private AtomicInteger numOutstandingSubscribeCalls = new AtomicInteger();
-
-	private int numConsumedPartitions;
-
-	private AtomicInteger numEnqueueCalls = new AtomicInteger();
-
-	private int numTotalEnqueueOperations;
-
-	private ScheduledFuture<?> logOutputTask;
-
-	@Override
-	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		if (LOG.isDebugEnabled()) {
-			logOutputTask = ctx.channel().eventLoop().scheduleWithFixedDelay(new DebugOutputTask(), 30, 30, TimeUnit.SECONDS);
-		}
-
-		super.channelActive(ctx);
-	}
-
-	@Override
-	public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-		if (logOutputTask != null) {
-			logOutputTask.cancel(true);
-		}
-
-		super.channelUnregistered(ctx);
-	}
-
 	@Override
 	public void channelRegistered(final ChannelHandlerContext ctx) throws Exception {
 		if (this.ctx == null) {
@@ -100,8 +67,11 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	}
 
 	public void enqueue(ResultSubpartitionView partitionQueue, InputChannelID receiverId) throws Exception {
-		numEnqueueCalls.incrementAndGet();
 		ctx.pipeline().fireUserEventTriggered(new SequenceNumberingSubpartitionView(partitionQueue, receiverId));
+	}
+
+	public void cancel(InputChannelID receiverId) {
+		ctx.pipeline().fireUserEventTriggered(receiverId);
 	}
 
 	@Override
@@ -109,11 +79,33 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		if (msg.getClass() == SequenceNumberingSubpartitionView.class) {
 			boolean triggerWrite = queue.isEmpty();
 
-			numTotalEnqueueOperations++;
 			queue.add((SequenceNumberingSubpartitionView) msg);
 
 			if (triggerWrite) {
 				writeAndFlushNextMessageIfPossible(ctx.channel());
+			}
+		}
+		else if (msg.getClass() == InputChannelID.class) {
+			InputChannelID toCancel = (InputChannelID) msg;
+
+			// Cancel the request for the input channel
+			if (currentPartitionQueue != null && currentPartitionQueue.getReceiverId().equals(toCancel)) {
+				currentPartitionQueue.releaseAllResources();
+				currentPartitionQueue = null;
+			}
+			else {
+				int size = queue.size();
+
+				for (int i = 0; i < size; i++) {
+					SequenceNumberingSubpartitionView curr = queue.poll();
+
+					if (curr.getReceiverId().equals(toCancel)) {
+						curr.releaseAllResources();
+					}
+					else {
+						queue.add(curr);
+					}
+				}
 			}
 		}
 		else {
@@ -144,9 +136,6 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 					if (buffer == null) {
 						if (currentPartitionQueue.registerListener(null)) {
-							numTotalSubscribeCalls++;
-							numOutstandingSubscribeCalls.incrementAndGet();
-
 							currentPartitionQueue = null;
 						}
 						else if (currentPartitionQueue.isReleased()) {
@@ -293,63 +282,8 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		 */
 		@Override
 		public void onNotification() {
-			numOutstandingSubscribeCalls.decrementAndGet();
 			ctx.pipeline().fireUserEventTriggered(this);
 		}
 	}
 
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Debug output task executed periodically by the network I/O thread.
-	 */
-	private class DebugOutputTask implements Runnable {
-
-		@Override
-		public void run() {
-			StringBuilder str = new StringBuilder();
-
-			str.append("Channel remote address: ");
-			str.append(ctx.channel().remoteAddress());
-			str.append(". ");
-
-			str.append("Channel active: ");
-			str.append(ctx.channel().isActive());
-			str.append(". ");
-
-			str.append("Total number of queue operations: ");
-			str.append(numTotalEnqueueOperations);
-			str.append(". ");
-
-			str.append("Number of enqueue calls: ");
-			str.append(numEnqueueCalls.get());
-			str.append(". ");
-
-			str.append("Number of consumed partitions: ");
-			str.append(numConsumedPartitions);
-			str.append(". ");
-
-			str.append("Number of currently queued partitions: ");
-			str.append(queue.size());
-			str.append(". ");
-
-			str.append("Current partition queue: ");
-			str.append(currentPartitionQueue);
-			str.append(". ");
-
-			str.append("Total number of subscribe calls: ");
-			str.append(numTotalSubscribeCalls);
-			str.append(". ");
-
-			str.append("Number of outstanding subscribe calls: ");
-			str.append(numOutstandingSubscribeCalls.get());
-			str.append(". ");
-
-			str.append("Channel writeable? ");
-			str.append(ctx.channel().isWritable());
-			str.append(". ");
-
-			LOG.debug(str.toString());
-		}
-	}
 }

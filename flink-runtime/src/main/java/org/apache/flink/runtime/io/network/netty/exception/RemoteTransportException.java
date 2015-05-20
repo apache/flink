@@ -16,14 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.netty;
+package org.apache.flink.runtime.io.network.netty.exception;
 
-import io.netty.channel.ChannelHandler;
+import java.net.SocketAddress;
 
-public interface NettyProtocol {
+public class RemoteTransportException extends TransportException {
 
-	ChannelHandler[] getServerChannelHandlers();
+	private static final long serialVersionUID = 4373615529545893089L;
 
-	ChannelHandler[] getClientChannelHandlers();
+	public RemoteTransportException(String message, SocketAddress address) {
+		super(message, address);
+	}
 
+	public RemoteTransportException(String message, SocketAddress address, Throwable cause) {
+		super(message, address, cause);
+	}
 }
