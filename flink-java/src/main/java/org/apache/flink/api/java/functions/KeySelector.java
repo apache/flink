@@ -20,6 +20,8 @@ package org.apache.flink.api.java.functions;
 
 import org.apache.flink.api.common.functions.Function;
 
+import java.io.Serializable;
+
 /**
  * The {@link KeySelector} allows to use arbitrary objects for operations such as
  * reduce, reduceGroup, join, coGoup, etc.
@@ -29,7 +31,7 @@ import org.apache.flink.api.common.functions.Function;
  * @param <IN> Type of objects to extract the key from.
  * @param <KEY> Type of key.
  */
-public interface KeySelector<IN, KEY> extends Function, java.io.Serializable {
+public interface KeySelector<IN, KEY> extends Function, Serializable {
 	
 	/**
 	 * User-defined function that extracts the key from an arbitrary object.

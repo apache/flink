@@ -21,6 +21,8 @@ import org.apache.flink.api.common.functions.FilterFunction;
 
 public class StreamFilter<IN> extends AbstractUdfStreamOperator<IN, FilterFunction<IN>> implements OneInputStreamOperator<IN, IN> {
 
+	private static final long serialVersionUID = 1L;
+
 	public StreamFilter(FilterFunction<IN> filterFunction) {
 		super(filterFunction);
 		chainingStrategy = ChainingStrategy.ALWAYS;

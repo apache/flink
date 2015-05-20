@@ -23,6 +23,8 @@ public class StreamFlatMap<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, FlatMapFunction<IN, OUT>>
 		implements OneInputStreamOperator<IN, OUT> {
 
+	private static final long serialVersionUID = 1L;
+
 	public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
 		super(flatMapper);
 		chainingStrategy = ChainingStrategy.ALWAYS;

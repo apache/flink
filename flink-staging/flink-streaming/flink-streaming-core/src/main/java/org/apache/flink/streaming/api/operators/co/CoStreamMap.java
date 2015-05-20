@@ -25,6 +25,8 @@ public class CoStreamMap<IN1, IN2, OUT>
 		extends AbstractUdfStreamOperator<OUT, CoMapFunction<IN1, IN2, OUT>>
 		implements TwoInputStreamOperator<IN1, IN2, OUT> {
 
+	private static final long serialVersionUID = 1L;
+
 	public CoStreamMap(CoMapFunction<IN1, IN2, OUT> mapper) {
 		super(mapper);
 	}

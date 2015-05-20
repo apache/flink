@@ -22,6 +22,8 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFunction<IN>>
 		implements OneInputStreamOperator<IN, Object> {
 
+	private static final long serialVersionUID = 1L;
+
 	public StreamSink(SinkFunction<IN> sinkFunction) {
 		super(sinkFunction);
 

@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
@@ -26,16 +25,18 @@ public class StreamProject<IN, OUT extends Tuple>
 		extends AbstractStreamOperator<OUT>
 		implements OneInputStreamOperator<IN, OUT> {
 
-	transient OUT outTuple;
-	TypeSerializer<OUT> outTypeSerializer;
-	TypeInformation<OUT> outTypeInformation;
-	int[] fields;
-	int numFields;
+	private static final long serialVersionUID = 1L;
 
-	public StreamProject(int[] fields, TypeInformation<OUT> outTypeInformation) {
+	private TypeSerializer<OUT> outSerializer;
+	private int[] fields;
+	private int numFields;
+
+	private transient OUT outTuple;
+
+	public StreamProject(int[] fields, TypeSerializer<OUT> outSerializer) {
 		this.fields = fields;
 		this.numFields = this.fields.length;
-		this.outTypeInformation = outTypeInformation;
+		this.outSerializer = outSerializer;
 
 		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
@@ -52,7 +53,6 @@ public class StreamProject<IN, OUT extends Tuple>
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
-		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
-		outTuple = outTypeSerializer.createInstance();
+		outTuple = outSerializer.createInstance();
 	}
 }

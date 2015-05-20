@@ -36,17 +36,15 @@ public class StreamDiscretizer<IN>
 		extends AbstractStreamOperator<WindowEvent<IN>>
 		implements OneInputStreamOperator<IN, WindowEvent<IN>> {
 
-	/**
-	 * Auto-generated serial version UID
-	 */
-	private static final long serialVersionUID = -8038984294071650730L;
+	private static final long serialVersionUID = 1L;
 
 	protected TriggerPolicy<IN> triggerPolicy;
 	protected EvictionPolicy<IN> evictionPolicy;
 	private boolean isActiveTrigger;
 	private boolean isActiveEviction;
-	private Thread activePolicyThread;
 	private int bufferSize = 0;
+
+	private transient Thread activePolicyThread;
 
 	protected WindowEvent<IN> windowEvent = new WindowEvent<IN>();
 

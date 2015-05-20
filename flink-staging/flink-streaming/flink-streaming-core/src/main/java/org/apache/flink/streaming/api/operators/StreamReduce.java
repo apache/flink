@@ -22,6 +22,8 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 public class StreamReduce<IN> extends AbstractUdfStreamOperator<IN, ReduceFunction<IN>>
 		implements OneInputStreamOperator<IN, IN> {
 
+	private static final long serialVersionUID = 1L;
+
 	private IN currentValue;
 
 	public StreamReduce(ReduceFunction<IN> reducer) {

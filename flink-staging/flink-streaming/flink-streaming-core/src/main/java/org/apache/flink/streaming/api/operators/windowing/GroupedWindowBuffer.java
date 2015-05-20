@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.operators.windowing;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,12 +33,21 @@ import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
  */
 public class GroupedWindowBuffer<T> extends StreamWindowBuffer<T> {
 
-	private Map<Object, WindowBuffer<T>> windowMap = new HashMap<Object, WindowBuffer<T>>();
+	private static final long serialVersionUID = 1L;
+
 	private KeySelector<T, ?> keySelector;
+
+	private transient Map<Object, WindowBuffer<T>> windowMap;
 
 	public GroupedWindowBuffer(WindowBuffer<T> buffer, KeySelector<T, ?> keySelector) {
 		super(buffer);
 		this.keySelector = keySelector;
+		this.windowMap = new HashMap<Object, WindowBuffer<T>>();
+	}
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+		this.windowMap = new HashMap<Object, WindowBuffer<T>>();
 	}
 
 	@Override
