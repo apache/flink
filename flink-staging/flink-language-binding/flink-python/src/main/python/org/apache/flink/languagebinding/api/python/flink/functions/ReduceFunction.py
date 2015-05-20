@@ -27,15 +27,15 @@ class ReduceFunction(Function.Function):
         self._combine = False
         self._values = []
 
-    def _configure(self, input_file, output_file, port):
+    def _configure(self, input_file, output_file, soc):
         if self._combine:
-            self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, port)
+            self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, soc)
             self._iterator = Iterator.Iterator(self._connection)
             self._collector = Collector.Collector(self._connection)
             self.context = RuntimeContext.RuntimeContext(self._iterator, self._collector)
             self._run = self._run_combine
         else:
-            self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, port)
+            self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, soc)
             self._iterator = Iterator.Iterator(self._connection)
             if self._keys is None:
                 self._run = self._run_allreduce
