@@ -107,12 +107,16 @@ class NettyClient {
 		bootstrap.handler(new ChannelInitializer<SocketChannel>() {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
-				protocol.setClientChannelPipeline(channel.pipeline());
+				channel.pipeline().addLast(protocol.getClientChannelHandlers());
 			}
 		});
 
 		long end = System.currentTimeMillis();
 		LOG.info("Successful initialization (took {} ms).", (end - start));
+	}
+
+	NettyConfig getConfig() {
+		return config;
 	}
 
 	void shutdown() {

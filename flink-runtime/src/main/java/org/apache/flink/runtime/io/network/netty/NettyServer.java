@@ -119,7 +119,7 @@ class NettyServer {
 		bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
-				protocol.setServerChannelPipeline(channel.pipeline());
+				channel.pipeline().addLast(protocol.getServerChannelHandlers());
 			}
 		});
 
@@ -130,7 +130,11 @@ class NettyServer {
 		bindFuture = bootstrap.bind().syncUninterruptibly();
 
 		long end = System.currentTimeMillis();
-		LOG.info("Successful initialization  (took {} ms). Listening on SocketAddress {}.", (end - start), bindFuture.channel().localAddress().toString());
+		LOG.info("Successful initialization (took {} ms). Listening on SocketAddress {}.", (end - start), bindFuture.channel().localAddress().toString());
+	}
+
+	NettyConfig getConfig() {
+		return config;
 	}
 
 	void shutdown() {
