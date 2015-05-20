@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.flink.streaming.api.collector.StreamOutput;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.StringUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,16 +88,16 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 				}
 			}
 
-		} catch (Exception e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Iteration source failed due to: {}", StringUtils.stringifyException(e));
-			}
+		}
+		catch (Exception e) {
+			LOG.error("Iteration Head " + getEnvironment().getTaskNameWithSubtasks() + " failed", e);
+			
 			throw e;
-		} finally {
+		}
+		finally {
 			// Cleanup
 			outputHandler.flushOutputs();
 			clearBuffers();
 		}
-
 	}
 }
