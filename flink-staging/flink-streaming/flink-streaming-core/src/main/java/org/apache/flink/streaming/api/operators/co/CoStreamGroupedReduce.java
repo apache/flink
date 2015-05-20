@@ -24,6 +24,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.functions.co.CoReduceFunction;
 
 public class CoStreamGroupedReduce<IN1, IN2, OUT> extends CoStreamReduce<IN1, IN2, OUT> {
+
 	private static final long serialVersionUID = 1L;
 
 	protected KeySelector<IN1, ?> keySelector1;

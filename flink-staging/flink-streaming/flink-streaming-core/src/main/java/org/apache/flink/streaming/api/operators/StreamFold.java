@@ -26,6 +26,8 @@ public class StreamFold<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, FoldFunction<IN, OUT>>
 		implements OneInputStreamOperator<IN, OUT> {
 
+	private static final long serialVersionUID = 1L;
+
 	private OUT accumulator;
 	protected TypeSerializer<OUT> outTypeSerializer;
 	protected TypeInformation<OUT> outTypeInformation;

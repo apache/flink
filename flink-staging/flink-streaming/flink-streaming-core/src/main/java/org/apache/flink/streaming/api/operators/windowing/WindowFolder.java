@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.windowing.StreamWindow;
 public class WindowFolder<IN, OUT> extends StreamMap<StreamWindow<IN>, StreamWindow<OUT>> {
 
 	private static final long serialVersionUID = 1L;
+
 	FoldFunction<IN, OUT> folder;
 
 	public WindowFolder(FoldFunction<IN, OUT> folder, OUT initialValue) {

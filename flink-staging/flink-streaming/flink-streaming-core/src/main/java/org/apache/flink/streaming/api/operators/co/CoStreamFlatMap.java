@@ -25,6 +25,8 @@ public class CoStreamFlatMap<IN1, IN2, OUT>
 		extends AbstractUdfStreamOperator<OUT, CoFlatMapFunction<IN1, IN2, OUT>>
 		implements TwoInputStreamOperator<IN1, IN2, OUT> {
 
+	private static final long serialVersionUID = 1L;
+
 	public CoStreamFlatMap(CoFlatMapFunction<IN1, IN2, OUT> flatMapper) {
 		super(flatMapper);
 	}

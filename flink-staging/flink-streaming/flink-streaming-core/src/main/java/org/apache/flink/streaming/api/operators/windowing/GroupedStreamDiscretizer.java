@@ -36,7 +36,7 @@ import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
  */
 public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 
-	private static final long serialVersionUID = -3469545957144404137L;
+	private static final long serialVersionUID = 1L;
 
 	protected KeySelector<IN, ?> keySelector;
 	protected Configuration parameters;

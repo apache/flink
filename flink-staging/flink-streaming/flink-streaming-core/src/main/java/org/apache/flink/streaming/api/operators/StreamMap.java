@@ -23,6 +23,8 @@ public class StreamMap<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, MapFunction<IN, OUT>>
 		implements OneInputStreamOperator<IN, OUT> {
 
+	private static final long serialVersionUID = 1L;
+
 	public StreamMap(MapFunction<IN, OUT> mapper) {
 		super(mapper);
 		chainingStrategy = ChainingStrategy.ALWAYS;

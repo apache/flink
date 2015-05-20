@@ -28,6 +28,8 @@ import org.apache.flink.streaming.api.windowing.StreamWindow;
 public class WindowFlattener<T> extends AbstractStreamOperator<T>
 		implements OneInputStreamOperator<StreamWindow<T>, T> {
 
+	private static final long serialVersionUID = 1L;
+
 	public WindowFlattener() {
 		chainingStrategy = ChainingStrategy.FORCE_ALWAYS;
 	}

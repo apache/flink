@@ -25,6 +25,8 @@ public class CoStreamReduce<IN1, IN2, OUT>
 		extends AbstractUdfStreamOperator<OUT, CoReduceFunction<IN1, IN2, OUT>>
 		implements TwoInputStreamOperator<IN1, IN2, OUT> {
 
+	private static final long serialVersionUID = 1L;
+
 	protected IN1 currentValue1 = null;
 	protected IN2 currentValue2 = null;
 
