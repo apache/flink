@@ -364,34 +364,26 @@ public class StreamingJobGraphGenerator {
 				throw new IllegalArgumentException("The checkpoint interval must be positive");
 			}
 
-			// gather source and sink IDs
-			HashSet<JobVertexID> sourceIds = new HashSet<JobVertexID>();
-			HashSet<JobVertexID> sinkIds = new HashSet<JobVertexID>();
-			for (AbstractJobVertex vertex : jobVertices.values()) {
-				if (vertex.isInputVertex()) {
-					sourceIds.add(vertex.getID());
-				}
-				if (vertex.isOutputVertex()) {
-					sinkIds.add(vertex.getID());
-				}
-			}
-
-			HashSet<JobVertexID> sourceorSink = new HashSet<JobVertexID>();
-			sourceorSink.addAll(sourceIds);
-			sourceorSink.addAll(sinkIds);
-			
 			// collect the vertices that receive "trigger checkpoint" messages.
 			// currently, these are all the sources
-			List<JobVertexID> triggerVertices = new ArrayList<JobVertexID>(sourceIds);
+			List<JobVertexID> triggerVertices = new ArrayList<JobVertexID>();
 
 			// collect the vertices that need to acknowledge the checkpoint
-			// currently, these are the sources and sinks
-			// the sources acknowledge their state backup, the sinks the arrival of the barriers
-			List<JobVertexID> ackVertices = new ArrayList<JobVertexID>(sourceorSink);
+			// currently, these are all vertices
+			List<JobVertexID> ackVertices = new ArrayList<JobVertexID>(jobVertices.size());
 
 			// collect the vertices that receive "commit checkpoint" messages
 			// currently, these are only the sources
-			List<JobVertexID> commitVertices = new ArrayList<JobVertexID>(sourceIds);
+			List<JobVertexID> commitVertices = new ArrayList<JobVertexID>();
+			
+			
+			for (AbstractJobVertex vertex : jobVertices.values()) {
+				if (vertex.isInputVertex()) {
+					triggerVertices.add(vertex.getID());
+					commitVertices.add(vertex.getID());
+				}
+				ackVertices.add(vertex.getID());
+			}
 
 			JobSnapshottingSettings settings = new JobSnapshottingSettings(
 					triggerVertices, ackVertices, commitVertices, interval);
