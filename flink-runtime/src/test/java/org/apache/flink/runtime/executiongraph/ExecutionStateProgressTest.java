@@ -60,31 +60,31 @@ public class ExecutionStateProgressTest {
 		try {
 			final JobID jid = new JobID();
 			final JobVertexID vid = new JobVertexID();
-			
+
 			AbstractJobVertex ajv = new AbstractJobVertex("TestVertex", vid);
 			ajv.setParallelism(3);
 			ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
-			
+
 			ExecutionGraph graph = new ExecutionGraph(jid, "test job", new Configuration(),
 					AkkaUtils.getDefaultTimeout());
 			graph.attachJobGraph(Arrays.asList(ajv));
-			
+
 			setGraphStatus(graph, JobStatus.RUNNING);
-			
+
 			ExecutionJobVertex ejv = graph.getJobVertex(vid);
-			
+
 			// mock resources and mock taskmanager
 			ActorRef taskManager = system.actorOf(Props.create(SimpleAcknowledgingTaskManager.class));
 			for (ExecutionVertex ee : ejv.getTaskVertices()) {
 				SimpleSlot slot = getInstance(taskManager).allocateSimpleSlot(jid);
 				ee.deployToSlot(slot);
 			}
-			
+
 			// finish all
 			for (ExecutionVertex ee : ejv.getTaskVertices()) {
 				ee.executionFinished();
 			}
-			
+
 			assertTrue(ejv.isInFinalState());
 			assertEquals(JobStatus.FINISHED, graph.getState());
 		}

@@ -212,8 +212,8 @@ public class SchedulerSlotSharingTest {
 			s4.releaseSlot();
 			
 			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfSlots());
-			assertEquals(2, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			assertEquals(2, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid2));
 			
 			// we can still not schedule anything from the second group of vertices
 			try {
@@ -232,8 +232,8 @@ public class SchedulerSlotSharingTest {
 			assertNotNull(s5);
 			
 			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfSlots());
-			assertEquals(1, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			assertEquals(1, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid2));
 			
 			
 			// now we release a slot from the second vertex group and schedule another task from that group
@@ -285,8 +285,8 @@ public class SchedulerSlotSharingTest {
 			SimpleSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 3, 4), sharingGroup));
 			
 			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfSlots());
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
-			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid1));
+			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid2));
 			
 			s1.releaseSlot();
 			s2.releaseSlot();
@@ -294,8 +294,8 @@ public class SchedulerSlotSharingTest {
 			s4.releaseSlot();
 			
 			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid2));
 			
 			// schedule some tasks from the second ID group
 			SimpleSlot s1_2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, 0, 4), sharingGroup));
@@ -304,8 +304,8 @@ public class SchedulerSlotSharingTest {
 			SimpleSlot s4_2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, 3, 4), sharingGroup));
 
 			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfSlots());
-			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid2));
 			
 			s1_2.releaseSlot();
 			s2_2.releaseSlot();
@@ -313,8 +313,8 @@ public class SchedulerSlotSharingTest {
 			s4_2.releaseSlot();
 			
 			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid2));
 
 			// test that everything is released
 			assertEquals(4, scheduler.getNumberOfAvailableSlots());
@@ -463,8 +463,8 @@ public class SchedulerSlotSharingTest {
 			assertNotNull(s2_2);
 			
 			assertEquals(2, sharingGroup.getTaskAssignment().getNumberOfSlots());
-			assertEquals(1, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			assertEquals(1, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid2));
 			
 			// release the two from the second
 			s2_1.releaseSlot();
@@ -476,8 +476,8 @@ public class SchedulerSlotSharingTest {
 			assertNotNull(sx);
 			
 			assertEquals(1, sharingGroup.getTaskAssignment().getNumberOfSlots());
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
-			assertEquals(1, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid1));
+			assertEquals(1, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid2));
 			
 			// check the scheduler's bookkeeping
 			assertEquals(0, scheduler.getNumberOfLocalizedAssignments());
@@ -1007,6 +1007,7 @@ public class SchedulerSlotSharingTest {
 				executor.execute(deploy0);
 				
 				// wait until all tasks have finished
+				//noinspection SynchronizationOnLocalVariableOrMethodParameter
 				synchronized (completed) {
 					while (!failed.get() && completed.get() < 13) {
 						completed.wait(1000);

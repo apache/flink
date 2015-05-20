@@ -58,16 +58,10 @@ public class NoResourceAvailableException extends JobException {
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public boolean equals(Object obj){
-		if(obj == null){
-			return false;
-		}
+	public boolean equals(Object obj) {
+		return obj instanceof NoResourceAvailableException && 
+				getMessage().equals(((NoResourceAvailableException) obj).getMessage());
 
-		if (!(obj instanceof NoResourceAvailableException)) {
-			return false;
-		} else {
-			return getMessage().equals(((NoResourceAvailableException)obj).getMessage());
-		}
 	}
 	
 	@Override
