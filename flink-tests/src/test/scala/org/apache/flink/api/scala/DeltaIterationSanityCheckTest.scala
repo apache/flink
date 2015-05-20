@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala
 
+import org.apache.flink.test.recordJobs.util.DiscardingOutputFormat
 import org.junit.Test
 import org.apache.flink.api.common.InvalidProgramException
 

@@ -1338,13 +1338,9 @@ public abstract class DataSet<T> {
 	 * This triggers execute() automatically.
 	 */
 	public void print() throws Exception{
-		try {
-			List<T> elements = this.collect();
-			for (T e: elements) {
-				System.out.println(e);
-			}
-		} catch (Exception e) {
-			throw new Exception("Could not retrieve values for printing: ", e);
+		List<T> elements = this.collect();
+		for (T e: elements) {
+			System.out.println(e);
 		}
 	}
 
@@ -1364,13 +1360,9 @@ public abstract class DataSet<T> {
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.
 	 */
 	public void printToErr() throws Exception{
-		try {
-			List<T> elements = this.collect();
-			for (T e: elements) {
-				System.err.println(e);
-			}
-		} catch (Exception e) {
-			throw new Exception("Could not retrieve values for printing: ", e);
+		List<T> elements = this.collect();
+		for (T e: elements) {
+			System.err.println(e);
 		}
 	}
 

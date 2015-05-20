@@ -73,7 +73,7 @@ public class WordCount {
 
 		// emit result
 		if(fileOutput) {
-			counts.writeAsText(outputPath);
+			counts.writeAsCsv(outputPath, "\n", " ");
 			// execute program
 			env.execute("WordCount Example");
 		} else {
