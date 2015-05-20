@@ -158,11 +158,25 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
     // set this only if no memory was preconfigured
     if (config.getInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1) == -1) {
 
-      val bufferMem: Long =
-        config.getLong(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
-          ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS) *
-          config.getLong(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
-            ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
+      val bufferSizeNew: Int = config.getInteger(
+                                      ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, -1)
+
+      val bufferSizeOld: Int = config.getInteger(
+                                      ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY, -1)
+      val bufferSize: Int =
+        if (bufferSizeNew != -1) {
+          bufferSizeNew
+        }
+        else if (bufferSizeOld == -1) {
+          // nothing has been configured, take the default
+          ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE
+        }
+        else {
+          bufferSizeOld
+        }
+      
+      val bufferMem: Long = config.getLong(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
+          ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS) * bufferSize.toLong
 
       val numTaskManager = config.getInteger(
         ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
