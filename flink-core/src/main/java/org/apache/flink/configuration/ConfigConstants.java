@@ -137,10 +137,16 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY = "taskmanager.network.numberOfBuffers";
 
 	/**
-	 * The config parameter defining the size of the buffers used in the network stack.
+	 * Deprecated config parameter defining the size of the buffers used in the network stack.
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY = "taskmanager.network.bufferSizeInBytes";
 
+	/**
+	 * Config parameter defining the size of memory buffers used by the network stack and the memory manager.
+	 */
+	public static final String TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY = "taskmanager.memory.segment-size";
+	
 	/**
 	 * The implementation to use for spillable/spilled intermediate results, which have both
 	 * synchronous and asynchronous implementations: "sync" or "async".
@@ -255,7 +261,7 @@ public final class ConfigConstants {
 	 */
 	public static final String PATH_HADOOP_CONFIG = "fs.hdfs.hadoopconf";
 	
-	// ------------------------ File System Bahavior ------------------------
+	// ------------------------ File System Behavior ------------------------
 
 	/**
 	 * Key to specify whether the file systems should simply overwrite existing files.
@@ -496,7 +502,13 @@ public final class ConfigConstants {
 	/**
 	 * Default size of network stack buffers.
 	 */
+	@Deprecated
 	public static final int DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE = 32768;
+
+	/**
+	 * Default size of memory segments in the network stack and the memory manager.
+	 */
+	public static final int DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE = 32768;
 
 	/**
 	 * The implementation to use for spillable/spilled intermediate results, which have both
