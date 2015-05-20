@@ -67,12 +67,12 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Iteration sink {} invoke finished", getName());
 			}
-		} catch (Exception e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Iteration sink failed due to: {}", StringUtils.stringifyException(e));
-			}
+		}
+		catch (Exception e) {
+			LOG.error("Iteration tail " + getEnvironment().getTaskNameWithSubtasks() + " failed", e);
 			throw e;
-		} finally {
+		}
+		finally {
 			// Cleanup
 			clearBuffers();
 		}

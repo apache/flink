@@ -109,21 +109,22 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 				LOG.debug("Task {} invocation finished", getName());
 			}
 
-		} catch (Exception e) {
-
+		}
+		catch (Exception e) {
+			LOG.error(getEnvironment().getTaskNameWithSubtasks() + " failed", e);
+			
 			if (operatorOpen) {
 				try {
 					closeOperator();
-				} catch (Throwable t) {
-					LOG.info("Caught exception while closing operator.", e);
+				}
+				catch (Throwable t) {
+					LOG.warn("Exception while closing operator.", t);
 				}
 			}
-
-			if (LOG.isErrorEnabled()) {
-				LOG.error("StreamOperator failed.", e);
-			}
+			
 			throw e;
-		} finally {
+		}
+		finally {
 			this.isRunning = false;
 			// Cleanup
 			inputs.clearBuffers();
