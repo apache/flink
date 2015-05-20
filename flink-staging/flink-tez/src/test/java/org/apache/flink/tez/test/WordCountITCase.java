@@ -37,7 +37,7 @@ public class WordCountITCase extends TezProgramTestBase {
 
     @Override
     protected void postSubmit() throws Exception {
-        compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
+        compareResultsByLinesInMemory(WordCountData.COUNTS_AS_TUPLES, resultPath);
     }
 
     @Override

@@ -83,7 +83,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -1338,14 +1337,14 @@ public abstract class DataSet<T> {
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.
 	 * This triggers execute() automatically.
 	 */
-	public void print() {
+	public void print() throws Exception{
 		try {
 			List<T> elements = this.collect();
 			for (T e: elements) {
 				System.out.println(e);
 			}
 		} catch (Exception e) {
-			System.out.println("Could not retrieve values for printing: " + ExceptionUtils.stringifyException(e));
+			throw new Exception("Could not retrieve values for printing: ", e);
 		}
 	}
 
@@ -1364,14 +1363,14 @@ public abstract class DataSet<T> {
 	 * Writes a DataSet to the standard error stream (stderr).<br/>
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.
 	 */
-	public void printToErr() {
+	public void printToErr() throws Exception{
 		try {
 			List<T> elements = this.collect();
 			for (T e: elements) {
 				System.err.println(e);
 			}
 		} catch (Exception e) {
-			System.err.println("Could not retrieve values for printing: " + e);
+			throw new Exception("Could not retrieve values for printing: ", e);
 		}
 	}
 
