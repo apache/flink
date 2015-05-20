@@ -34,7 +34,12 @@ under the License.
     <link rel="stylesheet" href="{{ site.baseurl }}/page/css/codetabs.css">
     {% if page.mathjax %}
     <script type="text/x-mathjax-config">
-        MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});
+        MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [['$','$'], ['\\(','\\)']] },
+        TeX: {
+          equationNumbers: { autoNumber: "AMS" } }
+        });
     </script>
     <script type="text/javascript"
             src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
@@ -47,7 +52,7 @@ under the License.
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
   </head>
-  <body>  
+  <body>
     {% comment %} Includes are found in the _includes directory. {% endcomment %}
     {% include navbar.html %}
 
