@@ -84,7 +84,7 @@ under the License.
 
 	<build>
 		<plugins>
-			<!-- get default data from flink-java-examples pipeline -->
+			<!-- get default data from flink-java-examples package -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>

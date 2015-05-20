@@ -17,7 +17,7 @@ package org.apache.flink.api.java.aggregation;
  * limitations under the License.
  */
 
-//pipeline org.apache.flink.api.java.aggregation;
+//package org.apache.flink.api.java.aggregation;
 //
 //
 //public abstract class AvgAggregationFunction<T> extends AggregationFunction<T> {

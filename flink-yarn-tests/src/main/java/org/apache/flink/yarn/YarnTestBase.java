@@ -65,7 +65,7 @@ import java.util.concurrent.ConcurrentMap;
  * This base class allows to use the MiniYARNCluster.
  * The cluster is re-used for all tests.
  *
- * This class is located in a different pipeline which is build after flink-dist. This way,
+ * This class is located in a different package which is build after flink-dist. This way,
  * we can use the YARN uberjar of flink to start a Flink YARN session.
  *
  * The test is not thread-safe. Parallel execution of tests is not possible!

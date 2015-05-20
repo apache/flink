@@ -27,7 +27,7 @@ under the License.
 		<fileSet>
 			<directory>${project.build.testOutputDirectory}</directory>
 			<outputDirectory>/</outputDirectory>
-			<!--modify/add include to match your pipeline(s) -->
+			<!--modify/add include to match your package(s) -->
 			<includes>
 				<include>org/apache/flink/client/testjar/**</include>
 			</includes>

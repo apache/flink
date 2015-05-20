@@ -150,7 +150,7 @@ public class TachyonFileSystemWrapperTest {
 		}
 	}
 
-	// pipeline visible
+	// package visible
 	static final class DopOneTestEnvironment extends LocalEnvironment {
 	 	static {
     		initializeContextEnvironment(new ExecutionEnvironmentFactory() {

@@ -17,7 +17,7 @@
  */
 
 /**
- * This pipeline contains the messages that are sent between {@link org.apache.flink.runtime.jobmanager.JobManager}
+ * This package contains the messages that are sent between {@link org.apache.flink.runtime.jobmanager.JobManager}
  * and {@link org.apache.flink.runtime.taskmanager.TaskManager} to coordinate the checkpoint snapshots of the
  * distributed dataflow.
  */
