@@ -1656,6 +1656,7 @@ DataSet<Tuple2<String, Integer> dbData =
 Flink offers a number of configuration options for CSV parsing:
 
 - `types(Class ... types)` specifies the types of the fields to parse. **It is mandatory to configure the types of the parsed fields.**
+  In case of the type class Boolean.class, "True" (case-insensitive), "False" (case-insensitive), "1" and "0" are treated as booleans.
 
 - `lineDelimiter(String del)` specifies the delimiter of individual records. The default line delimiter is the new-line character `'\n'`.
 

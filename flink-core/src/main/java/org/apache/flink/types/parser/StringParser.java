@@ -42,7 +42,7 @@ public class StringParser extends FieldParser<String> {
 
 		final int delimLimit = limit-delimiter.length+1;
 
-		if(quotedStringParsing == true && bytes[i] == quoteCharacter) {
+		if(quotedStringParsing && bytes[i] == quoteCharacter) {
 			// quoted string parsing enabled and first character Vis a quote
 			i++;
 
