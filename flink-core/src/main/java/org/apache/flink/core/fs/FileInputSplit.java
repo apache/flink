@@ -18,11 +18,7 @@
 
 package org.apache.flink.core.fs;
 
-import java.io.IOException;
-
 import org.apache.flink.core.io.LocatableInputSplit;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * A file input split provides information on a particular part of a file, possibly
@@ -32,19 +28,13 @@ public class FileInputSplit extends LocatableInputSplit {
 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * The path of the file this file split refers to.
-	 */
-	private Path file;
+	/** The path of the file this file split refers to. */
+	private final Path file;
 
-	/**
-	 * The position of the first byte in the file to process.
-	 */
+	/** The position of the first byte in the file to process. */
 	private long start;
 
-	/**
-	 * The number of bytes in the file to process.
-	 */
+	/** The number of bytes in the file to process. */
 	private long length;
 
 	// --------------------------------------------------------------------------------------------
@@ -70,11 +60,6 @@ public class FileInputSplit extends LocatableInputSplit {
 		this.start = start;
 		this.length = length;
 	}
-
-	/**
-	 * Default constructor for deserialization.
-	 */
-	public FileInputSplit() {}
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -103,40 +88,6 @@ public class FileInputSplit extends LocatableInputSplit {
 	 */
 	public long getLength() {
 		return length;
-	}
-	
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		super.write(out);
-
-		// write start and length
-		out.writeLong(this.start);
-		out.writeLong(this.length);
-		
-		// write file
-		if (this.file != null) {
-			out.writeBoolean(true);
-			this.file.write(out);
-		} else {
-			out.writeBoolean(false);
-		}
-	}
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-		super.read(in);
-		
-		this.start = in.readLong();
-		this.length = in.readLong();
-		
-		// read file path
-		boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-			this.file = new Path();
-			this.file.read(in);
-		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

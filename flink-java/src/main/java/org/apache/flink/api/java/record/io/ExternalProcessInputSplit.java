@@ -18,15 +18,11 @@
 
 package org.apache.flink.api.java.record.io;
 
-import java.io.IOException;
-
 import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.StringUtils;
 
 /**
- * The ExternalProcessInputSplit contains all informations for {@link org.apache.flink.api.common.io.InputFormat} that read their data from external processes.
+ * The ExternalProcessInputSplit contains all information for {@link org.apache.flink.api.common.io.InputFormat}
+ * that read their data from external processes.
  * Each parallel instance of an InputFormat starts an external process and reads its output.
  * The command to start the external process must be executable on all nodes.
  * 
@@ -38,10 +34,7 @@ public class ExternalProcessInputSplit extends GenericInputSplit {
 	private static final long serialVersionUID = 1L;
 	
 	// command to be executed for this input split
-	private String extProcessCommand;
-	
-	// default constructor for deserialization
-	public ExternalProcessInputSplit() { }
+	private final String extProcessCommand;
 	
 	/**
 	 * Instantiates an ExternalProcessInputSplit
@@ -61,18 +54,5 @@ public class ExternalProcessInputSplit extends GenericInputSplit {
 	 */
 	public String getExternalProcessCommand() {
 		return this.extProcessCommand;
-	}
-	
-	
-	@Override
-	public void read(DataInputView in) throws IOException {
-		super.read(in);
-		this.extProcessCommand = StringUtils.readNullableString(in);
-	}
-
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		super.write(out);
-		StringUtils.writeNullableString(this.extProcessCommand, out);
 	}
 }
