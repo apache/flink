@@ -91,10 +91,10 @@ public class JarFileCreator {
 	}
 
 	/**
-	 * Manually specify the pipeline of the dependencies.
+	 * Manually specify the package of the dependencies.
 	 *
 	 * @param p
-	 * 		  the pipeline to be included.
+	 * 		  the package to be included.
 	 */
 	public synchronized JarFileCreator addPackage(String p) {
 		this.packages.add(p);

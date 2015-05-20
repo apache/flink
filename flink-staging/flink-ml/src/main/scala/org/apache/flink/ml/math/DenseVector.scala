@@ -134,8 +134,4 @@ object DenseVector {
   def init(size: Int, value: Double): DenseVector = {
     new DenseVector(Array.fill(size)(value))
   }
-
-  implicit val canCopy = new CanCopy[DenseVector]{
-    override def copy(value: DenseVector): DenseVector = value.copy
-  }
 }

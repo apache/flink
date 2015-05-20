@@ -28,7 +28,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.Test;
 
 /**
- * This class contains test for the configuration pipeline. In particular, the serialization of {@link Configuration}
+ * This class contains test for the configuration package. In particular, the serialization of {@link Configuration}
  * objects is tested.
  */
 public class ConfigurationTest {

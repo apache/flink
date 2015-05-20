@@ -34,7 +34,7 @@ import org.apache.hadoop.util.StringUtils;
 
 /**
  * Hadoop 1.2.1 {@link org.apache.hadoop.mapred.FileOutputCommitter} takes {@link org.apache.hadoop.mapred.JobContext}
- * as input parameter. However JobContext class is pipeline private, and in Hadoop 2.2.0 it's public.
+ * as input parameter. However JobContext class is package private, and in Hadoop 2.2.0 it's public.
  * This class takes {@link org.apache.hadoop.mapred.JobConf} as input instead of JobContext in order to setup and commit tasks.
  */
 public class HadoopFileOutputCommitter extends FileOutputCommitter implements Serializable {
