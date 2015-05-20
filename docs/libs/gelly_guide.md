@@ -260,9 +260,6 @@ Graph<K, VV, EV> addEdge(Vertex<K, VV> source, Vertex<K, VV> target, EV edgeValu
 // adds a data set of edges to the Graph. If the vertices already exist in the graph, they will not be added, however the edges will.
 Graph<K, VV, EV> addEdges(DataSet<Edge<K, EV>> newEdges, DataSet<Vertex<K, VV>> newVertices)
 
-// adds a data set of existing edges to the Graph
-Graph<K, VV, EV> addEdges(DataSet<Edge<K, EV>> newEdges)
-
 // removes the given Vertex and its edges from the Graph.
 Graph<K, VV, EV> removeVertex(Vertex<K, VV> vertex)
 

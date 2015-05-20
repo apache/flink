@@ -1083,17 +1083,6 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Adds the given data set of edges to the graph provided that the source and target values already exist.
-	 *
-	 * @param newEdges the data set of edges to be added
-	 * @return a new graph containing the existing vertices and edges plus the newly added edges.
-	 */
-	@SuppressWarnings("unchecked")
-	public Graph<K, VV, EV> addEdges(DataSet<Edge<K, EV>> newEdges) {
-		return new Graph<K, VV, EV>(vertices, edges.union(newEdges), context);
-	}
-
-	/**
 	 * Removes the given vertex and its edges from the graph.
 	 * 
 	 * @param vertex the vertex to remove
@@ -1153,50 +1142,33 @@ public class Graph<K, VV, EV> {
 	 */
 	public Graph<K, VV, EV> removeVertices(DataSet<Vertex<K, VV>> verticesToBeRemoved) {
 
-		// determine whether the vertex existed in the initial graph
-		DataSet<Vertex<K, Tuple2<VV, Boolean>>> flaggedVertices = getVertices()
-				.map(new MapFunction<Vertex<K, VV>, Vertex<K, Tuple2<VV, Boolean>>>() {
+		DataSet<Vertex<K, VV>> newVertices = getVertices().coGroup(verticesToBeRemoved).where(0).equalTo(0)
+				.with(new VerticesRemovalCoGroup<K, VV>());
 
-					@Override
-					public Vertex<K, Tuple2<VV, Boolean>> map(Vertex<K, VV> vertex) throws Exception {
-						return new Vertex<K, Tuple2<VV, Boolean>>(vertex.getId(), new Tuple2<VV, Boolean>(vertex.getValue(),
-								true));
-					}
-				}).withForwardedFields("f0");
-		DataSet<Vertex<K, Tuple2<VV, Boolean>>> flaggedVerticesToBeRemoved = verticesToBeRemoved
-				.map(new MapFunction<Vertex<K, VV>, Vertex<K, Tuple2<VV, Boolean>>>() {
-
-					@Override
-					public Vertex<K, Tuple2<VV, Boolean>> map(Vertex<K, VV> vertex) throws Exception {
-						return new Vertex<K, Tuple2<VV, Boolean>>(vertex.getId(), new Tuple2<VV, Boolean>(vertex.getValue(),
-								false));
-					}
-				}).withForwardedFields("f0");
-
-		DataSet<Vertex<K, VV>> newVertices = flaggedVertices.union(flaggedVerticesToBeRemoved)
-				.groupBy(0).reduceGroup(new VerticesRemovalGroupReduce<K, VV>());
-						DataSet < Edge < K, EV >> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
-								// if the edge source was removed, the edge will also be removed
-								.with(new ProjectEdgeToBeRemoved<K, VV, EV>())
-										// if the edge target was removed, the edge will also be removed
-								.join(newVertices).where(1).equalTo(0)
-								.with(new ProjectEdge<K, VV, EV>());
+		DataSet < Edge < K, EV >> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
+				// if the edge source was removed, the edge will also be removed
+				.with(new ProjectEdgeToBeRemoved<K, VV, EV>())
+				// if the edge target was removed, the edge will also be removed
+				.join(newVertices).where(1).equalTo(0)
+				.with(new ProjectEdge<K, VV, EV>());
 
 		return new Graph<K, VV, EV>(newVertices, newEdges, context);
 	}
 
-	private static final class VerticesRemovalGroupReduce<K, VV> implements GroupReduceFunction<Vertex<K, Tuple2<VV, Boolean>>, Vertex<K, VV>> {
+	private static final class VerticesRemovalCoGroup<K, VV> implements CoGroupFunction<Vertex<K, VV>, Vertex<K, VV>, Vertex<K, VV>> {
 
 		@Override
-		public void reduce(Iterable<Vertex<K, Tuple2<VV, Boolean>>> vertices,
-						Collector<Vertex<K, VV>> out) throws Exception {
+		public void coGroup(Iterable<Vertex<K, VV>> vertex, Iterable<Vertex<K, VV>> vertexToBeRemoved,
+							Collector<Vertex<K, VV>> out) throws Exception {
 
-			Iterator<Vertex<K, Tuple2<VV, Boolean>>> vertexIterator = vertices.iterator();
+			final Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
+			final Iterator<Vertex<K, VV>> vertexToBeRemovedIterator = vertexToBeRemoved.iterator();
+			Vertex<K, VV> next;
 
-			if(vertexIterator.hasNext()) {
-				Vertex<K, Tuple2<VV, Boolean>> vertex = vertexIterator.next();
-				if(!vertexIterator.hasNext() && vertex.getValue().f1) {
-					out.collect(new Vertex<K, VV>(vertex.getId(), vertex.getValue().f0));
+			if (vertexIterator.hasNext()) {
+				if (!vertexToBeRemovedIterator.hasNext()) {
+					next = vertexIterator.next();
+					out.collect(next);
 				}
 			}
 		}
@@ -1245,43 +1217,26 @@ public class Graph<K, VV, EV> {
 	 */
 	public Graph<K, VV, EV> removeEdges(DataSet<Edge<K, EV>> edgesToBeRemoved) {
 
-		// determine whether the edge existed in the initial graph
-		DataSet<Edge<K, Tuple2<EV, Boolean>>> flaggedEdges = getEdges()
-				.map(new MapFunction<Edge<K, EV>, Edge<K, Tuple2<EV, Boolean>>>() {
-
-					@Override
-					public Edge<K, Tuple2<EV, Boolean>> map(Edge<K, EV> edge) throws Exception {
-						return new Edge<K, Tuple2<EV, Boolean>>(edge.getSource(), edge.getTarget(),
-								new Tuple2<EV, Boolean>(edge.getValue(), true));
-					}
-				}).withForwardedFields("f0;f1");
-		DataSet<Edge<K, Tuple2<EV, Boolean>>> flaggedEdgesToBeRemoved = edgesToBeRemoved
-				.map(new MapFunction<Edge<K, EV>, Edge<K, Tuple2<EV, Boolean>>>() {
-
-					@Override
-					public Edge<K, Tuple2<EV, Boolean>> map(Edge<K, EV> edge) throws Exception {
-						return new Edge<K, Tuple2<EV, Boolean>>(edge.getSource(), edge.getTarget(),
-								new Tuple2<EV, Boolean>(edge.getValue(), false));
-					}
-				}).withForwardedFields("f0;f1");
-
-		DataSet<Edge<K, EV>> newEdges = flaggedEdges.union(flaggedEdgesToBeRemoved)
-				.groupBy(0,1).reduceGroup(new EdgeRemovalGroupReduce<K, EV>());
+		DataSet<Edge<K, EV>> newEdges = getEdges().coGroup(edgesToBeRemoved).where(0,1).equalTo(0,1)
+				.with(new EdgeRemovalCoGroup<K, EV>());
 
 		return new Graph<K, VV, EV>(this.vertices, newEdges, context);
 	}
 
-	private static final class EdgeRemovalGroupReduce<K,EV> implements GroupReduceFunction<Edge<K, Tuple2<EV, Boolean>>, Edge<K, EV>> {
+	private static final class EdgeRemovalCoGroup<K,EV> implements CoGroupFunction<Edge<K, EV>, Edge<K, EV>, Edge<K, EV>> {
 
 		@Override
-		public void reduce(Iterable<Edge<K, Tuple2<EV, Boolean>>> edges, Collector<Edge<K, EV>> out) throws Exception {
+		public void coGroup(Iterable<Edge<K, EV>> edge, Iterable<Edge<K, EV>> edgeToBeRemoved,
+							Collector<Edge<K, EV>> out) throws Exception {
 
-			Iterator<Edge<K, Tuple2<EV, Boolean>>> edgesIterator = edges.iterator();
+			final Iterator<Edge<K, EV>> edgeIterator = edge.iterator();
+			final Iterator<Edge<K, EV>> edgeToBeRemovedIterator = edgeToBeRemoved.iterator();
+			Edge<K, EV> next;
 
-			if(edgesIterator.hasNext()) {
-				Edge<K, Tuple2<EV, Boolean>> edge = edgesIterator.next();
-				if(!edgesIterator.hasNext() && edge.getValue().f1) {
-					out.collect(new Edge<K, EV>(edge.getSource(), edge.getTarget(), edge.getValue().f0));
+			if (edgeIterator.hasNext()) {
+				if (!edgeToBeRemovedIterator.hasNext()) {
+					next = edgeIterator.next();
+					out.collect(next);
 				}
 			}
 		}

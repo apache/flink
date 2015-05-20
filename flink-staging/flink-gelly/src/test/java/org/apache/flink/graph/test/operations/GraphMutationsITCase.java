@@ -484,35 +484,6 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testAddExistingEdges() throws Exception {
-		/*
-		 * Test addEdges() -- add already existing edges
-		 */
-
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeData(env), env);
-
-		DataSet<Edge<Long, Long>> edgesToBeAdded = env.fromElements(new Edge<Long, Long>(5L, 1L, 51L),
-				new Edge<Long, Long>(2L, 3L, 23L));
-
-		graph = graph.addEdges(edgesToBeAdded);
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
-
-		expectedResult = "1,2,12\n" +
-				"1,3,13\n" +
-				"2,3,23\n" +
-				"2,3,23\n" +
-				"3,4,34\n" +
-				"3,5,35\n" +
-				"4,5,45\n" +
-				"5,1,51\n" +
-				"5,1,51\n";
-	}
-	
-	@Test
 	public void testRemoveEdge() throws Exception {
 		/*
 		 * Test removeEdge() -- simple case
