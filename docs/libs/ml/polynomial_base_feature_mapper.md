@@ -84,8 +84,8 @@ val parameters = ParameterMap()
 .add(MultipleLinearRegression.Stepsize, 0.5)
 
 // Create pipeline PolynomialBase -> MultipleLinearRegression
-val chained = polyBase.chain(mlr)
+val pipeline = polyBase.chainPredictor(mlr)
 
 // Learn the model
-val model = chained.fit(trainingDS)
+pipeline.fit(trainingDS)
 {% endhighlight %}

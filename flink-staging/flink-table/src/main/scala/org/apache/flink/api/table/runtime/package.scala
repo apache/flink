@@ -18,6 +18,6 @@
 package org.apache.flink.api.table
 
 /**
- * The functions in this pipeline are used transforming Table API operations to Java API operations.
+ * The functions in this package are used transforming Table API operations to Java API operations.
  */
 package object runtime

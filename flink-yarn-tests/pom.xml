@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<!--
-	There is a separate "flink-yarn-tests" pipeline that expects the "flink-dist" pipeline
+	There is a separate "flink-yarn-tests" package that expects the "flink-dist" package
 	to be build before.
 	We need the YARN fat jar build by flink-dist for the tests.
 	-->

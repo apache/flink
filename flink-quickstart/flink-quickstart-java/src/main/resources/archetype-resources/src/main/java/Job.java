@@ -24,12 +24,12 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * Skeleton for a Flink Job.
  *
  * For a full example of a Flink Job, see the WordCountJob.java file in the
- * same pipeline/directory or have a look at the website.
+ * same package/directory or have a look at the website.
  *
  * You can also generate a .jar file that you can submit on your Flink
  * cluster.
  * Just type
- * 		mvn clean pipeline
+ * 		mvn clean package
  * in the projects root directory.
  * You will find the jar in
  * 		target/flink-quickstart-0.1-SNAPSHOT-Sample.jar

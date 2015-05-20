@@ -26,7 +26,7 @@ import scala.language.implicitConversions
 /**
  * == Table API (Scala) ==
  *
- * Importing this pipeline with:
+ * Importing this package with:
  *
  * {{{
  *   import org.apache.flink.api.scala.table._

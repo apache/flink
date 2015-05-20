@@ -72,9 +72,3 @@ trait Vector extends Serializable {
     }
   }
 }
-
-object Vector{
-  implicit val canCopy = new CanCopy[Vector] {
-    override def copy(value: Vector): Vector = value.copy
-  }
-}

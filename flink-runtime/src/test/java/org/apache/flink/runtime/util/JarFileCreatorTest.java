@@ -199,7 +199,7 @@ public class JarFileCreatorTest {
 		ans.add("org/apache/flink/runtime/util/jartestprogram/WordCountWithInnerClass$Tokenizer.class");
 		ans.add("org/apache/flink/util/Collector.class");
 
-		Assert.assertTrue("Jar file for UDF pipeline is not correct", validate(ans, out));
+		Assert.assertTrue("Jar file for UDF package is not correct", validate(ans, out));
 
 		out.delete();
 	}

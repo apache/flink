@@ -21,6 +21,7 @@ package org.apache.flink.ml.feature
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
+import org.apache.flink.ml.preprocessing.PolynomialFeatures
 import org.scalatest.{Matchers, FlatSpec}
 
 import org.apache.flink.api.scala._
@@ -45,10 +46,10 @@ class PolynomialBaseITSuite
 
     val inputDS = env.fromCollection (input)
 
-    val transformer = PolynomialBase ()
+    val transformer = PolynomialFeatures()
     .setDegree (3)
 
-    val transformedDS = transformer.transform (inputDS)
+    val transformedDS = transformer.transform(inputDS)
 
     val expectedMap = List (
     (1.0 -> DenseVector (1.0, 1.0, 1.0) ),
@@ -81,7 +82,7 @@ class PolynomialBaseITSuite
 
     val inputDS = env.fromCollection(input)
 
-    val transformer = PolynomialBase()
+    val transformer = PolynomialFeatures()
       .setDegree(3)
 
     val transformedDS = transformer.transform(inputDS)
@@ -106,7 +107,7 @@ class PolynomialBaseITSuite
 
     val inputDS = env.fromCollection(input)
 
-    val transformer = PolynomialBase()
+    val transformer = PolynomialFeatures()
       .setDegree(0)
 
     val transformedDS = transformer.transform(inputDS)
