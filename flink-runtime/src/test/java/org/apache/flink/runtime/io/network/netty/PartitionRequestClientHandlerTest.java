@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
@@ -130,7 +131,13 @@ public class PartitionRequestClientHandlerTest {
 		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
 		client.addInputChannel(inputChannel);
 
-		client.channelRead(mock(ChannelHandlerContext.class), partitionNotFound);
+		// Mock channel context
+		ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+		when(ctx.channel()).thenReturn(mock(Channel.class));
+
+		client.channelActive(ctx);
+
+		client.channelRead(ctx, partitionNotFound);
 
 		verify(inputChannel, times(1)).onFailedPartitionRequest();
 	}
