@@ -33,6 +33,8 @@ public class CoStreamWindow<IN1, IN2, OUT>
 		extends AbstractUdfStreamOperator<OUT, CoWindowFunction<IN1, IN2, OUT>>
 		implements TwoInputStreamOperator<IN1, IN2, OUT> {
 
+	private static final long serialVersionUID = 1L;
+
 	protected long windowSize;
 	protected long slideSize;
 	protected CircularFifoList<StreamRecord<IN1>> circularList1;

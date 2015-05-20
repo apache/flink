@@ -21,6 +21,8 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 public class StreamSource<OUT> extends AbstractUdfStreamOperator<OUT, SourceFunction<OUT>> implements StreamOperator<OUT> {
 
+	private static final long serialVersionUID = 1L;
+
 	public StreamSource(SourceFunction<OUT> sourceFunction) {
 		super(sourceFunction);
 

@@ -32,7 +32,9 @@ import java.io.Serializable;
  * @param <OUT> The output type of the operator
  * @param <F> The type of the user function
  */
-public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends AbstractStreamOperator<OUT> implements StatefulStreamOperator<OUT> {
+public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serializable> extends AbstractStreamOperator<OUT> implements StatefulStreamOperator<OUT> {
+
+	private static final long serialVersionUID = 1L;
 
 	protected final F userFunction;
 

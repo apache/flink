@@ -31,11 +31,11 @@ public abstract class AbstractStreamOperator<OUT> implements StreamOperator<OUT>
 
 	private static final long serialVersionUID = 1L;
 
-	protected RuntimeContext runtimeContext;
+	protected transient RuntimeContext runtimeContext;
 
-	protected ExecutionConfig executionConfig;
+	protected transient ExecutionConfig executionConfig;
 
-	public Output<OUT> output;
+	public transient Output<OUT> output;
 
 	// A sane default for most operators
 	protected ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;

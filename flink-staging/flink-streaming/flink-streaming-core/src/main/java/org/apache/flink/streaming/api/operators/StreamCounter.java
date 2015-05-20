@@ -19,6 +19,8 @@ package org.apache.flink.streaming.api.operators;
 
 public class StreamCounter<IN> extends AbstractStreamOperator<Long> implements OneInputStreamOperator<IN, Long> {
 
+	private static final long serialVersionUID = 1L;
+
 	private Long count = 0L;
 
 	public StreamCounter() {

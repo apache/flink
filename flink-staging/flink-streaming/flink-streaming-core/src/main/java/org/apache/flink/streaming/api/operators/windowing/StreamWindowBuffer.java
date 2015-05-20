@@ -30,6 +30,8 @@ public class StreamWindowBuffer<T>
 		extends AbstractStreamOperator<StreamWindow<T>>
 		implements OneInputStreamOperator<WindowEvent<T>, StreamWindow<T>> {
 
+	private static final long serialVersionUID = 1L;
+
 	protected WindowBuffer<T> buffer;
 
 	public StreamWindowBuffer(WindowBuffer<T> buffer) {

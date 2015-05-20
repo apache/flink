@@ -26,6 +26,8 @@ import org.apache.flink.api.java.functions.KeySelector;
 
 public class StreamGroupedFold<IN, OUT> extends StreamFold<IN, OUT> {
 
+	private static final long serialVersionUID = 1L;
+
 	private KeySelector<IN, ?> keySelector;
 	private Map<Object, OUT> values;
 	private OUT initialValue;

@@ -25,6 +25,8 @@ import org.apache.flink.api.java.functions.KeySelector;
 
 public class StreamGroupedReduce<IN> extends StreamReduce<IN> {
 
+	private static final long serialVersionUID = 1L;
+
 	private KeySelector<IN, ?> keySelector;
 	private Map<Object, IN> values;
 

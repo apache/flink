@@ -25,10 +25,9 @@ import org.slf4j.LoggerFactory;
 
 public class GroupedActiveDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 
+	private static final long serialVersionUID = 1L;
+
 	private static final Logger LOG = LoggerFactory.getLogger(GroupedActiveDiscretizer.class);
-
-
-	private static final long serialVersionUID = -3469545957144404137L;
 
 	private volatile IN last;
 	private Thread centralThread;

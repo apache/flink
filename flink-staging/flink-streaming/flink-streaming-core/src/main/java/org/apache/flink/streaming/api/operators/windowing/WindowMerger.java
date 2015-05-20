@@ -32,6 +32,8 @@ import org.apache.flink.streaming.api.windowing.StreamWindow;
 public class WindowMerger<T> extends AbstractStreamOperator<StreamWindow<T>>
 		implements OneInputStreamOperator<StreamWindow<T>, StreamWindow<T>> {
 
+	private static final long serialVersionUID = 1L;
+
 	private Map<Integer, StreamWindow<T>> windows;
 
 	public WindowMerger() {
