@@ -21,17 +21,20 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getRandomInstance;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertex;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertexWithLocation;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.runtime.instance.SimpleSlot;
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
+
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -563,8 +566,8 @@ public class ScheduleWithCoLocationHintTest {
 			assertEquals(2, scheduler.getNumberOfAvailableSlots());
 			
 			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid2));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -612,8 +615,8 @@ public class ScheduleWithCoLocationHintTest {
 			assertEquals(2, scheduler.getNumberOfAvailableSlots());
 			
 			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
-			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForGroup(jid2));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
