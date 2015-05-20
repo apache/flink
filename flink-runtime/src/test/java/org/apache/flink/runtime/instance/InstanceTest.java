@@ -38,57 +38,52 @@ public class InstanceTest {
 			HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 			InetAddress address = InetAddress.getByName("127.0.0.1");
 			InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
-			
+
 			Instance instance = new Instance(ActorRef.noSender(), connection, new InstanceID(), hardwareDescription, 4);
-			
+
 			assertEquals(4, instance.getTotalNumberOfSlots());
 			assertEquals(4, instance.getNumberOfAvailableSlots());
 			assertEquals(0, instance.getNumberOfAllocatedSlots());
-			
+
 			SimpleSlot slot1 = instance.allocateSimpleSlot(new JobID());
 			SimpleSlot slot2 = instance.allocateSimpleSlot(new JobID());
 			SimpleSlot slot3 = instance.allocateSimpleSlot(new JobID());
 			SimpleSlot slot4 = instance.allocateSimpleSlot(new JobID());
-			
+
 			assertNotNull(slot1);
 			assertNotNull(slot2);
 			assertNotNull(slot3);
 			assertNotNull(slot4);
-			
+
 			assertEquals(0, instance.getNumberOfAvailableSlots());
 			assertEquals(4, instance.getNumberOfAllocatedSlots());
-			assertEquals(6, slot1.getSlotNumber() + slot2.getSlotNumber() + 
+			assertEquals(6, slot1.getSlotNumber() + slot2.getSlotNumber() +
 					slot3.getSlotNumber() + slot4.getSlotNumber());
-			
+
 			// no more slots
 			assertNull(instance.allocateSimpleSlot(new JobID()));
 			try {
 				instance.returnAllocatedSlot(slot2);
 				fail("instance accepted a non-cancelled slot.");
-			} catch (IllegalArgumentException e) {
+			}
+			catch (IllegalArgumentException e) {
 				// good
 			}
-			
+
 			// release the slots. this returns them to the instance
 			slot1.releaseSlot();
 			slot2.releaseSlot();
-			assertFalse(instance.returnAllocatedSlot(slot1));
-			assertFalse(instance.returnAllocatedSlot(slot2));
-			
-			// cancel some slots. this does not release them, yet
-			slot3.cancel();
-			slot4.cancel();
-			assertTrue(instance.returnAllocatedSlot(slot3));
-			assertTrue(instance.returnAllocatedSlot(slot4));
-			
+			slot3.releaseSlot();
+			slot4.releaseSlot();
+
 			assertEquals(4, instance.getNumberOfAvailableSlots());
 			assertEquals(0, instance.getNumberOfAllocatedSlots());
-			
+
 			assertFalse(instance.returnAllocatedSlot(slot1));
 			assertFalse(instance.returnAllocatedSlot(slot2));
 			assertFalse(instance.returnAllocatedSlot(slot3));
 			assertFalse(instance.returnAllocatedSlot(slot4));
-			
+
 			assertEquals(4, instance.getNumberOfAvailableSlots());
 			assertEquals(0, instance.getNumberOfAllocatedSlots());
 		}
@@ -97,27 +92,27 @@ public class InstanceTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testInstanceDies() {
 		try {
 			HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 			InetAddress address = InetAddress.getByName("127.0.0.1");
 			InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
-			
+
 			Instance instance = new Instance(ActorRef.noSender(), connection, new InstanceID(), hardwareDescription, 3);
-			
+
 			assertEquals(3, instance.getNumberOfAvailableSlots());
-			
+
 			SimpleSlot slot1 = instance.allocateSimpleSlot(new JobID());
 			SimpleSlot slot2 = instance.allocateSimpleSlot(new JobID());
 			SimpleSlot slot3 = instance.allocateSimpleSlot(new JobID());
-			
+
 			instance.markDead();
-			
+
 			assertEquals(0, instance.getNumberOfAllocatedSlots());
 			assertEquals(0, instance.getNumberOfAvailableSlots());
-			
+
 			assertTrue(slot1.isCanceled());
 			assertTrue(slot2.isCanceled());
 			assertTrue(slot3.isCanceled());
@@ -127,26 +122,26 @@ public class InstanceTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testCancelAllSlots() {
 		try {
 			HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 			InetAddress address = InetAddress.getByName("127.0.0.1");
 			InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
-			
+
 			Instance instance = new Instance(ActorRef.noSender(), connection, new InstanceID(), hardwareDescription, 3);
-			
+
 			assertEquals(3, instance.getNumberOfAvailableSlots());
-			
+
 			SimpleSlot slot1 = instance.allocateSimpleSlot(new JobID());
 			SimpleSlot slot2 = instance.allocateSimpleSlot(new JobID());
 			SimpleSlot slot3 = instance.allocateSimpleSlot(new JobID());
-			
+
 			instance.cancelAndReleaseAllSlots();
-			
+
 			assertEquals(3, instance.getNumberOfAvailableSlots());
-			
+
 			assertTrue(slot1.isCanceled());
 			assertTrue(slot2.isCanceled());
 			assertTrue(slot3.isCanceled());
@@ -156,7 +151,7 @@ public class InstanceTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	/**
 	 * It is crucial for some portions of the code that instance objects do not override equals and
 	 * are only considered equal, if the references are equal.

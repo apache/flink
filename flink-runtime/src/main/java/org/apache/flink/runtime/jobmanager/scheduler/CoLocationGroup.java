@@ -26,16 +26,26 @@ import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 
 import com.google.common.base.Preconditions;
 
+/**
+ * A Co-location group is a group of JobVertices, where the <i>i-th</i> subtask of one vertex
+ * has to be executed on the same TaskManager as the <i>i-th</i> subtask of all
+ * other JobVertices in the same group.
+ * 
+ * <p>The co-location group is used for example to make sure that the i-th subtasks for iteration
+ * head and iteration tail are scheduled to the same TaskManager.</p>
+ */
 public class CoLocationGroup implements java.io.Serializable {
 	
 	private static final long serialVersionUID = -2605819490401895297L;
 
-	// we use a job vertex ID, because the co location group acts as a unit inside which exclusive sharing of
-	// slots is used
+
+	/** The ID that describes the slot co-location-constraint as a group */ 
 	private final AbstractID id = new AbstractID();
 	
+	/** The vertices participating in the co-location group */
 	private final List<AbstractJobVertex> vertices = new ArrayList<AbstractJobVertex>();
 	
+	/** The constraints, which hold the shared slots for the co-located operators */
 	private transient ArrayList<CoLocationConstraint> constraints;
 	
 	// --------------------------------------------------------------------------------------------
@@ -88,15 +98,28 @@ public class CoLocationGroup implements java.io.Serializable {
 			}
 		}
 	}
-	
+
+	/**
+	 * Gets the ID that identifies this co-location group.
+	 * 
+	 * @return The ID that identifies this co-location group.
+	 */
 	public AbstractID getId() {
 		return id;
 	}
-	
+
+	/**
+	 * Resets this co-location group, meaning that future calls to {@link #getLocationConstraint(int)}
+	 * will give out new CoLocationConstraints.
+	 * 
+	 * <p>This method can only be called when no tasks from any of the CoLocationConstraints are
+	 * executed any more.</p>
+	 */
 	public void resetConstraints() {
 		for (CoLocationConstraint c : this.constraints) {
-			if (!c.isUnassignedOrDisposed()) {
-				throw new IllegalStateException("Cannot reset co-location group: some constraints still have executing vertices.");
+			if (c.isAssignedAndAlive()) {
+				throw new IllegalStateException(
+						"Cannot reset co-location group: some constraints still have live tasks");
 			}
 		}
 		this.constraints.clear();
