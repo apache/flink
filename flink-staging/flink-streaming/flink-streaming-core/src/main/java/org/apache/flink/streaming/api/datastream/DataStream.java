@@ -1009,7 +1009,7 @@ public class DataStream<OUT> {
 	 * @return the closed DataStream.
 	 */
 	public DataStreamSink<OUT> writeAsText(String path) {
-		return writeToFile(new TextOutputFormat<OUT>(new Path(path)), 0L);
+		return write(new TextOutputFormat<OUT>(new Path(path)), 0L);
 	}
 
 	/**
@@ -1027,7 +1027,7 @@ public class DataStream<OUT> {
 	 */
 	public DataStreamSink<OUT> writeAsText(String path, long millis) {
 		TextOutputFormat<OUT> tof = new TextOutputFormat<OUT>(new Path(path));
-		return writeToFile(tof, millis);
+		return write(tof, millis);
 	}
 
 	/**
@@ -1046,7 +1046,7 @@ public class DataStream<OUT> {
 	public DataStreamSink<OUT> writeAsText(String path, WriteMode writeMode) {
 		TextOutputFormat<OUT> tof = new TextOutputFormat<OUT>(new Path(path));
 		tof.setWriteMode(writeMode);
-		return writeToFile(tof, 0L);
+		return write(tof, 0L);
 	}
 
 	/**
@@ -1067,7 +1067,7 @@ public class DataStream<OUT> {
 	public DataStreamSink<OUT> writeAsText(String path, WriteMode writeMode, long millis) {
 		TextOutputFormat<OUT> tof = new TextOutputFormat<OUT>(new Path(path));
 		tof.setWriteMode(writeMode);
-		return writeToFile(tof, millis);
+		return write(tof, millis);
 	}
 
 	/**
@@ -1086,7 +1086,7 @@ public class DataStream<OUT> {
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-		return writeToFile((OutputFormat<OUT>) of, 0L);
+		return write((OutputFormat<OUT>) of, 0L);
 	}
 
 	/**
@@ -1108,7 +1108,7 @@ public class DataStream<OUT> {
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-		return writeToFile((OutputFormat<OUT>) of, millis);
+		return write((OutputFormat<OUT>) of, millis);
 	}
 
 	/**
@@ -1133,7 +1133,7 @@ public class DataStream<OUT> {
 		if (writeMode != null) {
 			of.setWriteMode(writeMode);
 		}
-		return writeToFile((OutputFormat<OUT>) of, 0L);
+		return write((OutputFormat<OUT>) of, 0L);
 	}
 
 	/**
@@ -1162,7 +1162,7 @@ public class DataStream<OUT> {
 		if (writeMode != null) {
 			of.setWriteMode(writeMode);
 		}
-		return writeToFile((OutputFormat<OUT>) of, millis);
+		return write((OutputFormat<OUT>) of, millis);
 	}
 
 	/**
@@ -1184,7 +1184,7 @@ public class DataStream<OUT> {
 		return returnStream;
 	}
 
-	private DataStreamSink<OUT> writeToFile(OutputFormat<OUT> format, long millis) {
+	public DataStreamSink<OUT> write(OutputFormat<OUT> format, long millis) {
 		DataStreamSink<OUT> returnStream = addSink(new FileSinkFunctionByMillis<OUT>(format, millis));
 		return returnStream;
 	}
