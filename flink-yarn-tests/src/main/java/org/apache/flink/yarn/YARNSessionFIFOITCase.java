@@ -528,8 +528,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			}
 			//String content = FileUtils.readFileToString(taskmanagerOut);
 			// check for some of the wordcount outputs.
-			Assert.assertTrue("Expected string 'da 5' or '(all,2)' not found in string '"+content+"'", content.contains("(da,5)") || content.contains("(all,2)"));
-			Assert.assertTrue("Expected string 'der 29' or '(mind,1)' not found in string'"+content+"'", content.contains("(der,29)") || content.contains("(mind,1)"));
+			Assert.assertTrue("Expected string 'da 5' or '(all,2)' not found in string '"+content+"'", content.contains("da 5") || content.contains("(da,5)") || content.contains("(all,2)"));
+			Assert.assertTrue("Expected string 'der 29' or '(mind,1)' not found in string'"+content+"'",content.contains("der 29") || content.contains("(der,29)") || content.contains("(mind,1)"));
 
 			// check if the heap size for the TaskManager was set correctly
 			File jobmanagerLog = YarnTestBase.findFile("..", new FilenameFilter() {
