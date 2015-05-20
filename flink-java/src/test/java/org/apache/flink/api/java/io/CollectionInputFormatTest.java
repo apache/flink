@@ -109,7 +109,7 @@ public class CollectionInputFormatTest {
 			@SuppressWarnings("unchecked")
 			CollectionInputFormat<ElementType> result = (CollectionInputFormat<ElementType>) serializationResult;
 
-			GenericInputSplit inputSplit = new GenericInputSplit();
+			GenericInputSplit inputSplit = new GenericInputSplit(0, 1);
 			inputFormat.open(inputSplit);
 			result.open(inputSplit);
 
@@ -187,7 +187,7 @@ public class CollectionInputFormatTest {
 			int i = 0;
 			@SuppressWarnings("unchecked")
 			CollectionInputFormat<String> in = (CollectionInputFormat<String>) result;
-			in.open(new GenericInputSplit());
+			in.open(new GenericInputSplit(0, 1));
 			
 			while (!in.reachedEnd()) {
 				assertEquals(data[i++], in.nextRecord(""));

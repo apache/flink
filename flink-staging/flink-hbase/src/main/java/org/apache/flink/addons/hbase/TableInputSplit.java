@@ -15,13 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.addons.hbase;
 
-import java.io.IOException;
-
 import org.apache.flink.core.io.LocatableInputSplit;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * This class implements a input splits for HBase. Each table input split corresponds to a key range (low, high). All
@@ -31,20 +28,14 @@ public class TableInputSplit extends LocatableInputSplit {
 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * The name of the table to retrieve data from
-	 */
-	private byte[] tableName;
+	/** The name of the table to retrieve data from */
+	private final byte[] tableName;
 
-	/**
-	 * The start row of the split.
-	 */
-	private byte[] startRow;
+	/** The start row of the split. */
+	private final byte[] startRow;
 
-	/**
-	 * The end row of the split.
-	 */
-	private byte[] endRow;
+	/** The end row of the split. */
+	private final byte[] endRow;
 
 	/**
 	 * Creates a new table input split
@@ -67,17 +58,6 @@ public class TableInputSplit extends LocatableInputSplit {
 		this.tableName = tableName;
 		this.startRow = startRow;
 		this.endRow = endRow;
-	}
-
-	/**
-	 * Default constructor for serialization/deserialization.
-	 */
-	public TableInputSplit() {
-		super();
-
-		this.tableName = null;
-		this.startRow = null;
-		this.endRow = null;
 	}
 
 	/**
@@ -105,64 +85,5 @@ public class TableInputSplit extends LocatableInputSplit {
 	 */
 	public byte[] getEndRow() {
 		return this.endRow;
-	}
-
-
-	@Override
-	public void write(final DataOutputView out) throws IOException {
-
-		super.write(out);
-
-		// Write the table name
-		if (this.tableName == null) {
-			out.writeInt(-1);
-		} else {
-			out.writeInt(this.tableName.length);
-			out.write(this.tableName);
-		}
-
-		// Write the start row
-		if (this.startRow == null) {
-			out.writeInt(-1);
-		} else {
-			out.writeInt(this.startRow.length);
-			out.write(this.startRow);
-		}
-
-		// Write the end row
-		if (this.endRow == null) {
-			out.writeInt(-1);
-		} else {
-			out.writeInt(this.endRow.length);
-			out.write(this.endRow);
-		}
-	}
-
-
-	@Override
-	public void read(final DataInputView in) throws IOException {
-
-		super.read(in);
-
-		// Read the table name
-		int len = in.readInt();
-		if (len >= 0) {
-			this.tableName = new byte[len];
-			in.readFully(this.tableName);
-		}
-
-		// Read the start row
-		len = in.readInt();
-		if (len >= 0) {
-			this.startRow = new byte[len];
-			in.readFully(this.startRow);
-		}
-
-		// Read the end row
-		len = in.readInt();
-		if (len >= 0) {
-			this.endRow = new byte[len];
-			in.readFully(this.endRow);
-		}
 	}
 }
