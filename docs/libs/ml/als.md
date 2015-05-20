@@ -114,9 +114,9 @@ The alternating least squares implementation can be controlled by the following 
         <td><strong>TemporaryPath</strong></td>
         <td>
           <p>
-            Path to a temporary directory into which intermediate results are stored. 
-            If this value is set, then the algorithm is split into two preprocessing steps, the ALS iteration  and a post-processing step which calculates a last ALS half-step. 
-            The preprocessing steps calculate the <code>OutBlockInformation</code> and <code>InBlockInformation</code> for the given rating matrix. 
+            Path to a temporary directory into which intermediate results are stored.
+            If this value is set, then the algorithm is split into two preprocessing steps, the ALS iteration and a post-processing step which calculates a last ALS half-step.
+            The preprocessing steps calculate the <code>OutBlockInformation</code> and <code>InBlockInformation</code> for the given rating matrix.
             The results of the individual steps are stored in the specified directory.
             By splitting the algorithm into multiple smaller steps, Flink does not have to split the available memory amongst too many operators. 
             This allows the system to process bigger individual messages and improves the overall performance.
@@ -144,7 +144,7 @@ val als = ALS()
 // Set the other parameters via a parameter map
 val parameters = ParameterMap()
 .add(ALS.Lambda, 0.9)
-.add(ALS.Seed, 42l)
+.add(ALS.Seed, 42L)
 
 // Calculate the factorization
 als.fit(inputDS, parameters)
