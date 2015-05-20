@@ -29,19 +29,9 @@ and roadmap here](vision_roadmap.html).
 * This will be replaced by the TOC
 {:toc}
 
-## Getting Started
-
-You can use FlinkML in your project by adding the following dependency to your pom.xml
-
-{% highlight bash %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-ml</artifactId>
-  <version>{{site.version }}</version>
-</dependency>
-{% endhighlight %}
-
 ## Supported Algorithms
+
+FlinkML currently supports the following algorithms:
 
 ### Supervised Learning
 
@@ -62,27 +52,66 @@ You can use FlinkML in your project by adding the following dependency to your p
 
 * [Distance Metrics](distance_metrics.html)
 
-## Example & Quickstart guide
+## Getting Started
 
-We already have some of the building blocks for FlinkML in place, and will continue to extend the
-library with more algorithms. An example of how simple it is to create a learning model in
-FlinkML is given below:
+First, you have to [set up a Flink program](http://ci.apache.org/projects/flink/flink-docs-master/apis/programming_guide.html#linking-with-flink).
+Next, you have to add the FlinkML dependency to the `pom.xml` of your project.  
+
+{% highlight bash %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-ml</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+Now you can start defining your ML pipelines.
+The following code snippet shows how easy it is to train a multiple linear regression model.
 
 {% highlight scala %}
 // LabeledVector is a feature vector with a label (class or real value)
-val data: DataSet[LabeledVector] = ...
+val trainingData: DataSet[LabeledVector] = ...
+val testingData: DataSet[Vector] = ...
 
-val learner = MultipleLinearRegression()
+val mlr = MultipleLinearRegression()
   .setStepsize(1.0)
   .setIterations(100)
   .setConvergenceThreshold(0.001)
 
-learner.fit(data, parameters)
+mlr.fit(trainingData, parameters)
 
-// The learner can now be used to make predictions using learner.predict()
+// The fitted model can now be used to make predictions
+val predictions: DataSet[LabeledVector] = mlr.predict(testingData)
 {% endhighlight %}
 
-For a more comprehensive guide, you can check out our [quickstart guide](quickstart.html)
+For a more comprehensive guide, please check out our [quickstart guide](quickstart.html)
+
+## Pipelines
+
+A key concept of FlinkML is its [scikit-learn](http://scikit-learn.org) inspired pipelining mechanism.
+It allows you to quickly build complex data analysis pipelines how they appear in every data scientist's daily work.
+
+The following example code shows how easy it is to set up an analysis pipeline with FlinkML.
+
+{% highlight scala %}
+val trainingData: DataSet[LabeledVector] = ...
+val testingData: DataSet[Vector] = ...
+
+val scaler = StandardScaler()
+val polyFeatures = PolynomialFeatures().setDegree(3)
+val mlr = MultipleLinearRegression()
+
+// Construct pipeline
+val pipeline = scaler.chainTransformer(polyFeatures).chainPredictor(mlr)
+
+// Train pipeline
+pipeline.fit(trainingData)
+
+// Calculate predictions
+val predictions: DataSet[LabeledVector] = pipeline.predict(testingData)
+{% endhighlight %} 
+
+An in-depth description of FlinkML's pipelines and their internal workings can be found [here](pipelines.html)
 
 ## How to contribute
 
