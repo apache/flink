@@ -74,7 +74,7 @@ class TestingCluster(userConfiguration: Configuration, singleActorSystem: Boolea
     }
 
     TaskManager.startTaskManagerComponentsAndActor(configuration, system,
-                                                   HOSTNAME,
+                                                   hostname,
                                                    Some(tmActorName),
                                                    jobManagerPath,
                                                    numTaskManagers == 1,

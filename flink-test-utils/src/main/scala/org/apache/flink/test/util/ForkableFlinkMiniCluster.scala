@@ -116,7 +116,7 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
       None
     }
 
-    TaskManager.startTaskManagerComponentsAndActor(config, system, HOSTNAME,
+    TaskManager.startTaskManagerComponentsAndActor(config, system, hostname,
         Some(TaskManager.TASK_MANAGER_NAME + index), jobManagerAkkaUrl, localExecution,
          classOf[TestingTaskManager])
   }

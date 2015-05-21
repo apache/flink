@@ -56,7 +56,7 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
 
   // NOTE: THIS MUST BE getByName("localhost"), which is 127.0.0.1 and
   // not getLocalHost(), which may be 127.0.1.1
-  val HOSTNAME = InetAddress.getByName("localhost").getHostAddress()
+  val hostname = InetAddress.getByName("localhost").getHostAddress()
 
   val timeout = AkkaUtils.getTimeout(userConfiguration)
 
@@ -100,7 +100,7 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
       val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
         ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
-      AkkaUtils.getAkkaConfig(configuration, Some((HOSTNAME, port)))
+      AkkaUtils.getAkkaConfig(configuration, Some((hostname, port)))
     }
   }
 
@@ -115,7 +115,7 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
 
     val resolvedPort = if(port != 0) port + index else port
 
-    AkkaUtils.getAkkaConfig(configuration, Some((HOSTNAME, resolvedPort)))
+    AkkaUtils.getAkkaConfig(configuration, Some((hostname, resolvedPort)))
   }
 
   def startTaskManagerActorSystem(index: Int): ActorSystem = {
