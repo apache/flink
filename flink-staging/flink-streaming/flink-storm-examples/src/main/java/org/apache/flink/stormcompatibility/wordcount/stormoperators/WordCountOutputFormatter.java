@@ -16,30 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.stormcompatibility.wordcount;
+package org.apache.flink.stormcompatibility.wordcount.stormoperators;
 
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
-import org.apache.flink.test.testdata.WordCountData;
+import backtype.storm.tuple.Tuple;
+import org.apache.flink.stormcompatibility.util.OutputFormatter;
 
-public class BoltTokenizerWordCountITCase extends StreamingProgramTestBase {
+import java.io.Serializable;
 
-	protected String textPath;
-	protected String resultPath;
-
-	@Override
-	protected void preSubmit() throws Exception {
-		this.textPath = this.createTempFile("text.txt", WordCountData.TEXT);
-		this.resultPath = this.getTempDirPath("result");
-	}
+public class WordCountOutputFormatter implements OutputFormatter, Serializable {
 
 	@Override
-	protected void postSubmit() throws Exception {
-		this.compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, this.resultPath);
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
-		BoltTokenizerWordCount.main(new String[]{this.textPath, this.resultPath});
+	public String format(Object input) {
+		Tuple inputTuple = (Tuple) input;
+		StringBuilder stringBuilder = new StringBuilder();
+		stringBuilder.append("(");
+		for (final Object attribute : inputTuple.getValues()) {
+			stringBuilder.append(attribute);
+			stringBuilder.append(",");
+		}
+		stringBuilder.replace(stringBuilder.length() - 1, stringBuilder.length(), ")");
+		return stringBuilder.toString();
 	}
 
 }

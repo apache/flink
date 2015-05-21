@@ -14,52 +14,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.stormcompatibility.api;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-
-
-
-
 public class FlinkTopologyTest {
-	
+
 	@Test
 	public void testDefaultParallelism() {
 		final FlinkTopology topology = new FlinkTopology(null);
 		Assert.assertEquals(1, topology.getParallelism());
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testExecute() throws Exception {
 		new FlinkTopology(null).execute();
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testExecuteWithName() throws Exception {
 		new FlinkTopology(null).execute(null);
 	}
-	
+
 	@Test
 	public void testNumberOfTasks() {
 		final FlinkTopology topology = new FlinkTopology(null);
-		
+
 		Assert.assertEquals(0, topology.getNumberOfTasks());
-		
+
 		topology.increaseNumberOfTasks(3);
 		Assert.assertEquals(3, topology.getNumberOfTasks());
-		
+
 		topology.increaseNumberOfTasks(2);
 		Assert.assertEquals(5, topology.getNumberOfTasks());
-		
+
 		topology.increaseNumberOfTasks(8);
 		Assert.assertEquals(13, topology.getNumberOfTasks());
 	}
-	
+
 	@Test(expected = AssertionError.class)
 	public void testAssert() {
 		new FlinkTopology(null).increaseNumberOfTasks(0);
 	}
-	
+
 }

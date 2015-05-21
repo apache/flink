@@ -14,29 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.stormcompatibility.util;
 
-import java.util.Random;
+package org.apache.flink.stormcompatibility.util;
 
 import org.junit.Before;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-
-
+import java.util.Random;
 
 public abstract class AbstractTest {
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractTest.class);
-	
+
 	protected long seed;
 	protected Random r;
-	
+
 	@Before
 	public void prepare() {
 		this.seed = System.currentTimeMillis();
 		this.r = new Random(this.seed);
 		LOG.info("Test seed: {}", new Long(this.seed));
 	}
-	
+
 }

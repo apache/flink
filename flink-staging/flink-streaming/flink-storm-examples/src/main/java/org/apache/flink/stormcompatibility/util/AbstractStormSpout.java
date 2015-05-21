@@ -14,9 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.stormcompatibility.wordcount.stormoperators;
 
-import java.util.Map;
+package org.apache.flink.stormcompatibility.util;
 
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
@@ -24,9 +23,7 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 
-
-
-
+import java.util.Map;
 
 /**
  * Base class for Storm Spout that reads data line by line from an arbitrary source. The declared output schema has a
@@ -34,42 +31,40 @@ import backtype.storm.tuple.Fields;
  */
 public abstract class AbstractStormSpout implements IRichSpout {
 	private static final long serialVersionUID = 8876828403487806771L;
-	
+
 	public final static String ATTRIBUTE_LINE = "line";
-	public final static int ATTRIBUTE_LINE_INDEX = 0;
-	
+
 	protected SpoutOutputCollector collector;
-	
-	
-	
+
+	@SuppressWarnings("rawtypes")
 	@Override
-	public void open(@SuppressWarnings("rawtypes") final Map conf, final TopologyContext context, @SuppressWarnings("hiding") final SpoutOutputCollector collector) {
+	public void open(final Map conf, final TopologyContext context, final SpoutOutputCollector collector) {
 		this.collector = collector;
 	}
-	
+
 	@Override
 	public void close() {/* noting to do */}
-	
+
 	@Override
 	public void activate() {/* noting to do */}
-	
+
 	@Override
 	public void deactivate() {/* noting to do */}
-	
+
 	@Override
 	public void ack(final Object msgId) {/* noting to do */}
-	
+
 	@Override
 	public void fail(final Object msgId) {/* noting to do */}
-	
+
 	@Override
 	public void declareOutputFields(final OutputFieldsDeclarer declarer) {
 		declarer.declare(new Fields(ATTRIBUTE_LINE));
 	}
-	
+
 	@Override
 	public Map<String, Object> getComponentConfiguration() {
 		return null;
 	}
-	
+
 }
