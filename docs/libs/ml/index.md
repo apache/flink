@@ -23,6 +23,8 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
+
+
 FlinkML is the Machine Learning (ML) library for Flink. It is a new effort in the Flink community,
 with a growing list of algorithms and contributors. With FlinkML we aim to provide 
 scalable ML algorithms, an intuitive API and tools that help minimize glue code in end-to-end ML 
@@ -63,7 +65,7 @@ You can use FlinkML in your project by adding the following dependency to your p
 
 * [Distance Metrics](distance_metrics.html)
 
-## Example
+## Example & Quickstart guide
 
 We already have some of the building blocks for FlinkML in place, and will continue to extend the
 library with more algorithms. An example of how simple it is to create a learning model in
@@ -82,6 +84,8 @@ learner.fit(data, parameters)
 
 // The learner can now be used to make predictions using learner.predict()
 {% endhighlight %}
+
+For a more comprehensive guide, you can check out our [quickstart guide](quickstart.html)
 
 ## How to contribute
 

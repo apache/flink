@@ -57,8 +57,8 @@ cluster sizes.
 ## Roadmap
 
 The roadmap below can provide an indication of the algorithms we aim to implement in the coming
-months. If you are interested in helping out, please check our [contribution guide](???). Items in 
-**bold** have already been implemented:
+months. If you are interested in helping out, please check our [contribution guide](contribution_guide.html).
+Items in **bold** have already been implemented:
 
 * Pipelines of transformers and learners
 * Data pre-processing
@@ -91,8 +91,7 @@ months. If you are interested in helping out, please check our [contribution gui
 * Distributed linear algebra
 * Streaming ML
 
-
-### References:
+**References:**
 
 [1] D. Sculley, G. Holt, D. Golovin, E. Davydov, T. Phillips, D. Ebner, V. Chaudhary,
 and M. Young. _Machine learning: The high interest credit card of technical debt._ In SE4ML:
