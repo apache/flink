@@ -46,7 +46,7 @@ import org.apache.flink.ml.optimization.Solver._
   *                      stop the iterations if the relative change in the value of the objective
   *                      function between successive iterations is is smaller than this value.
   */
-class GradientDescent() extends IterativeSolver() {
+class GradientDescent() extends IterativeSolver {
 
   import Solver.WEIGHTVECTOR_BROADCAST
 
@@ -89,9 +89,7 @@ class GradientDescent() extends IterativeSolver() {
     data: DataSet[LabeledVector],
     initialWeights: Option[DataSet[WeightVector]]): DataSet[WeightVector] = {
     val numberOfIterations: Int = parameters(Iterations)
-    // TODO(tvas): This looks out of place, why don't we get back an Option from
-    // parameters(ConvergenceThreshold)?
-    val convergenceThresholdOption = parameters.get(ConvergenceThreshold)
+    val convergenceThresholdOption: Option[Double] = parameters.get(ConvergenceThreshold)
 
     // Initialize weights
     val initialWeightsDS: DataSet[WeightVector] = createInitialWeightsDS(initialWeights, data)
@@ -109,17 +107,15 @@ class GradientDescent() extends IterativeSolver() {
         /** Calculates the regularized loss, from the data and given weights **/
         def lossCalculation(data: DataSet[LabeledVector], weightDS: DataSet[WeightVector]):
         DataSet[Double] = {
-          data.map {
-            new LossCalculation
-          }.withBroadcastSet(weightDS, WEIGHTVECTOR_BROADCAST)
+          data
+            .map {new LossCalculation}.withBroadcastSet(weightDS, WEIGHTVECTOR_BROADCAST)
             .reduce {
-            (left, right) =>
-              val (leftLoss, leftCount) = left
-              val (rightLoss, rightCount) = right
-              (leftLoss + rightLoss, rightCount + leftCount)
-          }
-            .map{new RegularizedLossCalculation}
-            .withBroadcastSet(weightDS, WEIGHTVECTOR_BROADCAST)
+              (left, right) =>
+                val (leftLoss, leftCount) = left
+                val (rightLoss, rightCount) = right
+                (leftLoss + rightLoss, rightCount + leftCount)
+            }
+            .map{new RegularizedLossCalculation}.withBroadcastSet(weightDS, WEIGHTVECTOR_BROADCAST)
         }
         // We have to calculate for each weight vector the sum of squared residuals,
         // and then sum them and apply regularization
@@ -187,14 +183,10 @@ class GradientDescent() extends IterativeSolver() {
       val lossFunction = parameters(LossFunctionParameter)
       val predictionFunction = parameters(PredictionFunctionParameter)
       val dimensions = example.vector.size
-      // TODO(tvas): Avoid needless creation of WeightGradient object
-      // Create a lossValue function in LossFunction?
-      val weightGradient = new DenseVector(new Array[Double](dimensions))
 
-      val (loss, _) = lossFunction.lossAndGradient(
+      val loss = lossFunction.lossValue(
         example,
         weightVector,
-        weightGradient,
         predictionFunction)
 
       (loss, 1)
@@ -209,14 +201,12 @@ private class RegularizedLossCalculation extends RichMapFunction[(Double, Int), 
 
   var weightVector: WeightVector = null
 
-
   @throws(classOf[Exception])
   override def open(configuration: Configuration): Unit = {
     val list = this.getRuntimeContext.
       getBroadcastVariable[WeightVector](WEIGHTVECTOR_BROADCAST)
 
     weightVector = list.get(0)
-
   }
 
   override def map(lossAndCount: (Double, Int)): Double = {

@@ -139,7 +139,7 @@ object Solver {
   * See [[https://en.wikipedia.org/wiki/Iterative_method Iterative Methods on Wikipedia]] for more
   * info
   */
-abstract class IterativeSolver() extends Solver() {
+abstract class IterativeSolver() extends Solver {
 
   //Setters for parameters
   def setIterations(iterations: Int): this.type = {
@@ -160,8 +160,8 @@ abstract class IterativeSolver() extends Solver() {
   /** Mapping function that calculates the weight gradients from the data.
     *
     */
-  protected class GradientCalculation extends
-  RichMapFunction[LabeledVector, (WeightVector, Double, Int)] {
+  protected class GradientCalculation
+    extends RichMapFunction[LabeledVector, (WeightVector, Double, Int)] {
 
     var weightVector: WeightVector = null
 

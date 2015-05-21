@@ -119,7 +119,6 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val weights = weightVector.weights.asInstanceOf[DenseVector].data
     val weight0 = weightVector.intercept
 
-
     expectedWeights zip weights foreach {
       case (expectedWeight, weight) =>
         weight should be (expectedWeight +- 0.1)
@@ -225,7 +224,6 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
       .setLossFunction(SquaredLoss())
       .setRegularizationType(NoRegularization())
       .setRegularizationParameter(0.0)
-
 
     val weightDSNoConvergence = sgdNoConvergence.optimize(inputDS, None)
 
