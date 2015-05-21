@@ -1,12 +1,13 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,11 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.stormcompatibility.wordcount;
+package org.apache.flink.stormcompatibility.excamation;
 
-import backtype.storm.topology.IRichSpout;
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.stormcompatibility.util.StormFileSpout;
@@ -27,26 +26,8 @@ import org.apache.flink.stormcompatibility.util.StormInMemorySpout;
 import org.apache.flink.stormcompatibility.wrappers.StormFiniteSpoutWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.Collector;
 
-/**
- * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
- * fashion. The used data source is a Storm {@link IRichSpout bolt}.
- * <p/>
- * <p/>
- * The input is a plain text file with lines separated by newline characters.
- * <p/>
- * <p/>
- * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
- * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * <p/>
- * <p/>
- * This example shows how to:
- * <ul>
- * <li>use a Storm bolt within a Flink Streaming program.
- * </ul>
- */
-public class SpoutSourceWordCount {
+public class StormSpoutExclamation {
 
 	// *************************************************************************
 	// PROGRAM
@@ -64,45 +45,30 @@ public class SpoutSourceWordCount {
 		// get input data
 		final DataStream<String> text = getTextDataStream(env);
 
-		final DataStream<Tuple2<String, Integer>> counts =
-				// split up the lines in pairs (2-tuples) containing: (word,1)
-				text.flatMap(new Tokenizer())
-						// group by the tuple field "0" and sum up tuple field "1"
-						.groupBy(0).sum(1);
+		final DataStream<String> exclaimed = text
+				.map(new ExclamationMap())
+				.map(new ExclamationMap());
 
 		// emit result
 		if (fileOutput) {
-			counts.writeAsText(outputPath);
+			exclaimed.writeAsText(outputPath);
 		} else {
-			counts.print();
+			exclaimed.print();
 		}
 
 		// execute program
-		env.execute("Streaming WordCount with Storm spout source");
+		env.execute("Streaming Exclamation with Storm spout source");
 	}
 
 	// *************************************************************************
 	// USER FUNCTIONS
 	// *************************************************************************
 
-	/**
-	 * Implements the string tokenizer that splits sentences into words as a user-defined FlatMapFunction. The function
-	 * takes a line (String) and splits it into multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
-	 */
-	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
-		private static final long serialVersionUID = 1L;
+	private static class ExclamationMap implements MapFunction<String, String> {
 
 		@Override
-		public void flatMap(final String value, final Collector<Tuple2<String, Integer>> out) throws Exception {
-			// normalize and split the line
-			final String[] tokens = value.toLowerCase().split("\\W+");
-
-			// emit the pairs
-			for (final String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new Tuple2<String, Integer>(token, 1));
-				}
-			}
+		public String map(String value) throws Exception {
+			return value + "!!!";
 		}
 	}
 
@@ -123,13 +89,13 @@ public class SpoutSourceWordCount {
 				textPath = args[0];
 				outputPath = args[1];
 			} else {
-				System.err.println("Usage: SpoutSourceWordCount <text path> <result path>");
+				System.err.println("Usage: StormSpoutExclamation <text path> <result path>");
 				return false;
 			}
 		} else {
-			System.out.println("Executing SpoutSourceWordCount example with built-in default data");
+			System.out.println("Executing StormSpoutExclamation example with built-in default data");
 			System.out.println("  Provide parameters to read input data from a file");
-			System.out.println("  Usage: SpoutSourceWordCount <text path> <result path>");
+			System.out.println("  Usage: StormSpoutExclamation <text path> <result path>");
 		}
 		return true;
 	}

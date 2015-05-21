@@ -15,12 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.stormcompatibility.wordcount.stormoperators;
+package org.apache.flink.stormcompatibility.util;
 
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.tuple.Values;
-import org.apache.flink.stormcompatibility.util.AbstractStormSpout;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
