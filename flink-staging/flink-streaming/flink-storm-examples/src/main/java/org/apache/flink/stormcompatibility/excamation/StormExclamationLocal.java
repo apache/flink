@@ -15,38 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.stormcompatibility.wordcount;
+package org.apache.flink.stormcompatibility.excamation;
 
-import backtype.storm.LocalCluster;
-import backtype.storm.generated.StormTopology;
 import backtype.storm.utils.Utils;
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.stormcompatibility.api.FlinkLocalCluster;
 import org.apache.flink.stormcompatibility.api.FlinkTopologyBuilder;
 
-/**
- * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
- * fashion. The program is constructed as a regular {@link StormTopology} and submitted to Flink for execution in the
- * same way as to a Storm {@link LocalCluster}.
- * <p/>
- * This example shows how to run program directly within Java, thus it cannot be used to submit a {@link StormTopology}
- * via Flink command line clients (ie, bin/flink).
- * <p/>
- * <p/>
- * The input is a plain text file with lines separated by newline characters.
- * <p/>
- * <p/>
- * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
- * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * <p/>
- * <p/>
- * This example shows how to:
- * <ul>
- * <li>run a regular Storm program locally on Flink
- * </ul>
- */
-public class StormWordCountLocal {
-	public final static String topologyId = "Streaming WordCount";
+public class StormExclamationLocal {
+
+	public final static String topologyId = "Streaming Exclamation";
 
 	// *************************************************************************
 	// PROGRAM
@@ -54,22 +31,22 @@ public class StormWordCountLocal {
 
 	public static void main(final String[] args) throws Exception {
 
-		if (!WordCountTopology.parseParameters(args)) {
+		if (!ExclamationTopology.parseParameters(args)) {
 			return;
 		}
 
 		// build Topology the Storm way
-		final FlinkTopologyBuilder builder = WordCountTopology.buildTopology();
+		final FlinkTopologyBuilder builder = ExclamationTopology.buildTopology();
 
 		// execute program locally
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
 		cluster.submitTopology(topologyId, null, builder.createTopology());
 
-		Utils.sleep(100 * 1000);
+		Utils.sleep(5 * 1000);
 
 		// TODO kill does no do anything so far
-		//cluster.killTopology(topologyId);
-		//cluster.shutdown();
+		cluster.killTopology(topologyId);
+		cluster.shutdown();
 	}
 
 }
