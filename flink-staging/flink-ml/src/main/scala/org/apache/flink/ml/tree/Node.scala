@@ -19,8 +19,10 @@
 package org.apache.flink.ml.tree
 
 /** If the node has been trained, it will have:
-  * a. predict >=0, in this case, split should be empty. This is fully grown node and we can't go further down
-  * b. predict = -1, in this case if split is empty, we need to split, otherwise, this is an internal node
+  * a. predict >=0, in this case, split should be empty. This is fully grown node and we can't go
+  * further down
+  * b. predict = -1, in this case if split is empty, we need to split, otherwise, this is an
+  * internal node
   *
   * ID starts from 1 for the root node.
   * treeID is the tree to which this node belongs

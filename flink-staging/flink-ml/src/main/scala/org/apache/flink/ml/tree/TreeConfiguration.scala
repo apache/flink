@@ -31,7 +31,8 @@ package org.apache.flink.ml.tree
   * @param category Which fields are to be considered as categorical. Array of field indexes
   * @param fieldStats Field maximum and minimum values, list of categories [Automatically]
   * @param labels Array of labels slash classes in data [Automatically]
-  * @param labelAddition Addition term to make all labels >=0 [Automatically][Only for internal use. Not visible to user]
+  * @param labelAddition Addition term to make all labels >=0 [Automatically]
+  *                      [Only for internal use. Not visible to user]
   * @param numTrainVector Number of training instances [Automatically]
   */
 class TreeConfiguration(
@@ -50,9 +51,12 @@ class TreeConfiguration(
                          ) {
 
   override def toString: String = {
-    var ret = s"Maximum Binning: $MaxBins, Minimum Instance per leaf node: $MinInstancePerNode, Maximum Depth: $Depth, Pruning:$Pruning" +
-      s"\nSplit Strategy: $splitStrategy, Number of classes: $numClasses, Dimension of data: $dimension, Number of training vectors: $numTrainVector\n" +
-      s"categorical fields: " + java.util.Arrays.toString(category) + "\nLabels in data: " + java.util.Arrays.toString(labels) + "\nField stats:"
+    var ret = s"Maximum Binning: $MaxBins, Minimum Instance per leaf node: $MinInstancePerNode, " +
+      s"Maximum Depth: $Depth, Pruning:$Pruning\nSplit strategy: $splitStrategy, Number of " +
+      s"classes: $numClasses, Dimension of data: $dimension, Number of training vectors:"+
+        s"$numTrainVector\n"+s"categorical fields: " + java.util.Arrays.toString(category) +
+      "\nLabels in data: " + java.util.Arrays.toString(labels) + "\nField stats:"
+
     fieldStats.iterator.foreach(x => ret = ret + x.toString)
     ret + s"\nLabel Addition: $labelAddition"
   }

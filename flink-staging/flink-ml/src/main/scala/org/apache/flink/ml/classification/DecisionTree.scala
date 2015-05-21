@@ -30,8 +30,8 @@ import org.apache.flink.ml.tree._
 
 import scala.collection.mutable
 
-/** Companion object of Decision Tree. Contains convenience functions and the parameter type definitions
-  * of the algorithm.
+/** Companion object of Decision Tree.
+  * Contains convenience functions and the parameter type definitions of the algorithm.
   *
   */
 object DecisionTree {
@@ -98,7 +98,8 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
     * @return itself
     */
   def setMinInstancePerNode(minInstancesPerNode: Int): DecisionTree = {
-    require(minInstancesPerNode >= 1, "Every node must have at least one instance associated with it")
+    require(minInstancesPerNode >= 1,
+      "Every node must have at least one instance associated with it")
     parameters.add(MinInstancesPerNode, minInstancesPerNode)
     this
   }
@@ -130,7 +131,8 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
     * @return itself
     */
   def setSplitStrategy(splitStrategy: String): DecisionTree = {
-    require(splitStrategy == "Gini" || splitStrategy == "Entropy", "Algorithm " + splitStrategy + " not supported")
+    require(splitStrategy == "Gini" || splitStrategy == "Entropy",
+      "Algorithm " + splitStrategy + " not supported")
     parameters.add(SplitStrategy, splitStrategy)
     this
   }
@@ -167,14 +169,14 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
     this
   }
 
-
   /** Trains a Decision Tree
     *
     * @param input Training data set
     * @param fitParameters Parameter values
     * @return Trained Decision Tree Model
     */
-  override def fit(input: DataSet[LabeledVector], fitParameters: ParameterMap): DecisionTreeModel = {
+  override def fit(input: DataSet[LabeledVector], fitParameters: ParameterMap):
+  DecisionTreeModel = {
     val resultingParameters = this.parameters ++ fitParameters
     val depth = resultingParameters(Depth)
     val minInstancePerNode = resultingParameters(MinInstancesPerNode)
@@ -197,7 +199,8 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
     tree = input.getExecutionEnvironment.fromElements(treeCopy) // remake the tree as a dataset
 
     // Group the input data into blocks in round robin fashion
-    val blockedInputNumberElements = FlinkTools.block(input, input.getParallelism, Some(ModuloKeyPartitioner)).
+    val blockedInputNumberElements = FlinkTools.block(
+      input, input.getParallelism, Some(ModuloKeyPartitioner)).
       cross(numberVectors).
       map { x => x }
 
@@ -231,151 +234,222 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
       treeCopy = tree.collect().toArray.apply(0)
 
       val finalHists = combinedHists.collect().toArray.apply(0)
-      val fieldStats = treeCopy.config.fieldStats
-      val labels = treeCopy.config.labels
-      val labelAddition = treeCopy.config.labelAddition
 
-      // now, find splits across each dimension by merging (tree_node, dimension, label_1),(tree_node, dimension, label_2)...
-
-      // keep a list of all the nodes we'll have to find splits for later
-      // we only get stuff for leafs which are unlabeled, so nodes only has those which are unlabeled leafs
-
-      val nodeDimensionSplits = new mutable.HashMap[(Int, Int), Array[Double]]
-      val nodes = new mutable.HashMap[Int, Int]
-
-      finalHists.keysIterator.foreach(
-        x => {
-          nodes.put(x._1, -1)
-          if (nodeDimensionSplits.get((x._1, x._2)).isEmpty) {
-            val min_value = fieldStats.apply(x._2).fieldMinValue
-            val max_value = fieldStats.apply(x._2).fieldMaxValue
-            var tmp_hist: Histogram = new OnlineHistogram(maxBins, 2 * min_value - max_value, 2 * max_value - min_value)
-            labels.iterator.foreach(
-              c => {
-                if (finalHists.get((x._1, x._2, c)).nonEmpty) {
-                  tmp_hist = tmp_hist.merge(finalHists.get((x._1, x._2, c)).get, maxBins)
-                }
-              }
-            )
-            // find maxBins quantiles, or if the size of histogram is less than that, just find those many
-            val actualBins = Math.min(maxBins, tmp_hist.bins - 1)
-            val quantileArray = new Array[Double](actualBins)
-            for (i <- 1 to actualBins) {
-              quantileArray(i - 1) = tmp_hist.quantile((i + 0.0) / (actualBins + 1))
-            }
-            nodeDimensionSplits.put((x._1, x._2), quantileArray)
-          }
-        }
-      )
-      // first, every unlabeled leaf node must have sent something. If not, its sibling will be stuck forever
-
-      treeCopy.nodes.valuesIterator.foreach(
-        this_node => {
-          if (this_node.predict == -1 && this_node.split.isEmpty && nodes.get(this_node.id).isEmpty) {
-            // we're in trouble
-            var sibling_id = 0
-            if (this_node.id % 2 == 0)
-              sibling_id = this_node.id + 1
-            else
-              sibling_id = this_node.id - 1
-            treeCopy.nodes.remove(this_node.id) // this node is pointless. Remove it from the tree
-            // we're not going to split the sibling anymore.
-            nodes.put(sibling_id, 1) // we'll check for this '1' later
-          }
-        }
-      )
-      // now, for each node, for each dimension, evaluate splits based on the above histograms
-      nodes.keysIterator.foreach(
-        node_id => {
-          var node: Node = treeCopy.nodes.get(node_id).get
-          // since the count of classes across any dimension is same, pick 0
-          // for calculating Gini index, we need count(c)^2 and \sum count(c)^2
-          // also maintain which class occurred most frequently in case we need to mark this as a leaf node
-          var sumClassSquare, totalNumPointsHere, maxClassCountLabel, maxClassCount = 0.0
-          labels.iterator.foreach(
-            x => {
-              val h = finalHists.get((node_id, 0, x))
-              if (h.nonEmpty) {
-                val countOfClass = h.get.sum(h.get.upper)
-                totalNumPointsHere = totalNumPointsHere + countOfClass
-                sumClassSquare = sumClassSquare + countOfClass * countOfClass
-                if (countOfClass > maxClassCount) {
-                  maxClassCount = countOfClass
-                  maxClassCountLabel = x
-                }
-              }
-            }
-          )
-
-          // now see if this node has become pure or if it's depth is at a maximum
-          if (totalNumPointsHere * totalNumPointsHere == sumClassSquare || node.getDepth == depth) {
-            node.predict = maxClassCountLabel + labelAddition
-            // sanity check. If we're declaring something a leaf, it better not have any children
-            require(node.split.isEmpty, "An unexpected error occurred")
-          } else if (nodes.get(node_id).get == 1) {
-            // this node is meaningless. The parent didn't do anything at all.
-            // just remove this node from the tree and set the label of parent, which would be same as the label of this
-            node = treeCopy.nodes.get(node_id / 2).get
-            node.predict = maxClassCountLabel + labelAddition
-            node.split = None
-            treeCopy.nodes.remove(node_id)
-          } else {
-            val giniParent = 1 - sumClassSquare / Math.pow(totalNumPointsHere, 2)
-            var best_gini = -java.lang.Double.MAX_VALUE
-            var best_dimension = -1
-            var best_split_value, best_left_total, best_right_total = 0.0
-            // consider all splits across all dimensions and pick the best one
-            for (j <- 0 to dimension - 1) {
-              val splitsArray = nodeDimensionSplits.get((node_id, j)).get
-              val actualSplits = splitsArray.length
-              for (k <- 0 to actualSplits - 1) {
-                // maintain how many instances go left and right for Gini
-                var total_left, total_right, left_sum_sqr, right_sum_sqr = 0.0
-                for (l <- 0 to numClasses - 1) {
-                  val h = finalHists.get((node_id, j, labels.apply(l)))
-                  if (h.nonEmpty) {
-                    val left = h.get.sum(splitsArray.apply(k))
-                    val right = h.get.sum(h.get.upper) - left
-                    total_left = total_left + left
-                    total_right = total_right + right
-                    left_sum_sqr = left_sum_sqr + left * left
-                    right_sum_sqr = right_sum_sqr + right * right
-                  }
-                }
-                // ensure that the split is allowed by user. We need at least this many instances everywhere
-                if (total_left >= minInstancePerNode && total_right >= minInstancePerNode) {
-                  // use a balancing term to ensure the tree is balanced more on the top
-                  // the exponential term in scaling makes sure that as we go deeper, Gini becomes more important in splits
-                  // this makes sense. We want balanced tree on top and fine-grained splitting at deeper levels
-                  val scaling = Math.pow(0.1, node.getDepth + 1)
-                  val balancing = Math.abs(total_left - total_right) / totalNumPointsHere
-                  val this_gini = (1 - scaling) * (giniParent - total_left * (1 - left_sum_sqr / Math.pow(total_left, 2)) / totalNumPointsHere
-                    - total_right * (1 - right_sum_sqr / Math.pow(total_right, 2)) / totalNumPointsHere) + scaling * balancing
-                  if (this_gini > best_gini) {
-                    best_gini = this_gini
-                    best_dimension = j
-                    best_split_value = nodeDimensionSplits.get((node_id, j)).get.apply(k)
-                    best_left_total = total_left
-                    best_right_total = total_right
-                  }
-                }
-              }
-            }
-            if (best_dimension != -1) {
-              node.split = Some(new SplitValue(best_dimension, true, best_split_value))
-              treeCopy.nodes.put(node_id * 2, new Node(node_id * 2, treeCopy.treeID, None))
-              treeCopy.nodes.put(node_id * 2 + 1, new Node(node_id * 2 + 1, treeCopy.treeID, None))
-              any_unlabeled_left = true
-            } else {
-              node.predict = maxClassCountLabel + labelAddition
-            }
-          }
-        }
-      )
+      any_unlabeled_left = evaluateSplits(treeCopy, finalHists)
       tree = tree.getExecutionEnvironment.fromElements(treeCopy)
     }
 
     DecisionTreeModel(tree)
+  }
+
+  private def evaluateSplits(
+                              tree: Tree,
+                              finalHists: mutable.HashMap[(Int, Int, Double), Histogram])
+  : Boolean = {
+    val fieldStats = tree.config.fieldStats
+    val labels = tree.config.labels
+    val maxBins = tree.config.MaxBins
+
+    var any_split_done = false
+
+    val (nodeDimensionSplits, nodes) = calculateSplits(finalHists, fieldStats, maxBins, labels)
+
+    // first, every unlabeled leaf node must have sent something.
+    // If not, its sibling will be stuck forever
+
+    tree.nodes.valuesIterator.foreach(
+      this_node => {
+        if (this_node.predict == -1 && this_node.split.isEmpty &&
+          nodes.get(this_node.id).isEmpty) {
+          // we're in trouble
+          var sibling_id = 0
+          if (this_node.id % 2 == 0)
+            sibling_id = this_node.id + 1
+          else
+            sibling_id = this_node.id - 1
+          // this node is pointless. Remove it from the tree
+          tree.nodes.remove(this_node.id)
+          // we're not going to split the sibling anymore.
+          nodes.put(sibling_id, 1) // we'll check for this '1' later
+        }
+      }
+    )
+    // now, for each node, for each dimension, evaluate splits based on the above histograms
+    any_split_done = evaluateNodes(nodes, tree, nodeDimensionSplits, finalHists)
+    return any_split_done
+  }
+
+  /** Merge all histograms (node_id, dim, _) in finalHists and return an array of splits
+    * that need to be considered at node node_id on dimension dim.
+    * Also, return a hashmap containing entries for whichever nodes have some instances allocated
+    * to them
+    *
+    */
+  private def calculateSplits(
+                               finalHists: mutable.HashMap[(Int, Int, Double), Histogram],
+                               fieldStats: Array[FieldStats],
+                               maxBins: Int,
+                               labels: Array[Double]):
+  (mutable.HashMap[(Int, Int), Array[Double]], mutable.HashMap[Int, Int]) = {
+
+    // keep a list of all the nodes we'll have to find splits for later
+    // we only get stuff for leafs which are unlabeled, so nodes only has those which are
+    // unlabeled leafs
+
+    val nodeDimensionSplits = new mutable.HashMap[(Int, Int), Array[Double]]
+    val nodes = new mutable.HashMap[Int, Int]
+
+    finalHists.keysIterator.foreach(
+      x => {
+        nodes.put(x._1, -1)
+        if (nodeDimensionSplits.get((x._1, x._2)).isEmpty) {
+          val min_value = fieldStats.apply(x._2).fieldMinValue
+          val max_value = fieldStats.apply(x._2).fieldMaxValue
+          var tmp_hist: Histogram =
+            new OnlineHistogram(maxBins, 2 * min_value - max_value, 2 * max_value - min_value)
+          labels.iterator.foreach(
+            c => {
+              if (finalHists.get((x._1, x._2, c)).nonEmpty) {
+                tmp_hist = tmp_hist.merge(finalHists.get((x._1, x._2, c)).get, maxBins)
+              }
+            }
+          )
+          // find maxBins quantiles, or if the size of histogram is less than that, just those many
+          val actualBins = Math.min(maxBins, tmp_hist.bins - 1)
+          val quantileArray = new Array[Double](actualBins)
+          for (i <- 1 to actualBins) {
+            quantileArray(i - 1) = tmp_hist.quantile((i + 0.0) / (actualBins + 1))
+          }
+          nodeDimensionSplits.put((x._1, x._2), quantileArray)
+        }
+      }
+    )
+    (nodeDimensionSplits, nodes)
+  }
+
+  private def findGini(
+                        node_id: Int,
+                        finalHists: mutable.HashMap[(Int, Int, Double), Histogram],
+                        labels: Array[Double]):
+  (Double, Double, Double, Double) = {
+    var sumClassSquare, totalNumPointsHere, maxClassCountLabel, maxClassCount = 0.0
+    // since the count of classes across any dimension is same, pick 0
+    // for calculating Gini index, we need count(c)^2 and \sum count(c)^2
+    // also maintain which class occurred most frequently in case we need to mark this as a leaf
+    // node
+    labels.iterator.foreach(
+      x => {
+        val h = finalHists.get((node_id, 0, x))
+        if (h.nonEmpty) {
+          val countOfClass = h.get.sum(h.get.upper)
+          totalNumPointsHere = totalNumPointsHere + countOfClass
+          sumClassSquare = sumClassSquare + countOfClass * countOfClass
+          if (countOfClass > maxClassCount) {
+            maxClassCount = countOfClass
+            maxClassCountLabel = x
+          }
+        }
+      }
+    )
+    (sumClassSquare, totalNumPointsHere, maxClassCountLabel, maxClassCount)
+  }
+
+  private def evaluateNodes(
+                             nodes: mutable.HashMap[Int, Int],
+                             tree: Tree,
+                             nodeDimensionSplits: mutable.HashMap[(Int, Int), Array[Double]],
+                             finalHists: mutable.HashMap[(Int, Int, Double), Histogram]):
+  Boolean = {
+    val depth = tree.config.Depth
+    val labelAddition = tree.config.labelAddition
+    val dimension = tree.config.dimension
+    val numClasses = tree.config.numClasses
+    val minInstancePerNode = tree.config.MinInstancePerNode
+    val labels = tree.config.labels
+    var any_split_done = false
+
+    nodes.keysIterator.foreach(
+      node_id => {
+
+        var node: Node = tree.nodes.get(node_id).get
+
+        // find the gini index of this node
+        val (sumClassSquare, totalNumPointsHere, maxClassCountLabel, maxClassCount) =
+          findGini(node_id, finalHists, labels)
+
+        // now see if this node has become pure or if it's depth is at a maximum
+        if (totalNumPointsHere * totalNumPointsHere == sumClassSquare || node.getDepth == depth) {
+          node.predict = maxClassCountLabel + labelAddition
+          // sanity check. If we're declaring something a leaf, it better not have any children
+          require(node.split.isEmpty, "An unexpected error occurred")
+        }
+        else if (nodes.get(node_id).get == 1) {
+          // this node is meaningless. The parent didn't do anything at all.
+          // just remove this node from the tree and set the label of parent,
+          // which would be same as the label of this
+          node = tree.nodes.get(node_id / 2).get
+          node.predict = maxClassCountLabel + labelAddition
+          node.split = None
+          tree.nodes.remove(node_id)
+        }
+        else {
+          val giniParent = 1 - sumClassSquare / Math.pow(totalNumPointsHere, 2)
+          var best_gini = -java.lang.Double.MAX_VALUE
+          var best_dimension = -1
+          var best_split_value, best_left_total, best_right_total = 0.0
+          // consider all splits across all dimensions and pick the best one
+          for (j <- 0 to dimension - 1) {
+            val splitsArray = nodeDimensionSplits.get((node_id, j)).get
+            val actualSplits = splitsArray.length
+            for (k <- 0 to actualSplits - 1) {
+              // maintain how many instances go left and right for Gini
+              var total_left, total_right, left_sum_sqr, right_sum_sqr = 0.0
+              for (l <- 0 to numClasses - 1) {
+                val h = finalHists.get((node_id, j, labels.apply(l)))
+                if (h.nonEmpty) {
+                  val left = h.get.sum(splitsArray.apply(k))
+                  val right = h.get.sum(h.get.upper) - left
+                  total_left = total_left + left
+                  total_right = total_right + right
+                  left_sum_sqr = left_sum_sqr + left * left
+                  right_sum_sqr = right_sum_sqr + right * right
+                }
+              }
+              // ensure that the split is allowed by user. We need at least this many instances
+              if (total_left >= minInstancePerNode && total_right >= minInstancePerNode) {
+                // use a balancing term to ensure the tree is balanced more on the top
+                // the exponential term in scaling makes sure that as we go deeper,
+                // Gini becomes more important in splits
+                // this makes sense. We want balanced tree on top and fine-grained splitting at
+                // deeper levels
+                val scaling = Math.pow(0.1, node.getDepth + 1)
+                val balancing = Math.abs(total_left - total_right) / totalNumPointsHere
+                val this_gini = (1 - scaling) * (giniParent -
+                  total_left * (1 - left_sum_sqr / Math.pow(total_left, 2)) / totalNumPointsHere -
+                  total_right * (1 - right_sum_sqr / Math.pow(total_right, 2)) / totalNumPointsHere
+                  ) + scaling * balancing
+                if (this_gini > best_gini) {
+                  best_gini = this_gini
+                  best_dimension = j
+                  best_split_value = nodeDimensionSplits.get((node_id, j)).get.apply(k)
+                  best_left_total = total_left
+                  best_right_total = total_right
+                }
+              }
+            }
+          }
+          if (best_dimension != -1) {
+            node.split = Some(new SplitValue(best_dimension, true, best_split_value))
+            tree.nodes.put(node_id * 2, new Node(node_id * 2, tree.treeID, None))
+            tree.nodes.put(node_id * 2 + 1, new Node(node_id * 2 + 1, tree.treeID, None))
+            any_split_done = true
+          } else {
+            node.predict = maxClassCountLabel + labelAddition
+          }
+        }
+      }
+    )
+    return any_split_done
   }
 
   private def localHistUpdate(
@@ -387,11 +461,13 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
       * because we broadcast the current value of the tree to all mappers.
       *
       */
-    val localUpdate = new RichMapFunction[(Block[LabeledVector], Int), mutable.HashMap[(Int, Int, Double), Histogram]] {
+    val localUpdate = new RichMapFunction[(Block[LabeledVector], Int),
+      mutable.HashMap[(Int, Int, Double), Histogram]] {
 
       var tree: Tree = _
       var config: TreeConfiguration = _
-      var histograms: mutable.HashMap[(Int, Int, Double), Histogram] = new mutable.HashMap[(Int, Int, Double), Histogram]()
+      var histograms: mutable.HashMap[(Int, Int, Double), Histogram] =
+        new mutable.HashMap[(Int, Int, Double), Histogram]()
 
       override def open(parameters: Configuration): Unit = {
         // get the tree
@@ -409,7 +485,8 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
           // find where this instance goes
           val (node, predict) = tree.filter(vector)
           if (predict.round.toInt == -1) {
-            // we can be sure that this is an unlabeled leaf and not some internal node. That's how filter works
+            // we can be sure that this is an unlabeled leaf and not some internal node.
+            // That's how filter works
             for (j <- 0 to tree.config.dimension - 1) {
               val min_value = config.fieldStats.apply(j).fieldMinValue
               val max_value = config.fieldStats.apply(j).fieldMaxValue
@@ -448,8 +525,10 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
       }
 
       override def map(labeledVector: LabeledVector): (Array[FieldStats], Int) = {
-        require(labeledVector.vector.size == config.dimension, "Specify the dimension of data correctly")
-        val ret = new Array[FieldStats](config.dimension + 1) // we also include the label field for now
+        require(labeledVector.vector.size == config.dimension,
+          "Specify the dimension of data correctly")
+        // we also include the label field for now
+        val ret = new Array[FieldStats](config.dimension + 1)
         for (i <- 0 to config.dimension - 1) {
           if (config.category.indexOf(i) >= 0) {
             // if this is a categorical field
@@ -458,12 +537,14 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
             ret(i) = new FieldStats(false, fieldCategories = h)
           } else {
             // if continuous field
-            ret(i) = new FieldStats(true, labeledVector.vector.apply(i), labeledVector.vector.apply(i))
+            ret(i) = new FieldStats(
+              true, labeledVector.vector.apply(i), labeledVector.vector.apply(i))
           }
         }
         val h = new mutable.HashMap[Double, Int]()
         h.put(labeledVector.label, 1)
-        ret(config.dimension) = new FieldStats(false, fieldCategories = h) // the label field is always categorical
+        // the label field is always categorical
+        ret(config.dimension) = new FieldStats(false, fieldCategories = h)
         (ret, 1)
       }
 
@@ -498,12 +579,15 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
     config.setNumTrainVector(combinedStats_tuple._2)
 
     // cross check user-specified number of classes
-    require(combinedStats.apply(config.dimension).fieldCategories.size == config.numClasses, "Specify number of classes correctly")
+    require(combinedStats.apply(config.dimension).fieldCategories.size == config.numClasses,
+      "Specify number of classes correctly")
 
     // now copy the label list to an array of double
     // Find the minimum value, negative of which will be set to labelAddition
     var min_label = java.lang.Double.MAX_VALUE
-    val labels_list = new util.ArrayList[Double](combinedStats.apply(config.dimension).fieldCategories.size)
+    val labels_list = new util.ArrayList[Double](
+      combinedStats.apply(config.dimension).fieldCategories.size)
+
     combinedStats.apply(config.dimension).fieldCategories.keysIterator.foreach(
       x => {
         if (x < min_label) min_label = x

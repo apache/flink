@@ -18,12 +18,13 @@
 
 package org.apache.flink.ml.tree
 
-import org.apache.flink.ml.math.Vector
+import org.apache.flink.ml.math.{Histogram, Vector}
 
 import scala.collection.mutable
 
-/** Tree structure. This is kind of maintained in an unconventional way. We provide direct access to all nodes
-  * The obvious assumption is that child of node i will be 2*i and 2*i+1, while parent of i will be i/2
+/** Tree structure. This is kind of maintained in an unconventional way.
+  * We provide direct access to all nodes
+  * The obvious assumption is that child of i are 2*i and 2*i+1, while parent of i is i/2
   *
   */
 class Tree(
@@ -31,6 +32,7 @@ class Tree(
             val nodes: mutable.HashMap[Int, Node],
             val config: TreeConfiguration
             ) extends Serializable {
+
 
   override def toString: String = {
     var ret = s"Tree ID=$treeID\nConfiguration:\n$config \nTree Structure:\n"

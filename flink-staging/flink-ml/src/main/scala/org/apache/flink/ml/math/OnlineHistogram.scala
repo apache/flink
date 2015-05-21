@@ -31,7 +31,8 @@ class OnlineHistogram(
                        val capacity: Int,
                        val min: Double = -java.lang.Double.MAX_VALUE,
                        val max: Double = java.lang.Double.MAX_VALUE,
-                       val data: util.ArrayList[Tuple2[Double, Int]] = new util.ArrayList[Tuple2[Double, Int]]
+                       val data: util.ArrayList[Tuple2[Double, Int]] =
+                       new util.ArrayList[Tuple2[Double, Int]]
                        ) extends Histogram with Serializable {
   require(checkSanity, "Invalid data provided")
 
@@ -87,7 +88,8 @@ class OnlineHistogram(
     require(value > lower && value < upper, value + " not in (" + lower + "," + upper + ")")
     val search = find(value)
     data.add(search, new Tuple2[Double, Int](value, 1))
-    mergeElements() // if the value we just added is already there, mergeElements will take care of this
+    // if the value we just added is already there, mergeElements will take care of this
+    mergeElements()
   }
 
   /** Merges the histogram with h and returns a histogram with B bins
@@ -142,13 +144,16 @@ class OnlineHistogram(
         val c: Double = -2 * neededSum
         if (a == 0) {
           return getValue(i - 1) + (getValue(i) - getValue(i - 1)) * (-c / b)
-        } else return getValue(i - 1) + (getValue(i) - getValue(i - 1)) * (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a)
+        } else return getValue(i - 1) +
+          (getValue(i) - getValue(i - 1)) * (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a)
       } else currSum = tmpSum
     }
     require(upper < java.lang.Double.MAX_VALUE, "Set an upper bound before proceeding")
     // this means wantedSum > sum(getValue(bins-1))
-    // this will likely fail to return a bounded value. Make sure you set some proper limits on min and max.
-    getValue(bins - 1) + Math.sqrt(Math.pow(upper - getValue(bins - 1), 2) * 2 * (wantedSum - currSum) / getCounter(bins - 1))
+    // this will likely fail to return a bounded value.
+    // Make sure you set some proper limits on min and max.
+    getValue(bins - 1) + Math.sqrt(
+      Math.pow(upper - getValue(bins - 1), 2) * 2 * (wantedSum - currSum) / getCounter(bins - 1))
   }
 
   /** Returns the string representation of the histogram.
@@ -179,11 +184,15 @@ class OnlineHistogram(
       s = m_b * (b - lower) / (2 * (getValue(index + 1) - lower))
       return s.round.toInt
     } else if (index == bins - 1) {
-      m_b = getCounter(index) + (-getCounter(index)) * (b - getValue(index)) / (upper - getValue(index))
-      s = (getCounter(index) + m_b) * (b - getValue(index)) / (2 * (upper - getValue(index)))
+      m_b = getCounter(index) +
+        (-getCounter(index)) * (b - getValue(index)) / (upper - getValue(index))
+      s = (getCounter(index) + m_b) *
+        (b - getValue(index)) / (2 * (upper - getValue(index)))
     } else {
-      m_b = getCounter(index) + (getCounter(index + 1) - getCounter(index)) * (b - getValue(index)) / (getValue(index + 1) - getValue(index))
-      s = (getCounter(index) + m_b) * (b - getValue(index)) / (2 * (getValue(index + 1) - getValue(index)))
+      m_b = getCounter(index) + (getCounter(index + 1) - getCounter(index)) *
+        (b - getValue(index)) / (getValue(index + 1) - getValue(index))
+      s = (getCounter(index) + m_b) *
+        (b - getValue(index)) / (2 * (getValue(index + 1) - getValue(index)))
     }
     for (i <- 0 to index - 1) {
       s = s + getCounter(i)
@@ -236,7 +245,9 @@ class OnlineHistogram(
     }
     if (bins > capacity || diff < 1e-9) {
       val merged_tuple: Tuple2[Double, Int] = mergeBins(index)
-      set(index, merged_tuple.getField(0).asInstanceOf[Double] / merged_tuple.getField(1).asInstanceOf[Int], merged_tuple.getField(1))
+      set(index,
+        merged_tuple.getField(0).asInstanceOf[Double] / merged_tuple.getField(1).asInstanceOf[Int],
+        merged_tuple.getField(1))
       data.remove(index + 1)
       true
     } else false
