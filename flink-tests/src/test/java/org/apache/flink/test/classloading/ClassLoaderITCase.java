@@ -76,9 +76,9 @@ public class ClassLoaderITCase {
 				testCluster.shutdown();
 			}
 		}
-		catch (Throwable t) {
-			t.printStackTrace();
-			Assert.fail(t.getMessage());
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
 		}
 	}
 }
