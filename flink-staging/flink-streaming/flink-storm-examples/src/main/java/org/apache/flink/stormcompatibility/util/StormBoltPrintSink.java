@@ -14,30 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.stormcompatibility.wordcount.stormoperators;
 
-import java.util.Map;
+package org.apache.flink.stormcompatibility.util;
 
 import backtype.storm.task.TopologyContext;
 
-
-
-
+import java.util.Map;
 
 /**
  * Implements a sink that prints the received data to {@code stdout}.
  */
 public final class StormBoltPrintSink extends AbstractStormBoltSink {
 	private static final long serialVersionUID = -6650011223001009519L;
-	
+
+	public StormBoltPrintSink(OutputFormatter formatter) {
+		super(formatter);
+	}
+
+	@SuppressWarnings("rawtypes")
 	@Override
-	public void prepareSimple(@SuppressWarnings("rawtypes") final Map stormConf, final TopologyContext context) {
+	public void prepareSimple(final Map stormConf, final TopologyContext context) {
 		/* nothing to do */
 	}
-	
+
 	@Override
 	public void writeExternal(final String line) {
 		System.out.println(line);
 	}
-	
+
 }

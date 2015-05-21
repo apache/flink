@@ -14,28 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.stormcompatibility.wrappers;
 
-import static org.mockito.Mockito.mock;
+package org.apache.flink.stormcompatibility.wrappers;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.junit.Assert;
 import org.junit.Test;
 
-
-
-
+import static org.mockito.Mockito.mock;
 
 public class FlinkDummyRichFunctionTest {
-	
+
 	@Test
 	public void testRuntimeContext() {
 		final FlinkDummyRichFunction dummy = new FlinkDummyRichFunction();
-		
+
 		final RuntimeContext context = mock(RuntimeContext.class);
 		dummy.setRuntimeContext(context);
-		
+
 		Assert.assertSame(context, dummy.getRuntimeContext());
 	}
-	
+
 }

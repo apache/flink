@@ -17,109 +17,104 @@
 
 package org.apache.flink.stormcompatibility.wrappers;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-
-import java.util.Collection;
-import java.util.List;
-
+import backtype.storm.tuple.Values;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.stormcompatibility.util.AbstractTest;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-import backtype.storm.tuple.Values;
+import java.util.Collection;
+import java.util.List;
 
-
-
-
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class StormCollectorTest extends AbstractTest {
-	
+
 	@Test
 	public void testSpoutStormCollector() throws InstantiationException, IllegalAccessException {
-		for(int i = 0; i < 26; ++i) {
+		for (int i = 0; i < 26; ++i) {
 			this.testStromCollector(true, i);
 		}
 	}
-	
+
 	@Test
 	public void testBoltStormCollector() throws InstantiationException, IllegalAccessException {
-		for(int i = 0; i < 26; ++i) {
+		for (int i = 0; i < 26; ++i) {
 			this.testStromCollector(false, i);
 		}
 	}
-	
-	@SuppressWarnings({"unchecked", "rawtypes"})
+
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	private void testStromCollector(final boolean spoutTest, final int numberOfAttributes)
-		throws InstantiationException, IllegalAccessException {
+			throws InstantiationException, IllegalAccessException {
 		assert ((0 <= numberOfAttributes) && (numberOfAttributes <= 25));
-		
+
 		final Collector flinkCollector = mock(Collector.class);
 		Tuple flinkTuple = null;
 		final Values tuple = new Values();
-		
-		StormCollector<?> collector = null;
-		
-		if(numberOfAttributes == 0) {
+
+		StormCollector<?> collector;
+
+		if (numberOfAttributes == 0) {
 			collector = new StormCollector(numberOfAttributes, flinkCollector);
-			tuple.add(new Integer(this.r.nextInt()));
-			
+			tuple.add(this.r.nextInt());
+
 		} else {
 			collector = new StormCollector(numberOfAttributes, flinkCollector);
 			flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
-			
-			for(int i = 0; i < numberOfAttributes; ++i) {
-				tuple.add(new Integer(this.r.nextInt()));
+
+			for (int i = 0; i < numberOfAttributes; ++i) {
+				tuple.add(this.r.nextInt());
 				flinkTuple.setField(tuple.get(i), i);
 			}
 		}
-		
+
 		final String streamId = "streamId";
 		final Collection anchors = mock(Collection.class);
 		final List<Integer> taskIds;
-		final Object messageId = new Integer(this.r.nextInt());
-		if(spoutTest) {
+		final Object messageId = this.r.nextInt();
+		if (spoutTest) {
 			taskIds = collector.emit(streamId, tuple, messageId);
 		} else {
 			taskIds = collector.emit(streamId, anchors, tuple);
 		}
-		
+
 		Assert.assertNull(taskIds);
-		
-		if(numberOfAttributes == 0) {
+
+		if (numberOfAttributes == 0) {
 			verify(flinkCollector).collect(tuple.get(0));
 		} else {
 			verify(flinkCollector).collect(flinkTuple);
 		}
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testReportError() {
 		new StormCollector<Object>(1, null).reportError(null);
 	}
-	
+
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	@Test(expected = UnsupportedOperationException.class)
 	public void testBoltEmitDirect() {
-		new StormCollector<Object>(1, null).emitDirect(0, (String)null, (Collection)null, (List)null);
+		new StormCollector<Object>(1, null).emitDirect(0, null, (Collection) null, null);
 	}
-	
-	@SuppressWarnings({"rawtypes", "unchecked"})
+
+	@SuppressWarnings("unchecked")
 	@Test(expected = UnsupportedOperationException.class)
 	public void testSpoutEmitDirect() {
-		new StormCollector<Object>(1, null).emitDirect(0, (String)null, (List)null, (Object)null);
+		new StormCollector<Object>(1, null).emitDirect(0, null, null, (Object) null);
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testAck() {
 		new StormCollector<Object>(1, null).ack(null);
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testFail() {
 		new StormCollector<Object>(1, null).fail(null);
 	}
-	
+
 }

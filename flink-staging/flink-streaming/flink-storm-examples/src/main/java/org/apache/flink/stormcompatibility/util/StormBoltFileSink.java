@@ -14,18 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.stormcompatibility.wordcount.stormoperators;
+
+package org.apache.flink.stormcompatibility.util;
+
+import backtype.storm.task.TopologyContext;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map;
-
-import backtype.storm.task.TopologyContext;
-
-
-
-
 
 /**
  * Implements a sink that write the received data to the given file (as a result of {@code Object.toString()} for each
@@ -33,45 +30,43 @@ import backtype.storm.task.TopologyContext;
  */
 public final class StormBoltFileSink extends AbstractStormBoltSink {
 	private static final long serialVersionUID = 2014027288631273666L;
-	
+
 	private final String path;
 	private BufferedWriter writer;
-	
-	
-	
-	public StormBoltFileSink(final String path) {
+
+	public StormBoltFileSink(final String path, OutputFormatter formatter) {
+		super(formatter);
 		this.path = path;
 	}
-	
-	
-	
+
+	@SuppressWarnings("rawtypes")
 	@Override
-	public void prepareSimple(@SuppressWarnings("rawtypes") final Map stormConf, final TopologyContext context) {
+	public void prepareSimple(final Map stormConf, final TopologyContext context) {
 		try {
 			this.writer = new BufferedWriter(new FileWriter(this.path));
-		} catch(final IOException e) {
+		} catch (final IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
-	
+
 	@Override
 	public void writeExternal(final String line) {
 		try {
 			this.writer.write(line + "\n");
-		} catch(final IOException e) {
+		} catch (final IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
-	
+
 	@Override
 	public void cleanup() {
-		if(this.writer != null) {
+		if (this.writer != null) {
 			try {
 				this.writer.close();
-			} catch(final IOException e) {
+			} catch (final IOException e) {
 				throw new RuntimeException(e);
 			}
 		}
 	}
-	
+
 }

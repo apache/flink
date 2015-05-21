@@ -14,158 +14,153 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.stormcompatibility.api;
-
-import java.util.List;
-
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-
-
-
+import java.util.List;
 
 /**
- * {@link FlinkOutputFieldsDeclarer} is used to get the declared output schema of a {@link IRichSpout spout} or
- * {@link IRichBolt bolt}.<br />
- * <br />
- * <strong>CAUTION: Currently, Flink does only support the default output stream. Furthermore, direct emit is not
- * supported.</strong>
+ * {@link FlinkOutputFieldsDeclarer} is used to get the declared output schema of a {@link IRichSpout spout} or {@link
+ * IRichBolt bolt}.<br /> <br /> <strong>CAUTION: Currently, Flink does only support the default output stream.
+ * Furthermore, direct emit is not supported.</strong>
  */
 final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 	private Fields outputSchema;
-	
+
 	@Override
 	public void declare(final Fields fields) {
 		this.declareStream(Utils.DEFAULT_STREAM_ID, false, fields);
 	}
-	
+
 	/**
 	 * {@inheritDoc}
-	 * 
+	 * <p/>
 	 * Direct emit is no supported by Flink. Parameter {@code direct} must be {@code false}.
-	 * 
+	 *
 	 * @throws UnsupportedOperationException
-	 *             if {@code direct} is {@code true}
+	 * 		if {@code direct} is {@code true}
 	 */
 	@Override
 	public void declare(final boolean direct, final Fields fields) {
 		this.declareStream(Utils.DEFAULT_STREAM_ID, direct, fields);
 	}
-	
+
 	/**
 	 * {@inheritDoc}
-	 * 
+	 * <p/>
 	 * Currently, Flink only supports the default output stream. Thus, pareamter {@code streamId} must be equals to
 	 * {@link Utils#DEFAULT_STREAM_ID}.
-	 * 
+	 *
 	 * @throws UnsupportedOperationException
-	 *             if {@code streamId} is not equal to {@link Utils#DEFAULT_STREAM_ID}
+	 * 		if {@code streamId} is not equal to {@link Utils#DEFAULT_STREAM_ID}
 	 */
 	@Override
 	public void declareStream(final String streamId, final Fields fields) {
 		this.declareStream(streamId, false, fields);
 	}
-	
+
 	/**
 	 * {@inheritDoc}
-	 * 
+	 * <p/>
 	 * Currently, Flink only supports the default output stream. Thus, pareamter {@code streamId} must be equals to
 	 * {@link Utils#DEFAULT_STREAM_ID}. Furthermore, direct emit is no supported by Flink and parameter {@code direct}
 	 * must be {@code false}.
-	 * 
+	 *
 	 * @throws UnsupportedOperationException
-	 *             if {@code streamId} is not equal to {@link Utils#DEFAULT_STREAM_ID} or {@code direct} is {@code true}
+	 * 		if {@code streamId} is not equal to {@link Utils#DEFAULT_STREAM_ID} or {@code direct} is {@code true}
 	 */
 	@Override
 	public void declareStream(final String streamId, final boolean direct, final Fields fields) {
-		if(!Utils.DEFAULT_STREAM_ID.equals(streamId)) {
+		if (!Utils.DEFAULT_STREAM_ID.equals(streamId)) {
 			throw new UnsupportedOperationException("Currently, only the default output stream is supported by Flink");
 		}
-		if(direct) {
+		if (direct) {
 			throw new UnsupportedOperationException("Direct emit is not supported by Flink");
 		}
-		
+
 		this.outputSchema = fields;
 	}
-	
+
 	/**
 	 * Returns {@link TypeInformation} for the declared output schema. If no or an empty output schema was declared,
 	 * {@code null} is returned.
-	 * 
+	 *
 	 * @return output type information for the declared output schema; or {@code null} if no output schema was declared
-	 * 
 	 * @throws IllegalArgumentException
-	 *             if more then 25 attributes are declared
+	 * 		if more then 25 attributes are declared
 	 */
 	public TypeInformation<?> getOutputType() throws IllegalArgumentException {
-		if((this.outputSchema == null) || (this.outputSchema.size() == 0)) {
+		if ((this.outputSchema == null) || (this.outputSchema.size() == 0)) {
 			return null;
 		}
-		
+
 		Tuple t;
 		final int numberOfAttributes = this.outputSchema.size();
-		
-		if(numberOfAttributes == 1) {
+
+		if (numberOfAttributes == 1) {
 			return TypeExtractor.getForClass(Object.class);
-		} else if(numberOfAttributes <= 25) {
+		} else if (numberOfAttributes <= 25) {
 			try {
 				t = Tuple.getTupleClass(numberOfAttributes).newInstance();
-			} catch(final InstantiationException e) {
+			} catch (final InstantiationException e) {
 				throw new RuntimeException(e);
-			} catch(final IllegalAccessException e) {
+			} catch (final IllegalAccessException e) {
 				throw new RuntimeException(e);
 			}
 		} else {
-			throw new IllegalArgumentException("Flink supports only a maximum number of 25 attributes.");
+			throw new IllegalArgumentException("Flink supports only a maximum number of 25 attributes");
 		}
-		
+
 		// TODO: declare only key fields as DefaultComparable
-		for(int i = 0; i < numberOfAttributes; ++i) {
+		for (int i = 0; i < numberOfAttributes; ++i) {
 			t.setField(new DefaultComparable(), i);
 		}
-		
+
 		return TypeExtractor.getForObject(t);
 	}
-	
+
 	/**
-	 * {@link DefaultComparable} is a {@link Comparable} helper class that is used to get the correct
-	 * {@link TypeInformation} from {@link TypeExtractor} within {@link #getOutputType()}. If key fields are not
-	 * comparable, Flink cannot use them and will throw an exception.
-	 * 
+	 * {@link DefaultComparable} is a {@link Comparable} helper class that is used to get the correct {@link
+	 * TypeInformation} from {@link TypeExtractor} within {@link #getOutputType()}. If key fields are not comparable,
+	 * Flink cannot use them and will throw an exception.
+	 *
 	 * @author mjsax
 	 */
 	private static class DefaultComparable implements Comparable<DefaultComparable> {
-		
-		public DefaultComparable() {}
-		
+
+		public DefaultComparable() {
+		}
+
+		@SuppressWarnings("NullableProblems")
 		@Override
 		public int compareTo(final DefaultComparable o) {
 			return 0;
 		}
 	}
-	
+
 	/**
 	 * Computes the indexes within the declared output schema, for a list of given field-grouping attributes.
-	 * 
+	 *
 	 * @return array of {@code int}s that contains the index without the output schema for each attribute in the given
-	 *         list
+	 * list
 	 */
 	public int[] getGroupingFieldIndexes(final List<String> groupingFields) {
 		final int[] fieldIndexes = new int[groupingFields.size()];
-		
-		for(int i = 0; i < fieldIndexes.length; ++i) {
+
+		for (int i = 0; i < fieldIndexes.length; ++i) {
 			fieldIndexes[i] = this.outputSchema.fieldIndex(groupingFields.get(i));
 		}
-		
+
 		return fieldIndexes;
 	}
-	
+
 }

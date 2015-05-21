@@ -14,7 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.stormcompatibility.wordcount.stormoperators;
+
+import backtype.storm.spout.SpoutOutputCollector;
+import backtype.storm.task.TopologyContext;
+import backtype.storm.tuple.Values;
+import org.apache.flink.stormcompatibility.util.AbstractStormSpout;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -22,63 +28,52 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.Map;
 
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.tuple.Values;
-
-
-
-
-
 /**
  * Implements a Storm Spout that reads data from a given local file.
  */
 public final class StormFileSpout extends AbstractStormSpout {
 	private static final long serialVersionUID = -6996907090003590436L;
-	
+
 	private final String path;
 	private BufferedReader reader;
-	
-	
-	
+
 	public StormFileSpout(final String path) {
 		this.path = path;
 	}
-	
-	
-	
+
+	@SuppressWarnings("rawtypes")
 	@Override
-	public void open(@SuppressWarnings("rawtypes") final Map conf, final TopologyContext context, @SuppressWarnings("hiding") final SpoutOutputCollector collector) {
+	public void open(final Map conf, final TopologyContext context, final SpoutOutputCollector collector) {
 		super.open(conf, context, collector);
 		try {
 			this.reader = new BufferedReader(new FileReader(this.path));
-		} catch(final FileNotFoundException e) {
+		} catch (final FileNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 	}
-	
+
 	@Override
 	public void close() {
-		if(this.reader != null) {
+		if (this.reader != null) {
 			try {
 				this.reader.close();
-			} catch(final IOException e) {
+			} catch (final IOException e) {
 				throw new RuntimeException(e);
 			}
 		}
 	}
-	
+
 	@Override
 	public void nextTuple() {
 		String line;
 		try {
 			line = this.reader.readLine();
-			if(line != null) {
+			if (line != null) {
 				this.collector.emit(new Values(line));
 			}
-		} catch(final IOException e) {
+		} catch (final IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
-	
+
 }

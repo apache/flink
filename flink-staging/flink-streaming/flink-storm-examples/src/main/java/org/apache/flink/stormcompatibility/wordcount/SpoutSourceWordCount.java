@@ -17,6 +17,7 @@
 
 package org.apache.flink.stormcompatibility.wordcount;
 
+import backtype.storm.topology.IRichSpout;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -28,103 +29,97 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
 
-import backtype.storm.topology.IRichSpout;
-
-
-
-
-
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
  * fashion. The used data source is a Storm {@link IRichSpout bolt}.
- * 
- * <p>
+ * <p/>
+ * <p/>
  * The input is a plain text file with lines separated by newline characters.
- * 
- * <p>
+ * <p/>
+ * <p/>
  * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * 
- * <p>
+ * <p/>
+ * <p/>
  * This example shows how to:
  * <ul>
  * <li>use a Storm bolt within a Flink Streaming program.
  * </ul>
  */
 public class SpoutSourceWordCount {
-	
+
 	// *************************************************************************
 	// PROGRAM
 	// *************************************************************************
-	
+
 	public static void main(final String[] args) throws Exception {
-		
-		if(!parseParameters(args)) {
+
+		if (!parseParameters(args)) {
 			return;
 		}
-		
+
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		
+
 		// get input data
 		final DataStream<String> text = getTextDataStream(env);
-		
+
 		final DataStream<Tuple2<String, Integer>> counts =
-		// split up the lines in pairs (2-tuples) containing: (word,1)
-		text.flatMap(new Tokenizer())
-		// group by the tuple field "0" and sum up tuple field "1"
-			.groupBy(0).sum(1);
-		
+				// split up the lines in pairs (2-tuples) containing: (word,1)
+				text.flatMap(new Tokenizer())
+						// group by the tuple field "0" and sum up tuple field "1"
+						.groupBy(0).sum(1);
+
 		// emit result
-		if(fileOutput) {
+		if (fileOutput) {
 			counts.writeAsText(outputPath);
 		} else {
 			counts.print();
 		}
-		
+
 		// execute program
 		env.execute("Streaming WordCount with Storm spout source");
 	}
-	
+
 	// *************************************************************************
 	// USER FUNCTIONS
 	// *************************************************************************
-	
+
 	/**
 	 * Implements the string tokenizer that splits sentences into words as a user-defined FlatMapFunction. The function
 	 * takes a line (String) and splits it into multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
 	 */
 	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public void flatMap(final String value, final Collector<Tuple2<String, Integer>> out) throws Exception {
 			// normalize and split the line
 			final String[] tokens = value.toLowerCase().split("\\W+");
-			
+
 			// emit the pairs
-			for(final String token : tokens) {
-				if(token.length() > 0) {
-					out.collect(new Tuple2<String, Integer>(token, new Integer(1)));
+			for (final String token : tokens) {
+				if (token.length() > 0) {
+					out.collect(new Tuple2<String, Integer>(token, 1));
 				}
 			}
 		}
 	}
-	
+
 	// *************************************************************************
 	// UTIL METHODS
 	// *************************************************************************
-	
+
 	private static boolean fileOutput = false;
 	private static String textPath;
 	private static String outputPath;
-	
+
 	private static boolean parseParameters(final String[] args) {
-		
-		if(args.length > 0) {
+
+		if (args.length > 0) {
 			// parse input arguments
 			fileOutput = true;
-			if(args.length == 2) {
+			if (args.length == 2) {
 				textPath = args[0];
 				outputPath = args[1];
 			} else {
@@ -132,27 +127,26 @@ public class SpoutSourceWordCount {
 				return false;
 			}
 		} else {
-			System.out.println("Executing WordCount example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from a file.");
+			System.out.println("Executing WordCount example with built-in default data");
+			System.out.println("  Provide parameters to read input data from a file");
 			System.out.println("  Usage: WordCount <text path> <result path>");
 		}
 		return true;
 	}
-	
+
 	private static DataStream<String> getTextDataStream(final StreamExecutionEnvironment env) {
-		if(fileOutput) {
+		if (fileOutput) {
 			// read the text file from given input path
 			final String[] tokens = textPath.split(":");
 			final String localFile = tokens[tokens.length - 1];
-			final DataStream<String> stream = env.addSource(
-				new StormFiniteSpoutWrapper<String>(new StormFileSpout(localFile), true),
-				TypeExtractor.getForClass(String.class)).setParallelism(1);
-			return stream;
+			return env.addSource(
+					new StormFiniteSpoutWrapper<String>(new StormFileSpout(localFile), true),
+					TypeExtractor.getForClass(String.class)).setParallelism(1);
 		}
-		
+
 		return env.addSource(new StormFiniteSpoutWrapper<String>(new StormInMemorySpout(), true),
-			TypeExtractor.getForClass(String.class));
-		
+				TypeExtractor.getForClass(String.class));
+
 	}
-	
+
 }

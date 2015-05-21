@@ -14,16 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.stormcompatibility.wrappers;
 
+import backtype.storm.topology.IRichSpout;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
-
-import backtype.storm.topology.IRichSpout;
-
-
-
-
 
 /**
  * A {@link StormFiniteSpoutWrapper} is an {@link AbstractStormSpoutWrapper} that calles {@link IRichSpout#nextTuple()
@@ -33,113 +29,104 @@ import backtype.storm.topology.IRichSpout;
  */
 public class StormFiniteSpoutWrapper<OUT> extends AbstractStormSpoutWrapper<OUT> {
 	private static final long serialVersionUID = 3883246587044801286L;
-	
-	/**
-	 * The number of {@link IRichSpout#nextTuple()} calls.
-	 */
+
+	// The number of {@link IRichSpout#nextTuple()} calls
 	private int numberOfInvocations;
-	
-	
-	
+
 	/**
 	 * Instantiates a new {@link StormFiniteSpoutWrapper} that calls the {@link IRichSpout#nextTuple() nextTuple()}
 	 * method of the given Storm {@link IRichSpout spout} as long as it emits records to the output collector. The
 	 * output type will be one of {@link Tuple1} to {@link Tuple25} depending on the spout's declared number of
 	 * attributes.
-	 * 
+	 *
 	 * @param spout
-	 *            The Storm {@link IRichSpout spout} to be used.
-	 * 
+	 * 		The Storm {@link IRichSpout spout} to be used.
 	 * @throws IllegalArgumentException
-	 *             If the number of declared output attributes is not with range [1;25].
+	 * 		If the number of declared output attributes is not with range [1;25].
 	 */
 	public StormFiniteSpoutWrapper(final IRichSpout spout) throws IllegalArgumentException {
 		this(spout, false, -1);
 	}
-	
+
 	/**
 	 * Instantiates a new {@link StormFiniteSpoutWrapper} that calls the {@link IRichSpout#nextTuple() nextTuple()}
-	 * method of the given Storm {@link IRichSpout spout} {@code numberOfInvocations} times. The output type will be one
+	 * method of the given Storm {@link IRichSpout spout} {@code numberOfInvocations} times. The output type will be
+	 * one
 	 * of {@link Tuple1} to {@link Tuple25} depending on the spout's declared number of attributes.
-	 * 
+	 *
 	 * @param spout
-	 *            The Storm {@link IRichSpout spout} to be used.
+	 * 		The Storm {@link IRichSpout spout} to be used.
 	 * @param numberOfInvocations
-	 *            The number of calls to {@link IRichSpout#nextTuple()}.
-	 * 
+	 * 		The number of calls to {@link IRichSpout#nextTuple()}.
 	 * @throws IllegalArgumentException
-	 *             If the number of declared output attributes is not with range [1;25].
+	 * 		If the number of declared output attributes is not with range [1;25].
 	 */
 	public StormFiniteSpoutWrapper(final IRichSpout spout, final int numberOfInvocations)
-		throws IllegalArgumentException {
+			throws IllegalArgumentException {
 		this(spout, false, numberOfInvocations);
 	}
-	
+
 	/**
 	 * Instantiates a new {@link StormFiniteSpoutWrapper} that calls the {@link IRichSpout#nextTuple() nextTuple()}
 	 * method of the given Storm {@link IRichSpout spout} as long as it emits records to the output collector. The
 	 * output type can be any type if parameter {@code rawOutput} is {@code true} and the spout's number of declared
 	 * output tuples is 1. If {@code rawOutput} is {@code false} the output type will be one of {@link Tuple1} to
 	 * {@link Tuple25} depending on the spout's declared number of attributes.
-	 * 
+	 *
 	 * @param spout
-	 *            The Storm {@link IRichSpout spout} to be used.
+	 * 		The Storm {@link IRichSpout spout} to be used.
 	 * @param rawOutput
-	 *            Set to {@code true} if a single attribute output stream, should not be of type {@link Tuple1} but be
-	 *            of a raw type.
-	 * 
+	 * 		Set to {@code true} if a single attribute output stream, should not be of type {@link Tuple1} but be
+	 * 		of a raw type.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
-	 *             [1;25].
+	 * 		If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
+	 * 		{@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 * 		[1;25].
 	 */
 	public StormFiniteSpoutWrapper(final IRichSpout spout, final boolean rawOutput) throws IllegalArgumentException {
 		this(spout, rawOutput, -1);
 	}
-	
+
 	/**
 	 * Instantiates a new {@link StormFiniteSpoutWrapper} that calls the {@link IRichSpout#nextTuple() nextTuple()}
 	 * method of the given Storm {@link IRichSpout spout} {@code numberOfInvocations} times. The output type can be any
 	 * type if parameter {@code rawOutput} is {@code true} and the spout's number of declared output tuples is 1. If
 	 * {@code rawOutput} is {@code false} the output type will be one of {@link Tuple1} to {@link Tuple25} depending on
 	 * the spout's declared number of attributes.
-	 * 
+	 *
 	 * @param spout
-	 *            The Storm {@link IRichSpout spout} to be used.
+	 * 		The Storm {@link IRichSpout spout} to be used.
 	 * @param rawOutput
-	 *            Set to {@code true} if a single attribute output stream, should not be of type {@link Tuple1} but be
-	 *            of a raw type.
+	 * 		Set to {@code true} if a single attribute output stream, should not be of type {@link Tuple1} but be
+	 * 		of a raw type.
 	 * @param numberOfInvocations
-	 *            The number of calls to {@link IRichSpout#nextTuple()}.
-	 * 
+	 * 		The number of calls to {@link IRichSpout#nextTuple()}.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
-	 *             [1;25].
+	 * 		If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
+	 * 		{@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 * 		[1;25].
 	 */
 	public StormFiniteSpoutWrapper(final IRichSpout spout, final boolean rawOutput, final int numberOfInvocations)
-		throws IllegalArgumentException {
+			throws IllegalArgumentException {
 		super(spout, rawOutput);
 		this.numberOfInvocations = numberOfInvocations;
 	}
-	
-	
-	
+
 	/**
 	 * Calls {@link IRichSpout#nextTuple()} for the given number of times.
 	 */
 	@Override
 	protected void execute() {
-		if(this.numberOfInvocations >= 0) {
-			while((--this.numberOfInvocations >= 0) && super.isRunning) {
+		if (this.numberOfInvocations >= 0) {
+			while ((--this.numberOfInvocations >= 0) && super.isRunning) {
 				super.spout.nextTuple();
 			}
 		} else {
 			do {
 				super.collector.tupleEmitted = false;
 				super.spout.nextTuple();
-			} while(super.collector.tupleEmitted && super.isRunning);
+			} while (super.collector.tupleEmitted && super.isRunning);
 		}
 	}
-	
+
 }

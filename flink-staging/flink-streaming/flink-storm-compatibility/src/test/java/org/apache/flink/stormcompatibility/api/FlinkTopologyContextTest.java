@@ -14,65 +14,61 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.stormcompatibility.api;
 
-import org.junit.Test;
+package org.apache.flink.stormcompatibility.api;
 
 import backtype.storm.metric.api.ICombiner;
 import backtype.storm.metric.api.IMetric;
 import backtype.storm.metric.api.IReducer;
-
-
-
-
+import org.junit.Test;
 
 public class FlinkTopologyContextTest {
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testAddTaskHook() {
 		new FlinkTopologyContext(null, null, null).addTaskHook(null);
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testGetHooks() {
 		new FlinkTopologyContext(null, null, null).getHooks();
 	}
-	
+
 	@SuppressWarnings("rawtypes")
 	@Test(expected = UnsupportedOperationException.class)
 	public void testRegisteredMetric1() {
-		new FlinkTopologyContext(null, null, null).registerMetric(null, (ICombiner)null, 0);
+		new FlinkTopologyContext(null, null, null).registerMetric(null, (ICombiner) null, 0);
 	}
-	
+
 	@SuppressWarnings("rawtypes")
 	@Test(expected = UnsupportedOperationException.class)
 	public void testRegisteredMetric2() {
-		new FlinkTopologyContext(null, null, null).registerMetric(null, (IReducer)null, 0);
+		new FlinkTopologyContext(null, null, null).registerMetric(null, (IReducer) null, 0);
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testRegisteredMetric3() {
-		new FlinkTopologyContext(null, null, null).registerMetric(null, (IMetric)null, 0);
+		new FlinkTopologyContext(null, null, null).registerMetric(null, (IMetric) null, 0);
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testGetRegisteredMetricByName() {
 		new FlinkTopologyContext(null, null, null).getRegisteredMetricByName(null);
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testSetAllSubscribedState() {
 		new FlinkTopologyContext(null, null, null).setAllSubscribedState(null);
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testSetSubscribedState1() {
 		new FlinkTopologyContext(null, null, null).setSubscribedState(null, null);
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testSetSubscribedState2() {
 		new FlinkTopologyContext(null, null, null).setSubscribedState(null, null, null);
 	}
-	
+
 }
