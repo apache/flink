@@ -1132,7 +1132,7 @@ public class DataStream<OUT> {
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-		return writeToFile((OutputFormat<OUT>) of, 0L);
+		return writeToFile((FileOutputFormat<OUT>) of, 0L);
 	}
 
 	/**
@@ -1154,7 +1154,7 @@ public class DataStream<OUT> {
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-		return writeToFile((OutputFormat<OUT>) of, millis);
+		return writeToFile((FileOutputFormat<OUT>) of, millis);
 	}
 
 	/**
@@ -1179,7 +1179,7 @@ public class DataStream<OUT> {
 		if (writeMode != null) {
 			of.setWriteMode(writeMode);
 		}
-		return writeToFile((OutputFormat<OUT>) of, 0L);
+		return writeToFile((FileOutputFormat<OUT>) of, 0L);
 	}
 
 	/**
@@ -1208,7 +1208,7 @@ public class DataStream<OUT> {
 		if (writeMode != null) {
 			of.setWriteMode(writeMode);
 		}
-		return writeToFile((OutputFormat<OUT>) of, millis);
+		return writeToFile((FileOutputFormat<OUT>) of, millis);
 	}
 
 	/**
@@ -1230,18 +1230,18 @@ public class DataStream<OUT> {
 		return returnStream;
 	}
 
+	public DataStreamSink<OUT> writeToFile(FileOutputFormat<OUT> format, long millis) {
+		return addSink(new FileSinkFunctionByMillis<OUT>(format, millis));
+	}
+	
 	/**
-	 * Writes a DataStream using the given {@link OutputFormat}. The
-	 * writing is performed periodically, in every millis milliseconds.
-	 *
-	 * @param format The output format that should be used for writing.
-	 * @param millis the file update frequency
-	 *
+	 * Writes the dataStream into an output.
+	 * @param format The output format
+	 * @param millis the write frequency
 	 * @return the closed DataStream
 	 */
-	public DataStreamSink<OUT> writeToFile(OutputFormat<OUT> format, long millis) {
-		DataStreamSink<OUT> returnStream = addSink(new FileSinkFunctionByMillis<OUT>(format, millis));
-		return returnStream;
+	public DataStreamSink<OUT> write(OutputFormat<OUT> format, long millis) {
+		return addSink(new FileSinkFunctionByMillis<OUT>(format, millis));
 	}
 
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
