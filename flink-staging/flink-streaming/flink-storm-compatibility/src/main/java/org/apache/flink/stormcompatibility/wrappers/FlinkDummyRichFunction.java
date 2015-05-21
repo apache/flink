@@ -14,17 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.stormcompatibility.wrappers;
 
-import java.io.Serializable;
+package org.apache.flink.stormcompatibility.wrappers;
 
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 
-
-
-
+import java.io.Serializable;
 
 /**
  * {@link FlinkDummyRichFunction} has the only purpose to retrieve the {@link RuntimeContext} for
@@ -32,28 +29,24 @@ import org.apache.flink.configuration.Configuration;
  */
 class FlinkDummyRichFunction implements RichFunction, Serializable {
 	private static final long serialVersionUID = 7992273349877302520L;
-	
-	/**
-	 * The runtime context of a Storm bolt.
-	 */
+
+	// The runtime context of a Storm bolt
 	private RuntimeContext context;
-	
-	
-	
+
 	@Override
 	public void open(final Configuration parameters) throws Exception {/* nothing to do */}
-	
+
 	@Override
 	public void close() throws Exception {/* nothing to do */}
-	
+
 	@Override
 	public RuntimeContext getRuntimeContext() {
 		return this.context;
 	}
-	
+
 	@Override
 	public void setRuntimeContext(final RuntimeContext t) {
 		this.context = t;
 	}
-	
+
 }

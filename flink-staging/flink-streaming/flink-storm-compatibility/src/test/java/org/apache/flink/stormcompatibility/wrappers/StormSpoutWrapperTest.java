@@ -14,13 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.stormcompatibility.wrappers;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-
-import java.util.LinkedList;
-
+import backtype.storm.topology.IRichSpout;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.stormcompatibility.util.AbstractTest;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
@@ -30,39 +27,38 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import backtype.storm.topology.IRichSpout;
+import java.util.LinkedList;
 
-
-
-
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(StormWrapperSetupHelper.class)
 public class StormSpoutWrapperTest extends AbstractTest {
-	
+
 	@Test
 	public void testRunExecuteCancelInfinite() throws Exception {
 		final int numberOfCalls = 5 + this.r.nextInt(5);
-		
+
 		final IRichSpout spout = new FiniteTestSpout(numberOfCalls);
 		final StormSpoutWrapper<Tuple1<Integer>> spoutWrapper = new StormSpoutWrapper<Tuple1<Integer>>(spout);
 		spoutWrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
-		
+
 		spoutWrapper.cancel();
 		final TestCollector collector = new TestCollector();
 		spoutWrapper.run(collector);
-		
+
 		Assert.assertEquals(new LinkedList<Tuple1<Integer>>(), collector.result);
 	}
-	
+
 	@Test
 	public void testClose() throws Exception {
 		final IRichSpout spout = mock(IRichSpout.class);
 		final StormSpoutWrapper<Tuple1<Integer>> spoutWrapper = new StormSpoutWrapper<Tuple1<Integer>>(spout);
-		
+
 		spoutWrapper.close();
-		
+
 		verify(spout).close();
 	}
-	
+
 }

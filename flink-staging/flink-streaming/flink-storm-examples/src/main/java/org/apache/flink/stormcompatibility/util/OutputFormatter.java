@@ -16,30 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.stormcompatibility.wordcount;
+package org.apache.flink.stormcompatibility.util;
 
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
-import org.apache.flink.test.testdata.WordCountData;
+public interface OutputFormatter {
 
-public class BoltTokenizerWordCountITCase extends StreamingProgramTestBase {
-
-	protected String textPath;
-	protected String resultPath;
-
-	@Override
-	protected void preSubmit() throws Exception {
-		this.textPath = this.createTempFile("text.txt", WordCountData.TEXT);
-		this.resultPath = this.getTempDirPath("result");
-	}
-
-	@Override
-	protected void postSubmit() throws Exception {
-		this.compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, this.resultPath);
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
-		BoltTokenizerWordCount.main(new String[]{this.textPath, this.resultPath});
-	}
+	public String format(Object input);
 
 }

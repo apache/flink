@@ -17,26 +17,23 @@
 
 package org.apache.flink.stormcompatibility.wrappers;
 
-import java.util.LinkedList;
-
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 
-
-
-
+import java.util.LinkedList;
 
 class TestCollector implements Collector<Tuple1<Integer>> {
 	public LinkedList<Tuple1<Integer>> result = new LinkedList<Tuple1<Integer>>();
-	
-	public TestCollector() {}
-	
+
+	public TestCollector() {
+	}
+
 	@Override
 	public void collect(final Tuple1<Integer> record) {
 		this.result.add(record.copy());
 	}
-	
+
 	@Override
 	public void close() {/* nothing to to */}
-	
+
 }

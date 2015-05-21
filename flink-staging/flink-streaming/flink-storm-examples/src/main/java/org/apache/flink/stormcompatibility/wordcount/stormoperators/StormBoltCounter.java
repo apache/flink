@@ -14,10 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.stormcompatibility.wordcount.stormoperators;
 
-import java.util.HashMap;
-import java.util.Map;
+package org.apache.flink.stormcompatibility.wordcount.stormoperators;
 
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
@@ -27,9 +25,8 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 
-
-
-
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Implements the word counter that the occurrence of each unique word. The bolt takes a pair (input tuple schema:
@@ -38,59 +35,55 @@ import backtype.storm.tuple.Values;
  */
 public class StormBoltCounter implements IRichBolt {
 	private static final long serialVersionUID = 399619605462625934L;
-	
+
 	public static final String ATTRIBUTE_WORD = "word";
 	public static final String ATTRIBUTE_COUNT = "count";
-	
-	public static final int ATTRIBUTE_WORD_INDEX = 0;
-	public static final int ATTRIBUTE_COUNT_INDEX = 1;
-	
+
 	private final HashMap<String, Count> counts = new HashMap<String, Count>();
 	private OutputCollector collector;
-	
-	
-	
+
+	@SuppressWarnings("rawtypes")
 	@Override
-	public void prepare(@SuppressWarnings("rawtypes") final Map stormConf, final TopologyContext context, @SuppressWarnings("hiding") final OutputCollector collector) {
+	public void prepare(final Map stormConf, final TopologyContext context, final OutputCollector collector) {
 		this.collector = collector;
 	}
-	
+
 	@Override
 	public void execute(final Tuple input) {
 		final String word = input.getString(StormBoltTokenizer.ATTRIBUTE_WORD_INDEX);
-		
+
 		Count currentCount = this.counts.get(word);
-		if(currentCount == null) {
+		if (currentCount == null) {
 			currentCount = new Count();
 			this.counts.put(word, currentCount);
 		}
-		currentCount.count += input.getInteger(StormBoltTokenizer.ATTRIBUTE_COUNT_INDEX).intValue();
-		
-		this.collector.emit(new Values(word, new Integer(currentCount.count)));
+		currentCount.count += input.getInteger(StormBoltTokenizer.ATTRIBUTE_COUNT_INDEX);
+
+		this.collector.emit(new Values(word, currentCount.count));
 	}
-	
+
 	@Override
 	public void cleanup() {/* nothing to do */}
-	
+
 	@Override
 	public void declareOutputFields(final OutputFieldsDeclarer declarer) {
 		declarer.declare(new Fields(ATTRIBUTE_WORD, ATTRIBUTE_COUNT));
 	}
-	
+
 	@Override
 	public Map<String, Object> getComponentConfiguration() {
 		return null;
 	}
-	
+
 	/**
 	 * A counter helper to emit immutable tuples to the given collector and avoid unnecessary object creating/deletion.
-	 * 
+	 *
 	 * @author mjsax
 	 */
 	private static final class Count {
 		public int count;
-		
+
 		public Count() {/* nothing to do */}
 	}
-	
+
 }

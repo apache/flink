@@ -15,38 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.stormcompatibility.wordcount;
 
 import org.apache.flink.stormcompatibility.api.FlinkLocalCluster;
 import org.apache.flink.stormcompatibility.api.FlinkTestCluster;
-import org.apache.flink.stormcompatibility.wordcount.StormWordCountLocal;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
-
-
-
-
 public class StormWordCountLocalITCase extends StreamingProgramTestBase {
-	
+
 	protected String textPath;
 	protected String resultPath;
-	
+
 	@Override
 	protected void preSubmit() throws Exception {
 		FlinkLocalCluster.initialize(new FlinkTestCluster());
 		this.textPath = this.createTempFile("text.txt", WordCountData.TEXT);
 		this.resultPath = this.getTempDirPath("result");
 	}
-	
+
 	@Override
 	protected void postSubmit() throws Exception {
 		this.compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, this.resultPath);
 	}
-	
+
 	@Override
 	protected void testProgram() throws Exception {
-		StormWordCountLocal.main(new String[] {this.textPath, this.resultPath});
+		StormWordCountLocal.main(new String[]{this.textPath, this.resultPath});
 	}
-	
+
 }

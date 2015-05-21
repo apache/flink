@@ -15,12 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.stormcompatibility.api;
-
-import java.util.Map;
-
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
 
 import backtype.storm.LocalCluster;
 import backtype.storm.generated.ClusterSummary;
@@ -29,92 +25,83 @@ import backtype.storm.generated.RebalanceOptions;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.generated.SubmitOptions;
 import backtype.storm.generated.TopologyInfo;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 
-
-
-
+import java.util.Map;
 
 /**
  * {@link FlinkTestCluster} mimics a Storm {@link LocalCluster} for ITCases via a {@link TestStreamEnvironment}.
  */
 public class FlinkTestCluster extends FlinkLocalCluster {
-	
+
 	@Override
 	public void submitTopology(final String topologyName, final Map<?, ?> conf, final FlinkTopology topology)
-		throws Exception {
+			throws Exception {
 		this.submitTopologyWithOpts(topologyName, conf, topology, null);
 	}
-	
+
 	@Override
-	public void submitTopologyWithOpts(final String topologyName, final Map<?, ?> conf, final FlinkTopology topology, final SubmitOptions submitOpts)
-		throws Exception {
-		final TestStreamEnvironment env = (TestStreamEnvironment)StreamExecutionEnvironment.getExecutionEnvironment();
+	public void submitTopologyWithOpts(final String topologyName, final Map<?, ?> conf, final FlinkTopology topology,
+			final SubmitOptions submitOpts)
+			throws Exception {
+		final TestStreamEnvironment env = (TestStreamEnvironment) StreamExecutionEnvironment.getExecutionEnvironment();
 		env.start(topology.getStreamGraph().getJobGraph(topologyName));
 	}
-	
+
 	@Override
 	public void killTopology(final String topologyName) {
-		// TODO Auto-generated method stub
 	}
-	
+
 	@Override
 	public void killTopologyWithOpts(final String name, final KillOptions options) {
-		// TODO Auto-generated method stub
 	}
-	
+
 	@Override
 	public void activate(final String topologyName) {
-		// TODO Auto-generated method stub
 	}
-	
+
 	@Override
 	public void deactivate(final String topologyName) {
-		// TODO Auto-generated method stub
 	}
-	
+
 	@Override
 	public void rebalance(final String name, final RebalanceOptions options) {
-		// TODO Auto-generated method stub
 	}
-	
+
 	@Override
 	public void shutdown() {
-		final TestStreamEnvironment env = (TestStreamEnvironment)StreamExecutionEnvironment.getExecutionEnvironment();
+		final TestStreamEnvironment env = (TestStreamEnvironment) StreamExecutionEnvironment.getExecutionEnvironment();
 		try {
 			env.shutdown();
-		} catch(final InterruptedException e) {
+		} catch (final InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
-	
+
 	@Override
 	public String getTopologyConf(final String id) {
-		// TODO Auto-generated method stub
 		return null;
 	}
-	
+
 	@Override
 	public StormTopology getTopology(final String id) {
-		// TODO Auto-generated method stub
 		return null;
 	}
-	
+
 	@Override
 	public ClusterSummary getClusterInfo() {
-		// TODO Auto-generated method stub
 		return null;
 	}
-	
+
 	@Override
 	public TopologyInfo getTopologyInfo(final String id) {
-		// TODO Auto-generated method stub
 		return null;
 	}
-	
+
 	@Override
 	public Map<?, ?> getState() {
-		// TODO Auto-generated method stub
 		return null;
 	}
-	
+
 }

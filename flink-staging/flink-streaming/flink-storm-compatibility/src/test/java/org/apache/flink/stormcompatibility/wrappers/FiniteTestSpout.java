@@ -14,9 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.stormcompatibility.wrappers;
 
-import java.util.Map;
+package org.apache.flink.stormcompatibility.wrappers;
 
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
@@ -25,59 +24,55 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 
-
-
-
+import java.util.Map;
 
 class FiniteTestSpout implements IRichSpout {
 	private static final long serialVersionUID = 7992419478267824279L;
-	
+
 	private int numberOfOutputTuples;
 	private SpoutOutputCollector collector;
-	
-	
-	
+
 	public FiniteTestSpout(final int numberOfOutputTuples) {
 		this.numberOfOutputTuples = numberOfOutputTuples;
 	}
-	
-	
-	
+
+	@SuppressWarnings("rawtypes")
 	@Override
-	public void open(@SuppressWarnings("rawtypes") final Map conf, final TopologyContext context, @SuppressWarnings("hiding") final SpoutOutputCollector collector) {
+	public void open(final Map conf, final TopologyContext context,
+			final SpoutOutputCollector collector) {
 		this.collector = collector;
 	}
-	
+
 	@Override
 	public void close() {/* nothing to do */}
-	
+
 	@Override
 	public void activate() {/* nothing to do */}
-	
+
 	@Override
 	public void deactivate() {/* nothing to do */}
-	
+
 	@Override
 	public void nextTuple() {
-		if(--this.numberOfOutputTuples >= 0) {
-			this.collector.emit(new Values(new Integer(this.numberOfOutputTuples)));
+		if (--this.numberOfOutputTuples >= 0) {
+			this.collector.emit(new Values(this.numberOfOutputTuples));
 		}
 	}
-	
+
 	@Override
 	public void ack(final Object msgId) {/* nothing to do */}
-	
+
 	@Override
 	public void fail(final Object msgId) {/* nothing to do */}
-	
+
 	@Override
 	public void declareOutputFields(final OutputFieldsDeclarer declarer) {
 		declarer.declare(new Fields("dummy"));
 	}
-	
+
 	@Override
 	public Map<String, Object> getComponentConfiguration() {
 		return null;
 	}
-	
+
 }

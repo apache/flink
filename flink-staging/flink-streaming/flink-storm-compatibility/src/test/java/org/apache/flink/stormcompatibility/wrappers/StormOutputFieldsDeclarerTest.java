@@ -17,66 +17,64 @@
 
 package org.apache.flink.stormcompatibility.wrappers;
 
-import java.util.ArrayList;
-
+import backtype.storm.tuple.Fields;
+import backtype.storm.utils.Utils;
 import org.apache.flink.stormcompatibility.util.AbstractTest;
 import org.junit.Assert;
 import org.junit.Test;
 
-import backtype.storm.tuple.Fields;
-import backtype.storm.utils.Utils;
-
-
-
-
+import java.util.ArrayList;
 
 public class StormOutputFieldsDeclarerTest extends AbstractTest {
-	
+
 	@Test
 	public void testDeclare() {
 		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
-		
+
 		Assert.assertEquals(-1, declarer.getNumberOfAttributes());
-		
+
 		final int numberOfAttributes = 1 + this.r.nextInt(25);
 		final ArrayList<String> schema = new ArrayList<String>(numberOfAttributes);
-		for(int i = 0; i < numberOfAttributes; ++i) {
+		for (int i = 0; i < numberOfAttributes; ++i) {
 			schema.add("a" + i);
 		}
 		declarer.declare(new Fields(schema));
 		Assert.assertEquals(numberOfAttributes, declarer.getNumberOfAttributes());
 	}
-	
+
+	@SuppressWarnings("unused")
 	public void testDeclareDirect() {
 		new StormOutputFieldsDeclarer().declare(false, null);
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testDeclareDirectFail() {
 		new StormOutputFieldsDeclarer().declare(true, null);
 	}
-	
+
+	@SuppressWarnings("unused")
 	public void testDeclareStream() {
 		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, null);
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testDeclareStreamFail() {
 		new StormOutputFieldsDeclarer().declareStream(null, null);
 	}
-	
+
+	@SuppressWarnings("unused")
 	public void testDeclareFullStream() {
 		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, false, null);
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testDeclareFullStreamFailNonDefaultStream() {
 		new StormOutputFieldsDeclarer().declareStream(null, false, null);
 	}
-	
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testDeclareFullStreamFailDirect() {
 		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, true, null);
 	}
-	
+
 }
