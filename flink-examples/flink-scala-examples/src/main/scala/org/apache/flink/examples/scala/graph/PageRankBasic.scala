@@ -128,12 +128,11 @@ object PageRankBasic {
     // emit result
     if (fileOutput) {
       result.writeAsCsv(outputPath, "\n", " ")
+      // execute program
+      env.execute("Basic PageRank Example")
     } else {
       result.print()
     }
-
-    // execute program
-    env.execute("Basic PageRank Example")
   }
 
   // *************************************************************************

@@ -27,6 +27,7 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -294,7 +295,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 				joinedWithSolutionSet;
 		
 		iter.closeWith(nextSolutionSet, nextWorkset)
-			.print();
+			.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		
 		return env.createProgramPlan();
 	}

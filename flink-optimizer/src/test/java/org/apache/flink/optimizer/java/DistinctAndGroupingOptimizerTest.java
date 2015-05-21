@@ -20,6 +20,7 @@ package org.apache.flink.optimizer.java;
 
 import static org.junit.Assert.*;
 
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Test;
 import org.apache.flink.api.common.Plan;
@@ -48,7 +49,7 @@ public class DistinctAndGroupingOptimizerTest extends CompilerTestBase {
 			data.distinct(0)
 				.groupBy(0)
 				.sum(1)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -84,7 +85,7 @@ public class DistinctAndGroupingOptimizerTest extends CompilerTestBase {
 			data.distinct(1)
 				.groupBy(0)
 				.sum(1)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);

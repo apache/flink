@@ -18,10 +18,7 @@
 
 package org.apache.flink.api.java;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
@@ -87,7 +84,9 @@ import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.AbstractID;
 
-import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A DataSet represents a collection of elements of the same type.<br/>
@@ -1336,11 +1335,13 @@ public abstract class DataSet<T> {
 	/**
 	 * Writes a DataSet to the standard output stream (stdout).<br/>
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.
-	 * 
-	 *  @return The DataSink that writes the DataSet.
+	 * This triggers execute() automatically.
 	 */
-	public DataSink<T> print() {
-		return output(new PrintingOutputFormat<T>(false));
+	public void print() throws Exception{
+		List<T> elements = this.collect();
+		for (T e: elements) {
+			System.out.println(e);
+		}
 	}
 
 	/**
@@ -1357,11 +1358,12 @@ public abstract class DataSet<T> {
 	/**
 	 * Writes a DataSet to the standard error stream (stderr).<br/>
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.
-	 * 
-	 * @return The DataSink that writes the DataSet.
 	 */
-	public DataSink<T> printToErr() {
-		return output(new PrintingOutputFormat<T>(true));
+	public void printToErr() throws Exception{
+		List<T> elements = this.collect();
+		for (T e: elements) {
+			System.err.println(e);
+		}
 	}
 
 	/**

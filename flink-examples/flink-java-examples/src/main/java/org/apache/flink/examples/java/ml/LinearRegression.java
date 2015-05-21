@@ -104,12 +104,13 @@ public class LinearRegression {
 		// emit result
 		if(fileOutput) {
 			result.writeAsText(outputPath);
+			// execute program
+			env.execute("Linear Regression example");
 		} else {
 			result.print();
 		}
 
-		// execute program
-		env.execute("Linear Regression example");
+
 
 	}
 

@@ -106,12 +106,12 @@ public class EnumTrianglesBasic {
 		// emit result
 		if(fileOutput) {
 			triangles.writeAsCsv(outputPath, "\n", ",");
+
+			// execute program
+			env.execute("Basic Triangle Enumeration Example");
 		} else {
 			triangles.print();
 		}
-
-		// execute program
-		env.execute("Basic Triangle Enumeration Example");
 
 	}
 	
