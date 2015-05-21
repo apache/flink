@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.stormcompatibility.wordcount.stormoperators;
+package org.apache.flink.stormcompatibility.util;
 
 import backtype.storm.tuple.Tuple;
-import org.apache.flink.stormcompatibility.util.OutputFormatter;
 
 import java.io.Serializable;
 
-public class WordCountOutputFormatter implements OutputFormatter, Serializable {
+public class TupleOutputFormatter implements OutputFormatter, Serializable {
 
 	@Override
 	public String format(Object input) {
