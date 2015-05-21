@@ -324,6 +324,11 @@ to set the JM host:port manually. It is recommended to leave this option at 1.
 
 - `yarn.heartbeat-delay` (Default: 5 seconds). Time between heartbeats with the ResourceManager.
 
+
+## System
+
+- `env.java.opts` Custom JVM options
+
 ## Background
 
 ### Configuring the Network Buffers
