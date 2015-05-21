@@ -72,7 +72,7 @@ public class EmptyFieldsCountAccumulator {
 		final DataSet<Tuple> filteredLines = file.filter(new EmptyFieldFilter());
 
 		// Here, we could do further processing with the filtered lines...
-		JobExecutionResult result = null;
+		JobExecutionResult result;
 		// output the filtered lines
 		if (outputPath == null) {
 			filteredLines.print();
@@ -83,11 +83,9 @@ public class EmptyFieldsCountAccumulator {
 			result = env.execute("Accumulator example");
 		}
 
-
 		// get the accumulator result via its registration key
 		final List<Integer> emptyFields = result.getAccumulatorResult(EMPTY_FIELD_ACCUMULATOR);
 		System.out.format("Number of detected empty fields per column: %s\n", emptyFields);
-
 	}
 
 	// *************************************************************************

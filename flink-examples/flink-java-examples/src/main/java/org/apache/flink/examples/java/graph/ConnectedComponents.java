@@ -109,9 +109,8 @@ public class ConnectedComponents implements ProgramDescription {
 		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
 		
 		// emit result
-		if(fileOutput) {
+		if (fileOutput) {
 			result.writeAsCsv(outputPath, "\n", " ");
-
 			// execute program
 			env.execute("Connected Components Example");
 		} else {

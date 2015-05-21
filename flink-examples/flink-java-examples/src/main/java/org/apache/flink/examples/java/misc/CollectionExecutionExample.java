@@ -18,13 +18,10 @@
 
 package org.apache.flink.examples.java.misc;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
+import java.util.List;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 /** 
@@ -76,27 +73,24 @@ public class CollectionExecutionExample {
 		
 		// create objects for users and emails
 		User[] usersArray = { new User(1, "Peter"), new User(2, "John"), new User(3, "Bill") };
+		
 		EMail[] emailsArray = {new EMail(1, "Re: Meeting", "How about 1pm?"),
 							new EMail(1, "Re: Meeting", "Sorry, I'm not availble"),
 							new EMail(3, "Re: Re: Project proposal", "Give me a few more days to think about it.")};
 		
 		// convert objects into a DataSet
-		DataSet<User> users = env.fromCollection(Arrays.asList(usersArray));
-		DataSet<EMail> emails = env.fromCollection(Arrays.asList(emailsArray));
+		DataSet<User> users = env.fromElements(usersArray);
+		DataSet<EMail> emails = env.fromElements(emailsArray);
 		
 		// join the two DataSets
 		DataSet<Tuple2<User,EMail>> joined = users.join(emails).where("userIdentifier").equalTo("userId");
 		
 		// retrieve the resulting Tuple2 elements into a ArrayList.
-		Collection<Tuple2<User,EMail>> result = new ArrayList<Tuple2<User,EMail>>(3);
-		joined.output(new LocalCollectionOutputFormat<Tuple2<User,EMail>>(result));
-		
-		// kick off execution.
-		env.execute();
+		List<Tuple2<User,EMail>> result = joined.collect();
 		
 		// Do some work with the resulting ArrayList (=Collection).
 		for(Tuple2<User, EMail> t : result) {
-			System.err.println("Result = "+t);
+			System.err.println("Result = " + t);
 		}
 	}
 }
