@@ -20,17 +20,14 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-* This will be replaced by the TOC
-{:toc}
-
-
-
 FlinkML is the Machine Learning (ML) library for Flink. It is a new effort in the Flink community,
 with a growing list of algorithms and contributors. With FlinkML we aim to provide 
-scalable ML algorithms, an intuitive API and tools that help minimize glue code in end-to-end ML 
+scalable ML algorithms, an intuitive API, and tools that help minimize glue code in end-to-end ML 
 systems. You can see more details about our goals and where the library is headed in our [vision 
 and roadmap here](vision_roadmap.html).
 
+* This will be replaced by the TOC
+{:toc}
 
 ## Getting Started
 
@@ -89,4 +86,6 @@ For a more comprehensive guide, you can check out our [quickstart guide](quickst
 
 ## How to contribute
 
- TODO (Can include parts of the Pipelines doc)
+Please check our [roadmap](vision_roadmap.html#roadmap) and [contribution guide](contribution_guide.html). 
+You can also check out our list of
+[unresolved issues on JIRA](https://issues.apache.org/jira/browse/FLINK-1748?jql=component%20%3D%20%22Machine%20Learning%20Library%22%20AND%20project%20%3D%20FLINK%20AND%20resolution%20%3D%20Unresolved%20ORDER%20BY%20priority%20DESC)
