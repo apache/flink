@@ -37,8 +37,9 @@ class Tree(
   override def toString: String = {
     var ret = s"Tree ID=$treeID\nConfiguration:\n$config \nTree Structure:\n"
     for (i <- 1 to Math.pow(2, 20).toInt) {
-      if (nodes.get(i).nonEmpty)
+      if (nodes.get(i).nonEmpty){
         ret = ret + nodes.get(i).get.toString + "\n"
+      }
     }
     ret
   }
@@ -50,10 +51,12 @@ class Tree(
   def filter(vector: Vector): (Int, Double) = {
     var node: Node = nodes.get(1).get
     while (node.predict.round.toInt == -1 && node.split.nonEmpty) {
-      if (node.split.get.getSplitDirection(vector))
+      if (node.split.get.getSplitDirection(vector)){
         node = nodes.get(2 * node.id).get
-      else
+      }
+      else{
         node = nodes.get(2 * node.id + 1).get
+      }
     }
     (node.id, node.predict)
   }

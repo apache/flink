@@ -43,16 +43,20 @@ class SplitValue(
                   val splitValueList: util.ArrayList[Double] = new util.ArrayList[Double]) {
 
   override def toString: String = {
-    if (splitType)
+    if (splitType){
       s"Attribute Index: $attribute, Split: Continuous Value at $splitValueDouble"
-    else
+    }
+    else{
       s"Attribute Index: $attribute, Split: Categorical at $splitValueList"
+    }
   }
 
   def getSplitDirection(vector: Vector): Boolean = {
-    if (splitType)
+    if (splitType){
       vector.apply(attribute) <= splitValueDouble // go left if less than equal to
-    else
+    }
+    else{
       splitValueList.contains(vector.apply(attribute)) // go left is exists
+    }
   }
 }

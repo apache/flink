@@ -51,10 +51,10 @@ class TreeConfiguration(
                          ) {
 
   override def toString: String = {
-    var ret = s"Maximum Binning: $MaxBins, Minimum Instance per leaf node: $MinInstancePerNode, " +
-      s"Maximum Depth: $Depth, Pruning:$Pruning\nSplit strategy: $splitStrategy, Number of " +
-      s"classes: $numClasses, Dimension of data: $dimension, Number of training vectors:"+
-        s"$numTrainVector\n"+s"categorical fields: " + java.util.Arrays.toString(category) +
+    var ret = s"Maximum Binning: $MaxBins, Minimum Instance per leaf node: $MinInstancePerNode, " + 
+      s"Maximum Depth: $Depth, Pruning:$Pruning\nSplit strategy: $splitStrategy, Number of " + 
+      s"classes: $numClasses, Dimension of data: $dimension, Number of training vectors:" + 
+        s"$numTrainVector\n Categorical fields: " + java.util.Arrays.toString(category) + 
       "\nLabels in data: " + java.util.Arrays.toString(labels) + "\nField stats:"
 
     fieldStats.iterator.foreach(x => ret = ret + x.toString)

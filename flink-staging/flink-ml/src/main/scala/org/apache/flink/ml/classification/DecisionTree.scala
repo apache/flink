@@ -263,10 +263,12 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
           nodes.get(this_node.id).isEmpty) {
           // we're in trouble
           var sibling_id = 0
-          if (this_node.id % 2 == 0)
+          if (this_node.id % 2 == 0) {
             sibling_id = this_node.id + 1
-          else
+          }
+          else {
             sibling_id = this_node.id - 1
+          }
           // this node is pointless. Remove it from the tree
           tree.nodes.remove(this_node.id)
           // we're not going to split the sibling anymore.
@@ -325,33 +327,6 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
       }
     )
     (nodeDimensionSplits, nodes)
-  }
-
-  private def findGini(
-                        node_id: Int,
-                        finalHists: mutable.HashMap[(Int, Int, Double), Histogram],
-                        labels: Array[Double]):
-  (Double, Double, Double, Double) = {
-    var sumClassSquare, totalNumPointsHere, maxClassCountLabel, maxClassCount = 0.0
-    // since the count of classes across any dimension is same, pick 0
-    // for calculating Gini index, we need count(c)^2 and \sum count(c)^2
-    // also maintain which class occurred most frequently in case we need to mark this as a leaf
-    // node
-    labels.iterator.foreach(
-      x => {
-        val h = finalHists.get((node_id, 0, x))
-        if (h.nonEmpty) {
-          val countOfClass = h.get.sum(h.get.upper)
-          totalNumPointsHere = totalNumPointsHere + countOfClass
-          sumClassSquare = sumClassSquare + countOfClass * countOfClass
-          if (countOfClass > maxClassCount) {
-            maxClassCount = countOfClass
-            maxClassCountLabel = x
-          }
-        }
-      }
-    )
-    (sumClassSquare, totalNumPointsHere, maxClassCountLabel, maxClassCount)
   }
 
   private def evaluateNodes(
@@ -450,6 +425,33 @@ class DecisionTree extends Learner[LabeledVector, DecisionTreeModel] with Serial
       }
     )
     return any_split_done
+  }
+
+  private def findGini(
+                        node_id: Int,
+                        finalHists: mutable.HashMap[(Int, Int, Double), Histogram],
+                        labels: Array[Double]):
+  (Double, Double, Double, Double) = {
+    var sumClassSquare, totalNumPointsHere, maxClassCountLabel, maxClassCount = 0.0
+    // since the count of classes across any dimension is same, pick 0
+    // for calculating Gini index, we need count(c)^2 and \sum count(c)^2
+    // also maintain which class occurred most frequently in case we need to mark this as a leaf
+    // node
+    labels.iterator.foreach(
+      x => {
+        val h = finalHists.get((node_id, 0, x))
+        if (h.nonEmpty) {
+          val countOfClass = h.get.sum(h.get.upper)
+          totalNumPointsHere = totalNumPointsHere + countOfClass
+          sumClassSquare = sumClassSquare + countOfClass * countOfClass
+          if (countOfClass > maxClassCount) {
+            maxClassCount = countOfClass
+            maxClassCountLabel = x
+          }
+        }
+      }
+    )
+    (sumClassSquare, totalNumPointsHere, maxClassCountLabel, maxClassCount)
   }
 
   private def localHistUpdate(

@@ -35,9 +35,11 @@ class FieldStats(
                   new collection.mutable.HashMap[Double, Int]) {
 
   override def toString: String = {
-    if (fieldType)
+    if (fieldType) {
       s"Continuous field: Range: ($fieldMinValue,$fieldMaxValue)"
-    else
+    }
+    else {
       s"Categorical field: Number of categories: $fieldCategories"
+    }
   }
 }
