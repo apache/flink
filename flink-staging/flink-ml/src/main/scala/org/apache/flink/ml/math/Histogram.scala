@@ -60,12 +60,6 @@ trait Histogram {
     */
   def add(value: Double): Unit
 
-  /** Returns the estimated number of points in the interval `(-\infty,b]`
-    *
-    * @return Number of values in the interval `(-\infty,b]`
-    */
-  def sum(b: Double): Int
-
   /** Merges the histogram with h and returns a histogram with B bins
     *
     * @param h histogram to be merged
@@ -73,10 +67,14 @@ trait Histogram {
     */
   def merge(h: Histogram, B: Int): Histogram
 
-  /** Returns a list `u_1,u_2,\ldots,u_{B-1}` such that the number of points in
-    * `(-\infty,u_1],[u_1,u_2],\ldots,[u_{B-1},\infty)` is `\frac_{1}{B} \sum_{i=0}^{bins-1} m_i`.
+  /** Returns the qth quantile of the histogram
     *
-    * @param B number of intervals required
     */
-  def uniform(B: Int): Array[Double]
+  def quantile(q: Double): Double
+
+  /** Returns the estimated number of points in the interval `(-\infty,b]`
+    *
+    * @return Number of values in the interval `(-\infty,b]`
+    */
+  def sum(b: Double): Int
 }

@@ -110,20 +110,6 @@ class OnlineHistogramSuite extends FlatSpec with Matchers {
     }
   }
 
-  it should "succeed in computing sum values" in {
-    val l: util.ArrayList[Tuple2[Double, Int]] = new util.ArrayList[Tuple2[Double, Int]]()
-    l.add(new Tuple2[Double, Int](1, 3))
-    l.add(new Tuple2[Double, Int](3, 7))
-    l.add(new Tuple2[Double, Int](7, 1))
-    l.add(new Tuple2[Double, Int](10, 2))
-    val h = new OnlineHistogram(4, 0, 11, l)
-
-    h.sum(1) should equal(1)
-    h.sum(3) should equal(6)
-    h.sum(11) should equal(13)
-    h.sum(4) should equal(7)
-  }
-
   it should "succeed in merging two histograms" in {
     val l: util.ArrayList[Tuple2[Double, Int]] = new util.ArrayList[Tuple2[Double, Int]]()
     l.add(new Tuple2[Double, Int](1, 3))
@@ -142,15 +128,18 @@ class OnlineHistogramSuite extends FlatSpec with Matchers {
     h3.getCounter(2) should equal(2)
   }
 
-  it should "succeed in generating an equalization list" in {
+  it should "succeed in computing quantile" in {
     val l: util.ArrayList[Tuple2[Double, Int]] = new util.ArrayList[Tuple2[Double, Int]]()
-    l.add(new Tuple2[Double, Int](1, 3))
-    l.add(new Tuple2[Double, Int](3, 7))
-    l.add(new Tuple2[Double, Int](7, 1))
+    l.add(new Tuple2[Double, Int](1, 5))
+    l.add(new Tuple2[Double, Int](3, 4))
+    l.add(new Tuple2[Double, Int](7, 3))
     l.add(new Tuple2[Double, Int](10, 2))
-    val h = new OnlineHistogram(3, 0, 11, l)
-    val eqArr = h.uniform(3)
-    h.sum(eqArr(0)) should equal(4)
-    h.sum(eqArr(1)) should equal(8)
+    l.add(new Tuple2[Double, Int](11, 1))
+    val h = new OnlineHistogram(5,0,12, data= l)
+
+    h.sum(h.quantile(0.05)) should equal(1)
+    h.sum(h.quantile(0.4))  should equal(6)
+    h.sum(h.quantile(0.8))  should equal(12)
+    h.sum(h.quantile(0.95))  should equal(14)
   }
 }
