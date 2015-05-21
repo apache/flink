@@ -37,9 +37,9 @@ import org.apache.flink.ml.optimization.Solver._
   * descent. Once a sampling operator has been introduced, the algorithm can be optimized
   *
   *  The parameters to tune the algorithm are:
-  *                      [[Solver.LossFunctionParameter]] for the loss function to be used,
-  *                      [[Solver.RegularizationTypeParameter]] for the type of regularization,
-  *                      [[Solver.RegularizationValueParameter]] for the regularization parameter,
+  *                      [[Solver.LossFunction]] for the loss function to be used,
+  *                      [[Solver.RegularizationType]] for the type of regularization,
+  *                      [[Solver.RegularizationParameter]] for the regularization parameter,
   *                      [[IterativeSolver.Iterations]] for the maximum number of iteration,
   *                      [[IterativeSolver.Stepsize]] for the learning rate used.
   *                      [[IterativeSolver.ConvergenceThreshold]] when provided the algorithm will
@@ -104,7 +104,7 @@ class GradientDescent() extends IterativeSolver {
           }
         }
       case Some(convergence) =>
-        /** Calculates the regularized loss, from the data and given weights **/
+        // Calculates the regularized loss, from the data and given weights
         def lossCalculation(data: DataSet[LabeledVector], weightDS: DataSet[WeightVector]):
         DataSet[Double] = {
           data
@@ -169,20 +169,17 @@ class GradientDescent() extends IterativeSolver {
 
     var weightVector: WeightVector = null
 
-
     @throws(classOf[Exception])
     override def open(configuration: Configuration): Unit = {
       val list = this.getRuntimeContext.
         getBroadcastVariable[WeightVector](WEIGHTVECTOR_BROADCAST)
 
       weightVector = list.get(0)
-
     }
 
     override def map(example: LabeledVector): (Double, Int) = {
-      val lossFunction = parameters(LossFunctionParameter)
-      val predictionFunction = parameters(PredictionFunctionParameter)
-      val dimensions = example.vector.size
+      val lossFunction = parameters(LossFunction)
+      val predictionFunction = parameters(PredictionFunction)
 
       val loss = lossFunction.lossValue(
         example,
@@ -211,8 +208,8 @@ private class RegularizedLossCalculation extends RichMapFunction[(Double, Int), 
 
   override def map(lossAndCount: (Double, Int)): Double = {
     val (lossSum, count) = lossAndCount
-    val regType = parameters(RegularizationTypeParameter)
-    val regParameter = parameters(RegularizationValueParameter)
+    val regType = parameters(RegularizationType)
+    val regParameter = parameters(RegularizationParameter)
 
     val regularizedLoss = {
       regType.regLoss(
@@ -241,8 +238,8 @@ private class RegularizedLossCalculation extends RichMapFunction[(Double, Int), 
     }
 
     override def map(gradientLossAndCount: (WeightVector, Double, Int)): WeightVector = {
-      val regType = parameters(RegularizationTypeParameter)
-      val regParameter = parameters(RegularizationValueParameter)
+      val regType = parameters(RegularizationType)
+      val regParameter = parameters(RegularizationParameter)
       val stepsize = parameters(Stepsize)
       val weightGradients = gradientLossAndCount._1
       val lossSum = gradientLossAndCount._2

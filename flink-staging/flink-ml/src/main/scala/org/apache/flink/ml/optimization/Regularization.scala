@@ -97,7 +97,7 @@ abstract class DiffRegularization extends Regularization {
 
 // TODO(tvas): I think NoRegularization should extend DiffRegularization
 /** Performs no regularization, equivalent to $R(w) = 0$ **/
-class NoRegularization extends Regularization {
+class NoRegularization extends DiffRegularization {
   /** Adds the regularization term to the loss value
     *
     * @param loss The loss value, before applying regularization
@@ -109,6 +109,18 @@ class NoRegularization extends Regularization {
     loss: Double,
     weightVector: FlinkVector,
     regParameter: Double):  Double = {loss}
+
+  /** Adds the regularization gradient term to the loss gradient. The gradient is updated in place.
+    *
+    * Since we don't apply any regularization, the gradient will stay the same.
+    * @param weightVector The current vector of weights
+    * @param lossGradient The loss gradient, without regularization. Updated in-place.
+    * @param regParameter The regularization parameter, $\lambda$.
+    */
+  override def regGradient(
+      weightVector: FlinkVector,
+      lossGradient: FlinkVector,
+      regParameter: Double) = {}
 }
 
 object NoRegularization {

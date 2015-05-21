@@ -58,10 +58,11 @@ abstract class Solver() extends Serializable with WithParameters {
     initialWeights match {
       // Ensure provided weight vector is a DenseVector
       case Some(wvDS) =>
-        wvDS.map { wv => {
-          val denseWeights = wv.weights match {
-            case dv: DenseVector => dv
-            case sv: SparseVector => sv.toDenseVector
+        wvDS.map {
+          wv => {
+            val denseWeights = wv.weights match {
+              case dv: DenseVector => dv
+              case sv: SparseVector => sv.toDenseVector
           }
           WeightVector(denseWeights, wv.intercept)
           }
@@ -88,24 +89,24 @@ abstract class Solver() extends Serializable with WithParameters {
   //Setters for parameters
   // TODO(tvas): Provide an option to fit an intercept or not
   def setLossFunction(lossFunction: LossFunction): this.type = {
-    parameters.add(LossFunctionParameter, lossFunction)
+    parameters.add(LossFunction, lossFunction)
     this
   }
 
   // TODO(tvas): Sanitize the input, i.e. depending on Solver type allow only certain types of
   // regularization to be set.
   def setRegularizationType(regularization: Regularization): this.type = {
-    parameters.add(RegularizationTypeParameter, regularization)
+    parameters.add(RegularizationType, regularization)
     this
   }
 
   def setRegularizationParameter(regularizationParameter: Double): this.type = {
-    parameters.add(RegularizationValueParameter, regularizationParameter)
+    parameters.add(RegularizationParameter, regularizationParameter)
     this
   }
 
   def setPredictionFunction(predictionFunction: PredictionFunction): this.type = {
-    parameters.add(PredictionFunctionParameter, predictionFunction)
+    parameters.add(PredictionFunction, predictionFunction)
     this
   }
 }
@@ -115,21 +116,21 @@ object Solver {
   val WEIGHTVECTOR_BROADCAST = "weights_broadcast"
 
   // Define parameters for Solver
-  case object LossFunctionParameter extends Parameter[LossFunction] {
+  case object LossFunction extends Parameter[LossFunction] {
     // TODO(tvas): Should depend on problem, here is where differentiating between classification
     // and regression could become useful
     val defaultValue = Some(new SquaredLoss)
   }
 
-  case object RegularizationTypeParameter extends Parameter[Regularization] {
+  case object RegularizationType extends Parameter[Regularization] {
     val defaultValue = Some(new NoRegularization)
   }
 
-  case object RegularizationValueParameter extends Parameter[Double] {
+  case object RegularizationParameter extends Parameter[Double] {
     val defaultValue = Some(0.0) // TODO(tvas): Properly initialize this, ensure Parameter > 0!
   }
 
-  case object PredictionFunctionParameter extends Parameter[PredictionFunction] {
+  case object PredictionFunction extends Parameter[PredictionFunction] {
     val defaultValue = Some(new LinearPrediction)
   }
 }
@@ -175,8 +176,8 @@ abstract class IterativeSolver() extends Solver {
 
     override def map(example: LabeledVector): (WeightVector, Double, Int) = {
 
-      val lossFunction = parameters(LossFunctionParameter)
-      val predictionFunction = parameters(PredictionFunctionParameter)
+      val lossFunction = parameters(LossFunction)
+      val predictionFunction = parameters(PredictionFunction)
       val dimensions = example.vector.size
       val weightGradient = new DenseVector(new Array[Double](dimensions))
 
