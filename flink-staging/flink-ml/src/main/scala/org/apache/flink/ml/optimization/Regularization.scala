@@ -95,7 +95,6 @@ abstract class DiffRegularization extends Regularization {
       regParameter: Double)
 }
 
-// TODO(tvas): I think NoRegularization should extend DiffRegularization
 /** Performs no regularization, equivalent to $R(w) = 0$ **/
 class NoRegularization extends DiffRegularization {
   /** Adds the regularization term to the loss value
