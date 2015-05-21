@@ -1319,16 +1319,37 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def output(outputFormat: OutputFormat[T]): DataSink[T] = {
     javaSet.output(outputFormat)
   }
-
+  
   /**
-   * Writes a DataSet to the standard output stream (stdout). This uses [[AnyRef.toString]] on
-   * each element.
-   * This triggers execute() automatically.
+   * Prints the elements in a DataSet to the standard output stream [[System.out]] of the
+   * JVM that calls the print() method. For programs that are executed in a cluster, this
+   * method needs to gather the contents of the DataSet back to the client, to print it
+   * there.
+   *
+   * The string written for each element is defined by the [[AnyRef.toString]] method.
+   *
+   * This method immediately triggers the program execution, similar to the
+   * [[collect()]] and [[count()]] methods.
    */
-  def print() = {
+  def print(): Unit = {
     javaSet.print()
   }
-
+  
+  /**
+   * Prints the elements in a DataSet to the standard error stream [[System.err]] of the
+   * JVM that calls the print() method. For programs that are executed in a cluster, this
+   * method needs to gather the contents of the DataSet back to the client, to print it
+   * there.
+   *
+   * The string written for each element is defined by the [[AnyRef.toString]] method.
+   *
+   * This method immediately triggers the program execution, similar to the
+   * [[collect()]] and [[count()]] methods.
+   */
+  def printToErr(): Unit = {
+    javaSet.printToErr()
+  }
+  
   /**
    * *
    * Writes a DataSet to the standard output stream (stdout) with a sink identifier prefixed.
@@ -1337,14 +1358,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def print(sinkIdentifier: String): DataSink[T] = {
     output(new PrintingOutputFormat[T](sinkIdentifier, false))
-  }
-
-  /**
-   * Writes a DataSet to the standard error stream (stderr). This uses [[AnyRef.toString]] on
-   * each element.
-   */
-  def printToErr() = {
-    javaSet.printToErr()
   }
 
   /**

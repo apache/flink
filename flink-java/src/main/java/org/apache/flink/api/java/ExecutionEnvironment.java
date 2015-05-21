@@ -94,9 +94,6 @@ import com.google.common.base.Preconditions;
  */
 public abstract class ExecutionEnvironment {
 
-
-	protected JobExecutionResult lastJobExecutionResult;
-
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 	
 	/** The environment of the context (local by default, cluster if invoked through command line) */
@@ -116,8 +113,11 @@ public abstract class ExecutionEnvironment {
 	
 	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<Tuple2<String, DistributedCacheEntry>>();
 
-	private ExecutionConfig config = new ExecutionConfig();
+	private final ExecutionConfig config = new ExecutionConfig();
 
+	/** Result from the latest execution, to be make it retrievable when using eager execution methods */
+	protected JobExecutionResult lastJobExecutionResult;
+	
 	/** Flag to indicate whether sinks have been cleared in previous executions */
 	private boolean wasExecuted = false;
 
@@ -240,6 +240,8 @@ public abstract class ExecutionEnvironment {
 
 	/**
 	 * Returns the {@link org.apache.flink.api.common.JobExecutionResult} of the last executed job.
+	 * 
+	 * @return The execution result from the latest job execution.
 	 */
 	public JobExecutionResult getLastJobExecutionResult(){
 		return this.lastJobExecutionResult;

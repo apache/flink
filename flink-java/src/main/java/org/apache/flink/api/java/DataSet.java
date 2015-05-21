@@ -338,7 +338,7 @@ public abstract class DataSet<T> {
 	 *
 	 * @see org.apache.flink.api.java.operators.AggregateOperator
 	 */
-	public AggregateOperator<T> sum (int field) {
+	public AggregateOperator<T> sum(int field) {
 		return aggregate(Aggregations.SUM, field);
 	}
 
@@ -997,7 +997,7 @@ public abstract class DataSet<T> {
 	 * <pre>
 	 * {@code
 	 * DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
-	 *                                                  initialState.iterateDelta(initialFeedbakSet, 100, 0);
+	 *                                                  initialState.iterateDelta(initialFeedbackSet, 100, 0);
 	 * 
 	 * DataSet<Tuple2<Long, Long>> delta = iteration.groupBy(0).aggregate(Aggregations.AVG, 1)
 	 *                                              .join(iteration.getSolutionSet()).where(0).equalTo(0)
@@ -1236,7 +1236,7 @@ public abstract class DataSet<T> {
 	 * @see TextOutputFormat
 	 */
 	public DataSink<String> writeAsFormattedText(String filePath, TextFormatter<T> formatter) {
-		return this.map(new FormattingMapper<T>(formatter)).writeAsText(filePath);
+		return map(new FormattingMapper<T>(clean(formatter))).writeAsText(filePath);
 	}
 
 	/**
@@ -1250,8 +1250,8 @@ public abstract class DataSet<T> {
 	 *
 	 * @see TextOutputFormat
 	 */
-	public DataSink<String> writeAsFormattedText(String filePath, WriteMode writeMode, final TextFormatter<T> formatter) {
-		return this.map(new FormattingMapper<T>(clean(formatter))).writeAsText(filePath, writeMode);
+	public DataSink<String> writeAsFormattedText(String filePath, WriteMode writeMode, TextFormatter<T> formatter) {
+		return map(new FormattingMapper<T>(clean(formatter))).writeAsText(filePath, writeMode);
 	}
 	
 	/**
@@ -1333,17 +1333,39 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Writes a DataSet to the standard output stream (stdout).<br/>
-	 * For each element of the DataSet the result of {@link Object#toString()} is written.
-	 * This triggers execute() automatically.
+	 * Prints the elements in a DataSet to the standard output stream {@link System#out} of the JVM that calls
+	 * the print() method. For programs that are executed in a cluster, this method needs
+	 * to gather the contents of the DataSet back to the client, to print it there.
+	 * 
+	 * <p>The string written for each element is defined by the {@link Object#toString()} method.</p>
+	 * 
+	 * <p>This method immediately triggers the program execution, similar to the
+	 * {@link #collect()} and {@link #count()} methods.</p>
 	 */
-	public void print() throws Exception{
+	public void print() throws Exception {
 		List<T> elements = this.collect();
 		for (T e: elements) {
 			System.out.println(e);
 		}
 	}
 
+	/**
+	 * Prints the elements in a DataSet to the standard error stream {@link System#err} of the JVM that calls
+	 * the print() method. For programs that are executed in a cluster, this method needs
+	 * to gather the contents of the DataSet back to the client, to print it there.
+	 *
+	 * <p>The string written for each element is defined by the {@link Object#toString()} method.</p>
+	 *
+	 * <p>This method immediately triggers the program execution, similar to the
+	 * {@link #collect()} and {@link #count()} methods.</p>
+	 */
+	public void printToErr() throws Exception {
+		List<T> elements = this.collect();
+		for (T e: elements) {
+			System.err.println(e);
+		}
+	}
+	
 	/**
 	 * Writes a DataSet to the standard output stream (stdout).<br/>
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.
@@ -1353,17 +1375,6 @@ public abstract class DataSet<T> {
 	 */
 	public DataSink<T> print(String sinkIdentifier) {
 		return output(new PrintingOutputFormat<T>(sinkIdentifier, false));
-	}
-	
-	/**
-	 * Writes a DataSet to the standard error stream (stderr).<br/>
-	 * For each element of the DataSet the result of {@link Object#toString()} is written.
-	 */
-	public void printToErr() throws Exception{
-		List<T> elements = this.collect();
-		for (T e: elements) {
-			System.err.println(e);
-		}
 	}
 
 	/**

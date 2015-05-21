@@ -130,11 +130,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def getId: UUID = {
     javaEnv.getId
   }
-
-
+  
   /**
-   * retrieves JobExecutionResult from last job execution (for "eager" print)
-   * @return JobExecutionResult form last job execution
+   * Gets the JobExecutionResult of the last executed job.
    */
   def getLastJobExecutionResult = javaEnv.getLastJobExecutionResult
 
