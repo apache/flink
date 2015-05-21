@@ -551,7 +551,7 @@ public final class ConfigConstants {
 
 	public static final int DEFAULT_YARN_MIN_HEAP_CUTOFF = 384;
 
-	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.15f;
+	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;
 	
 	
 	// ------------------------ File System Behavior ------------------------

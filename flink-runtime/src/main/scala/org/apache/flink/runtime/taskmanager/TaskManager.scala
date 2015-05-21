@@ -23,7 +23,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import java.util
 import java.util.concurrent.TimeUnit
 import java.lang.reflect.Method
-import java.lang.management.{GarbageCollectorMXBean, ManagementFactory, MemoryMXBean}
+import java.lang.management._
 
 import akka.actor._
 import akka.pattern.ask
@@ -1283,11 +1283,15 @@ object TaskManager {
             try {
               val memoryMXBean = ManagementFactory.getMemoryMXBean
               val gcMXBeans = ManagementFactory.getGarbageCollectorMXBeans.asScala
+              val threadBeans = ManagementFactory.getThreadMXBean
+              val clMXBean = ManagementFactory.getClassLoadingMXBean;
 
               while (!taskManagerSystem.isTerminated) {
                 Thread.sleep(interval)
                 LOG.info(getMemoryUsageStatsAsString(memoryMXBean))
                 LOG.info(TaskManager.getGarbageCollectorStatsAsString(gcMXBeans))
+                LOG.info(getThreadStatsAsString(threadBeans))
+                LOG.info(getClassloaderStatistics(clMXBean))
               }
             }
             catch {
@@ -1739,6 +1743,25 @@ object TaskManager {
       s"NON HEAP: $nonHeapUsed/$nonHeapCommitted/$nonHeapMax MB (used/committed/max)]"
   }
 
+  /**
+   * Get thread statistics
+   * @param threadMXBean
+   * @return
+   */
+  private def getThreadStatsAsString(threadMXBean: ThreadMXBean): String = {
+    val threadCount =  threadMXBean.getThreadCount
+    val maxThreads = threadMXBean.getPeakThreadCount
+    val daemonThreadCount = threadMXBean.getDaemonThreadCount
+    s"Thread statistics: count $threadCount peakThreadCount: $maxThreads " +
+      s"daemonThreadCount $daemonThreadCount"
+  }
+
+  private def getClassloaderStatistics(clMXBean: ClassLoadingMXBean): String = {
+    val loaded =  clMXBean.getLoadedClassCount
+    val total = clMXBean.getTotalLoadedClassCount
+    val unloaded = clMXBean.getUnloadedClassCount
+    s"ClassLoading statistics: loaded $loaded total $total unloaded $unloaded"
+  }
   /**
    * Gets the garbage collection statistics from the JVM.
    *

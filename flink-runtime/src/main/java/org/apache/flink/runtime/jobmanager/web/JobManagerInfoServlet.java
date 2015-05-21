@@ -409,19 +409,29 @@ public class JobManagerInfoServlet extends HttpServlet {
 				wrt.write("\"Job parallelism\": \""+ec.getParallelism()+"\",");
 				wrt.write("\"Object reuse mode\": \""+ec.isObjectReuseEnabled()+"\"");
 				ExecutionConfig.GlobalJobParameters uc = ec.getGlobalJobParameters();
-				Map<String, String> ucVals = uc.toMap();
-				if(ucVals != null) {
-					String ucString = "{";
-					int i = 0;
-					for (Map.Entry<String, String> ucVal: ucVals.entrySet()) {
-						ucString += "\""+ucVal.getKey()+"\":\""+ucVal.getValue()+"\"";
-						if (++i < ucVals.size()) {
-							ucString += ",\n";
+				if(uc != null) {
+					Map<String, String> ucVals = uc.toMap();
+					if (ucVals != null) {
+						String ucString = "{";
+						int i = 0;
+						for (Map.Entry<String, String> ucVal : ucVals.entrySet()) {
+							ucString += "\"" + ucVal.getKey() + "\":\"" + ucVal.getValue() + "\"";
+							if (++i < ucVals.size()) {
+								ucString += ",\n";
+							}
 						}
+						wrt.write(", \"userConfig\": " + ucString + "}");
 					}
-					wrt.write(", \"userConfig\": "+ucString+"}");
+					else {
+						LOG.info("GlobalJobParameters.toMap() did not return anything");
+					}
+				}
+				else {
+					LOG.info("No GlobalJobParameters were set in the execution config");
 				}
 				wrt.write("},");
+			} else {
+				LOG.warn("Unable to retrieve execution config from execution graph");
 			}
 
 			// write accumulators
