@@ -36,7 +36,8 @@ class DecisionTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val model = learner.fit(trainingDS)
 
-    val predict = model.testAccuracy(env.fromCollection(Classification.IrisTestingData).setParallelism(4))
+    val predict = model.testAccuracy(env.fromCollection(
+      Classification.IrisTestingData).setParallelism(4))
     println(s"Testing accuracy: $predict%")
   }
 }

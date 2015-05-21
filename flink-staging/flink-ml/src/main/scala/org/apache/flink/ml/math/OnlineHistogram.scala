@@ -201,7 +201,8 @@ class OnlineHistogram(
     s.round.toInt
   }
 
-  /** Updates the given bin with the provided value and counter. Sets `v_bin`=value and `m_bin`=counter
+  /** Updates the given bin with the provided value and counter.
+    * Sets `v_bin`=value and `m_bin`=counter
     *
     * @param bin bin to be updated
     * @param value value to be set at bin
