@@ -23,26 +23,5 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-HOSTLIST=$FLINK_SLAVES
-
-if [ "$HOSTLIST" = "" ]; then
-    HOSTLIST="${FLINK_CONF_DIR}/slaves"
-fi
-
-if [ ! -f "$HOSTLIST" ]; then
-    echo $HOSTLIST is not a valid slave list
-    exit 1
-fi
-
-# cluster mode, bring up job manager locally and a task manager on every slave host
-"$FLINK_BIN_DIR"/jobmanager.sh start cluster
-
-GOON=true
-while $GOON
-do
-    read line || GOON=false
-    if [ -n "$line" ]; then
-        HOST=$( extractHostName $line)
-        ssh -n $FLINK_SSH_OPTS $HOST -- "nohup /bin/bash -l $FLINK_BIN_DIR/taskmanager.sh start batch &"
-    fi
-done < "$HOSTLIST"
+# local mode, only bring up job manager. The job manager will start an internal task manager
+"$FLINK_BIN_DIR"/jobmanager.sh start local streaming

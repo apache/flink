@@ -74,7 +74,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * The Task represents one execution of a parallel subtask on a TaskManager.
  * A Task wraps a Flink operator (which may be a user function) and
- * runs it, providing all service necessary for example to consume input data,
+ * runs it, providing all services necessary for example to consume input data,
  * produce its results (intermediate result partitions) and communicate
  * with the JobManager.
  *
