@@ -89,6 +89,7 @@ public class SlidingTimePreReducer<T> extends SlidingPreReducer<T> {
 
 		if (toRemove > 0 && lastPreAggregateSize == null) {
 			currentReduced = null;
+			elementsSinceLastPreAggregate = 0;
 			toRemove = 0;
 		}
 	}
