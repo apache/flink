@@ -102,7 +102,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Starting testClientStartup()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 						"-n", "1",
-						"-jm", "512",
+						"-jm", "768",
 						"-tm", "1024",
 						"-s", "2" // Test that 2 slots are started on the TaskManager.
 				},
@@ -119,7 +119,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		addTestAppender(FlinkYarnSessionCli.class, Level.INFO);
 		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 						"-n", "1",
-						"-jm", "512",
+						"-jm", "768",
 						"-tm", "1024",
 						"--detached"},
 				"Flink JobManager is now running on", RunTypes.YARN_SESSION);
@@ -164,7 +164,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Starting testTaskManagerFailure()");
 		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 				"-n", "1",
-				"-jm", "512",
+				"-jm", "768",
 				"-tm", "1024",
 				"-Dfancy-configuration-value=veryFancy",
 				"-Dyarn.maximum-failed-containers=3"},
@@ -332,7 +332,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Starting testNonexistingQueue()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 				"-n", "1",
-				"-jm", "512",
+				"-jm", "768",
 				"-tm", "1024",
 				"-qu", "doesntExist"}, "Number of connected TaskManagers changed to 1. Slots available: 1", null, RunTypes.YARN_SESSION, 0);
 		LOG.info("Finished testNonexistingQueue()");
@@ -408,7 +408,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 						"-yj", flinkUberjar.getAbsolutePath(),
 						"-yn", "1",
 						"-ys", "2", //test that the job is executed with a DOP of 2
-						"-yjm", "512",
+						"-yjm", "768",
 						"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
 				"Job execution switched to status FINISHED.",
@@ -431,7 +431,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 						"-m", "yarn-cluster",
 						"-yj", flinkUberjar.getAbsolutePath(),
 						"-yn", "1",
-						"-yjm", "512",
+						"-yjm", "768",
 						"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
 				"Job execution switched to status FINISHED.",
@@ -467,7 +467,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		Runner runner = startWithArgs(new String[]{"run", "-m", "yarn-cluster", "-yj", flinkUberjar.getAbsolutePath(),
 						"-yn", "1",
-						"-yjm", "512",
+						"-yjm", "768",
 						"-yD", "yarn.heap-cutoff-ratio=0.5", // test if the cutoff is passed correctly
 						"-ytm", "1024",
 						"-ys", "2", // test requesting slots from YARN.
@@ -541,8 +541,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
 			content = FileUtils.readFileToString(jobmanagerLog);
 			// expecting 512 mb, because TM was started with 1024, we cut off 50% (NOT THE DEFAULT VALUE).
-			Assert.assertTrue("Expected string 'Starting TM with command=$JAVA_HOME/bin/java -Xms512m -Xmx512m' not found in JobManager log: '"+jobmanagerLog+"'",
-					content.contains("Starting TM with command=$JAVA_HOME/bin/java -Xms512m -Xmx512m"));
+			Assert.assertTrue("Expected string 'Starting TM with command=$JAVA_HOME/bin/java -Xms424m -Xmx424m' not found in JobManager log: '"+jobmanagerLog+"'",
+					content.contains("Starting TM with command=$JAVA_HOME/bin/java -Xms424m -Xmx424m"));
 			Assert.assertTrue("Expected string ' (2/2) (attempt #0) to ' not found in JobManager log." +
 							"This string checks that the job has been started with a parallelism of 2. Log contents: '"+jobmanagerLog+"'",
 					content.contains(" (2/2) (attempt #0) to "));
@@ -558,7 +558,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		} catch(Throwable t) {
 			LOG.warn("Error while detached yarn session was running", t);
-			Assert.fail();
+			Assert.fail(t.getMessage());
 		}
 	}
 
@@ -604,8 +604,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		AbstractFlinkYarnClient flinkYarnClient = FlinkYarnSessionCli.getFlinkYarnClient();
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
 		flinkYarnClient.setTaskManagerCount(1);
-		flinkYarnClient.setJobManagerMemory(512);
-		flinkYarnClient.setTaskManagerMemory(512);
+		flinkYarnClient.setJobManagerMemory(768);
+		flinkYarnClient.setTaskManagerMemory(768);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 		String confDirPath = System.getenv("FLINK_CONF_DIR");
 		flinkYarnClient.setConfigurationDirectory(confDirPath);

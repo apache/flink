@@ -553,9 +553,17 @@ public final class ConfigConstants {
 	// ------------------------ YARN Configuration ------------------------
 
 
-	public static final int DEFAULT_YARN_MIN_HEAP_CUTOFF = 384;
+	/**
+	 * Minimum amount of Heap memory to subtract from the requested TaskManager size.
+	 * We came up with these values experimentally.
+	 * Flink fails when the cutoff is set only to 500 mb.
+	 */
+	public static final int DEFAULT_YARN_MIN_HEAP_CUTOFF = 600;
 
-	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.15f;
+	/**
+	 * Relative amount of memory to subtract from the requested memory.
+	 */
+	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;
 	
 	
 	// ------------------------ File System Behavior ------------------------
