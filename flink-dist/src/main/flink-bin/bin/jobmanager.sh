@@ -20,6 +20,7 @@
 
 STARTSTOP=$1
 EXECUTIONMODE=$2
+STREAMINGMODE=$3
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -80,7 +81,7 @@ case $STARTSTOP in
         rotateLogFile $out
 
         echo "Starting Job Manager"
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_JM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.runtime.jobmanager.JobManager --executionMode $EXECUTIONMODE --configDir "$FLINK_CONF_DIR"  > "$out" 2>&1 < /dev/null &
+        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_JM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.runtime.jobmanager.JobManager --configDir "$FLINK_CONF_DIR" --executionMode $EXECUTIONMODE --streamingMode "$STREAMINGMODE" > "$out" 2>&1 < /dev/null &
         echo $! > $pid
 
     ;;
@@ -99,7 +100,7 @@ case $STARTSTOP in
     ;;
 
     (*)
-        echo "Please specify 'start (cluster|local)' or stop"
+        echo "Please specify 'start (cluster|local) [batch|streaming]' or 'stop'"
     ;;
 
 esac

@@ -21,7 +21,7 @@ import org.slf4j.Logger;
 import sun.misc.Signal;
 
 /**
- * This signal handler / signal logger is based on Apache Hadoops org.apache.hadoop.util.SignalLogger.
+ * This signal handler / signal logger is based on Apache Hadoop's org.apache.hadoop.util.SignalLogger.
  */
 public class SignalHandler {
 	private static boolean registered = false;

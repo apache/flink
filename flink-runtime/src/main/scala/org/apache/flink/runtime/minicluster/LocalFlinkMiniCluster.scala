@@ -18,18 +18,19 @@
 
 package org.apache.flink.runtime.minicluster
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, ExtendedActorSystem}
+
 import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
+
 import org.slf4j.LoggerFactory
-import akka.actor.ExtendedActorSystem
 
 /**
  * Local Flink mini cluster which executes all [[TaskManager]]s and the [[JobManager]] in the same
@@ -41,9 +42,20 @@ import akka.actor.ExtendedActorSystem
  * @param singleActorSystem true if all actors (JobManager and TaskManager) shall be run in the same
  *                          [[ActorSystem]], otherwise false
  */
-class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem: Boolean = true)
-  extends FlinkMiniCluster(userConfiguration, singleActorSystem) {
+class LocalFlinkMiniCluster(userConfiguration: Configuration,
+                            singleActorSystem: Boolean,
+                            streamingMode: StreamingMode)
+  extends FlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
 
+  
+  def this(userConfiguration: Configuration, singleActorSystem: Boolean)
+       = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
+  
+  def this(userConfiguration: Configuration) = this(userConfiguration, true)
+
+  // --------------------------------------------------------------------------
+  
+  
   val jobClientActorSystem = if (singleActorSystem) {
     jobManagerActorSystem
   } else {
@@ -64,7 +76,9 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
 
   override def startJobManager(system: ActorSystem): ActorRef = {
     val config = configuration.clone()
-    val (jobManager, archiver) = JobManager.startJobManagerActors(config, system)
+       
+    val (jobManager, archiver) = JobManager.startJobManagerActors(config, system, streamingMode)
+    
     if (config.getBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, false)) {
       val webServer = new WebInfoServer(configuration, jobManager, archiver)
       webServer.start()
@@ -103,12 +117,13 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
     } else {
       None
     }
-
+    
     TaskManager.startTaskManagerComponentsAndActor(config, system,
                                                    HOSTNAME, // network interface to bind to
                                                    Some(taskManagerActorName), // actor name
                                                    jobManagerPath, // job manager akka URL
                                                    localExecution, // start network stack?
+                                                   streamingMode,
                                                    classOf[TaskManager])
   }
 

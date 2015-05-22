@@ -16,13 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager
+package org.apache.flink.runtime;
 
 /**
- * Holder for command line parameters of the JobManager.
- *
- * @param configDir The directory to load the configuration from.
- * @param executionMode Mode for the JobManager.
+ * The streaming mode defines whether the system starts in streaming mode,
+ * or in pure batch mode. Note that streaming mode can execute batch programs
+ * as well.
  */
-case class JobManagerCLIConfiguration(configDir: String = null,
-                                      executionMode: JobManagerMode = null) {}
+public enum StreamingMode {
+	
+	/** This mode indicates the system can run streaming tasks, of which batch
+	 * tasks are a special case. */
+	STREAMING,
+	
+	/** This mode indicates that the system can run only batch tasks */
+	BATCH_ONLY;
+}
