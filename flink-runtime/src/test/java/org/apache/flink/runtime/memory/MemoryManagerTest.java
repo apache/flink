@@ -16,25 +16,29 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.memory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import org.junit.Assert;
-
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
+
+import org.junit.Assert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class DefaultMemoryManagerTest
-{
+import static org.junit.Assert.*;
+
+/**
+ * Tests for the memory manager, in the mode where it pre-allocates all memory.
+ */
+public class MemoryManagerTest {
+	
 	private static final long RANDOM_SEED = 643196033469871L;
 
 	private static final int MEMORY_SIZE = 1024 * 1024 * 72; // 72 MiBytes
@@ -47,66 +51,76 @@ public class DefaultMemoryManagerTest
 
 	private Random random;
 
+	
 	@Before
-	public void setUp()
-	{
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, PAGE_SIZE);
+	public void setUp() {
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1, PAGE_SIZE, true);
 		this.random = new Random(RANDOM_SEED);
 	}
 
 	@After
-	public void tearDown()
-	{
+	public void tearDown() {
 		if (!this.memoryManager.verifyEmpty()) {
-			Assert.fail("Memory manager is not complete empty and valid at the end of the test.");
+			fail("Memory manager is not complete empty and valid at the end of the test.");
 		}
 		this.memoryManager = null;
 		this.random = null;
 	}
 
 	@Test
-	public void allocateAllSingle() throws Exception
-	{
-		final AbstractInvokable mockInvoke = new DummyInvokable();
-		List<MemorySegment> segments = new ArrayList<MemorySegment>();
-		
+	public void allocateAllSingle() {
 		try {
-			for (int i = 0; i < NUM_PAGES; i++) {
-				segments.add(this.memoryManager.allocatePages(mockInvoke, 1).get(0));
+			final AbstractInvokable mockInvoke = new DummyInvokable();
+			List<MemorySegment> segments = new ArrayList<MemorySegment>();
+			
+			try {
+				for (int i = 0; i < NUM_PAGES; i++) {
+					segments.add(this.memoryManager.allocatePages(mockInvoke, 1).get(0));
+				}
 			}
-		} catch (MemoryAllocationException e) {
-			Assert.fail("Unable to allocate memory");
+			catch (MemoryAllocationException e) {
+				fail("Unable to allocate memory");
+			}
+			
+			this.memoryManager.release(segments);
 		}
-		
-		this.memoryManager.release(segments);
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 	
 	@Test
-	public void allocateAllMulti() throws Exception
-	{
-		final AbstractInvokable mockInvoke = new DummyInvokable();
-		final List<MemorySegment> segments = new ArrayList<MemorySegment>();
-		
+	public void allocateAllMulti() {
 		try {
-			for(int i = 0; i < NUM_PAGES / 2; i++) {
-				segments.addAll(this.memoryManager.allocatePages(mockInvoke, 2));
+			final AbstractInvokable mockInvoke = new DummyInvokable();
+			final List<MemorySegment> segments = new ArrayList<MemorySegment>();
+			
+			try {
+				for(int i = 0; i < NUM_PAGES / 2; i++) {
+					segments.addAll(this.memoryManager.allocatePages(mockInvoke, 2));
+				}
+			} catch (MemoryAllocationException e) {
+				Assert.fail("Unable to allocate memory");
 			}
-		} catch (MemoryAllocationException e) {
-			Assert.fail("Unable to allocate memory");
+			
+			this.memoryManager.release(segments);
 		}
-		
-		this.memoryManager.release(segments);
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 	
 	@Test
-	public void allocateMultipleOwners()
-	{
+	public void allocateMultipleOwners() {
 		final int NUM_OWNERS = 17;
 	
 		try {
 			AbstractInvokable[] owners = new AbstractInvokable[NUM_OWNERS];
+			
 			@SuppressWarnings("unchecked")
-			List<MemorySegment>[] mems = new List[NUM_OWNERS];
+			List<MemorySegment>[] mems = (List<MemorySegment>[]) new List<?>[NUM_OWNERS];
 			
 			for (int i = 0; i < NUM_OWNERS; i++) {
 				owners[i] = new DummyInvokable();
@@ -134,13 +148,12 @@ public class DefaultMemoryManagerTest
 		}
 		catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail("Test encountered an exception: " + e.getMessage());
+			fail(e.getMessage());
 		}
 	}
 	
 	@Test
-	public void allocateTooMuch()
-	{
+	public void allocateTooMuch() {
 		try {
 			final AbstractInvokable mockInvoke = new DummyInvokable();
 			
@@ -156,16 +169,15 @@ public class DefaultMemoryManagerTest
 			Assert.assertTrue("The previously allocated segments were not valid any more.",
 																	allMemorySegmentsValid(segs));
 			
-			this.memoryManager.releaseAll(mockInvoke);			
+			this.memoryManager.releaseAll(mockInvoke);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail("Test encountered an exception: " + e.getMessage());
+			fail(e.getMessage());
 		}
 	}
 	
-	private boolean allMemorySegmentsValid(List<MemorySegment> memSegs)
-	{
+	private boolean allMemorySegmentsValid(List<MemorySegment> memSegs) {
 		for (MemorySegment seg : memSegs) {
 			if (seg.isFreed()) {
 				return false;
@@ -174,8 +186,7 @@ public class DefaultMemoryManagerTest
 		return true;
 	}
 	
-	private boolean allMemorySegmentsFreed(List<MemorySegment> memSegs)
-	{
+	private boolean allMemorySegmentsFreed(List<MemorySegment> memSegs) {
 		for (MemorySegment seg : memSegs) {
 			if (!seg.isFreed()) {
 				return false;

@@ -1396,8 +1396,10 @@ object TaskManager {
     val memoryManager = try {
       new DefaultMemoryManager(memorySize,
                                taskManagerConfig.numberOfSlots,
-                               netConfig.networkBufferSize)
-    } catch {
+                               netConfig.networkBufferSize,
+                               true)
+    }
+    catch {
       case e: OutOfMemoryError => throw new Exception(
         "OutOfMemory error (" + e.getMessage + ") while allocating the TaskManager memory (" +
           memorySize + " bytes).", e)
