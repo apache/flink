@@ -945,7 +945,8 @@ object JobManager {
    * @param args command line arguments
    * @return Quadruple of configuration, execution mode and an optional listening address
    */
-  def parseArgs(args: Array[String]): (Configuration, JobManagerMode, StreamingMode, String, Int) = {
+  def parseArgs(args: Array[String]):
+                     (Configuration, JobManagerMode, StreamingMode, String, Int) = {
     val parser = new scopt.OptionParser[JobManagerCliOptions]("JobManager") {
       head("Flink JobManager")
 

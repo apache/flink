@@ -23,8 +23,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.MultipleProgramsTestBase
-import org.apache.flink.test.util.AbstractMultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -45,12 +45,12 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   }
 
   @After
-  def after: Unit = {
-    compareResultsByLinesInMemory(expected, resultPath)
+  def after(): Unit = {
+    TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testAggregationTypes: Unit = {
+  def testAggregationTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable
@@ -62,7 +62,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testAggregationOnNonExistingField: Unit = {
+  def testAggregationOnNonExistingField(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable
@@ -74,7 +74,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   }
 
   @Test
-  def testWorkingAggregationDataTypes: Unit = {
+  def testWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(
@@ -88,7 +88,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   }
 
   @Test
-  def testAggregationWithArithmetic: Unit = {
+  def testAggregationWithArithmetic(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
@@ -100,7 +100,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testNonWorkingAggregationDataTypes: Unit = {
+  def testNonWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(("Hello", 1)).toTable
@@ -112,7 +112,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testNoNestedAggregations: Unit = {
+  def testNoNestedAggregations(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(("Hello", 1)).toTable

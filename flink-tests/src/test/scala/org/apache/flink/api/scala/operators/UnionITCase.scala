@@ -19,8 +19,8 @@ package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.AbstractMultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{MultipleProgramsTestBase}
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.junit._
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -51,7 +51,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
   @After
   def after(): Unit = {
-    compareResultsByLinesInMemory(expected, resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
