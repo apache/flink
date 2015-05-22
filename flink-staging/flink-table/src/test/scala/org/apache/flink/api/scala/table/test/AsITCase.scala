@@ -23,8 +23,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.MultipleProgramsTestBase
-import org.apache.flink.test.util.AbstractMultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -32,6 +32,7 @@ import org.junit.runners.Parameterized
 
 @RunWith(classOf[Parameterized])
 class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+  
   private var resultPath: String = null
   private var expected: String = ""
   private val _tempFolder = new TemporaryFolder()
@@ -45,12 +46,12 @@ class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @After
-  def after: Unit = {
-    compareResultsByLinesInMemory(expected, resultPath)
+  def after(): Unit = {
+    TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testAs: Unit = {
+  def testAs(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
@@ -66,7 +67,7 @@ class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testAsWithToFewFields: Unit = {
+  def testAsWithToFewFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b)
@@ -77,7 +78,7 @@ class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testAsWithToManyFields: Unit = {
+  def testAsWithToManyFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c, 'd)
@@ -88,7 +89,7 @@ class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testAsWithAmbiguousFields: Unit = {
+  def testAsWithAmbiguousFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'b)
@@ -99,7 +100,7 @@ class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testAsWithNonFieldReference1: Unit = {
+  def testAsWithNonFieldReference1(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     // as can only have field references
@@ -111,7 +112,7 @@ class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testAsWithNonFieldReference2: Unit = {
+  def testAsWithNonFieldReference2(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     // as can only have field references

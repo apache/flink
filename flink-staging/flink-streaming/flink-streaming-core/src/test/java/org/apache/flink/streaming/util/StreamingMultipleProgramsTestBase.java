@@ -18,12 +18,12 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.test.util.AbstractMultipleProgramsTestBase;
-import org.apache.flink.test.util.AbstractMultipleProgramsTestBase.TestExecutionMode;
-import org.junit.runners.Parameterized;
+import org.apache.flink.runtime.StreamingMode;
+import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+import org.apache.flink.test.util.TestBaseUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
 /**
  * Base class for streaming unit tests that run multiple tests and want to reuse the same
@@ -53,25 +53,34 @@ import java.util.Collection;
  *
  * }</pre>
  */
-public class StreamingMultipleProgramsTestBase extends AbstractMultipleProgramsTestBase {
+public class StreamingMultipleProgramsTestBase extends TestBaseUtils {
 
-	public StreamingMultipleProgramsTestBase(TestExecutionMode mode) {
-		super(mode);
-		switch(this.mode){
-			case CLUSTER:
-				TestStreamEnvironment clusterEnv = new TestStreamEnvironment(cluster, 4);
-				clusterEnv.setAsContext();
-				break;
-			case COLLECTION:
-				throw new UnsupportedOperationException("Flink streaming currently has no collection execution backend.");
-		}
+	// ------------------------------------------------------------------------
+	//  The mini cluster that is shared across tests
+	// ------------------------------------------------------------------------
+
+	protected static final int DEFAULT_PARALLELISM = 4;
+
+	protected static ForkableFlinkMiniCluster cluster = null;
+	
+	// ------------------------------------------------------------------------
+	
+	public StreamingMultipleProgramsTestBase() {
+		TestStreamEnvironment clusterEnv = new TestStreamEnvironment(cluster, 4);
+		clusterEnv.setAsContext();
 	}
 
-	@Parameterized.Parameters(name = "Execution mode = {0}")
-	public static Collection<TestExecutionMode[]> executionModes() {
-		TestExecutionMode[] tems = new TestExecutionMode[]{TestExecutionMode.CLUSTER};
-		ArrayList<TestExecutionMode[]> temsList = new ArrayList<TestExecutionMode[]>();
-		temsList.add(tems);
-		return temsList;
+	// ------------------------------------------------------------------------
+	//  Cluster setup & teardown
+	// ------------------------------------------------------------------------
+
+	@BeforeClass
+	public static void setup() throws Exception{
+		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, StreamingMode.STREAMING, false);
+	}
+
+	@AfterClass
+	public static void teardown() throws Exception {
+		stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
 	}
 }

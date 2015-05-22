@@ -20,13 +20,14 @@ package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.CallingThreadDispatcher
+
 import com.typesafe.config.ConfigFactory
+
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ActionQueue
-import org.apache.flink.runtime.taskmanager.TaskManager
-import scala.concurrent.duration._
 
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 
@@ -55,28 +56,7 @@ object TestingUtils {
   }
 
   def getDefaultTestingActorSystemConfig = testConfig
-
-
-  def startTestingTaskManagerWithConfiguration(hostname: String,
-                                               jobManagerURL: String,
-                                               config: Configuration,
-                                               system: ActorSystem) : ActorRef = {
-
-
-    TaskManager.startTaskManagerComponentsAndActor(config, system,
-                                                   hostname,
-                                                   None, // random actor name
-                                                   Some(jobManagerURL), // job manager
-                                                   true, classOf[TestingTaskManager])
-  }
-
-  def startTestingTaskManager(jobManager: ActorRef, system: ActorSystem): ActorRef = {
-
-    val jmURL = jobManager.path.toString
-    val config = new Configuration()
-
-    startTestingTaskManagerWithConfiguration("localhost", jmURL, config, system)
-  }
+  
 
   def startTestingCluster(numSlots: Int, numTMs: Int = 1,
                           timeout: String = DEFAULT_AKKA_ASK_TIMEOUT): TestingCluster = {

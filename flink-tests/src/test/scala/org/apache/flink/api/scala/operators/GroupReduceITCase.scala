@@ -28,8 +28,8 @@ CustomType}
 import org.apache.flink.optimizer.Optimizer
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.AbstractMultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{MultipleProgramsTestBase}
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.util.Collector
 import org.hamcrest.core.{IsNot, IsEqual}
 import org.junit._
@@ -58,7 +58,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
   @After
   def after(): Unit = {
     if(expected != null) {
-      compareResultsByLinesInMemory(expected, resultPath)
+      TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
     }
   }
 

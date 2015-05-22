@@ -19,8 +19,8 @@ package org.apache.flink.api.scala.functions
 
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.AbstractMultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.MultipleProgramsTestBase
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.junit.Assert.fail
 import org.junit.{After, Before, Test, Rule}
 import org.junit.rules.TemporaryFolder
@@ -49,7 +49,7 @@ class ClosureCleanerITCase(mode: TestExecutionMode) extends MultipleProgramsTest
 
   @After
   def after(): Unit = {
-    compareResultsByLinesInMemory(result, resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory(result, resultPath)
   }
 
   @Test

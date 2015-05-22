@@ -19,8 +19,8 @@ package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.AbstractMultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{MultipleProgramsTestBase}
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.junit._
 import org.junit.rules.TemporaryFolder
 
@@ -57,7 +57,7 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     env.execute()
 
-    compareResultsByLinesInMemory("60", resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory("60", resultPath)
   }
 
   @Test
@@ -78,7 +78,7 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     env.execute()
 
-    compareResultsByLinesInMemory("60", resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory("60", resultPath)
   }
 
   @Test
@@ -99,7 +99,7 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     env.execute()
 
-    compareResultsByLinesInMemory("60", resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory("60", resultPath)
   }
 
   @Test
@@ -122,7 +122,7 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     env.execute()
 
-    compareResultsByLinesInMemory("60", resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory("60", resultPath)
   }
 
   @Test
@@ -143,7 +143,7 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     env.execute()
 
-    compareResultsByLinesInMemory("60", resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory("60", resultPath)
   }
 
   @Test
@@ -164,7 +164,7 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     env.execute()
 
-    compareResultsByLinesInMemory("60", resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory("60", resultPath)
   }
 
   @Test
@@ -187,7 +187,7 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     env.execute()
 
-    compareResultsByLinesInMemory("60", resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory("60", resultPath)
   }
 
   @Test
@@ -208,7 +208,7 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     env.execute()
 
-    compareResultsByLinesInMemory("60", resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory("60", resultPath)
   }
 
   @Test
@@ -229,7 +229,7 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     env.execute()
 
-    compareResultsByLinesInMemory("80", resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory("80", resultPath)
   }
 }
 
