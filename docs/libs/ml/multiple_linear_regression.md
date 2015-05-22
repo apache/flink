@@ -117,8 +117,8 @@ val trainingDS: DataSet[LabeledVector] = ...
 val testingDS: DataSet[Vector] = ...
 
 // Fit the linear model to the provided data
-val model = mlr.fit(trainingDS)
+mlr.fit(trainingDS)
 
 // Calculate the predictions for the test data
-val predictions = model.transform(testingDS)
+val predictions = mlr.predict(testingDS)
 {% endhighlight %}

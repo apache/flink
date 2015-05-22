@@ -30,7 +30,7 @@ class CoCoAITSuite extends FlatSpec with Matchers with FlinkTestBase {
   it should "train a SVM" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val learner = CoCoA().
+    val cocoa = CoCoA().
     setBlocks(env.getParallelism).
     setIterations(100).
     setLocalIterations(100).
@@ -40,9 +40,9 @@ class CoCoAITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val trainingDS = env.fromCollection(Classification.trainingData)
 
-    val model = learner.fit(trainingDS)
+    cocoa.fit(trainingDS)
 
-    val weightVector = model.weights.collect().apply(0)
+    val weightVector = cocoa.weightsOption.get.collect().apply(0)
 
     weightVector.valuesIterator.zip(Classification.expectedWeightVector.valueIterator).foreach {
       case (weight, expectedWeight) =>

@@ -233,7 +233,7 @@ public class BarrierBuffer {
 			LOG.debug("Publishing barrier to the vertex");
 		}
 
-		if (currentSuperstep != null) {
+		if (currentSuperstep != null && !inputFinished) {
 			reader.publish(currentSuperstep);
 		}
 

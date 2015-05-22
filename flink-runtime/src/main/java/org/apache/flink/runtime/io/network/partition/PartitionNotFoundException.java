@@ -16,23 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.ml.common
+package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.api.scala.DataSet
+import java.io.IOException;
 
-/** Base trait for an algorithm which trains a model based on some training data
-  *
-  * The idea is that all algorithms which train a model implement this trait. That way
-  * they can be chained with [[Transformer]] which act as a preprocessing step for the actual
-  * learning. In that sense, [[Learner]] denote the end of a pipeline and cannot be further
-  * chained.
-  *
-  * Every learner has to implement the `fit` method which takes the training data and learns
-  * a model from the data.
-  *
-  * @tparam IN Type of the training data
-  * @tparam OUT Type of the trained model
-  */
-trait Learner[IN, OUT] extends WithParameters {
-  def fit(input: DataSet[IN], fitParameters: ParameterMap = ParameterMap.Empty): OUT
+public class PartitionNotFoundException extends IOException {
+
+	private static final long serialVersionUID = 0L;
+
+	private final ResultPartitionID partitionId;
+
+	public PartitionNotFoundException(ResultPartitionID partitionId) {
+		this.partitionId = partitionId;
+	}
+
+	public ResultPartitionID getPartitionId() {
+		return partitionId;
+	}
+
+	@Override
+	public String getMessage() {
+		return "Partition " + partitionId + " not found.";
+	}
 }

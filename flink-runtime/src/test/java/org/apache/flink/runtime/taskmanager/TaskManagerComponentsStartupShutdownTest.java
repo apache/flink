@@ -40,6 +40,7 @@ import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.junit.Test;
 import scala.Option;
+import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.net.InetAddress;
@@ -79,7 +80,8 @@ public class TaskManagerComponentsStartupShutdownTest {
 					config);
 
 			final NetworkEnvironmentConfiguration netConf = new NetworkEnvironmentConfiguration(
-					32, BUFFER_SIZE, IOManager.IOMode.SYNC, Option.<NettyConfig>empty());
+					32, BUFFER_SIZE, IOManager.IOMode.SYNC, Option.<NettyConfig>empty(),
+					new Tuple2<Integer, Integer>(0, 0));
 
 			final InstanceConnectionInfo connectionInfo = new InstanceConnectionInfo(InetAddress.getLocalHost(), 10000);
 

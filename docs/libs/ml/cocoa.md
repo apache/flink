@@ -146,7 +146,7 @@ The CoCoA implementation can be controlled by the following parameters:
 val trainingDS: DataSet[LabeledVector] = env.readSVMFile(pathToTrainingFile)
 
 // Create the CoCoA learner
-val cocoa = CoCoA()
+val svm = CoCoA()
 .setBlocks(10)
 .setIterations(10)
 .setLocalIterations(10)
@@ -154,11 +154,11 @@ val cocoa = CoCoA()
 .setStepsize(0.5)
 
 // Learn the SVM model
-val svm = cocoa.fit(trainingDS)
+svm.fit(trainingDS)
 
 // Read the testing data set
 val testingDS: DataSet[Vector] = env.readVectorFile(pathToTestingFile)
 
 // Calculate the predictions for the testing data set
-val predictionDS: DataSet[LabeledVector] = model.transform(testingDS)
+val predictionDS: DataSet[LabeledVector] = svm.predict(testingDS)
 {% endhighlight %}

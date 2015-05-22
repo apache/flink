@@ -20,10 +20,9 @@ package org.apache.flink.runtime.taskmanager
 
 import java.io.{File, IOException}
 import java.net.{InetAddress, InetSocketAddress}
-import java.util
 import java.util.concurrent.TimeUnit
 import java.lang.reflect.Method
-import java.lang.management.{GarbageCollectorMXBean, ManagementFactory, MemoryMXBean}
+import java.lang.management.ManagementFactory
 
 import akka.actor._
 import akka.pattern.ask
@@ -176,7 +175,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
     // log the initial memory utilization
     if (log.isInfoEnabled) {
-      log.info(TaskManager.getMemoryUsageStatsAsString(ManagementFactory.getMemoryMXBean))
+      log.info(MemoryLogger.getMemoryUsageStatsAsString(ManagementFactory.getMemoryMXBean))
     }
 
     // kick off the registration
@@ -392,6 +391,14 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
           log.debug(s"Cannot find task to cancel for execution ${executionID})")
           sender ! new TaskOperationResult(executionID, false,
               "No task with that execution ID was found.")
+        }
+
+      case PartitionState(taskExecutionId, taskResultId, partitionId, state) =>
+        Option(runningTasks.get(taskExecutionId)) match {
+          case Some(task) =>
+            task.onPartitionStateUpdate(taskResultId, partitionId, state)
+          case None =>
+            log.debug(s"Cannot find task $taskExecutionId to respond with partition state.")
         }
     }
   }
@@ -1278,25 +1285,7 @@ object TaskManager {
           ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
           ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
 
-        val logger = new Thread("Memory Usage Logger") {
-          override def run(): Unit = {
-            try {
-              val memoryMXBean = ManagementFactory.getMemoryMXBean
-              val gcMXBeans = ManagementFactory.getGarbageCollectorMXBeans.asScala
-
-              while (!taskManagerSystem.isTerminated) {
-                Thread.sleep(interval)
-                LOG.info(getMemoryUsageStatsAsString(memoryMXBean))
-                LOG.info(TaskManager.getGarbageCollectorStatsAsString(gcMXBeans))
-              }
-            }
-            catch {
-              case t: Throwable => LOG.error("Memory usage logging thread died", t)
-            }
-          }
-        }
-        logger.setDaemon(true)
-        logger.setPriority(Thread.MIN_PRIORITY)
+        val logger = new MemoryLogger(LOG.logger, interval, taskManagerSystem)
         logger.start()
       }
 
@@ -1578,8 +1567,8 @@ object TaskManager {
 
     val ioMode : IOMode = if (syncOrAsync == "async") IOMode.ASYNC else IOMode.SYNC
 
-    val networkConfig = NetworkEnvironmentConfiguration(numNetworkBuffers, pageSize,
-                                                        ioMode, nettyConfig)
+    val networkConfig = NetworkEnvironmentConfiguration(
+      numNetworkBuffers, pageSize, ioMode, nettyConfig)
 
     // ----> timeouts, library caching, profiling
 
@@ -1715,45 +1704,6 @@ object TaskManager {
         }
       case (_, id) => throw new IllegalArgumentException(s"Temporary file directory #$id is null.")
     }
-  }
-
-  /**
-   * Gets the memory footprint of the JVM in a string representation.
-   *
-   * @param memoryMXBean The memory management bean used to access the memory statistics.
-   * @return A string describing how much heap memory and direct memory are allocated and used.
-   */
-  private def getMemoryUsageStatsAsString(memoryMXBean: MemoryMXBean): String = {
-    val heap = memoryMXBean.getHeapMemoryUsage
-    val nonHeap = memoryMXBean.getNonHeapMemoryUsage
-
-    val heapUsed = heap.getUsed >> 20
-    val heapCommitted = heap.getCommitted >> 20
-    val heapMax = heap.getMax >> 20
-
-    val nonHeapUsed = nonHeap.getUsed >> 20
-    val nonHeapCommitted = nonHeap.getCommitted >> 20
-    val nonHeapMax = nonHeap.getMax >> 20
-
-    s"Memory usage stats: [HEAP: $heapUsed/$heapCommitted/$heapMax MB, " +
-      s"NON HEAP: $nonHeapUsed/$nonHeapCommitted/$nonHeapMax MB (used/committed/max)]"
-  }
-
-  /**
-   * Gets the garbage collection statistics from the JVM.
-   *
-   * @param gcMXBeans The collection of garbage collector beans.
-   * @return A string denoting the number of times and total elapsed time in garbage collection.
-   */
-  private def getGarbageCollectorStatsAsString(gcMXBeans: Iterable[GarbageCollectorMXBean])
-  : String = {
-    val beans = gcMXBeans map {
-      bean =>
-        s"[${bean.getName}, GC TIME (ms): ${bean.getCollectionTime}, " +
-          s"GC COUNT: ${bean.getCollectionCount}]"
-    } mkString ", "
-
-    "Garbage collector stats: " + beans
   }
 
   /**

@@ -41,7 +41,6 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String DEFAULT_PARALLELISM_KEY_OLD = "parallelization.degree.default";
 
-
 	/**
 	 * Config parameter for the number of re-tries for failed tasks. Setting this
 	 * value to 0 effectively disables fault tolerance.

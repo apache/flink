@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.util.event.EventListener;
@@ -67,7 +68,9 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	void addInputChannel(RemoteInputChannel listener) {
 		checkState(!channelError.get(), "There has been an error in the channel.");
 
-		inputChannels.put(listener.getInputChannelId(), listener);
+		if (!inputChannels.containsKey(listener.getInputChannelId())) {
+			inputChannels.put(listener.getInputChannelId(), listener);
+		}
 	}
 
 	void removeInputChannel(RemoteInputChannel listener) {
@@ -166,6 +169,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		else if (msgClazz == NettyMessage.ErrorResponse.class) {
 			NettyMessage.ErrorResponse error = (NettyMessage.ErrorResponse) msg;
 
+
 			if (error.isFatalError()) {
 				notifyAllChannelsOfErrorAndClose(error.error);
 			}
@@ -173,7 +177,12 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				RemoteInputChannel inputChannel = inputChannels.get(error.receiverId);
 
 				if (inputChannel != null) {
-					inputChannel.onError(error.error);
+					if (error.error.getClass() == PartitionNotFoundException.class) {
+						inputChannel.onFailedPartitionRequest();
+					}
+					else {
+						inputChannel.onError(error.error);
+					}
 				}
 			}
 		}
