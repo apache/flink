@@ -61,6 +61,7 @@ You can use FlinkML in your project by adding the following dependency to your p
 ### Utilities
 
 * [Distance Metrics](distance_metrics.html)
+* [Pipelines (Developer)](pipelines.html)
 
 ## Example & Quickstart guide
 
