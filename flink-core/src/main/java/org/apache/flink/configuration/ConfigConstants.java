@@ -406,6 +406,11 @@ public final class ConfigConstants {
 	 * Timeout for all blocking calls that look up remote actors
 	 */
 	public static final String AKKA_LOOKUP_TIMEOUT = "akka.lookup.timeout";
+
+	/**
+	 * Exit JVM on fatal Akka errors
+	 */
+	public static final String AKKA_JVM_EXIT_ON_FATAL_ERROR = "akka.jvm-exit-on-fatal-error";
 	
 	// ----------------------------- Streaming --------------------------------
 	
