@@ -24,7 +24,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common._
 import org.apache.flink.ml.math._
-import org.apache.flink.ml.optimization.IterativeSolver.{Iterations, Stepsize}
+import org.apache.flink.ml.optimization.IterativeSolver.{ConvergenceThreshold, Iterations, Stepsize}
 import org.apache.flink.ml.optimization.Solver._
 
 /** This [[Solver]] performs Stochastic Gradient Descent optimization using mini batches
@@ -36,18 +36,19 @@ import org.apache.flink.ml.optimization.Solver._
   * At the moment, the whole partition is used for SGD, making it effectively a batch gradient
   * descent. Once a sampling operator has been introduced, the algorithm can be optimized
   *
-  * @param runParameters The parameters to tune the algorithm. Currently these include:
+  *  The parameters to tune the algorithm are:
   *                      [[Solver.LossFunction]] for the loss function to be used,
   *                      [[Solver.RegularizationType]] for the type of regularization,
   *                      [[Solver.RegularizationParameter]] for the regularization parameter,
   *                      [[IterativeSolver.Iterations]] for the maximum number of iteration,
   *                      [[IterativeSolver.Stepsize]] for the learning rate used.
+  *                      [[IterativeSolver.ConvergenceThreshold]] when provided the algorithm will
+  *                      stop the iterations if the relative change in the value of the objective
+  *                      function between successive iterations is is smaller than this value.
   */
-class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
+class GradientDescent() extends IterativeSolver {
 
   import Solver.WEIGHTVECTOR_BROADCAST
-
-  var parameterMap: ParameterMap = parameters ++ runParameters
 
   /** Performs one iteration of Stochastic Gradient Descent using mini batches
     *
@@ -76,51 +77,95 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
     }.withBroadcastSet(currentWeights, WEIGHTVECTOR_BROADCAST)
   }
 
+
+
   /** Provides a solution for the given optimization problem
     *
     * @param data A Dataset of LabeledVector (label, features) pairs
-    * @param initWeights The initial weights that will be optimized
+    * @param initialWeights The initial weights that will be optimized
     * @return The weights, optimized for the provided data.
     */
   override def optimize(
     data: DataSet[LabeledVector],
-    initWeights: Option[DataSet[WeightVector]]): DataSet[WeightVector] = {
-    // TODO: Faster way to do this?
-    val dimensionsDS = data.map(_.vector.size).reduce((a, b) => b)
-
-    val numberOfIterations: Int = parameterMap(Iterations)
+    initialWeights: Option[DataSet[WeightVector]]): DataSet[WeightVector] = {
+    val numberOfIterations: Int = parameters(Iterations)
+    val convergenceThresholdOption: Option[Double] = parameters.get(ConvergenceThreshold)
 
     // Initialize weights
-    val initialWeightsDS: DataSet[WeightVector] = initWeights match {
-      // Ensure provided weight vector is a DenseVector
-      case Some(wvDS) => {
-        wvDS.map{wv => {
-          val denseWeights = wv.weights match {
-            case dv: DenseVector => dv
-            case sv: SparseVector => sv.toDenseVector
-          }
-          WeightVector(denseWeights, wv.intercept)
-        }
-
-        }
-      }
-      case None => createInitialWeightVector(dimensionsDS)
-    }
+    val initialWeightsDS: DataSet[WeightVector] = createInitialWeightsDS(initialWeights, data)
 
     // Perform the iterations
-    // TODO: Enable convergence stopping criterion, as in Multiple Linear regression
-    initialWeightsDS.iterate(numberOfIterations) {
-      weightVector => {
-        SGDStep(data, weightVector)
-      }
+    val optimizedWeights = convergenceThresholdOption match {
+      // No convergence criterion
+      case None =>
+        initialWeightsDS.iterate(numberOfIterations) {
+          weightVectorDS => {
+            SGDStep(data, weightVectorDS)
+          }
+        }
+      case Some(convergence) =>
+        // Calculates the regularized loss, from the data and given weights
+        def lossCalculation(data: DataSet[LabeledVector], weightDS: DataSet[WeightVector]):
+        DataSet[Double] = {
+          data
+            .map {new LossCalculation}.withBroadcastSet(weightDS, WEIGHTVECTOR_BROADCAST)
+            .reduce {
+              (left, right) =>
+                val (leftLoss, leftCount) = left
+                val (rightLoss, rightCount) = right
+                (leftLoss + rightLoss, rightCount + leftCount)
+            }
+            .map{new RegularizedLossCalculation}.withBroadcastSet(weightDS, WEIGHTVECTOR_BROADCAST)
+        }
+        // We have to calculate for each weight vector the sum of squared residuals,
+        // and then sum them and apply regularization
+        val initialLossSumDS = lossCalculation(data, initialWeightsDS)
+
+        // Combine weight vector with the current loss
+        val initialWeightsWithLossSum = initialWeightsDS.
+          crossWithTiny(initialLossSumDS).setParallelism(1)
+
+        val resultWithLoss = initialWeightsWithLossSum.
+          iterateWithTermination(numberOfIterations) {
+          weightsWithLossSum =>
+
+            // Extract weight vector and loss
+            val previousWeightsDS = weightsWithLossSum.map{_._1}
+            val previousLossSumDS = weightsWithLossSum.map{_._2}
+
+            val currentWeightsDS = SGDStep(data, previousWeightsDS)
+
+            val currentLossSumDS = lossCalculation(data, currentWeightsDS)
+
+            // Check if the relative change in the loss is smaller than the
+            // convergence threshold. If yes, then terminate i.e. return empty termination data set
+            val termination = previousLossSumDS.crossWithTiny(currentLossSumDS).setParallelism(1).
+              filter{
+              pair => {
+                val (previousLoss, currentLoss) = pair
+
+                if (previousLoss <= 0) {
+                  false
+                } else {
+                  math.abs((previousLoss - currentLoss)/previousLoss) >= convergence
+                }
+              }
+            }
+
+            // Result for new iteration
+            (currentWeightsDS cross currentLossSumDS, termination)
+        }
+        // Return just the weights
+        resultWithLoss.map{_._1}
     }
+    optimizedWeights
   }
 
-  /** Mapping function that calculates the weight gradients from the data.
+  /** Calculates the loss value, given a labeled vector and the current weight vector
     *
+    * The weight vector is received as a broadcast variable.
     */
-  private class GradientCalculation extends
-    RichMapFunction[LabeledVector, (WeightVector, Double, Int)] {
+  private class LossCalculation extends RichMapFunction[LabeledVector, (Double, Int)] {
 
     var weightVector: WeightVector = null
 
@@ -132,29 +177,49 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
       weightVector = list.get(0)
     }
 
-    override def map(example: LabeledVector): (WeightVector, Double, Int) = {
+    override def map(example: LabeledVector): (Double, Int) = {
+      val lossFunction = parameters(LossFunction)
+      val predictionFunction = parameters(PredictionFunction)
 
-      val lossFunction = parameterMap(LossFunction)
-      val regType = parameterMap(RegularizationType)
-      val regParameter = parameterMap(RegularizationParameter)
-      val predictionFunction = parameterMap(PredictionFunctionParameter)
-      val dimensions = example.vector.size
-      // TODO(tvas): Any point in carrying the weightGradient vector for in-place replacement?
-      // The idea in spark is to avoid object creation, but here we have to do it anyway
-      val weightGradient = new DenseVector(new Array[Double](dimensions))
+      val loss = lossFunction.lossValue(
+        example,
+        weightVector,
+        predictionFunction)
 
-      // TODO(tvas): Indentation here?
-      val (loss, lossDeriv) = lossFunction.lossAndGradient(
-                                example,
-                                weightVector,
-                                weightGradient,
-                                regType,
-                                regParameter,
-                                predictionFunction)
-
-      (new WeightVector(weightGradient, lossDeriv), loss, 1)
+      (loss, 1)
     }
   }
+
+/** Calculates the regularized loss value, given the loss and the current weight vector
+  *
+  * The weight vector is received as a broadcast variable.
+  */
+private class RegularizedLossCalculation extends RichMapFunction[(Double, Int), Double] {
+
+  var weightVector: WeightVector = null
+
+  @throws(classOf[Exception])
+  override def open(configuration: Configuration): Unit = {
+    val list = this.getRuntimeContext.
+      getBroadcastVariable[WeightVector](WEIGHTVECTOR_BROADCAST)
+
+    weightVector = list.get(0)
+  }
+
+  override def map(lossAndCount: (Double, Int)): Double = {
+    val (lossSum, count) = lossAndCount
+    val regType = parameters(RegularizationType)
+    val regParameter = parameters(RegularizationParameter)
+
+    val regularizedLoss = {
+      regType.regLoss(
+        lossSum/count,
+        weightVector.weights,
+        regParameter)
+    }
+    regularizedLoss
+  }
+}
 
   /** Performs the update of the weights, according to the given gradients and regularization type.
     *
@@ -173,9 +238,9 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
     }
 
     override def map(gradientLossAndCount: (WeightVector, Double, Int)): WeightVector = {
-      val regType = parameterMap(RegularizationType)
-      val regParameter = parameterMap(RegularizationParameter)
-      val stepsize = parameterMap(Stepsize)
+      val regType = parameters(RegularizationType)
+      val regParameter = parameters(RegularizationParameter)
+      val stepsize = parameters(Stepsize)
       val weightGradients = gradientLossAndCount._1
       val lossSum = gradientLossAndCount._2
       val count = gradientLossAndCount._3
@@ -231,11 +296,7 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
 
 object GradientDescent {
   def apply(): GradientDescent = {
-    new GradientDescent(new ParameterMap())
-  }
-
-  def apply(parameterMap: ParameterMap): GradientDescent = {
-    new GradientDescent(parameterMap)
+    new GradientDescent()
   }
 }
 

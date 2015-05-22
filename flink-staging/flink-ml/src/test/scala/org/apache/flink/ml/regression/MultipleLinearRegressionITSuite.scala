@@ -20,7 +20,7 @@ package org.apache.flink.ml.regression
 
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.ml.common.ParameterMap
-import org.apache.flink.ml.feature.PolynomialBase
+import org.apache.flink.ml.preprocessing.PolynomialFeatures
 import org.scalatest.{Matchers, FlatSpec}
 
 import org.apache.flink.api.scala._
@@ -38,7 +38,7 @@ class MultipleLinearRegressionITSuite
 
     env.setParallelism(2)
 
-    val learner = MultipleLinearRegression()
+    val mlr = MultipleLinearRegression()
 
     import RegressionData._
 
@@ -49,9 +49,9 @@ class MultipleLinearRegressionITSuite
     parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.001)
 
     val inputDS = env.fromCollection(data)
-    val model = learner.fit(inputDS, parameters)
+    mlr.fit(inputDS, parameters)
 
-    val weightList = model.weights.collect()
+    val weightList = mlr.weightsOption.get.collect()
 
     weightList.size should equal(1)
 
@@ -63,7 +63,7 @@ class MultipleLinearRegressionITSuite
     }
     weight0 should be (expectedWeight0 +- 0.4)
 
-    val srs = model.squaredResidualSum(inputDS).collect().apply(0)
+    val srs = mlr.squaredResidualSum(inputDS).collect().apply(0)
 
     srs should be (expectedSquaredResidualSum +- 2)
   }
@@ -73,21 +73,21 @@ class MultipleLinearRegressionITSuite
 
     env.setParallelism(2)
 
-    val polynomialBase = PolynomialBase()
-    val learner = MultipleLinearRegression()
+    val polynomialBase = PolynomialFeatures()
+    val mlr = MultipleLinearRegression()
 
-    val pipeline = polynomialBase.chain(learner)
+    val pipeline = polynomialBase.chainPredictor(mlr)
 
     val inputDS = env.fromCollection(RegressionData.polynomialData)
 
     val parameters = ParameterMap()
-      .add(PolynomialBase.Degree, 3)
+      .add(PolynomialFeatures.Degree, 3)
       .add(MultipleLinearRegression.Stepsize, 0.002)
       .add(MultipleLinearRegression.Iterations, 100)
 
-    val model = pipeline.fit(inputDS, parameters)
+    pipeline.fit(inputDS, parameters)
 
-    val weightList = model.weights.collect()
+    val weightList = mlr.weightsOption.get.collect()
 
     weightList.size should equal(1)
 
@@ -102,7 +102,7 @@ class MultipleLinearRegressionITSuite
 
     val transformedInput = polynomialBase.transform(inputDS, parameters)
 
-    val srs = model.squaredResidualSum(transformedInput).collect().apply(0)
+    val srs = mlr.squaredResidualSum(transformedInput).collect().apply(0)
 
     srs should be(RegressionData.expectedPolynomialSquaredResidualSum +- 5)
   }

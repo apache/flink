@@ -41,8 +41,9 @@ class StandardScalerITSuite
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val dataSet = env.fromCollection(data)
-    val transformer = StandardScaler()
-    val scaledVectors = transformer.transform(dataSet).collect
+    val scaler = StandardScaler()
+    scaler.fit(dataSet)
+    val scaledVectors = scaler.transform(dataSet).collect
 
     scaledVectors.length should equal(data.length)
 
@@ -73,8 +74,9 @@ class StandardScalerITSuite
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val dataSet = env.fromCollection(data)
-    val transformer = StandardScaler().setMean(10.0).setStd(2.0)
-    val scaledVectors = transformer.transform(dataSet).collect
+    val scaler = StandardScaler().setMean(10.0).setStd(2.0)
+    scaler.fit(dataSet)
+    val scaledVectors = scaler.transform(dataSet).collect
 
     scaledVectors.length should equal(data.length)
 

@@ -30,7 +30,7 @@ class LossFunctionITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   behavior of "The optimization Loss Function implementations"
 
-  it should "calculate squared loss correctly" in {
+  it should "calculate squared loss and gradient correctly" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     env.setParallelism(2)
@@ -41,10 +41,17 @@ class LossFunctionITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val weightVector = new WeightVector(DenseVector(1.0), 1.0)
     val gradient = DenseVector(0.0)
 
-    val (loss, lossDerivative) = squaredLoss.lossAndGradient(example, weightVector, gradient, new
-        NoRegularization, 0.0, new LinearPrediction)
+    val (loss, lossDerivative) = squaredLoss.lossAndGradient(
+      example,
+      weightVector,
+      gradient,
+      new LinearPrediction)
+
+    val onlyLoss = squaredLoss.lossValue(example, weightVector, new LinearPrediction)
 
     loss should be (2.0 +- 0.001)
+
+    onlyLoss should be (2.0 +- 0.001)
 
     lossDerivative should be (2.0 +- 0.001)
 

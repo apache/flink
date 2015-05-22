@@ -18,6 +18,8 @@
 
 package org.apache.flink.ml.classification
 
+import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
+
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
@@ -66,59 +68,62 @@ import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
   *          {{{
   *             val trainingDS: DataSet[LabeledVector] = env.readSVMFile(pathToTrainingFile)
   *
-  *             val cocoa = CoCoA()
+  *             val svm = CoCoA()
   *               .setBlocks(10)
   *               .setIterations(10)
   *               .setLocalIterations(10)
   *               .setRegularization(0.5)
   *               .setStepsize(0.5)
   *
-  *             val svm = cocoa.fit(trainingDS)
+  *             svm.fit(trainingDS)
   *
   *             val testingDS: DataSet[Vector] = env.readVectorFile(pathToTestingFile)
   *
-  *             val predictionDS: DataSet[LabeledVector] = model.transform(testingDS)
+  *             val predictionDS: DataSet[LabeledVector] = svm.predict(testingDS)
   *          }}}
   *
   * =Parameters=
   *
-  *  - [[CoCoA.Blocks]]:
+  *  - [[org.apache.flink.ml.classification.CoCoA.Blocks]]:
   *  Sets the number of blocks into which the input data will be split. On each block the local
   *  stochastic dual coordinate ascent method is executed. This number should be set at least to
   *  the degree of parallelism. If no value is specified, then the parallelism of the input
   *  [[DataSet]] is used as the number of blocks. (Default value: '''None''')
   *
-  *  - [[CoCoA.Iterations]]:
+  *  - [[org.apache.flink.ml.classification.CoCoA.Iterations]]:
   *  Defines the maximum number of iterations of the outer loop method. In other words, it defines
   *  how often the SDCA method is applied to the blocked data. After each iteration, the locally
   *  computed weight vector updates have to be reduced to update the global weight vector value.
   *  The new weight vector is broadcast to all SDCA tasks at the beginning of each iteration.
   *  (Default value: '''10''')
   *
-  *  - [[CoCoA.LocalIterations]]:
+  *  - [[org.apache.flink.ml.classification.CoCoA.LocalIterations]]:
   *  Defines the maximum number of SDCA iterations. In other words, it defines how many data points
   *  are drawn from each local data block to calculate the stochastic dual coordinate ascent.
   *  (Default value: '''10''')
   *
-  *  - [[CoCoA.Regularization]]:
+  *  - [[org.apache.flink.ml.classification.CoCoA.Regularization]]:
   *  Defines the regularization constant of the CoCoA algorithm. The higher the value, the smaller
   *  will the 2-norm of the weight vector be. In case of a SVM with hinge loss this means that the
   *  SVM margin will be wider even though it might contain some false classifications.
   *  (Default value: '''1.0''')
   *
-  *  - [[CoCoA.Stepsize]]:
+  *  - [[org.apache.flink.ml.classification.CoCoA.Stepsize]]:
   *  Defines the initial step size for the updates of the weight vector. The larger the step size
   *  is, the larger will be the contribution of the weight vector updates to the next weight vector
   *  value. The effective scaling of the updates is `stepsize/blocks`. This value has to be tuned
   *  in case that the algorithm becomes instable. (Default value: '''1.0''')
   *
-  *  - [[CoCoA.Seed]]:
+  *  - [[org.apache.flink.ml.classification.CoCoA.Seed]]:
   *  Defines the seed to initialize the random number generator. The seed directly controls which
   *  data points are chosen for the SDCA method. (Default value: '''0''')
   */
-class CoCoA extends Learner[LabeledVector, CoCoAModel] with Serializable {
+class CoCoA extends Predictor[CoCoA] {
 
   import CoCoA._
+
+  /** Stores the learned weight vector after the fit operation */
+  var weightsOption: Option[DataSet[BreezeDenseVector[Double]]] = None
 
   /** Sets the number of data blocks/partitions
     *
@@ -179,73 +184,168 @@ class CoCoA extends Learner[LabeledVector, CoCoAModel] with Serializable {
     parameters.add(Seed, seed)
     this
   }
+}
 
-  /** Trains a SVM with soft-margin based on the given training data set.
+/** Companion object of CoCoA. Contains convenience functions and the parameter type definitions
+  * of the algorithm.
+  */
+object CoCoA{
+  val WEIGHT_VECTOR ="weightVector"
+
+  // ========================================== Parameters =========================================
+
+  case object Blocks extends Parameter[Int] {
+    val defaultValue: Option[Int] = None
+  }
+
+  case object Iterations extends Parameter[Int] {
+    val defaultValue = Some(10)
+  }
+
+  case object LocalIterations extends Parameter[Int] {
+    val defaultValue = Some(10)
+  }
+
+  case object Regularization extends Parameter[Double] {
+    val defaultValue = Some(1.0)
+  }
+
+  case object Stepsize extends Parameter[Double] {
+    val defaultValue = Some(1.0)
+  }
+
+  case object Seed extends Parameter[Long] {
+    val defaultValue = Some(0L)
+  }
+
+  // ========================================== Factory methods ====================================
+
+  def apply(): CoCoA = {
+    new CoCoA()
+  }
+
+  // ========================================== Operations =========================================
+
+  /** [[org.apache.flink.ml.pipeline.PredictOperation]] for vector types. The result type is a
+    * [[LabeledVector]]
     *
-    * @param input Training data set
-    * @param fitParameters Parameter values
-    * @return Trained SVM model
+    * @tparam T Subtype of [[Vector]]
+    * @return
     */
-  override def fit(input: DataSet[LabeledVector], fitParameters: ParameterMap): CoCoAModel = {
-    val resultingParameters = this.parameters ++ fitParameters
+  implicit def predictValues[T <: Vector] = {
+    new PredictOperation[CoCoA, T, LabeledVector]{
+      override def predict(
+          instance: CoCoA,
+          predictParameters: ParameterMap,
+          input: DataSet[T])
+        : DataSet[LabeledVector] = {
 
-    // Check if the number of blocks/partitions has been specified
-    val blocks = resultingParameters.get(Blocks) match {
-      case Some(value) => value
-      case None => input.getParallelism
-    }
-
-    val scaling = resultingParameters(Stepsize)/blocks
-    val iterations = resultingParameters(Iterations)
-    val localIterations = resultingParameters(LocalIterations)
-    val regularization = resultingParameters(Regularization)
-    val seed = resultingParameters(Seed)
-
-    // Obtain DataSet with the dimension of the data points
-    val dimension = input.map{_.vector.size}.reduce{
-      (a, b) => {
-        require(a == b, "Dimensions of feature vectors have to be equal.")
-        a
+        instance.weightsOption match {
+          case Some(weights) => {
+            input.map(new PredictionMapper[T]).withBroadcastSet(weights, WEIGHT_VECTOR)
+          }
+        }
       }
     }
+  }
 
-    val initialWeights = createInitialWeights(dimension)
+  /** Mapper to calculate the value of the prediction function. This is a RichMapFunction, because
+    * we broadcast the weight vector to all mappers.
+    */
+  class PredictionMapper[T <: Vector] extends RichMapFunction[T, LabeledVector] {
 
-    // Count the number of vectors, but keep the value in a DataSet to broadcast it later
-    // TODO: Once efficient count and intermediate result partitions are implemented, use count
-    val numberVectors = input map { x => 1 } reduce { _ + _ }
+    var weights: BreezeDenseVector[Double] = _
 
-    // Group the input data into blocks in round robin fashion
-    val blockedInputNumberElements = FlinkTools.block(input, blocks, Some(ModuloKeyPartitioner)).
-      cross(numberVectors).
-      map { x => x }
+    @throws(classOf[Exception])
+    override def open(configuration: Configuration): Unit = {
+      // get current weights
+      weights = getRuntimeContext.
+        getBroadcastVariable[BreezeDenseVector[Double]](WEIGHT_VECTOR).get(0)
+    }
 
-    val resultingWeights = initialWeights.iterate(iterations) {
-      weights => {
-        // compute the local SDCA to obtain the weight vector updates
-        val deltaWs = localDualMethod(
-          weights,
-          blockedInputNumberElements,
-          localIterations,
-          regularization,
-          scaling,
-          seed
-        )
+    override def map(vector: T): LabeledVector = {
+      // calculate the prediction value (scaled distance from the separating hyperplane)
+      val dotProduct = weights dot vector.asBreeze
 
-        // scale the weight vectors
-        val weightedDeltaWs = deltaWs map {
-          deltaW => {
-            deltaW :*= scaling
+      LabeledVector(dotProduct, vector)
+    }
+  }
+
+  /** [[FitOperation]] which trains a SVM with soft-margin based on the given training data set.
+    *
+    */
+  implicit val fitCoCoA = {
+    new FitOperation[CoCoA, LabeledVector] {
+      override def fit(
+          instance: CoCoA,
+          fitParameters: ParameterMap,
+          input: DataSet[LabeledVector])
+        : Unit = {
+        val resultingParameters = instance.parameters ++ fitParameters
+
+        // Check if the number of blocks/partitions has been specified
+        val blocks = resultingParameters.get(Blocks) match {
+          case Some(value) => value
+          case None => input.getParallelism
+        }
+
+        val scaling = resultingParameters(Stepsize)/blocks
+        val iterations = resultingParameters(Iterations)
+        val localIterations = resultingParameters(LocalIterations)
+        val regularization = resultingParameters(Regularization)
+        val seed = resultingParameters(Seed)
+
+        // Obtain DataSet with the dimension of the data points
+        val dimension = input.map{_.vector.size}.reduce{
+          (a, b) => {
+            require(a == b, "Dimensions of feature vectors have to be equal.")
+            a
           }
         }
 
-        // calculate the new weight vector by adding the weight vector updates to the weight vector
-        // value
-        weights.union(weightedDeltaWs).reduce { _ + _ }
+        val initialWeights = createInitialWeights(dimension)
+
+        // Count the number of vectors, but keep the value in a DataSet to broadcast it later
+        // TODO: Once efficient count and intermediate result partitions are implemented, use count
+        val numberVectors = input map { x => 1 } reduce { _ + _ }
+
+        // Group the input data into blocks in round robin fashion
+        val blockedInputNumberElements = FlinkTools.block(
+          input,
+          blocks,
+          Some(ModuloKeyPartitioner)).
+          cross(numberVectors).
+          map { x => x }
+
+        val resultingWeights = initialWeights.iterate(iterations) {
+          weights => {
+            // compute the local SDCA to obtain the weight vector updates
+            val deltaWs = localDualMethod(
+              weights,
+              blockedInputNumberElements,
+              localIterations,
+              regularization,
+              scaling,
+              seed
+            )
+
+            // scale the weight vectors
+            val weightedDeltaWs = deltaWs map {
+              deltaW => {
+                deltaW :*= scaling
+              }
+            }
+
+            // calculate the new weight vector by adding the weight vector updates to the weight
+            // vector value
+            weights.union(weightedDeltaWs).reduce { _ + _ }
+          }
+        }
+
+        // Store the learned weight vector in hte given instance
+        instance.weightsOption = Some(resultingWeights)
       }
     }
-
-    CoCoAModel(resultingWeights)
   }
 
   /** Creates a zero vector of length dimension
@@ -270,13 +370,13 @@ class CoCoA extends Learner[LabeledVector, CoCoAModel] with Serializable {
     * @return [[DataSet]] of weight vector updates. The weight vector updates are double arrays
     */
   private def localDualMethod(
-      w: DataSet[BreezeDenseVector[Double]],
-      blockedInputNumberElements: DataSet[(Block[LabeledVector], Int)],
-      localIterations: Int,
-      regularization: Double,
-      scaling: Double,
-      seed: Long)
-    : DataSet[BreezeDenseVector[Double]] = {
+    w: DataSet[BreezeDenseVector[Double]],
+    blockedInputNumberElements: DataSet[(Block[LabeledVector], Int)],
+    localIterations: Int,
+    regularization: Double,
+    scaling: Double,
+    seed: Long)
+  : DataSet[BreezeDenseVector[Double]] = {
     /*
     Rich mapper calculating for each data block the local SDCA. We use a RichMapFunction here,
     because we broadcast the current value of the weight vector to all mappers.
@@ -300,7 +400,7 @@ class CoCoA extends Learner[LabeledVector, CoCoAModel] with Serializable {
       }
 
       override def map(blockNumberElements: (Block[LabeledVector], Int))
-        : BreezeDenseVector[Double] = {
+      : BreezeDenseVector[Double] = {
         val (block, numberElements) = blockNumberElements
 
         // check if we already processed a data block with the corresponding block index
@@ -406,87 +506,5 @@ class CoCoA extends Learner[LabeledVector, CoCoAModel] with Serializable {
       (0.0 , BreezeVector.zeros(w.length))
     }
   }
+
 }
-
-/** Companion object of CoCoA. Contains convenience functions and the parameter type definitions
-  * of the algorithm.
-  */
-object CoCoA{
-  val WEIGHT_VECTOR ="weightVector"
-
-  case object Blocks extends Parameter[Int] {
-    val defaultValue: Option[Int] = None
-  }
-
-  case object Iterations extends Parameter[Int] {
-    val defaultValue = Some(10)
-  }
-
-  case object LocalIterations extends Parameter[Int] {
-    val defaultValue = Some(10)
-  }
-
-  case object Regularization extends Parameter[Double] {
-    val defaultValue = Some(1.0)
-  }
-
-  case object Stepsize extends Parameter[Double] {
-    val defaultValue = Some(1.0)
-  }
-
-  case object Seed extends Parameter[Long] {
-    val defaultValue = Some(0L)
-  }
-
-  def apply(): CoCoA = {
-    new CoCoA()
-  }
-}
-
-/** Resulting SVM model calculated by the CoCoA algorithm.
-  *
-   * @param weights Calculated weight vector representing the separating hyperplane of the
-  *                classification task.
-  */
-case class CoCoAModel(weights: DataSet[BreezeDenseVector[Double]])
-  extends Transformer[Vector, LabeledVector]
-  with Serializable {
-  import CoCoA.WEIGHT_VECTOR
-
-  /** Calculates the prediction value of the SVM value (not the label)
-    *
-    * @param input [[DataSet]] containing the vector for which to calculate the predictions
-    * @param parameters Parameter values for the algorithm
-    * @return [[DataSet]] containing the labeled vectors
-    */
-  override def transform(input: DataSet[Vector], parameters: ParameterMap):
-  DataSet[LabeledVector] = {
-    input.map(new PredictionMapper).withBroadcastSet(weights, WEIGHT_VECTOR)
-  }
-}
-
-/** Mapper to calculate the value of the prediction function. This is a RichMapFunction, because
-  * we broadcast the weight vector to all mappers.
-  */
-class PredictionMapper extends RichMapFunction[Vector, LabeledVector] {
-
-  import CoCoA.WEIGHT_VECTOR
-
-  var weights: BreezeDenseVector[Double] = _
-
-  @throws(classOf[Exception])
-  override def open(configuration: Configuration): Unit = {
-    // get current weights
-    weights = getRuntimeContext.
-      getBroadcastVariable[BreezeDenseVector[Double]](WEIGHT_VECTOR).get(0)
-  }
-
-  override def map(vector: Vector): LabeledVector = {
-    // calculate the prediction value (scaled distance from the separating hyperplane)
-    val dotProduct = weights dot vector.asBreeze
-
-    LabeledVector(dotProduct, vector)
-  }
-}
-
-

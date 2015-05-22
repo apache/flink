@@ -147,11 +147,11 @@ val parameters = ParameterMap()
 .add(ALS.Seed, 42l)
 
 // Calculate the factorization
-val factorization = als.fit(inputDS, parameters)
+als.fit(inputDS, parameters)
 
 // Read the testing data set from a csv file
 val testingDS: DataSet[(Int, Int)] = env.readCsvFile[(Int, Int)](pathToData)
 
 // Calculate the ratings according to the matrix factorization
-val predictedRatings = factorization.transform(testingDS)
+val predictedRatings = als.predict(testingDS)
 {% endhighlight %}
