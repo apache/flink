@@ -52,8 +52,6 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
@@ -65,7 +63,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
-@RunWith(Parameterized.class)
+@SuppressWarnings("serial")
 public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 	// *************************************************************************
@@ -76,10 +74,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 	private String resultPath2;
 	private String expected1;
 	private String expected2;
-
-	public ComplexIntegrationTest(TestExecutionMode mode) {
-		super(mode);
-	}
+	
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();

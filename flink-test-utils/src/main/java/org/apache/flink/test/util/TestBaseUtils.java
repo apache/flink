@@ -27,6 +27,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.hadoop.fs.FileSystem;
@@ -79,46 +80,55 @@ public class TestBaseUtils {
 
 	protected static final String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
 
-	protected static FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration
-			(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
+	protected static FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 
+	// ------------------------------------------------------------------------
+	
 	protected static File logDir;
 
 	protected TestBaseUtils(){
 		verifyJvmOptions();
 	}
-
-	private void verifyJvmOptions() {
+	
+	private static void verifyJvmOptions() {
 		long heap = Runtime.getRuntime().maxMemory() >> 20;
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 	}
-
-	protected static ForkableFlinkMiniCluster startCluster(int numTaskManagers, int
-			taskManagerNumSlots, boolean startWebserver) throws Exception {
+	
+	
+	protected static ForkableFlinkMiniCluster startCluster(int numTaskManagers,
+															int taskManagerNumSlots,
+															StreamingMode mode,
+															boolean startWebserver) throws Exception {
+		
 		logDir = File.createTempFile("TestBaseUtils-logdir", null);
 		Assert.assertTrue("Unable to delete temp file", logDir.delete());
 		Assert.assertTrue("Unable to create temp directory", logDir.mkdir());
+	
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
-		config.setBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY, true);
+
+		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
+		
 		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
-		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
+		
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
 		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
+		
 		config.setBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, startWebserver);
 		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 8081);
 		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDir.toString());
-		return new ForkableFlinkMiniCluster(config);
+		
+		return new ForkableFlinkMiniCluster(config, true, mode);
 	}
 
-	protected static void stopCluster(ForkableFlinkMiniCluster executor, FiniteDuration timeout)
-			throws Exception {
-		if(logDir != null) {
-			logDir.delete();
+	protected static void stopCluster(ForkableFlinkMiniCluster executor, FiniteDuration timeout) throws Exception {
+		if (logDir != null) {
+			FileUtils.deleteDirectory(logDir);
 		}
-		if(executor != null) {
+		if (executor != null) {
 			int numUnreleasedBCVars = 0;
 			int numActiveConnections = 0;
 			{
@@ -169,11 +179,11 @@ public class TestBaseUtils {
 	//  Result Checking
 	// --------------------------------------------------------------------------------------------
 
-	public BufferedReader[] getResultReader(String resultPath) throws IOException {
+	public static BufferedReader[] getResultReader(String resultPath) throws IOException {
 		return getResultReader(resultPath, new String[]{}, false);
 	}
 
-	public BufferedReader[] getResultReader(String resultPath, String[] excludePrefixes,
+	public static BufferedReader[] getResultReader(String resultPath, String[] excludePrefixes,
 											boolean inOrderOfFiles) throws IOException {
 		File[] files = getAllInvolvedFiles(resultPath, excludePrefixes);
 
@@ -206,12 +216,11 @@ public class TestBaseUtils {
 
 
 
-	public BufferedInputStream[] getResultInputStream(String resultPath) throws
-			IOException {
+	public static BufferedInputStream[] getResultInputStream(String resultPath) throws IOException {
 		return getResultInputStream(resultPath, new String[]{});
 	}
 
-	public BufferedInputStream[] getResultInputStream(String resultPath, String[]
+	public static BufferedInputStream[] getResultInputStream(String resultPath, String[]
 			excludePrefixes) throws IOException {
 		File[] files = getAllInvolvedFiles(resultPath, excludePrefixes);
 		BufferedInputStream[] inStreams = new BufferedInputStream[files.length];
@@ -221,37 +230,37 @@ public class TestBaseUtils {
 		return inStreams;
 	}
 
-	public void readAllResultLines(List<String> target, String resultPath) throws
-			IOException {
+	public static void readAllResultLines(List<String> target, String resultPath) throws IOException {
 		readAllResultLines(target, resultPath, new String[]{});
 	}
 
-	public void readAllResultLines(List<String> target, String resultPath, String[]
-			excludePrefixes) throws IOException {
+	public static void readAllResultLines(List<String> target, String resultPath, String[] excludePrefixes) 
+			throws IOException {
+		
 		readAllResultLines(target, resultPath, excludePrefixes, false);
 	}
 
-	public void readAllResultLines(List<String> target, String resultPath, String[]
+	public static void readAllResultLines(List<String> target, String resultPath, String[]
 			excludePrefixes, boolean inOrderOfFiles) throws IOException {
 		for (BufferedReader reader : getResultReader(resultPath, excludePrefixes, inOrderOfFiles)) {
-			String s = null;
+			String s;
 			while ((s = reader.readLine()) != null) {
 				target.add(s);
 			}
 		}
 	}
 
-	public void compareResultsByLinesInMemory(String expectedResultStr, String
+	public static void compareResultsByLinesInMemory(String expectedResultStr, String
 			resultPath) throws Exception {
 		compareResultsByLinesInMemory(expectedResultStr, resultPath, new String[]{});
 	}
 
-	public void compareResultsByLinesInMemory(String expectedResultStr, String resultPath,
+	public static void compareResultsByLinesInMemory(String expectedResultStr, String resultPath,
 											String[] excludePrefixes) throws Exception {
 		ArrayList<String> list = new ArrayList<String>();
 		readAllResultLines(list, resultPath, excludePrefixes, false);
 
-		String[] result = (String[]) list.toArray(new String[list.size()]);
+		String[] result = list.toArray(new String[list.size()]);
 		Arrays.sort(result);
 
 		String[] expected = expectedResultStr.isEmpty() ? new String[0] : expectedResultStr.split("\n");
@@ -261,18 +270,18 @@ public class TestBaseUtils {
 		Assert.assertArrayEquals(expected, result);
 	}
 
-	public void compareResultsByLinesInMemoryWithStrictOrder(String expectedResultStr,
+	public static void compareResultsByLinesInMemoryWithStrictOrder(String expectedResultStr,
 																	String resultPath) throws
 			Exception {
 		compareResultsByLinesInMemoryWithStrictOrder(expectedResultStr, resultPath, new String[]{});
 	}
 
-	public void compareResultsByLinesInMemoryWithStrictOrder(String expectedResultStr,
+	public static void compareResultsByLinesInMemoryWithStrictOrder(String expectedResultStr,
 																	String resultPath, String[] excludePrefixes) throws Exception {
 		ArrayList<String> list = new ArrayList<String>();
 		readAllResultLines(list, resultPath, excludePrefixes, true);
 
-		String[] result = (String[]) list.toArray(new String[list.size()]);
+		String[] result = list.toArray(new String[list.size()]);
 
 		String[] expected = expectedResultStr.split("\n");
 
@@ -280,7 +289,7 @@ public class TestBaseUtils {
 		Assert.assertArrayEquals(expected, result);
 	}
 
-	public void checkLinesAgainstRegexp(String resultPath, String regexp){
+	public static void checkLinesAgainstRegexp(String resultPath, String regexp){
 		Pattern pattern = Pattern.compile(regexp);
 		Matcher matcher = pattern.matcher("");
 
@@ -301,17 +310,17 @@ public class TestBaseUtils {
 
 	}
 
-	public void compareKeyValueParisWithDelta(String expectedLines, String resultPath,
+	public static void compareKeyValueParisWithDelta(String expectedLines, String resultPath,
 											String delimiter, double maxDelta) throws Exception {
 		compareKeyValueParisWithDelta(expectedLines, resultPath, new String[]{}, delimiter, maxDelta);
 	}
 
-	public void compareKeyValueParisWithDelta(String expectedLines, String resultPath,
+	public static void compareKeyValueParisWithDelta(String expectedLines, String resultPath,
 											String[] excludePrefixes, String delimiter, double maxDelta) throws Exception {
 		ArrayList<String> list = new ArrayList<String>();
 		readAllResultLines(list, resultPath, excludePrefixes, false);
 
-		String[] result = (String[]) list.toArray(new String[list.size()]);
+		String[] result = list.toArray(new String[list.size()]);
 		String[] expected = expectedLines.isEmpty() ? new String[0] : expectedLines.split("\n");
 
 		Assert.assertEquals("Wrong number of result lines.", expected.length, result.length);
@@ -330,7 +339,7 @@ public class TestBaseUtils {
 		}
 	}
 
-	public <X> void compareResultCollections(List<X> expected, List<X> actual,
+	public static <X> void compareResultCollections(List<X> expected, List<X> actual,
 											Comparator<X> comparator) {
 		Assert.assertEquals(expected.size(), actual.size());
 
@@ -445,8 +454,8 @@ public class TestBaseUtils {
 	protected static void deleteRecursively(File f) throws IOException {
 		if (f.isDirectory()) {
 			FileUtils.deleteDirectory(f);
-		} else {
-			f.delete();
+		} else if (!f.delete()) {
+			System.err.println("Failed to delete file " + f.getAbsolutePath());
 		}
 	}
 	
@@ -469,13 +478,13 @@ public class TestBaseUtils {
 	// Web utils
 	//---------------------------------------------------------------------------------------------
 
-	public static String getFromHTTP(String url) throws Exception{
+	public static String getFromHTTP(String url) throws Exception {
 		URL u = new URL(url);
 		LOG.info("Accessing URL "+url+" as URL: "+u);
 		HttpURLConnection connection = (HttpURLConnection) u.openConnection();
 		connection.setConnectTimeout(100000);
 		connection.connect();
-		InputStream is = null;
+		InputStream is;
 		if(connection.getResponseCode() >= 400) {
 			// error!
 			LOG.warn("HTTP Response code when connecting to {} was {}", url, connection.getResponseCode());
@@ -486,5 +495,4 @@ public class TestBaseUtils {
 
 		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
 	}
-
 }

@@ -21,8 +21,8 @@ package org.apache.flink.api.scala.table.test
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.MultipleProgramsTestBase
-import org.apache.flink.test.util.AbstractMultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -43,12 +43,12 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @After
-  def after: Unit = {
-    compareResultsByLinesInMemory(expected, resultPath)
+  def after(): Unit = {
+    TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testAutoCastToString: Unit = {
+  def testAutoCastToString(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements((1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d)).toTable
@@ -60,7 +60,7 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testNumericAutoCastInArithmetic: Unit = {
+  def testNumericAutoCastInArithmetic(): Unit = {
 
     // don't test everything, just some common cast directions
 
@@ -74,7 +74,7 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testNumericAutoCastInComparison: Unit = {
+  def testNumericAutoCastInComparison(): Unit = {
 
     // don't test everything, just some common cast directions
 

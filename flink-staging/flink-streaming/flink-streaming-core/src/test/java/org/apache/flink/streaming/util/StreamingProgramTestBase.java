@@ -21,8 +21,8 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.junit.Assert;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 public abstract class StreamingProgramTestBase extends AbstractTestBase {

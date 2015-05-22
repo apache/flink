@@ -24,6 +24,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.StreamingMode;
 import org.junit.Test;
 
 import java.io.File;
@@ -53,7 +54,8 @@ public class TestManagerStartupTest {
 			final int port = blocker.getLocalPort();
 
 			try {
-				TaskManager.runTaskManager(localHostName, port, new Configuration(), TaskManager.class);
+				TaskManager.runTaskManager(localHostName, port, new Configuration(),
+											StreamingMode.BATCH_ONLY, TaskManager.class);
 				fail("This should fail with an IOException");
 			}
 			catch (IOException e) {
@@ -101,7 +103,7 @@ public class TestManagerStartupTest {
 			cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 21656);
 
 			try {
-				TaskManager.runTaskManager("localhost", 0, cfg);
+				TaskManager.runTaskManager("localhost", 0, cfg, StreamingMode.BATCH_ONLY);
 				fail("Should fail synchronously with an exception");
 			}
 			catch (IOException e) {
@@ -138,7 +140,7 @@ public class TestManagerStartupTest {
 			// something invalid
 			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -42);
 			try {
-				TaskManager.runTaskManager("localhost", 0, cfg);
+				TaskManager.runTaskManager("localhost", 0, cfg, StreamingMode.BATCH_ONLY);
 				fail("Should fail synchronously with an exception");
 			}
 			catch (IllegalConfigurationException e) {
@@ -150,7 +152,7 @@ public class TestManagerStartupTest {
 									ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE) >> 20;
 			cfg.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memSize);
 			try {
-				TaskManager.runTaskManager("localhost", 0, cfg);
+				TaskManager.runTaskManager("localhost", 0, cfg, StreamingMode.BATCH_ONLY);
 				fail("Should fail synchronously with an exception");
 			}
 			catch (Exception e) {

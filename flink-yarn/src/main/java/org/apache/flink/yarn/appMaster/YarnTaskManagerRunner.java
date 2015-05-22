@@ -25,15 +25,18 @@ import java.util.Map;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.taskmanager.TaskManager;
+import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.yarn.YarnTaskManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.yarn.FlinkYarnClient;
+
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The entry point for running a TaskManager in a YARN container. The YARN container will invoke
@@ -51,8 +54,11 @@ public class YarnTaskManagerRunner {
 
 		// try to parse the command line arguments
 		final Configuration configuration;
+		final StreamingMode mode;
 		try {
-			configuration = TaskManager.parseArgsAndLoadConfig(args);
+			scala.Tuple2<Configuration, StreamingMode> res = TaskManager.parseArgsAndLoadConfig(args);
+			configuration = res._1();
+			mode = res._2();
 		}
 		catch (Throwable t) {
 			LOG.error(t.getMessage(), t);
@@ -87,7 +93,8 @@ public class YarnTaskManagerRunner {
 			@Override
 			public Object run() {
 				try {
-					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, YarnTaskManager.class);
+					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration,
+																		mode, YarnTaskManager.class);
 				}
 				catch (Throwable t) {
 					LOG.error("Error while starting the TaskManager", t);

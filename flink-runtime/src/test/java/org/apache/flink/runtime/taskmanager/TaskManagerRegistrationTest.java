@@ -28,6 +28,7 @@ import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -152,7 +153,8 @@ public class TaskManagerRegistrationTest {
 				Thread.sleep(6000);
 
 				// now start the JobManager, with the regular akka URL
-				final ActorRef jobManager = JobManager.startJobManagerActors(new Configuration(), actorSystem)._1();
+				final ActorRef jobManager =
+						JobManager.startJobManagerActors(new Configuration(), actorSystem, StreamingMode.BATCH_ONLY)._1();
 
 				// check that the TaskManagers are registered
 				Future<Object> responseFuture = Patterns.ask(
@@ -371,6 +373,7 @@ public class TaskManagerRegistrationTest {
 							NONE_STRING, // no actor name -> random
 							new Some<String>(jobManager.path().toString()), // job manager path
 							false, // init network stack !!!
+							StreamingMode.BATCH_ONLY,
 							TaskManager.class);
 
 					watch(taskManager);
@@ -415,7 +418,8 @@ public class TaskManagerRegistrationTest {
 	private static ActorRef startJobManager() throws Exception {
 		// start the actors. don't give names, so they get generated names and we
 		// avoid conflicts with the actor names
-		return JobManager.startJobManagerActors(new Configuration(), actorSystem, NONE_STRING, NONE_STRING)._1();
+		return JobManager.startJobManagerActors(new Configuration(), actorSystem, 
+												NONE_STRING, NONE_STRING, StreamingMode.BATCH_ONLY)._1();
 	}
 
 	private static ActorRef startTaskManager(ActorRef jobManager) throws Exception {
@@ -430,6 +434,7 @@ public class TaskManagerRegistrationTest {
 				NONE_STRING, // no actor name -> random
 				new Some<String>(jobManagerUrl), // job manager path
 				true, // local network stack only
+				StreamingMode.BATCH_ONLY,
 				TaskManager.class);
 	}
 

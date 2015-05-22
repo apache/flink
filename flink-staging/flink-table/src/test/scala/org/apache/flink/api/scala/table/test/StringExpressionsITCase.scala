@@ -22,8 +22,8 @@ import org.apache.flink.api.table.ExpressionException
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.MultipleProgramsTestBase
-import org.apache.flink.test.util.AbstractMultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -44,12 +44,12 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
   }
 
   @After
-  def after: Unit = {
-    compareResultsByLinesInMemory(expected, resultPath)
+  def after(): Unit = {
+    TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testSubstring: Unit = {
+  def testSubstring(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(("AAAA", 2), ("BBBB", 1)).as('a, 'b)
       .select('a.substring(0, 'b))
@@ -60,7 +60,7 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
   }
 
   @Test
-  def testSubstringWithMaxEnd: Unit = {
+  def testSubstringWithMaxEnd(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(("ABCD", 2), ("ABCD", 1)).as('a, 'b)
       .select('a.substring('b))
@@ -71,7 +71,7 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testNonWorkingSubstring1: Unit = {
+  def testNonWorkingSubstring1(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(("AAAA", 2.0), ("BBBB", 1.0)).as('a, 'b)
@@ -83,7 +83,7 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testNonWorkingSubstring2: Unit = {
+  def testNonWorkingSubstring2(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(("AAAA", "c"), ("BBBB", "d")).as('a, 'b)

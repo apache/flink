@@ -24,8 +24,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.MultipleProgramsTestBase
-import org.apache.flink.test.util.AbstractMultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -47,12 +47,12 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
   }
 
   @After
-  def after: Unit = {
-    compareResultsByLinesInMemory(expected, resultPath)
+  def after(): Unit = {
+    TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testAllRejectingFilter: Unit = {
+  def testAllRejectingFilter(): Unit = {
     /*
      * Test all-rejecting filter.
      */
@@ -67,7 +67,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
   }
 
   @Test
-  def testAllPassingFilter: Unit = {
+  def testAllPassingFilter(): Unit = {
     /*
      * Test all-passing filter.
      */
@@ -87,7 +87,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
   }
 
   @Test
-  def testFilterOnStringTupleField: Unit = {
+  def testFilterOnStringTupleField(): Unit = {
     /*
      * Test filter on String tuple field.
      */
@@ -100,7 +100,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
   }
 
   @Test
-  def testFilterOnIntegerTupleField: Unit = {
+  def testFilterOnIntegerTupleField(): Unit = {
     /*
      * Test filter on Integer tuple field.
      */
@@ -120,7 +120,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
 
   @Ignore
   @Test
-  def testFilterBasicType: Unit = {
+  def testFilterBasicType(): Unit = {
     /*
      * Test filter on basic type
      */
@@ -137,7 +137,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
 
   @Ignore
   @Test
-  def testFilterOnCustomType: Unit = {
+  def testFilterOnCustomType(): Unit = {
     /*
      * Test filter on custom type
      */
