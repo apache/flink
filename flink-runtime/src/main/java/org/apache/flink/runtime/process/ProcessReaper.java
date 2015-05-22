@@ -56,7 +56,7 @@ public class ProcessReaper extends UntypedActor {
 						Thread.sleep(100);
 					}
 					catch (InterruptedException e) {
-						// not really problem if we don't sleep...
+						// not really a problem if we don't sleep...
 					}
 				}
 			}

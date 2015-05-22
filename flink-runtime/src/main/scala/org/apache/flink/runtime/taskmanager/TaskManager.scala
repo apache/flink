@@ -158,7 +158,6 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
   private var heartbeatScheduler: Option[Cancellable] = None
 
-
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
   // --------------------------------------------------------------------------
@@ -192,7 +191,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
    */
   override def postStop(): Unit = {
     log.info(s"Stopping TaskManager ${self.path.toSerializationFormat}.")
-
+    
     cancelAndClearEverything(new Exception("TaskManager is shutting down."))
 
     if (isConnected) {
@@ -1289,7 +1288,7 @@ object TaskManager {
                                                            streamingMode,
                                                            taskManagerClass)
 
-      // start a process reaper that watches the JobManager. If the JobManager actor dies,
+      // start a process reaper that watches the JobManager. If the TaskManager actor dies,
       // the process reaper will kill the JVM process (to ensure easy failure detection)
       LOG.debug("Starting TaskManager process reaper")
       taskManagerSystem.actorOf(
