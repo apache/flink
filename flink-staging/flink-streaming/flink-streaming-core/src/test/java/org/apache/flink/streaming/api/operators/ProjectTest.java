@@ -92,7 +92,7 @@ public class ProjectTest implements Serializable {
 
 		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORY_SIZE);
 
-		env.generateSequence(1, 10).map(new MapFunction<Long, Tuple3<Long, Character, Double>>() {
+		env.generateParallelSequence(1, 10).map(new MapFunction<Long, Tuple3<Long, Character, Double>>() {
 				@Override
 				public Tuple3<Long, Character, Double> map(Long value) throws Exception {
 					return new Tuple3<Long, Character, Double>(value, 'c', value.doubleValue());

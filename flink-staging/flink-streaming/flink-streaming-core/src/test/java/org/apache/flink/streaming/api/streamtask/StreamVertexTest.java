@@ -157,7 +157,7 @@ public class StreamVertexTest {
 		StreamExecutionEnvironment env = new TestStreamEnvironment(SOURCE_PARALELISM, MEMORYSIZE);
 
 		DataStream<String> fromStringElements = env.fromElements("aa", "bb", "cc");
-		DataStream<Long> generatedSequence = env.generateSequence(0, 3);
+		DataStream<Long> generatedSequence = env.generateParallelSequence(0, 3);
 
 		fromStringElements.connect(generatedSequence).map(new CoMap()).addSink(new SetSink());
 
