@@ -17,9 +17,6 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import org.apache.flink.util.Collector;
-
-import java.io.Serializable;
 import java.util.Iterator;
 
 public class FromIteratorFunction<T> implements SourceFunction<T> {
