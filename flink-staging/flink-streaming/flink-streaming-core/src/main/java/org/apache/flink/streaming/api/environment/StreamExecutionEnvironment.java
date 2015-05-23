@@ -55,7 +55,7 @@ import org.apache.flink.streaming.api.functions.source.FileReadFunction;
 import org.apache.flink.streaming.api.functions.source.FileSourceFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.FromIteratorFunction;
-import org.apache.flink.streaming.api.functions.source.GenSequenceFunction;
+import org.apache.flink.streaming.api.functions.source.FromSplittableIteratorFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -418,7 +418,7 @@ public abstract class StreamExecutionEnvironment {
 		if (from > to) {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
 		}
-		return addSource(new GenSequenceFunction(from, to), "Sequence Source");
+		return fromCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO, "Sequence Source");
 	}
 
 	/**
@@ -432,8 +432,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A data stream, containing all number in the [from, to] interval
 	 */
 	public DataStreamSource<Long> generateParallelSequence(long from, long to) {
-		return fromParallelCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO, "Parellel " +
-				"Sequence source");
+		return fromParallelCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO, "Parallel " +
+				"Sequence Source");
 	}
 
 	/**
@@ -456,7 +456,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream representing the given array of elements
 	 */
-	public <OUT extends Serializable> DataStreamSource<OUT> fromElements(OUT... data) {
+	public <OUT> DataStreamSource<OUT> fromElements(OUT... data) {
 		if (data.length == 0) {
 			throw new IllegalArgumentException(
 					"fromElements needs at least one element as argument");
@@ -489,7 +489,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream representing the given collection
 	 */
-	public <OUT extends Serializable> DataStreamSource<OUT> fromCollection(Collection<OUT> data) {
+	public <OUT> DataStreamSource<OUT> fromCollection(Collection<OUT> data) {
 		Preconditions.checkNotNull(data, "Collection must not be null");
 		if (data.isEmpty()) {
 			throw new IllegalArgumentException("Collection must not be empty");
@@ -518,7 +518,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream representing the given collection
 	 */
-	public <OUT extends Serializable> DataStreamSource<OUT> fromCollection(Collection<OUT> data, TypeInformation<OUT>
+	public <OUT> DataStreamSource<OUT> fromCollection(Collection<OUT> data, TypeInformation<OUT>
 			typeInfo) {
 		Preconditions.checkNotNull(data, "Collection must not be null");
 		if (data.isEmpty()) {
@@ -552,7 +552,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The data stream representing the elements in the iterator
 	 * @see #fromCollection(java.util.Iterator, org.apache.flink.api.common.typeinfo.TypeInformation)
 	 */
-	public <OUT extends Serializable> DataStreamSource<OUT> fromCollection(Iterator<OUT> data, Class<OUT> type) {
+	public <OUT> DataStreamSource<OUT> fromCollection(Iterator<OUT> data, Class<OUT> type) {
 		return fromCollection(data, TypeExtractor.getForClass(type));
 	}
 
@@ -578,7 +578,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream representing the elements in the iterator
 	 */
-	public <OUT extends Serializable> DataStreamSource<OUT> fromCollection(Iterator<OUT> data, TypeInformation<OUT>
+	public <OUT> DataStreamSource<OUT> fromCollection(Iterator<OUT> data, TypeInformation<OUT>
 			typeInfo) {
 		Preconditions.checkNotNull(data, "The iterator must not be null");
 		if (!(data instanceof Serializable)) {
@@ -587,6 +587,12 @@ public abstract class StreamExecutionEnvironment {
 
 		SourceFunction<OUT> function = new FromIteratorFunction<OUT>(data);
 		return addSource(function, "Collection Source").returns(typeInfo);
+	}
+
+	// private helper for passing different names
+	private <OUT> DataStreamSource<OUT> fromCollection(Iterator<OUT> iterator, TypeInformation<OUT>
+			typeInfo, String operatorName) {
+		return addSource(new FromIteratorFunction<OUT>(iterator), operatorName).returns(typeInfo);
 	}
 
 	/**
@@ -636,13 +642,13 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public <OUT> DataStreamSource<OUT> fromParallelCollection(SplittableIterator<OUT> iterator, TypeInformation<OUT>
 			typeInfo) {
-		return fromParallelCollection(iterator, typeInfo, "Parallel Collection source");
+		return fromParallelCollection(iterator, typeInfo, "Parallel Collection Source");
 	}
 
 	// private helper for passing different names
 	private <OUT> DataStreamSource<OUT> fromParallelCollection(SplittableIterator<OUT> iterator, TypeInformation<OUT>
 			typeInfo, String operatorName) {
-		return addSource(new FromIteratorFunction<OUT>(iterator), operatorName).returns(typeInfo);
+		return addSource(new FromSplittableIteratorFunction<OUT>(iterator), operatorName).returns(typeInfo);
 	}
 
 	/**

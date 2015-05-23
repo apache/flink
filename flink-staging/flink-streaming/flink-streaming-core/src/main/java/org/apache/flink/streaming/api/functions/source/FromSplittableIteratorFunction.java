@@ -18,38 +18,35 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.NumberSequenceIterator;
+import org.apache.flink.util.SplittableIterator;
 
-/**
- * Source Function used to generate the number sequence
- * 
- */
-public class GenSequenceFunction extends RichParallelSourceFunction<Long> {
+import java.util.Iterator;
+
+public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private NumberSequenceIterator fullIterator;
-	private NumberSequenceIterator splitIterator;
+	SplittableIterator<T> fullIterator;
+	Iterator<T> iterator;
 
-	public GenSequenceFunction(long from, long to) {
-		fullIterator = new NumberSequenceIterator(from, to);
+	public FromSplittableIteratorFunction(SplittableIterator<T> iterator) {
+		this.fullIterator = iterator;
 	}
 
 	@Override
-	public void open(Configuration config) {
-		int splitNumber = getRuntimeContext().getIndexOfThisSubtask();
-		int numOfSubTasks = getRuntimeContext().getNumberOfParallelSubtasks();
-		splitIterator = fullIterator.split(numOfSubTasks)[splitNumber];
+	public void open(Configuration parameters) throws Exception {
+		int numberOfSubTasks = getRuntimeContext().getNumberOfParallelSubtasks();
+		int indexofThisSubTask = getRuntimeContext().getIndexOfThisSubtask();
+		iterator = fullIterator.split(numberOfSubTasks)[indexofThisSubTask];
 	}
 
 	@Override
 	public boolean reachedEnd() throws Exception {
-		return !splitIterator.hasNext();
+		return !iterator.hasNext();
 	}
 
 	@Override
-	public Long next() throws Exception {
-		return splitIterator.next();
+	public T next() throws Exception {
+		return iterator.next();
 	}
-
 }
