@@ -1213,7 +1213,15 @@ To run an application using one of these connectors usually additional third par
 
 ### Apache Kafka
 
-This connector provides access to data streams from [Apache Kafka](https://kafka.apache.org/).
+This connector provides access to data streams from [Apache Kafka](https://kafka.apache.org/). For using this connector add the following dependency to your project:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-kafka-connector</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
 
 #### Installing Apache Kafka
 * Follow the instructions from [Kafka's quickstart](https://kafka.apache.org/documentation.html#quickstart) to download the code and launch a server (launching a Zookeeper and a Kafka server is required every time before starting the application).
@@ -1433,7 +1441,15 @@ More on Flume can be found [here](http://flume.apache.org).
 
 ### RabbitMQ
 
-This connector provides access to data streams from [RabbitMQ](http://www.rabbitmq.com/).
+This connector provides access to data streams from [RabbitMQ](http://www.rabbitmq.com/).For using this connector add the following dependency to your project:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-rabbitmq-connector</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
 
 ##### Installing RabbitMQ
 Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.com/download.html). After the installation the server automatically starts and the application connecting to RabbitMQ can be launched.
@@ -1497,7 +1513,15 @@ More about RabbitMQ can be found [here](http://www.rabbitmq.com/).
 
 ### Twitter Streaming API
 
-Twitter Streaming API provides opportunity to connect to the stream of tweets made available by Twitter. Flink Streaming comes with a built-in `TwitterSource` class for establishing a connection to this stream.
+Twitter Streaming API provides opportunity to connect to the stream of tweets made available by Twitter. Flink Streaming comes with a built-in `TwitterSource` class for establishing a connection to this stream.For using this connector add the following dependency to your project:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-twitter-connector</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
 
 #### Authentication
 In order to connect to Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.

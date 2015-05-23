@@ -25,21 +25,35 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-streaming-parent</artifactId>
+		<artifactId>flink-streaming-connectors-parent</artifactId>
 		<version>0.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-streaming-connectors-parent</artifactId>
-	<name>flink-streaming-connectors</name>
+	<artifactId>flink-connector-rabbitmq</artifactId>
+	<name>flink-connector-rabbitmq</name>
 
-	<packaging>pom</packaging>
+	<packaging>jar</packaging>
 
-	<modules>
-		<module>flink-connector-flume</module>
-		<module>flink-connector-kafka</module>
-		<module>flink-connector-rabbitmq</module>
-		<module>flink-connector-twitter</module>
-	</modules>
+	<!-- Allow users to pass custom connector versions -->
+	<properties>
+		<rabbitmq.version>3.3.1</rabbitmq.version>
+	</properties>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.rabbitmq</groupId>
+			<artifactId>amqp-client</artifactId>
+			<version>${rabbitmq.version}</version>
+		</dependency>
+
+	</dependencies>
 
 </project>
