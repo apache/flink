@@ -361,28 +361,80 @@ When the aggregation computation does not require access to the vertex value (fo
 
 [Back to top](#top)
 
-Vertex-centric Iterations
+Iterative Graph Processing
 -----------
+Gelly exploits Flink's efficient iteration operators to support large-scale iterative graph processing. Currently, we provide implementations of the popular vertex-centric iterative model and a variation of Gather-Sum-Apply. In the following sections, we describe these models and show how you can use them in Gelly.
 
-Gelly wraps Flink's [Spargel API](spargel_guide.html) to provide methods for vertex-centric iterations. Like in Spargel, the user only needs to implement two functions: a `VertexUpdateFunction`, which defines how a vertex will update its value based on the received messages and a `MessagingFunction`, which allows a vertex to send out messages for the next superstep.
-These functions and the maximum number of iterations to run are given as parameters to Gelly's `runVertexCentricIteration`. This method will execute the vertex-centric iteration on the input Graph and return a new Graph, with updated vertex values:
+### Vertex-centric Iterations
+The vertex-centric model, also known as "think like a vertex" model, expresses computation from the perspective of a vertex in the graph. The computation proceeds in synchronized iteration steps, called supersteps. In each superstep, a vertex produces messages for other vertices and updates its value based on the messages it receives. To use vertex-centric iterations in Gelly, the user only needs to define how a vertex behaves in each superstep:
+
+* <strong>Messaging</strong>:  produce the messages that a vertex will send to other vertices.
+* <strong>Value Update</strong>: update the vertex value using the received messages.
+
+Gelly wraps Flink's [Spargel API](spargel_guide.html) to provide methods for vertex-centric iterations. The user only needs to implement two functions, corresponding to the phases above: a `VertexUpdateFunction`, which defines how a vertex will update its value based on the received messages and a `MessagingFunction`, which allows a vertex to send out messages for the next superstep.
+These functions and the maximum number of iterations to run are given as parameters to Gelly's `runVertexCentricIteration`. This method will execute the vertex-centric iteration on the input Graph and return a new Graph, with updated vertex values.
 
 A vertex-centric iteration can be extended with information such as the total number of vertices, the in degree and out degree.
 Additionally, the  neighborhood type (in/out/all) over which to run the vertex-centric iteration can be specified. By default, the updates from the in-neighbors are used to modify the current vertex's state and messages are sent to out-neighbors.
 
-{% highlight java %}
+Let us consider computing Single-Source-Shortest-Paths with vertex-centric iterations on the following graph and let vertex 1 be the source. In each superstep, each vertex sends a candidate distance message to all its neighbors. The message value is the sum of the current value of the vertex and the edge weight connecting this vertex with its neighbor. Upon receiving candidate distance messages, each vertex calculates the minimum distance and, if a shorter path has been discovered, it updates its value. If a vertex does not change its value during a superstep, then it does not produce messages for its neighbors for the next superstep. The algorithm converges when there are no value updates.
+
+<p class="text-center">
+    <img alt="Vertex-centric SSSP superstep 1" width="70%" src="fig/gelly-vc-sssp1.png"/>
+</p>
+<br>
+<p class="text-center">
+    <img alt="Vertex-centric SSSP superstep 2" width="70%" src="fig/gelly-vc-sssp2.png"/>
+</p>
+
+{% highlight java %} 
+// read the input graph
 Graph<Long, Double, Double> graph = ...
 
-// run Single-Source-Shortest-Paths vertex-centric iteration
-Graph<Long, Double, Double> result = 
-			graph.runVertexCentricIteration(
+// define the maximum number of iterations
+int maxIterations = 10;
+
+// Execute the vertex-centric iteration
+Graph<Long, Double, Double> result = graph.runVertexCentricIteration(
 			new VertexDistanceUpdater(), new MinDistanceMessenger(), maxIterations);
 
-// user-defined functions
-public static final class VertexDistanceUpdater {...}
-public static final class MinDistanceMessenger {...}
+// Extract the vertices as the result
+DataSet<Vertex<Long, Double>> singleSourceShortestPaths = result.getVertices();
+
+
+// - - -  UDFs - - - //
+
+// messaging
+public static final class MinDistanceMessenger<K> extends MessagingFunction<K, Double, Double, Double> {
+
+	public void sendMessages(Vertex<K, Double> vertex) {
+		for (Edge<K, Double> edge : getEdges()) {
+			sendMessageTo(edge.getTarget(), vertex.getValue() + edge.getValue());
+		}
+	}
+}
+
+// vertex update
+public static final class VertexDistanceUpdater<K> extends VertexUpdateFunction<K, Double, Double> {
+
+	public void updateVertex(Vertex<K, Double> vertex, MessageIterator<Double> inMessages) {
+		Double minDistance = Double.MAX_VALUE;
+
+		for (double msg : inMessages) {
+			if (msg < minDistance) {
+				minDistance = msg;
+			}
+		}
+
+		if (vertex.getValue() > minDistance) {
+			setNewVertexValue(minDistance);
+		}
+	}
+}
 
 {% endhighlight %}
+
+[Back to top](#top)
 
 ### Configuring a Vertex-Centric Iteration
 A vertex-centric iteration can be configured using a `VertexCentricConfiguration` object.
@@ -542,6 +594,108 @@ public static final class Messenger {
 
 [Back to top](#top)
 
+### Gather-Sum-Apply Iterations
+Like in the vertex-centric model, Gather-Sum-Apply also proceeds in synchronized iterative steps, called supersteps. Each superstep consists of the following three phases:
+
+* <strong>Gather</strong>: a user-defined function is invoked in parallel on the edges and neighbors of each vertex, producing a partial value.
+* <strong>Sum</strong>: the partial values produced in the Gather phase are aggregated to a single value, using a user-defined reducer.
+* <strong>Apply</strong>:  each vertex value is updated by applying a function on the current value and the aggregated value produced by the Sum phase.
+
+Let us consider computing Single-Source-Shortest-Paths with GSA on the following graph and let vertex 1 be the source. During the `Gather` phase, we calculate the new candidate distances, by adding each vertex value with the edge weight. In `Sum`, the candidate distances are grouped by vertex ID and the minimum distance is chosen. In `Apply`, the newly calculated distance is compared to the current vertex value and the minimum of the two is assigned as the new value of the vertex.
+
+<p class="text-center">
+    <img alt="GSA SSSP superstep 1" width="70%" src="fig/gelly-gsa-sssp1.png"/>
+</p>
+<br>
+<p class="text-center">
+    <img alt="GSA SSSP superstep 2" width="70%" src="fig/gelly-gsa-sssp2.png"/>
+</p>
+
+Notice that, if a vertex does not change its value during a superstep, it will not calculate candidate distance during the next superstep. The algorithm converges when no vertex changes value.
+The resulting graph after the algorithm converges is shown below.
+<p class="text-center">
+    <img alt="GSA SSSP result" width="70%" src="fig/gelly-gsa-sssp-result.png"/>
+</p>
+
+To implement this example in Gelly GSA, the user only needs to call the `runGatherSumApplyIteration` method on the input graph and provide the `GatherFunction`, `SumFunction` and `ApplyFunction` UDFs. Iteration synchronization, grouping, value updates and convergence are handled by the system:
+
+{% highlight java %}
+// read the input graph
+Graph<Long, Double, Double> graph = ...
+
+// define the maximum number of iterations
+int maxIterations = 10;
+
+// Execute the GSA iteration
+Graph<Long, Double, Double> result = graph.runGatherSumApplyIteration(
+				new CalculateDistances(), new ChooseMinDistance(), new UpdateDistance(), maxIterations);
+
+// Extract the vertices as the result
+DataSet<Vertex<Long, Double>> singleSourceShortestPaths = result.getVertices();
+
+
+// - - -  UDFs - - - //
+
+// Gather
+private static final class CalculateDistances extends GatherFunction<Double, Double, Double> {
+
+	public Double gather(Neighbor<Double, Double> neighbor) {
+		return neighbor.getNeighborValue() + neighbor.getEdgeValue();
+	}
+}
+
+// Sum
+private static final class ChooseMinDistance extends SumFunction<Double, Double, Double> {
+
+	public Double sum(Double newValue, Double currentValue) {
+		return Math.min(newValue, currentValue);
+	}
+}
+
+// Apply
+private static final class UpdateDistance extends ApplyFunction<Long, Double, Double> {
+
+	public void apply(Double newDistance, Double oldDistance) {
+		if (newDistance < oldDistance) {
+			setResult(newDistance);
+		}
+	}
+}
+
+{% endhighlight %}
+
+Note that `gather` takes a `Neighbor` type as an argument. This is a convenience type which simply wraps a vertex with its neighboring edge.
+
+For more examples of how to implement algorithms with the Gather-Sum-Apply model, check the {% gh_link /flink-staging/flink-gelly/src/main/java/org/apache/flink/graph/example/GSAPageRank.java "GSAPageRank" %} and {% gh_link /flink-staging/flink-gelly/src/main/java/org/apache/flink/graph/example/GSAConnectedComponents.java "GSAConnectedComponents" %} examples of Gelly.
+
+[Back to top](#top)
+
+### Configuring a Gather-Sum-Apply Iteration
+A GSA iteration can be configured using a `GSAConfiguration` object.
+Currently, the following parameters can be specified:
+
+* <strong>Name</strong>: The name for the GSA iteration. The name is displayed in logs and messages and can be specified using the `setName()` method.
+
+* <strong>Parallelism</strong>: The parallelism for the iteration. It can be set using the `setParallelism()` method.
+
+* <strong>Solution set in unmanaged memory</strong>: Defines whether the solution set is kept in managed memory (Flink's internal way of keeping objects in serialized form) or as a simple object map. By default, the solution set runs in managed memory. This property can be set using the `setSolutionSetUnmanagedMemory()` method.
+
+* <strong>Aggregators</strong>: Iteration aggregators can be registered using the `registerAggregator()` method. An iteration aggregator combines all aggregates globally once per superstep and makes them available in the next superstep. Registered aggregators can be accessed inside the user-defined `GatherFunction`, `SumFunction` and `ApplyFunction`.
+
+* <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({{site.baseurl}}/apis/programming_guide.html#broadcast-variables) to the `GatherFunction`, `SumFunction` and `ApplyFunction`, using the methods `addBroadcastSetForGatherFunction()`, `addBroadcastSetForSumFunction()` and `addBroadcastSetForApplyFunction` methods, respectively.
+
+[Back to top](#top)
+
+### Vertex-centric and GSA Comparison
+As seen in the examples above, Gather-Sum-Apply iterations are quite similar to vertex-centric iterations. In fact, any algorithm which can be expressed as a GSA iteration can also be written in the vertex-centric model.
+The messaging phase of the vertex-centric model is equivalent to the Gather and Sum steps of GSA: Gather can be seen as the phase where the messages are produced and Sum as the phase where they are routed to the target vertex. Similarly, the value update phase corresponds to the Apply step.
+
+The main difference between the two implementations is that the Gather phase of GSA parallelizes the computation over the edges, while the messaging phase distributes the computation over the vertices. Using the SSSP examples above, we see that in the first superstep of the vertex-centric case, vertices 1, 2 and 3 produce messages in parallel. Vertex 1 produces 3 messages, while vertices 2 and 3 produce one message each. In the GSA case on the other hand, the computation is parallelized over the edges: the three candidate distance values of vertex 1 are produced in parallel. Thus, if the Gather step contains "heavy" computation, it might be a better idea to use GSA and spread out the computation, instead of burdening a single vertex. Another case when parallelizing over the edges might prove to be more efficient is when the input graph is skewed (some vertices have a lot more neighbors than others).
+
+Another difference between the two implementations is that the vertex-centric implementation uses a `coGroup` operator internally, while GSA uses a `reduce`. Therefore, if the function that combines neighbor values (messages) requires the whole group of values for the computation, vertex-centric should be used. If the update function is associative and commutative, then the GSA's reducer is expected to give a more efficient implementation, as it can make use of a combiner.
+
+Another thing to note is that GSA works strictly on neighborhoods, while in the vertex-centric model, a vertex can send a message to any vertex, given that it knows its vertex ID, regardless of whether it is a neighbor.
+Finally, in Gelly's vertex-centric implementation, one can choose the messaging direction, i.e. the direction in which updates propagate. GSA does not support this yet, so each vertex will be updated based on the values of its in-neighbors only.
 
 Graph Validation
 -----------
