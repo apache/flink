@@ -19,7 +19,6 @@
 package org.apache.flink.api.java;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -600,9 +599,7 @@ public abstract class ExecutionEnvironment {
 	
 	/**
 	 * Creates a DataSet from the given non-empty collection. The type of the data set is that
-	 * of the elements in the collection. The elements need to be serializable (as defined by
-	 * {@link java.io.Serializable}), because the framework may move the elements into the cluster
-	 * if needed.
+	 * of the elements in the collection.
 	 * <p>
 	 * The framework will try and determine the exact type from the collection elements.
 	 * In case of generic elements, it may be necessary to manually supply the type information
@@ -632,13 +629,8 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	/**
-	 * Creates a DataSet from the given non-empty collection. The type of the data set is that
-	 * of the elements in the collection. The elements need to be serializable (as defined by
-	 * {@link java.io.Serializable}), because the framework may move the elements into the cluster
-	 * if needed.
-	 * <p>
-	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
-	 * a parallelism of one.
+	 * Creates a DataSet from the given non-empty collection. Note that this operation will result
+	 * in a non-parallel data source, i.e. a data source with a parallelism of one.
 	 * <p>
 	 * The returned DataSet is typed to the given TypeInformation.
 	 *  
@@ -663,9 +655,6 @@ public abstract class ExecutionEnvironment {
 	 * explicitly in the form of the type class (this is due to the fact that the Java compiler
 	 * erases the generic type information).
 	 * <p>
-	 * The iterator must be serializable (as defined in {@link java.io.Serializable}), because the
-	 * framework may move it to a remote environment, if needed.
-	 * <p>
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
 	 * a parallelism of one.
 	 * 
@@ -686,9 +675,6 @@ public abstract class ExecutionEnvironment {
 	 * is generic. In that case, the type class (as given in {@link #fromCollection(Iterator, Class)}
 	 * does not supply all type information.
 	 * <p>
-	 * The iterator must be serializable (as defined in {@link java.io.Serializable}), because the
-	 * framework may move it to a remote environment, if needed.
-	 * <p>
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
 	 * a parallelism of one.
 	 * 
@@ -699,10 +685,6 @@ public abstract class ExecutionEnvironment {
 	 * @see #fromCollection(Iterator, Class)
 	 */
 	public <X> DataSource<X> fromCollection(Iterator<X> data, TypeInformation<X> type) {
-		if (!(data instanceof Serializable)) {
-			throw new IllegalArgumentException("The iterator must be serializable.");
-		}
-		
 		return new DataSource<X>(this, new IteratorInputFormat<X>(data), type, Utils.getCallLocationName());
 	}
 	
@@ -710,8 +692,6 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates a new data set that contains the given elements. The elements must all be of the same type,
 	 * for example, all of the {@link String} or {@link Integer}. The sequence of elements must not be empty.
-	 * Furthermore, the elements must be serializable (as defined in {@link java.io.Serializable}, because the
-	 * execution environment may ship the elements into the cluster.
 	 * <p>
 	 * The framework will try and determine the exact type from the collection elements.
 	 * In case of generic elements, it may be necessary to manually supply the type information
@@ -738,8 +718,6 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates a new data set that contains elements in the iterator. The iterator is splittable, allowing the
 	 * framework to create a parallel data source that returns the elements in the iterator.
-	 * The iterator must be serializable (as defined in {@link java.io.Serializable}, because the
-	 * execution environment may ship the elements into the cluster.
 	 * <p>
 	 * Because the iterator will remain unmodified until the actual execution happens, the type of data
 	 * returned by the iterator must be given explicitly in the form of the type class (this is due to the
@@ -758,8 +736,6 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates a new data set that contains elements in the iterator. The iterator is splittable, allowing the
 	 * framework to create a parallel data source that returns the elements in the iterator.
-	 * The iterator must be serializable (as defined in {@link java.io.Serializable}, because the
-	 * execution environment may ship the elements into the cluster.
 	 * <p>
 	 * Because the iterator will remain unmodified until the actual execution happens, the type of data
 	 * returned by the iterator must be given explicitly in the form of the type information.
