@@ -349,9 +349,11 @@ When the aggregation computation does not require access to the vertex value (fo
 
 [Back to top](#top)
 
-Vertex-centric Iterations
+Iterative Graph Processing
 -----------
+Gelly exploits Flink’s efficient iteration operators to support large-scale iterative graph processing. Currently, we provide implementations of the popular vertex-centric iterative model and a variation of Gather-Sum-Apply. In the following sections, we describe these models and show how you can use them in Gelly.
 
+### Vertex-centric Iterations
 Gelly wraps Flink's [Spargel API](spargel_guide.html) to provide methods for vertex-centric iterations. Like in Spargel, the user only needs to implement two functions: a `VertexUpdateFunction`, which defines how a vertex will update its value based on the received messages and a `MessagingFunction`, which allows a vertex to send out messages for the next superstep.
 These functions and the maximum number of iterations to run are given as parameters to Gelly's `runVertexCentricIteration`. This method will execute the vertex-centric iteration on the input Graph and return a new Graph, with updated vertex values:
 
@@ -371,6 +373,8 @@ public static final class VertexDistanceUpdater {...}
 public static final class MinDistanceMessenger {...}
 
 {% endhighlight %}
+
+[Back to top](#top)
 
 ### Configuring a Vertex-Centric Iteration
 A vertex-centric iteration can be configured using a `VertexCentricConfiguration` object.
@@ -530,6 +534,96 @@ public static final class Messenger {
 
 [Back to top](#top)
 
+### Gather-Sum-Apply Iterations
+Like in the vertex-centric model, Gather-Sum-Apply also proceeds in synchronized iterative steps, called supersteps. Each superstep consists of the following three phases:
+
+* <strong>Gather</strong>: a user-defined function is invoked in parallel on the edges and neighbors of each vertex, producing a partial value.
+* <strong>Sum</strong>: the partial values produced in the Gather phase are aggregated to a single value, using a user-defined reducer.
+* <strong>Apply</strong>:  each vertex value is updated by applying a function on the current value and the aggregated value produced by the Sum phase.
+
+Let us consider computing Single-Source-Shortest-Paths with GSA on the following graph and let vertex 1 be the source. During the `Gather` phase, we calculate the new candidate distances, by adding each vertex value with the edge weight. In `Sum`, the candidate distances are grouped by vertex ID and the minimum distance is chosen. In `Apply`, the newly calculated distance is compared to the current vertex value and the minimum of the two is assigned as the new value of the vertex.
+<p class="text-center">
+    <img alt="GSA SSSP superstep 1” width=“70%" src="fig/gelly-gsa-sssp1.png"/>
+</p>
+<br>
+<p class="text-center">
+    <img alt="GSA SSSP superstep 2” width=“70%" src="fig/gelly-gsa-sssp2.png"/>
+</p>
+
+Notice that, if a vertex does not change its value during a superstep, it will not calculate candidate distance during the next superstep. The algorithm converges when no vertex changes value.
+The resulting graph after the algorithm converges is shown below.
+<p class="text-center">
+    <img alt="GSA SSSP result” width=“70%" src="fig/gelly-gsa-sssp-result.png"/>
+</p>
+
+To implement this example in Gelly GSA, the user only needs to call `runGatherSumApplyIteration` method on the input graph and provide the `GatherFunction`, `SumFunction` and `ApplyFunction` UDFs. Iteration synchronization, grouping, value update and convergence is handled by the system:
+
+{% highlight java %}
+// read the input graph
+Graph<Long, Double, Double> graph = …
+
+// define the maximum number of iterations
+int maxIterations = 10;
+
+// Execute the GSA iteration
+Graph<Long, Double, Double> result = graph.runGatherSumApplyIteration(
+				new CalculateDistances(), new ChooseMinDistance(), new UpdateDistance(), maxIterations);
+
+// Extract the vertices as the result
+DataSet<Vertex<Long, Double>> singleSourceShortestPaths = result.getVertices();
+
+
+// - - -  UDFs - - - //
+
+// Gather
+private static final class CalculateDistances extends GatherFunction<Double, Double, Double> {
+
+	public Double gather(Neighbor<Double, Double> neighbor) {
+		return neighbor.getNeighborValue() + neighbor.getEdgeValue();
+	}
+}
+
+// Sum
+private static final class ChooseMinDistance extends SumFunction<Double, Double, Double> {
+
+	public Double sum(Double newValue, Double currentValue) {
+		return Math.min(newValue, currentValue);
+	}
+}
+
+// Apply
+private static final class UpdateDistance extends ApplyFunction<Long, Double, Double> {
+
+	public void apply(Double newDistance, Double oldDistance) {
+		if (newDistance < oldDistance) {
+			setResult(newDistance);
+		}
+	}
+}
+
+{% endhighlight %}
+
+Note that Gather takes a `Neighbor` type as an argument. This is a convenience type which simply wraps a vertex with its neighboring edge.
+
+For more examples of how to implement algorithms with the Gather-Sum-Apply model, check the {% gh_link /flink-staging/flink-gelly/src/main/java/org/apache/flink/graph/example/GSAPageRank.java "GSAPageRank" %} and {% gh_link /flink-staging/flink-gelly/src/main/java/org/apache/flink/graph/example/GSAConnectedComponents.java "GSAConnectedComponents" %} examples of Gelly.
+
+[Back to top](#top)
+
+### Configuring a Gather-Sum-Apply Iteration
+A GSA iteration can be configured using a `GSAConfiguration` object.
+Currently, the following parameters can be specified:
+
+* <strong>Name</strong>: The name for the GSA iteration. The name is displayed in logs and messages and can be specified using the `setName()` method.
+
+* <strong>Parallelism</strong>: The parallelism for the iteration. It can be set using the `setParallelism()` method.
+
+* <strong>Solution set in unmanaged memory</strong>: Defines whether the solution set is kept in managed memory (Flink's internal way of keeping objects in serialized form) or as a simple object map. By default, the solution set runs in managed memory. This property can be set using the `setSolutionSetUnmanagedMemory()` method.
+
+* <strong>Aggregators</strong>: Iteration aggregators can be registered using the `registerAggregator()` method. An iteration aggregator combines all aggregates globally once per superstep and makes them available in the next superstep. Registered aggregators can be accessed inside the user-defined `GatherFunction`, `SumFunction` and `ApplyFunction`.
+
+* <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({{site.baseurl}}/apis/programming_guide.html#broadcast-variables) to the `GatherFunction`, `SumFunction` and `ApplyFunction`, using the methods `addBroadcastSetForGatherFunction()`, `addBroadcastSetForSumFunction()` and `addBroadcastSetForApplyFunction` methods, respectively.
+
+[Back to top](#top)
 
 Graph Validation
 -----------
