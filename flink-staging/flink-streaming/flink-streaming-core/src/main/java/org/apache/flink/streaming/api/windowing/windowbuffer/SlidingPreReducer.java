@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
-/*
+/**
  * Non-grouped pre-reducer for sliding eviction policy
  * (the slide size is smaller than the window size).
  */
