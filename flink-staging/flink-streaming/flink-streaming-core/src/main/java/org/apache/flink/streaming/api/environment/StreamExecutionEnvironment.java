@@ -70,7 +70,6 @@ import org.apache.hadoop.mapreduce.Job;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -438,15 +437,12 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Creates a new data stream that contains the given elements. The elements must all be of the same type, for
-	 * example, all of the {@link String} or {@link Integer}. The sequence of elements must not be empty. Furthermore,
-	 * the elements must be serializable (as defined in {@link java.io.Serializable}), because the execution
-	 * environment
-	 * may ship the elements into the cluster.
-	 * <p/>
+	 * example, all of the {@link String} or {@link Integer}.
+	 * <p>
 	 * The framework will try and determine the exact type from the elements. In case of generic elements, it may be
 	 * necessary to manually supply the type information via {@link #fromCollection(java.util.Collection,
 	 * org.apache.flink.api.common.typeinfo.TypeInformation)}.
-	 * <p/>
+	 * <p>
 	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
 	 * degree of parallelism one.
 	 *
@@ -471,15 +467,14 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Creates a data stream from the given non-empty collection. The type of the data stream is that of the
-	 * elements in
-	 * the collection. The elements need to be serializable (as defined by {@link java.io.Serializable}), because the
-	 * framework may move the elements into the cluster if needed.
-	 * <p/>
+	 * elements in the collection.
+	 *
+	 * <p>
 	 * The framework will try and determine the exact type from the collection elements. In case of generic
-	 * elements, it
-	 * may be necessary to manually supply the type information via {@link #fromCollection(java.util.Collection,
-	 * org.apache.flink.api.common.typeinfo.TypeInformation)}.
-	 * <p/>
+	 * elements, it may be necessary to manually supply the type information via
+	 * {@link #fromCollection(java.util.Collection, org.apache.flink.api.common.typeinfo.TypeInformation)}.
+	 * <p>
+	 *
 	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
 	 * degree of parallelism one.
 	 *
@@ -503,12 +498,8 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a data stream from the given non-empty collection. The type of the data stream is the type given by
-	 * typeInfo. The elements need to be serializable (as defined by {@link java.io.Serializable}), because the
-	 * framework may move the elements into the cluster if needed.
-	 * <p/>
-	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
-	 * degree of parallelism one.
+	 * Creates a data stream from the given non-empty collection.Note that this operation will result in
+	 * a non-parallel data stream source, i.e. a data stream source with a degree of parallelism one.
 	 *
 	 * @param data
 	 * 		The collection of elements to create the data stream from
@@ -535,11 +526,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Creates a data stream from the given iterator. Because the iterator will remain unmodified until the actual
 	 * execution happens, the type of data returned by the iterator must be given explicitly in the form of the type
 	 * class (this is due to the fact that the Java compiler erases the generic type information).
-	 * <p/>
-	 * The iterator must be serializable (as defined in {@link java.io.Serializable}), because the framework may
-	 * move it
-	 * to a remote environment, if needed.
-	 * <p/>
+	 * <p>
 	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
 	 * degree of parallelism of one.
 	 *
@@ -562,11 +549,7 @@ public abstract class StreamExecutionEnvironment {
 	 * information. This method is useful for cases where the type is generic. In that case, the type class (as
 	 * given in
 	 * {@link #fromCollection(java.util.Iterator, Class)} does not supply all type information.
-	 * <p/>
-	 * The iterator must be serializable (as defined in {@link java.io.Serializable}), because the framework may
-	 * move it
-	 * to a remote environment, if needed.
-	 * <p/>
+	 * <p>
 	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
 	 * degree of parallelism one.
 	 *
@@ -581,9 +564,6 @@ public abstract class StreamExecutionEnvironment {
 	public <OUT> DataStreamSource<OUT> fromCollection(Iterator<OUT> data, TypeInformation<OUT>
 			typeInfo) {
 		Preconditions.checkNotNull(data, "The iterator must not be null");
-		if (!(data instanceof Serializable)) {
-			throw new IllegalArgumentException("The iterator must be serializable.");
-		}
 
 		SourceFunction<OUT> function = new FromIteratorFunction<OUT>(data);
 		return addSource(function, "Collection Source").returns(typeInfo);
@@ -597,12 +577,8 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Creates a new data stream that contains elements in the iterator. The iterator is splittable, allowing the
-	 * framework to create a parallel data stream source that returns the elements in the iterator. The iterator
-	 * must be
-	 * serializable (as defined in {@link java.io.Serializable}, because the execution environment may ship the
-	 * elements
-	 * into the cluster.
-	 * <p/>
+	 * framework to create a parallel data stream source that returns the elements in the iterator.
+	 * <p>
 	 * Because the iterator will remain unmodified until the actual execution happens, the type of data returned by the
 	 * iterator must be given explicitly in the form of the type class (this is due to the fact that the Java compiler
 	 * erases the generic type information).
@@ -621,12 +597,8 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Creates a new data stream that contains elements in the iterator. The iterator is splittable, allowing the
-	 * framework to create a parallel data stream source that returns the elements in the iterator. The iterator
-	 * must be
-	 * serializable (as defined in {@link java.io.Serializable}, because the execution environment may ship the
-	 * elements
-	 * into the cluster.
-	 * <p/>
+	 * framework to create a parallel data stream source that returns the elements in the iterator.
+	 * <p>
 	 * Because the iterator will remain unmodified until the actual execution happens, the type of data returned by the
 	 * iterator must be given explicitly in the form of the type information. This method is useful for cases where the
 	 * type is generic. In that case, the type class (as given in {@link #fromParallelCollection(org.apache.flink.util.SplittableIterator,
