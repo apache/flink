@@ -29,13 +29,11 @@ import scala.reflect.ClassTag
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, FoldFunction, MapFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
-import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, GroupedDataStream, SingleOutputStreamOperator}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
-import org.apache.flink.streaming.api.functions.aggregation.SumFunction
-import org.apache.flink.streaming.api.functions.sink.SinkFunction
+import org.apache.flink.streaming.api.functions.sink.{FileSinkFunctionByMillis, SinkFunction}
+import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
 import org.apache.flink.streaming.api.operators.{StreamGroupedReduce, StreamReduce}
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.streaming.api.windowing.policy.{EvictionPolicy, TriggerPolicy}
@@ -79,6 +77,11 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Returns the parallelism of this operation.
    */
   def getParallelism = javaStream.getParallelism
+
+  /**
+   * Returns the execution config.
+   */
+  def getExecutionConfig = javaStream.getExecutionConfig
 
   /**
    * Gets the name of the current data stream. This name is
@@ -436,16 +439,13 @@ class DataStream[T](javaStream: JavaStream[T]) {
   private def aggregate(aggregationType: AggregationType, position: Int): DataStream[T] = {
 
     val jStream = javaStream.asInstanceOf[JavaStream[Product]]
-    val outType = jStream.getType().asInstanceOf[TupleTypeInfoBase[_]]
-
-    val agg = new ScalaStreamingAggregator[Product](
-      jStream.getType().createSerializer(javaStream.getExecutionEnvironment.getConfig),
-      position)
 
     val reducer = aggregationType match {
-      case AggregationType.SUM => new agg.Sum(SumFunction.getForClass(outType.getTypeAt(position).
-        getTypeClass()))
-      case _ => new agg.ProductComparableAggregator(aggregationType, true)
+      case AggregationType.SUM =>
+        new SumAggregator(position, jStream.getType, jStream.getExecutionConfig)
+      case _ =>
+        new ComparableAggregator(position, jStream.getType, aggregationType, true,
+          jStream.getExecutionConfig)
     }
 
     val invokable = jStream match {

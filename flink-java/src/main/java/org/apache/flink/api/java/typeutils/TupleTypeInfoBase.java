@@ -69,6 +69,10 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		return true;
 	}
 
+	public boolean isCaseClass() {
+		return false;
+	}
+
 	@Override
 	public int getArity() {
 		return types.length;

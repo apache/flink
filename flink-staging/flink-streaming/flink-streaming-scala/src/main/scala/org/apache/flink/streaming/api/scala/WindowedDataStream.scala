@@ -27,15 +27,14 @@ import scala.reflect.ClassTag
 import org.apache.flink.api.common.functions.{FoldFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
-import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
 import org.apache.flink.streaming.api.datastream.{WindowedDataStream => JavaWStream, DiscretizedStream}
 import org.apache.flink.streaming.api.functions.WindowMapFunction
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
-import org.apache.flink.streaming.api.functions.aggregation.SumFunction
 import org.apache.flink.streaming.api.windowing.StreamWindow
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.util.Collector
+import org.apache.flink.streaming.api.functions.aggregation.SumAggregator
+import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator
 
 class WindowedDataStream[T](javaStream: JavaWStream[T]) {
 
@@ -307,16 +306,13 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
   WindowedDataStream[T] = {
 
     val jStream = javaStream.asInstanceOf[JavaWStream[Product]]
-    val outType = jStream.getType().asInstanceOf[TupleTypeInfoBase[_]]
-
-    val agg = new ScalaStreamingAggregator[Product](
-      jStream.getType().createSerializer(javaStream.getExecutionConfig),
-      position)
 
     val reducer = aggregationType match {
-      case AggregationType.SUM => new agg.Sum(SumFunction.getForClass(
-        outType.getTypeAt(position).getTypeClass()))
-      case _ => new agg.ProductComparableAggregator(aggregationType, true)
+      case AggregationType.SUM =>
+        new SumAggregator(position, jStream.getType, jStream.getExecutionConfig)
+      case _ =>
+        new ComparableAggregator(position, jStream.getType, aggregationType, true,
+          jStream.getExecutionConfig)
     }
 
     new WindowedDataStream[Product](

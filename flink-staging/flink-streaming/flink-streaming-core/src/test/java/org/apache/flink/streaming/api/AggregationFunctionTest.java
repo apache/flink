@@ -94,18 +94,19 @@ public class AggregationFunctionTest {
 				.getForObject(new Tuple2<Integer, Integer>(0, 0));
 		TypeInformation<Integer> type2 = TypeExtractor.getForObject(2);
 
-		ReduceFunction<Tuple2<Integer, Integer>> sumFunction = SumAggregator.getSumFunction(1,
-				Integer.class, type1);
-		ReduceFunction<Integer> sumFunction0 = SumAggregator
-				.getSumFunction(0, Integer.class, type2);
-		ReduceFunction<Tuple2<Integer, Integer>> minFunction = ComparableAggregator.getAggregator(
-				1, type1, AggregationType.MIN);
-		ReduceFunction<Integer> minFunction0 = ComparableAggregator.getAggregator(0, type2,
-				AggregationType.MIN);
-		ReduceFunction<Tuple2<Integer, Integer>> maxFunction = ComparableAggregator.getAggregator(
-				1, type1, AggregationType.MAX);
-		ReduceFunction<Integer> maxFunction0 = ComparableAggregator.getAggregator(0, type2,
-				AggregationType.MAX);
+		ExecutionConfig config = new ExecutionConfig();
+
+		ReduceFunction<Tuple2<Integer, Integer>> sumFunction =
+				new SumAggregator<Tuple2<Integer, Integer>>(1, type1, config);
+		ReduceFunction<Integer> sumFunction0 = new SumAggregator<Integer>(0, type2, config);
+		ReduceFunction<Tuple2<Integer, Integer>> minFunction = new ComparableAggregator<Tuple2<Integer, Integer>>(
+				1, type1, AggregationType.MIN, config);
+		ReduceFunction<Integer> minFunction0 = new ComparableAggregator<Integer>(0, type2,
+				AggregationType.MIN, config);
+		ReduceFunction<Tuple2<Integer, Integer>> maxFunction = new ComparableAggregator<Tuple2<Integer, Integer>>(
+				1, type1, AggregationType.MAX, config);
+		ReduceFunction<Integer> maxFunction0 = new ComparableAggregator<Integer>(0, type2,
+				AggregationType.MAX, config);
 		List<Tuple2<Integer, Integer>> sumList = MockContext.createAndExecute(
 				new StreamReduce<Tuple2<Integer, Integer>>(sumFunction), getInputList());
 
@@ -166,7 +167,6 @@ public class AggregationFunctionTest {
 		} catch (Exception e) {
 			// Nothing to do here
 		}
-
 	}
 
 	@Test
@@ -219,14 +219,16 @@ public class AggregationFunctionTest {
 		TypeInformation<Integer> type2 = TypeExtractor.getForObject(0);
 		ExecutionConfig config = new ExecutionConfig();
 
-		ReduceFunction<MyPojo> sumFunction = SumAggregator.getSumFunction("f1", type1, config);
-		ReduceFunction<Integer> sumFunction0 = SumAggregator.getSumFunction(0, Integer.class, type2);
-		ReduceFunction<MyPojo> minFunction = ComparableAggregator.getAggregator("f1", type1, AggregationType.MIN,
+		ReduceFunction<MyPojo> sumFunction = new SumAggregator<MyPojo>("f1", type1, config);
+		ReduceFunction<Integer> sumFunction0 = new SumAggregator<Integer>(0, type2, config);
+		ReduceFunction<MyPojo> minFunction = new ComparableAggregator<MyPojo>("f1", type1, AggregationType.MIN,
 				false, config);
-		ReduceFunction<Integer> minFunction0 = ComparableAggregator.getAggregator(0, type2, AggregationType.MIN);
-		ReduceFunction<MyPojo> maxFunction = ComparableAggregator.getAggregator("f1", type1, AggregationType.MAX,
+		ReduceFunction<Integer> minFunction0 = new ComparableAggregator<Integer>(0, type2, AggregationType.MIN,
+				config);
+		ReduceFunction<MyPojo> maxFunction = new ComparableAggregator<MyPojo>("f1", type1, AggregationType.MAX,
 				false, config);
-		ReduceFunction<Integer> maxFunction0 = ComparableAggregator.getAggregator(0, type2, AggregationType.MAX);
+		ReduceFunction<Integer> maxFunction0 = new ComparableAggregator<Integer>(0, type2, AggregationType.MAX,
+				config);
 
 		List<MyPojo> sumList = MockContext.createAndExecute(
 				new StreamReduce<MyPojo>(sumFunction), getInputPojoList());
@@ -269,15 +271,17 @@ public class AggregationFunctionTest {
 		TypeInformation<Tuple2<Integer, Integer>> type1 = TypeExtractor
 				.getForObject(new Tuple2<Integer, Integer>(0, 0));
 
-		ReduceFunction<Tuple2<Integer, Integer>> maxByFunctionFirst = ComparableAggregator
-				.getAggregator(0, type1, AggregationType.MAXBY, true);
-		ReduceFunction<Tuple2<Integer, Integer>> maxByFunctionLast = ComparableAggregator
-				.getAggregator(0, type1, AggregationType.MAXBY, false);
+		ExecutionConfig config = new ExecutionConfig();
 
-		ReduceFunction<Tuple2<Integer, Integer>> minByFunctionFirst = ComparableAggregator
-				.getAggregator(0, type1, AggregationType.MINBY, true);
-		ReduceFunction<Tuple2<Integer, Integer>> minByFunctionLast = ComparableAggregator
-				.getAggregator(0, type1, AggregationType.MINBY, false);
+		ReduceFunction<Tuple2<Integer, Integer>> maxByFunctionFirst =
+				new ComparableAggregator<Tuple2<Integer, Integer>>(0, type1, AggregationType.MAXBY, true, config);
+		ReduceFunction<Tuple2<Integer, Integer>> maxByFunctionLast =
+				new ComparableAggregator<Tuple2<Integer, Integer>>(0, type1, AggregationType.MAXBY, false, config);
+
+		ReduceFunction<Tuple2<Integer, Integer>> minByFunctionFirst =
+				new ComparableAggregator<Tuple2<Integer, Integer>>(0, type1, AggregationType.MINBY, true, config);
+		ReduceFunction<Tuple2<Integer, Integer>> minByFunctionLast =
+				new ComparableAggregator<Tuple2<Integer, Integer>>(0, type1, AggregationType.MINBY, false, config);
 
 		List<Tuple2<Integer, Integer>> maxByFirstExpected = new ArrayList<Tuple2<Integer, Integer>>();
 		maxByFirstExpected.add(new Tuple2<Integer, Integer>(0, 0));
@@ -343,15 +347,15 @@ public class AggregationFunctionTest {
 		TypeInformation<MyPojo> type1 = TypeExtractor
 				.getForObject(new MyPojo(0, 0));
 
-		ReduceFunction<MyPojo> maxByFunctionFirst = ComparableAggregator
-				.getAggregator("f0", type1, AggregationType.MAXBY, true, config);
-		ReduceFunction<MyPojo> maxByFunctionLast = ComparableAggregator
-				.getAggregator("f0", type1, AggregationType.MAXBY, false, config);
+		ReduceFunction<MyPojo> maxByFunctionFirst =
+				new ComparableAggregator<MyPojo>("f0", type1, AggregationType.MAXBY, true, config);
+		ReduceFunction<MyPojo> maxByFunctionLast =
+				new ComparableAggregator<MyPojo>("f0", type1, AggregationType.MAXBY, false, config);
 
-		ReduceFunction<MyPojo> minByFunctionFirst = ComparableAggregator
-				.getAggregator("f0", type1, AggregationType.MINBY, true, config);
-		ReduceFunction<MyPojo> minByFunctionLast = ComparableAggregator
-				.getAggregator("f0", type1, AggregationType.MINBY, false, config);
+		ReduceFunction<MyPojo> minByFunctionFirst =
+				new ComparableAggregator<MyPojo>("f0", type1, AggregationType.MINBY, true, config);
+		ReduceFunction<MyPojo> minByFunctionLast =
+				new ComparableAggregator<MyPojo>("f0", type1, AggregationType.MINBY, false, config);
 
 		List<MyPojo> maxByFirstExpected = new ArrayList<MyPojo>();
 		maxByFirstExpected.add(new MyPojo(0, 0));
