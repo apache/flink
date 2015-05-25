@@ -196,7 +196,7 @@ public class StreamGraph extends StreamingPlan {
 
 		chaining = false;
 
-		StreamLoop iteration = new StreamLoop(iterationID, getStreamNode(iterationHead), timeOut);
+		StreamLoop iteration = new StreamLoop(iterationID, getStreamNode(vertexID), timeOut);
 		streamLoops.put(iterationID, iteration);
 		vertexIDtoLoop.put(vertexID, iteration);
 
