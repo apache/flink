@@ -248,29 +248,29 @@ Graph Mutations
 Gelly includes the following methods for adding and removing vertices and edges from an input `Graph`:
 
 {% highlight java %}
-// adds a Vertex and the given edges to the Graph. If the Vertex already exists, it will not be added again, but the given edges will.
-Graph<K, VV, EV> addVertex(final Vertex<K, VV> vertex, List<Edge<K, EV>> edges)
+// adds a Vertex to the Graph. If the Vertex already exists, it will not be added again.
+Graph<K, VV, EV> addVertex(final Vertex<K, VV> vertex)
 
-// adds a data set of vertices and a list of edges to the Graph. If the vertices already exist in the graph, they will not be added once more, however the edges will.
-Graph<K, VV, EV> addVertices(DataSet<Vertex<K, VV>> verticesToAdd, List<Edge<K, EV>> edges)
+// adds a list of vertices to the Graph. If the vertices already exist in the graph, they will not be added once more.
+Graph<K, VV, EV> addVertices(List<Vertex<K, VV>> verticesToAdd)
 
 // adds an Edge to the Graph. If the source and target vertices do not exist in the graph, they will also be added.
 Graph<K, VV, EV> addEdge(Vertex<K, VV> source, Vertex<K, VV> target, EV edgeValue)
 
-// adds a data set of edges to the Graph. If the vertices already exist in the graph, they will not be added, however the edges will.
-Graph<K, VV, EV> addEdges(DataSet<Edge<K, EV>> newEdges, DataSet<Vertex<K, VV>> newVertices)
+// adds a list of edges to the Graph. When adding an edge for a non-existing set of vertices, the edge is considered invalid and ignored.
+Graph<K, VV, EV> addEdges(List<Edge<K, EV>> newEdges)
 
 // removes the given Vertex and its edges from the Graph.
 Graph<K, VV, EV> removeVertex(Vertex<K, VV> vertex)
 
-// removes the given data set of Vertices and their edges from the Graph
-Graph<K, VV, EV> removeVertices(DataSet<Vertex<K, VV>> verticesToBeRemoved)
+// removes the given list of vertices and their edges from the Graph
+Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved)
 
 // removes *all* edges that match the given Edge from the Graph.
 Graph<K, VV, EV> removeEdge(Edge<K, EV> edge)
 
-// removes *all* edges that match the edges in the given data set
-Graph<K, VV, EV> removeEdges(DataSet<Edge<K, EV>> edgesToBeRemoved)
+// removes *all* edges that match the edges in the given list
+Graph<K, VV, EV> removeEdges(List<Edge<K, EV>> edgesToBeRemoved)
 {% endhighlight %}
 
 Neighborhood Methods
