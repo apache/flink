@@ -27,7 +27,7 @@ import org.scalatest.{Matchers, FlatSpec}
 import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase
 
-class PolynomialBaseITSuite
+class PolynomialFeaturesITSuite
   extends FlatSpec
   with Matchers
   with FlinkTestBase {

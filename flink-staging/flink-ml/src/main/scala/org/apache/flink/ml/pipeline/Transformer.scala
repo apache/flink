@@ -21,7 +21,7 @@ package org.apache.flink.ml.pipeline
 import scala.reflect.ClassTag
 
 import org.apache.flink.api.scala.DataSet
-import org.apache.flink.ml.common.{ParameterMap, WithParameters}
+import org.apache.flink.ml.common.{FlinkMLTools, ParameterMap, WithParameters}
 
 /** Transformer trait for Flink's pipeline operators.
   *
@@ -60,6 +60,7 @@ trait Transformer[Self <: Transformer[Self]]
       transformParameters: ParameterMap = ParameterMap.Empty)
       (implicit transformOperation: TransformOperation[Self, Input, Output])
     : DataSet[Output] = {
+    FlinkMLTools.registerFlinkMLTypes(input.getExecutionEnvironment)
     transformOperation.transform(that, transformParameters, input)
   }
 

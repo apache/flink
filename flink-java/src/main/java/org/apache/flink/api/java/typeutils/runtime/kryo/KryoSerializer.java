@@ -42,6 +42,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.lang.reflect.Modifier;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -63,7 +64,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	private final List<ExecutionConfig.Entry<Class<?>, Class<? extends Serializer<?>>>> registeredTypesWithSerializerClasses;
 	private final List<ExecutionConfig.Entry<Class<?>, Serializer<?>>> defaultSerializers;
 	private final List<ExecutionConfig.Entry<Class<?>, Class<? extends Serializer<?>>>> defaultSerializerClasses;
-	private final List<Class<?>> registeredTypes;
+	private final LinkedHashSet<Class<?>> registeredTypes;
 
 	private final Class<T> type;
 	
@@ -305,7 +306,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	// For testing
 	// --------------------------------------------------------------------------------------------
 	
-	Kryo getKryo() {
+	public Kryo getKryo() {
 		checkKryoInitialized();
 		return this.kryo;
 	}
