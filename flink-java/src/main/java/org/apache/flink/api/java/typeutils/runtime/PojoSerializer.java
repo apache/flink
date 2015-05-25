@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -78,7 +79,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		this.numFields = fieldSerializers.length;
 		this.executionConfig = executionConfig;
 
-		List<Class<?>> registeredPojoTypes = executionConfig.getRegisteredPojoTypes();
+		LinkedHashSet<Class<?>> registeredPojoTypes = executionConfig.getRegisteredPojoTypes();
 
 		for (int i = 0; i < numFields; i++) {
 			this.fields[i].setAccessible(true);

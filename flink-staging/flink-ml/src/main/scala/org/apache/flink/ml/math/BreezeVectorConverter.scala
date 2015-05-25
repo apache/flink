@@ -56,7 +56,10 @@ object BreezeVectorConverter{
             dense.length,
             dense.iterator.toIterable)
         case sparse: BreezeSparseVector[Double] =>
-          new SparseVector(sparse.length, sparse.index, sparse.data)
+          new SparseVector(
+            sparse.used,
+            sparse.index.take(sparse.used),
+            sparse.data.take(sparse.used))
       }
     }
   }
@@ -68,7 +71,10 @@ object BreezeVectorConverter{
         case dense: BreezeDenseVector[Double] => new DenseVector(dense.data)
 
         case sparse: BreezeSparseVector[Double] =>
-          new SparseVector(sparse.length, sparse.index, sparse.data)
+          new SparseVector(
+            sparse.used,
+            sparse.index.take(sparse.used),
+            sparse.data.take(sparse.used))
       }
     }
   }

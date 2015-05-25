@@ -22,6 +22,7 @@ import com.esotericsoftware.kryo.Serializer;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -97,9 +98,9 @@ public class ExecutionConfig implements Serializable {
 	private final List<Entry<Class<?>, Class<? extends Serializer<?>>>> defaultKryoSerializerClasses =
 			new ArrayList<Entry<Class<?>, Class<? extends Serializer<?>>>>();
 
-	private final List<Class<?>> registeredKryoTypes = new ArrayList<Class<?>>();
+	private final LinkedHashSet<Class<?>> registeredKryoTypes = new LinkedHashSet<Class<?>>();
 
-	private final List<Class<?>> registeredPojoTypes = new ArrayList<Class<?>>();
+	private final LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<Class<?>>();
 
 	// --------------------------------------------------------------------------------------------
 
@@ -505,11 +506,11 @@ public class ExecutionConfig implements Serializable {
 	/**
 	 * Returns the registered Kryo types.
 	 */
-	public List<Class<?>> getRegisteredKryoTypes() {
+	public LinkedHashSet<Class<?>> getRegisteredKryoTypes() {
 		if (isForceKryoEnabled()) {
 			// if we force kryo, we must also return all the types that
 			// were previously only registered as POJO
-			List<Class<?>> result = new ArrayList<Class<?>>();
+			LinkedHashSet<Class<?>> result = new LinkedHashSet<Class<?>>();
 			result.addAll(registeredKryoTypes);
 			for(Class<?> t : registeredPojoTypes) {
 				if (!result.contains(t)) {
@@ -525,7 +526,7 @@ public class ExecutionConfig implements Serializable {
 	/**
 	 * Returns the registered POJO types.
 	 */
-	public List<Class<?>> getRegisteredPojoTypes() {
+	public LinkedHashSet<Class<?>> getRegisteredPojoTypes() {
 		return registeredPojoTypes;
 	}
 

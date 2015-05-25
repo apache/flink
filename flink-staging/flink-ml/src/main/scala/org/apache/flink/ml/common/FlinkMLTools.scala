@@ -40,7 +40,38 @@ import scala.reflect.ClassTag
   *  Takes a DataSet of elements T and groups them in n blocks.
   *
   */
-object FlinkTools {
+object FlinkMLTools {
+
+  /** Registers the different FlinkML related types for Kryo serialization
+    *
+    * @param env
+    */
+  def registerFlinkMLTypes(env: ExecutionEnvironment): Unit = {
+
+    // Vector types
+    env.registerType(classOf[org.apache.flink.ml.math.DenseVector])
+    env.registerType(classOf[org.apache.flink.ml.math.SparseVector])
+
+    // Matrix types
+    env.registerType(classOf[org.apache.flink.ml.math.DenseMatrix])
+    env.registerType(classOf[org.apache.flink.ml.math.SparseMatrix])
+
+    // Breeze Vector types
+    env.registerType(classOf[breeze.linalg.DenseVector[_]])
+    env.registerType(classOf[breeze.linalg.SparseVector[_]])
+
+    // Breeze specialized types
+    env.registerType(breeze.linalg.DenseVector.zeros[Double](0).getClass)
+    env.registerType(breeze.linalg.SparseVector.zeros[Double](0).getClass)
+
+    // Breeze Matrix types
+    env.registerType(classOf[breeze.linalg.DenseMatrix[Double]])
+    env.registerType(classOf[breeze.linalg.CSCMatrix[Double]])
+
+    // Breeze specialized types
+    env.registerType(breeze.linalg.DenseMatrix.zeros[Double](0, 0).getClass)
+    env.registerType(breeze.linalg.CSCMatrix.zeros[Double](0, 0).getClass)
+  }
 
   /** Writes a [[DataSet]] to the specified path and returns it as a DataSource for subsequent
     * operations.

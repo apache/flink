@@ -26,7 +26,7 @@ import scala.util.Random
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.ml.common.FlinkTools.ModuloKeyPartitioner
+import org.apache.flink.ml.common.FlinkMLTools.ModuloKeyPartitioner
 import org.apache.flink.ml.common._
 import org.apache.flink.ml.math.Vector
 import org.apache.flink.ml.math.Breeze._
@@ -244,6 +244,11 @@ object CoCoA{
           case Some(weights) => {
             input.map(new PredictionMapper[T]).withBroadcastSet(weights, WEIGHT_VECTOR)
           }
+
+          case None => {
+            throw new RuntimeException("The CoCoA model has not been trained. Call first fit" +
+              "before calling the predict operation.")
+          }
         }
       }
     }
@@ -310,7 +315,7 @@ object CoCoA{
         val numberVectors = input map { x => 1 } reduce { _ + _ }
 
         // Group the input data into blocks in round robin fashion
-        val blockedInputNumberElements = FlinkTools.block(
+        val blockedInputNumberElements = FlinkMLTools.block(
           input,
           blocks,
           Some(ModuloKeyPartitioner)).

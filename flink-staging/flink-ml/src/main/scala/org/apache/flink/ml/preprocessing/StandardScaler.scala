@@ -61,7 +61,6 @@ import scala.reflect.ClassTag
   */
 class StandardScaler extends Transformer[StandardScaler] {
 
-
   var metricsOption: Option[DataSet[(linalg.Vector[Double], linalg.Vector[Double])]] = None
 
   /** Sets the target mean of the transformed data
@@ -183,7 +182,6 @@ object StandardScaler {
             varianceVector.update(i, 1.0)
           }
         }
-
         (metric._2 / metric._1, varianceVector)
       }
     }
