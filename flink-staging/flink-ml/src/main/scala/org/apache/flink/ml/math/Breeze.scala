@@ -78,10 +78,10 @@ object Breeze {
     def asBreeze: BreezeVector[Double] = {
       vector match {
         case dense: DenseVector =>
-          new BreezeDenseVector[Double](dense.data)
+          new breeze.linalg.DenseVector(dense.data)
 
         case sparse: SparseVector =>
-          new BreezeSparseVector[Double](sparse.indices, sparse.data, sparse.size)
+          new BreezeSparseVector(sparse.indices, sparse.data, sparse.size)
       }
     }
   }

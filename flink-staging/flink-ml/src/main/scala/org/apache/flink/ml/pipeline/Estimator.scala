@@ -21,7 +21,7 @@ package org.apache.flink.ml.pipeline
 import scala.reflect.ClassTag
 
 import org.apache.flink.api.scala.DataSet
-import org.apache.flink.ml.common.{ParameterMap, WithParameters}
+import org.apache.flink.ml.common.{FlinkMLTools, ParameterMap, WithParameters}
 
 /** Base trait for Flink's pipeline operators.
   *
@@ -50,6 +50,7 @@ trait Estimator[Self] extends WithParameters with Serializable {
       training: DataSet[Training],
       fitParameters: ParameterMap = ParameterMap.Empty)(implicit
       fitOperation: FitOperation[Self, Training]): Unit = {
+    FlinkMLTools.registerFlinkMLTypes(training.getExecutionEnvironment)
     fitOperation.fit(this, fitParameters, training)
   }
 }

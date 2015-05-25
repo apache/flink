@@ -471,12 +471,12 @@ object ALS {
         blockIDPartitioner)
 
       val (userIn, userOut) = persistencePath match {
-        case Some(path) => FlinkTools.persist(uIn, uOut, path + "userIn", path + "userOut")
+        case Some(path) => FlinkMLTools.persist(uIn, uOut, path + "userIn", path + "userOut")
         case None => (uIn, uOut)
       }
 
       val (itemIn, itemOut) = persistencePath match {
-        case Some(path) => FlinkTools.persist(iIn, iOut, path + "itemIn", path + "itemOut")
+        case Some(path) => FlinkMLTools.persist(iIn, iOut, path + "itemIn", path + "itemOut")
         case None => (iIn, iOut)
       }
 
@@ -502,7 +502,7 @@ object ALS {
       }
 
       val pItems = persistencePath match {
-        case Some(path) => FlinkTools.persist(items, path + "items")
+        case Some(path) => FlinkMLTools.persist(items, path + "items")
         case None => items
       }
 

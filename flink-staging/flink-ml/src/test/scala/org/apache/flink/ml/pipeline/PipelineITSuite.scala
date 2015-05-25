@@ -18,9 +18,12 @@
 
 package org.apache.flink.ml.pipeline
 
+import breeze.linalg
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.LabeledVector
-import org.apache.flink.ml.math.DenseVector
+import org.apache.flink.ml.math._
 import org.apache.flink.ml.preprocessing.{PolynomialFeatures, StandardScaler}
 import org.apache.flink.ml.regression.MultipleLinearRegression
 import org.apache.flink.test.util.FlinkTestBase
