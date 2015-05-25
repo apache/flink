@@ -87,11 +87,11 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		streamOperator = configuration.getStreamOperator(userClassLoader);
 		
 		if (streamOperator != null) {
+			// IterationHead and IterationTail don't have an Operator...
+
 			//Create context of the head operator
 			StreamingRuntimeContext headContext = createRuntimeContext(configuration);
 			this.contexts.add(headContext);
-
-			// IterationHead and IterationTail don't have an Operator...
 			streamOperator.setup(outputHandler.getOutput(), headContext);
 		}
 
