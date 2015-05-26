@@ -543,7 +543,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		for(FileStatus dir: fs.listStatus(path)) {
 			if (dir.isDir()) {
 				if (acceptFile(dir)) {
-					addNestedFiles(dir.getPath(), files, length, logExcludedFiles);
+					length += addNestedFiles(dir.getPath(), files, length, logExcludedFiles);
 				} else {
 					if (logExcludedFiles && LOG.isDebugEnabled()) {
 						LOG.debug("Directory "+dir.getPath().toString()+" did not pass the file-filter and is excluded.");
