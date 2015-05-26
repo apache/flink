@@ -369,7 +369,22 @@ public class FunctionAnnotation {
 	public @interface ReadFieldsSecond {
 		String[] value();
 	}
-	
+
+	/**
+	 * The SkipCodeAnalysis annotation declares that a function will not be analyzed by Flink's
+	 * code analysis capabilities independent of the configured {@link org.apache.flink.api.common.CodeAnalysisMode}.
+	 *
+	 * If this annotation is not present the static code analyzer pre-interprets user-defined
+	 * functions in order to get implementation insights for program improvements that can be
+	 * printed to the log as hints, automatically applied, or disabled (see
+	 * {@link org.apache.flink.api.common.ExecutionConfig}).
+	 *
+	 */
+	@Target(ElementType.TYPE)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface SkipCodeAnalysis {
+	}
+
 	/**
 	 * Private constructor to prevent instantiation. This class is intended only as a container.
 	 */

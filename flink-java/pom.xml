@@ -60,10 +60,10 @@ under the License.
 
 		<dependency>
 			<groupId>org.ow2.asm</groupId>
-			<artifactId>asm</artifactId>
+			<artifactId>asm-all</artifactId>
 			<version>${asm.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>com.twitter</groupId>
 			<artifactId>chill_${scala.binary.version}</artifactId>

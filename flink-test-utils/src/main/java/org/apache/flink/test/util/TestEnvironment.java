@@ -20,6 +20,7 @@ package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.CodeAnalysisMode;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.optimizer.DataStatistics;
@@ -29,7 +30,6 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-
 import org.junit.Assert;
 
 public class TestEnvironment extends ExecutionEnvironment {
@@ -39,6 +39,8 @@ public class TestEnvironment extends ExecutionEnvironment {
 	public TestEnvironment(ForkableFlinkMiniCluster executor, int parallelism) {
 		this.executor = executor;
 		setParallelism(parallelism);
+		// disabled to improve build time
+		getConfig().setCodeAnalysisMode(CodeAnalysisMode.DISABLE);
 	}
 
 	@Override
