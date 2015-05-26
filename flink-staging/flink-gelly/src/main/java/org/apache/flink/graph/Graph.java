@@ -372,7 +372,8 @@ public class Graph<K, VV, EV> {
 
     /**
      * Apply a function to the attribute of each vertex in the graph.
-     * @param mapper the map function to apply.
+     *
+     * @param mapper     the map function to apply.
      * @param returnType the explicit TypeInformation for the return type.
      * @return a new graph
      */
@@ -403,6 +404,17 @@ public class Graph<K, VV, EV> {
         TypeInformation<Edge<K, NV>> returnType = (TypeInformation<Edge<K, NV>>) new TupleTypeInfo(
                 Edge.class, keyType, keyType, valueType);
 
+        return mapEdges(mapper, returnType);
+    }
+
+    /**
+     * Apply a function to the attribute of each edge in the graph
+     *
+     * @param mapper the map function to apply.
+     * @param returnType the explicit TypeInformation for the return type.
+     * @return a new graph
+     */
+    public <NV> Graph<K, VV, NV> mapEdges(final MapFunction<Edge<K, EV>, NV> mapper, TypeInformation<Edge<K, NV>> returnType) {
         DataSet<Edge<K, NV>> mappedEdges = edges.map(
                 new MapFunction<Edge<K, EV>, Edge<K, NV>>() {
                     public Edge<K, NV> map(Edge<K, EV> value) throws Exception {
