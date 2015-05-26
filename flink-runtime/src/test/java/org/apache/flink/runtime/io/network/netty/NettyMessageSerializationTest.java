@@ -140,6 +140,13 @@ public class NettyMessageSerializationTest {
 			assertEquals(expected.partitionId, actual.partitionId);
 			assertEquals(expected.receiverId, actual.receiverId);
 		}
+
+		{
+			NettyMessage.CancelPartitionRequest expected = new NettyMessage.CancelPartitionRequest(new InputChannelID());
+			NettyMessage.CancelPartitionRequest actual = encodeAndDecode(expected);
+
+			assertEquals(expected.receiverId, actual.receiverId);
+		}
 	}
 
 	@SuppressWarnings("unchecked")
