@@ -37,6 +37,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
@@ -89,11 +90,19 @@ abstract class NettyMessage {
 		@Override
 		public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
 			if (msg instanceof NettyMessage) {
+
+				ByteBuf serialized = null;
+
 				try {
-					ctx.write(((NettyMessage) msg).write(ctx.alloc()), promise);
+					serialized = ((NettyMessage) msg).write(ctx.alloc());
 				}
 				catch (Throwable t) {
 					throw new IOException("Error while serializing message: " + msg, t);
+				}
+				finally {
+					if (serialized != null) {
+						ctx.write(serialized, promise);
+					}
 				}
 			}
 			else {
@@ -311,6 +320,7 @@ abstract class NettyMessage {
 
 			return result;
 		}
+
 		@Override
 		void readFrom(ByteBuf buffer) throws Exception {
 			DataInputView inputView = new ByteBufDataInputView(buffer);
@@ -459,6 +469,48 @@ abstract class NettyMessage {
 
 			partitionId = new ResultPartitionID(IntermediateResultPartitionID.fromByteBuf(buffer), ExecutionAttemptID.fromByteBuf(buffer));
 
+			receiverId = InputChannelID.fromByteBuf(buffer);
+		}
+	}
+
+	/**
+	 * Cancels the partition request of the {@link InputChannel} identified by
+	 * {@link InputChannelID}.
+	 *
+	 * <p> There is a 1:1 mapping between the input channel and partition per physical channel.
+	 * Therefore, the {@link InputChannelID} instance is enough to identify which request to cancel.
+	 */
+	static class CancelPartitionRequest extends NettyMessage {
+
+		final static byte ID = 4;
+
+		InputChannelID receiverId;
+
+		public CancelPartitionRequest(InputChannelID receiverId) {
+			this.receiverId = receiverId;
+		}
+
+		@Override
+		ByteBuf write(ByteBufAllocator allocator) throws Exception {
+			ByteBuf result = null;
+
+			try {
+				result = allocateBuffer(allocator, ID);
+				receiverId.writeTo(result);
+			}
+			catch (Throwable t) {
+				if (result != null) {
+					result.release();
+				}
+
+				throw new IOException(t);
+			}
+
+			return result;
+		}
+
+		@Override
+		void readFrom(ByteBuf buffer) throws Exception {
 			receiverId = InputChannelID.fromByteBuf(buffer);
 		}
 	}

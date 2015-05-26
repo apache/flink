@@ -22,6 +22,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
+import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 
 import java.io.IOException;
@@ -161,10 +163,11 @@ class PartitionRequestClientFactory {
 		private void handInChannel(Channel channel) {
 			synchronized (connectLock) {
 				try {
-					PartitionRequestClientHandler requestHandler =
-							(PartitionRequestClientHandler) channel.pipeline().get(PartitionRequestProtocol.CLIENT_REQUEST_HANDLER_NAME);
+					PartitionRequestClientHandler requestHandler = channel.pipeline()
+							.get(PartitionRequestClientHandler.class);
 
-				partitionRequestClient = new PartitionRequestClient(channel, requestHandler, connectionId, clientFactory);
+					partitionRequestClient = new PartitionRequestClient(
+							channel, requestHandler, connectionId, clientFactory);
 
 					if (disposeRequestClient) {
 						partitionRequestClient.disposeIfNotUsed();
@@ -209,10 +212,16 @@ class PartitionRequestClientFactory {
 				handInChannel(future.channel());
 			}
 			else if (future.cause() != null) {
-				notifyOfError(future.cause());
+				notifyOfError(new RemoteTransportException(
+						"Connecting to remote task manager + '" + connectionId.getAddress() +
+								"' has failed. This might indicate that the remote task " +
+								"manager has been lost.",
+						connectionId.getAddress(), future.cause()));
 			}
 			else {
-				notifyOfError(new IllegalStateException("Connecting the channel has been cancelled."));
+				notifyOfError(new LocalTransportException(
+						"Connecting to remote task manager + '" + connectionId.getAddress() +
+								"' has been cancelled.", null));
 			}
 		}
 	}

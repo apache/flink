@@ -23,6 +23,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
@@ -113,6 +114,11 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 				if (!taskEventDispatcher.publish(request.partitionId, request.event)) {
 					respondWithError(ctx, new IllegalArgumentException("Task event receiver not found."), request.receiverId);
 				}
+			}
+			else if (msgClazz == CancelPartitionRequest.class) {
+				CancelPartitionRequest request = (CancelPartitionRequest) msg;
+
+				outboundQueue.cancel(request.receiverId);
 			}
 			else {
 				LOG.warn("Received unexpected client request: {}", msg);
