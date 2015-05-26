@@ -886,7 +886,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	/**
 	 * The config parameter which defines whether input directories are recursively traversed.
 	 */
-	private static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
+	public static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
 	
 	
 	// ----------------------------------- Config Builder -----------------------------------------
