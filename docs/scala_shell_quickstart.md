@@ -27,7 +27,7 @@ Start working on your Flink Scala program in a few simple steps.
 
 ## Startup Flink interactive Scala shell
 
-Flink has an integrated interactive scala shell.
+Flink has an integrated interactive Scala shell.
 It can be used in a local setup as well as in a cluster setup.
 
 To use it in a local setup just execute:
@@ -51,7 +51,7 @@ flink/bin/start-scala-shell.sh -host "<hostname>" -port <portnumber>
 
 The shell will prebind the ExecutionEnvironment as "env", so far only batch mode is supported.
 
-The following example will execute the wordcount program in the scala shell:
+The following example will execute the wordcount program in the Scala shell:
 
 ~~~scala
 Flink-Shell> val text = env.fromElements("To be, or not to be,--that is the question:--","Whether 'tis nobler in the mind to suffer", "The slings and arrows of outrageous fortune","Or to take arms against a sea of troubles,")

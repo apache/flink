@@ -23,9 +23,7 @@ import scala.tools.nsc.Settings
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 
-/**
- * Created by Nikolaas Steenbergen on 22-4-15.
- */
+
 
 
 object FlinkShell {
@@ -87,14 +85,12 @@ object FlinkShell {
     // start scala interpreter shell
     repl.process(repl.settings)
 
-    //repl.initFlinkEnv()
-
-    repl.closeInterpreter()
+    //repl.closeInterpreter()
 
     if (cluster != null) {
       cluster.stop()
     }
 
-    print(" good bye ..")
+    println(" good bye ..")
   }
 }

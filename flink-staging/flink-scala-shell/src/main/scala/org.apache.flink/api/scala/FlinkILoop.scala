@@ -26,9 +26,7 @@ import scala.tools.nsc.interpreter._
 import org.apache.flink.api.java.ScalaShellRemoteEnvironment
 import org.apache.flink.util.AbstractID
 
-/**
- * Created by Nikolaas Steenbergen on 16-4-15.
- */
+
 class FlinkILoop(val host: String,
                  val port: Int,
                  in0: Option[BufferedReader],
@@ -56,20 +54,17 @@ class FlinkILoop(val host: String,
 
 
   /**
-   * we override the process (initialization) method to
-   * insert Flink related stuff for not using a file for input.
+   * CUSTOM START METHODS OVERRIDE:
    */
 
-  /** Create a new interpreter. */
-  override def createInterpreter() {
-    if (addedClasspath != "")
-    {
-      settings.classpath append addedClasspath
+  addThunk {
+    intp.beQuietDuring {
+      // automatically imports the flink scala api
+      intp.addImports("org.apache.flink.api.scala._")
+      intp.addImports("org.apache.flink.api.common.functions._")
+      // with this we can access this object in the scala shell
+      intp.bindValue("env", this.scalaEnv)
     }
-    intp = new ILoopInterpreter
-    intp.quietRun("import org.apache.flink.api.scala._")
-    intp.quietRun("import org.apache.flink.api.common.functions._")
-    intp.bind("env", this.scalaEnv)
   }
 
 
@@ -146,32 +141,40 @@ class FlinkILoop(val host: String,
   override def printWelcome() {
     echo(
       """
-    $$$$$$$$$$
-  $$8888888888$$
-$$$$888888888888$$
-    $$88888888888$$
-     $$88888888888$$
-      $$8888888888$$
-      $$8888888888$$          $$  $$
-      $$8888888888$$          $$$$$$
-      $$88888888$$$$          $$8888$$
-      $$8888888$$$$          $$88888888
-    $$888888888j$$         $$88888( € )88
-   $$8888888o$$$$        s$$888888888888
-  $$8888888h$$$$     s$$$$88$$88888888(®)
-  $$8888888a$$     s$$888888$$888888    s//$
-  $$88888n$$$$  $$$$8888888888$$88     $$$$
-   $$8888n$$  $$8888888888888888$$$$$?? $$s
-    $$88888a$$88888888$$$$888888888888$$
-    $$888888$$888888888888$$$$
-     $$88888$$888888888888888$$
-      $$$$8888$$88888888888888$$
-          $$$$8888888888888888$$
-              $$888888888888$$
-               $$$$8888888$$
-             $$$$ $$$$$$$$$$$$$$
+                         ▒▓██▓██▒
+                     ▓████▒▒█▓▒▓███▓▒
+                  ▓███▓░░        ▒▒▒▓██▒  ▒
+                ░██▒   ▒▒▓▓█▓▓▒░      ▒████
+                ██▒         ░▒▓███▒    ▒█▒█▒
+                  ░▓█            ███   ▓░▒██
+                    ▓█       ▒▒▒▒▒▓██▓░▒░▓▓█
+                  █░ █   ▒▒░       ███▓▓█ ▒█▒▒▒
+                  ████░   ▒▓█▓      ██▒▒▒ ▓███▒
+               ░▒█▓▓██       ▓█▒    ▓█▒▓██▓ ░█░
+         ▓░▒▓████▒ ██         ▒█    █▓░▒█▒░▒█▒
+        ███▓░██▓  ▓█           █   █▓ ▒▓█▓▓█▒
+      ░██▓  ░█░            █  █▒ ▒█████▓▒ ██▓░▒
+     ███░ ░ █░          ▓ ░█ █████▒░░    ░█░▓  ▓░
+    ██▓█ ▒▒▓▒          ▓███████▓░       ▒█▒ ▒▓ ▓██▓
+ ▒██▓ ▓█ █▓█       ░▒█████▓▓▒░         ██▒▒  █ ▒  ▓█▒
+ ▓█▓  ▓█ ██▓ ░▓▓▓▓▓▓▓▒              ▒██▓           ░█▒
+ ▓█    █ ▓███▓▒░              ░▓▓▓███▓          ░▒░ ▓█
+ ██▓    ██▒    ░▒▓▓███▓▓▓▓▓██████▓▒            ▓███  █
+▓███▒ ███   ░▓▓▒░░   ░▓████▓░                  ░▒▓▒  █▓
+█▓▒▒▓▓██  ░▒▒░░░▒▒▒▒▓██▓░                            █▓
+██ ▓░▒█   ▓▓▓▓▒░░  ▒█▓       ▒▓▓██▓    ▓▒          ▒▒▓
+▓█▓ ▓▒█  █▓░  ░▒▓▓██▒            ░▓█▒   ▒▒▒░▒▒▓█████▒
+ ██░ ▓█▒█▒  ▒▓▓▒  ▓█                █░      ░░░░   ░█▒
+ ▓█   ▒█▓   ░     █░                ▒█              █▓
+  █▓   ██         █░                 ▓▓        ▒█▓▓▓▒█░
+   █▓ ░▓██░       ▓▒                  ▓█▓▒░░░▒▓█░    ▒█
+    ██   ▓█▓░      ▒                    ░▒█▒██▒      ▓▓
+     ▓█▒   ▒█▓▒░                         ▒▒ █▒█▓▒▒░░▒██
+      ░██▒    ▒▓▓▒                     ▓██▓▒█▒ ░▓▓▓▓▒█▓
+        ░▓██▒                          ▓░  ▒█▓█  ░░▒▒▒
+            ▒▓▓▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░▓▓  ▓░▒█░
 
-            F L I N K
+              F L I N K - S C A L A - S H E L L
 
 NOTE: Use the prebound Execution Environment "env" to read data and execute your program:
   * env.readTextFile("/path/to/data")

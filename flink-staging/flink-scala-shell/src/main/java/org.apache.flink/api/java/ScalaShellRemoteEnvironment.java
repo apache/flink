@@ -27,9 +27,11 @@ import org.apache.flink.api.scala.FlinkILoop;
 
 import java.io.File;
 
-
 /**
- * Created by Nikolaas Steenbergen on 23-4-15.
+ * ScalaShellRemoteEnvironment references the JobManager through host and port parameters,
+ * and the Scala Shell (FlinkILoop).
+ * Upon calling execute(), it reads compiled lines of the Scala shell, aggregates them to a Jar
+ * and sends aggregated jar to the JobManager.
  */
 
 public class ScalaShellRemoteEnvironment extends RemoteEnvironment {

@@ -20,23 +20,28 @@ import java.io._
 import java.net.URLClassLoader
 
 import org.apache.flink.api.scala.FlinkILoop
-import org.apache.flink.test.util.MultipleProgramsTestBase
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.junit.Test
+import org.apache.flink.test.util.AbstractMultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{AbstractMultipleProgramsTestBase, MultipleProgramsTestBase}
+import org.junit.{BeforeClass, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.mutable.ArrayBuffer
 import scala.tools.nsc.Settings
 
-/**
- * Created by Nikolaas Steenbergen on 28-4-15.
- */
 
+object ScalaShellITSuite {
+  @BeforeClass
+  def setup() = {
+    AbstractMultipleProgramsTestBase.singleActorSystem = false
+    AbstractMultipleProgramsTestBase.setup()
+  }
+}
 
 
 @RunWith(classOf[Parameterized])
 class ScalaShellITSuite(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode){
+
 
 
   /**
@@ -54,7 +59,7 @@ class ScalaShellITSuite(mode: TestExecutionMode) extends MultipleProgramsTestBas
 
     // new local cluster
     val host = "localhost"
-    val port = MultipleProgramsTestBase
+    val port = AbstractMultipleProgramsTestBase
       .cluster
       .getJobManagerRPCPort
 
@@ -80,7 +85,6 @@ class ScalaShellITSuite(mode: TestExecutionMode) extends MultipleProgramsTestBas
     repl.addedClasspath = classpath
 
     repl.process(repl.settings)
-    //repl.process(Array("-classpath",classpath))
 
     repl.closeInterpreter
 
@@ -120,7 +124,7 @@ class ScalaShellITSuite(mode: TestExecutionMode) extends MultipleProgramsTestBas
           result
         }
         val result = count map { c => c / 10000.0 * 4 }
-        result.print()
+        result.collect()
       """.stripMargin
 
     val output : String = processInShell(input)
@@ -146,22 +150,19 @@ class ScalaShellITSuite(mode: TestExecutionMode) extends MultipleProgramsTestBas
         "Or to take arms against a sea of troubles,")
 
         val counts = text.flatMap { _.toLowerCase.split("\\W+") }.map { (_, 1) }.groupBy(0).sum(1)
-        val result = counts.collect()
-                         """.stripMargin
+        val result = counts.print()
+        """.stripMargin
+
       val output : String = processInShell(input)
       //assertDoesNotContain("failed",output)
       assertDoesNotContain("error",output)
       assertDoesNotContain("Exception",output)
 
       assertContains("Job execution switched to status FINISHED.",output)
-      assertContains("result: Seq[(String, Int)] " +
-        "= Buffer((a,1), (against,1), (and,1), " +
-        "(arms,1), (arrows,1), (be,2), (fortune,1), " +
-        "(in,1), (is,1), (mind,1), (nobler,1), " +
-        "(not,1), (of,2), (or,2), (outrageous,1), " +
-        "(question,1), (sea,1), (slings,1), " +
-        "(suffer,1), (take,1), (that,1), (the,3), " +
-        "(tis,1), (to,4), (troubles,1), (whether,1))",output)
+      assertContains("(a,1)",output)
+      assertContains("(whether,1)",output)
+      assertContains("(to,4)",output)
+      assertContains("(arrows,1)",output);
     }
 
   /**
