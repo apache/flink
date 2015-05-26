@@ -26,4 +26,4 @@ case class NetworkEnvironmentConfiguration(
   networkBufferSize: Int,
   ioMode: IOMode,
   nettyConfig: Option[NettyConfig] = None,
-  partitionRequestInitialAndMaxBackoff: Tuple2[Integer, Integer] = (50, 3000))
+  partitionRequestInitialAndMaxBackoff: Tuple2[Integer, Integer] = (500, 3000))

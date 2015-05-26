@@ -56,7 +56,7 @@ public class UnknownInputChannel extends InputChannel {
 			ConnectionManager connectionManager,
 			Tuple2<Integer, Integer> partitionRequestInitialAndMaxBackoff) {
 
-		super(gate, channelIndex, partitionId);
+		super(gate, channelIndex, partitionId, partitionRequestInitialAndMaxBackoff);
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
@@ -116,6 +116,6 @@ public class UnknownInputChannel extends InputChannel {
 	}
 
 	public LocalInputChannel toLocalInputChannel() {
-		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher);
+		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher, partitionRequestInitialAndMaxBackoff);
 	}
 }
