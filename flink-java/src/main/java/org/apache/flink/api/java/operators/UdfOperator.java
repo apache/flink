@@ -57,7 +57,6 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	
 	/**
 	 * Gets the semantic properties that have been set for the user-defined functions (UDF).
-	 * This method may return null, if no semantic properties have been set so far.
 	 * 
 	 * @return The semantic properties of the UDF.
 	 */

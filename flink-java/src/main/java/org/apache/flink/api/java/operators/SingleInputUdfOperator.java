@@ -54,7 +54,10 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 
 	private Map<String, DataSet<?>> broadcastVariables;
 
+	// NOTE: only set this variable via setSemanticProperties()
 	private SingleInputSemanticProperties udfSemantics;
+
+	private boolean analyzedUdfSemantics;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -157,11 +160,12 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 
 		if(this.udfSemantics == null) {
 			// extract semantic properties from function annotations
-			this.udfSemantics = extractSemanticAnnotations(getFunction().getClass());
+			setSemanticProperties(extractSemanticAnnotations(getFunction().getClass()));
 		}
 
-		if(this.udfSemantics == null) {
-			this.udfSemantics = new SingleInputSemanticProperties();
+		if(this.udfSemantics == null
+				|| this.analyzedUdfSemantics) { // discard analyzed semantic properties
+			setSemanticProperties(new SingleInputSemanticProperties());
 			SemanticPropUtil.getSemanticPropsSingleFromString(this.udfSemantics, forwardedFields, null, null, this.getInputType(), this.getResultType());
 		} else {
 			if(udfWithForwardedFieldsAnnotation(getFunction().getClass())) {
@@ -311,11 +315,15 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 
 	@Override
 	public SingleInputSemanticProperties getSemanticProperties() {
-		if (this.udfSemantics == null) {
+		if (this.udfSemantics == null || analyzedUdfSemantics) {
 			SingleInputSemanticProperties props = extractSemanticAnnotations(getFunction().getClass());
-			this.udfSemantics = props != null ? props : new SingleInputSemanticProperties();
+			if (props != null) {
+				setSemanticProperties(props);
+			}
 		}
-		
+		if (this.udfSemantics == null) {
+			setSemanticProperties(new SingleInputSemanticProperties());
+		}
 		return this.udfSemantics;
 	}
 
@@ -329,8 +337,17 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 */
 	public void setSemanticProperties(SingleInputSemanticProperties properties) {
 		this.udfSemantics = properties;
+		this.analyzedUdfSemantics = false;
 	}
-	
+
+	protected boolean getAnalyzedUdfSemanticsFlag() {
+		return this.analyzedUdfSemantics;
+	}
+
+	protected void setAnalyzedUdfSemanticsFlag() {
+		this.analyzedUdfSemantics = true;
+	}
+
 	protected SingleInputSemanticProperties extractSemanticAnnotations(Class<?> udfClass) {
 		Set<Annotation> annotations = FunctionAnnotation.readSingleForwardAnnotations(udfClass);
 		return SemanticPropUtil.getSemanticPropsSingle(annotations, getInputType(), getResultType());

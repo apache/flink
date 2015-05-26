@@ -44,6 +44,10 @@ import java.util.Map;
  *         handling <i>generic types</i> and <i>POJOs</i>. This is usually only needed
  *         when the functions return not only the types declared in their signature, but
  *         also subclasses of those types.</li>
+ *     <li>The {@link UdfAnalysisMode} of the program: Enable hinting/optimizing or disable
+ *         the "UDF analyzer". The UDF analyzer pre-interprets user-defined functions in order to
+ *         get implementation insights for program improvements that can be printed to the log or
+ *         automatically applied.</li>
  * </ul>
  */
 public class ExecutionConfig implements Serializable {
@@ -77,6 +81,8 @@ public class ExecutionConfig implements Serializable {
 	private boolean disableAutoTypeRegistration = false;
 
 	private boolean forceAvro = false;
+
+	private UdfAnalysisMode udfAnalysisMode = UdfAnalysisMode.HINTING_ENABLED;
 
 	/** If set to true, progress updates are printed to System.out during execution */
 	private boolean printProgressDuringExecution = true;
@@ -315,6 +321,26 @@ public class ExecutionConfig implements Serializable {
 	 */
 	public boolean isObjectReuseEnabled() {
 		return objectReuse;
+	}
+	
+	/**
+	 * Sets the {@link UdfAnalysisMode} of the program. Specifies to which extent user-defined
+	 * functions are analyzed in order to give the Flink optimizer an insight of UDF internals
+	 * and inform the user about common implementation mistakes. The UDF analyzer pre-interprets
+	 * user-defined functions in order to get implementation insights for program improvements
+	 * that can be printed to the log, automatically applied, or disabled.
+	 * 
+	 * @param udfAnalysisMode see {@link UdfAnalysisMode}
+	 */
+	public void setUdfAnalysisMode(UdfAnalysisMode udfAnalysisMode) {
+		this.udfAnalysisMode = udfAnalysisMode;
+	}
+	
+	/**
+	 * Returns the {@link UdfAnalysisMode} of the program.
+	 */
+	public UdfAnalysisMode getUdfAnalysisMode() {
+		return udfAnalysisMode;
 	}
 
 	/**

@@ -85,8 +85,8 @@ under the License.
 		<kryoserialization.version>0.3.2</kryoserialization.version>
 		<protobuf.version>2.5.0</protobuf.version>
 		<chill.version>0.5.2</chill.version>
-		<asm.version>5.0.3</asm.version>
-        <tez.version>0.6.0</tez.version>
+		<asm.version>5.0.4</asm.version>
+		<tez.version>0.6.0</tez.version>
 	</properties>
 
 	<dependencies>
@@ -163,7 +163,7 @@ under the License.
 						asm,
 						netty
 					here. It will overwrite Hadoop's guava dependency (even though we handle it
-			separatly in the flink-shaded-hadoop module).
+			separately in the flink-shaded-hadoop module).
 			We can use all guava versions everywhere by adding it directly as a dependency to each project.
 		-->
 		<dependencies>
