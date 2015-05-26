@@ -45,7 +45,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
@@ -377,15 +376,28 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			boolean success = false;
 
 			try {
-				checkNotNull(buffer, "Buffer request could not be satisfied.");
+				if (buffer != null) {
+					if (availableBuffer.compareAndSet(null, buffer)) {
+						ctx.channel().eventLoop().execute(this);
 
-				if (availableBuffer.compareAndSet(null, buffer)) {
-					ctx.channel().eventLoop().execute(this);
-
-					success = true;
+						success = true;
+					}
+					else {
+						throw new IllegalStateException("Received a buffer notification, " +
+								" but the previous one has not been handled yet.");
+					}
 				}
 				else {
-					throw new IllegalStateException("Received a buffer notification, but the previous one has not been handled yet.");
+					// The buffer pool has been destroyed
+					stagedBufferResponse = null;
+
+					if (stagedMessages.isEmpty()) {
+						ctx.channel().config().setAutoRead(true);
+						ctx.channel().read();
+					}
+					else {
+						ctx.channel().eventLoop().execute(stagedMessagesHandler);
+					}
 				}
 			}
 			catch (Throwable t) {
