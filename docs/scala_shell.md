@@ -1,5 +1,5 @@
 ---
-title: "Quickstart: Scala Shell"
+title: "Interactive Scala Shell"
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -20,32 +20,26 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-* This will be replaced by the TOC
-{:toc}
 
-Start working on your Flink Scala program in a few simple steps.
+Flink comes with an integrated interactive Scala Shell.
+It can be used in a local setup as well as in a cluster setup. To get started with downloading
+Flink and setting up a cluster please refer to
+[local setup]({{ site.baseurl }}/setup/local_setup.html) or
+[cluster setup]({{ site.baseurl }}/setup/cluster.html) 
 
-## Startup Flink interactive Scala shell
+To use the shell with an integrated Flink cluster just execute:
 
-Flink has an integrated interactive Scala shell.
-It can be used in a local setup as well as in a cluster setup.
-
-To use it in a local setup just execute:
-
-__Sample Input__:
 ~~~bash
-flink/bin/start-scala-shell.sh 
+bin/start-scala-shell.sh 
 ~~~
 
-And it will initialize a local JobManager by itself.
+in your link directory.
 
-To use it in a cluster setup you can supply the host and port of the JobManager with:
+To use it with a running cluster you can supply the host and port of the JobManager with:
 
-__Sample Input__:
 ~~~bash
-flink/bin/start-scala-shell.sh -host "<hostname>" -port <portnumber>
+bin/start-scala-shell.sh -host <hostname> -port <portnumber>
 ~~~
-
 
 ## Usage
 
@@ -54,18 +48,22 @@ The shell will prebind the ExecutionEnvironment as "env", so far only batch mode
 The following example will execute the wordcount program in the Scala shell:
 
 ~~~scala
-Flink-Shell> val text = env.fromElements("To be, or not to be,--that is the question:--","Whether 'tis nobler in the mind to suffer", "The slings and arrows of outrageous fortune","Or to take arms against a sea of troubles,")
-Flink-Shell> val counts = text.flatMap { _.toLowerCase.split("\\W+") }.map { (_, 1) }.groupBy(0).sum(1)
-Flink-Shell> counts.print()
+Scala-Flink> val text = env.fromElements(
+  "To be, or not to be,--that is the question:--",
+  "Whether 'tis nobler in the mind to suffer",
+  "The slings and arrows of outrageous fortune",
+  "Or to take arms against a sea of troubles,")
+Scala-Flink> val counts = text.flatMap { _.toLowerCase.split("\\W+") }.map { (_, 1) }.groupBy(0).sum(1)
+Scala-Flink> counts.print()
 ~~~
 
 
 The print() command will automatically send the specified tasks to the JobManager for execution and will show the result of the computation in the terminal.
 
-It is possbile to write results to a file, like in the standard Scala api. However, in this case you need to call, to run your program:
+It is possbile to write results to a file. However, in this case you need to call `execute`, to run your program:
 
 ~~~scala
-Flink-Shell> env.execute("MyProgram")
+Scala-Flink> env.execute("MyProgram")
 ~~~
 
 The Flink Shell comes with command history and autocompletion.
