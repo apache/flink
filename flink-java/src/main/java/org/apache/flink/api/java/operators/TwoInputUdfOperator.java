@@ -29,12 +29,12 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.api.java.DataSet;
 
 /**
  * The <tt>TwoInputUdfOperator</tt> is the base class of all binary operators that execute
@@ -56,7 +56,10 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 
 	private Map<String, DataSet<?>> broadcastVariables;
 
+	// NOTE: only set this variable via setSemanticProperties()
 	private DualInputSemanticProperties udfSemantics;
+
+	private boolean analyzedUdfSemantics;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -157,13 +160,13 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 */
 	@SuppressWarnings("unchecked")
 	public O withForwardedFieldsFirst(String... forwardedFieldsFirst) {
-		if (this.udfSemantics == null) {
+		if (this.udfSemantics == null || this.analyzedUdfSemantics) {
 			// extract semantic properties from function annotations
-			this.udfSemantics = extractSemanticAnnotationsFromUdf(getFunction().getClass());
+			setSemanticProperties(extractSemanticAnnotationsFromUdf(getFunction().getClass()));
 		}
 
-		if(this.udfSemantics == null) {
-			this.udfSemantics = new DualInputSemanticProperties();
+		if(this.udfSemantics == null || this.analyzedUdfSemantics) {
+			setSemanticProperties(new DualInputSemanticProperties());
 			SemanticPropUtil.getSemanticPropsDualFromString(this.udfSemantics, forwardedFieldsFirst, null,
 					null, null, null, null, getInput1Type(), getInput2Type(), getResultType());
 		} else {
@@ -232,13 +235,13 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 */
 	@SuppressWarnings("unchecked")
 	public O withForwardedFieldsSecond(String... forwardedFieldsSecond) {
-		if (this.udfSemantics == null) {
+		if (this.udfSemantics == null || this.analyzedUdfSemantics) {
 			// extract semantic properties from function annotations
-			this.udfSemantics = extractSemanticAnnotationsFromUdf(getFunction().getClass());
+			setSemanticProperties(extractSemanticAnnotationsFromUdf(getFunction().getClass()));
 		}
 
-		if(this.udfSemantics == null) {
-			this.udfSemantics = new DualInputSemanticProperties();
+		if(this.udfSemantics == null || this.analyzedUdfSemantics) {
+			setSemanticProperties(new DualInputSemanticProperties());
 			SemanticPropUtil.getSemanticPropsDualFromString(this.udfSemantics, null, forwardedFieldsSecond,
 					null, null, null, null, getInput1Type(), getInput2Type(), getResultType());
 		} else {
@@ -390,11 +393,15 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 
 	@Override
 	public DualInputSemanticProperties getSemanticProperties() {
-		if (this.udfSemantics == null) {
+		if (this.udfSemantics == null || analyzedUdfSemantics) {
 			DualInputSemanticProperties props = extractSemanticAnnotationsFromUdf(getFunction().getClass());
-			this.udfSemantics = props != null ? props : new DualInputSemanticProperties();
+			if (props != null) {
+				setSemanticProperties(props);
+			}
 		}
-		
+		if (this.udfSemantics == null) {
+			setSemanticProperties(new DualInputSemanticProperties());
+		}
 		return this.udfSemantics;
 	}
 
@@ -408,9 +415,17 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 */
 	public void setSemanticProperties(DualInputSemanticProperties properties) {
 		this.udfSemantics = properties;
+		this.analyzedUdfSemantics = false;
 	}
-	
-	
+
+	protected boolean getAnalyzedUdfSemanticsFlag() {
+		return this.analyzedUdfSemantics;
+	}
+
+	protected void setAnalyzedUdfSemanticsFlag() {
+		this.analyzedUdfSemantics = true;
+	}
+
 	protected DualInputSemanticProperties extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
 		Set<Annotation> annotations = FunctionAnnotation.readDualForwardAnnotations(udfClass);
 		return SemanticPropUtil.getSemanticPropsDual(annotations, getInput1Type(), getInput2Type(), getResultType());

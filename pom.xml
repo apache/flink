@@ -85,8 +85,8 @@ under the License.
 		<kryoserialization.version>0.3.2</kryoserialization.version>
 		<protobuf.version>2.5.0</protobuf.version>
 		<chill.version>0.5.2</chill.version>
-		<asm.version>5.0.3</asm.version>
-        <tez.version>0.6.1</tez.version>
+		<asm.version>5.0.4</asm.version>
+		<tez.version>0.6.1</tez.version>
 	</properties>
 
 	<dependencies>

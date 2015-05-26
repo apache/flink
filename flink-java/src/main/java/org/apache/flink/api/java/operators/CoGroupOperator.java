@@ -124,6 +124,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 		this.keys1 = keys1;
 		this.keys2 = keys2;
+
+		UdfOperatorUtils.analyzeDualInputUdf(this, CoGroupFunction.class, defaultName, function, keys1, keys2);
 	}
 	
 	@Override
@@ -144,9 +146,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			int numFields1 = this.getInput1Type().getTotalFields();
 			int numFields2 = this.getInput2Type().getTotalFields();
 			int offset1 = (this.keys1 instanceof Keys.SelectorFunctionKeys) ?
-					((Keys.SelectorFunctionKeys) this.keys1).getKeyType().getTotalFields() : 0;
+					((Keys.SelectorFunctionKeys<?,?>) this.keys1).getKeyType().getTotalFields() : 0;
 			int offset2 = (this.keys2 instanceof Keys.SelectorFunctionKeys) ?
-					((Keys.SelectorFunctionKeys) this.keys2).getKeyType().getTotalFields() : 0;
+					((Keys.SelectorFunctionKeys<?,?>) this.keys2).getKeyType().getTotalFields() : 0;
 
 			props = SemanticPropUtil.addSourceFieldOffsets(props, numFields1, numFields2, offset1, offset2);
 		}

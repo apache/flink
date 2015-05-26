@@ -202,6 +202,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			this.function = function;
 			this.joinLocationName = joinLocationName;
+
+			UdfOperatorUtils.analyzeDualInputUdf(this, FlatJoinFunction.class, joinLocationName, function, keys1, keys2);
 		}
 
 		public EquiJoin(DataSet<I1> input1, DataSet<I2> input2,
@@ -217,6 +219,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			}
 
 			this.function = generatedFunction;
+
+			UdfOperatorUtils.analyzeDualInputUdf(this, JoinFunction.class, joinLocationName, function, keys1, keys2);
 		}
 		
 		@Override
@@ -237,9 +241,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				int numFields1 = this.getInput1Type().getTotalFields();
 				int numFields2 = this.getInput2Type().getTotalFields();
 				int offset1 = (this.keys1 instanceof Keys.SelectorFunctionKeys) ?
-						((Keys.SelectorFunctionKeys) this.keys1).getKeyType().getTotalFields() : 0;
+						((Keys.SelectorFunctionKeys<?,?>) this.keys1).getKeyType().getTotalFields() : 0;
 				int offset2 = (this.keys2 instanceof Keys.SelectorFunctionKeys) ?
-						((Keys.SelectorFunctionKeys) this.keys2).getKeyType().getTotalFields() : 0;
+						((Keys.SelectorFunctionKeys<?,?>) this.keys2).getKeyType().getTotalFields() : 0;
 
 				props = SemanticPropUtil.addSourceFieldOffsets(props, numFields1, numFields2, offset1, offset2);
 			}

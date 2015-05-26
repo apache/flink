@@ -19,14 +19,6 @@
 
 package org.apache.flink.api.java.functions;
 
-import java.lang.annotation.Annotation;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties.InvalidSemanticAnnotationException;
@@ -34,19 +26,27 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.api.common.typeutils.CompositeType.InvalidFieldReferenceException;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
+import org.apache.flink.api.common.typeutils.CompositeType.InvalidFieldReferenceException;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
-import org.apache.flink.api.java.functions.FunctionAnnotation.NonForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
-import org.apache.flink.api.java.functions.FunctionAnnotation.NonForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
+import org.apache.flink.api.java.functions.FunctionAnnotation.NonForwardedFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.NonForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.NonForwardedFieldsSecond;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFieldsSecond;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+
+import java.lang.annotation.Annotation;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SemanticPropUtil {
 
@@ -235,7 +235,7 @@ public class SemanticPropUtil {
 	public static SingleInputSemanticProperties getSemanticPropsSingle(
 			Set<Annotation> set, TypeInformation<?> inType, TypeInformation<?> outType) {
 		if (set == null) {
-			return new SingleInputSemanticProperties();
+			return null;
 		}
 		Iterator<Annotation> it = set.iterator();
 
@@ -264,15 +264,14 @@ public class SemanticPropUtil {
 			SingleInputSemanticProperties result = new SingleInputSemanticProperties();
 			getSemanticPropsSingleFromString(result, forwarded, nonForwarded, read, inType, outType);
 			return result;
-		} else {
-			return new SingleInputSemanticProperties();
 		}
+		return null;
 	}
 
 	public static DualInputSemanticProperties getSemanticPropsDual(
 			Set<Annotation> set, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType) {
 		if (set == null) {
-			return new DualInputSemanticProperties();
+			return null;
 		}
 		Iterator<Annotation> it = set.iterator();
 
@@ -309,15 +308,20 @@ public class SemanticPropUtil {
 			getSemanticPropsDualFromString(result, forwardedFirst, forwardedSecond,
 					nonForwardedFirst, nonForwardedSecond, readFirst, readSecond, inType1, inType2, outType);
 			return result;
-		} else {
-			return new DualInputSemanticProperties();
 		}
+		return null;
+	}
+
+	public static void getSemanticPropsSingleFromString(SingleInputSemanticProperties result,
+														String[] forwarded, String[] nonForwarded, String[] readSet,
+														TypeInformation<?> inType, TypeInformation<?> outType) {
+		getSemanticPropsSingleFromString(result, forwarded, nonForwarded, readSet, inType, outType, false);
 	}
 
 	public static void getSemanticPropsSingleFromString(SingleInputSemanticProperties result,
 			String[] forwarded, String[] nonForwarded, String[] readSet,
-			TypeInformation<?> inType, TypeInformation<?> outType)
-	{
+			TypeInformation<?> inType, TypeInformation<?> outType,
+			boolean skipIncompatibleTypes) {
 
 		boolean hasForwardedAnnotation = false;
 		boolean hasNonForwardedAnnotation = false;
@@ -334,9 +338,9 @@ public class SemanticPropUtil {
 			throw new InvalidSemanticAnnotationException("Either ForwardedFields OR " +
 					"NonForwardedFields annotation permitted, NOT both.");
 		} else if(hasForwardedAnnotation) {
-			parseForwardedFields(result, forwarded, inType, outType, 0);
+			parseForwardedFields(result, forwarded, inType, outType, 0, skipIncompatibleTypes);
 		} else if(hasNonForwardedAnnotation) {
-			parseNonForwardedFields(result, nonForwarded, inType, outType, 0);
+			parseNonForwardedFields(result, nonForwarded, inType, outType, 0, skipIncompatibleTypes);
 		}
 		parseReadFields(result, readSet, inType, 0);
 	}
@@ -345,8 +349,18 @@ public class SemanticPropUtil {
 			String[] forwardedFirst, String[] forwardedSecond,
 			String[] nonForwardedFirst, String[] nonForwardedSecond, String[]
 			readFieldsFirst, String[] readFieldsSecond,
-			TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType)
-	{
+			TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType) {
+		getSemanticPropsDualFromString(result, forwardedFirst, forwardedSecond, nonForwardedFirst,
+				nonForwardedSecond, readFieldsFirst, readFieldsSecond, inType1, inType2,  outType,
+				false);
+	}
+
+	public static void getSemanticPropsDualFromString(DualInputSemanticProperties result,
+			String[] forwardedFirst, String[] forwardedSecond,
+			String[] nonForwardedFirst, String[] nonForwardedSecond, String[]
+			readFieldsFirst, String[] readFieldsSecond,
+			TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType,
+			boolean skipIncompatibleTypes) {
 
 		boolean hasForwardedFirstAnnotation = false;
 		boolean hasForwardedSecondAnnotation = false;
@@ -377,15 +391,15 @@ public class SemanticPropUtil {
 		}
 
 		if(hasForwardedFirstAnnotation) {
-			parseForwardedFields(result, forwardedFirst, inType1, outType, 0);
+			parseForwardedFields(result, forwardedFirst, inType1, outType, 0, skipIncompatibleTypes);
 		} else if(hasNonForwardedFirstAnnotation) {
-			parseNonForwardedFields(result, nonForwardedFirst, inType1, outType, 0);
+			parseNonForwardedFields(result, nonForwardedFirst, inType1, outType, 0, skipIncompatibleTypes);
 		}
 
 		if(hasForwardedSecondAnnotation) {
-			parseForwardedFields(result, forwardedSecond, inType2, outType, 1);
+			parseForwardedFields(result, forwardedSecond, inType2, outType, 1, skipIncompatibleTypes);
 		} else if(hasNonForwardedSecondAnnotation) {
-			parseNonForwardedFields(result, nonForwardedSecond, inType2, outType, 1);
+			parseNonForwardedFields(result, nonForwardedSecond, inType2, outType, 1, skipIncompatibleTypes);
 		}
 
 		parseReadFields(result, readFieldsFirst, inType1, 0);
@@ -393,7 +407,8 @@ public class SemanticPropUtil {
 	}
 
 
-	private static void parseForwardedFields(SemanticProperties sp, String[] forwardedStr, TypeInformation<?> inType, TypeInformation<?> outType, int input) {
+	private static void parseForwardedFields(SemanticProperties sp, String[] forwardedStr,
+			TypeInformation<?> inType, TypeInformation<?> outType, int input, boolean skipIncompatibleTypes) {
 
 		if (forwardedStr == null) {
 			return;
@@ -412,8 +427,13 @@ public class SemanticPropUtil {
 			if (wcMatcher.matches()) {
 
 				if (!inType.equals(outType)) {
-					throw new InvalidSemanticAnnotationException("Forwarded field annotation \"" + s +
-							"\" with wildcard only allowed for identical input and output types.");
+					if (skipIncompatibleTypes) {
+						continue;
+					}
+					else {
+						throw new InvalidSemanticAnnotationException("Forwarded field annotation \"" + s +
+								"\" with wildcard only allowed for identical input and output types.");
+					}
 				}
 
 				for (int i = 0; i < inType.getTotalFields(); i++) {
@@ -440,8 +460,13 @@ public class SemanticPropUtil {
 
 				try {
 					// check type compatibility
-					if (!areFieldsCompatible(sourceStr, inType, targetStr, outType)) {
-						throw new InvalidSemanticAnnotationException("Referenced fields of forwarded field annotation \"" + s + "\" do not match.");
+					if (!areFieldsCompatible(sourceStr, inType, targetStr, outType, !skipIncompatibleTypes)) {
+						if (skipIncompatibleTypes) {
+							continue;
+						}
+						else {
+							throw new InvalidSemanticAnnotationException("Referenced fields of forwarded field annotation \"" + s + "\" do not match.");
+						}
 					}
 					List<FlatFieldDescriptor> inFFDs = getFlatFields(sourceStr, inType);
 					List<FlatFieldDescriptor> outFFDs = getFlatFields(targetStr, outType);
@@ -478,8 +503,13 @@ public class SemanticPropUtil {
 					String fieldStr = fieldMatcher.group();
 					try {
 						// check if field is compatible in input and output type
-						if (!areFieldsCompatible(fieldStr, inType, fieldStr, outType)) {
-							throw new InvalidSemanticAnnotationException("Referenced fields of forwarded field annotation \"" + s + "\" do not match.");
+						if (!areFieldsCompatible(fieldStr, inType, fieldStr, outType, !skipIncompatibleTypes)) {
+							if (skipIncompatibleTypes) {
+								continue;
+							}
+							else {
+								throw new InvalidSemanticAnnotationException("Referenced fields of forwarded field annotation \"" + s + "\" do not match.");
+							}
 						}
 						// add flat field positions
 						List<FlatFieldDescriptor> inFFDs = getFlatFields(fieldStr, inType);
@@ -503,8 +533,8 @@ public class SemanticPropUtil {
 		}
 	}
 
-	private static void parseNonForwardedFields(
-			SemanticProperties sp, String[] nonForwardedStr, TypeInformation<?> inType, TypeInformation<?> outType, int input) {
+	private static void parseNonForwardedFields(SemanticProperties sp, String[] nonForwardedStr,
+			TypeInformation<?> inType, TypeInformation<?> outType, int input, boolean skipIncompatibleTypes) {
 
 		if(nonForwardedStr == null) {
 			return;
@@ -521,7 +551,12 @@ public class SemanticPropUtil {
 			}
 
 			if(!inType.equals(outType)) {
-				throw new InvalidSemanticAnnotationException("Non-forwarded fields annotation only allowed for identical input and output types.");
+				if (skipIncompatibleTypes) {
+					continue;
+				}
+				else {
+					throw new InvalidSemanticAnnotationException("Non-forwarded fields annotation only allowed for identical input and output types.");
+				}
 			}
 
 			Matcher matcher = PATTERN_LIST.matcher(s);
@@ -613,14 +648,24 @@ public class SemanticPropUtil {
 
 	////////////////////// UTIL METHODS ///////////////////////////////
 
-	private static boolean areFieldsCompatible(String sourceField, TypeInformation<?> inType, String targetField, TypeInformation<?> outType) {
+	private static boolean areFieldsCompatible(String sourceField, TypeInformation<?> inType, String targetField,
+			TypeInformation<?> outType, boolean throwException) {
 
-		// get source type information
-		TypeInformation<?> sourceType = getExpressionTypeInformation(sourceField, inType);
-		// get target type information
-		TypeInformation<?> targetType = getExpressionTypeInformation(targetField, outType);
-
-		return (sourceType.equals(targetType));
+		try {
+			// get source type information
+			TypeInformation<?> sourceType = getExpressionTypeInformation(sourceField, inType);
+			// get target type information
+			TypeInformation<?> targetType = getExpressionTypeInformation(targetField, outType);
+			return sourceType.equals(targetType);
+		}
+		catch (InvalidFieldReferenceException e) {
+			if (throwException) {
+				throw e;
+			}
+			else {
+				return false;
+			}
+		}
 	}
 
 	private static TypeInformation<?> getExpressionTypeInformation(String fieldStr, TypeInformation<?> typeInfo) {
