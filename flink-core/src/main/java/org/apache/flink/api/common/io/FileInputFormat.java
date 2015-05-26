@@ -326,33 +326,21 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		
 		// get the file info and check whether the cached statistics are still valid.
 		final FileStatus file = fs.getFileStatus(filePath);
-		long latestModTime = file.getModificationTime();
 		long totalLength = 0;
 
-		// enumerate all files and check their modification time stamp.
+		// enumerate all files
 		if (file.isDir()) {
-			FileStatus[] fss = fs.listStatus(filePath);
-			files.ensureCapacity(fss.length);
-			
-			for (FileStatus s : fss) {
-				if (!s.isDir()) {
-					if (acceptFile(s)) {
-						files.add(s);
-						totalLength += s.getLen();
-						latestModTime = Math.max(s.getModificationTime(), latestModTime);
-						testForUnsplittable(s);
-					}
-				}
-				else {
-					if (enumerateNestedFiles && acceptFile(s)) {
-						totalLength += addNestedFiles(s.getPath(), files, 0, false);
-					}
-				}
-			}
+			totalLength += addFilesInDir(file.getPath(), files, totalLength, false);
 		} else {
 			files.add(file);
 			testForUnsplittable(file);
 			totalLength += file.getLen();
+		}
+
+		// check the modification time stamp
+		long latestModTime = 0;
+		for (FileStatus f : files) {
+			latestModTime = Math.max(f.getModificationTime(), latestModTime);
 		}
 
 		// check whether the cached statistics are still valid, if we have any
@@ -402,33 +390,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		final FileStatus pathFile = fs.getFileStatus(path);
 
 		if (pathFile.isDir()) {
-			// input is directory. list all contained files
-			final FileStatus[] dir = fs.listStatus(path);
-			for (int i = 0; i < dir.length; i++) {
-				if (dir[i].isDir()) {
-					if (enumerateNestedFiles) {
-						if(acceptFile(dir[i])) {
-							totalLength += addNestedFiles(dir[i].getPath(), files, 0, true);
-						} else {
-							if (LOG.isDebugEnabled()) {
-								LOG.debug("Directory "+dir[i].getPath().toString()+" did not pass the file-filter and is excluded.");
-							}
-						}
-					}
-				}
-				else {
-					if (acceptFile(dir[i])) {
-						files.add(dir[i]);
-						totalLength += dir[i].getLen();
-						// as soon as there is one deflate file in a directory, we can not split it
-						testForUnsplittable(dir[i]);
-					} else {
-						if (LOG.isDebugEnabled()) {
-							LOG.debug("File "+dir[i].getPath().toString()+" did not pass the file-filter and is excluded.");
-						}
-					}
-				}
-			}
+			totalLength += addFilesInDir(path, files, totalLength, true);
 		} else {
 			testForUnsplittable(pathFile);
 
@@ -532,18 +494,17 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	}
 
 	/**
-	 * Recursively traverse the input directory structure
-	 * and enumerate all accepted nested files.
+	 * Enumerate all files in the directory and recursive if enumerateNestedFiles is true.
 	 * @return the total length of accepted files.
 	 */
-	private long addNestedFiles(Path path, List<FileStatus> files, long length, boolean logExcludedFiles)
+	private long addFilesInDir(Path path, List<FileStatus> files, long length, boolean logExcludedFiles)
 			throws IOException {
 		final FileSystem fs = path.getFileSystem();
 
 		for(FileStatus dir: fs.listStatus(path)) {
 			if (dir.isDir()) {
-				if (acceptFile(dir)) {
-					length += addNestedFiles(dir.getPath(), files, length, logExcludedFiles);
+				if (acceptFile(dir) && enumerateNestedFiles) {
+					length += addFilesInDir(dir.getPath(), files, length, logExcludedFiles);
 				} else {
 					if (logExcludedFiles && LOG.isDebugEnabled()) {
 						LOG.debug("Directory "+dir.getPath().toString()+" did not pass the file-filter and is excluded.");
