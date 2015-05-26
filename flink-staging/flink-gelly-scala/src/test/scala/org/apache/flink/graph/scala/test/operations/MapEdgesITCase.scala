@@ -55,6 +55,24 @@ class MapEdgesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) e
             "5,1,52\n"
     }
 
+    @Test
+    @throws(classOf[Exception])
+    def testWithSameValueSugar {
+        val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val mappedEdges: DataSet[Edge[Long, Long]] = graph.mapEdges(edge => edge.getValue + 1).getEdges
+        // Convert Edge into a Scala Tuple for writing to csv @TODO: do this implicitly?
+        mappedEdges.map(edge => (edge.getSource, edge.getTarget, edge.getValue)).writeAsCsv(resultPath)
+        env.execute
+        expectedResult = "1,2,13\n" +
+            "1,3,14\n" + "" +
+            "2,3,24\n" +
+            "3,4,35\n" +
+            "3,5,36\n" +
+            "4,5,46\n" +
+            "5,1,52\n"
+    }
+
     final class AddOneMapper extends MapFunction[Edge[Long, Long], Long] {
         @throws(classOf[Exception])
         def map(edge: Edge[Long, Long]): Long = {
