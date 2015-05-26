@@ -25,15 +25,12 @@ import org.apache.flink.api.common.PlanExecutor;
 
 import org.apache.flink.api.scala.FlinkILoop;
 
-import java.io.File;
-
 /**
- * ScalaShellRemoteEnvironment references the JobManager through host and port parameters,
- * and the Scala Shell (FlinkILoop).
- * Upon calling execute(), it reads compiled lines of the Scala shell, aggregates them to a Jar
- * and sends aggregated jar to the JobManager.
+ * Special version of {@link org.apache.flink.api.java.RemoteEnvironment} that has a reference
+ * to a {@link org.apache.flink.api.scala.FlinkILoop}. When execute is called this will
+ * use the reference of the ILoop to write the compiled classes of the current session to
+ * a Jar file and submit these with the program.
  */
-
 public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 
 	// reference to Scala Shell, for access to virtual directory
@@ -62,21 +59,11 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 
-		// write virtual files to disk first
-		JarHelper jh = new JarHelper();
-
-		flinkILoop.writeFilesToDisk();
-
-		// jarr up.
-		File inFile = new File( flinkILoop.getTmpDirShell().getAbsolutePath());
-		File outFile = new File( flinkILoop.getTmpJarShell().getAbsolutePath());
-
-		jh.jarDir(inFile, outFile);
-
-		String[] jarFiles = {outFile.getAbsolutePath()};
+		String jarFile = flinkILoop.writeFilesToDisk().getAbsolutePath();
 
 		// call "traditional" execution methods
-		PlanExecutor executor = PlanExecutor.createRemoteExecutor(super.getHost(), super.getPort(), jarFiles);
+		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFile);
+
 		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
 		return executor.executePlan(p);
 	}

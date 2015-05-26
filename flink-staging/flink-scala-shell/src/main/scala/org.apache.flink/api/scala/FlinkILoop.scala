@@ -20,17 +20,17 @@ package org.apache.flink.api.scala
 
 import java.io.{BufferedReader, File, FileOutputStream}
 
-import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter._
 
-import org.apache.flink.api.java.ScalaShellRemoteEnvironment
+import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment}
 import org.apache.flink.util.AbstractID
 
 
-class FlinkILoop(val host: String,
-                 val port: Int,
-                 in0: Option[BufferedReader],
-                 out0: JPrintWriter)
+class FlinkILoop(
+    val host: String,
+    val port: Int,
+    in0: Option[BufferedReader],
+    out0: JPrintWriter)
   extends ILoop(in0, out0) {
 
   def this(host:String, port:Int, in0: BufferedReader, out: JPrintWriter){
@@ -52,11 +52,6 @@ class FlinkILoop(val host: String,
     scalaEnv
   }
 
-
-  /**
-   * CUSTOM START METHODS OVERRIDE:
-   */
-
   addThunk {
     intp.beQuietDuring {
       // automatically imports the flink scala api
@@ -66,7 +61,6 @@ class FlinkILoop(val host: String,
       intp.bindValue("env", this.scalaEnv)
     }
   }
-
 
 
   /**
@@ -96,18 +90,20 @@ class FlinkILoop(val host: String,
 
 
   /**
-   * writes contents of the compiled lines that have been executed in the shell into a
-   * "physical directory": creates a unique temporary directory
+   * Packages the compiled classes of the current shell session into a Jar file for execution
+   * on a Flink cluster.
+   *
+   * @return The path of the created Jar file
    */
-  def writeFilesToDisk(): Unit = {
+  def writeFilesToDisk(): File = {
     val vd = intp.virtualDirectory
 
-    var vdIt = vd.iterator
+    val vdIt = vd.iterator
 
     for (fi <- vdIt) {
       if (fi.isDirectory) {
 
-        var fiIt = fi.iterator
+        val fiIt = fi.iterator
 
         for (f <- fiIt) {
 
@@ -128,6 +124,14 @@ class FlinkILoop(val host: String,
         }
       }
     }
+
+    val compiledClasses = new File(tmpDirShell.getAbsolutePath)
+    val jarFilePath = new File(tmpJarShell.getAbsolutePath)
+
+    val jh: JarHelper = new JarHelper
+    jh.jarDir(compiledClasses, jarFilePath)
+
+    jarFilePath
   }
 
   /**
@@ -182,21 +186,5 @@ NOTE: Use the prebound Execution Environment "env" to read data and execute your
 
 HINT: You can use print() on a DataSet to print the contents to this shell.
       """)
-  }
-
-  //  getter functions:
-  // get (root temporary folder)
-  def getTmpDirBase(): File = {
-    return (this.tmpDirBase);
-  }
-
-  // get shell folder name inside tmp dir
-  def getTmpDirShell(): File = {
-    return (this.tmpDirShell)
-  }
-
-  // get tmp jar file name
-  def getTmpJarShell(): File = {
-    return (this.tmpJarShell)
   }
 }

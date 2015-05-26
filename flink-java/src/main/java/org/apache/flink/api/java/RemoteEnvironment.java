@@ -30,9 +30,9 @@ import org.apache.flink.api.common.PlanExecutor;
  */
 public class RemoteEnvironment extends ExecutionEnvironment {
 	
-	private final String host;
+	protected final String host;
 	
-	private final int port;
+	protected final int port;
 	
 	private final String[] jarFiles;
 	
@@ -86,15 +86,5 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	public String toString() {
 		return "Remote Environment (" + this.host + ":" + this.port + " - parallelism = " +
 				(getParallelism() == -1 ? "default" : getParallelism()) + ") : " + getIdString();
-	}
-
-
-	// needed to call execute on ScalaShellRemoteEnvironment
-	public int getPort() {
-		return this.port;
-	}
-
-	public String getHost() {
-		return this.host;
 	}
 }
