@@ -119,7 +119,7 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration,
     }
     
     TaskManager.startTaskManagerComponentsAndActor(config, system,
-                                                   HOSTNAME, // network interface to bind to
+                                                   hostname, // network interface to bind to
                                                    Some(taskManagerActorName), // actor name
                                                    jobManagerPath, // job manager akka URL
                                                    localExecution, // start network stack?
@@ -221,7 +221,7 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration,
   def getDefaultConfig: Configuration = {
     val config: Configuration = new Configuration()
 
-    config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME)
+    config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, hostname)
 
     config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
 
