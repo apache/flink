@@ -323,6 +323,7 @@ public class StreamingJobGraphGenerator {
 
 		return downStreamVertex.getInEdges().size() == 1
 				&& outOperator != null
+				&& headOperator != null
 				&& upStreamVertex.getSlotSharingID() == downStreamVertex.getSlotSharingID()
 				&& upStreamVertex.getSlotSharingID() != -1
 				&& (outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS ||
@@ -357,8 +358,8 @@ public class StreamingJobGraphGenerator {
 
 		for (StreamLoop loop : streamGraph.getStreamLoops()) {
 			CoLocationGroup ccg = new CoLocationGroup();
-			AbstractJobVertex tail = jobVertices.get(loop.getTail().getID());
-			AbstractJobVertex head = jobVertices.get(loop.getHead().getID());
+			AbstractJobVertex tail = jobVertices.get(loop.getSink().getID());
+			AbstractJobVertex head = jobVertices.get(loop.getSource().getID());
 
 			ccg.addVertex(head);
 			ccg.addVertex(tail);

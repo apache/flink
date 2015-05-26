@@ -17,6 +17,11 @@
 
 package org.apache.flink.streaming.api;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import java.util.Collections;
+
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream;
@@ -25,11 +30,6 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
-
-import java.util.Collections;
-
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class IterateTest {
 

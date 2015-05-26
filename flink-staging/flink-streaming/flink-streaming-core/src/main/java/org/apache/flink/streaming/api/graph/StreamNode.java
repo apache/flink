@@ -213,5 +213,10 @@ public class StreamNode implements Serializable {
 	public void isolateSlot() {
 		isolatedSlot = true;
 	}
+	
+	@Override
+	public String toString() {
+		return operatorName + ID;
+	}
 
 }
