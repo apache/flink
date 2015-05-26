@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.graph.scala
 
 import org.apache.flink.api.common.functions.MapFunction
@@ -6,8 +24,6 @@ import org.apache.flink.api.java.{tuple => jtuple}
 import org.apache.flink.api.scala._
 import org.apache.flink.graph.{Edge, Vertex}
 import org.apache.flink.{graph => jg}
-
-import scala.reflect.ClassTag
 
 
 object Graph {
@@ -30,14 +46,14 @@ final class Graph[K: TypeInformation, VV: TypeInformation, EV: TypeInformation](
 
     def getEdges = wrap(jgraph.getEdges)
 
-    def mapVertices[NV: TypeInformation : ClassTag](mapper: MapFunction[Vertex[K, VV], NV]): Graph[K, NV, EV] = {
+    def mapVertices[NV: TypeInformation](mapper: MapFunction[Vertex[K, VV], NV]): Graph[K, NV, EV] = {
         new Graph[K, NV, EV](jgraph.mapVertices[NV](
             mapper,
             createTypeInformation[Vertex[K, NV]]
         ))
     }
 
-    def mapVertices[NV: TypeInformation : ClassTag](fun: Vertex[K, VV] => NV): Graph[K, NV, EV] = {
+    def mapVertices[NV: TypeInformation](fun: Vertex[K, VV] => NV): Graph[K, NV, EV] = {
         val mapper: MapFunction[Vertex[K, VV], NV] = new MapFunction[Vertex[K, VV], NV] {
             val cleanFun = clean(fun)
 
@@ -46,14 +62,14 @@ final class Graph[K: TypeInformation, VV: TypeInformation, EV: TypeInformation](
         new Graph[K, NV, EV](jgraph.mapVertices[NV](mapper, createTypeInformation[Vertex[K, NV]]))
     }
 
-    def mapEdges[NV: TypeInformation : ClassTag](mapper: MapFunction[Edge[K, EV], NV]): Graph[K, VV, NV] = {
+    def mapEdges[NV: TypeInformation](mapper: MapFunction[Edge[K, EV], NV]): Graph[K, VV, NV] = {
         new Graph[K, VV, NV](jgraph.mapEdges[NV](
             mapper,
             createTypeInformation[Edge[K, NV]]
         ))
     }
 
-    def mapEdges[NV: TypeInformation : ClassTag](fun: Edge[K, EV] => NV): Graph[K, VV, NV] = {
+    def mapEdges[NV: TypeInformation](fun: Edge[K, EV] => NV): Graph[K, VV, NV] = {
         val mapper: MapFunction[Edge[K, EV], NV] = new MapFunction[Edge[K, EV], NV] {
             val cleanFun = clean(fun)
 
@@ -62,7 +78,7 @@ final class Graph[K: TypeInformation, VV: TypeInformation, EV: TypeInformation](
         new Graph[K, VV, NV](jgraph.mapEdges[NV](mapper, createTypeInformation[Edge[K, NV]]))
     }
 
-    def joinWithVertices[T: TypeInformation : ClassTag](inputDataset: DataSet[(K, T)], mapper: MapFunction[(VV, T), VV]): Graph[K, VV, EV] = {
+    def joinWithVertices[T: TypeInformation](inputDataset: DataSet[(K, T)], mapper: MapFunction[(VV, T), VV]): Graph[K, VV, EV] = {
         val newmapper = new MapFunction[jtuple.Tuple2[VV, T], VV]() {
             override def map(value: jtuple.Tuple2[VV, T]): VV = {
                 mapper.map((value.f0, value.f1))
