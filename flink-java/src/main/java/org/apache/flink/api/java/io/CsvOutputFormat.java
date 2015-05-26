@@ -203,6 +203,7 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 
 		// add the record delimiter
 		this.wrt.write(this.recordDelimiter);
+		wrt.flush();
 	}
 
 	// --------------------------------------------------------------------------------------------
