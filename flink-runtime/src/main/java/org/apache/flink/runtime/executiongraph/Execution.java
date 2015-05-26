@@ -433,8 +433,13 @@ public class Execution implements Serializable {
 	}
 
 	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> allConsumers) {
-		if (allConsumers.size() > 1) {
+		final int numConsumers = allConsumers.size();
+
+		if (numConsumers > 1) {
 			fail(new IllegalStateException("Currently, only a single consumer group per partition is supported."));
+		}
+		else if (numConsumers == 0) {
+			return;
 		}
 
 		for (ExecutionEdge edge : allConsumers.get(0)) {
