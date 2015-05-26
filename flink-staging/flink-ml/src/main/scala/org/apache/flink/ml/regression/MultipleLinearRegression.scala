@@ -29,6 +29,8 @@ import org.apache.flink.ml.math.vector2Array
 import org.apache.flink.api.scala._
 
 import com.github.fommil.netlib.BLAS.{ getInstance => blas }
+//import org.apache.flink.ml.optimization.Solver._
+import org.apache.flink.ml.optimization.{LinearPrediction, Regularization, SquaredLoss, GradientDescent}
 import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
 
 /** Multiple linear regression using the ordinary least squares (OLS) estimator.
@@ -90,34 +92,42 @@ import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
   */
 class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
 
-  import MultipleLinearRegression._
+  val solver = GradientDescent()
+    .setLossFunction(SquaredLoss())
 
   // Stores the weights of the linear model after the fitting phase
-  var weightsOption: Option[DataSet[(Array[Double], Double)]] = None
+  var weightsOption: Option[DataSet[WeightVector]] = None
 
   def setIterations(iterations: Int): MultipleLinearRegression = {
-    parameters.add(Iterations, iterations)
+    solver.setIterations(iterations)
     this
   }
 
   def setStepsize(stepsize: Double): MultipleLinearRegression = {
-    parameters.add(Stepsize, stepsize)
+    solver.setStepsize(stepsize)
     this
   }
 
   def setConvergenceThreshold(convergenceThreshold: Double): MultipleLinearRegression = {
-    parameters.add(ConvergenceThreshold, convergenceThreshold)
+    solver.setConvergenceThreshold(convergenceThreshold)
     this
   }
 
+  def setRegularizationType(regularizationType: Regularization) : MultipleLinearRegression = {
+    solver.setRegularizationType(regularizationType)
+    this
+  }
+
+  def setRegularizationParameter(regularizationParameter: Double) : MultipleLinearRegression = {
+    solver.setRegularizationParameter(regularizationParameter)
+    this
+  }
+
+  // TODO(tvas): Rename, and document, this now calculates the objective function
   def squaredResidualSum(input: DataSet[LabeledVector]): DataSet[Double] = {
     weightsOption match {
       case Some(weights) => {
-        input.map {
-          new SquaredResiduals
-        }.withBroadcastSet(weights, WEIGHTVECTOR_BROADCAST).reduce {
-          _ + _
-        }
+        solver.lossCalculation(input, weights)
       }
 
       case None => {
@@ -167,134 +177,28 @@ object MultipleLinearRegression {
       val map = instance.parameters ++ fitParameters
 
       // retrieve parameters of the algorithm
+      // TODO(tvas): Parameter setting getting confusing now
       val numberOfIterations = map(Iterations)
       val stepsize = map(Stepsize)
       val convergenceThreshold = map.get(ConvergenceThreshold)
 
-      // calculate dimension of the feature vectors
-      val dimension = input.map{_.vector.size}.reduce {
-        (a, b) =>
-          require(a == b, "All input vector must have the same dimension.")
-          a
+      val instanceSolver = instance.solver
+
+      instanceSolver
+        .setIterations(numberOfIterations)
+        .setStepsize(stepsize)
+
+      convergenceThreshold match {
+        case Some(threshold) => instanceSolver.setConvergenceThreshold(threshold)
+        case _ => // Is there any idiomatic Scala way to deal with this?
       }
 
-      input.flatMap{
-        t =>
-          Seq(t)
-      }
-
-      // initial weight vector is set to 0
-      val initialWeightVector = createInitialWeightVector(dimension)
-
-      // check if a convergence threshold has been set
-      val resultingWeightVector = convergenceThreshold match {
-        case Some(convergence) =>
-
-          // we have to calculate for each weight vector the sum of squared residuals
-          val initialSquaredResidualSum = input.map {
-            new SquaredResiduals
-          }.withBroadcastSet(initialWeightVector, WEIGHTVECTOR_BROADCAST).reduce {
-            _ + _
-          }
-
-          // combine weight vector with current sum of squared residuals
-          val initialWeightVectorWithSquaredResidualSum = initialWeightVector.
-            crossWithTiny(initialSquaredResidualSum).setParallelism(1)
-
-          // start SGD iteration
-          val resultWithResidual = initialWeightVectorWithSquaredResidualSum.
-            iterateWithTermination(numberOfIterations) {
-            weightVectorSquaredResidualDS =>
-
-              // extract weight vector and squared residual sum
-              val weightVector = weightVectorSquaredResidualDS.map{_._1}
-              val squaredResidualSum = weightVectorSquaredResidualDS.map{_._2}
-
-              // TODO: Sample from input to realize proper SGD
-              val newWeightVector = input.map {
-                new LinearRegressionGradientDescent
-              }.withBroadcastSet(weightVector, WEIGHTVECTOR_BROADCAST).reduce {
-                (left, right) =>
-                  val (leftBetas, leftBeta0, leftCount) = left
-                  val (rightBetas, rightBeta0, rightCount) = right
-
-                  blas.daxpy(leftBetas.length, 1.0, rightBetas, 1, leftBetas, 1)
-
-                  (leftBetas, leftBeta0 + rightBeta0, leftCount + rightCount)
-              }.map {
-                new LinearRegressionWeightsUpdate(stepsize)
-              }.withBroadcastSet(weightVector, WEIGHTVECTOR_BROADCAST)
-
-              // calculate the sum of squared residuals for the new weight vector
-              val newResidual = input.map {
-                new SquaredResiduals
-              }.withBroadcastSet(newWeightVector, WEIGHTVECTOR_BROADCAST).reduce {
-                _ + _
-              }
-
-              // check if the relative change in the squared residual sum is smaller than the
-              // convergence threshold. If yes, then terminate => return empty termination data set
-              val termination = squaredResidualSum.crossWithTiny(newResidual).setParallelism(1).
-                filter{
-                pair => {
-                  val (residual, newResidual) = pair
-
-                  if (residual <= 0) {
-                    false
-                  } else {
-                    math.abs((residual - newResidual)/residual) >= convergence
-                  }
-                }
-              }
-
-              // result for new iteration
-              (newWeightVector cross newResidual, termination)
-          }
-
-          // remove squared residual sum to only return the weight vector
-          resultWithResidual.map{_._1}
-
-        case None =>
-          // No convergence criterion
-          initialWeightVector.iterate(numberOfIterations) {
-            weightVector => {
-
-              // TODO: Sample from input to realize proper SGD
-              input.map {
-                new LinearRegressionGradientDescent
-              }.withBroadcastSet(weightVector, WEIGHTVECTOR_BROADCAST).reduce {
-                (left, right) =>
-                  val (leftBetas, leftBeta0, leftCount) = left
-                  val (rightBetas, rightBeta0, rightCount) = right
-
-                  blas.daxpy(leftBetas.length, 1, rightBetas, 1, leftBetas, 1)
-                  (leftBetas, leftBeta0 + rightBeta0, leftCount + rightCount)
-              }.map {
-                new LinearRegressionWeightsUpdate(stepsize)
-              }.withBroadcastSet(weightVector, WEIGHTVECTOR_BROADCAST)
-            }
-          }
-      }
+      val resultingWeightVector = instanceSolver.optimize(input, None)
 
       instance.weightsOption = Some(resultingWeightVector)
     }
   }
 
-  /** Creates a DataSet with one zero vector. The zero vector has dimension d, which is given
-    * by the dimensionDS.
-    *
-    * @param dimensionDS DataSet with one element d, denoting the dimension of the returned zero
-    *                    vector
-    * @return DataSet of a zero vector of dimension d
-    */
-  private def createInitialWeightVector(dimensionDS: DataSet[Int]):
-  DataSet[(Array[Double], Double)] = {
-    dimensionDS.map {
-      dimension =>
-        val values = Array.fill(dimension)(0.0)
-        (values, 0.0)
-    }
-  }
 
   /** Calculates the predictions for new data with respect to the learned linear model.
     *
@@ -325,157 +229,23 @@ object MultipleLinearRegression {
   }
 
   private class LinearRegressionPrediction[T <: Vector] extends RichMapFunction[T, LabeledVector] {
-    private var weights: Array[Double] = null
-    private var weight0: Double = 0
 
+    var weightVector: WeightVector = null
 
     @throws(classOf[Exception])
     override def open(configuration: Configuration): Unit = {
-      val t = getRuntimeContext
-        .getBroadcastVariable[(Array[Double], Double)](WEIGHTVECTOR_BROADCAST)
+      val list = this.getRuntimeContext.
+        getBroadcastVariable[WeightVector](WEIGHTVECTOR_BROADCAST)
 
-      val weightsPair = t.get(0)
-
-      weights = weightsPair._1
-      weight0 = weightsPair._2
+      weightVector = list.get(0)
     }
 
-    override def map(value: T): LabeledVector = {
-      val dotProduct = blas.ddot(weights.length, weights, 1, vector2Array(value), 1)
+    override def map(example: T): LabeledVector = {
+      val linearPrediction = new LinearPrediction
 
-      val prediction = dotProduct + weight0
+      val prediction = linearPrediction.predict(example, weightVector)
 
-      LabeledVector(prediction, value)
+      LabeledVector(prediction, example)
     }
-  }
-}
-
-//--------------------------------------------------------------------------------------------------
-//  Flink function definitions
-//--------------------------------------------------------------------------------------------------
-
-/** Calculates for a labeled vector and the current weight vector its squared residual:
-  *
-  * `(y - (w^Tx + w_0))^2`
-  *
-  * The weight vector is received as a broadcast variable.
-  */
-private class SquaredResiduals extends RichMapFunction[LabeledVector, Double] {
-  import MultipleLinearRegression.WEIGHTVECTOR_BROADCAST
-
-  var weightVector: Array[Double] = null
-  var weight0: Double = 0.0
-
-  @throws(classOf[Exception])
-  override def open(configuration: Configuration): Unit = {
-    val list = this.getRuntimeContext.
-      getBroadcastVariable[(Array[Double], Double)](WEIGHTVECTOR_BROADCAST)
-
-    val weightsPair = list.get(0)
-
-    weightVector = weightsPair._1
-    weight0 = weightsPair._2
-  }
-
-  override def map(value: LabeledVector): Double = {
-    val array = vector2Array(value.vector)
-    val label = value.label
-
-    val dotProduct = blas.ddot(weightVector.length, weightVector, 1, array, 1)
-
-    val residual = dotProduct + weight0 - label
-
-    residual * residual
-  }
-}
-
-/** Calculates for a labeled vector and the current weight vector the gradient minimizing the
-  * OLS equation. The gradient is given by:
-  *
-  * `dw = 2*(w^T*x + w_0 - y)*x`
-  * `dw_0 = 2*(w^T*x + w_0 - y)`
-  *
-  * The weight vector is received as a broadcast variable.
-  */
-private class LinearRegressionGradientDescent extends
-RichMapFunction[LabeledVector, (Array[Double], Double, Int)] {
-
-  import MultipleLinearRegression.WEIGHTVECTOR_BROADCAST
-
-  var weightVector: Array[Double] = null
-  var weight0: Double = 0.0
-
-  @throws(classOf[Exception])
-  override def open(configuration: Configuration): Unit = {
-    val list = this.getRuntimeContext.
-      getBroadcastVariable[(Array[Double], Double)](WEIGHTVECTOR_BROADCAST)
-
-    val weightsPair = list.get(0)
-
-    weightVector = weightsPair._1
-    weight0 = weightsPair._2
-  }
-
-  override def map(value: LabeledVector): (Array[Double], Double, Int) = {
-    val x = vector2Array(value.vector)
-    val label = value.label
-
-    val dotProduct = blas.ddot(weightVector.length, weightVector, 1, x, 1)
-
-    val error = dotProduct + weight0 - label
-
-    // reuse vector x
-    val weightsGradient = x
-
-    blas.dscal(weightsGradient.length, 2*error, weightsGradient, 1)
-
-    val weight0Gradient = 2 * error
-
-    (weightsGradient, weight0Gradient, 1)
-  }
-}
-
-/** Calculates the new weight vector based on the partial gradients. In order to do that,
-  * all partial gradients are averaged and weighted by the current stepsize. This update value is
-  * added to the current weight vector.
-  *
-  * @param stepsize Initial value of the step size used to update the weight vector
-  */
-private class LinearRegressionWeightsUpdate(val stepsize: Double) extends
-RichMapFunction[(Array[Double], Double, Int), (Array[Double], Double)] {
-
-  import MultipleLinearRegression.WEIGHTVECTOR_BROADCAST
-
-  var weights: Array[Double] = null
-  var weight0: Double = 0.0
-
-  @throws(classOf[Exception])
-  override def open(configuration: Configuration): Unit = {
-    val list = this.getRuntimeContext.
-      getBroadcastVariable[(Array[Double], Double)](WEIGHTVECTOR_BROADCAST)
-
-    val weightsPair = list.get(0)
-
-    weights = weightsPair._1
-    weight0 = weightsPair._2
-  }
-
-  override def map(value: (Array[Double], Double, Int)): (Array[Double], Double) = {
-    val weightsGradient = value._1
-    blas.dscal(weightsGradient.length, 1.0/value._3, weightsGradient, 1)
-
-    val weight0Gradient = value._2 / value._3
-
-    val iteration = getIterationRuntimeContext.getSuperstepNumber
-
-    // scale initial stepsize by the inverse square root of the iteration number to make it
-    // decreasing
-    val effectiveStepsize = stepsize/math.sqrt(iteration)
-
-    val newWeights = weights.clone
-    blas.daxpy(newWeights.length, -effectiveStepsize, weightsGradient, 1, newWeights, 1)
-    val newWeight0 = weight0 - effectiveStepsize * weight0Gradient
-
-    (newWeights, newWeight0)
   }
 }
