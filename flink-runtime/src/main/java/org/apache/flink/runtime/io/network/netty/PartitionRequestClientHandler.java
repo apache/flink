@@ -429,7 +429,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 					success = true;
 				}
 				else {
-					cancelRequestFor(inputChannel.getInputChannelId());
+					cancelRequestFor(stagedBufferResponse.receiverId);
 				}
 
 				stagedBufferResponse = null;
