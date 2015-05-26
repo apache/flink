@@ -22,7 +22,7 @@ class MapEdgesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) e
 
     @Rule
     def getFolder(): TemporaryFolder = {
-        return tempFolder;
+        tempFolder;
     }
 
     @Before

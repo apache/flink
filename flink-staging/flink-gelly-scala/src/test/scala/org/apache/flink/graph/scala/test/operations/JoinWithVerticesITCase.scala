@@ -21,7 +21,7 @@ class JoinWithVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutio
 
     @Rule
     def getFolder(): TemporaryFolder = {
-        return tempFolder;
+        tempFolder;
     }
 
     @Before
