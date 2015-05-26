@@ -26,7 +26,7 @@ under the License.
 
 $$
 \newcommand{\R}{\mathbb{R}}
-\newcommand{\E}{\mathbb{E}} 
+\newcommand{\E}{\mathbb{E}}
 \newcommand{\x}{\mathbf{x}}
 \newcommand{\y}{\mathbf{y}}
 \newcommand{\wv}{\mathbf{w}}
@@ -34,27 +34,27 @@ $$
 \newcommand{\bv}{\mathbf{b}}
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\id}{\mathbf{I}}
-\newcommand{\ind}{\mathbf{1}} 
-\newcommand{\0}{\mathbf{0}} 
-\newcommand{\unit}{\mathbf{e}} 
-\newcommand{\one}{\mathbf{1}} 
+\newcommand{\ind}{\mathbf{1}}
+\newcommand{\0}{\mathbf{0}}
+\newcommand{\unit}{\mathbf{e}}
+\newcommand{\one}{\mathbf{1}}
 \newcommand{\zero}{\mathbf{0}}
 $$
 
 ## Mathematical Formulation
 
 The optimization framework in FlinkML is a developer-oriented package that can be used to solve
-[optimization](https://en.wikipedia.org/wiki/Mathematical_optimization) 
-problems common in Machine Learning (ML) tasks. In the supervised learning context, this usually 
-involves finding a model, as defined by a set of parameters $w$, that minimize a function $f(\wv)$ 
+[optimization](https://en.wikipedia.org/wiki/Mathematical_optimization)
+problems common in Machine Learning (ML) tasks. In the supervised learning context, this usually
+involves finding a model, as defined by a set of parameters $w$, that minimize a function $f(\wv)$
 given a set of $(\x, y)$ examples,
-where $\x$ is a feature vector and $y$ is a real number, which can represent either a real value in 
-the regression case, or a class label in the classification case. In supervised learning, the 
+where $\x$ is a feature vector and $y$ is a real number, which can represent either a real value in
+the regression case, or a class label in the classification case. In supervised learning, the
 function to be minimized is usually of the form:
 
 
 \begin{equation} \label{eq:objectiveFunc}
-    f(\wv) := 
+    f(\wv) :=
     \frac1n \sum_{i=1}^n L(\wv;\x_i,y_i) +
     \lambda\, R(\wv)
     \ .
@@ -67,18 +67,16 @@ model, with $\lambda > 0$ being the regularization parameter.
 
 ### Loss Functions
 
-In supervised learning, we use loss functions in order to measure the model fit, by 
-penalizing errors in the predictions $p$ made by the model compared to the true $y$ for each 
-example. Different loss function can be used for regression (e.g. Squared Loss) and classification
-(e.g. Hinge Loss).
+In supervised learning, we use loss functions in order to measure the model fit, by
+penalizing errors in the predictions $p$ made by the model compared to the true $y$ for each
+example. Different loss functions can be used for regression (e.g. Squared Loss) and classification
+(e.g. Hinge Loss) tasks.
 
 Some common loss functions are:
- 
-* Squared Loss: $ \frac{1}{2} (\wv^T \x - y)^2, \quad y \in \R $ 
-* Hinge Loss: $ \max (0, 1 - y ~ \wv^T \x), \quad y \in \{-1, +1\} $
-* Logistic Loss: $ \log(1+\exp( -y ~ \wv^T \x)), \quad y \in \{-1, +1\} $
 
-Currently, only the Squared Loss function is implemented in Flink.
+* Squared Loss: $ \frac{1}{2} (\wv^T \cdot \x - y)^2, \quad y \in \R $
+* Hinge Loss: $ \max (0, 1 - y ~ \wv^T \cdot \x), \quad y \in \{-1, +1\} $
+* Logistic Loss: $ \log(1+\exp( -y ~ \wv^T \cdot \x)), \quad y \in \{-1, +1\} $
 
 ### Regularization Types
 
@@ -97,7 +95,9 @@ The optimization framework in Flink supports the $L_1$ and $L_2$ penalties, as w
 regularization. The
 regularization parameter $\lambda$ in $\eqref{eq:objectiveFunc}$ determines the amount of
 regularization applied to the model,
-and is usually determined through model cross-validation.
+and is usually determined through model cross-validation. A good comparison of regularization
+types can
+be found in [this](http://www.robotics.stanford.edu/~ang/papers/icml04-l1l2.pdf) paper by Andrew Ng.
 
 ## Stochastic Gradient Descent
 
@@ -115,11 +115,11 @@ the average of the gradients computed from each mini-batch.
 
 An important parameter is the learning rate $\eta$, or step size, which is currently determined as
 $\eta = \eta_0/\sqrt{j}$, where $\eta_0$ is the initial step size and $j$ is the iteration
-number. The setting of the initial step size can significantly affect the performance of the 
-algorithm. For some practical tips on tuning SGD see Leon Botou's 
+number. The setting of the initial step size can significantly affect the performance of the
+algorithm. For some practical tips on tuning SGD see Leon Botou's
 "[Stochastic Gradient Descent Tricks](http://research.microsoft.com/pubs/192769/tricks-2012.pdf)".
 
-The current implementation of SGD  uses the whole partition, making it 
+The current implementation of SGD  uses the whole partition, making it
 effectively a batch gradient descent. Once a sampling operator has been introduced in Flink, true
 mini-batch SGD will be performed.
 
@@ -127,7 +127,7 @@ mini-batch SGD will be performed.
 ### Parameters
 
   The stochastic gradient descent implementation can be controlled by the following parameters:
-  
+
    <table class="table table-bordered">
     <thead>
       <tr>
@@ -140,7 +140,7 @@ mini-batch SGD will be performed.
         <td><strong>LossFunction</strong></td>
         <td>
           <p>
-            The class of the loss function to be used. (Default value: 
+            The class of the loss function to be used. (Default value:
             <strong>SquaredLoss</strong>, used for regression tasks)
           </p>
         </td>
@@ -149,7 +149,7 @@ mini-batch SGD will be performed.
         <td><strong>RegularizationType</strong></td>
         <td>
           <p>
-            The type of regularization penalty to apply. (Default value: 
+            The type of regularization penalty to apply. (Default value:
             <strong>NoRegularization</strong>)
           </p>
         </td>
@@ -166,8 +166,8 @@ mini-batch SGD will be performed.
         <td><strong>PredictionFunction</strong></td>
         <td>
           <p>
-            Class that provides the prediction function, used to calculate $\hat{y}$ based on the
-            weights and the example features, and the prediction gradient.
+            Class that provides the prediction function, used to calculate $\hat{y}$ and the
+            prediction gradient based on the weights $\wv$ and the example features $\x$.
             (Default value: <strong>LinearPrediction</strong>)
           </p>
         </td>
@@ -185,7 +185,7 @@ mini-batch SGD will be performed.
         <td>
           <p>
             Initial step size for the gradient descent method.
-            This value controls how far the gradient descent method moves in the opposite direction 
+            This value controls how far the gradient descent method moves in the opposite direction
             of the gradient.
             (Default value: <strong>0.1</strong>)
           </p>
@@ -206,6 +206,126 @@ mini-batch SGD will be performed.
       </tr>
     </tbody>
   </table>
+
+**Prediction Functions**
+
+  <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th class="text-left" style="width: 20%">Function Name</th>
+          <th class="text-center">Description</th>
+          <th class="text-center">$\hat{y}$</th>
+          <th class="text-center">$\partial \hat{y} / \partial \wv$</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>LinearPrediction</strong></td>
+          <td>
+            <p>
+              The function most commonly used for linear models, such as linear regression and
+              linear classifiers.
+            </p>
+          </td>
+          <td class="text-center">$\x^T \cdot \wv$</td>
+          <td class="text-center">$\x$</td>
+        </tr>
+      </tbody>
+    </table>
+
+**Loss Functions**
+
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 20%">Function Name</th>
+        <th class="text-center">Description</th>
+        <th class="text-center">Loss</th>
+        <th class="text-center">Loss Derivative</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>SquaredLoss</strong></td>
+        <td>
+          <p>
+            Loss function most commonly used for regression tasks.
+          </p>
+        </td>
+        <td class="text-center">$\frac{1}{2} (\wv^T \cdot \x - y)^2$</td>
+        <td class="text-center">$\wv^T \cdot \x - y$</td>
+      </tr>
+    </tbody>
+  </table>
+
+**Regularization Types**
+
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 20%">Regularization Name</th>
+        <th class="text-center">Description</th>
+        <th class="text-center">$R(\wv)$</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>L1Regularization</strong></td>
+        <td>
+          <p>
+            This type of regularization will drive small weights to 0, potentially providing sparse
+            solutions.
+          </p>
+        </td>
+        <td class="text-center">$\|\wv\|_1$</td>
+      </tr>
+      <tr>
+        <td><strong>L2Regularization</strong></td>
+        <td>
+          <p>
+            This type of regularization will keep weights from growing too large, favoring solutions
+            with more small weights, rather than few large ones.
+          </p>
+        </td>
+        <td class="text-center">$\frac{1}{2}\|\wv\|_2^2$</td>
+      </tr>
+      <tr>
+        <td><strong>NoRegularization</strong></td>
+        <td>
+          <p>
+            No regularization is applied to the weights when this regularization type is used.
+          </p>
+        </td>
+        <td class="text-center">$0$</td>
+      </tr>
+    </tbody>
+  </table>
+
+**Convergence Criterions**
+
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 20%">Criterion Name</th>
+        <th class="text-center">Description</th>
+        <th class="text-center">Stopping criterion</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Relative objective function change</strong></td>
+        <td>
+          <p>
+            Iterations stop if the relative change in the value of the objective function
+            $\eqref{eq:objectiveFunc}$ is less than the provided threshold, $\tau$.
+          </p>
+        </td>
+        <td class="text-center">$\tau <  \left| \frac{f(\wv)_{i-1} - f(\wv)_i}{f(\wv)_{i-1}}
+        \right|$</td>
+      </tr>
+    </tbody>
+  </table>
+
 
 ### Examples
 
@@ -234,10 +354,11 @@ val sgd = GradientDescent()
 val trainingDS: DataSet[LabeledVector] = ...
 
 // Optimize the weights, according to the provided data
-val weightDS = sgd.optimize(inputDS)
+val weightDS = sgd.optimize(trainingDS)
 
 // We can now use weightDS to make predictions
 
 {% endhighlight %}
 
-Note: Some of the Latex math notation was adapted from Apache Spark MLlib's documentation
+
+__Note: Some of the Latex math notation was adapted from Apache Spark MLlib's documentation__
