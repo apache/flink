@@ -48,6 +48,17 @@ case $STARTSTOP in
 
     (start)
 
+        if [ -z $EXECUTIONMODE ]; then
+            echo "Please specify 'start (cluster|local) [batch|streaming]' or 'stop'"
+            exit 1
+        fi
+
+        # Use batch mode as default
+        if [ -z $STREAMINGMODE ]; then
+            echo "Did not specify [batch|streaming] mode. Falling back to batch mode as default."
+            STREAMINGMODE="batch"
+        fi
+
         if [[ ! ${FLINK_JM_HEAP} =~ $IS_NUMBER ]]; then
             echo "ERROR: Configured job manager heap size is not a number. Cancelling job manager startup."
 
