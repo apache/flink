@@ -1,6 +1,7 @@
 ---
 mathjax: include
-title: Distance Metrics
+htmlTitle: FlinkML - Distance Metrics
+title: <a href="/libs/ml">FlinkML</a> - Distance Metrics
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

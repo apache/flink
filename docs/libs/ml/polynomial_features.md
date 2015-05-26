@@ -1,6 +1,7 @@
 ---
 mathjax: include
-title: Polynomial Base Feature Mapper
+htmlTitle: FlinkML - Polynomial Features
+title: <a href="/libs/ml">FlinkML</a> - Polynomial Features
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,7 +27,7 @@ under the License.
 
 ## Description
 
-The polynomial base feature mapper maps a vector into the polynomial feature space of degree $d$.
+The polynomial features transformer maps a vector into the polynomial feature space of degree $d$.
 The dimension of the input vector determines the number of polynomial factors whose values are the respective vector entries.
 Given a vector $(x, y, z, \ldots)^T$ the resulting feature vector looks like:
 
@@ -34,15 +35,31 @@ $$\left(x, y, z, x^2, xy, y^2, yz, z^2, x^3, x^2y, x^2z, xy^2, xyz, xz^2, y^3, \
 
 Flink's implementation orders the polynomials in decreasing order of their degree.
 
-Given the vector $\left(3,2\right)^T$, the polynomial base feature vector of degree 3 would look like
+Given the vector $\left(3,2\right)^T$, the polynomial features vector of degree 3 would look like
  
  $$\left(3^3, 3^2\cdot2, 3\cdot2^2, 2^3, 3^2, 3\cdot2, 2^2, 3, 2\right)^T$$
 
-This transformer can be prepended to all `Transformer` and `Learner` implementations which expect an input of type `LabeledVector`.
+This transformer can be prepended to all `Transformer` and `Predictor` implementations which expect an input of type `LabeledVector` or any sub-type of `Vector`.
+
+## Operations
+
+`PolynomialFeatures` is a `Transformer`.
+As such, it supports the `fit` and `transform` operation.
+
+### Fit
+
+PolynomialFeatures is not trained on data and, thus, supports all types of input data.
+
+### Transform
+
+PolynomialFeatures transforms all subtypes of `Vector` and `LabeledVector` into their respective types: 
+
+* `transform[T <: Vector]: DataSet[T] => DataSet[T]`
+* `transform: DataSet[LabeledVector] => DataSet[LabeledVector]`
 
 ## Parameters
 
-The polynomial base feature mapper can be controlled by the following parameters:
+The polynomial features transformer can be controlled by the following parameters:
 
 <table class="table table-bordered">
     <thead>
@@ -71,8 +88,8 @@ The polynomial base feature mapper can be controlled by the following parameters
 // Obtain the training data set
 val trainingDS: DataSet[LabeledVector] = ...
 
-// Setup polynomial base feature extractor of degree 3
-val polyBase = PolynomialBase()
+// Setup polynomial feature transformer of degree 3
+val polyFeatures = PolynomialFeatures()
 .setDegree(3)
 
 // Setup the multiple linear regression learner
@@ -83,9 +100,9 @@ val parameters = ParameterMap()
 .add(MultipleLinearRegression.Iterations, 20)
 .add(MultipleLinearRegression.Stepsize, 0.5)
 
-// Create pipeline PolynomialBase -> MultipleLinearRegression
-val pipeline = polyBase.chainPredictor(mlr)
+// Create pipeline PolynomialFeatures -> MultipleLinearRegression
+val pipeline = polyFeatures.chainPredictor(mlr)
 
-// Learn the model
+// train the model
 pipeline.fit(trainingDS)
 {% endhighlight %}

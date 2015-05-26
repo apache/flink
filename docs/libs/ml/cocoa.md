@@ -1,6 +1,7 @@
 ---
 mathjax: include
-title: Communication efficient distributed dual coordinate ascent (CoCoA)
+htmlTitle: FlinkML - Communication efficient distributed dual coordinate ascent (CoCoA)
+title: <a href="/libs/ml">FlinkML</a> - Communication efficient distributed dual coordinate ascent (CoCoA)
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -55,6 +56,23 @@ distributed across the cluster.
 
 The implementation of this algorithm is based on the work of 
 [Jaggi et al.](http://arxiv.org/abs/1409.1458)
+
+## Operations
+
+`CoCoA` is a `Predictor`.
+As such, it supports the `fit` and `predict` operation.
+
+### Fit
+
+CoCoA is trained given a set of `LabeledVector`: 
+
+* `fit: DataSet[LabeledVector] => Unit`
+
+### Predict
+
+CoCoA predicts for all subtypes of `Vector` the corresponding class label: 
+
+* `predict[T <: Vector]: DataSet[T] => DataSet[LabeledVector]`
 
 ## Parameters
 

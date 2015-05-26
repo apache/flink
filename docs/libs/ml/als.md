@@ -1,6 +1,7 @@
 ---
 mathjax: include
-title: Alternating Least Squares
+htmlTitle: FlinkML - Alternating Least Squares
+title: <a href="/libs/ml">FlinkML</a> - Alternating Least Squares
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -47,6 +48,22 @@ By applying this step alternately to the matrices $U$ and $V$, we can iterativel
 
 The matrix $R$ is given in its sparse representation as a tuple of $(i, j, r)$ where $i$ denotes the row index, $j$ the column index and $r$ is the matrix value at position $(i,j)$.
 
+## Operations
+
+`ALS` is a `Predictor`.
+As such, it supports the `fit` and `predict` operation.
+
+### Fit
+
+ALS is trained on the sparse representation of the rating matrix: 
+
+* `fit: DataSet[(Int, Int, Double)] => Unit` 
+
+### Predict
+
+ALS predicts for each tuple of row and column index the rating: 
+
+* `predict: DataSet[(Int, Int)] => DataSet[(Int, Int, Double)]`
 
 ## Parameters
 
@@ -97,7 +114,7 @@ The alternating least squares implementation can be controlled by the following 
             The fewer blocks one uses, the less data is sent redundantly. 
             However, bigger blocks entail bigger update messages which have to be stored on the heap. 
             If the algorithm fails because of an OutOfMemoryException, then try to increase the number of blocks. 
-            (Default value: '''None''')
+            (Default value: <strong>None</strong>)
           </p>
         </td>
       </tr>
