@@ -62,7 +62,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 	public void testAddVertex() throws Exception {
 		/*
 		 * Test addVertex() -- simple case
-		 */	
+		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -234,10 +234,10 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 	public void testRemoveInvalidVertex() throws Exception {
 		/*
 		 * Test removeVertex() -- remove an invalid vertex
-		 */	
-		
+		 */
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		graph = graph.removeVertex(new Vertex<Long, Long>(6L, 6L));
@@ -328,15 +328,15 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,4\n" +
 				"5,5\n";
 	}
-	
+
 	@Test
 	public void testAddEdge() throws Exception {
 		/*
 		 * Test addEdge() -- simple case
 		 */
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		graph = graph.addEdge(new Vertex<Long, Long>(6L, 6L), new Vertex<Long, Long>(1L, 1L),
@@ -351,7 +351,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n" +
 				"5,1,51\n" +
-				"6,1,61\n";	
+				"6,1,61\n";
 	}
 
 	@Test
@@ -436,7 +436,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,4,34\n" +
 				"3,5,35\n" +
 				"4,5,45\n" +
-				"5,1,51\n";	
+				"5,1,51\n";
 	}
 
 	@Test
@@ -519,7 +519,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		graph = graph.removeEdge(new Edge<Long, Long>(6L, 1L, 61L));
