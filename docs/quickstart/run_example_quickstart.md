@@ -67,7 +67,7 @@ The following overview presents the impact of the different standard deviations 
 
 |relative stddev = 0.03|relative stddev = 0.08|relative stddev = 0.15|
 |:--------------------:|:--------------------:|:--------------------:|
-|<img src="_img/quickstart-example/kmeans003.png" alt="example1" style="width: 275px;"/>|<img src="_img/quickstart-example/kmeans008.png" alt="example2" style="width: 275px;"/>|<img src="_img/quickstart-example/kmeans015.png" alt="example3" style="width: 275px;"/>|
+|<img src="{{ site.baseurl }}/page/img/quickstart-example/kmeans003.png" alt="example1" style="width: 275px;"/>|<img src="{{ site.baseurl }}/page/img/quickstart-example/kmeans008.png" alt="example2" style="width: 275px;"/>|<img src="{{ site.baseurl }}/page/img/quickstart-example/kmeans015.png" alt="example3" style="width: 275px;"/>|
 
 
 ## Start Flink
@@ -87,7 +87,7 @@ The Flink web client allows to submit Flink programs using a graphical user inte
 
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="_img/quickstart-example/run-webclient.png" data-lightbox="example-1"><img class="img-responsive" src="_img/quickstart-example/run-webclient.png" /></a>
+		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/run-webclient.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/run-webclient.png" /></a>
 	</div>
 	<div class="col-md-6">
 		1. Open web client on  <a href="http://localhost:8080/launch.html">localhost:8080</a> <br>
@@ -109,7 +109,7 @@ The Flink web client allows to submit Flink programs using a graphical user inte
 <hr>
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="_img/quickstart-example/compiler-webclient-new.png" data-lightbox="example-1"><img class="img-responsive" src="_img/quickstart-example/compiler-webclient-new.png" /></a>
+		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/compiler-webclient-new.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/compiler-webclient-new.png" /></a>
 	</div>
 
 	<div class="col-md-6">
@@ -120,7 +120,7 @@ The Flink web client allows to submit Flink programs using a graphical user inte
 <hr>
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="_img/quickstart-example/jobmanager-running-new.png" data-lightbox="example-1"><img class="img-responsive" src="_img/quickstart-example/jobmanager-running-new.png" /></a>
+		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/jobmanager-running-new.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/jobmanager-running-new.png" /></a>
 	</div>
 	<div class="col-md-6">
 		1. Press the <b>Continue</b> button to start executing the job. <br>
@@ -152,4 +152,4 @@ The following three pictures show the results for the sample input above. Play a
 
 |relative stddev = 0.03|relative stddev = 0.08|relative stddev = 0.15|
 |:--------------------:|:--------------------:|:--------------------:|
-|<img src="_img/quickstart-example/result003.png" alt="example1" style="width: 275px;"/>|<img src="_img/quickstart-example/result008.png" alt="example2" style="width: 275px;"/>|<img src="_img/quickstart-example/result015.png" alt="example3" style="width: 275px;"/>|
+|<img src="{{ site.baseurl }}/page/img/quickstart-example/result003.png" alt="example1" style="width: 275px;"/>|<img src="{{ site.baseurl }}/page/img/quickstart-example/result008.png" alt="example2" style="width: 275px;"/>|<img src="{{ site.baseurl }}/page/img/quickstart-example/result015.png" alt="example3" style="width: 275px;"/>|

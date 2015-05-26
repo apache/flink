@@ -112,7 +112,7 @@ configuration files, which need to be accessible at the same path on all machine
 
 <div class="row">
   <div class="col-md-6 text-center">
-    <img src="_img/quickstart_cluster.png" style="width: 85%">
+    <img src="{{ site.baseurl }}/page/img/quickstart_cluster.png" style="width: 85%">
   </div>
 <div class="col-md-6">
   <div class="row">
