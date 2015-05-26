@@ -24,8 +24,6 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 
 
-
-
 object FlinkShell {
 
   def main(args: Array[String]) {
@@ -33,28 +31,29 @@ object FlinkShell {
     // scopt, command line arguments
     case class Config(port: Int = -1,
                       host: String = "none")
-    val parser = new scopt.OptionParser[Config] ("scopt") {
-      head ("scopt", "3.x")
+    val parser = new scopt.OptionParser[Config]("start-scala-shell.sh") {
+      head ("Flink Scala Shell")
+
       opt[Int] ('p', "port") action {
         (x, c) =>
           c.copy (port = x)
-      } text ("port specifies port of running JobManager")
+      } text("port specifies port of running JobManager")
+
       opt[(String)] ('h',"host") action {
         case (x, c) =>
           c.copy (host = x)
-      }  text ("host specifies host name of running JobManager")
-      help("help") text("prints this usage text")
+      }  text("host specifies host name of running JobManager")
 
+      help("help") text("prints this usage text")
     }
 
 
     // parse arguments
-    parser.parse (args, Config () ) map {
-      config =>
-        startShell(config.host,config.port);
-    } getOrElse {
-      // arguments are bad, usage message will have been displayed
-      println("Could not parse program arguments")
+    parser.parse (args, Config () ) match {
+      case Some(config) =>
+        startShell(config.host,config.port)
+
+      case _ => println("Could not parse program arguments")
     }
   }
 
@@ -65,8 +64,7 @@ object FlinkShell {
     var cluster: LocalFlinkMiniCluster = null
 
     // either port or userhost not specified by user, create new minicluster
-    val (host,port) = if (userHost == "none" || userPort == -1 )
-    {
+    val (host,port) = if (userHost == "none" || userPort == -1 ) {
       println("Creating new local server")
       cluster = new LocalFlinkMiniCluster(new Configuration, false)
       ("localhost",cluster.getJobManagerRPCPort)
