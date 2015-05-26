@@ -147,8 +147,11 @@ abstract class NettyMessage {
 			else if (msgId == ErrorResponse.ID) {
 				decodedMsg = new ErrorResponse();
 			}
+			else if (msgId == CancelPartitionRequest.ID) {
+				decodedMsg = new CancelPartitionRequest();
+			}
 			else {
-				throw new IllegalStateException("Received unknown message from producer: " + decodedMsg.getClass());
+				throw new IllegalStateException("Received unknown message from producer: " + msg);
 			}
 
 			if (decodedMsg != null) {
@@ -486,6 +489,9 @@ abstract class NettyMessage {
 
 		InputChannelID receiverId;
 
+		public CancelPartitionRequest() {
+		}
+
 		public CancelPartitionRequest(InputChannelID receiverId) {
 			this.receiverId = receiverId;
 		}
@@ -495,7 +501,7 @@ abstract class NettyMessage {
 			ByteBuf result = null;
 
 			try {
-				result = allocateBuffer(allocator, ID);
+				result = allocateBuffer(allocator, ID, 16);
 				receiverId.writeTo(result);
 			}
 			catch (Throwable t) {
