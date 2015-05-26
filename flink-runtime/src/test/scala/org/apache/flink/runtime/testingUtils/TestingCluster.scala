@@ -85,7 +85,7 @@ class TestingCluster(userConfiguration: Configuration,
     }
     
     TaskManager.startTaskManagerComponentsAndActor(configuration, system,
-                                                   HOSTNAME,
+                                                   hostname,
                                                    Some(tmActorName),
                                                    jobManagerPath,
                                                    numTaskManagers == 1,
