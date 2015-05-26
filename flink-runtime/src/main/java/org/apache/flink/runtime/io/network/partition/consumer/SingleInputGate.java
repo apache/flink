@@ -47,6 +47,7 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -162,6 +163,9 @@ public class SingleInputGate implements InputGate {
 	private final List<TaskEvent> pendingEvents = new ArrayList<TaskEvent>();
 
 	private int numberOfUninitializedChannels;
+
+	/** A timer to retrigger local partition requests. Only initialized if actually needed. */
+	private Timer retriggerLocalRequestTimer;
 
 	public SingleInputGate(
 			String owningTaskName,
@@ -290,16 +294,25 @@ public class SingleInputGate implements InputGate {
 
 				checkNotNull(ch, "Unknown input channel with ID " + partitionId);
 
-				if (ch.getClass() != RemoteInputChannel.class) {
-					throw new IllegalArgumentException("Channel identified by " + partitionId
-							+ " is not a remote channel.");
-				}
-
-				final RemoteInputChannel rch = (RemoteInputChannel) ch;
-
 				LOG.debug("Retriggering partition request {}:{}.", ch.partitionId, consumedSubpartitionIndex);
 
-				rch.retriggerSubpartitionRequest(consumedSubpartitionIndex);
+				if (ch.getClass() == RemoteInputChannel.class) {
+					final RemoteInputChannel rch = (RemoteInputChannel) ch;
+					rch.retriggerSubpartitionRequest(consumedSubpartitionIndex);
+				}
+				else if (ch.getClass() == LocalInputChannel.class) {
+					final LocalInputChannel ich = (LocalInputChannel) ch;
+
+					if (retriggerLocalRequestTimer == null) {
+						retriggerLocalRequestTimer = new Timer(true);
+					}
+
+					ich.retriggerSubpartitionRequest(retriggerLocalRequestTimer, consumedSubpartitionIndex);
+				}
+				else {
+					throw new IllegalStateException(
+							"Unexpected type of channel to retrigger partition: " + ch.getClass());
+				}
 			}
 		}
 	}
@@ -309,6 +322,10 @@ public class SingleInputGate implements InputGate {
 			if (!isReleased) {
 				try {
 					LOG.debug("{}: Releasing {}.", owningTaskName, this);
+
+					if (retriggerLocalRequestTimer != null) {
+						retriggerLocalRequestTimer.cancel();
+					}
 
 					for (InputChannel inputChannel : inputChannels.values()) {
 						try {
@@ -488,7 +505,8 @@ public class SingleInputGate implements InputGate {
 			if (partitionLocation.isLocal()) {
 				inputChannels[i] = new LocalInputChannel(inputGate, i, partitionId,
 						networkEnvironment.getPartitionManager(),
-						networkEnvironment.getTaskEventDispatcher());
+						networkEnvironment.getTaskEventDispatcher(),
+						networkEnvironment.getPartitionRequestInitialAndMaxBackoff());
 			}
 			else if (partitionLocation.isRemote()) {
 				inputChannels[i] = new RemoteInputChannel(inputGate, i, partitionId,

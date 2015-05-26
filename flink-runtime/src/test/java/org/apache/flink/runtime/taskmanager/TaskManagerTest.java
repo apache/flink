@@ -692,10 +692,10 @@ public class TaskManagerTest {
 	}
 
 	/**
-	 * Tests that repeated {@link PartitionNotFoundException}s fail the receiver.
+	 * Tests that repeated remote {@link PartitionNotFoundException}s ultimately fail the receiver.
 	 */
 	@Test
-	public void testPartitionNotFound() throws Exception {
+	public void testRemotePartitionNotFound() throws Exception {
 
 		new JavaTestKit(system){{
 
@@ -775,6 +775,87 @@ public class TaskManagerTest {
 		}};
 	}
 
+	/**
+	 *  Tests that repeated local {@link PartitionNotFoundException}s ultimately fail the receiver.
+	 */
+	@Test
+	public void testLocalPartitionNotFound() throws Exception {
+
+		new JavaTestKit(system){{
+
+			ActorRef jobManager = null;
+			ActorRef taskManager = null;
+
+			try {
+				final IntermediateDataSetID resultId = new IntermediateDataSetID();
+
+				// Create the JM
+				jobManager = system.actorOf(Props.create(
+						new SimplePartitionStateLookupJobManagerCreator(resultId, getTestActor())));
+
+				final int dataPort = NetUtils.getAvailablePort();
+				taskManager = createTaskManager(jobManager, true, true, dataPort);
+
+				// ---------------------------------------------------------------------------------
+
+				final ActorRef tm = taskManager;
+
+				final JobID jid = new JobID();
+				final JobVertexID vid = new JobVertexID();
+				final ExecutionAttemptID eid = new ExecutionAttemptID();
+
+				final ResultPartitionID partitionId = new ResultPartitionID();
+
+				// Local location (on the same TM though) for the partition
+				final ResultPartitionLocation loc = ResultPartitionLocation.createLocal();
+
+				final InputChannelDeploymentDescriptor[] icdd =
+						new InputChannelDeploymentDescriptor[] {
+								new InputChannelDeploymentDescriptor(partitionId, loc)};
+
+				final InputGateDeploymentDescriptor igdd =
+						new InputGateDeploymentDescriptor(resultId, 0, icdd);
+
+				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
+						jid, vid, eid, "Receiver", 0, 1,
+						new Configuration(), new Configuration(),
+						Tasks.AgnosticReceiver.class.getName(),
+						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+						Collections.singletonList(igdd),
+						Collections.<BlobKey>emptyList(), 0);
+
+				new Within(d) {
+					@Override
+					protected void run() {
+						// Submit the task
+						tm.tell(new SubmitTask(tdd), getTestActor());
+						expectMsgClass(Messages.getAcknowledge().getClass());
+
+						// Wait to be notified about the final execution state by the mock JM
+						TaskExecutionState msg = expectMsgClass(TaskExecutionState.class);
+
+						// The task should fail after repeated requests
+						assertEquals(msg.getExecutionState(), ExecutionState.FAILED);
+						assertEquals(msg.getError(ClassLoader.getSystemClassLoader()).getClass(),
+								PartitionNotFoundException.class);
+					}
+				};
+			}
+			catch(Exception e) {
+				e.printStackTrace();
+				fail(e.getMessage());
+			}
+			finally {
+				if (taskManager != null) {
+					taskManager.tell(Kill.getInstance(), ActorRef.noSender());
+				}
+
+				if (jobManager != null) {
+					jobManager.tell(Kill.getInstance(), ActorRef.noSender());
+				}
+			}
+		}};
+	}
 
 	// --------------------------------------------------------------------------------------------
 
