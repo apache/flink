@@ -64,6 +64,8 @@ import scala.reflect.ClassTag
  */
 class ExecutionEnvironment(javaEnv: JavaEnv) {
 
+  def getJavaEnv: JavaEnv = javaEnv
+
   /**
    * Gets the config object.
    */
