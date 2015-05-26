@@ -46,11 +46,11 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
+import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.sling.commons.json.JSONException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -189,56 +189,54 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	public void addIterationHead(Integer vertexID, Integer iterationHead, Integer iterationID,
+	public void addIterationHead(Integer sourceID, Integer iterationHead, Integer iterationID,
 			long timeOut) {
 
-		addNode(vertexID, StreamIterationHead.class, null, null);
+		addNode(sourceID, StreamIterationHead.class, null, null);
 
-		chaining = false;
-
-		StreamLoop iteration = new StreamLoop(iterationID, getStreamNode(vertexID), timeOut);
+		StreamLoop iteration = new StreamLoop(iterationID, getStreamNode(sourceID), timeOut);
 		streamLoops.put(iterationID, iteration);
-		vertexIDtoLoop.put(vertexID, iteration);
+		vertexIDtoLoop.put(sourceID, iteration);
 
-		setSerializersFrom(iterationHead, vertexID);
-		getStreamNode(vertexID).setOperatorName("IterationHead-" + iterationHead);
+		setSerializersFrom(iterationHead, sourceID);
+		getStreamNode(sourceID).setOperatorName("IterationHead-" + iterationHead);
 
 		int outpartitionerIndex = getStreamNode(iterationHead).getInEdgeIndices().get(0);
 		StreamPartitioner<?> outputPartitioner = getStreamNode(outpartitionerIndex).getOutEdges()
 				.get(0).getPartitioner();
 
-		addEdge(vertexID, iterationHead, outputPartitioner, 0, new ArrayList<String>());
+		addEdge(sourceID, iterationHead, outputPartitioner, 0, new ArrayList<String>());
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("ITERATION SOURCE: {}", vertexID);
+			LOG.debug("ITERATION SOURCE: {}", sourceID);
 		}
 
-		sources.add(vertexID);
+		sources.add(sourceID);
 	}
 
-	public void addIterationTail(Integer vertexID, Integer iterationTail, Integer iterationID,
+	public void addIterationTail(Integer sinkID, Integer iterationTail, Integer iterationID,
 			long waitTime) {
 
 		if (getStreamNode(iterationTail).getBufferTimeout() == 0) {
 			throw new RuntimeException("Buffer timeout 0 at iteration tail is not supported.");
 		}
 
-		addNode(vertexID, StreamIterationTail.class, null, null).setParallelism(
+		addNode(sinkID, StreamIterationTail.class, null, null).setParallelism(
 				getStreamNode(iterationTail).getParallelism());
 
 		StreamLoop iteration = streamLoops.get(iterationID);
-		iteration.setTail(getStreamNode(iterationTail));
-		vertexIDtoLoop.put(vertexID, iteration);
+		iteration.setSink(getStreamNode(sinkID));
+		vertexIDtoLoop.put(sinkID, iteration);
 
-		setSerializersFrom(iterationTail, vertexID);
-		getStreamNode(vertexID).setOperatorName("IterationTail-" + iterationTail);
+		setSerializersFrom(iterationTail, sinkID);
+		getStreamNode(sinkID).setOperatorName("IterationTail-" + iterationTail);
 
-		setParallelism(iteration.getHead().getID(), getStreamNode(iterationTail).getParallelism());
-		setBufferTimeout(iteration.getHead().getID(), getStreamNode(iterationTail)
+		iteration.getSource().setParallelism(iteration.getSink().getParallelism());
+		setBufferTimeout(iteration.getSource().getID(), getStreamNode(iterationTail)
 				.getBufferTimeout());
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("ITERATION SINK: {}", vertexID);
+			LOG.debug("ITERATION SINK: {}", sinkID);
 		}
 
 	}
@@ -468,14 +466,14 @@ public class StreamGraph extends StreamingPlan {
 
 		private Integer loopID;
 
-		private StreamNode head;
-		private StreamNode tail;
-
+		private StreamNode source;
+		private StreamNode sink;
+		
 		private Long timeout;
 
-		public StreamLoop(Integer loopID, StreamNode head, Long timeout) {
+		public StreamLoop(Integer loopID, StreamNode source, Long timeout) {
 			this.loopID = loopID;
-			this.head = head;
+			this.source = source;
 			this.timeout = timeout;
 		}
 
@@ -487,16 +485,16 @@ public class StreamGraph extends StreamingPlan {
 			return timeout;
 		}
 
-		public void setTail(StreamNode tail) {
-			this.tail = tail;
+		public void setSink(StreamNode sink) {
+			this.sink = sink;
 		}
 
-		public StreamNode getHead() {
-			return head;
+		public StreamNode getSource() {
+			return source;
 		}
 
-		public StreamNode getTail() {
-			return tail;
+		public StreamNode getSink() {
+			return sink;
 		}
 
 	}
