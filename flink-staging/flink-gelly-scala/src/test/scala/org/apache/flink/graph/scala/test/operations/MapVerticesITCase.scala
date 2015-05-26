@@ -21,7 +21,7 @@ class MapVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode
 
     @Rule
     def getFolder(): TemporaryFolder = {
-        return tempFolder;
+        tempFolder;
     }
 
     @Before
