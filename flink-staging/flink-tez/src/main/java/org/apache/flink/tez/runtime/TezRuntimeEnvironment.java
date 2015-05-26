@@ -36,7 +36,7 @@ public class TezRuntimeEnvironment {
 	public TezRuntimeEnvironment(long totalMemory) {
 		int pageSize = DEFAULT_PAGE_SIZE;
 		int numSlots = DEFAULT_NUM_SLOTS;
-		this.memoryManager = new DefaultMemoryManager(totalMemory, numSlots, pageSize);
+		this.memoryManager = new DefaultMemoryManager(totalMemory, numSlots, pageSize, true);
 		this.ioManager = new IOManagerAsync();
 	}
 
