@@ -1,6 +1,7 @@
 ---
 mathjax: include
-title: "Multiple linear regression"
+htmlTitle: FlinkML - Multiple linear regression
+title: <a href="/libs/ml">FlinkML</a> - Multiple linear regression
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -48,7 +49,7 @@ under the License.
   $$\nabla_{\mathbf{w}} S(\mathbf{w}, \mathbf{x_i}) = 2\left(\mathbf{w}^T\mathbf{x_i} -
     y\right)\mathbf{x_i}$$
 
-  The gradients are averaged and scaled. The scaling is defined by $\gamma = s/\sqrt{j}}$
+  The gradients are averaged and scaled. The scaling is defined by $\gamma = \frac{s}{\sqrt{j}}$
   with $s$ being the initial step size and $j$ being the current iteration number. The resulting gradient is subtracted from the
   current weight vector giving the new weight vector for the next iteration:
 
@@ -58,6 +59,23 @@ under the License.
   The convergence criterion is the relative change in the sum of squared residuals:
 
   $$\frac{S_{k-1} - S_k}{S_{k-1}} < \rho$$
+  
+## Operations
+
+`MultipleLinearRegression` is a `Predictor`.
+As such, it supports the `fit` and `predict` operation.
+
+### Fit
+
+MultipleLinearRegression is trained on a set of `LabeledVector`: 
+
+* `fit: DataSet[LabeledVector] => Unit`
+
+### Predict
+
+MultipleLinearRegression predicts for all subtypes of `Vector` the corresponding regression value: 
+
+* `predict[T <: Vector]: DataSet[T] => DataSet[LabeledVector]`
 
 ## Parameters
 

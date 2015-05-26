@@ -1,6 +1,7 @@
 ---
 mathjax: include
-title: "Pipelines - In-depth Description"
+htmlTitle: FlinkML - Looking under the hood of piplines
+title: <a href="/libs/ml">FlinkML</a> - Looking under the hood of pipelines
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
