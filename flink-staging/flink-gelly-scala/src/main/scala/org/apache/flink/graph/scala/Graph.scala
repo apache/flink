@@ -2,6 +2,7 @@ package org.apache.flink.graph.scala
 
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.{tuple => jtuple}
 import org.apache.flink.api.scala._
 import org.apache.flink.graph.{Edge, Vertex}
 import org.apache.flink.{graph => jg}
@@ -59,5 +60,15 @@ final class Graph[K: TypeInformation, VV: TypeInformation, EV: TypeInformation](
             def map(in: Edge[K, EV]): NV = cleanFun(in)
         }
         new Graph[K, VV, NV](jgraph.mapEdges[NV](mapper, createTypeInformation[Edge[K, NV]]))
+    }
+
+    def joinWithVertices[T: TypeInformation : ClassTag](inputDataset: DataSet[(K, T)], mapper: MapFunction[(VV, T), VV]): Graph[K, VV, EV] = {
+        val newmapper = new MapFunction[jtuple.Tuple2[VV, T], VV]() {
+            override def map(value: jtuple.Tuple2[VV, T]): VV = {
+                mapper.map((value.f0, value.f1))
+            }
+        }
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
+        new Graph[K, VV, EV](jgraph.joinWithVertices[T](javaTupleSet, newmapper))
     }
 }
