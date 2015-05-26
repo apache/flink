@@ -58,7 +58,7 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	// --------------------------------------------------------------------------------------------
 
 	public void startCluster() throws Exception{
-		this.executor = startCluster(numTaskManagers, taskManagerNumSlots, false);
+		this.executor = startCluster(numTaskManagers, taskManagerNumSlots, false, true);
 	}
 
 	public void stopCluster() throws Exception {

@@ -39,7 +39,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 
 	@BeforeClass
 	public static void setup() throws Exception{
-		cluster = TestBaseUtils.startCluster(1, 4, true);
+		cluster = TestBaseUtils.startCluster(1, 4, true, true);
 	}
 
 	public WebFrontendITCase(TestExecutionMode m) {

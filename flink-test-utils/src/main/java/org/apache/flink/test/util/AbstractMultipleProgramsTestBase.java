@@ -68,13 +68,15 @@ public abstract class AbstractMultipleProgramsTestBase extends TestBaseUtils {
 
 	protected transient TestExecutionMode mode;
 
+	public static boolean singleActorSystem = true;
+
 	public AbstractMultipleProgramsTestBase(TestExecutionMode mode){
 		this.mode = mode;
 	}
 
 	@BeforeClass
 	public static void setup() throws Exception{
-		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, false);
+		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, false, singleActorSystem);
 	}
 
 	@AfterClass

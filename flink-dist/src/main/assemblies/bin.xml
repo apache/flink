@@ -50,6 +50,12 @@ under the License.
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
+		<!-- flink scala shell-->
+		<fileSet>
+			<directory>../flink-staging/flink-scala-shell/start-script/</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>755</fileMode>
+		</fileSet>
 		<fileSet>
 			<!-- copy yarn start scripts -->
 			<directory>src/main/flink-bin/yarn-bin</directory>
@@ -113,6 +119,7 @@ under the License.
 				<exclude>img/gradient.jpg</exclude>
 			</excludes>
 		</fileSet>
+
 
 		<fileSet>
 			<!-- copy jar files of java examples -->

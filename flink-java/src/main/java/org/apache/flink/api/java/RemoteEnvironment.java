@@ -87,4 +87,14 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		return "Remote Environment (" + this.host + ":" + this.port + " - parallelism = " +
 				(getParallelism() == -1 ? "default" : getParallelism()) + ") : " + getIdString();
 	}
+
+
+	// needed to call execute on ScalaShellRemoteEnvironment
+	public int getPort() {
+		return this.port;
+	}
+
+	public String getHost() {
+		return this.host;
+	}
 }
