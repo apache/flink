@@ -67,24 +67,21 @@ object Predictor{
     *
     * @tparam Self Type of the [[Predictor]]
     * @tparam Testing Type of the testing data
-    * @tparam Prediction Type of the predicted data
     * @return
     */
-  implicit def fallbackPredictOperation[Self: ClassTag, Testing: ClassTag, Prediction: ClassTag]
-    : PredictOperation[Self, Testing, Prediction] = {
-    new PredictOperation[Self, Testing, Prediction] {
+  implicit def fallbackPredictOperation[Self: ClassTag, Testing: ClassTag]
+    : PredictOperation[Self, Testing, Any] = {
+    new PredictOperation[Self, Testing, Any] {
       override def predict(
           instance: Self,
           predictParameters: ParameterMap,
           input: DataSet[Testing])
-        : DataSet[Prediction] = {
+        : DataSet[Any] = {
         val self = implicitly[ClassTag[Self]]
         val testing = implicitly[ClassTag[Testing]]
-        val prediction = implicitly[ClassTag[Prediction]]
 
         throw new RuntimeException("There is no PredictOperation defined for " + self.runtimeClass +
-          " which takes a DataSet[" + testing.runtimeClass + "] as input and returns a DataSet[" +
-          prediction.runtimeClass + "]")
+          " which takes a DataSet[" + testing.runtimeClass + "] as input.")
       }
     }
   }
