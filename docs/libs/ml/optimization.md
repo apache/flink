@@ -1,7 +1,7 @@
 ---
 mathjax: include
 htmlTitle: FlinkML - Optimization
-title: <a href="/libs/ml">FlinkML</a> - Optimization
+title: <a href="../ml">FlinkML</a> - Optimization
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

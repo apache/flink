@@ -1,7 +1,7 @@
 ---
 mathjax: include
 htmlTitle: FlinkML - Communication efficient distributed dual coordinate ascent (CoCoA)
-title: <a href="/libs/ml">FlinkML</a> - Communication efficient distributed dual coordinate ascent (CoCoA)
+title: <a href="../ml">FlinkML</a> - Communication efficient distributed dual coordinate ascent (CoCoA)
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

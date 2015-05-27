@@ -1,7 +1,7 @@
 ---
 mathjax: include
 htmlTitle: FlinkML - Multiple linear regression
-title: <a href="/libs/ml">FlinkML</a> - Multiple linear regression
+title: <a href="../ml">FlinkML</a> - Multiple linear regression
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
