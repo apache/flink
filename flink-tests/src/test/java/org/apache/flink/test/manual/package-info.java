@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
-
-public class SlotTestUtils {
-
-}
+/**
+ * This package contains various tests that are not automatically executed, but
+ * need to be manually invoked, because they are extremely heavy of require larger-than-usual
+ * JVMs.
+ */
+package org.apache.flink.test.manual;
