@@ -129,12 +129,12 @@ object PageRankTable {
     // emit result
     if (fileOutput) {
       result.writeAsCsv(outputPath, "\n", " ")
+      // execute program
+      env.execute("Expression PageRank Example")
     } else {
+      // execute program and print result
       result.print()
     }
-
-    // execute program
-    env.execute("Expression PageRank Example")
   }
 
   // *************************************************************************
