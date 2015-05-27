@@ -26,7 +26,7 @@ under the License.
 		<version>0.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
-	
+
 	<artifactId>flink-yarn</artifactId>
 	<name>flink-yarn</name>
 	<packaging>jar</packaging>
@@ -43,7 +43,7 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
@@ -83,8 +83,8 @@ under the License.
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
 		</dependency>
-		
-		
+
+
 	</dependencies>
 
 	<build>
@@ -120,6 +120,10 @@ under the License.
 						<jvmArg>-Xms128m</jvmArg>
 						<jvmArg>-Xmx512m</jvmArg>
 					</jvmArgs>
+					<args>
+						<arg>-Xmax-classfile-name</arg>
+						<arg>128</arg>
+					</args>
 				</configuration>
 			</plugin>
 
