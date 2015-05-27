@@ -44,7 +44,7 @@ import java.util.Set;
 public final class UdfAnalyzerUtils {
 
 	public static TaggedValue convertTypeInfoToTaggedValue(TaggedValue.Input input, TypeInformation<?> typeInfo,
-														   String flatFieldExpr, List<CompositeType.FlatFieldDescriptor> flatFieldDesc, int[] groupedKeys) {
+			String flatFieldExpr, List<CompositeType.FlatFieldDescriptor> flatFieldDesc, int[] groupedKeys) {
 		// tuples
 		if (typeInfo instanceof TupleTypeInfo) {
 			final TupleTypeInfo<?> tupleTypeInfo = (TupleTypeInfo<?>) typeInfo;

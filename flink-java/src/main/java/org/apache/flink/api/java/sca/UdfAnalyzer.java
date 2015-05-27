@@ -49,7 +49,7 @@ import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.removeUngroupedInpu
 
 public class UdfAnalyzer {
 	// exclusion to suppress hints for API operators
-	private static final String EXCLUDED_CLASSPATH = "org/apache/flink/api/java/operators";
+	private static final String EXCLUDED_CLASSPATH = "org/apache/flink";
 	private static final int MAX_NESTING = 20;
 
 	private final Method baseClassMethod;
@@ -231,7 +231,8 @@ public class UdfAnalyzer {
 	}
 
 	public boolean analyze() throws UdfAnalyzerException {
-		if (internalUdfClassName.startsWith(EXCLUDED_CLASSPATH)) {
+		if (internalUdfClassName.startsWith(EXCLUDED_CLASSPATH)
+				&& !internalUdfClassName.startsWith("org/apache/flink/api/java/sca")) {
 			return false;
 		}
 		if (state == STATE_END_OF_ANALYZING) {
@@ -369,7 +370,7 @@ public class UdfAnalyzer {
 
 	public String getHintsString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("Function '" + udfClass.getCanonicalName() + "' has been analyzed with the following result:\n");
+		sb.append("Function '" + udfClass.getName() + "' has been analyzed with the following result:\n");
 		sb.append("Number of object creations (should be kept to a minimum): "
 				+ newOperationCounterTopLevel + " in method / " + newOperationCounterOverall + " transitively\n");
 
