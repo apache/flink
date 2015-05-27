@@ -142,8 +142,8 @@ The SVM implementation can be controlled by the following parameters:
 ## Examples
 
 {% highlight scala %}
-// Read the training data set
-val trainingDS: DataSet[LabeledVector] = env.readSVMFile(pathToTrainingFile)
+// Read the training data set, from a LibSVM formatted file
+val trainingDS: DataSet[LabeledVector] = env.readLibSVM(pathToTrainingFile)
 
 // Create the SVM learner
 val svm = SVM()
