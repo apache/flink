@@ -18,10 +18,9 @@
 
 package org.apache.flink.ml.classification
 
-import org.scalatest.{FlatSpec, Matchers}
-
 import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase
+import org.scalatest.{FlatSpec, Matchers}
 
 class DecisionTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
 
@@ -30,14 +29,14 @@ class DecisionTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
   it should "train a decision tree" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val learner = DecisionTree().setMaxBins(10).setDepth(20).setDimension(4).setClasses(3)
+    val learner = DecisionTree().setMaxBins(5).setDepth(20).setDimension(4).setClasses(3)
 
     val trainingDS = env.fromCollection(Classification.IrisTrainingData).setParallelism(4)
 
-    val model = learner.fit(trainingDS)
-
-    val predict = model.testAccuracy(env.fromCollection(
-      Classification.IrisTestingData).setParallelism(4))
-    println(s"Testing accuracy: $predict%")
+    learner.fit(trainingDS)
+    println("Accuracy:" +
+      learner.testAccuracy(
+        env.fromCollection(Classification.IrisTestingData).setParallelism(4),
+        learner.treeOption.get))
   }
 }

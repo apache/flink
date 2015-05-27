@@ -19,6 +19,9 @@
 
 package org.apache.flink.ml.tree
 
+import java.lang.Double.MAX_VALUE
+import java.util
+
 /** Keeps useful statistics about a field
   * fieldType is false for categorical fields, true for continuous fields
   * For continuous field, minimum and maximum values.
@@ -29,17 +32,16 @@ package org.apache.flink.ml.tree
 
 class FieldStats(
                   val fieldType: Boolean,
-                  val fieldMinValue: Double = -java.lang.Double.MAX_VALUE,
-                  val fieldMaxValue: Double = java.lang.Double.MAX_VALUE,
-                  val fieldCategories: collection.mutable.HashMap[Double, Int] =
-                  new collection.mutable.HashMap[Double, Int]) {
+                  val fieldMinValue: Double = -MAX_VALUE,
+                  val fieldMaxValue: Double = MAX_VALUE,
+                  val fieldCategories: Array[Double] = new Array[Double](0)) {
 
   override def toString: String = {
     if (fieldType) {
       s"Continuous field: Range: ($fieldMinValue,$fieldMaxValue)"
     }
     else {
-      s"Categorical field: Number of categories: $fieldCategories"
+      s"Categorical field: Categories: " + util.Arrays.toString(fieldCategories)
     }
   }
 }
