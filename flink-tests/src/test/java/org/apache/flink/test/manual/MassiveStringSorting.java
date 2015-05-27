@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.operators.sort;
+package org.apache.flink.test.manual;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -27,28 +27,30 @@ import java.io.IOException;
 import java.util.Random;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.StringComparator;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
-import org.apache.flink.api.java.typeutils.runtime.CopyableValueComparator;
-import org.apache.flink.api.java.typeutils.runtime.CopyableValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-import org.apache.flink.types.StringValue;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Assert;
 
-public class MassiveStringValueSortingITCase {
+public class MassiveStringSorting {
 
 	private static final long SEED = 347569784659278346L;
 	
-	public void testStringValueSorting() {
+	
+	public void testStringSorting() {
 		File input = null;
 		File sorted = null;
 
@@ -76,7 +78,7 @@ public class MassiveStringValueSortingITCase {
 			}
 			
 			// sort the data
-			UnilateralSortMerger<StringValue> sorter = null;
+			UnilateralSortMerger<String> sorter = null;
 			BufferedReader reader = null;
 			BufferedReader verifyReader = null;
 			
@@ -84,29 +86,28 @@ public class MassiveStringValueSortingITCase {
 				MemoryManager mm = new DefaultMemoryManager(1024 * 1024, 1);
 				IOManager ioMan = new IOManagerAsync();
 					
-				TypeSerializer<StringValue> serializer = new CopyableValueSerializer<StringValue>(StringValue.class);
-				TypeComparator<StringValue> comparator = new CopyableValueComparator<StringValue>(true, StringValue.class);
+				TypeSerializer<String> serializer = StringSerializer.INSTANCE;
+				TypeComparator<String> comparator = new StringComparator(true);
 				
 				reader = new BufferedReader(new FileReader(input));
-				MutableObjectIterator<StringValue> inputIterator = new StringValueReaderMutableObjectIterator(reader);
+				MutableObjectIterator<String> inputIterator = new StringReaderMutableObjectIterator(reader);
 				
-				sorter = new UnilateralSortMerger<StringValue>(mm, ioMan, inputIterator, new DummyInvokable(),
-						new RuntimeSerializerFactory<StringValue>(serializer, StringValue.class), comparator, 1.0, 4, 0.8f);
+				sorter = new UnilateralSortMerger<String>(mm, ioMan, inputIterator, new DummyInvokable(),
+						new RuntimeSerializerFactory<String>(serializer, String.class), comparator, 1.0, 4, 0.8f);
 
-				MutableObjectIterator<StringValue> sortedData = sorter.getIterator();
+				MutableObjectIterator<String> sortedData = sorter.getIterator();
 				
 				reader.close();
 				
 				// verify
 				verifyReader = new BufferedReader(new FileReader(sorted));
-				String nextVerify;
-				StringValue nextFromFlinkSort = new StringValue();
+				String next;
 				
-				while ((nextVerify = verifyReader.readLine()) != null) {
-					nextFromFlinkSort = sortedData.next(nextFromFlinkSort);
+				while ((next = verifyReader.readLine()) != null) {
+					String nextFromStratoSort = sortedData.next("");
 					
-					Assert.assertNotNull(nextFromFlinkSort);
-					Assert.assertEquals(nextVerify, nextFromFlinkSort.getValue());
+					Assert.assertNotNull(nextFromStratoSort);
+					Assert.assertEquals(next, nextFromStratoSort);
 				}
 			}
 			finally {
@@ -137,7 +138,7 @@ public class MassiveStringValueSortingITCase {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public void testStringValueTuplesSorting() {
+	public void testStringTuplesSorting() {
 		final int NUM_STRINGS = 300000;
 		
 		File input = null;
@@ -167,7 +168,7 @@ public class MassiveStringValueSortingITCase {
 			}
 			
 			// sort the data
-			UnilateralSortMerger<Tuple2<StringValue, StringValue[]>> sorter = null;
+			UnilateralSortMerger<Tuple2<String, String[]>> sorter = null;
 			BufferedReader reader = null;
 			BufferedReader verifyReader = null;
 			
@@ -175,17 +176,17 @@ public class MassiveStringValueSortingITCase {
 				MemoryManager mm = new DefaultMemoryManager(1024 * 1024, 1);
 				IOManager ioMan = new IOManagerAsync();
 					
-				TupleTypeInfo<Tuple2<StringValue, StringValue[]>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, StringValue[]>>) (TupleTypeInfo<?>)
-						TypeInfoParser.parse("Tuple2<org.apache.flink.types.StringValue, org.apache.flink.types.StringValue[]>");
+				TupleTypeInfo<Tuple2<String, String[]>> typeInfo = (TupleTypeInfo<Tuple2<String, String[]>>) 
+						TypeInfoParser.<Tuple2<String, String[]>>parse("Tuple2<String, String[]>");
 
-				TypeSerializer<Tuple2<StringValue, StringValue[]>> serializer = typeInfo.createSerializer(new ExecutionConfig());
-				TypeComparator<Tuple2<StringValue, StringValue[]>> comparator = typeInfo.createComparator(new int[] { 0 }, new boolean[] { true }, 0, new ExecutionConfig());
+				TypeSerializer<Tuple2<String, String[]>> serializer = typeInfo.createSerializer(new ExecutionConfig());
+				TypeComparator<Tuple2<String, String[]>> comparator = typeInfo.createComparator(new int[] { 0 }, new boolean[] { true }, 0, new ExecutionConfig());
 				
 				reader = new BufferedReader(new FileReader(input));
-				MutableObjectIterator<Tuple2<StringValue, StringValue[]>> inputIterator = new StringValueTupleReaderMutableObjectIterator(reader);
+				MutableObjectIterator<Tuple2<String, String[]>> inputIterator = new StringTupleReaderMutableObjectIterator(reader);
 				
-				sorter = new UnilateralSortMerger<Tuple2<StringValue, StringValue[]>>(mm, ioMan, inputIterator, new DummyInvokable(),
-						new RuntimeSerializerFactory<Tuple2<StringValue, StringValue[]>>(serializer, (Class<Tuple2<StringValue, StringValue[]>>) (Class<?>) Tuple2.class), comparator, 1.0, 4, 0.8f);
+				sorter = new UnilateralSortMerger<Tuple2<String, String[]>>(mm, ioMan, inputIterator, new DummyInvokable(),
+						new RuntimeSerializerFactory<Tuple2<String, String[]>>(serializer, (Class<Tuple2<String, String[]>>) (Class<?>) Tuple2.class), comparator, 1.0, 4, 0.8f);
 
 				
 				
@@ -205,29 +206,29 @@ public class MassiveStringValueSortingITCase {
 //				
 //				MutableObjectIterator<Tuple2<String, String[]>> sortedData = nks.getIterator();
 				
-				MutableObjectIterator<Tuple2<StringValue, StringValue[]>> sortedData = sorter.getIterator();
+				MutableObjectIterator<Tuple2<String, String[]>> sortedData = sorter.getIterator();
 				reader.close();
 				
 				// verify
 				verifyReader = new BufferedReader(new FileReader(sorted));
-				MutableObjectIterator<Tuple2<StringValue, StringValue[]>> verifyIterator = new StringValueTupleReaderMutableObjectIterator(verifyReader);
+				MutableObjectIterator<Tuple2<String, String[]>> verifyIterator = new StringTupleReaderMutableObjectIterator(verifyReader);
 				
-				Tuple2<StringValue, StringValue[]> nextVerify = new Tuple2<StringValue, StringValue[]>(new StringValue(), new StringValue[0]);
-				Tuple2<StringValue, StringValue[]> nextFromFlinkSort = new Tuple2<StringValue, StringValue[]>(new StringValue(), new StringValue[0]);
+				Tuple2<String, String[]> next = new Tuple2<String, String[]>("", new String[0]);
+				Tuple2<String, String[]> nextFromStratoSort = new Tuple2<String, String[]>("", new String[0]);
 				
 				int num = 0;
 				
-				while ((nextVerify = verifyIterator.next(nextVerify)) != null) {
+				while ((next = verifyIterator.next(next)) != null) {
 					num++;
 					
-					nextFromFlinkSort = sortedData.next(nextFromFlinkSort);
-					Assert.assertNotNull(nextFromFlinkSort);
+					nextFromStratoSort = sortedData.next(nextFromStratoSort);
+					Assert.assertNotNull(nextFromStratoSort);
 					
-					Assert.assertEquals(nextVerify.f0, nextFromFlinkSort.f0);
-					Assert.assertArrayEquals(nextVerify.f1, nextFromFlinkSort.f1);
+					Assert.assertEquals(next.f0, nextFromStratoSort.f0);
+					Assert.assertArrayEquals(next.f1, nextFromStratoSort.f1);
 				}
 				
-				Assert.assertNull(sortedData.next(nextFromFlinkSort));
+				Assert.assertNull(sortedData.next(nextFromStratoSort));
 				Assert.assertEquals(NUM_STRINGS, num);
 
 			}
@@ -260,61 +261,49 @@ public class MassiveStringValueSortingITCase {
 
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class StringValueReaderMutableObjectIterator implements MutableObjectIterator<StringValue> {
+	private static final class StringReaderMutableObjectIterator implements MutableObjectIterator<String> {
 		
 		private final BufferedReader reader;
 
-		public StringValueReaderMutableObjectIterator(BufferedReader reader) {
+		public StringReaderMutableObjectIterator(BufferedReader reader) {
 			this.reader = reader;
 		}
 		
 		@Override
-		public StringValue next(StringValue reuse) throws IOException {
-			String line = reader.readLine();
-			
-			if (line == null) {
-				return null;
-			}
-			
-			reuse.setValue(line);
-			return reuse;
+		public String next(String reuse) throws IOException {
+			return reader.readLine();
 		}
 
 		@Override
-		public StringValue next() throws IOException {
-			return next(new StringValue());
+		public String next() throws IOException {
+			return reader.readLine();
 		}
 	}
 	
-	private static final class StringValueTupleReaderMutableObjectIterator implements MutableObjectIterator<Tuple2<StringValue, StringValue[]>> {
+	private static final class StringTupleReaderMutableObjectIterator implements MutableObjectIterator<Tuple2<String, String[]>> {
 		
 		private final BufferedReader reader;
 
-		public StringValueTupleReaderMutableObjectIterator(BufferedReader reader) {
+		public StringTupleReaderMutableObjectIterator(BufferedReader reader) {
 			this.reader = reader;
 		}
 		
 		@Override
-		public Tuple2<StringValue, StringValue[]> next(Tuple2<StringValue, StringValue[]> reuse) throws IOException {
+		public Tuple2<String, String[]> next(Tuple2<String, String[]> reuse) throws IOException {
 			String line = reader.readLine();
 			if (line == null) {
 				return null;
 			}
 			
 			String[] parts = line.split(" ");
-			reuse.f0.setValue(parts[0]);
-			reuse.f1 = new StringValue[parts.length];
-			
-			for (int i = 0; i < parts.length; i++) {
-				reuse.f1[i] = new StringValue(parts[i]);
-			}
-			
+			reuse.f0 = parts[0];
+			reuse.f1 = parts;
 			return reuse;
 		}
 
 		@Override
-		public Tuple2<StringValue, StringValue[]> next() throws IOException {
-			return next(new Tuple2<StringValue, StringValue[]>(new StringValue(), new StringValue[0]));
+		public Tuple2<String, String[]> next() throws IOException {
+			return next(new Tuple2<String, String[]>());
 		}
 	}
 	
@@ -396,7 +385,7 @@ public class MassiveStringValueSortingITCase {
 	// --------------------------------------------------------------------------------------------
 	
 	public static void main(String[] args) {
-		new MassiveStringValueSortingITCase().testStringValueSorting();
-		new MassiveStringValueSortingITCase().testStringValueTuplesSorting();
+		new MassiveStringSorting().testStringSorting();
+		new MassiveStringSorting().testStringTuplesSorting();
 	}
 }
