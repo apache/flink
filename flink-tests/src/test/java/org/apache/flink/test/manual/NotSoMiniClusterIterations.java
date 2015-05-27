@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.misc;
+package org.apache.flink.test.manual;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -32,15 +32,18 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 import static org.junit.Assert.fail;
 
-public class CCTest {
+/**
+ * This test starts a mini cluster with 100 task managers and runs connected components
+ * with a parallelism of 100.
+ */
+public class NotSoMiniClusterIterations {
 	
 	private static final int PARALLELISM = 100;
 	
 	public static void main(String[] args) {
 		if ((Runtime.getRuntime().maxMemory() >>> 20) < 5000) {
-			throw new RuntimeException("This est program needs to run with at least 5GB of heap space.");
+			throw new RuntimeException("This test program needs to run with at least 5GB of heap space.");
 		}
-		
 		
 		LocalFlinkMiniCluster cluster = null;
 
@@ -50,9 +53,8 @@ public class CCTest {
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 8);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 1000);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY, 8 * 1024);
-
-
+			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, 8 * 1024);
+			
 			config.setInteger("taskmanager.net.server.numThreads", 1);
 			config.setInteger("taskmanager.net.client.numThreads", 1);
 
