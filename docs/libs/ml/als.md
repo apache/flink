@@ -1,7 +1,7 @@
 ---
 mathjax: include
 htmlTitle: FlinkML - Alternating Least Squares
-title: <a href="/libs/ml">FlinkML</a> - Alternating Least Squares
+title: <a href="../ml">FlinkML</a> - Alternating Least Squares
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

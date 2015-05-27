@@ -1,7 +1,7 @@
 ---
 mathjax: include
 htmlTitle: FlinkML - Polynomial Features
-title: <a href="/libs/ml">FlinkML</a> - Polynomial Features
+title: <a href="../ml">FlinkML</a> - Polynomial Features
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
