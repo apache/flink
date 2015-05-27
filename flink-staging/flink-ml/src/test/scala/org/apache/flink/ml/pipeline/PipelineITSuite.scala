@@ -22,7 +22,8 @@ import breeze.linalg
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.classification.CoCoA
+import org.apache.flink.ml.common.{ParameterMap, LabeledVector}
 import org.apache.flink.ml.math._
 import org.apache.flink.ml.preprocessing.{PolynomialFeatures, StandardScaler}
 import org.apache.flink.ml.regression.MultipleLinearRegression
@@ -86,16 +87,42 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val vData = List(DenseVector(1.0, 2.0, 3.0), DenseVector(2.0, 3.0, 4.0))
     val vectorData = env.fromCollection(vData)
+    val labeledVectors = List(LabeledVector(1.0, DenseVector(1.0, 2.0)),
+      LabeledVector(2.0, DenseVector(2.0, 3.0)),
+      LabeledVector(3.0, DenseVector(3.0, 4.0)))
+    val labeledData = env.fromCollection(labeledVectors)
+    val doubles = List(1.0, 2.0, 3.0)
+    val doubleData = env.fromCollection(doubles)
 
     val pipeline = scaler.chainPredictor(mlr)
 
-    val exception = intercept[RuntimeException] {
+    val exceptionFit = intercept[RuntimeException] {
       pipeline.fit(vectorData)
     }
 
-    exception.getMessage should equal("There is no FitOperation defined for class org.apache." +
+    exceptionFit.getMessage should equal("There is no FitOperation defined for class org.apache." +
       "flink.ml.regression.MultipleLinearRegression which trains on a " +
       "DataSet[class org.apache.flink.ml.math.DenseVector]")
+
+    // fit the pipeline so that the StandardScaler won't fail when predict is called on the pipeline
+    pipeline.fit(labeledData)
+
+    // make sure that we have TransformOperation[StandardScaler, Double, Double]
+    implicit val standardScalerDoubleTransform =
+      new TransformOperation[StandardScaler, Double, Double] {
+        override def transform(instance: StandardScaler, transformParameters: ParameterMap,
+          input: DataSet[Double]): DataSet[Double] = {
+          input
+        }
+      }
+
+    val exceptionPredict = intercept[RuntimeException] {
+      pipeline.predict(doubleData)
+    }
+
+    exceptionPredict.getMessage should equal("There is no PredictOperation defined for class " +
+      "org.apache.flink.ml.regression.MultipleLinearRegression which takes a " +
+      "DataSet[double] as input.")
   }
 
   it should "throw an exception when the input data is not supported" in {
@@ -109,12 +136,19 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val pipeline = scaler.chainTransformer(polyFeatures)
 
-    val exception = intercept[RuntimeException] {
+    val exceptionFit = intercept[RuntimeException] {
       pipeline.fit(doubleData)
     }
 
-    exception.getMessage should equal("There is no FitOperation defined for class org.apache." +
+    exceptionFit.getMessage should equal("There is no FitOperation defined for class org.apache." +
       "flink.ml.preprocessing.StandardScaler which trains on a DataSet[double]")
+
+    val exceptionTransform = intercept[RuntimeException] {
+      pipeline.transform(doubleData)
+    }
+
+    exceptionTransform.getMessage should equal("There is no TransformOperation defined for class " +
+      "org.apache.flink.ml.preprocessing.StandardScaler which takes a DataSet[double] as input.")
   }
 
   it should "support multiple transformers and a predictor" in {
@@ -145,5 +179,22 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
     }
 
     weightVector._2 should be (1.3131727 +- 0.01)
+  }
+
+  it should "throw an exception when the input data is not supported by a predictor" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val data = List(1.0, 2.0, 3.0)
+    val doubleData = env.fromCollection(data)
+
+    val svm = CoCoA()
+
+    intercept[RuntimeException] {
+      svm.fit(doubleData)
+    }
+
+    intercept[RuntimeException] {
+      svm.predict(doubleData)
+    }
   }
 }

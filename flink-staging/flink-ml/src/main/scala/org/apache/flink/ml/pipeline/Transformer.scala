@@ -137,27 +137,24 @@ object Transformer{
     *
     * @tparam Self Type of the [[Transformer]] for which the [[TransformOperation]] is defined
     * @tparam IN Input data type of the [[TransformOperation]]
-    * @tparam OUT Output data type of the [[TransformOperation]]
     * @return
     */
   implicit def fallbackTransformOperation[
       Self: ClassTag,
-      IN: ClassTag,
-      OUT: ClassTag]
-    : TransformOperation[Self, IN, OUT] = {
-    new TransformOperation[Self, IN, OUT] {
+      IN: ClassTag]
+    : TransformOperation[Self, IN, Any] = {
+    new TransformOperation[Self, IN, Any] {
       override def transform(
           instance: Self,
           transformParameters: ParameterMap,
           input: DataSet[IN])
-        : DataSet[OUT] = {
+        : DataSet[Any] = {
         val self = implicitly[ClassTag[Self]]
         val in = implicitly[ClassTag[IN]]
-        val out = implicitly[ClassTag[OUT]]
 
         throw new RuntimeException("There is no TransformOperation defined for " +
           self.runtimeClass +  " which takes a DataSet[" + in.runtimeClass +
-          "] as input and transforms it into a DataSet[" + out.runtimeClass + "]")
+          "] as input.")
       }
     }
   }
