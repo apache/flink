@@ -22,7 +22,6 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -32,7 +31,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.TextInputFormat;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -42,11 +40,11 @@ import org.apache.flink.client.program.Client.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.FileStateHandle;
+import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType;
-import org.apache.flink.streaming.api.functions.source.FileReadFunction;
 import org.apache.flink.streaming.api.functions.source.FileSourceFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.GenSequenceFunction;
@@ -59,6 +57,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 
 import com.esotericsoftware.kryo.Serializer;
+import com.google.common.base.Preconditions;
 
 /**
  * {@link ExecutionEnvironment} for streaming jobs. An instance of it is
@@ -198,7 +197,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @return StreamExecutionEnvironment with chaining disabled.
 	 */
-	public StreamExecutionEnvironment disableOperatorChaning() {
+	public StreamExecutionEnvironment disableOperatorChaining() {
 		streamGraph.setChaining(false);
 		return this;
 	}
@@ -236,6 +235,19 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public StreamExecutionEnvironment enableCheckpointing() {
 		streamGraph.setCheckpointingEnabled(true);
+		return this;
+	}
+
+	/**
+	 * Sets the {@link StateHandleProvider} used for storing operator state
+	 * checkpoints when checkpointing is enabled.
+	 * <p>
+	 * An example would be using a {@link FileStateHandle#createProvider(Path)}
+	 * to use any Flink supported file system as a state backend
+	 * 
+	 */
+	public StreamExecutionEnvironment setStateHandleProvider(StateHandleProvider<?> provider) {
+		streamGraph.setStateHandleProvider(provider);
 		return this;
 	}
 
@@ -388,7 +400,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the text file.
 	 */
 	public DataStreamSource<String> readTextFile(String filePath) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
 		TypeInformation<String> typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
 
@@ -405,7 +417,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the text file.
 	 */
 	public DataStreamSource<String> readTextFile(String filePath, String charsetName) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
 		TypeInformation<String> typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
 		format.setCharsetName(charsetName);
@@ -435,10 +447,10 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStream<String> readFileStream(String filePath, long intervalMillis,
 			WatchType watchType) {
-		DataStream<Tuple3<String, Long, Long>> source = addSource(new FileMonitoringFunction(
-				filePath, intervalMillis, watchType), "File Stream");
-
-		return source.flatMap(new FileReadFunction());
+//		DataStream<Tuple3<String, Long, Long>> source = addSource(new FileMonitoringFunction(
+//				filePath, intervalMillis, watchType), "File Stream");
+//		return source.flatMap(new FileReadFunction());
+		return null;
 	}
 
 	/**
@@ -611,8 +623,8 @@ public abstract class StreamExecutionEnvironment {
 	 * Ads a data source with a custom type information thus opening a
 	 * {@link DataStream}. Only in very special cases does the user need to
 	 * support type information. Otherwise use
-	 * {@link #addSource(SourceFunction)}
-	 * 
+	 * {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+	 *
 	 * @param function
 	 *            the user defined function
 	 * @param sourceName
@@ -630,7 +642,8 @@ public abstract class StreamExecutionEnvironment {
 			outTypeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
 		} else {
 			try {
-				outTypeInfo = TypeExtractor.createTypeInfo(SourceFunction.class,
+				outTypeInfo = TypeExtractor.createTypeInfo(
+						SourceFunction.class,
 						function.getClass(), 0, null, null);
 			} catch (InvalidTypesException e) {
 				outTypeInfo = (TypeInformation<OUT>) new MissingTypeInfo("Custom source", e);
@@ -640,7 +653,7 @@ public abstract class StreamExecutionEnvironment {
 		boolean isParallel = function instanceof ParallelSourceFunction;
 
 		ClosureCleaner.clean(function, true);
-		StreamOperator<OUT, OUT> sourceOperator = new StreamSource<OUT>(function);
+		StreamOperator<OUT> sourceOperator = new StreamSource<OUT>(function);
 
 		return new DataStreamSource<OUT>(this, sourceName, outTypeInfo, sourceOperator, isParallel,
 				sourceName);

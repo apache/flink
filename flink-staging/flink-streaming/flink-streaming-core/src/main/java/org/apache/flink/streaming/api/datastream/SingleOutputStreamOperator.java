@@ -23,6 +23,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph.ResourceStrategy;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator.ChainingStrategy;
 
@@ -39,7 +40,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		DataStream<OUT> {
 
 	protected boolean isSplit;
-	protected StreamOperator<?, ?> operator;
+	protected StreamOperator<?> operator;
 
 	/**
 	 * Gets the name of the current data stream. This name is
@@ -63,7 +64,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	}
 
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment,
-			String operatorType, TypeInformation<OUT> outTypeInfo, StreamOperator<?, ?> operator) {
+			String operatorType, TypeInformation<OUT> outTypeInfo, StreamOperator<?> operator) {
 		super(environment, operatorType, outTypeInfo);
 		this.isSplit = false;
 		this.operator = operator;
@@ -156,13 +157,13 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	/**
 	 * Turns off chaining for this operator so thread co-location will not be
 	 * used as an optimization. </p> Chaining can be turned off for the whole
-	 * job by {@link StreamExecutionEnvironment#disableOperatorChaning()}
+	 * job by {@link StreamExecutionEnvironment#disableOperatorChaining()}
 	 * however it is not advised for performance considerations.
 	 * 
 	 * @return The operator with chaining disabled
 	 */
 	public SingleOutputStreamOperator<OUT, O> disableChaining() {
-		return setChainingStrategy(ChainingStrategy.NEVER);
+		return setChainingStrategy(AbstractStreamOperator.ChainingStrategy.NEVER);
 	}
 
 	/**
@@ -173,7 +174,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 * @return The operator with chaining set.
 	 */
 	public SingleOutputStreamOperator<OUT, O> startNewChain() {
-		return setChainingStrategy(ChainingStrategy.HEAD);
+		return setChainingStrategy(AbstractStreamOperator.ChainingStrategy.HEAD);
 	}
 
 	/**

@@ -66,15 +66,20 @@ public class DefaultMemoryManager implements MemoryManager {
 	private final int pageSizeBits;			// the number of bits that the power-of-two page size corresponds to
 	
 	private final int totalNumPages;		// The initial total size, for verification.
-	
-	private boolean isShutDown;				// flag whether the close() has already been invoked.
 
-	/**
-	 * Number of slots of the task manager
-	 */
-	private final int numberOfSlots;
-
+	/** The total size of the memory managed by this memory manager */
 	private final long memorySize;
+
+	/** Number of slots of the task manager */
+	private final int numberOfSlots;
+	
+	private final boolean isPreAllocated;
+	
+	/** The number of memory pages that have not been allocated and are available for lazy allocation */
+	private int numNonAllocatedPages;
+	
+	/** flag whether the close() has already been invoked */
+	private boolean isShutDown;
 
 	// ------------------------------------------------------------------------
 	// Constructors / Destructors
@@ -87,7 +92,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	 * @param numberOfSlots The number of slots of the task manager.
 	 */
 	public DefaultMemoryManager(long memorySize, int numberOfSlots) {
-		this(memorySize, numberOfSlots, DEFAULT_PAGE_SIZE);
+		this(memorySize, numberOfSlots, DEFAULT_PAGE_SIZE, true);
 	}
 
 	/**
@@ -96,8 +101,10 @@ public class DefaultMemoryManager implements MemoryManager {
 	 * @param memorySize The total size of the memory to be managed by this memory manager.
 	 * @param numberOfSlots The number of slots of the task manager.
 	 * @param pageSize The size of the pages handed out by the memory manager.
+	 * @param preAllocateMemory True, if the memory manaber should immediately allocate all memory, false
+	 *                          if it should allocate and release the memory as needed.
 	 */
-	public DefaultMemoryManager(long memorySize, int numberOfSlots, int pageSize) {
+	public DefaultMemoryManager(long memorySize, int numberOfSlots, int pageSize, boolean preAllocateMemory) {
 		// sanity checks
 		if (memorySize <= 0) {
 			throw new IllegalArgumentException("Size of total memory must be positive.");
@@ -132,11 +139,17 @@ public class DefaultMemoryManager implements MemoryManager {
 		this.freeSegments = new ArrayDeque<byte[]>(this.totalNumPages);
 		this.allocatedSegments = new HashMap<AbstractInvokable, Set<DefaultMemorySegment>>();
 
+		this.isPreAllocated = preAllocateMemory;
 		
-		// add the full chunks
-		for (int i = 0; i < this.totalNumPages; i++) {
-			// allocate memory of the specified size
-			this.freeSegments.add(new byte[this.pageSize]);
+		if (preAllocateMemory) {
+			// add the full chunks
+			for (int i = 0; i < this.totalNumPages; i++) {
+				// allocate memory of the specified size
+				this.freeSegments.add(new byte[this.pageSize]);
+			}
+		}
+		else {
+			this.numNonAllocatedPages = this.totalNumPages;
 		}
 	}
 
@@ -147,12 +160,14 @@ public class DefaultMemoryManager implements MemoryManager {
 		{
 			if (!this.isShutDown) {
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Shutting down MemoryManager instance " + toString());
+					LOG.debug("Shutting down MemoryManager instance " + this);
 				}
 	
 				// mark as shutdown and release memory
 				this.isShutDown = true;
+				
 				this.freeSegments.clear();
+				this.numNonAllocatedPages = 0;
 				
 				// go over all allocated segments and release them
 				for (Set<DefaultMemorySegment> segments : this.allocatedSegments.values()) {
@@ -173,7 +188,9 @@ public class DefaultMemoryManager implements MemoryManager {
 	@Override
 	public boolean verifyEmpty() {
 		synchronized (this.lock) {
-			return this.freeSegments.size() == this.totalNumPages;
+			return isPreAllocated ?
+					this.freeSegments.size() == this.totalNumPages :
+					this.numNonAllocatedPages == this.totalNumPages;
 		}
 	}
 
@@ -209,7 +226,9 @@ public class DefaultMemoryManager implements MemoryManager {
 				throw new IllegalStateException("Memory manager has been shut down.");
 			}
 			
-			if (numPages > this.freeSegments.size()) {
+			// in the case of pre-allocated memory, the 'numNonAllocatedPages' is zero, in the
+			// lazy case, the 'freeSegments.size()' is zero.
+			if (numPages > (this.freeSegments.size() + numNonAllocatedPages)) {
 				throw new MemoryAllocationException("Could not allocate " + numPages + " pages. Only " + 
 					this.freeSegments.size() + " pages are remaining.");
 			}
@@ -220,11 +239,22 @@ public class DefaultMemoryManager implements MemoryManager {
 				this.allocatedSegments.put(owner, segmentsForOwner);
 			}
 			
-			for (int i = numPages; i > 0; i--) {
-				byte[] buffer = this.freeSegments.poll();
-				final DefaultMemorySegment segment = new DefaultMemorySegment(owner, buffer);
-				target.add(segment);
-				segmentsForOwner.add(segment);
+			if (isPreAllocated) {
+				for (int i = numPages; i > 0; i--) {
+					byte[] buffer = this.freeSegments.poll();
+					final DefaultMemorySegment segment = new DefaultMemorySegment(owner, buffer);
+					target.add(segment);
+					segmentsForOwner.add(segment);
+				}
+			}
+			else {
+				for (int i = numPages; i > 0; i--) {
+					byte[] buffer = new byte[pageSize];
+					final DefaultMemorySegment segment = new DefaultMemorySegment(owner, buffer);
+					target.add(segment);
+					segmentsForOwner.add(segment);
+				}
+				numNonAllocatedPages -= numPages;
 			}
 		}
 		// -------------------- END CRITICAL SECTION -------------------
@@ -259,14 +289,19 @@ public class DefaultMemoryManager implements MemoryManager {
 						this.allocatedSegments.remove(owner);
 					}
 				}
+
+				byte[] buffer = defSeg.destroy();
+				
+				if (isPreAllocated) {
+					// release the memory in any case
+					this.freeSegments.add(buffer);
+				}
+				else {
+					numNonAllocatedPages++;
+				}
 			}
 			catch (Throwable t) {
-				LOG.error("Error removing book-keeping reference to allocated memory segment.", t);
-			}
-			finally {
-				// release the memory in any case
-				byte[] buffer = defSeg.destroy();
-				this.freeSegments.add(buffer);
+				throw new RuntimeException("Error removing book-keeping reference to allocated memory segment.", t);
 			}
 		}
 		// -------------------- END CRITICAL SECTION -------------------
@@ -286,8 +321,7 @@ public class DefaultMemoryManager implements MemoryManager {
 			}
 
 			// since concurrent modifications to the collection
-			// can disturb the release, we need to try potentially
-			// multiple times
+			// can disturb the release, we need to try potentially multiple times
 			boolean successfullyReleased = false;
 			do {
 				final Iterator<T> segmentsIterator = segments.iterator();
@@ -322,12 +356,20 @@ public class DefaultMemoryManager implements MemoryManager {
 									this.allocatedSegments.remove(owner);
 								}
 							}
-						} catch (Throwable t) {
-							LOG.error("Error removing book-keeping reference to allocated memory segment.", t);
-						} finally {
+
 							// release the memory in any case
 							byte[] buffer = defSeg.destroy();
-							this.freeSegments.add(buffer);
+							
+							if (isPreAllocated) {
+								this.freeSegments.add(buffer);
+							}
+							else {
+								numNonAllocatedPages++;
+							}
+						}
+						catch (Throwable t) {
+							throw new RuntimeException(
+									"Error removing book-keeping reference to allocated memory segment.", t);
 						}
 					}
 
@@ -363,9 +405,17 @@ public class DefaultMemoryManager implements MemoryManager {
 			}
 
 			// free each segment
-			for (DefaultMemorySegment seg : segments) {
-				final byte[] buffer = seg.destroy();
-				this.freeSegments.add(buffer);
+			if (isPreAllocated) {
+				for (DefaultMemorySegment seg : segments) {
+					final byte[] buffer = seg.destroy();
+					this.freeSegments.add(buffer);
+				}
+			}
+			else {
+				for (DefaultMemorySegment seg : segments) {
+					seg.destroy();
+				}
+				numNonAllocatedPages += segments.size();
 			}
 
 			segments.clear();
@@ -387,12 +437,16 @@ public class DefaultMemoryManager implements MemoryManager {
 
 	@Override
 	public int computeNumberOfPages(double fraction) {
-		return getRelativeNumPages(fraction);
+		if (fraction <= 0 || fraction > 1) {
+			throw new IllegalArgumentException("The fraction of memory to allocate must within (0, 1].");
+		}
+
+		return (int)(this.totalNumPages * fraction / this.numberOfSlots);
 	}
 
 	@Override
 	public long computeMemorySize(double fraction) {
-		return this.pageSize*computeNumberOfPages(fraction);
+		return this.pageSize * computeNumberOfPages(fraction);
 	}
 
 	@Override
@@ -413,14 +467,6 @@ public class DefaultMemoryManager implements MemoryManager {
 		} else {
 			throw new IllegalArgumentException("The given number of bytes corresponds to more than MAX_INT pages.");
 		}
-	}
-
-	private int getRelativeNumPages(double fraction){
-		if (fraction <= 0 || fraction > 1) {
-			throw new IllegalArgumentException("The fraction of memory to allocate must within (0, 1].");
-		}
-
-		return (int)(this.totalNumPages * fraction / this.numberOfSlots);
 	}
 	
 	// ------------------------------------------------------------------------

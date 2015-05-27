@@ -21,6 +21,8 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.SerializedValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple bean to describe the state belonging to a parallel operator.
@@ -33,6 +35,8 @@ import org.apache.flink.runtime.util.SerializedValue;
  * the respective classloader.
  */
 public class StateForTask {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(StateForTask.class);
 
 	/** The state of the parallel operator */
 	private final SerializedValue<StateHandle<?>> state;
@@ -42,9 +46,9 @@ public class StateForTask {
 	
 	/** The index of the parallel subtask */
 	private final int subtask;
-
+	
 	public StateForTask(SerializedValue<StateHandle<?>> state, JobVertexID operatorId, int subtask) {
-		if (state == null || operatorId == null || subtask < 0) {
+	if (state == null || operatorId == null || subtask < 0) {
 			throw new IllegalArgumentException();
 		}
 		
@@ -65,6 +69,14 @@ public class StateForTask {
 
 	public int getSubtask() {
 		return subtask;
+	}
+	
+	public void discard(ClassLoader userClassLoader) {
+		try {
+			state.deserializeValue(userClassLoader).discardState();
+		} catch (Exception e) {
+			LOG.warn("Failed to discard checkpoint state: " + this, e);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

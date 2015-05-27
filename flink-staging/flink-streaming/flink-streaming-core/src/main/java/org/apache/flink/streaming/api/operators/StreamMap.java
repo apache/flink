@@ -19,24 +19,19 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.functions.MapFunction;
 
-public class StreamMap<IN, OUT> extends ChainableStreamOperator<IN, OUT> {
+public class StreamMap<IN, OUT>
+		extends AbstractUdfStreamOperator<OUT, MapFunction<IN, OUT>>
+		implements OneInputStreamOperator<IN, OUT> {
+
 	private static final long serialVersionUID = 1L;
 
 	public StreamMap(MapFunction<IN, OUT> mapper) {
 		super(mapper);
+		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override
-	public void run() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
+	public void processElement(IN element) throws Exception {
+		output.collect(userFunction.map(element));
 	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction() throws Exception {
-		collector.collect(((MapFunction<IN, OUT>) userFunction).map(nextObject));
-	}
-
 }

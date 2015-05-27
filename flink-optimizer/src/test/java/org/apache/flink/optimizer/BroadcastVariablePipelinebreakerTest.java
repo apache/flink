@@ -24,6 +24,7 @@ import static org.junit.Assert.*;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -54,6 +55,10 @@ public class BroadcastVariablePipelinebreakerTest extends CompilerTestBase {
 			SingleInputPlanNode mapper = (SingleInputPlanNode) sink.getInput().getSource();
 			
 			assertEquals(TempMode.NONE, mapper.getInput().getTempMode());
+			assertEquals(TempMode.NONE, mapper.getBroadcastInputs().get(0).getTempMode());
+			
+			assertEquals(DataExchangeMode.PIPELINED, mapper.getInput().getDataExchangeMode());
+			assertEquals(DataExchangeMode.PIPELINED, mapper.getBroadcastInputs().get(0).getDataExchangeMode());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -76,8 +81,15 @@ public class BroadcastVariablePipelinebreakerTest extends CompilerTestBase {
 				
 				SinkPlanNode sink = op.getDataSinks().iterator().next();
 				SingleInputPlanNode mapper = (SingleInputPlanNode) sink.getInput().getSource();
-				
-				assertEquals(TempMode.PIPELINE_BREAKER, mapper.getInput().getTempMode());
+				SingleInputPlanNode beforeMapper = (SingleInputPlanNode) mapper.getInput().getSource();
+
+				assertEquals(TempMode.NONE, mapper.getInput().getTempMode());
+				assertEquals(TempMode.NONE, beforeMapper.getInput().getTempMode());
+				assertEquals(TempMode.NONE, mapper.getBroadcastInputs().get(0).getTempMode());
+
+				assertEquals(DataExchangeMode.PIPELINED, mapper.getInput().getDataExchangeMode());
+				assertEquals(DataExchangeMode.BATCH, beforeMapper.getInput().getDataExchangeMode());
+				assertEquals(DataExchangeMode.BATCH, mapper.getBroadcastInputs().get(0).getDataExchangeMode());
 			}
 			catch (Exception e) {
 				e.printStackTrace();

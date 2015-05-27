@@ -20,31 +20,32 @@ package org.apache.flink.streaming.util;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.co.CoStreamOperator;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.CoReaderIterator;
-import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskContext;
-import org.apache.flink.util.Collector;
-import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
-public class MockCoContext<IN1, IN2, OUT> implements StreamTaskContext<OUT> {
+public class MockCoContext<IN1, IN2, OUT> {
 	// private Collection<IN1> input1;
 	// private Collection<IN2> input2;
 	private Iterator<IN1> inputIterator1;
 	private Iterator<IN2> inputIterator2;
 	private List<OUT> outputs;
 
-	private Collector<OUT> collector;
+	private Output<OUT> collector;
 	private StreamRecordSerializer<IN1> inDeserializer1;
 	private CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> mockIterator;
 	private StreamRecordSerializer<IN2> inDeserializer2;
@@ -66,7 +67,7 @@ public class MockCoContext<IN1, IN2, OUT> implements StreamTaskContext<OUT> {
 		mockIterator = new MockCoReaderIterator(inDeserializer1, inDeserializer2);
 
 		outputs = new ArrayList<OUT>();
-		collector = new MockCollector<OUT>(outputs);
+		collector = new MockOutput<OUT>(outputs);
 	}
 
 	private int currentInput = 1;
@@ -137,7 +138,7 @@ public class MockCoContext<IN1, IN2, OUT> implements StreamTaskContext<OUT> {
 		return outputs;
 	}
 
-	public Collector<OUT> getCollector() {
+	public Output<OUT> getCollector() {
 		return collector;
 	}
 
@@ -153,14 +154,57 @@ public class MockCoContext<IN1, IN2, OUT> implements StreamTaskContext<OUT> {
 		return mockIterator;
 	}
 
-	public static <IN1, IN2, OUT> List<OUT> createAndExecute(CoStreamOperator<IN1, IN2, OUT> operator,
+	public static <IN1, IN2, OUT> List<OUT> createAndExecute(TwoInputStreamOperator<IN1, IN2, OUT> operator,
 			List<IN1> input1, List<IN2> input2) {
 		MockCoContext<IN1, IN2, OUT> mockContext = new MockCoContext<IN1, IN2, OUT>(input1, input2);
-		operator.setup(mockContext);
+		RuntimeContext runtimeContext =  new StreamingRuntimeContext("CoMockTask", new MockEnvironment(3 * 1024 * 1024, new MockInputSplitProvider(), 1024), null,
+				new ExecutionConfig());
+
+		operator.setup(mockContext.collector, runtimeContext);
 
 		try {
 			operator.open(null);
-			operator.run();
+
+			StreamRecordSerializer<IN1> inputDeserializer1 = mockContext.getInDeserializer1();
+			StreamRecordSerializer<IN2> inputDeserializer2 = mockContext.getInDeserializer2();
+			CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> coIter = mockContext.mockIterator;
+
+			boolean isRunning = true;
+
+			int next;
+			StreamRecord<IN1> reuse1 = inputDeserializer1.createInstance();
+			StreamRecord<IN2> reuse2 = inputDeserializer2.createInstance();
+
+			while (isRunning) {
+				try {
+					next = coIter.next(reuse1, reuse2);
+				} catch (IOException e) {
+					if (isRunning) {
+						throw new RuntimeException("Could not read next record.", e);
+					} else {
+						// Task already cancelled do nothing
+						next = 0;
+					}
+				} catch (IllegalStateException e) {
+					if (isRunning) {
+						throw new RuntimeException("Could not read next record.", e);
+					} else {
+						// Task already cancelled do nothing
+						next = 0;
+					}
+				}
+
+				if (next == 0) {
+					break;
+				} else if (next == 1) {
+					operator.processElement1(reuse1.getObject());
+					reuse1 = inputDeserializer1.createInstance();
+				} else {
+					operator.processElement2(reuse2.getObject());
+					reuse2 = inputDeserializer2.createInstance();
+				}
+			}
+
 			operator.close();
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot invoke operator.", e);
@@ -168,63 +212,4 @@ public class MockCoContext<IN1, IN2, OUT> implements StreamTaskContext<OUT> {
 
 		return mockContext.getOutputs();
 	}
-
-	@Override
-	public StreamConfig getConfig() {
-		return null;
-	}
-
-	@Override
-	public ClassLoader getUserCodeClassLoader() {
-		return null;
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <X> MutableObjectIterator<X> getInput(int index) {
-		switch (index) {
-		case 0:
-			return (MutableObjectIterator<X>) inputIterator1;
-		case 1:
-			return (MutableObjectIterator<X>) inputIterator2;
-		default:
-			throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <X> StreamRecordSerializer<X> getInputSerializer(int index) {
-		switch (index) {
-		case 0:
-			return (StreamRecordSerializer<X>) inDeserializer1;
-		case 1:
-			return (StreamRecordSerializer<X>) inDeserializer2;
-		default:
-			throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <X, Y> CoReaderIterator<X, Y> getCoReader() {
-		return (CoReaderIterator<X, Y>) mockIterator;
-	}
-
-	@Override
-	public Collector<OUT> getOutputCollector() {
-		return collector;
-	}
-
-	@Override
-	public <X> IndexedReaderIterator<X> getIndexedInput(int index) {
-		throw new UnsupportedOperationException(
-				"Indexed iterator is currently unsupported for connected streams.");
-	}
-
-	@Override
-	public ExecutionConfig getExecutionConfig() {
-		return new ExecutionConfig();
-	}
-
 }

@@ -36,7 +36,7 @@ import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
  */
 public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 
-	private static final long serialVersionUID = -3469545957144404137L;
+	private static final long serialVersionUID = 1L;
 
 	protected KeySelector<IN, ?> keySelector;
 	protected Configuration parameters;
@@ -59,11 +59,18 @@ public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 	}
 
 	@Override
-	public void run() throws Exception {
+	public void close() throws Exception {
+		super.close();
+		for (StreamDiscretizer<IN> group : groupedDiscretizers.values()) {
+			group.emitWindow();
+		}
+	}
 
-		while (isRunning && readNext() != null) {
+	@Override
+	public void processElement(IN element) throws Exception {
 
-			Object key = keySelector.getKey(nextObject);
+
+			Object key = keySelector.getKey(element);
 
 			StreamDiscretizer<IN> groupDiscretizer = groupedDiscretizers.get(key);
 
@@ -72,12 +79,7 @@ public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 				groupedDiscretizers.put(key, groupDiscretizer);
 			}
 
-			groupDiscretizer.processRealElement(nextObject);
-		}
-
-		for (StreamDiscretizer<IN> group : groupedDiscretizers.values()) {
-			group.emitWindow();
-		}
+			groupDiscretizer.processRealElement(element);
 
 	}
 
@@ -95,8 +97,11 @@ public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 		StreamDiscretizer<IN> groupDiscretizer = new StreamDiscretizer<IN>(triggerPolicy.clone(),
 				evictionPolicy.clone());
 
-		groupDiscretizer.collector = taskContext.getOutputCollector();
+//		groupDiscretizer.output = taskContext.getOutputCollector();
+		// TODO: this seems very hacky, maybe we can get around this
+		groupDiscretizer.setup(this.output, this.runtimeContext);
 		groupDiscretizer.open(this.parameters);
+
 
 		return groupDiscretizer;
 	}

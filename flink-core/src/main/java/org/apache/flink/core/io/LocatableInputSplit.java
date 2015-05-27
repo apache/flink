@@ -18,12 +18,7 @@
 
 package org.apache.flink.core.io;
 
-import java.io.IOException;
 import java.util.Arrays;
-
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.StringUtils;
 
 /**
  * A locatable input split is an input split referring to input data which is located on one or more hosts.
@@ -34,40 +29,35 @@ public class LocatableInputSplit implements InputSplit, java.io.Serializable {
 
 	private static final String[] EMPTY_ARR = new String[0];
 	
-	/**
-	 * The number of the split.
-	 */
-	private int splitNumber;
+	/** The number of the split. */
+	private final int splitNumber;
 
-	/**
-	 * The names of the hosts storing the data this input split refers to.
-	 */
-	private String[] hostnames;
+	/** The names of the hosts storing the data this input split refers to. */
+	private final String[] hostnames;
 
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a new locatable input split.
+	 * Creates a new locatable input split that refers to a multiple host as its data location.
 	 * 
-	 * @param splitNumber
-	 *        the number of the split
-	 * @param hostnames
-	 *        the names of the hosts storing the data this input split refers to
+	 * @param splitNumber The number of the split
+	 * @param hostnames The names of the hosts storing the data this input split refers to.
 	 */
 	public LocatableInputSplit(int splitNumber, String[] hostnames) {
 		this.splitNumber = splitNumber;
 		this.hostnames = hostnames == null ? EMPTY_ARR : hostnames;
 	}
-	
+
+	/**
+	 * Creates a new locatable input split that refers to a single host as its data location.
+	 *
+	 * @param splitNumber The number of the split.
+	 * @param hostname The names of the host storing the data this input split refers to.
+	 */
 	public LocatableInputSplit(int splitNumber, String hostname) {
 		this.splitNumber = splitNumber;
 		this.hostnames = hostname == null ? EMPTY_ARR : new String[] { hostname };
 	}
-
-	/**
-	 * Default constructor for serialization/deserialization.
-	 */
-	public LocatableInputSplit() {}
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -83,32 +73,6 @@ public class LocatableInputSplit implements InputSplit, java.io.Serializable {
 	 */
 	public String[] getHostnames() {
 		return this.hostnames;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeInt(this.splitNumber);
-		out.writeInt(this.hostnames.length);
-		for (String hostname : this.hostnames) {
-			StringUtils.writeNullableString(hostname, out);
-		}
-	}
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.splitNumber = in.readInt();
-
-		final int numHosts = in.readInt();
-		if (numHosts == 0) {
-			this.hostnames = EMPTY_ARR;
-		} else {
-			this.hostnames = new String[numHosts];
-			for (int i = 0; i < numHosts; i++) {
-				this.hostnames[i] = StringUtils.readNullableString(in);
-			}
-		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

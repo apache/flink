@@ -18,11 +18,6 @@
 
 package org.apache.flink.core.io;
 
-import java.io.IOException;
-
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-
 /**
  * A generic input split that has only a partition number.
  */
@@ -30,22 +25,13 @@ public class GenericInputSplit implements InputSplit, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * The number of this split.
-	 */
-	private int partitionNumber;
+	/** The number of this split. */
+	private final int partitionNumber;
 
-	/**
-	 * The total number of partitions
-	 */
-	private int totalNumberOfPartitions;
+	/** The total number of partitions */
+	private final int totalNumberOfPartitions;
 	
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Default constructor for instantiation during de-serialization.
-	 */
-	public GenericInputSplit() {}
 
 	/**
 	 * Creates a generic input split with the given split number.
@@ -70,20 +56,6 @@ public class GenericInputSplit implements InputSplit, java.io.Serializable {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeInt(this.partitionNumber);
-		out.writeInt(this.totalNumberOfPartitions);
-	}
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.partitionNumber = in.readInt();
-		this.totalNumberOfPartitions = in.readInt();
-	}
-	
-	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
@@ -102,6 +74,6 @@ public class GenericInputSplit implements InputSplit, java.io.Serializable {
 	}
 	
 	public String toString() {
-		return "GenericSplit (" + this.partitionNumber + "/" + this.totalNumberOfPartitions + ")";
+		return "GenericSplit (" + this.partitionNumber + '/' + this.totalNumberOfPartitions + ')';
 	}
 }

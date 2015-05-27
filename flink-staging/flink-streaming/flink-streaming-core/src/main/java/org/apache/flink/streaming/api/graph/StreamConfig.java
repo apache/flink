@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
@@ -57,6 +58,7 @@ public class StreamConfig implements Serializable {
 	private static final String EDGES_IN_ORDER = "edgesInOrder";
 	private static final String OUT_STREAM_EDGES = "outStreamEdges";
 	private static final String IN_STREAM_EDGES = "inStreamEdges";
+	private static final String STATEHANDLE_PROVIDER = "stateHandleProvider";
 
 	// DEFAULT VALUES
 	private static final long DEFAULT_TIMEOUT = 100;
@@ -162,7 +164,7 @@ public class StreamConfig implements Serializable {
 		return config.getLong(BUFFER_TIMEOUT, DEFAULT_TIMEOUT);
 	}
 
-	public void setStreamOperator(StreamOperator<?, ?> operator) {
+	public void setStreamOperator(StreamOperator<?> operator) {
 		if (operator != null) {
 			config.setClass(USER_FUNCTION, operator.getClass());
 
@@ -375,6 +377,25 @@ public class StreamConfig implements Serializable {
 			return confs == null ? new HashMap<Integer, StreamConfig>() : confs;
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate configuration.", e);
+		}
+	}
+	
+	public void setStateHandleProvider(StateHandleProvider<?> provider) {
+
+		try {
+			InstantiationUtil.writeObjectToConfig(provider, this.config, STATEHANDLE_PROVIDER);
+		} catch (IOException e) {
+			throw new StreamTaskException("Could not serialize stateHandle provider.", e);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public <R> StateHandleProvider<R> getStateHandleProvider(ClassLoader cl) {
+		try {
+			return (StateHandleProvider<R>) InstantiationUtil
+					.readObjectFromConfig(this.config, STATEHANDLE_PROVIDER, cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not instantiate statehandle provider.", e);
 		}
 	}
 

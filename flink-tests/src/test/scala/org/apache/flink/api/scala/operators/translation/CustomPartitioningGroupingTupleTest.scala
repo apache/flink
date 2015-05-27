@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala.operators.translation
 
+import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.junit.Assert._
 import org.junit.Test
 
@@ -42,7 +43,7 @@ class CustomPartitioningGroupingTupleTest extends CompilerTestBase {
       data.groupBy(0)
           .withPartitioner(new TestPartitionerInt())
           .sum(1)
-          .print()
+          .output(new DiscardingOutputFormat[(Int, Int)])
       
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -73,7 +74,7 @@ class CustomPartitioningGroupingTupleTest extends CompilerTestBase {
       data
           .groupBy(0).withPartitioner(new TestPartitionerInt())
           .reduce( (a,b) => a )
-          .print()
+          .output(new DiscardingOutputFormat[(Int, Int)])
           
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -104,7 +105,7 @@ class CustomPartitioningGroupingTupleTest extends CompilerTestBase {
       data
           .groupBy(0).withPartitioner(new TestPartitionerInt())
           .reduceGroup( iter => Seq(iter.next) )
-          .print()
+          .output(new DiscardingOutputFormat[Seq[(Int, Int)]])
       
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -134,7 +135,7 @@ class CustomPartitioningGroupingTupleTest extends CompilerTestBase {
           .groupBy(0).withPartitioner(new TestPartitionerInt())
           .sortGroup(1, Order.ASCENDING)
           .reduceGroup( iter => Seq(iter.next) )
-          .print()
+          .output(new DiscardingOutputFormat[Seq[(Int, Int, Int)]])
           
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -165,7 +166,7 @@ class CustomPartitioningGroupingTupleTest extends CompilerTestBase {
           .sortGroup(1, Order.ASCENDING)
           .sortGroup(2, Order.DESCENDING)
           .reduceGroup( iter => Seq(iter.next) )
-          .print()
+          .output(new DiscardingOutputFormat[Seq[(Int, Int, Int, Int)]])
           
       val p = env.createProgramPlan()
       val op = compileNoStats(p)

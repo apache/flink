@@ -19,9 +19,10 @@ package org.apache.flink.streaming.api.collector;
 
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.util.Collector;
 
-public class CollectorWrapper<OUT> implements Collector<OUT> {
+public class CollectorWrapper<OUT> implements Output<OUT> {
 
 	private OutputSelectorWrapper<OUT> outputSelectorWrapper;
 

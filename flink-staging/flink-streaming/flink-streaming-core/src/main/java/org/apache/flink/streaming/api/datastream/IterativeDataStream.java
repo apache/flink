@@ -17,9 +17,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-
 /**
  * The iterative data stream represents the start of an iteration in a
  * {@link DataStream}.
@@ -31,21 +28,13 @@ public class IterativeDataStream<IN> extends
 		SingleOutputStreamOperator<IN, IterativeDataStream<IN>> {
 
 	static Integer iterationCount = 0;
-	protected Integer iterationID;
-	protected long waitTime;
-
+	
 	protected IterativeDataStream(DataStream<IN> dataStream, long maxWaitTime) {
 		super(dataStream);
 		setBufferTimeout(dataStream.environment.getBufferTimeout());
 		iterationID = iterationCount;
 		iterationCount++;
-		waitTime = maxWaitTime;
-	}
-
-	protected IterativeDataStream(DataStream<IN> dataStream, Integer iterationID, long waitTime) {
-		super(dataStream);
-		this.iterationID = iterationID;
-		this.waitTime = waitTime;
+		iterationWaitTime = maxWaitTime;
 	}
 
 	/**
@@ -70,35 +59,9 @@ public class IterativeDataStream<IN> extends
 		// We add an iteration sink to the tail which will send tuples to the
 		// iteration head
 		streamGraph.addIterationTail(iterationSink.getId(), iterationTail.getId(), iterationID,
-				waitTime);
+				iterationWaitTime);
 
 		connectGraph(iterationTail.forward(), iterationSink.getId(), 0);
 		return iterationTail;
-	}
-
-	@Override
-	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
-			TypeInformation<R> outTypeInfo, StreamOperator<IN, R> operator) {
-
-		// We call the superclass tranform method
-		SingleOutputStreamOperator<R, ?> returnStream = super.transform(operatorName, outTypeInfo,
-				operator);
-
-		// Then we add a source that will take care of receiving feedback tuples
-		// from the tail
-		addIterationSource(returnStream);
-
-		return returnStream;
-	}
-
-	private <X> void addIterationSource(DataStream<X> dataStream) {
-		Integer id = ++counter;
-		streamGraph.addIterationHead(id, dataStream.getId(), iterationID, waitTime);
-		streamGraph.setParallelism(id, dataStream.getParallelism());
-	}
-
-	@Override
-	public IterativeDataStream<IN> copy() {
-		return new IterativeDataStream<IN>(this, iterationID, waitTime);
 	}
 }

@@ -28,10 +28,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
-import com.esotericsoftware.kryo.Serializer;
-
-import com.google.common.base.Joiner;
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -74,6 +70,10 @@ import org.apache.hadoop.mapreduce.Job;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.esotericsoftware.kryo.Serializer;
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+
 /**
  * The ExecutionEnviroment is the context in which a program is executed. A
  * {@link LocalEnvironment} will cause execution in the current JVM, a
@@ -113,7 +113,13 @@ public abstract class ExecutionEnvironment {
 	
 	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<Tuple2<String, DistributedCacheEntry>>();
 
-	private ExecutionConfig config = new ExecutionConfig();
+	private final ExecutionConfig config = new ExecutionConfig();
+
+	/** Result from the latest execution, to be make it retrievable when using eager execution methods */
+	protected JobExecutionResult lastJobExecutionResult;
+	
+	/** Flag to indicate whether sinks have been cleared in previous executions */
+	private boolean wasExecuted = false;
 
 	// --------------------------------------------------------------------------------------------
 	//  Constructor and Properties
@@ -231,7 +237,17 @@ public abstract class ExecutionEnvironment {
 	public UUID getId() {
 		return this.executionId;
 	}
-	
+
+	/**
+	 * Returns the {@link org.apache.flink.api.common.JobExecutionResult} of the last executed job.
+	 * 
+	 * @return The execution result from the latest job execution.
+	 */
+	public JobExecutionResult getLastJobExecutionResult(){
+		return this.lastJobExecutionResult;
+	}
+
+
 	/**
 	 * Gets the UUID by which this environment is identified, as a string.
 	 * 
@@ -329,7 +345,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet that represents the data read from the given file as text lines.
 	 */
 	public DataSource<String> readTextFile(String filePath) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 		
 		return new DataSource<String>(this, new TextInputFormat(new Path(filePath)), BasicTypeInfo.STRING_TYPE_INFO, Utils.getCallLocationName());
 	}
@@ -343,7 +359,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet that represents the data read from the given file as text lines.
 	 */
 	public DataSource<String> readTextFile(String filePath, String charsetName) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
 		format.setCharsetName(charsetName);
@@ -364,7 +380,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet that represents the data read from the given file as text lines.
 	 */
 	public DataSource<StringValue> readTextFileWithValue(String filePath) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 		
 		return new DataSource<StringValue>(this, new TextValueInputFormat(new Path(filePath)), new ValueTypeInfo<StringValue>(StringValue.class), Utils.getCallLocationName());
 	}
@@ -384,7 +400,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet that represents the data read from the given file as text lines.
 	 */
 	public DataSource<StringValue> readTextFileWithValue(String filePath, String charsetName, boolean skipInvalidLines) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 		
 		TextValueInputFormat format = new TextValueInputFormat(new Path(filePath));
 		format.setCharsetName(charsetName);
@@ -404,7 +420,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet that represents the data read from the given file as primitive type.
 	 */
 	public <X> DataSource<X> readFileOfPrimitives(String filePath, Class<X> typeClass) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 
 		return new DataSource<X>(this, new PrimitiveInputFormat<X>(new Path(filePath), typeClass), TypeExtractor.getForClass(typeClass), Utils.getCallLocationName());
 	}
@@ -420,7 +436,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet that represents the data read from the given file as primitive type.
 	 */
 	public <X> DataSource<X> readFileOfPrimitives(String filePath, String delimiter, Class<X> typeClass) {
-		Validate.notNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 
 		return new DataSource<X>(this, new PrimitiveInputFormat<X>(new Path(filePath), delimiter, typeClass), TypeExtractor.getForClass(typeClass), Utils.getCallLocationName());
 	}
@@ -638,7 +654,6 @@ public abstract class ExecutionEnvironment {
 	
 	private <X> DataSource<X> fromCollection(Collection<X> data, TypeInformation<X> type, String callLocationName) {
 		CollectionInputFormat.checkCollection(data, type.getTypeClass());
-		
 		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer(config)), type, callLocationName);
 	}
 	
@@ -915,7 +930,15 @@ public abstract class ExecutionEnvironment {
 	 */
 	public JavaPlan createProgramPlan(String jobName, boolean clearSinks) {
 		if (this.sinks.isEmpty()) {
-			throw new RuntimeException("No data sinks have been created yet. A program needs at least one sink that consumes data. Examples are writing the data set or printing it.");
+			if (wasExecuted) {
+				throw new RuntimeException("No new data sinks have been defined since the " +
+						"last execution. The last execution refers to the latest call to " +
+						"'execute()', 'count()', 'collect()', or 'print()'.");
+			} else {
+				throw new RuntimeException("No data sinks have been created yet. " +
+						"A program needs at least one sink that consumes data. " +
+						"Examples are writing the data set or printing it.");
+			}
 		}
 		
 		if (jobName == null) {
@@ -963,6 +986,7 @@ public abstract class ExecutionEnvironment {
 		// clear all the sinks such that the next execution does not redo everything
 		if (clearSinks) {
 			this.sinks.clear();
+			wasExecuted = true;
 		}
 
 		// All types are registered now. Print information.

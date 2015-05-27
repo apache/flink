@@ -21,7 +21,7 @@ package org.apache.flink.ml.math
 /** Base trait for Vectors
   *
   */
-trait Vector {
+trait Vector extends Serializable {
 
   /** Number of elements in a vector
     *

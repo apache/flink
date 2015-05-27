@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -26,6 +27,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -43,6 +45,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner.PartitioningStrategy;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
+import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,6 +96,12 @@ public class StreamingJobGraphGenerator {
 		
 		configureCheckpointing();
 
+		try {
+			InstantiationUtil.writeObjectToConfig(this.streamGraph.getExecutionConfig(), this.jobGraph.getJobConfiguration(), ExecutionConfig.CONFIG_KEY);
+		} catch (IOException e) {
+			throw new RuntimeException("Config object could not be written to Job Configuration: ", e);
+		}
+		
 		return jobGraph;
 	}
 
@@ -258,6 +267,7 @@ public class StreamingJobGraphGenerator {
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
 		config.setStateMonitoring(streamGraph.isCheckpointingEnabled());
+		config.setStateHandleProvider(streamGraph.getStateHandleProvider());
 
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 
@@ -308,20 +318,24 @@ public class StreamingJobGraphGenerator {
 		StreamNode upStreamVertex = edge.getSourceVertex();
 		StreamNode downStreamVertex = edge.getTargetVertex();
 
-		StreamOperator<?, ?> headOperator = upStreamVertex.getOperator();
-		StreamOperator<?, ?> outOperator = downStreamVertex.getOperator();
+		StreamOperator<?> headOperator = upStreamVertex.getOperator();
+		StreamOperator<?> outOperator = downStreamVertex.getOperator();
 
 		return downStreamVertex.getInEdges().size() == 1
 				&& outOperator != null
+				&& headOperator != null
 				&& upStreamVertex.getSlotSharingID() == downStreamVertex.getSlotSharingID()
 				&& upStreamVertex.getSlotSharingID() != -1
-				&& outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
-				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD || headOperator
-						.getChainingStrategy() == ChainingStrategy.ALWAYS)
+				&& (outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS ||
+					outOperator.getChainingStrategy() == ChainingStrategy.FORCE_ALWAYS)
+				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
+					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS ||
+					headOperator.getChainingStrategy() == ChainingStrategy.FORCE_ALWAYS)
 				&& (edge.getPartitioner().getStrategy() == PartitioningStrategy.FORWARD || downStreamVertex
 						.getParallelism() == 1)
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
-				&& streamGraph.isChainingEnabled();
+				&& (streamGraph.isChainingEnabled() ||
+					outOperator.getChainingStrategy() == ChainingStrategy.FORCE_ALWAYS);
 	}
 
 	private void setSlotSharing() {
@@ -344,8 +358,8 @@ public class StreamingJobGraphGenerator {
 
 		for (StreamLoop loop : streamGraph.getStreamLoops()) {
 			CoLocationGroup ccg = new CoLocationGroup();
-			AbstractJobVertex tail = jobVertices.get(loop.getTail().getID());
-			AbstractJobVertex head = jobVertices.get(loop.getHead().getID());
+			AbstractJobVertex tail = jobVertices.get(loop.getSink().getID());
+			AbstractJobVertex head = jobVertices.get(loop.getSource().getID());
 
 			ccg.addVertex(head);
 			ccg.addVertex(tail);
@@ -360,34 +374,26 @@ public class StreamingJobGraphGenerator {
 				throw new IllegalArgumentException("The checkpoint interval must be positive");
 			}
 
-			// gather source and sink IDs
-			HashSet<JobVertexID> sourceIds = new HashSet<JobVertexID>();
-			HashSet<JobVertexID> sinkIds = new HashSet<JobVertexID>();
-			for (AbstractJobVertex vertex : jobVertices.values()) {
-				if (vertex.isInputVertex()) {
-					sourceIds.add(vertex.getID());
-				}
-				if (vertex.isOutputVertex()) {
-					sinkIds.add(vertex.getID());
-				}
-			}
-
-			HashSet<JobVertexID> sourceorSink = new HashSet<JobVertexID>();
-			sourceorSink.addAll(sourceIds);
-			sourceorSink.addAll(sinkIds);
-			
 			// collect the vertices that receive "trigger checkpoint" messages.
 			// currently, these are all the sources
-			List<JobVertexID> triggerVertices = new ArrayList<JobVertexID>(sourceIds);
+			List<JobVertexID> triggerVertices = new ArrayList<JobVertexID>();
 
 			// collect the vertices that need to acknowledge the checkpoint
-			// currently, these are the sources and sinks
-			// the sources acknowledge their state backup, the sinks the arrival of the barriers
-			List<JobVertexID> ackVertices = new ArrayList<JobVertexID>(sourceorSink);
+			// currently, these are all vertices
+			List<JobVertexID> ackVertices = new ArrayList<JobVertexID>(jobVertices.size());
 
 			// collect the vertices that receive "commit checkpoint" messages
 			// currently, these are only the sources
-			List<JobVertexID> commitVertices = new ArrayList<JobVertexID>(sourceIds);
+			List<JobVertexID> commitVertices = new ArrayList<JobVertexID>();
+			
+			
+			for (AbstractJobVertex vertex : jobVertices.values()) {
+				if (vertex.isInputVertex()) {
+					triggerVertices.add(vertex.getID());
+					commitVertices.add(vertex.getID());
+				}
+				ackVertices.add(vertex.getID());
+			}
 
 			JobSnapshottingSettings settings = new JobSnapshottingSettings(
 					triggerVertices, ackVertices, commitVertices, interval);

@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
-import org.apache.flink.util.Collector;
 
 import java.util.Random;
 
@@ -111,19 +110,18 @@ public class WindowJoin {
 		}
 
 		@Override
-		public void run(Collector<Tuple2<String, Integer>> out) throws Exception {
-			while (true) {
-				outTuple.f0 = names[rand.nextInt(names.length)];
-				outTuple.f1 = rand.nextInt(GRADE_COUNT) + 1;
-				out.collect(outTuple);
-				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
-			}
+		public boolean reachedEnd() throws Exception {
+			return false;
 		}
-		
+
 		@Override
-		public void cancel() {
-			// No cleanup needed
+		public Tuple2<String, Integer> next() throws Exception {
+			outTuple.f0 = names[rand.nextInt(names.length)];
+			outTuple.f1 = rand.nextInt(GRADE_COUNT) + 1;
+			Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
+			return outTuple;
 		}
+
 	}
 
 	/**
@@ -142,19 +140,18 @@ public class WindowJoin {
 		}
 
 		@Override
-		public void run(Collector<Tuple2<String, Integer>> out) throws Exception {
-			while (true) {
-				outTuple.f0 = names[rand.nextInt(names.length)];
-				outTuple.f1 = rand.nextInt(SALARY_MAX) + 1;
-				out.collect(outTuple);
-				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
-			}
+		public boolean reachedEnd() throws Exception {
+			return false;
 		}
-		
+
 		@Override
-		public void cancel() {
-			// No cleanup needed
+		public Tuple2<String, Integer> next() throws Exception {
+			outTuple.f0 = names[rand.nextInt(names.length)];
+			outTuple.f1 = rand.nextInt(SALARY_MAX) + 1;
+			Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
+			return outTuple;
 		}
+
 	}
 
 	public static class MySourceMap extends RichMapFunction<String, Tuple2<String, Integer>> {

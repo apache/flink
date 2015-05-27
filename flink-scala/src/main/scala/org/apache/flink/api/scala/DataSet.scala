@@ -17,29 +17,26 @@
  */
 package org.apache.flink.api.scala
 
-import org.apache.commons.lang3.Validate
-
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
 import org.apache.flink.api.common.operators.Order
+import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
-import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{DiscardingOutputFormat, PrintingOutputFormat, TextOutputFormat}
-import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
-import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet, SortPartitionOperator, Utils}
-import org.apache.flink.api.scala.operators.{ScalaCsvOutputFormat, ScalaAggregateOperator}
+import org.apache.flink.api.scala.operators.{ScalaAggregateOperator, ScalaCsvOutputFormat}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileSystem, Path}
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.{AbstractID, Collector}
 
 import scala.collection.JavaConverters._
@@ -86,7 +83,7 @@ import scala.reflect.ClassTag
  * @tparam T The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
 class DataSet[T: ClassTag](set: JavaDataSet[T]) {
-  Validate.notNull(set, "Java DataSet must not be null.")
+  require(set != null, "Java DataSet must not be null.")
 
   /**
    * Returns the TypeInformation for the elements of this DataSet.
@@ -1088,7 +1085,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 //   * operators that are composed of multiple steps.
 //   */
 //  def runOperation[R: ClassTag](operation: CustomUnaryOperation[T, R]): DataSet[R] = {
-//    Validate.notNull(operation, "The custom operator must not be null.")
+//    require(operation != null, "The custom operator must not be null.")
 //    operation.setInput(this.set)
 //    wrap(operation.createResult)
 //  }
@@ -1291,7 +1288,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       rowDelimiter: String = ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
       fieldDelimiter: String = ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER,
       writeMode: FileSystem.WriteMode = null): DataSink[T] = {
-    Validate.isTrue(javaSet.getType.isTupleType, "CSV output can only be used with Tuple DataSets.")
+    require(javaSet.getType.isTupleType, "CSV output can only be used with Tuple DataSets.")
     val of = new ScalaCsvOutputFormat[Product](new Path(filePath), rowDelimiter, fieldDelimiter)
     if (writeMode != null) {
       of.setWriteMode(writeMode)
@@ -1307,8 +1304,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       outputFormat: FileOutputFormat[T],
       filePath: String,
       writeMode: FileSystem.WriteMode = null): DataSink[T] = {
-    Validate.notNull(filePath, "File path must not be null.")
-    Validate.notNull(outputFormat, "Output format must not be null.")
+    require(filePath != null, "File path must not be null.")
+    require(outputFormat != null, "Output format must not be null.")
     outputFormat.setOutputFilePath(new Path(filePath))
     if (writeMode != null) {
       outputFormat.setWriteMode(writeMode)
@@ -1322,15 +1319,37 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def output(outputFormat: OutputFormat[T]): DataSink[T] = {
     javaSet.output(outputFormat)
   }
-
+  
   /**
-   * Writes a DataSet to the standard output stream (stdout). This uses [[AnyRef.toString]] on
-   * each element.
+   * Prints the elements in a DataSet to the standard output stream [[System.out]] of the
+   * JVM that calls the print() method. For programs that are executed in a cluster, this
+   * method needs to gather the contents of the DataSet back to the client, to print it
+   * there.
+   *
+   * The string written for each element is defined by the [[AnyRef.toString]] method.
+   *
+   * This method immediately triggers the program execution, similar to the
+   * [[collect()]] and [[count()]] methods.
    */
-  def print(): DataSink[T] = {
-    output(new PrintingOutputFormat[T](false))
+  def print(): Unit = {
+    javaSet.print()
   }
-
+  
+  /**
+   * Prints the elements in a DataSet to the standard error stream [[System.err]] of the
+   * JVM that calls the print() method. For programs that are executed in a cluster, this
+   * method needs to gather the contents of the DataSet back to the client, to print it
+   * there.
+   *
+   * The string written for each element is defined by the [[AnyRef.toString]] method.
+   *
+   * This method immediately triggers the program execution, similar to the
+   * [[collect()]] and [[count()]] methods.
+   */
+  def printToErr(): Unit = {
+    javaSet.printToErr()
+  }
+  
   /**
    * *
    * Writes a DataSet to the standard output stream (stdout) with a sink identifier prefixed.
@@ -1339,14 +1358,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def print(sinkIdentifier: String): DataSink[T] = {
     output(new PrintingOutputFormat[T](sinkIdentifier, false))
-  }
-
-  /**
-   * Writes a DataSet to the standard error stream (stderr). This uses [[AnyRef.toString]] on
-   * each element.
-   */
-  def printToErr(): DataSink[T] = {
-    output(new PrintingOutputFormat[T](true))
   }
 
   /**

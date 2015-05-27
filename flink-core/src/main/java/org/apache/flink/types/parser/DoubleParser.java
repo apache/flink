@@ -23,35 +23,40 @@ package org.apache.flink.types.parser;
  * Parses a text field into a Double.
  */
 public class DoubleParser extends FieldParser<Double> {
-	
+
 	private static final Double DOUBLE_INSTANCE = Double.valueOf(0.0);
-	
+
 	private double result;
-	
+
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Double reusable) {
 		int i = startPos;
 
-		final int delimLimit = limit-delimiter.length+1;
-		
+		final int delimLimit = limit - delimiter.length + 1;
+
 		while (i < limit) {
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 				break;
 			}
 			i++;
 		}
-		
-		String str = new String(bytes, startPos, i-startPos);
+
+		if (i > startPos &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[(i - 1)]))) {
+			setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
+			return -1;
+		}
+
+		String str = new String(bytes, startPos, i - startPos);
 		try {
 			this.result = Double.parseDouble(str);
 			return (i == limit) ? limit : i + delimiter.length;
-		}
-		catch (NumberFormatException e) {
+		} catch (NumberFormatException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
 			return -1;
 		}
 	}
-	
+
 	@Override
 	public Double createValue() {
 		return DOUBLE_INSTANCE;
@@ -61,35 +66,35 @@ public class DoubleParser extends FieldParser<Double> {
 	public Double getLastResult() {
 		return Double.valueOf(this.result);
 	}
-	
+
 	/**
-	 * Static utility to parse a field of type double from a byte sequence that represents text characters
+	 * Static utility to parse a field of type double from a byte sequence that represents text 
+	 * characters
 	 * (such as when read from a file stream).
-	 * 
-	 * @param bytes The bytes containing the text data that should be parsed.
+	 *
+	 * @param bytes    The bytes containing the text data that should be parsed.
 	 * @param startPos The offset to start the parsing.
-	 * @param length The length of the byte sequence (counting from the offset).
-	 * 
+	 * @param length   The length of the byte sequence (counting from the offset).
 	 * @return The parsed value.
-	 * 
-	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text represents not a correct number.
+	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text 
+	 * represents not a correct number.
 	 */
 	public static final double parseField(byte[] bytes, int startPos, int length) {
 		return parseField(bytes, startPos, length, (char) 0xffff);
 	}
-	
+
 	/**
-	 * Static utility to parse a field of type double from a byte sequence that represents text characters
+	 * Static utility to parse a field of type double from a byte sequence that represents text 
+	 * characters
 	 * (such as when read from a file stream).
-	 * 
-	 * @param bytes The bytes containing the text data that should be parsed.
-	 * @param startPos The offset to start the parsing.
-	 * @param length The length of the byte sequence (counting from the offset).
+	 *
+	 * @param bytes     The bytes containing the text data that should be parsed.
+	 * @param startPos  The offset to start the parsing.
+	 * @param length    The length of the byte sequence (counting from the offset).
 	 * @param delimiter The delimiter that terminates the field.
-	 * 
 	 * @return The parsed value.
-	 * 
-	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text represents not a correct number.
+	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text 
+	 * represents not a correct number.
 	 */
 	public static final double parseField(byte[] bytes, int startPos, int length, char delimiter) {
 		if (length <= 0) {
@@ -97,11 +102,16 @@ public class DoubleParser extends FieldParser<Double> {
 		}
 		int i = 0;
 		final byte delByte = (byte) delimiter;
-		
-		while (i < length && bytes[i] != delByte) {
+
+		while (i < length && bytes[startPos + i] != delByte) {
 			i++;
 		}
-		
+
+		if (i > 0 &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[startPos + i - 1]))) {
+			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field.");
+		}
+
 		String str = new String(bytes, startPos, i);
 		return Double.parseDouble(str);
 	}

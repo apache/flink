@@ -20,7 +20,8 @@ package org.apache.flink.streaming.api.operators.windowing;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.flink.streaming.api.operators.ChainableStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 
 /**
@@ -28,29 +29,21 @@ import org.apache.flink.streaming.api.windowing.StreamWindow;
  * {@link StreamWindow}s used to merge the results of parallel transformations
  * that belong in the same window.
  */
-public class WindowMerger<T> extends ChainableStreamOperator<StreamWindow<T>, StreamWindow<T>> {
+public class WindowMerger<T> extends AbstractStreamOperator<StreamWindow<T>>
+		implements OneInputStreamOperator<StreamWindow<T>, StreamWindow<T>> {
+
+	private static final long serialVersionUID = 1L;
 
 	private Map<Integer, StreamWindow<T>> windows;
 
 	public WindowMerger() {
-		super(null);
 		this.windows = new HashMap<Integer, StreamWindow<T>>();
-		withoutInputCopy();
-	}
 
-	private static final long serialVersionUID = 1L;
-
-	@Override
-	public void run() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
+		chainingStrategy = ChainingStrategy.FORCE_ALWAYS;
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction() throws Exception {
-		StreamWindow<T> nextWindow = nextObject;
+	public void processElement(StreamWindow<T> nextWindow) throws Exception {
 
 		StreamWindow<T> current = windows.get(nextWindow.windowID);
 
@@ -61,7 +54,7 @@ public class WindowMerger<T> extends ChainableStreamOperator<StreamWindow<T>, St
 		}
 
 		if (current.numberOfParts == 1) {
-			collector.collect(current);
+			output.collect(current);
 			windows.remove(nextWindow.windowID);
 		} else {
 			windows.put(nextWindow.windowID, current);

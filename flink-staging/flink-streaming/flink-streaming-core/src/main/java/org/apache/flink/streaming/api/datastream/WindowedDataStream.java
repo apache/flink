@@ -37,7 +37,7 @@ import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.windowing.GroupedActiveDiscretizer;
 import org.apache.flink.streaming.api.operators.windowing.GroupedStreamDiscretizer;
 import org.apache.flink.streaming.api.operators.windowing.GroupedWindowBuffer;
@@ -149,6 +149,7 @@ public class WindowedDataStream<OUT> {
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public WindowedDataStream<OUT> every(WindowingHelper policyHelper) {
+		policyHelper.setExecutionConfig(getExecutionConfig());
 		WindowedDataStream<OUT> ret = this.copy();
 		if (ret.evictionHelper == null) {
 			ret.evictionHelper = ret.triggerHelper;
@@ -383,9 +384,9 @@ public class WindowedDataStream<OUT> {
 	private DiscretizedStream<OUT> discretize(WindowTransformation transformation,
 			WindowBuffer<OUT> windowBuffer) {
 
-		StreamOperator<OUT, WindowEvent<OUT>> discretizer = getDiscretizer();
+		OneInputStreamOperator<OUT, WindowEvent<OUT>> discretizer = getDiscretizer();
 
-		StreamOperator<WindowEvent<OUT>, StreamWindow<OUT>> bufferOperator = getBufferOperator(windowBuffer);
+		OneInputStreamOperator<WindowEvent<OUT>, StreamWindow<OUT>> bufferOperator = getBufferOperator(windowBuffer);
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		TypeInformation<WindowEvent<OUT>> bufferEventType = new TupleTypeInfo(WindowEvent.class,
@@ -463,7 +464,7 @@ public class WindowedDataStream<OUT> {
 	/**
 	 * Based on the defined policies, returns the stream discretizer to be used
 	 */
-	private StreamOperator<OUT, WindowEvent<OUT>> getDiscretizer() {
+	private OneInputStreamOperator<OUT, WindowEvent<OUT>> getDiscretizer() {
 		if (discretizerKey == null) {
 			return new StreamDiscretizer<OUT>(getTrigger(), getEviction());
 		} else if (getTrigger() instanceof CentralActiveTrigger) {
@@ -478,7 +479,7 @@ public class WindowedDataStream<OUT> {
 
 	}
 
-	private StreamOperator<WindowEvent<OUT>, StreamWindow<OUT>> getBufferOperator(
+	private OneInputStreamOperator<WindowEvent<OUT>, StreamWindow<OUT>> getBufferOperator(
 			WindowBuffer<OUT> windowBuffer) {
 		if (discretizerKey == null) {
 			return new StreamWindowBuffer<OUT>(windowBuffer);

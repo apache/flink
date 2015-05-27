@@ -231,6 +231,7 @@ getExecutionEnvironment()
 
 createLocalEnvironment()
 createLocalEnvironment(int parallelism)
+createLocalEnvironment(Configuration customConfiguration)
 
 createRemoteEnvironment(String host, int port, String... jarFiles)
 createRemoteEnvironment(String host, int port, int parallelism, String... jarFiles)
@@ -331,6 +332,7 @@ obtain one using these static methods on class `ExecutionEnvironment`:
 def getExecutionEnvironment
 
 def createLocalEnvironment(parallelism: Int = Runtime.getRuntime.availableProcessors()))
+def createLocalEnvironment(customConfiguration: Configuration)
 
 def createRemoteEnvironment(host: String, port: String, jarFiles: String*)
 def createRemoteEnvironment(host: String, port: String, parallelism: Int, jarFiles: String*)
@@ -661,6 +663,18 @@ DataSet<String> result = in.rebalance()
 DataSet<Tuple2<String,Integer>> in = // [...]
 DataSet<Integer> result = in.partitionByHash(0)
                             .mapPartition(new PartitionMapper());
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Custom Partitioning</strong></td>
+      <td>
+        <p>Manually specify a partitioning over the data.
+          <br/>
+          <i>Note</i>: This method works only on single field keys.</p>
+{% highlight java %}
+DataSet<Tuple2<String,Integer>> in = // [...]
+DataSet<Integer> result = in.partitionCustom(Partitioner<K> partitioner, key)
 {% endhighlight %}
       </td>
     </tr>
@@ -1642,6 +1656,7 @@ DataSet<Tuple2<String, Integer> dbData =
 Flink offers a number of configuration options for CSV parsing:
 
 - `types(Class ... types)` specifies the types of the fields to parse. **It is mandatory to configure the types of the parsed fields.**
+  In case of the type class Boolean.class, "True" (case-insensitive), "False" (case-insensitive), "1" and "0" are treated as booleans.
 
 - `lineDelimiter(String del)` specifies the delimiter of individual records. The default line delimiter is the new-line character `'\n'`.
 
@@ -2588,8 +2603,9 @@ of a function, or use the `withParameters(...)` method to pass in a configuratio
 Passing Parameters to Functions
 -------------------
 
-Parameters can be passed to functions using either the constructor or the `withParameters(Configuration)` method. The parameters are serialized
-as part of the function object and shipped to all parallel task instances.
+Parameters can be passed to functions using either the constructor or the `withParameters(Configuration)` method. The parameters are serialized as part of the function object and shipped to all parallel task instances.
+
+Check also the [best practices guide on how to pass command line arguments to functions](best_practices.html#parsing-command-line-arguments-and-passing-them-around-in-your-flink-application).
 
 #### Via Constructor
 
@@ -2679,6 +2695,54 @@ toFilter.filter(new RichFilterFunction[Int]() {
 {% endhighlight %}
 </div>
 </div>
+
+#### Globally via the `ExecutionConfig`
+
+Flink also allows to pass custom configuration values to the `ExecutionConfig` interface of the environment. Since the execution config is accessible in all (rich) user functions, the custom configuration will be available globally in all functions.
+
+
+**Setting a custom global configuration**
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+Configuration conf = new Configuration();
+conf.setString("mykey","myvalue");
+final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+env.getConfig().setGlobalJobParameters(conf);
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = ExecutionEnvironment.getExecutionEnvironment
+val conf = new Configuration()
+conf.setString("mykey", "myvalue")
+env.getConfig.setGlobalJobParameters(conf)
+{% endhighlight %}
+</div>
+</div>
+
+Please note that you can also pass a custom class extending the `ExecutionConfig.GlobalJobParameters` class as the global job parameters to the execution config. The interface allows to implement the `Map<String, String> toMap()` method which will in turn show the values from the configuration in the web frontend.
+
+
+**Accessing values from the global configuration**
+
+Objects in the global job parameters are accessible in many places in the system. All user functions implementing a `Rich*Function` interface have access through the runtime context.
+
+{% highlight java %}
+public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
+
+    private String mykey;
+    @Override
+    public void open(Configuration parameters) throws Exception {
+      super.open(parameters);
+      ExecutionConfig.GlobalJobParameters globalParams = getRuntimeContext().getExecutionConfig().getGlobalJobParameters();
+      Configuration globConf = (Configuration) globalParams;
+      mykey = globConf.getString("mykey", null);
+    }
+    // ... more here ...
+{% endhighlight %}
 
 [Back to top](#top)
 

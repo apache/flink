@@ -24,6 +24,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.functions.co.CoReduceFunction;
 
 public class CoStreamGroupedReduce<IN1, IN2, OUT> extends CoStreamReduce<IN1, IN2, OUT> {
+
 	private static final long serialVersionUID = 1L;
 
 	protected KeySelector<IN1, ?> keySelector1;
@@ -43,51 +44,30 @@ public class CoStreamGroupedReduce<IN1, IN2, OUT> extends CoStreamReduce<IN1, IN
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public void handleStream1() throws Exception {
-		CoReduceFunction<IN1, IN2, OUT> coReducer = (CoReduceFunction<IN1, IN2, OUT>) userFunction;
-		Object key = reuse1.getKey(keySelector1);
+	public void processElement1(IN1 element) throws Exception {
+		Object key = keySelector1.getKey(element);
 		currentValue1 = values1.get(key);
-		nextValue1 = reuse1.getObject();
 		if (currentValue1 != null) {
-			callUserFunctionAndLogException1();
+			reduced1 = userFunction.reduce1(currentValue1, element);
 			values1.put(key, reduced1);
-			collector.collect(coReducer.map1(reduced1));
+			output.collect(userFunction.map1(reduced1));
 		} else {
-			values1.put(key, nextValue1);
-			collector.collect(coReducer.map1(nextValue1));
+			values1.put(key, element);
+			output.collect(userFunction.map1(element));
 		}
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public void handleStream2() throws Exception {
-		CoReduceFunction<IN1, IN2, OUT> coReducer = (CoReduceFunction<IN1, IN2, OUT>) userFunction;
-		Object key = reuse2.getKey(keySelector2);
+	public void processElement2(IN2 element) throws Exception {
+		Object key = keySelector2.getKey(element);
 		currentValue2 = values2.get(key);
-		nextValue2 = reuse2.getObject();
 		if (currentValue2 != null) {
-			callUserFunctionAndLogException2();
+			reduced2 = userFunction.reduce2(currentValue2, element);
 			values2.put(key, reduced2);
-			collector.collect(coReducer.map2(reduced2));
+			output.collect(userFunction.map2(reduced2));
 		} else {
-			values2.put(key, nextValue2);
-			collector.collect(coReducer.map2(nextValue2));
+			values2.put(key, element);
+			output.collect(userFunction.map2(element));
 		}
 	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction1() throws Exception {
-		reduced1 = ((CoReduceFunction<IN1, IN2, OUT>) userFunction).reduce1(currentValue1, nextValue1);
-
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction2() throws Exception {
-		reduced2 = ((CoReduceFunction<IN1, IN2, OUT>) userFunction).reduce2(currentValue2, nextValue2);
-
-	}
-
 }

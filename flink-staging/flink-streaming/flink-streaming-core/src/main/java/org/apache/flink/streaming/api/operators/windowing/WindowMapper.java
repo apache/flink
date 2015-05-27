@@ -39,7 +39,6 @@ public class WindowMapper<IN, OUT> extends StreamMap<StreamWindow<IN>, StreamWin
 	public WindowMapper(WindowMapFunction<IN, OUT> mapper) {
 		super(new WindowMap<IN, OUT>(mapper));
 		this.mapper = mapper;
-		withoutInputCopy();
 	}
 
 	private static class WindowMap<T, R> extends AbstractRichFunction

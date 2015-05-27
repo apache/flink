@@ -67,9 +67,8 @@ class GroupCombineITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
       .combineGroup((in, out: Collector[Tuple1[String]]) => in.toSet foreach (out.collect))
       .output(new DiscardingOutputFormat[Tuple1[String]])
 
-    env.execute
+    env.execute()
   }
-
 }
 
 

@@ -96,5 +96,9 @@ public class CheckpointMessagesTest {
 		public int hashCode() {
 			return getClass().hashCode();
 		}
-	};
+
+		@Override
+		public void discardState() throws Exception {
+		}
+	}
 }

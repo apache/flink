@@ -31,17 +31,21 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
+import scala.Tuple2;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -80,8 +84,9 @@ public class NetworkEnvironment {
 
 	private ResultPartitionConsumableNotifier partitionConsumableNotifier;
 
-	private boolean isShutdown;
+	private PartitionStateChecker partitionStateChecker;
 
+	private boolean isShutdown;
 
 	/**
 	 * Initializes all network I/O components.
@@ -130,6 +135,14 @@ public class NetworkEnvironment {
 		return partitionConsumableNotifier;
 	}
 
+	public PartitionStateChecker getPartitionStateChecker() {
+		return partitionStateChecker;
+	}
+
+	public Tuple2<Integer, Integer> getPartitionRequestInitialAndMaxBackoff() {
+		return configuration.partitionRequestInitialAndMaxBackoff();
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Association / Disassociation with JobManager / TaskManager
 	// --------------------------------------------------------------------------------------------
@@ -170,6 +183,9 @@ public class NetworkEnvironment {
 				this.taskEventDispatcher = new TaskEventDispatcher();
 				this.partitionConsumableNotifier = new JobManagerResultPartitionConsumableNotifier(
 													jobManagerRef, taskManagerRef, new Timeout(jobManagerTimeout));
+
+				this.partitionStateChecker = new JobManagerPartitionStateChecker(
+						jobManagerRef, taskManagerRef);
 
 				// -----  Network connections  -----
 				final Option<NettyConfig> nettyConfig = configuration.nettyConfig();
@@ -225,6 +241,8 @@ public class NetworkEnvironment {
 
 			partitionConsumableNotifier = null;
 
+			partitionStateChecker = null;
+
 			if (taskEventDispatcher != null) {
 				taskEventDispatcher.clearAll();
 				taskEventDispatcher = null;
@@ -234,8 +252,6 @@ public class NetworkEnvironment {
 			networkBufferPool.destroyAllBufferPools();
 		}
 	}
-
-
 
 	// --------------------------------------------------------------------------------------------
 	//  Task operations
@@ -404,9 +420,9 @@ public class NetworkEnvironment {
 
 		private final Timeout jobManagerMessageTimeout;
 
-		public JobManagerResultPartitionConsumableNotifier(ActorRef jobManager,
-															ActorRef taskManager,
-															Timeout jobManagerMessageTimeout) {
+		public JobManagerResultPartitionConsumableNotifier(
+				ActorRef jobManager, ActorRef taskManager, Timeout jobManagerMessageTimeout) {
+
 			this.jobManager = jobManager;
 			this.taskManager = taskManager;
 			this.jobManagerMessageTimeout = jobManagerMessageTimeout;
@@ -433,6 +449,31 @@ public class NetworkEnvironment {
 					taskManager.tell(failMsg, ActorRef.noSender());
 				}
 			}, AkkaUtils.globalExecutionContext());
+		}
+	}
+
+	private static class JobManagerPartitionStateChecker implements PartitionStateChecker {
+
+		private final ActorRef jobManager;
+
+		private final ActorRef taskManager;
+
+		public JobManagerPartitionStateChecker(ActorRef jobManager, ActorRef taskManager) {
+			this.jobManager = jobManager;
+			this.taskManager = taskManager;
+		}
+
+		@Override
+		public void triggerPartitionStateCheck(
+				JobID jobId,
+				ExecutionAttemptID executionAttemptID,
+				IntermediateDataSetID resultId,
+				ResultPartitionID partitionId) {
+
+			RequestPartitionState msg = new RequestPartitionState(
+					jobId, partitionId, executionAttemptID, resultId);
+
+			jobManager.tell(msg, taskManager);
 		}
 	}
 }

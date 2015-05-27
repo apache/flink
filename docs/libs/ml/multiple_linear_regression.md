@@ -27,7 +27,7 @@ under the License.
 ## Description
 
  Multiple linear regression tries to find a linear function which best fits the provided input data.
- Given a set of input data with its value $(\mathbf{x}, y)$, the multiple linear regression finds
+ Given a set of input data with its value $(\mathbf{x}, y)$, multiple linear regression finds
  a vector $\mathbf{w}$ such that the sum of the squared residuals is minimized:
 
  $$ S(\mathbf{w}) = \sum_{i=1} \left(y - \mathbf{w}^T\mathbf{x_i} \right)^2$$
@@ -42,13 +42,13 @@ under the License.
 
   However, in cases where the input data set is so huge that a complete parse over the whole data
   set is prohibitive, one can apply stochastic gradient descent (SGD) to approximate the solution.
-  The SGD first calculates for a random subset of the input data set the gradients. The gradient
+  SGD first calculates for a random subset of the input data set the gradients. The gradient
   for a given point $\mathbf{x}_i$ is given by:
 
   $$\nabla_{\mathbf{w}} S(\mathbf{w}, \mathbf{x_i}) = 2\left(\mathbf{w}^T\mathbf{x_i} -
     y\right)\mathbf{x_i}$$
 
-  The gradients are averaged and scaled. The scaling is defined by $\gamma = \frac{s}{\sqrt{j}}$
+  The gradients are averaged and scaled. The scaling is defined by $\gamma = s/\sqrt{j}}$
   with $s$ being the initial step size and $j$ being the current iteration number. The resulting gradient is subtracted from the
   current weight vector giving the new weight vector for the next iteration:
 
@@ -117,8 +117,8 @@ val trainingDS: DataSet[LabeledVector] = ...
 val testingDS: DataSet[Vector] = ...
 
 // Fit the linear model to the provided data
-val model = mlr.fit(trainingDS)
+mlr.fit(trainingDS)
 
 // Calculate the predictions for the test data
-val predictions = model.transform(testingDS)
+val predictions = mlr.predict(testingDS)
 {% endhighlight %}

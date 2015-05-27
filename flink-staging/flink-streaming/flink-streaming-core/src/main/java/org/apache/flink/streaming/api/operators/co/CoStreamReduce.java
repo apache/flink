@@ -18,14 +18,17 @@
 package org.apache.flink.streaming.api.operators.co;
 
 import org.apache.flink.streaming.api.functions.co.CoReduceFunction;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 
-public class CoStreamReduce<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OUT> {
+public class CoStreamReduce<IN1, IN2, OUT>
+		extends AbstractUdfStreamOperator<OUT, CoReduceFunction<IN1, IN2, OUT>>
+		implements TwoInputStreamOperator<IN1, IN2, OUT> {
+
 	private static final long serialVersionUID = 1L;
 
 	protected IN1 currentValue1 = null;
 	protected IN2 currentValue2 = null;
-	protected IN1 nextValue1 = null;
-	protected IN2 nextValue2 = null;
 
 	public CoStreamReduce(CoReduceFunction<IN1, IN2, OUT> coReducer) {
 		super(coReducer);
@@ -34,39 +37,23 @@ public class CoStreamReduce<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OU
 	}
 
 	@Override
-	public void handleStream1() throws Exception {
-		nextValue1 = reuse1.getObject();
-		callUserFunctionAndLogException1();
-	}
-
-	@Override
-	public void handleStream2() throws Exception {
-		nextValue2 = reuse2.getObject();
-		callUserFunctionAndLogException2();
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction1() throws Exception {
-		CoReduceFunction<IN1, IN2, OUT> coReducer = (CoReduceFunction<IN1, IN2, OUT>) userFunction;
+	public void processElement1(IN1 element) throws Exception {
 		if (currentValue1 != null) {
-			currentValue1 = coReducer.reduce1(currentValue1, nextValue1);
+			currentValue1 = userFunction.reduce1(currentValue1, element);
 		} else {
-			currentValue1 = nextValue1;
+			currentValue1 = element;
 		}
-		collector.collect(coReducer.map1(currentValue1));
+		output.collect(userFunction.map1(currentValue1));
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction2() throws Exception {
-		CoReduceFunction<IN1, IN2, OUT> coReducer = (CoReduceFunction<IN1, IN2, OUT>) userFunction;
+	public void processElement2(IN2 element) throws Exception {
 		if (currentValue2 != null) {
-			currentValue2 = coReducer.reduce2(currentValue2, nextValue2);
+			currentValue2 = userFunction.reduce2(currentValue2, element);
 		} else {
-			currentValue2 = nextValue2;
+			currentValue2 = element;
 		}
-		collector.collect(coReducer.map2(currentValue2));
+		output.collect(userFunction.map2(currentValue2));
 	}
 
 }

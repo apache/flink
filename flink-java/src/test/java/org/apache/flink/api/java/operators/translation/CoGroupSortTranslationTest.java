@@ -27,6 +27,7 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.util.Collector;
@@ -54,7 +55,7 @@ public class CoGroupSortTranslationTest implements java.io.Serializable {
 							Collector<Long> out) {}
 				})
 				
-				.print();
+				.output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
 			
@@ -98,7 +99,7 @@ public class CoGroupSortTranslationTest implements java.io.Serializable {
 					public void coGroup(Iterable<Tuple2<Long, Long>> first, Iterable<TestPoJo> second, Collector<Long> out) {}
 				})
 				
-				.print();
+				.output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
 			

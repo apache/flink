@@ -20,6 +20,7 @@ package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{ActorRef, Props, ActorSystem}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
@@ -33,9 +34,19 @@ import org.apache.flink.runtime.taskmanager.TaskManager
  * @param singleActorSystem true if all actors shall be running in the same [[ActorSystem]],
  *                          otherwise false
  */
-class TestingCluster(userConfiguration: Configuration, singleActorSystem: Boolean = true)
-  extends FlinkMiniCluster(userConfiguration, singleActorSystem) {
+class TestingCluster(userConfiguration: Configuration,
+                     singleActorSystem: Boolean,
+                     streamingMode: StreamingMode)
+  extends FlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
+  
 
+  def this(userConfiguration: Configuration, singleActorSystem: Boolean) 
+        = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
+
+  def this(userConfiguration: Configuration) = this(userConfiguration, true)
+  
+  // --------------------------------------------------------------------------
+  
   override def generateConfiguration(userConfig: Configuration): Configuration = {
     val cfg = new Configuration()
     cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost")
@@ -52,13 +63,13 @@ class TestingCluster(userConfiguration: Configuration, singleActorSystem: Boolea
     val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager,
     executionRetries, delayBetweenRetries,
     timeout, archiveCount) = JobManager.createJobManagerComponents(configuration)
-
+    
     val testArchiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
     val archive = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
-
+    
     val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
       libraryCacheManager, archive, accumulatorManager, executionRetries,
-      delayBetweenRetries, timeout) with TestingJobManager)
+      delayBetweenRetries, timeout, streamingMode) with TestingJobManager)
 
     actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
   }
@@ -72,12 +83,13 @@ class TestingCluster(userConfiguration: Configuration, singleActorSystem: Boolea
     } else {
       None
     }
-
+    
     TaskManager.startTaskManagerComponentsAndActor(configuration, system,
-                                                   HOSTNAME,
+                                                   hostname,
                                                    Some(tmActorName),
                                                    jobManagerPath,
                                                    numTaskManagers == 1,
+                                                   streamingMode,
                                                    classOf[TestingTaskManager])
   }
 }

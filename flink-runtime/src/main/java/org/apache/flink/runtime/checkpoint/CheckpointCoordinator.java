@@ -97,6 +97,8 @@ public class CheckpointCoordinator {
 	
 	private ActorRef jobStatusListener;
 	
+	private ClassLoader userClassLoader;
+	
 	private boolean shutdown;
 	
 	// --------------------------------------------------------------------------------------------
@@ -104,7 +106,8 @@ public class CheckpointCoordinator {
 	public CheckpointCoordinator(JobID job, int numSuccessfulCheckpointsToRetain, long checkpointTimeout,
 								ExecutionVertex[] tasksToTrigger,
 								ExecutionVertex[] tasksToWaitFor,
-								ExecutionVertex[] tasksToCommitTo) {
+								ExecutionVertex[] tasksToCommitTo,
+								ClassLoader userClassLoader) {
 		
 		// some sanity checks
 		if (job == null || tasksToTrigger == null ||
@@ -127,6 +130,7 @@ public class CheckpointCoordinator {
 		this.pendingCheckpoints = new LinkedHashMap<Long, PendingCheckpoint>();
 		this.completedCheckpoints = new ArrayDeque<SuccessfulCheckpoint>(numSuccessfulCheckpointsToRetain + 1);
 		this.recentPendingCheckpoints = new ArrayDeque<Long>(NUM_GHOST_CHECKPOINT_IDS);
+		this.userClassLoader = userClassLoader;
 
 		timer = new Timer("Checkpoint Timer", true);
 	}
@@ -166,13 +170,13 @@ public class CheckpointCoordinator {
 			
 			// clear and discard all pending checkpoints
 			for (PendingCheckpoint pending : pendingCheckpoints.values()) {
-				pending.discard();
+					pending.discard(userClassLoader, true);
 			}
 			pendingCheckpoints.clear();
 			
 			// clean and discard all successful checkpoints
 			for (SuccessfulCheckpoint checkpoint : completedCheckpoints) {
-				checkpoint.dispose();
+				checkpoint.discard(userClassLoader);
 			}
 			completedCheckpoints.clear();
 		}
@@ -253,7 +257,9 @@ public class CheckpointCoordinator {
 							// note that checkpoint completion discards the pending checkpoint object
 							if (!checkpoint.isDiscarded()) {
 								LOG.info("Checkpoint " + checkpointID + " expired before completing.");
-								checkpoint.discard();
+								
+								checkpoint.discard(userClassLoader, true);
+								
 								pendingCheckpoints.remove(checkpointID);
 								rememberRecentCheckpointId(checkpointID);
 							}
@@ -288,7 +294,10 @@ public class CheckpointCoordinator {
 			LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
 			
 			synchronized (lock) {
-				pendingCheckpoints.remove(checkpointID);
+				PendingCheckpoint checkpoint = pendingCheckpoints.remove(checkpointID);
+				if (checkpoint != null && !checkpoint.isDiscarded()) {
+					checkpoint.discard(userClassLoader, true);
+				}
 			}
 			
 			return false;
@@ -325,7 +334,7 @@ public class CheckpointCoordinator {
 						completed = checkpoint.toCompletedCheckpoint();
 						completedCheckpoints.addLast(completed);
 						if (completedCheckpoints.size() > numSuccessfulCheckpointsToRetain) {
-							completedCheckpoints.removeFirst();
+							completedCheckpoints.removeFirst().discard(userClassLoader);
 						}
 						pendingCheckpoints.remove(checkpointId);
 						rememberRecentCheckpointId(checkpointId);
@@ -383,7 +392,9 @@ public class CheckpointCoordinator {
 			PendingCheckpoint p = entries.next().getValue();
 			if (p.getCheckpointTimestamp() < timestamp) {
 				rememberRecentCheckpointId(p.getCheckpointId());
-				p.discard();
+
+				p.discard(userClassLoader, true);
+
 				entries.remove();
 			}
 		}
@@ -398,7 +409,7 @@ public class CheckpointCoordinator {
 												boolean allOrNothingState) throws Exception {
 		synchronized (lock) {
 			if (shutdown) {
-				throw new IllegalStateException("CheckpointCoordinator is hut down");
+				throw new IllegalStateException("CheckpointCoordinator is shut down");
 			}
 			
 			if (completedCheckpoints.isEmpty()) {

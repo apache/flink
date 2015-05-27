@@ -20,10 +20,13 @@ package org.apache.flink.optimizer;
 
 import static org.junit.Assert.*;
 
+import org.apache.flink.optimizer.dag.TempMode;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
+import org.junit.Test;
+
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.junit.Test;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.DeltaIteration;
@@ -49,7 +52,6 @@ import org.apache.flink.optimizer.testfunctions.IdentityKeyExtractor;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
-
 
 @SuppressWarnings({"serial", "unchecked"})
 public class IterationsCompilerTest extends CompilerTestBase {
@@ -117,7 +119,12 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			WorksetIterationPlanNode wipn = (WorksetIterationPlanNode) op.getDataSinks().iterator().next().getInput().getSource();
 			
 			assertEquals(ShipStrategyType.PARTITION_HASH, wipn.getInput1().getShipStrategy());
-			assertTrue(wipn.getInput2().getTempMode().breaksPipeline());
+			
+			assertEquals(TempMode.NONE, wipn.getInput1().getTempMode());
+			assertEquals(TempMode.NONE, wipn.getInput2().getTempMode());
+
+			assertEquals(DataExchangeMode.BATCH, wipn.getInput1().getDataExchangeMode());
+			assertEquals(DataExchangeMode.BATCH, wipn.getInput2().getDataExchangeMode());
 			
 			new JobGraphGenerator().compileJobGraph(op);
 		}
@@ -152,7 +159,12 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			WorksetIterationPlanNode wipn = (WorksetIterationPlanNode) op.getDataSinks().iterator().next().getInput().getSource();
 			
 			assertEquals(ShipStrategyType.PARTITION_HASH, wipn.getInput1().getShipStrategy());
-			assertTrue(wipn.getInput2().getTempMode().breaksPipeline());
+
+			assertEquals(DataExchangeMode.BATCH, wipn.getInput1().getDataExchangeMode());
+			assertEquals(DataExchangeMode.BATCH, wipn.getInput2().getDataExchangeMode());
+			
+			assertEquals(TempMode.NONE, wipn.getInput1().getTempMode());
+			assertEquals(TempMode.NONE, wipn.getInput2().getTempMode());
 			
 			new JobGraphGenerator().compileJobGraph(op);
 		}
@@ -187,7 +199,12 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			WorksetIterationPlanNode wipn = (WorksetIterationPlanNode) op.getDataSinks().iterator().next().getInput().getSource();
 			
 			assertEquals(ShipStrategyType.FORWARD, wipn.getInput1().getShipStrategy());
-			assertTrue(wipn.getInput2().getTempMode().breaksPipeline());
+
+			assertEquals(DataExchangeMode.BATCH, wipn.getInput1().getDataExchangeMode());
+			assertEquals(DataExchangeMode.BATCH, wipn.getInput2().getDataExchangeMode());
+
+			assertEquals(TempMode.NONE, wipn.getInput1().getTempMode());
+			assertEquals(TempMode.NONE, wipn.getInput2().getTempMode());
 			
 			new JobGraphGenerator().compileJobGraph(op);
 		}

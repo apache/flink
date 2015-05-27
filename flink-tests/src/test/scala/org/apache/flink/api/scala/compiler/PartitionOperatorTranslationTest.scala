@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala.compiler
 
+import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.optimizer.util.CompilerTestBase
 import org.junit.Test
 import org.junit.Assert._
@@ -38,8 +39,8 @@ class PartitionOperatorTranslationTest extends CompilerTestBase {
           def partition(key: Long, numPartitions: Int): Int = key.intValue()
         }, 1)
         .groupBy(1).reduceGroup( x => x)
-        .print()
-      
+        .output(new DiscardingOutputFormat[Iterator[(Long, Long)]])
+
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
       

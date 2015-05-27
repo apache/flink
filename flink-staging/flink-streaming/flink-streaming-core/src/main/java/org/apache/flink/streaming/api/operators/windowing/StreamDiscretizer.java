@@ -17,7 +17,8 @@
 
 package org.apache.flink.streaming.api.operators.windowing;
 
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.WindowEvent;
 import org.apache.flink.streaming.api.windowing.policy.ActiveEvictionPolicy;
@@ -31,30 +32,30 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
  * The user supplied eviction and trigger policies are applied to create the
  * {@link StreamWindow} that will be further transformed in the next stages.
  */
-public class StreamDiscretizer<IN> extends StreamOperator<IN, WindowEvent<IN>> {
+public class StreamDiscretizer<IN>
+		extends AbstractStreamOperator<WindowEvent<IN>>
+		implements OneInputStreamOperator<IN, WindowEvent<IN>> {
 
-	/**
-	 * Auto-generated serial version UID
-	 */
-	private static final long serialVersionUID = -8038984294071650730L;
+	private static final long serialVersionUID = 1L;
 
 	protected TriggerPolicy<IN> triggerPolicy;
 	protected EvictionPolicy<IN> evictionPolicy;
 	private boolean isActiveTrigger;
 	private boolean isActiveEviction;
-	private Thread activePolicyThread;
 	private int bufferSize = 0;
+
+	private transient Thread activePolicyThread;
 
 	protected WindowEvent<IN> windowEvent = new WindowEvent<IN>();
 
 	public StreamDiscretizer(TriggerPolicy<IN> triggerPolicy, EvictionPolicy<IN> evictionPolicy) {
-		super(null);
-
 		this.triggerPolicy = triggerPolicy;
 		this.evictionPolicy = evictionPolicy;
 
 		this.isActiveTrigger = triggerPolicy instanceof ActiveTriggerPolicy;
 		this.isActiveEviction = evictionPolicy instanceof ActiveEvictionPolicy;
+
+		this.chainingStrategy = ChainingStrategy.FORCE_ALWAYS;
 	}
 
 	public TriggerPolicy<IN> getTrigger() {
@@ -66,19 +67,8 @@ public class StreamDiscretizer<IN> extends StreamOperator<IN, WindowEvent<IN>> {
 	}
 
 	@Override
-	public void run() throws Exception {
-
-		// Continuously run
-		while (isRunning && readNext() != null) {
-			processRealElement(nextObject);
-		}
-
-		if (activePolicyThread != null) {
-			activePolicyThread.interrupt();
-		}
-
-		emitWindow();
-
+	public void processElement(IN element) throws Exception {
+		processRealElement(element);
 	}
 
 	/**
@@ -111,7 +101,7 @@ public class StreamDiscretizer<IN> extends StreamOperator<IN, WindowEvent<IN>> {
 
 		evict(input, isTriggered);
 
-		collector.collect(windowEvent.setElement(input));
+		output.collect(windowEvent.setElement(input));
 		bufferSize++;
 
 	}
@@ -140,7 +130,7 @@ public class StreamDiscretizer<IN> extends StreamOperator<IN, WindowEvent<IN>> {
 	 * if not empty
 	 */
 	protected void emitWindow() {
-		collector.collect(windowEvent.setTrigger());
+		output.collect(windowEvent.setTrigger());
 	}
 
 	private void activeEvict(Object input) {
@@ -152,7 +142,7 @@ public class StreamDiscretizer<IN> extends StreamOperator<IN, WindowEvent<IN>> {
 		}
 
 		if (numToEvict > 0) {
-			collector.collect(windowEvent.setEviction(numToEvict));
+			output.collect(windowEvent.setEviction(numToEvict));
 			bufferSize -= numToEvict;
 			bufferSize = bufferSize >= 0 ? bufferSize : 0;
 		}
@@ -162,7 +152,7 @@ public class StreamDiscretizer<IN> extends StreamOperator<IN, WindowEvent<IN>> {
 		int numToEvict = evictionPolicy.notifyEviction(input, isTriggered, bufferSize);
 
 		if (numToEvict > 0) {
-			collector.collect(windowEvent.setEviction(numToEvict));
+			output.collect(windowEvent.setEviction(numToEvict));
 			bufferSize -= numToEvict;
 			bufferSize = bufferSize >= 0 ? bufferSize : 0;
 		}
@@ -181,6 +171,16 @@ public class StreamDiscretizer<IN> extends StreamOperator<IN, WindowEvent<IN>> {
 				activePolicyThread.start();
 			}
 		}
+	}
+
+	@Override
+	public void close() throws Exception {
+		super.close();
+		if (activePolicyThread != null) {
+			activePolicyThread.interrupt();
+		}
+
+		emitWindow();
 	}
 
 	/**

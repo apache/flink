@@ -18,8 +18,13 @@
 package org.apache.flink.streaming.api.operators.co;
 
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 
-public class CoStreamFlatMap<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OUT> {
+public class CoStreamFlatMap<IN1, IN2, OUT>
+		extends AbstractUdfStreamOperator<OUT, CoFlatMapFunction<IN1, IN2, OUT>>
+		implements TwoInputStreamOperator<IN1, IN2, OUT> {
+
 	private static final long serialVersionUID = 1L;
 
 	public CoStreamFlatMap(CoFlatMapFunction<IN1, IN2, OUT> flatMapper) {
@@ -27,27 +32,13 @@ public class CoStreamFlatMap<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, O
 	}
 
 	@Override
-	public void handleStream1() throws Exception {
-		callUserFunctionAndLogException1();
-	}
-
-	@Override
-	public void handleStream2() throws Exception {
-		callUserFunctionAndLogException2();
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction1() throws Exception {
-		((CoFlatMapFunction<IN1, IN2, OUT>) userFunction).flatMap1(reuse1.getObject(), collector);
+	public void processElement1(IN1 element) throws Exception {
+		userFunction.flatMap1(element, output);
 
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction2() throws Exception {
-		((CoFlatMapFunction<IN1, IN2, OUT>) userFunction).flatMap2(reuse2.getObject(), collector);
-
+	public void processElement2(IN2 element) throws Exception {
+		userFunction.flatMap2(element, output);
 	}
-
 }

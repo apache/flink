@@ -18,11 +18,14 @@
 
 package org.apache.flink.graph.gsa;
 
+import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
+import java.util.Collection;
 
 @SuppressWarnings("serial")
 public abstract class ApplyFunction<K, VV, M> implements Serializable {
@@ -60,6 +63,38 @@ public abstract class ApplyFunction<K, VV, M> implements Serializable {
 	 */
 	public int getSuperstepNumber() {
 		return this.runtimeContext.getSuperstepNumber();
+	}
+
+	/**
+	 * Gets the iteration aggregator registered under the given name. The iteration aggregator combines
+	 * all aggregates globally once per superstep and makes them available in the next superstep.
+	 *
+	 * @param name The name of the aggregator.
+	 * @return The aggregator registered under this name, or null, if no aggregator was registered.
+	 */
+	public <T extends Aggregator<?>> T getIterationAggregator(String name) {
+		return this.runtimeContext.<T>getIterationAggregator(name);
+	}
+
+	/**
+	 * Get the aggregated value that an aggregator computed in the previous iteration.
+	 *
+	 * @param name The name of the aggregator.
+	 * @return The aggregated value of the previous iteration.
+	 */
+	public <T extends Value> T getPreviousIterationAggregate(String name) {
+		return this.runtimeContext.<T>getPreviousIterationAggregate(name);
+	}
+
+	/**
+	 * Gets the broadcast data set registered under the given name. Broadcast data sets
+	 * are available on all parallel instances of a function.
+	 *
+	 * @param name The name under which the broadcast set is registered.
+	 * @return The broadcast data set.
+	 */
+	public <T> Collection<T> getBroadcastSet(String name) {
+		return this.runtimeContext.<T>getBroadcastVariable(name);
 	}
 
 	// --------------------------------------------------------------------------------------------

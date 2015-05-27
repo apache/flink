@@ -32,7 +32,7 @@ class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   behavior of "The regularization type implementations"
 
-  it should "not change the loss when no regularization is used" in {
+  it should "not change the loss or gradient when no regularization is used" in {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -41,14 +41,18 @@ class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val regularization = new NoRegularization
 
     val weightVector = new WeightVector(DenseVector(1.0), 1.0)
-    val effectiveStepsize = 1.0
-    val regParameter = 0.0
+    val regParameter = 1.0
     val gradient = DenseVector(0.0)
     val originalLoss = 1.0
 
-    val adjustedLoss = regularization.regLoss(originalLoss, weightVector.weights, regParameter)
+    val adjustedLoss = regularization.regularizedLossAndGradient(
+      originalLoss,
+      weightVector.weights,
+      gradient,
+      regParameter)
 
     adjustedLoss should be (originalLoss +- 0.0001)
+    gradient shouldEqual DenseVector(0.0)
   }
 
   it should "correctly apply L1 regularization" in {

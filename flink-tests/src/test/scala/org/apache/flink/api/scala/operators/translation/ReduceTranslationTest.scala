@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.operators.translation
 
 import org.apache.flink.api.common.operators.{GenericDataSourceBase, GenericDataSinkBase}
+import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.operators.translation.{KeyExtractingMapper,
 PlanUnwrappingReduceOperator}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
@@ -39,7 +40,8 @@ class ReduceTranslationTest {
       val initialData = env.fromElements((3.141592, "foobar", 77L)).setParallelism(1)
 
 
-      initialData reduce { (v1, v2) => v1 } print()
+      initialData reduce { (v1, v2) => v1 } output(
+        new DiscardingOutputFormat[(Double, String, Long)])
 
       val p = env.createProgramPlan(
 
@@ -70,7 +72,8 @@ class ReduceTranslationTest {
 
       val initialData = env.fromElements((3.141592, "foobar", 77L)).setParallelism(1)
 
-      initialData.groupBy(2) reduce { (v1, v2) => v1 } print()
+      initialData.groupBy(2) reduce { (v1, v2) => v1 } output(
+        new DiscardingOutputFormat[(Double, String, Long)])
 
       val p = env.createProgramPlan()
 
@@ -99,7 +102,8 @@ class ReduceTranslationTest {
 
       val initialData = env.fromElements((3.141592, "foobar", 77L)).setParallelism(1)
 
-      initialData.groupBy { _._2 }. reduce { (v1, v2) => v1 } setParallelism(4) print()
+      initialData.groupBy { _._2 }. reduce { (v1, v2) => v1 } setParallelism(4) output(
+        new DiscardingOutputFormat[(Double, String, Long)])
 
       val p = env.createProgramPlan()
       val sink: GenericDataSinkBase[_] = p.getDataSinks.iterator.next

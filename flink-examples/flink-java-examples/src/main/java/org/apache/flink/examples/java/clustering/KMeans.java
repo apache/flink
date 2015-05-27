@@ -114,15 +114,15 @@ public class KMeans {
 				.map(new SelectNearestCenter()).withBroadcastSet(finalCentroids, "centroids");
 		
 		// emit result
-		if(fileOutput) {
+		if (fileOutput) {
 			clusteredPoints.writeAsCsv(outputPath, "\n", " ");
-		} else {
+
+			// since file sinks are lazy, we trigger the execution explicitly
+			env.execute("KMeans Example");
+		}
+		else {
 			clusteredPoints.print();
 		}
-
-		// execute program
-		env.execute("KMeans Example");
-		
 	}
 	
 	// *************************************************************************

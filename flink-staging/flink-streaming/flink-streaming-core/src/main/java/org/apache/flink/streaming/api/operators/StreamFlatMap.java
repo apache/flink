@@ -19,24 +19,19 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 
-public class StreamFlatMap<IN, OUT> extends ChainableStreamOperator<IN, OUT> {
+public class StreamFlatMap<IN, OUT>
+		extends AbstractUdfStreamOperator<OUT, FlatMapFunction<IN, OUT>>
+		implements OneInputStreamOperator<IN, OUT> {
+
 	private static final long serialVersionUID = 1L;
 
 	public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
 		super(flatMapper);
+		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override
-	public void run() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
+	public void processElement(IN element) throws Exception {
+		userFunction.flatMap(element, output);
 	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction() throws Exception {
-		((FlatMapFunction<IN, OUT>) userFunction).flatMap(nextObject, collector);
-	}
-
 }

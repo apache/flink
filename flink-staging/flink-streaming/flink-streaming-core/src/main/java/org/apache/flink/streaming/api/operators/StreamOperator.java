@@ -17,183 +17,41 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.io.IOException;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.Configuration;
+
 import java.io.Serializable;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.CheckpointCommitter;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
-import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskContext;
-import org.apache.flink.util.Collector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
- * The StreamOperator represents the base class for all operators in the
- * streaming topology.
+ * Basic interface for stream operators. Implementers would implement one of
+ * {@link org.apache.flink.streaming.api.operators.OneInputStreamOperator} or
+ * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator} to create operators
+ * that process elements. You can use
+ * {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator} as a base class for
+ * custom operators.
  * 
- * @param <OUT>
- *            The output type of the operator
+ * @param <OUT> The output type of the operator
  */
-public abstract class StreamOperator<IN, OUT> implements Serializable {
-
-	private static final long serialVersionUID = 1L;
-	private static final Logger LOG = LoggerFactory.getLogger(StreamOperator.class);
-
-	protected StreamTaskContext<OUT> taskContext;
-
-	protected ExecutionConfig executionConfig = null;
-
-	protected IndexedReaderIterator<StreamRecord<IN>> recordIterator;
-	protected StreamRecordSerializer<IN> inSerializer;
-	protected TypeSerializer<IN> objectSerializer;
-	protected StreamRecord<IN> nextRecord;
-	protected IN nextObject;
-
-	public Collector<OUT> collector;
-	protected Function userFunction;
-	protected volatile boolean isRunning;
-
-	private ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;
-
-	public StreamOperator(Function userFunction) {
-		this.userFunction = userFunction;
-	}
+public interface StreamOperator<OUT> extends Serializable {
 
 	/**
-	 * Initializes the {@link StreamOperator} for input and output handling
-	 * 
-	 * @param taskContext
-	 *            StreamTaskContext representing the vertex
+	 * Initializes the {@link StreamOperator} for input and output handling.
 	 */
-	public void setup(StreamTaskContext<OUT> taskContext) {
-		this.collector = taskContext.getOutputCollector();
-		this.recordIterator = taskContext.getIndexedInput(0);
-		this.inSerializer = taskContext.getInputSerializer(0);
-		if (this.inSerializer != null) {
-			this.nextRecord = inSerializer.createInstance();
-			this.objectSerializer = inSerializer.getObjectSerializer();
-		}
-		this.taskContext = taskContext;
-		this.executionConfig = taskContext.getExecutionConfig();
-	}
+	public void setup(Output<OUT> output, RuntimeContext runtimeContext);
 
 	/**
-	 * Method that will be called when the operator starts, should encode the
-	 * processing logic
+	 * This method is called before any elements are processed.
 	 */
-	public abstract void run() throws Exception;
-
-	/*
-	 * Reads the next record from the reader iterator and stores it in the
-	 * nextRecord variable
-	 */
-	protected StreamRecord<IN> readNext() throws IOException {
-		this.nextRecord = inSerializer.createInstance();
-		try {
-			nextRecord = recordIterator.next(nextRecord);
-			try {
-				nextObject = nextRecord.getObject();
-			} catch (NullPointerException e) {
-				// end of stream
-			}
-			return nextRecord;
-		} catch (IOException e) {
-			if (isRunning) {
-				throw new RuntimeException("Could not read next record", e);
-			} else {
-				// Task already cancelled do nothing
-				return null;
-			}
-		} catch (IllegalStateException e) {
-			if (isRunning) {
-				throw new RuntimeException("Could not read next record", e);
-			} else {
-				// Task already cancelled do nothing
-				return null;
-			}
-		}
-	}
+	public void open(Configuration config) throws Exception;
 
 	/**
-	 * The call of the user implemented function should be implemented here
+	 * This method is called after no more elements for can arrive for processing.
 	 */
-	protected void callUserFunction() throws Exception {
-	}
+	public void close() throws Exception;
 
-	/**
-	 * Method for logging exceptions thrown during the user function call
-	 */
-	protected void callUserFunctionAndLogException() {
-		try {
-			callUserFunction();
-		} catch (Exception e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Calling user function failed", e);
-			}
-			throw new RuntimeException(e);
-		}
-	}
+	public void setChainingStrategy(ChainingStrategy strategy);
 
-	/**
-	 * Open method to be used if the user defined function extends the
-	 * RichFunction class
-	 * 
-	 * @param parameters
-	 *            The configuration parameters for the operator
-	 */
-	public void open(Configuration parameters) throws Exception {
-		isRunning = true;
-		FunctionUtils.openFunction(userFunction, parameters);
-	}
-
-	/**
-	 * Close method to be used if the user defined function extends the
-	 * RichFunction class
-	 * 
-	 */
-	public void close() {
-		isRunning = false;
-		collector.close();
-		try {
-			FunctionUtils.closeFunction(userFunction);
-		} catch (Exception e) {
-			throw new RuntimeException("Error when closing the function", e);
-		}
-	}
-
-	public void cancel() {
-		isRunning = false;
-	}
-
-	public void setRuntimeContext(RuntimeContext t) {
-		FunctionUtils.setFunctionRuntimeContext(userFunction, t);
-	}
-
-	protected IN copy(IN record) {
-		return objectSerializer.copy(record);
-	}
-
-	public void setChainingStrategy(ChainingStrategy strategy) {
-		if (strategy == ChainingStrategy.ALWAYS) {
-			if (!(this instanceof ChainableStreamOperator)) {
-				throw new RuntimeException("Operator needs to extend ChainableOperator to be chained");
-			}
-		}
-		this.chainingStrategy = strategy;
-	}
-
-	public ChainingStrategy getChainingStrategy() {
-		return chainingStrategy;
-	}
+	public ChainingStrategy getChainingStrategy();
 
 	/**
 	 * Defines the chaining scheme for the operator. By default <b>ALWAYS</b> is used,
@@ -203,58 +61,12 @@ public abstract class StreamOperator<IN, OUT> implements Serializable {
 	 * to <b>NEVER</b>, the operator will not be chained to the preceding or succeeding
 	 * operators.</p> <b>HEAD</b> strategy marks a start of a new chain, so that the
 	 * operator will not be chained to preceding operators, only succeding ones.
-	 * 
+	 *
+	 * <b>FORCE_ALWAYS</b> will enable chaining even if chaining is disabled on the execution
+	 * environment. This should only be used by system-level operators, not operators implemented
+	 * by users.
 	 */
 	public static enum ChainingStrategy {
-		ALWAYS, NEVER, HEAD
-	}
-
-	public Function getUserFunction() {
-		return userFunction;
-	}
-	
-	// ------------------------------------------------------------------------
-	//  Checkpoints and Checkpoint Confirmations
-	// ------------------------------------------------------------------------
-	
-	// NOTE - ALL OF THIS CODE WORKS ONLY FOR THE FIRST OPERATOR IN THE CHAIN
-	// IT NEEDS TO BE EXTENDED TO SUPPORT CHAINS
-	
-	public void restoreInitialState(Serializable state) throws Exception {
-		if (userFunction instanceof Checkpointed) {
-			setStateOnFunction(state, userFunction);
-		}
-		else {
-			throw new IllegalStateException("Trying to restore state of a non-checkpointed function");
-		}
-	}
-	
-	public Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception {
-		if (userFunction instanceof Checkpointed) {
-			return ((Checkpointed<?>) userFunction).snapshotState(checkpointId, timestamp);
-		}
-		else {
-			return null;
-		}
-	}
-	
-	public void confirmCheckpointCompleted(long checkpointId, long timestamp) throws Exception {
-		if (userFunction instanceof CheckpointCommitter) {
-			try {
-				((CheckpointCommitter) userFunction).commitCheckpoint(checkpointId);
-			}
-			catch (Exception e) {
-				throw new Exception("Error while confirming checkpoint " + checkpointId + " to the stream function", e);
-			}
-		}
-	}
-	
-	private static <T extends Serializable> void setStateOnFunction(Serializable state, Function function) {
-		@SuppressWarnings("unchecked")
-		T typedState = (T) state;
-		@SuppressWarnings("unchecked")
-		Checkpointed<T> typedFunction = (Checkpointed<T>) function;
-		
-		typedFunction.restoreState(typedState);
+		FORCE_ALWAYS, ALWAYS, NEVER, HEAD
 	}
 }

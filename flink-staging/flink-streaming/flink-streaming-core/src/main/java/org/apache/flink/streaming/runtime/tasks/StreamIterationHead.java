@@ -25,18 +25,15 @@ import java.util.concurrent.TimeUnit;
 import org.apache.flink.streaming.api.collector.StreamOutput;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.StringUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StreamIterationHead<OUT> extends StreamTask<OUT, OUT> {
+public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationHead.class);
 
-	private Collection<StreamOutput<?>> outputs;
 
-	private static int numSources;
-	private Integer iterationId;
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
 	private long iterationWaitTime;
@@ -44,17 +41,15 @@ public class StreamIterationHead<OUT> extends StreamTask<OUT, OUT> {
 
 	@SuppressWarnings("rawtypes")
 	public StreamIterationHead() {
-		numSources = newTask();
-		instanceID = numSources;
 		dataChannel = new ArrayBlockingQueue<StreamRecord>(1);
 	}
 
 	@Override
-	public void setInputsOutputs() {
+	public void registerInputOutput() {
+		super.registerInputOutput();
 		outputHandler = new OutputHandler<OUT>(this);
-		outputs = outputHandler.getOutputs();
 
-		iterationId = configuration.getIterationId();
+		Integer iterationId = configuration.getIterationId();
 		iterationWaitTime = configuration.getIterationWaitTime();
 		shouldWait = iterationWaitTime > 0;
 
@@ -71,8 +66,10 @@ public class StreamIterationHead<OUT> extends StreamTask<OUT, OUT> {
 	@Override
 	public void invoke() throws Exception {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Iteration source {} invoked with instance id {}", getName(), getInstanceID());
+			LOG.debug("Iteration source {} invoked", getName());
 		}
+
+		Collection<StreamOutput<?>> outputs = outputHandler.getOutputs();
 
 		try {
 			StreamRecord<OUT> nextRecord;
@@ -91,20 +88,16 @@ public class StreamIterationHead<OUT> extends StreamTask<OUT, OUT> {
 				}
 			}
 
-		} catch (Exception e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Iteration source failed due to: {}", StringUtils.stringifyException(e));
-			}
+		}
+		catch (Exception e) {
+			LOG.error("Iteration Head " + getEnvironment().getTaskNameWithSubtasks() + " failed", e);
+			
 			throw e;
-		} finally {
+		}
+		finally {
 			// Cleanup
 			outputHandler.flushOutputs();
 			clearBuffers();
 		}
-
-	}
-
-	@Override
-	protected void setOperator() {
 	}
 }

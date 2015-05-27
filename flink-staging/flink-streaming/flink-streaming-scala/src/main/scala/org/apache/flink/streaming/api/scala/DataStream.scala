@@ -18,45 +18,25 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
-import org.apache.flink.streaming.api.collector.selector.OutputSelector
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream,
-  SingleOutputStreamOperator, GroupedDataStream}
-import org.apache.flink.streaming.util.serialization.SerializationSchema
-
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
+import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, FoldFunction, MapFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.util.Collector
-import org.apache.flink.api.common.functions.FlatMapFunction
-import org.apache.flink.api.common.functions.ReduceFunction
-import org.apache.flink.api.common.functions.ReduceFunction
-import org.apache.flink.api.common.functions.FoldFunction
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.api.common.functions.FilterFunction
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
+import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
+import org.apache.flink.streaming.api.collector.selector.OutputSelector
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, GroupedDataStream, SingleOutputStreamOperator}
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
+import org.apache.flink.streaming.api.functions.aggregation.SumFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
+import org.apache.flink.streaming.api.operators.{StreamGroupedReduce, StreamReduce}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
-import org.apache.flink.streaming.api.windowing.policy.{ EvictionPolicy, TriggerPolicy }
-
-import scala.collection.JavaConversions._
-
-import java.util.HashMap
-
-import org.apache.flink.streaming.api.functions.aggregation.SumFunction
-import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction
-import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
-import org.apache.flink.streaming.api.operators.StreamOperator.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.StreamReduce
-import org.apache.flink.streaming.api.operators.StreamGroupedReduce
-import org.apache.flink.streaming.api.operators.StreamFlatMap
-import org.apache.flink.streaming.api.operators.StreamGroupedFold
-import org.apache.flink.streaming.api.operators.StreamMap
-import org.apache.flink.streaming.api.operators.StreamFold
+import org.apache.flink.streaming.api.windowing.policy.{EvictionPolicy, TriggerPolicy}
+import org.apache.flink.streaming.util.serialization.SerializationSchema
+import org.apache.flink.util.Collector
 
 class DataStream[T](javaStream: JavaStream[T]) {
 
@@ -123,7 +103,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   /**
    * Turns off chaining for this operator so thread co-location will not be
    * used as an optimization. </p> Chaining can be turned off for the whole
-   * job by {@link StreamExecutionEnvironment#disableOperatorChaning()}
+   * job by {@link StreamExecutionEnvironment#disableOperatorChaining()}
    * however it is not advised for performance considerations.
    * 
    */
@@ -404,8 +384,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
     aggregate(aggregationType, position)
   }
 
-  private def aggregate(aggregationType: AggregationType, position: Int):
-    DataStream[T] = {
+  private def aggregate(aggregationType: AggregationType, position: Int): DataStream[T] = {
 
     val jStream = javaStream.asInstanceOf[JavaStream[Product]]
     val outType = jStream.getType().asInstanceOf[TupleTypeInfoBase[_]]
@@ -421,12 +400,12 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
 
     val invokable = jStream match {
-      case groupedStream: GroupedDataStream[_] => new StreamGroupedReduce(reducer,
+      case groupedStream: GroupedDataStream[Product] => new StreamGroupedReduce[Product](reducer,
         groupedStream.getKeySelector())
       case _ => new StreamReduce(reducer)
     }
-    new DataStream[Product](jStream.transform("aggregation", jStream.getType(),
-      invokable)).asInstanceOf[DataStream[T]]
+    new DataStream[Product](jStream.transform("aggregation", jStream.getType(),invokable))
+      .asInstanceOf[DataStream[T]]
   }
 
   /**

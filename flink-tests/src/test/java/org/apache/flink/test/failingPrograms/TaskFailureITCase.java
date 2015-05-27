@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.failingPrograms;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.MapFunction;
 import org.apache.flink.api.java.record.operators.FileDataSink;
@@ -85,6 +86,7 @@ public class TaskFailureITCase extends FailingTestBase {
 
 		// generate plan
 		Plan plan = new Plan(output);
+		plan.setExecutionConfig(new ExecutionConfig());
 		plan.setDefaultParallelism(parallelism);
 
 		// optimize and compile plan 
@@ -115,6 +117,7 @@ public class TaskFailureITCase extends FailingTestBase {
 
 		// generate plan
 		Plan plan = new Plan(output);
+		plan.setExecutionConfig(new ExecutionConfig());
 		plan.setDefaultParallelism(4);
 
 		// optimize and compile plan

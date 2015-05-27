@@ -43,10 +43,10 @@ public class WindowingOptimizer {
 
 	@SuppressWarnings("rawtypes")
 	private static void removeMergeBeforeFlatten(StreamGraph streamGraph) {
-		Set<Tuple2<Integer, StreamOperator<?, ?>>> operators = streamGraph.getOperators();
+		Set<Tuple2<Integer, StreamOperator<?>>> operators = streamGraph.getOperators();
 		List<Integer> flatteners = new ArrayList<Integer>();
 
-		for (Tuple2<Integer, StreamOperator<?, ?>> entry : operators) {
+		for (Tuple2<Integer, StreamOperator<?>> entry : operators) {
 			if (entry.f1 instanceof WindowFlattener) {
 				flatteners.add(entry.f0);
 			}

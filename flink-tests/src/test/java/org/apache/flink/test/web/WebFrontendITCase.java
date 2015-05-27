@@ -25,7 +25,7 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -37,10 +37,11 @@ import java.util.Collection;
 @RunWith(Parameterized.class)
 public class WebFrontendITCase extends MultipleProgramsTestBase {
 
-	@BeforeClass
-	public static void setup() throws Exception{
-		cluster = TestBaseUtils.startCluster(1, 4, true);
+	// make sure that the webserver is started for us!
+	static {
+		startWebServer = true;
 	}
+	
 
 	public WebFrontendITCase(TestExecutionMode m) {
 		super(m);

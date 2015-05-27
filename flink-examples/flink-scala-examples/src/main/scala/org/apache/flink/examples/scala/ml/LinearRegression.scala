@@ -82,11 +82,11 @@ object LinearRegression {
 
     if (fileOutput) {
       result.writeAsText(outputPath)
+      env.execute("Scala Linear Regression example")
     }
     else {
       result.print()
     }
-    env.execute("Scala Linear Regression example")
   }
 
   /**

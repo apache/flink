@@ -17,34 +17,27 @@
 
 package org.apache.flink.streaming.api.operators.windowing;
 
-import org.apache.flink.streaming.api.operators.ChainableStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 
 /**
  * This operator flattens the results of the window transformations by
  * outputing the elements of the {@link StreamWindow} one-by-one
  */
-public class WindowFlattener<T> extends ChainableStreamOperator<StreamWindow<T>, T> {
-
-	public WindowFlattener() {
-		super(null);
-		withoutInputCopy();
-	}
+public class WindowFlattener<T> extends AbstractStreamOperator<T>
+		implements OneInputStreamOperator<StreamWindow<T>, T> {
 
 	private static final long serialVersionUID = 1L;
 
-	@Override
-	public void run() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
+	public WindowFlattener() {
+		chainingStrategy = ChainingStrategy.FORCE_ALWAYS;
 	}
 
 	@Override
-	protected void callUserFunction() throws Exception {
-		for (T element : nextObject) {
-			collector.collect(element);
+	public void processElement(StreamWindow<T> window) throws Exception {
+		for (T element : window) {
+			output.collect(element);
 		}
 	}
-
 }

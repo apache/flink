@@ -723,13 +723,7 @@ public class CliFrontend {
 
 
 	/**
-	 *
-	 * @param options
-	 * @param classLoader
-	 * @param programName
 	 * @param userParallelism The parallelism requested by the user in the CLI frontend.
-	 * @return
-	 * @throws Exception
 	 */
 	protected Client getClient(CommandLineOptions options, ClassLoader classLoader, String programName, int userParallelism) throws Exception {
 		InetSocketAddress jobManagerAddress;

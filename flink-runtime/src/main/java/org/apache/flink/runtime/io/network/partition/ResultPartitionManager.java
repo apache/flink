@@ -73,10 +73,10 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 					partitionId.getPartitionId());
 
 			if (partition == null) {
-				throw new IOException("Unknown partition " + partitionId + ".");
+				throw new PartitionNotFoundException(partitionId);
 			}
 
-			LOG.debug("Requested partition {}.", partition);
+			LOG.debug("Requesting subpartition {} of {}.", subpartitionIndex, partition);
 
 			return partition.createSubpartitionView(subpartitionIndex, bufferProvider);
 		}

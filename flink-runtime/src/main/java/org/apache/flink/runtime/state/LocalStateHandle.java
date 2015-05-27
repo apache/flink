@@ -21,12 +21,12 @@ package org.apache.flink.runtime.state;
 import java.io.Serializable;
 
 /**
- * A StateHandle that includes a map of operator states directly.
+ * A StateHandle that includes the operator states directly.
  */
 public class LocalStateHandle implements StateHandle<Serializable> {
 
 	private static final long serialVersionUID = 2093619217898039610L;
-	
+
 	private final Serializable state;
 
 	public LocalStateHandle(Serializable state) {
@@ -36,5 +36,24 @@ public class LocalStateHandle implements StateHandle<Serializable> {
 	@Override
 	public Serializable getState() {
 		return state;
+	}
+
+	@Override
+	public void discardState() throws Exception {
+	}
+	
+	public static LocalStateHandleProvider createProvider(){
+		return new LocalStateHandleProvider();
+	}
+
+	private static class LocalStateHandleProvider implements StateHandleProvider<Serializable> {
+
+		private static final long serialVersionUID = 4665419208932921425L;
+
+		@Override
+		public LocalStateHandle createStateHandle(Serializable state) {
+			return new LocalStateHandle(state);
+		}
+
 	}
 }

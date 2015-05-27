@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.hadoop.mapred
 import org.apache.flink.api.scala._
 
 import org.apache.flink.test.testdata.WordCountData
-import org.apache.flink.test.util.JavaProgramTestBase
+import org.apache.flink.test.util.{TestBaseUtils, JavaProgramTestBase}
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.{Text, LongWritable}
 import org.apache.hadoop.mapred.{FileOutputFormat, JobConf, TextOutputFormat, TextInputFormat}
@@ -35,7 +35,8 @@ class WordCountMapredITCase extends JavaProgramTestBase {
   }
 
   protected override def postSubmit() {
-    compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath, Array[String](".", "_"))
+    TestBaseUtils.compareResultsByLinesInMemory(WordCountData.COUNTS,
+                                                resultPath, Array[String](".", "_"))
   }
 
   protected def testProgram() {

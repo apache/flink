@@ -30,20 +30,20 @@ import org.junit.Assert;
 import org.junit.Test;
 
 public class ClassLoaderITCase {
-	
+
 	private static final String INPUT_SPLITS_PROG_JAR_FILE = "target/customsplit-test-jar.jar";
 
 	private static final String STREAMING_PROG_JAR_FILE = "target/streamingclassloader-test-jar.jar";
 
 	private static final String KMEANS_JAR_PATH = "target/kmeans-test-jar.jar";
-	
+
 	@Test
 	public void testJobWithCustomInputFormat() {
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-			
+
 			ForkableFlinkMiniCluster testCluster = new ForkableFlinkMiniCluster(config, false);
 
 			try {
@@ -76,9 +76,9 @@ public class ClassLoaderITCase {
 				testCluster.shutdown();
 			}
 		}
-		catch (Throwable t) {
-			t.printStackTrace();
-			Assert.fail(t.getMessage());
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
 		}
 	}
 }

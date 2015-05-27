@@ -32,7 +32,8 @@ import org.apache.flink.streaming.api.collector.StreamOutput;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
-import org.apache.flink.streaming.api.operators.ChainableStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.io.RecordWriterFactory;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -44,24 +45,24 @@ import org.slf4j.LoggerFactory;
 public class OutputHandler<OUT> {
 	private static final Logger LOG = LoggerFactory.getLogger(OutputHandler.class);
 
-	private StreamTask<?, OUT> vertex;
+	private StreamTask<OUT, ?> vertex;
 	private StreamConfig configuration;
 	private ClassLoader cl;
-	private Collector<OUT> outerCollector;
+	private Output<OUT> outerOutput;
 
-	private List<ChainableStreamOperator<?, ?>> chainedOperators;
+	public List<OneInputStreamOperator<?, ?>> chainedOperators;
 
 	private Map<StreamEdge, StreamOutput<?>> outputMap;
 
 	private Map<Integer, StreamConfig> chainedConfigs;
 	private List<StreamEdge> outEdgesInOrder;
 
-	public OutputHandler(StreamTask<?, OUT> vertex) {
+	public OutputHandler(StreamTask<OUT, ?> vertex) {
 
 		// Initialize some fields
 		this.vertex = vertex;
 		this.configuration = new StreamConfig(vertex.getTaskConfiguration());
-		this.chainedOperators = new ArrayList<ChainableStreamOperator<?, ?>>();
+		this.chainedOperators = new ArrayList<OneInputStreamOperator<?, ?>>();
 		this.outputMap = new HashMap<StreamEdge, StreamOutput<?>>();
 		this.cl = vertex.getUserCodeClassLoader();
 
@@ -83,9 +84,9 @@ public class OutputHandler<OUT> {
 			outputMap.put(outEdge, streamOutput);
 		}
 
-		// We create the outer collector that will be passed to the first task
+		// We create the outer output that will be passed to the first task
 		// in the chain
-		this.outerCollector = createChainedCollector(configuration);
+		this.outerOutput = createChainedCollector(configuration);
 	}
 
 	public void broadcastBarrier(long id, long timestamp) throws IOException, InterruptedException {
@@ -99,30 +100,30 @@ public class OutputHandler<OUT> {
 		return outputMap.values();
 	}
 	
-	public List<ChainableStreamOperator<?, ?>> getChainedOperators(){
+	public List<OneInputStreamOperator<?, ?>> getChainedOperators(){
 		return chainedOperators;
 	}
 
 	/**
-	 * This method builds up a nested collector which encapsulates all the
+	 * This method builds up a nested output which encapsulates all the
 	 * chained operators and their network output. The result of this recursive
-	 * call will be passed as collector to the first operator in the chain.
+	 * call will be passed as output to the first operator in the chain.
 	 *
 	 * @param chainedTaskConfig
 	 * 		The configuration of the starting operator of the chain, we
 	 * 		use this paramater to recursively build the whole chain
-	 * @return Returns the collector for the chain starting from the given
+	 * @return Returns the output for the chain starting from the given
 	 * config
 	 */
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	private Collector<OUT> createChainedCollector(StreamConfig chainedTaskConfig) {
+	private <X> Output<X> createChainedCollector(StreamConfig chainedTaskConfig) {
 
 
 		// We create a wrapper that will encapsulate the chained operators and
 		// network outputs
 
-		OutputSelectorWrapper<OUT> outputSelectorWrapper = chainedTaskConfig.getOutputSelectorWrapper(cl);
-		CollectorWrapper<OUT> wrapper = new CollectorWrapper<OUT>(outputSelectorWrapper);
+		OutputSelectorWrapper<?> outputSelectorWrapper = chainedTaskConfig.getOutputSelectorWrapper(cl);
+		CollectorWrapper wrapper = new CollectorWrapper(outputSelectorWrapper);
 
 		// Create collectors for the network outputs
 		for (StreamEdge outputEdge : chainedTaskConfig.getNonChainedOutputs(cl)) {
@@ -143,23 +144,26 @@ public class OutputHandler<OUT> {
 		if (chainedTaskConfig.isChainStart()) {
 			// The current task is the first chained task at this vertex so we
 			// return the wrapper
-			return wrapper;
+			return (Output<X>) wrapper;
 		} else {
 			// The current task is a part of the chain so we get the chainable
 			// operator which will be returned and set it up using the wrapper
-			ChainableStreamOperator chainableOperator = chainedTaskConfig.getStreamOperator(vertex
-					.getUserCodeClassLoader());
-			chainableOperator.setup(wrapper,
-					chainedTaskConfig.getTypeSerializerIn1(vertex.getUserCodeClassLoader()));
+			OneInputStreamOperator chainableOperator =
+					chainedTaskConfig.getStreamOperator(vertex.getUserCodeClassLoader());
+			
+			StreamingRuntimeContext chainedContext = vertex.createRuntimeContext(chainedTaskConfig);
+			vertex.contexts.add(chainedContext);
+			
+			chainableOperator.setup(wrapper, chainedContext);
 
 			chainedOperators.add(chainableOperator);
-			return chainableOperator;
+			return new OperatorCollector<X>(chainableOperator);
 		}
 
 	}
 
-	public Collector<OUT> getCollector() {
-		return outerCollector;
+	public Output<OUT> getOutput() {
+		return outerOutput;
 	}
 
 	/**
@@ -192,8 +196,7 @@ public class OutputHandler<OUT> {
 		RecordWriter<SerializationDelegate<StreamRecord<T>>> output =
 				RecordWriterFactory.createRecordWriter(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
 
-		StreamOutput<T> streamOutput = new StreamOutput<T>(output, vertex.instanceID,
-				outSerializationDelegate);
+		StreamOutput<T> streamOutput = new StreamOutput<T>(output, outSerializationDelegate);
 
 		if (LOG.isTraceEnabled()) {
 			LOG.trace("Partitioner set: {} with {} outputs for {}", outputPartitioner.getClass()
@@ -212,6 +215,38 @@ public class OutputHandler<OUT> {
 	public void clearWriters() {
 		for (StreamOutput<?> output : outputMap.values()) {
 			output.clearBuffers();
+		}
+	}
+
+	private static class OperatorCollector<T> implements Output<T> {
+		private OneInputStreamOperator operator;
+
+		public OperatorCollector(OneInputStreamOperator<?, T> operator) {
+			this.operator = operator;
+		}
+
+		@Override
+		public void collect(T record) {
+
+			try {
+				operator.processElement(record);
+			} catch (Exception e) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Could not forward element to operator.", e);
+				}
+				throw new RuntimeException(e);
+			}
+		}
+
+		@Override
+		public void close() {
+			try {
+				operator.close();
+			} catch (Exception e) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Could not forward close call to operator.", e);
+				}
+			}
 		}
 	}
 }

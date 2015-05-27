@@ -95,21 +95,16 @@ public class IncrementalLearningSkeleton {
 		private static final int NEW_DATA_SLEEP_TIME = 1000;
 
 		@Override
-		public void run(Collector<Integer> collector) throws Exception {
-			while (true) {
-				collector.collect(getNewData());
-			}
+		public boolean reachedEnd() throws Exception {
+			return false;
 		}
 
-		private Integer getNewData() throws InterruptedException {
+		@Override
+		public Integer next() throws Exception {
 			Thread.sleep(NEW_DATA_SLEEP_TIME);
 			return 1;
 		}
-		
-		@Override
-		public void cancel() {
-			// No cleanup needed
-		}
+
 	}
 
 	/**
@@ -120,24 +115,22 @@ public class IncrementalLearningSkeleton {
 		private static final long serialVersionUID = 1L;
 		private int counter;
 
-		@Override
-		public void run(Collector<Integer> collector) throws Exception {
-			Thread.sleep(15);
-			while (counter < 50) {
-				collector.collect(getNewData());
-			}
-		}
-
-		@Override
-		public void cancel() {
-			// No cleanup needed
-		}
-
 		private Integer getNewData() throws InterruptedException {
 			Thread.sleep(5);
 			counter++;
 			return 1;
 		}
+
+		@Override
+		public boolean reachedEnd() throws Exception {
+			return counter >= 50;
+		}
+
+		@Override
+		public Integer next() throws Exception {
+			return getNewData();
+		}
+
 	}
 
 	/**
@@ -149,23 +142,16 @@ public class IncrementalLearningSkeleton {
 		private static final int TRAINING_DATA_SLEEP_TIME = 10;
 
 		@Override
-		public void run(Collector<Integer> collector) throws Exception {
-			while (true) {
-				collector.collect(getTrainingData());
-			}
-
+		public boolean reachedEnd() throws Exception {
+			return false;
 		}
 
-		private Integer getTrainingData() throws InterruptedException {
+		@Override
+		public Integer next() throws Exception {
 			Thread.sleep(TRAINING_DATA_SLEEP_TIME);
 			return 1;
+		}
 
-		}
-		
-		@Override
-		public void cancel() {
-			// No cleanup needed
-		}
 	}
 
 	/**
@@ -176,22 +162,21 @@ public class IncrementalLearningSkeleton {
 		private static final long serialVersionUID = 1L;
 		private int counter = 0;
 
-		@Override
-		public void run(Collector<Integer> collector) throws Exception {
-			while (counter < 8200) {
-				collector.collect(getTrainingData());
-			}
-		}
-
-		@Override
-		public void cancel() {
-			// No cleanup needed
-		}
-
 		private Integer getTrainingData() throws InterruptedException {
 			counter++;
 			return 1;
 		}
+
+		@Override
+		public boolean reachedEnd() throws Exception {
+			return counter >= 8200;
+		}
+
+		@Override
+		public Integer next() throws Exception {
+			return getTrainingData();
+		}
+
 	}
 
 	public static class LinearTimestamp implements Timestamp<Integer> {

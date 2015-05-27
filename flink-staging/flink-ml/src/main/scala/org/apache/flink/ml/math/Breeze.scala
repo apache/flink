@@ -68,13 +68,9 @@ object Breeze {
   }
 
   implicit class Breeze2VectorConverter(vector: BreezeVector[Double]) {
-    def fromBreeze: Vector = {
-      vector match {
-        case dense: BreezeDenseVector[Double] => new DenseVector(dense.data)
-
-        case sparse: BreezeSparseVector[Double] =>
-          new SparseVector(sparse.length, sparse.index, sparse.data)
-      }
+    def fromBreeze[T <: Vector: BreezeVectorConverter]: T = {
+      val converter = implicitly[BreezeVectorConverter[T]]
+      converter.convert(vector)
     }
   }
 
@@ -82,10 +78,10 @@ object Breeze {
     def asBreeze: BreezeVector[Double] = {
       vector match {
         case dense: DenseVector =>
-          new BreezeDenseVector[Double](dense.data)
+          new breeze.linalg.DenseVector(dense.data)
 
         case sparse: SparseVector =>
-          new BreezeSparseVector[Double](sparse.indices, sparse.data, sparse.size)
+          new BreezeSparseVector(sparse.indices, sparse.data, sparse.size)
       }
     }
   }

@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
  * {@link Count#of(int)} to get an instance.
  */
 @SuppressWarnings("rawtypes")
-public class Count implements WindowingHelper {
+public class Count extends WindowingHelper {
 
 	private int count;
 	private int deleteOnEviction = 1;

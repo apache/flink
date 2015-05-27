@@ -37,7 +37,6 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.util.Collector;
 import org.junit.Test;
 
 public class StreamVertexTest {
@@ -45,22 +44,22 @@ public class StreamVertexTest {
 	private static Map<Integer, Integer> data = new HashMap<Integer, Integer>();
 
 	public static class MySource implements SourceFunction<Tuple1<Integer>> {
-		private static final long serialVersionUID = 1L;
-
 		private Tuple1<Integer> tuple = new Tuple1<Integer>(0);
 
+		private int i = 0;
+
 		@Override
-		public void run(Collector<Tuple1<Integer>> collector) throws Exception {
-			for (int i = 0; i < 10; i++) {
-				tuple.f0 = i;
-				collector.collect(tuple);
-			}
+		public boolean reachedEnd() throws Exception {
+			return i >= 10;
 		}
 
 		@Override
-		public void cancel() {
-			// No cleanup needed
+		public Tuple1<Integer> next() throws Exception {
+			tuple.f0 = i;
+			i++;
+			return tuple;
 		}
+
 	}
 
 	public static class MyTask extends RichMapFunction<Tuple1<Integer>, Tuple2<Integer, Integer>> {

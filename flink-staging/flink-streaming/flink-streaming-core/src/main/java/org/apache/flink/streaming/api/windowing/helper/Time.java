@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
  *            The data type which is handled by the time stamp used in the
  *            policy represented by this helper
  */
-public class Time<DATA> implements WindowingHelper<DATA> {
+public class Time<DATA> extends WindowingHelper<DATA> {
 
 	protected long length;
 	protected TimeUnit granularity;

@@ -17,33 +17,31 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.io.Serializable;
-
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
-public class StreamSource<OUT> extends StreamOperator<OUT, OUT> implements Serializable {
+public class StreamSource<OUT> extends AbstractUdfStreamOperator<OUT, SourceFunction<OUT>> implements StreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
 
 	public StreamSource(SourceFunction<OUT> sourceFunction) {
 		super(sourceFunction);
+
+		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
-	@Override
-	public void run() {
-		callUserFunctionAndLogException();
-	}
+	public void run() throws Exception {
+		while (true) {
 
-	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction() throws Exception {
-		((SourceFunction<OUT>) userFunction).run(collector);
-	}
+			synchronized (userFunction) {
+				if (userFunction.reachedEnd()) {
+					break;
+				}
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void cancel() {
-		super.cancel();
-		((SourceFunction<OUT>) userFunction).cancel();
+				OUT result = userFunction.next();
+
+				output.collect(result);
+			}
+			Thread.yield();
+		}
 	}
 }

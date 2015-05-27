@@ -21,7 +21,9 @@ package org.apache.flink.runtime.taskmanager
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 
-case class NetworkEnvironmentConfiguration(numNetworkBuffers: Int,
-                                           networkBufferSize: Int,
-                                           ioMode: IOMode,
-                                           nettyConfig: Option[NettyConfig] = None)
+case class NetworkEnvironmentConfiguration(
+  numNetworkBuffers: Int,
+  networkBufferSize: Int,
+  ioMode: IOMode,
+  nettyConfig: Option[NettyConfig] = None,
+  partitionRequestInitialAndMaxBackoff: Tuple2[Integer, Integer] = (50, 3000))

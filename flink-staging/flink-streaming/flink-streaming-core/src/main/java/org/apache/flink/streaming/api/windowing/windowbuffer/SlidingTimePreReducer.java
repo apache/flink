@@ -68,9 +68,11 @@ public class SlidingTimePreReducer<T> extends SlidingPreReducer<T> {
 
 	@Override
 	protected void afterEmit() {
-		long lastTime = timestampWrapper.getTimestamp(lastStored);
-		if (lastTime - windowStartTime >= slideSize) {
-			windowStartTime = windowStartTime + slideSize;
+		if (lastStored != null) {
+			long lastTime = timestampWrapper.getTimestamp(lastStored);
+			if (lastTime - windowStartTime >= slideSize) {
+				windowStartTime = windowStartTime + slideSize;
+			}
 		}
 	}
 
@@ -87,6 +89,7 @@ public class SlidingTimePreReducer<T> extends SlidingPreReducer<T> {
 
 		if (toRemove > 0 && lastPreAggregateSize == null) {
 			currentReduced = null;
+			elementsSinceLastPreAggregate = 0;
 			toRemove = 0;
 		}
 	}

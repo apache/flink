@@ -43,8 +43,13 @@ public class ShortParserTest extends ParserTestBase<Short> {
 	public String[] getInvalidTestValues() {
 		return new String[] {
 			"a", "1569a86", "-57-6", "7-877678", String.valueOf(Short.MAX_VALUE) + "0", String.valueOf(Integer.MIN_VALUE),
-			String.valueOf(Short.MAX_VALUE + 1), String.valueOf(Short.MIN_VALUE - 1)
+			String.valueOf(Short.MAX_VALUE + 1), String.valueOf(Short.MIN_VALUE - 1), " 1", "2 ", " ", "\t"
 		};
+	}
+
+	@Override
+	public boolean allowsEmptyField() {
+		return false;
 	}
 
 	@Override

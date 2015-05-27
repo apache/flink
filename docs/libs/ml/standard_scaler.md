@@ -85,6 +85,9 @@ val scaler = StandardScaler()
 // Obtain data set to be scaled
 val dataSet: DataSet[Vector] = ...
 
+// Learn the mean and standard deviation of the training data
+scaler.fit(dataSet)
+
 // Scale the provided data set to have mean=10.0 and std=2.0
 val scaledDS = scaler.transform(dataSet)
 {% endhighlight %}

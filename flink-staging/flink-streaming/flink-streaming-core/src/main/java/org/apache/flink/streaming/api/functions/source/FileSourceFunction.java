@@ -27,7 +27,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-import org.apache.flink.util.Collector;
 
 public class FileSourceFunction extends RichParallelSourceFunction<String> {
 	private static final long serialVersionUID = 1L;
@@ -37,8 +36,13 @@ public class FileSourceFunction extends RichParallelSourceFunction<String> {
 	private InputFormat<String, ?> inputFormat;
 
 	private TypeInformation<String> typeInfo;
+	private transient TypeSerializer<String> serializer;
 
-	private volatile boolean isRunning;
+	private InputFormat<String, InputSplit> format;
+
+	private Iterator<InputSplit> splitIterator;
+
+	private transient String nextElement;
 
 	public FileSourceFunction(InputFormat<String, ?> format, TypeInformation<String> typeInfo) {
 		this.inputFormat = format;
@@ -46,39 +50,25 @@ public class FileSourceFunction extends RichParallelSourceFunction<String> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void open(Configuration parameters) throws Exception {
 		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
 		this.provider = context.getInputSplitProvider();
 		inputFormat.configure(context.getTaskStubParameters());
+		serializer = typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
+
+		format = (InputFormat<String, InputSplit>) this.inputFormat;
+		splitIterator = getInputSplits();
+		if (splitIterator.hasNext()) {
+			format.open(splitIterator.next());
+		}
+
 	}
 
 	@Override
-	public void run(Collector<String> collector) throws Exception {
-		isRunning = true;
-		final TypeSerializer<String> serializer = typeInfo.createSerializer(getRuntimeContext()
-				.getExecutionConfig());
-		final Iterator<InputSplit> splitIterator = getInputSplits();
-		@SuppressWarnings("unchecked")
-		final InputFormat<String, InputSplit> format = (InputFormat<String, InputSplit>) this.inputFormat;
-		try {
-			while (isRunning && splitIterator.hasNext()) {
-
-				final InputSplit split = splitIterator.next();
-				String record = serializer.createInstance();
-
-				format.open(split);
-				while (isRunning && !format.reachedEnd()) {
-					if ((record = format.nextRecord(record)) != null) {
-						collector.collect(record);
-					}
-				}
-
-			}
-			collector.close();
-		} finally {
-			format.close();
-		}
-		isRunning = false;
+	public void close() throws Exception {
+		super.close();
+		format.close();
 	}
 
 	private Iterator<InputSplit> getInputSplits() {
@@ -129,7 +119,30 @@ public class FileSourceFunction extends RichParallelSourceFunction<String> {
 	}
 
 	@Override
-	public void cancel() {
-		isRunning = false;
+	public boolean reachedEnd() throws Exception {
+		if (nextElement != null) {
+			return false;
+		}
+		nextElement = serializer.createInstance();
+		nextElement =  format.nextRecord(nextElement);
+		if (nextElement == null && splitIterator.hasNext()) {
+			format.open(splitIterator.next());
+			return reachedEnd();
+		} else if (nextElement == null) {
+			return true;
+		}
+		return false;
 	}
+
+	@Override
+	public String next() throws Exception {
+		if (reachedEnd()) {
+			throw new RuntimeException("End of FileSource reached.");
+		}
+
+		String result = nextElement;
+		nextElement = null;
+		return result;
+	}
+
 }

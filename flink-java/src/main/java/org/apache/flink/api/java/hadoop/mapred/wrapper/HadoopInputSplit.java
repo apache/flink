@@ -24,8 +24,7 @@ import java.io.ObjectOutputStream;
 
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.LocatableInputSplit;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.mapred.JobConf;
@@ -36,104 +35,84 @@ import org.apache.hadoop.mapred.JobConf;
  */
 public class HadoopInputSplit extends LocatableInputSplit {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = -6990336376163226160L;
 	
+	
+	private final Class<? extends org.apache.hadoop.mapred.InputSplit> splitType;
+	
+	private transient JobConf jobConf;
+
 	private transient org.apache.hadoop.mapred.InputSplit hadoopInputSplit;
 	
-	private JobConf jobConf;
 	
-	private int splitNumber;
-	private String hadoopInputSplitTypeName;
-
-
-	public org.apache.hadoop.mapred.InputSplit getHadoopInputSplit() {
-		return hadoopInputSplit;
-	}
-
-	public HadoopInputSplit() {
-		super();
-	}
-
 	public HadoopInputSplit(int splitNumber, org.apache.hadoop.mapred.InputSplit hInputSplit, JobConf jobconf) {
+		super(splitNumber, (String) null);
 
-		this.splitNumber = splitNumber;
-		this.hadoopInputSplit = hInputSplit;
-		this.hadoopInputSplitTypeName = hInputSplit.getClass().getName();
+		if (hInputSplit == null) {
+			throw new NullPointerException("Hadoop input split must not be null");
+		}
+		if (jobconf == null) {
+			throw new NullPointerException("Hadoop JobConf must not be null");
+		}
+		
+		this.splitType = hInputSplit.getClass();
+
 		this.jobConf = jobconf;
-
+		this.hadoopInputSplit = hInputSplit;
 	}
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeInt(splitNumber);
-		out.writeUTF(hadoopInputSplitTypeName);
-		jobConf.write(out);
-		hadoopInputSplit.write(out);
-	}
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.splitNumber = in.readInt();
-		this.hadoopInputSplitTypeName = in.readUTF();
-		if(hadoopInputSplit == null) {
-			try {
-				Class<? extends org.apache.hadoop.io.Writable> inputSplit =
-						Class.forName(hadoopInputSplitTypeName).asSubclass(org.apache.hadoop.io.Writable.class);
-				this.hadoopInputSplit = (org.apache.hadoop.mapred.InputSplit) WritableFactories.newInstance( inputSplit );
-			}
-			catch (Exception e) {
-				throw new RuntimeException("Unable to create InputSplit", e);
-			}
-		}
-		jobConf = new JobConf();
-		jobConf.readFields(in);
-		if (this.hadoopInputSplit instanceof Configurable) {
-			((Configurable) this.hadoopInputSplit).setConf(this.jobConf);
-		}
-		this.hadoopInputSplit.readFields(in);
-
-	}
-
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		out.writeInt(splitNumber);
-		out.writeUTF(hadoopInputSplitTypeName);
-		jobConf.write(out);
-		hadoopInputSplit.write(out);
-
-	}
-
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		this.splitNumber=in.readInt();
-		this.hadoopInputSplitTypeName = in.readUTF();
-		if(hadoopInputSplit == null) {
-			try {
-				Class<? extends org.apache.hadoop.io.Writable> inputSplit =
-						Class.forName(hadoopInputSplitTypeName).asSubclass(org.apache.hadoop.io.Writable.class);
-				this.hadoopInputSplit = (org.apache.hadoop.mapred.InputSplit) WritableFactories.newInstance( inputSplit );
-			}
-			catch (Exception e) {
-				throw new RuntimeException("Unable to create InputSplit", e);
-			}
-		}
-		jobConf = new JobConf();
-		jobConf.readFields(in);
-		if (this.hadoopInputSplit instanceof Configurable) {
-			((Configurable) this.hadoopInputSplit).setConf(this.jobConf);
-		}
-		this.hadoopInputSplit.readFields(in);
-	}
-
-	@Override
-	public int getSplitNumber() {
-		return this.splitNumber;
-	}
+	// ------------------------------------------------------------------------
+	//  Properties
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String[] getHostnames() {
 		try {
 			return this.hadoopInputSplit.getLocations();
-		} catch(IOException ioe) {
+		}
+		catch(IOException e) {
 			return new String[0];
 		}
+	}
+	
+	public org.apache.hadoop.mapred.InputSplit getHadoopInputSplit() {
+		return hadoopInputSplit;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Serialization
+	// ------------------------------------------------------------------------
+
+	private void writeObject(ObjectOutputStream out) throws IOException {
+		// serialize the parent fields and the final fields
+		out.defaultWriteObject();
+
+		// the job conf knows how to serialize itself
+		jobConf.write(out);
+		
+		// write the input split
+		hadoopInputSplit.write(out);
+	}
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		// read the parent fields and the final fields
+		in.defaultReadObject();
+
+		// the job conf knows how to deserialize itself
+		jobConf = new JobConf();
+		jobConf.readFields(in);
+		
+		
+		try {
+			hadoopInputSplit = (org.apache.hadoop.mapred.InputSplit) WritableFactories.newInstance(splitType);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Unable to instantiate Hadoop InputSplit", e);
+		}
+
+		if (hadoopInputSplit instanceof Configurable) {
+			((Configurable) hadoopInputSplit).setConf(this.jobConf);
+		}
+		hadoopInputSplit.readFields(in);
 	}
 }

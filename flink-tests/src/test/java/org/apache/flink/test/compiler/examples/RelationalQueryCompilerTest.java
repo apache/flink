@@ -20,6 +20,7 @@ package org.apache.flink.test.compiler.examples;
 
 import java.util.Arrays;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.record.operators.FileDataSource;
@@ -51,6 +52,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	
 	private final FieldList set0 = new FieldList(0);
 	private final FieldList set01 = new FieldList(new int[] {0,1});
+	private final ExecutionConfig defaultExecutionConfig = new ExecutionConfig();
 	
 	// ------------------------------------------------------------------------
 	
@@ -63,7 +65,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		try {
 			TPCHQuery3 query = new TPCHQuery3();
 			Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
-			
+			p.setExecutionConfig(defaultExecutionConfig);
 			// compile
 			final OptimizedPlan plan = compileNoStats(p);
 			
@@ -128,7 +130,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	public void testQueryWithStatsForRepartitionMerge() {
 		TPCHQuery3 query = new TPCHQuery3();
 		Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
-		
+		p.setExecutionConfig(defaultExecutionConfig);
 		// set compiler hints
 		OperatorResolver cr = getContractResolver(p);
 		JoinOperator match = cr.getNode("JoinLiO");
@@ -154,6 +156,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	{
 		TPCHQuery3 query = new TPCHQuery3();
 		Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+		p.setExecutionConfig(defaultExecutionConfig);
 		testQueryGeneric(p, orderSize, lineItemSize, ordersFilterFactor, joinFilterFactor, broadcastOkay, partitionedOkay, hashJoinFirstOkay, hashJoinSecondOkay, mergeJoinOkay);
 	}
 		

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.windowing.helper;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 
@@ -30,10 +31,31 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
  * @see Time
  * @see Delta
  */
-public interface WindowingHelper<DATA> {
+public abstract class WindowingHelper<DATA> {
 
-	public EvictionPolicy<DATA> toEvict();
+	/**
+	 * Provides information for initial value serialization
+	 * in {@link Delta}, unused in other subclasses.
+	 */
+	protected ExecutionConfig executionConfig;
 
-	public TriggerPolicy<DATA> toTrigger();
+	/**
+	 * Method for encapsulating the {@link EvictionPolicy}.
+	 * @return the eviction policy
+	 */
+	public abstract EvictionPolicy<DATA> toEvict();
 
+	/**
+	 * Method for encapsulating the {@link TriggerPolicy}.
+	 * @return the trigger policy
+	 */
+	public abstract TriggerPolicy<DATA> toTrigger();
+
+	/**
+	 * Setter for the {@link ExecutionConfig} field.
+	 * @param executionConfig Desired value
+	 */
+	public final void setExecutionConfig(ExecutionConfig executionConfig){
+		this.executionConfig = executionConfig;
+	}
 }

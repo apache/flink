@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorRef;
 import akka.util.Timeout;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
@@ -43,25 +42,24 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCommittingOperator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
-import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.state.StateHandle;
-
 import org.apache.flink.runtime.state.StateUtils;
 import org.apache.flink.runtime.util.SerializedValue;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +74,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * The Task represents one execution of a parallel subtask on a TaskManager.
  * A Task wraps a Flink operator (which may be a user function) and
- * runs it, providing all service necessary for example to consume input data,
+ * runs it, providing all services necessary for example to consume input data,
  * produce its results (intermediate result partitions) and communicate
  * with the JobManager.
  *
@@ -183,7 +181,6 @@ public class Task implements Runnable {
 
 	/** The thread that executes the task */
 	private final Thread executingThread;
-	
 
 	// ------------------------------------------------------------------------
 	//  Fields that control the task execution. All these fields are volatile
@@ -206,7 +203,6 @@ public class Task implements Runnable {
 	 * initialization, to be memory friendly */
 	private volatile SerializedValue<StateHandle<?>> operatorState;
 
-	
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to 
 	 * be undone in the case of a failing task deployment.</p>
@@ -289,7 +285,7 @@ public class Task implements Runnable {
 
 		for (int i = 0; i < this.inputGates.length; i++) {
 			SingleInputGate gate = SingleInputGate.create(
-					taskNameWithSubtasksAndId, consumedPartitions.get(i), networkEnvironment);
+					taskNameWithSubtasksAndId, jobId, executionId, consumedPartitions.get(i), networkEnvironment);
 
 			this.inputGates[i] = gate;
 			inputGatesById.put(gate.getConsumedResultId(), gate);
@@ -403,6 +399,7 @@ public class Task implements Runnable {
 	/**
 	 * The core work method that bootstraps the task and executes it code
 	 */
+	@Override
 	public void run() {
 
 		// ----------------------------
@@ -522,7 +519,7 @@ public class Task implements Runnable {
 						StateUtils.setOperatorState(op, state);
 					}
 					catch (Exception e) {
-						throw new Exception("Failed to deserialize state handle and setup initial operator state");
+						throw new RuntimeException("Failed to deserialize state handle and setup initial operator state.", e);
 					}
 				}
 				else {
@@ -745,9 +742,7 @@ public class Task implements Runnable {
 	 */
 	public void cancelExecution() {
 		LOG.info("Attempting to cancel task " + taskNameWithSubtask);
-		if (cancelOrFailAndCancelInvokable(ExecutionState.CANCELING)) {
-			notifyObservers(ExecutionState.CANCELING, null);
-		}
+		cancelOrFailAndCancelInvokable(ExecutionState.CANCELING, null);
 	}
 
 	/**
@@ -761,27 +756,27 @@ public class Task implements Runnable {
 	 */
 	public void failExternally(Throwable cause) {
 		LOG.info("Attempting to fail task externally " + taskNameWithSubtask);
-		if (cancelOrFailAndCancelInvokable(ExecutionState.FAILED)) {
-			failureCause = cause;
-			notifyObservers(ExecutionState.FAILED, cause);
-		}
+		cancelOrFailAndCancelInvokable(ExecutionState.FAILED, cause);
 	}
 
-	private boolean cancelOrFailAndCancelInvokable(ExecutionState targetState) {
+	private void cancelOrFailAndCancelInvokable(ExecutionState targetState, Throwable cause) {
 		while (true) {
 			ExecutionState current = this.executionState;
 
 			// if the task is already canceled (or canceling) or finished or failed,
 			// then we need not do anything
 			if (current.isTerminal() || current == ExecutionState.CANCELING) {
-				return false;
+				LOG.info("Task " + taskNameWithSubtask + " is already in state " + current);
+				return;
 			}
 
 			if (current == ExecutionState.DEPLOYING || current == ExecutionState.CREATED) {
 				if (STATE_UPDATER.compareAndSet(this, current, targetState)) {
 					// if we manage this state transition, then the invokable gets never called
 					// we need not call cancel on it
-					return true;
+					this.failureCause = cause;
+					notifyObservers(targetState, cause);
+					return;
 				}
 			}
 			else if (current == ExecutionState.RUNNING) {
@@ -789,6 +784,8 @@ public class Task implements Runnable {
 					// we are canceling / failing out of the running state
 					// we need to cancel the invokable
 					if (invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
+						this.failureCause = cause;
+						notifyObservers(targetState, cause);
 						LOG.info("Triggering cancellation of task code {} ({}).", taskNameWithSubtask, executionId);
 
 						// because the canceling may block on user code, we cancel from a separate thread
@@ -799,7 +796,7 @@ public class Task implements Runnable {
 								"Canceler for " + taskNameWithSubtask);
 						cancelThread.start();
 					}
-					return true;
+					return;
 				}
 			}
 			else {
@@ -915,12 +912,52 @@ public class Task implements Runnable {
 			LOG.debug("Ignoring checkpoint commit notification for non-running task.");
 		}
 	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Answer to a partition state check issued after a failed partition request.
+	 */
+	public void onPartitionStateUpdate(
+			IntermediateDataSetID resultId,
+			IntermediateResultPartitionID partitionId,
+			ExecutionState partitionState) throws IOException, InterruptedException {
+
+		if (executionState == ExecutionState.RUNNING) {
+			final SingleInputGate inputGate = inputGatesById.get(resultId);
+
+			if (inputGate != null) {
+				if (partitionState == ExecutionState.RUNNING) {
+					// Retrigger the partition request
+					inputGate.retriggerPartitionRequest(partitionId);
+				}
+				else if (partitionState == ExecutionState.CANCELED
+						|| partitionState == ExecutionState.CANCELING
+						|| partitionState == ExecutionState.FAILED) {
+
+					cancelExecution();
+				}
+				else {
+					failExternally(new IllegalStateException("Received unexpected partition state "
+							+ partitionState + " for partition request. This is a bug."));
+				}
+			}
+			else {
+				failExternally(new IllegalStateException("Received partition state for " +
+						"unknown input gate " + resultId + ". This is a bug."));
+			}
+		}
+		else {
+			LOG.debug("Ignoring partition state notification for not running task.");
+		}
+	}
 	
 	private void executeAsyncCallRunnable(Runnable runnable, String callName) {
 		Thread thread = new Thread(runnable, callName);
 		thread.setDaemon(true);
 		thread.start();
 	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------

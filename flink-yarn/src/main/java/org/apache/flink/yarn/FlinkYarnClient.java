@@ -99,8 +99,8 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	/**
 	 * Minimum memory requirements, checked by the Client.
 	 */
-	private static final int MIN_JM_MEMORY = 128;
-	private static final int MIN_TM_MEMORY = 128;
+	private static final int MIN_JM_MEMORY = 768; // the minimum memory should be higher than the min heap cutoff
+	private static final int MIN_TM_MEMORY = 768;
 
 	private Configuration conf;
 	private YarnClient yarnClient;
@@ -164,7 +164,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	@Override
 	public void setJobManagerMemory(int memoryMb) {
 		if(memoryMb < MIN_JM_MEMORY) {
-			throw new IllegalArgumentException("The JobManager memory is below the minimum required memory amount "
+			throw new IllegalArgumentException("The JobManager memory ("+memoryMb+") is below the minimum required memory amount "
 					+ "of "+MIN_JM_MEMORY+" MB");
 		}
 		this.jobManagerMemoryMb = memoryMb;
@@ -173,7 +173,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	@Override
 	public void setTaskManagerMemory(int memoryMb) {
 		if(memoryMb < MIN_TM_MEMORY) {
-			throw new IllegalArgumentException("The TaskManager memory is below the minimum required memory amount "
+			throw new IllegalArgumentException("The TaskManager memory ("+memoryMb+") is below the minimum required memory amount "
 					+ "of "+MIN_TM_MEMORY+" MB");
 		}
 		this.taskManagerMemoryMb = memoryMb;

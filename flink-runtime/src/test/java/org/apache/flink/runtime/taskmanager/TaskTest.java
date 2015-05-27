@@ -23,6 +23,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Kill;
 import akka.actor.Props;
 
+import com.google.common.collect.Maps;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -38,7 +39,10 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
@@ -51,7 +55,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.lang.reflect.Field;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -64,8 +70,11 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -365,8 +374,7 @@ public class TaskTest {
 			assertNull(task.getFailureCause());
 			
 			validateUnregisterTask(task.getExecutionId());
-			validateListenerMessage(ExecutionState.CANCELING, task, false);
-			validateListenerMessage(ExecutionState.CANCELED, task, false);
+			validateCancelingAndCanceledListenerMessage(task);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -431,8 +439,7 @@ public class TaskTest {
 			validateUnregisterTask(task.getExecutionId());
 			
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateListenerMessage(ExecutionState.CANCELING, task, false);
-			validateListenerMessage(ExecutionState.CANCELED, task, false);
+			validateCancelingAndCanceledListenerMessage(task);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -553,8 +560,7 @@ public class TaskTest {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateListenerMessage(ExecutionState.CANCELING, task, false);
-			validateListenerMessage(ExecutionState.CANCELED, task, false);
+			validateCancelingAndCanceledListenerMessage(task);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -563,7 +569,7 @@ public class TaskTest {
 	}
 
 	@Test
-	public void testExecutionFailesAfterTaskMarkedFailed() {
+	public void testExecutionFailsAfterTaskMarkedFailed() {
 		try {
 			Task task = createTask(InvokableWithExceptionOnTrigger.class);
 			task.registerExecutionListener(listenerActor);
@@ -595,6 +601,78 @@ public class TaskTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testOnPartitionStateUpdate() throws Exception {
+		IntermediateDataSetID resultId = new IntermediateDataSetID();
+		ResultPartitionID partitionId = new ResultPartitionID();
+
+		SingleInputGate inputGate = mock(SingleInputGate.class);
+		when(inputGate.getConsumedResultId()).thenReturn(resultId);
+
+		final Task task = createTask(InvokableBlockingInInvoke.class);
+
+		// Set the mock input gate
+		setInputGate(task, inputGate);
+
+		// Expected task state for each partition state
+		final Map<ExecutionState, ExecutionState> expected = Maps
+				.newHashMapWithExpectedSize(ExecutionState.values().length);
+
+		// Fail the task for unexpected states
+		for (ExecutionState state : ExecutionState.values()) {
+			expected.put(state, ExecutionState.FAILED);
+		}
+
+		expected.put(ExecutionState.RUNNING, ExecutionState.RUNNING);
+
+		expected.put(ExecutionState.CANCELED, ExecutionState.CANCELING);
+		expected.put(ExecutionState.CANCELING, ExecutionState.CANCELING);
+		expected.put(ExecutionState.FAILED, ExecutionState.CANCELING);
+
+		for (ExecutionState state : ExecutionState.values()) {
+			setState(task, ExecutionState.RUNNING);
+
+			task.onPartitionStateUpdate(resultId, partitionId.getPartitionId(), state);
+
+			ExecutionState newTaskState = task.getExecutionState();
+
+			assertEquals(expected.get(state), newTaskState);
+		}
+
+		verify(inputGate, times(1)).retriggerPartitionRequest(eq(partitionId.getPartitionId()));
+	}
+
+	// ------------------------------------------------------------------------
+
+	private void setInputGate(Task task, SingleInputGate inputGate) {
+		try {
+			Field f = Task.class.getDeclaredField("inputGates");
+			f.setAccessible(true);
+			f.set(task, new SingleInputGate[]{inputGate});
+
+			Map<IntermediateDataSetID, SingleInputGate> byId = Maps.newHashMapWithExpectedSize(1);
+			byId.put(inputGate.getConsumedResultId(), inputGate);
+
+			f = Task.class.getDeclaredField("inputGatesById");
+			f.setAccessible(true);
+			f.set(task, byId);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Modifying the task state failed", e);
+		}
+	}
+
+	private void setState(Task task, ExecutionState state) {
+		try {
+			Field f = Task.class.getDeclaredField("executionState");
+			f.setAccessible(true);
+			f.set(task, state);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Modifying the task state failed", e);
 		}
 	}
 
@@ -716,6 +794,46 @@ public class TaskTest {
 			} else {
 				assertNull(taskState.getError(getClass().getClassLoader()));
 			}
+		}
+		catch (InterruptedException e) {
+			fail("interrupted");
+		}
+	}
+
+	private void validateCancelingAndCanceledListenerMessage(Task task) {
+		try {
+			// we may have to wait for a bit to give the actors time to receive the message
+			// and put it into the queue
+			TaskMessages.UpdateTaskExecutionState message1 =
+					(TaskMessages.UpdateTaskExecutionState) listenerMessages.poll(10, TimeUnit.SECONDS);
+			TaskMessages.UpdateTaskExecutionState message2 =
+					(TaskMessages.UpdateTaskExecutionState) listenerMessages.poll(10, TimeUnit.SECONDS);
+			
+			
+			assertNotNull("There is no additional listener message", message1);
+			assertNotNull("There is no additional listener message", message2);
+
+			TaskExecutionState taskState1 =  message1.taskExecutionState();
+			TaskExecutionState taskState2 =  message2.taskExecutionState();
+
+			assertEquals(task.getJobID(), taskState1.getJobID());
+			assertEquals(task.getJobID(), taskState2.getJobID());
+			assertEquals(task.getExecutionId(), taskState1.getID());
+			assertEquals(task.getExecutionId(), taskState2.getID());
+			
+			ExecutionState state1 = taskState1.getExecutionState();
+			ExecutionState state2 = taskState2.getExecutionState();
+			
+			// it may be (very rarely) that the following race happens:
+			//  - OUTSIDE THREAD: call to cancel()
+			//  - OUTSIDE THREAD: atomic state change from running to canceling
+			//  - TASK THREAD: finishes, atomic change from canceling to canceled
+			//  - TASK THREAD: send notification that state is canceled
+			//  - OUTSIDE THREAD: send notification that state is canceling
+			
+			// for that reason, we allow the notification messages in any order.
+			assertTrue( (state1 == ExecutionState.CANCELING && state2 == ExecutionState.CANCELED) ||
+						(state2 == ExecutionState.CANCELING && state1 == ExecutionState.CANCELED));
 		}
 		catch (InterruptedException e) {
 			fail("interrupted");

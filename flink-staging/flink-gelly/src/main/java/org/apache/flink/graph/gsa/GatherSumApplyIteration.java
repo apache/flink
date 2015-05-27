@@ -18,7 +18,7 @@
 
 package org.apache.flink.graph.gsa;
 
-import org.apache.commons.lang3.Validate;
+import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -30,6 +30,8 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSec
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.JoinOperator;
+import org.apache.flink.api.java.operators.MapOperator;
+import org.apache.flink.api.java.operators.ReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -38,6 +40,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
+import java.util.Map;
+
+import com.google.common.base.Preconditions;
 
 /**
  * This class represents iterative graph computations, programmed in a gather-sum-apply perspective.
@@ -58,16 +63,18 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 	private final ApplyFunction<K, VV, M> apply;
 	private final int maximumNumberOfIterations;
 
+	private GSAConfiguration configuration;
+
 	// ----------------------------------------------------------------------------------
 
 	private GatherSumApplyIteration(GatherFunction<VV, EV, M> gather, SumFunction<VV, EV, M> sum,
 			ApplyFunction<K, VV, M> apply, DataSet<Edge<K, EV>> edges, int maximumNumberOfIterations) {
 
-		Validate.notNull(gather);
-		Validate.notNull(sum);
-		Validate.notNull(apply);
-		Validate.notNull(edges);
-		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
+		Preconditions.checkNotNull(gather);
+		Preconditions.checkNotNull(sum);
+		Preconditions.checkNotNull(apply);
+		Preconditions.checkNotNull(edges);
+		Preconditions.checkArgument(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
 
 		this.gather = gather;
 		this.sum = sum;
@@ -118,19 +125,68 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 		final DeltaIteration<Vertex<K, VV>, Vertex<K, VV>> iteration =
 				vertexDataSet.iterateDelta(vertexDataSet, maximumNumberOfIterations, zeroKeyPos);
 
+		// set up the iteration operator
+		if (this.configuration != null) {
+
+			iteration.name(this.configuration.getName(
+					"Gather-sum-apply iteration (" + gather + " | " + sum + " | " + apply + ")"));
+			iteration.parallelism(this.configuration.getParallelism());
+			iteration.setSolutionSetUnManaged(this.configuration.isSolutionSetUnmanagedMemory());
+
+			// register all aggregators
+			for (Map.Entry<String, Aggregator<?>> entry : this.configuration.getAggregators().entrySet()) {
+				iteration.registerAggregator(entry.getKey(), entry.getValue());
+			}
+		}
+		else {
+			// no configuration provided; set default name
+			iteration.name("Gather-sum-apply iteration (" + gather + " | " + sum + " | " + apply + ")");
+		}
+
 		// Prepare the neighbors
 		DataSet<Tuple2<K, Neighbor<VV, EV>>> neighbors = iteration
 				.getWorkset().join(edgeDataSet)
 				.where(0).equalTo(0).with(new ProjectKeyWithNeighbor<K, VV, EV>());
 
 		// Gather, sum and apply
-		DataSet<Tuple2<K, M>> gatheredSet = neighbors.map(gatherUdf);
-		DataSet<Tuple2<K, M>> summedSet = gatheredSet.groupBy(0).reduce(sumUdf);
+		MapOperator<Tuple2<K, Neighbor<VV, EV>>, Tuple2<K, M>> gatherMapOperator = neighbors.map(gatherUdf);
+
+		// configure map gather function with name and broadcast variables
+		gatherMapOperator = gatherMapOperator.name("Gather");
+
+		if (this.configuration != null) {
+			for (Tuple2<String, DataSet<?>> e : this.configuration.getGatherBcastVars()) {
+				gatherMapOperator = gatherMapOperator.withBroadcastSet(e.f1, e.f0);
+			}
+		}
+		DataSet<Tuple2<K, M>> gatheredSet = gatherMapOperator;
+
+		ReduceOperator<Tuple2<K, M>> sumReduceOperator = gatheredSet.groupBy(0).reduce(sumUdf);
+
+		// configure reduce sum function with name and broadcast variables
+		sumReduceOperator = sumReduceOperator.name("Sum");
+
+		if (this.configuration != null) {
+			for (Tuple2<String, DataSet<?>> e : this.configuration.getSumBcastVars()) {
+				sumReduceOperator = sumReduceOperator.withBroadcastSet(e.f1, e.f0);
+			}
+		}
+		DataSet<Tuple2<K, M>> summedSet = sumReduceOperator;
+
 		JoinOperator<?, ?, Vertex<K, VV>> appliedSet = summedSet
 				.join(iteration.getSolutionSet())
 				.where(0)
 				.equalTo(0)
 				.with(applyUdf);
+
+		// configure join apply function with name and broadcast variables
+		appliedSet = appliedSet.name("Apply");
+
+		if (this.configuration != null) {
+			for (Tuple2<String, DataSet<?>> e : this.configuration.getApplyBcastVars()) {
+				appliedSet = appliedSet.withBroadcastSet(e.f1, e.f0);
+			}
+		}
 
 		// let the operator know that we preserve the key field
 		appliedSet.withForwardedFieldsFirst("0").withForwardedFieldsSecond("0");
@@ -292,4 +348,19 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 		}
 	}
 
+	/**
+	 * Configures this gather-sum-apply iteration with the provided parameters.
+	 *
+	 * @param parameters the configuration parameters
+	 */
+	public void configure(GSAConfiguration parameters) {
+		this.configuration = parameters;
+	}
+
+	/**
+	 * @return the configuration parameters of this gather-sum-apply iteration
+	 */
+	public GSAConfiguration getIterationConfiguration() {
+		return this.configuration;
+	}
 }

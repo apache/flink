@@ -37,7 +37,6 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointCommitter;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.flink.util.Collector;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,6 +79,8 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 	private transient ZkClient zkClient;
 	private transient long[] commitedOffsets; // maintain committed offsets, to avoid committing the same over and over again.
 
+	// We set this in reachedEnd to carry it over to next()
+	private OUT nextElement = null;
 
 	/**
 	 *
@@ -143,58 +144,49 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 		this.commitedOffsets = new long[numPartitions];
 		Arrays.fill(this.lastOffsets, -1);
 		Arrays.fill(this.commitedOffsets, 0); // just to make it clear
-	}
 
-
-	@Override
-	public void run(Collector<OUT> collector) throws Exception {
-		if(iteratorToRead == null) {
-			throw new RuntimeException("Stream to read not initialized properly. Has open() been called");
-		}
-		try {
-			while (iteratorToRead.hasNext()) {
-				if (!running) {
-					LOG.info("Source got stopped");
-					break;
-				}
-				MessageAndMetadata<byte[], byte[]> message = iteratorToRead.next();
-				if(lastOffsets[message.partition()] >= message.offset()) {
-					LOG.info("Skipping message with offset {} from partition {}", message.offset(), message.partition());
-					continue;
-				}
-				lastOffsets[message.partition()] = message.offset();
-
-				OUT out = deserializationSchema.deserialize(message.message());
-				if (deserializationSchema.isEndOfStream(out)) {
-					LOG.info("DeserializationSchema signaled end of stream for this source");
-					break;
-				}
-
-				collector.collect(out);
-				if (LOG.isTraceEnabled()) {
-					LOG.trace("Processed record with offset {} from partition {}", message.offset(), message.partition());
-				}
-			}
-		} catch(Exception ie) {
-			// this exception is coming from Scala code.
-			if(ie instanceof InterruptedException) {
-				if(running) {
-					throw new RuntimeException("Error while reading kafka consumer", ie);
-				} else {
-					LOG.debug("Kafka consumer got interrupted because it has been cancelled. This is expected", ie);
-				}
-			} else {
-				throw ie;
-			}
-		}
-
-		LOG.info("Source has finished reading data from the KafkaStream");
+		nextElement = null;
 	}
 
 	@Override
-	public void cancel() {
-		LOG.info("Instructing source to stop reading data from Kafka");
-		running = false;
+	public boolean reachedEnd() throws Exception {
+		if (nextElement != null) {
+			return false;
+		}
+
+		while (iteratorToRead.hasNext()) {
+			MessageAndMetadata<byte[], byte[]> message = iteratorToRead.next();
+			if(lastOffsets[message.partition()] >= message.offset()) {
+				LOG.info("Skipping message with offset {} from partition {}", message.offset(), message.partition());
+				continue;
+			}
+			lastOffsets[message.partition()] = message.offset();
+
+			OUT out = deserializationSchema.deserialize(message.message());
+			if (deserializationSchema.isEndOfStream(out)) {
+				LOG.info("DeserializationSchema signaled end of stream for this source");
+				break;
+			}
+
+			nextElement = out;
+			if (LOG.isTraceEnabled()) {
+				LOG.trace("Processed record with offset {} from partition {}", message.offset(), message.partition());
+			}
+			break;
+		}
+
+		return nextElement == null;
+	}
+
+	@Override
+	public OUT next() throws Exception {
+		if (!reachedEnd()) {
+			OUT result = nextElement;
+			nextElement = null;
+			return result;
+		} else {
+			throw new RuntimeException("Source exhausted");
+		}
 	}
 
 	@Override

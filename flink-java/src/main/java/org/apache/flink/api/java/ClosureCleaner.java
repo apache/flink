@@ -90,11 +90,11 @@ public class ClosureCleaner {
 	}
 
 
-	public static void ensureSerializable(Object func) {
+	public static void ensureSerializable(Object obj) {
 		try {
-			InstantiationUtil.serializeObject(func);
+			InstantiationUtil.serializeObject(obj);
 		} catch (Exception e) {
-			throw new InvalidProgramException("Task " + func + " not serializable: ", e);
+			throw new InvalidProgramException("Object " + obj + " not serializable", e);
 		}
 	}
 

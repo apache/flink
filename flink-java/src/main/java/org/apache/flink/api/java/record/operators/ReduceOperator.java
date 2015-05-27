@@ -31,7 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Operator;
@@ -48,6 +47,8 @@ import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
+
+import com.google.common.base.Preconditions;
 
 /**
  * ReduceOperator evaluating a {@link ReduceFunction} over each group of records that share the same key.
@@ -295,7 +296,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Grou
 		 * @param input The input.
 		 */
 		public Builder input(Operator<Record> input) {
-			Validate.notNull(input, "The input must not be null");
+			Preconditions.checkNotNull(input, "The input must not be null");
 			
 			this.inputs.clear();
 			this.inputs.add(input);

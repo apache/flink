@@ -188,6 +188,53 @@ public class EnumerateNestedFilesTest {
 	}
 
 	/**
+	 * Tests if the recursion is invoked correctly in nested directories.
+	 */
+	@Test
+	public void testOnlyLevel2NestedDirectories() {
+		try {
+			String rootDir = TestFileUtils.randomFileName();
+			String nestedDir = TestFileUtils.randomFileName();
+			String firstNestedNestedDir = TestFileUtils.randomFileName();
+			String secondNestedNestedDir = TestFileUtils.randomFileName();
+
+			File testDir = new File(tempPath + System.getProperty("file.separator") + rootDir);
+			testDir.mkdirs();
+			testDir.deleteOnExit();
+
+			File nested = new File(testDir.getAbsolutePath() + System.getProperty("file.separator") + nestedDir);
+			nested.mkdirs();
+			nested.deleteOnExit();
+
+			File nestedNestedDir1 = new File(nested.getAbsolutePath() + System.getProperty("file.separator")
+					+ firstNestedNestedDir);
+			nestedNestedDir1.mkdirs();
+			nestedNestedDir1.deleteOnExit();
+
+			File nestedNestedDir2 = new File(nested.getAbsolutePath() + System.getProperty("file.separator")
+					+ secondNestedNestedDir);
+			nestedNestedDir2.mkdirs();
+			nestedNestedDir2.deleteOnExit();
+
+			// create files in second level
+			TestFileUtils.createTempFileInDirectory(nestedNestedDir1.getAbsolutePath(), "paella");
+			TestFileUtils.createTempFileInDirectory(nestedNestedDir1.getAbsolutePath(), "kalamari");
+			TestFileUtils.createTempFileInDirectory(nestedNestedDir2.getAbsolutePath(), "fideua");
+			TestFileUtils.createTempFileInDirectory(nestedNestedDir2.getAbsolutePath(), "bravas");
+
+			this.format.setFilePath(new Path(testDir.getAbsolutePath()));
+			this.config.setBoolean("recursive.file.enumeration", true);
+			format.configure(this.config);
+
+			FileInputSplit[] splits = format.createInputSplits(1);
+			Assert.assertEquals(4, splits.length);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
+	}
+
+	/**
 	 * Test with two nested directories and recursive.file.enumeration = true
 	 */
 	@Test
@@ -309,6 +356,15 @@ public class EnumerateNestedFilesTest {
 
 			BaseStatistics stats = format.getStatistics(null);
 			Assert.assertEquals("The file size from the statistics is wrong.", TOTAL, stats.getTotalInputSize());
+
+			/* Now invalidate the cache and check again */
+			Thread.sleep(1000); // accuracy of file modification times is rather low
+			TestFileUtils.createTempFileInDirectory(insideNestedDir.getAbsolutePath(), 42L);
+
+			BaseStatistics stats2 = format.getStatistics(stats);
+			Assert.assertNotEquals(stats2, stats);
+			Assert.assertEquals("The file size from the statistics is wrong.", TOTAL + 42L, stats2.getTotalInputSize());
+
 		} catch (Exception ex) {
 			ex.printStackTrace();
 			Assert.fail(ex.getMessage());
