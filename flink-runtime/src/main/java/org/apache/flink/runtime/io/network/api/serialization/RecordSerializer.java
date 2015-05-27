@@ -29,7 +29,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
  */
 public interface RecordSerializer<T extends IOReadableWritable> {
 
-	public static enum SerializationResult {
+	enum SerializationResult {
 		PARTIAL_RECORD_MEMORY_SEGMENT_FULL(false, true),
 		FULL_RECORD_MEMORY_SEGMENT_FULL(true, true),
 		FULL_RECORD(true, false);
@@ -57,6 +57,8 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	SerializationResult setNextBuffer(Buffer buffer) throws IOException;
 
 	Buffer getCurrentBuffer();
+
+	void clearCurrentBuffer();
 	
 	void clear();
 	
