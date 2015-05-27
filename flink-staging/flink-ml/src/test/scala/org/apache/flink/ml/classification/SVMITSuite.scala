@@ -23,14 +23,14 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase
 
-class CoCoAITSuite extends FlatSpec with Matchers with FlinkTestBase {
+class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
-  behavior of "The CoCoA implementation"
+  behavior of "The SVM using CoCoA implementation"
 
   it should "train a SVM" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val cocoa = CoCoA().
+    val cocoa = SVM().
     setBlocks(env.getParallelism).
     setIterations(100).
     setLocalIterations(100).
