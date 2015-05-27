@@ -29,11 +29,9 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.api.java.io.PrimitiveInputFormat;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.io.TextValueInputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
@@ -65,11 +63,8 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.SplittableIterator;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapreduce.Job;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -802,52 +797,6 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a data stream from the given {@link org.apache.hadoop.mapred.FileInputFormat}. A {@link
-	 * org.apache.hadoop.mapreduce.Job} with the given inputPath is created.
-	 */
-	public <K, V> DataStreamSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapred.FileInputFormat<K, V>
-			mapredInputFormat, Class<K> key, Class<V> value, String inputPath, JobConf job) {
-		DataStreamSource<Tuple2<K, V>> result = createHadoopInput(mapredInputFormat, key, value, job);
-
-		org.apache.hadoop.mapred.FileInputFormat.addInputPath(job, new org.apache.hadoop.fs.Path(inputPath));
-
-		return result;
-	}
-
-	/**
-	 * Creates a data stream from the given {@link org.apache.hadoop.mapred.FileInputFormat}. A {@link
-	 * org.apache.hadoop.mapred.JobConf} with the given inputPath is created.
-	 */
-	public <K, V> DataStreamSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapred.FileInputFormat<K, V>
-			mapredInputFormat, Class<K> key, Class<V> value, String inputPath) {
-		return readHadoopFile(mapredInputFormat, key, value, inputPath, new JobConf());
-	}
-
-	/**
-	 * Creates a data stream from the given {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}. A {@link
-	 * org.apache.hadoop.mapreduce.Job} with the given inputPath is created.
-	 */
-	public <K, V> DataStreamSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapreduce.lib.input
-			.FileInputFormat<K, V> mapredInputFormat, Class<K> key, Class<V> value, String inputPath, Job job) throws
-			IOException {
-		DataStreamSource<Tuple2<K, V>> result = createHadoopInput(mapredInputFormat, key, value, job);
-
-		org.apache.hadoop.mapreduce.lib.input.FileInputFormat.addInputPath(job, new org.apache
-				.hadoop.fs.Path(inputPath));
-
-		return result;
-	}
-
-	/**
-	 * Creates a data stream from the given {@link org.apache.hadoop.mapreduce.InputFormat}.
-	 */
-	public <K, V> DataStreamSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapreduce.lib.input
-			.FileInputFormat<K, V> mapredInputFormat, Class<K> key, Class<V> value, String inputPath) throws
-			IOException {
-		return readHadoopFile(mapredInputFormat, key, value, inputPath, Job.getInstance());
-	}
-
-	/**
 	 * Creates a new data stream that contains the strings received infinitely from a socket. Received strings are
 	 * decoded by the system's default character set. On the termination of the socket server connection retries can be
 	 * initiated.
@@ -905,29 +854,6 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStreamSource<String> socketTextStream(String hostname, int port) {
 		return socketTextStream(hostname, port, '\n');
-	}
-
-	/**
-	 * Creates a data stream from the given {@link org.apache.hadoop.mapred.InputFormat}.
-	 */
-	public <K, V> DataStreamSource<Tuple2<K, V>> createHadoopInput(org.apache.hadoop.mapred.InputFormat<K, V>
-			mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
-		HadoopInputFormat<K, V> hadoopInputFormat = new HadoopInputFormat<K, V>(mapredInputFormat, key, value, job);
-
-		return createInput(hadoopInputFormat, TypeExtractor.getInputFormatTypes(hadoopInputFormat), "Hadoop " +
-				"Input source");
-	}
-
-	/**
-	 * Creates a data stream from the given {@link org.apache.hadoop.mapred.InputFormat}.
-	 */
-	public <K, V> DataStreamSource<Tuple2<K, V>> createHadoopInput(org.apache.hadoop.mapreduce.InputFormat<K, V>
-			mapredInputFormat, Class<K> key, Class<V> value, Job job) {
-		org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat<K, V> hadoopInputFormat = new org.apache.flink
-				.api.java.hadoop.mapreduce.HadoopInputFormat<K, V>(mapredInputFormat, key, value, job);
-
-		return createInput(hadoopInputFormat, TypeExtractor.getInputFormatTypes(hadoopInputFormat), "Hadoop Input " +
-				"source");
 	}
 
 	/**

@@ -109,5 +109,10 @@ public class StreamExecutionEnvironmentTest {
 		public Object next() {
 			return null;
 		}
+
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();
+		}
 	}
 }
