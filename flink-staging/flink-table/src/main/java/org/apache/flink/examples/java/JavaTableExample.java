@@ -67,6 +67,5 @@ public class JavaTableExample {
 		DataSet<WC> result = tableEnv.toSet(filtered, WC.class);
 
 		result.print();
-		env.execute();
 	}
 }
