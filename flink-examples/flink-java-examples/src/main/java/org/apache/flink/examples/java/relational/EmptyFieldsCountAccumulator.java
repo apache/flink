@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.java.DataSet;
@@ -244,6 +245,11 @@ public class EmptyFieldsCountAccumulator {
 		@Override
 		public Accumulator<Integer, ArrayList<Integer>> clone() {
 			return new VectorAccumulator(new ArrayList<Integer>(resultVector));
+		}
+
+		@Override
+		public String toString() {
+			return StringUtils.join(resultVector, ',');
 		}
 	}
 }
