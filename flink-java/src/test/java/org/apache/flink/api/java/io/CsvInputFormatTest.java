@@ -981,6 +981,38 @@ public class CsvInputFormatTest {
 		}
 	}
 
+	@Test
+	public void testQuotedStringParsingWithIncludeFields() throws Exception {
+		final String fileContent = "\"20:41:52-1-3-2015\"|\"Re: Taskmanager memory error in Eclipse\"|" +
+				"\"Blahblah <blah@blahblah.org>\"|\"bla\"|\"blubb\"";
+
+		final File tempFile = File.createTempFile("CsvReaderQuotedString", "tmp");
+		tempFile.deleteOnExit();
+		tempFile.setWritable(true);
+
+		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(tempFile));
+		writer.write(fileContent);
+		writer.close();
+
+		TypeInformation<Tuple2<String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class);
+		CsvInputFormat<Tuple2<String, String>> inputFormat = new CsvInputFormat<Tuple2<String, String>>(new Path(tempFile.toURI().toString()), typeInfo);
+
+		inputFormat.enableQuotedStringParsing('"');
+		inputFormat.setFieldDelimiter('|');
+		inputFormat.setDelimiter('\n');
+		inputFormat.setFields(new boolean[]{true, false, true}, new Class[]{String.class, String.class});
+
+		inputFormat.configure(new Configuration());
+		FileInputSplit[] splits = inputFormat.createInputSplits(1);
+
+		inputFormat.open(splits[0]);
+
+		Tuple2<String, String> record = inputFormat.nextRecord(new Tuple2<String, String>());
+
+		assertEquals("20:41:52-1-3-2015", record.f0);
+		assertEquals("Blahblah <blah@blahblah.org>", record.f1);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Custom types for testing
 	// --------------------------------------------------------------------------------------------
