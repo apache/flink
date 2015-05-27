@@ -35,7 +35,7 @@ if [ ! -f "$HOSTLIST" ]; then
 fi
 
 # cluster mode, bring up job manager locally and a task manager on every slave host
-"$FLINK_BIN_DIR"/jobmanager.sh start cluster
+"$FLINK_BIN_DIR"/jobmanager.sh start cluster batch
 
 GOON=true
 while $GOON
