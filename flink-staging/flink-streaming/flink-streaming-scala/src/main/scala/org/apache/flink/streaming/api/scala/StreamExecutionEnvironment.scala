@@ -18,18 +18,20 @@
 
 package org.apache.flink.streaming.api.scala
 
-import scala.reflect.ClassTag
 import com.esotericsoftware.kryo.Serializer
-import org.apache.commons.lang.Validate
-import org.joda.time.Instant
+import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
+import org.apache.flink.runtime.state.StateHandleProvider
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 import org.apache.flink.streaming.api.functions.source.{FromElementsFunction, SourceFunction}
+import org.apache.flink.types.StringValue
+import org.apache.flink.util.SplittableIterator
+
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
-import org.apache.flink.runtime.state.StateHandleProvider
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
@@ -217,6 +219,61 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     javaEnv.readTextFile(filePath)
 
   /**
+   * Creates a data stream that represents the Strings produced by reading the given file
+   * line wise. The character set with the given name will be used to read the files.
+   */
+  def readTextFile(filePath: String, charsetName: String): DataStream[String] =
+    javaEnv.readTextFile(filePath, charsetName)
+
+  /**
+   * Creates a data stream that represents the strings produced by reading the given file
+   * line wise. This method is similar to the standard text file reader, but it produces
+   * a data stream with mutable StringValue objects, rather than Java Strings.
+   * StringValues can be used to tune implementations to be less object and garbage
+   * collection heavy. The file will be read with the system's default character set.
+   */
+  def readTextFileWithValue(filePath: String): DataStream[StringValue] =
+      javaEnv.readTextFileWithValue(filePath)
+
+  /**
+   * Creates a data stream that represents the strings produced by reading the given file
+   * line wise. This method is similar to the standard text file reader, but it produces
+   * a data stream with mutable StringValue objects, rather than Java Strings.
+   * StringValues can be used to tune implementations to be less object and garbage
+   * collection heavy. The boolean flag indicates whether to skip lines that cannot
+   * be read with the given character set.
+   */
+  def readTextFileWithValue(filePath: String, charsetName : String, skipInvalidLines : Boolean):
+    DataStream[StringValue] =
+    javaEnv.readTextFileWithValue(filePath, charsetName, skipInvalidLines)
+
+  /**
+   * Reads the given file with the given input format. The file path should be passed
+   * as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
+   */
+  def readFile[T: ClassTag : TypeInformation](inputFormat: FileInputFormat[T], filePath: String):
+    DataStream[T] =
+    javaEnv.readFile(inputFormat, filePath)
+
+  /**
+   * Creates a data stream that represents the primitive type produced by reading the given file
+   * line wise. The file path should be passed as a URI (e.g., "file:///some/local/file" or
+   * "hdfs://host:port/file/path").
+   */
+  def readFileOfPrimitives[T: ClassTag : TypeInformation](filePath: String, typeClass: Class[T]):
+    DataStream[T] =
+    javaEnv.readFileOfPrimitives(filePath, typeClass)
+
+  /**
+   * Creates a data stream that represents the primitive type produced by reading the given file
+   * line wise. The file path should be passed as a URI (e.g., "file:///some/local/file" or
+   * "hdfs://host:port/file/path").
+   */
+  def readFileOfPrimitives[T: ClassTag : TypeInformation](filePath: String, delimiter: String,
+    typeClass: Class[T]): DataStream[T] =
+    javaEnv.readFileOfPrimitives(filePath, delimiter, typeClass)
+
+  /**
    * Creates a DataStream that contains the contents of file created while
    * system watches the given path. The file will be read with the system's
    * default character set. The user can check the monitoring interval in milliseconds,
@@ -231,24 +288,37 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a new DataStream that contains the strings received infinitely
    * from socket. Received strings are decoded by the system's default
-   * character set.
-   *
+   * character set. The maximum retry interval is specified in seconds, in case
+   * of temporary service outage reconnection is initiated every second.
    */
-  def socketTextStream(hostname: String, port: Int, delimiter: Char): DataStream[String] =
-    javaEnv.socketTextStream(hostname, port, delimiter)
+  def socketTextStream(hostname: String, port: Int, delimiter: Char = '\n', maxRetry: Long = 0):
+    DataStream[String] =
+    javaEnv.socketTextStream(hostname, port)
 
   /**
-   * Creates a new DataStream that contains the strings received infinitely
-   * from socket. Received strings are decoded by the system's default
-   * character set, uses '\n' as delimiter.
-   *
+   * Generic method to create an input data stream with a specific input format.
+   * Since all data streams need specific information about their types, this method needs to
+   * determine the type of the data produced by the input format. It will attempt to determine the
+   * data type by reflection, unless the input format implements the ResultTypeQueryable interface.
    */
-  def socketTextStream(hostname: String, port: Int): DataStream[String] =
-    javaEnv.socketTextStream(hostname, port)
+  def createInput[T: ClassTag : TypeInformation](inputFormat: InputFormat[T, _]): DataStream[T] =
+    javaEnv.createInput(inputFormat)
+
+  /**
+   * Generic method to create an input data stream with a specific input format.
+   * Since all data streams need specific information about their types, this method needs to
+   * determine the type of the data produced by the input format. It will attempt to determine the
+   * data type by reflection, unless the input format implements the ResultTypeQueryable interface.
+   */
+  def createInput[T: ClassTag : TypeInformation](inputFormat: InputFormat[T, _],
+    typeInfo: TypeInformation[T]): DataStream[T] =
+    javaEnv.createInput(inputFormat, typeInfo)
 
   /**
    * Creates a new DataStream that contains a sequence of numbers.
    *
+   * Note that this operation will result in a non-parallel data source, i.e. a data source with
+   * a parallelism of one.
    */
   def generateSequence(from: Long, to: Long): DataStream[Long] = {
     new DataStream[java.lang.Long](javaEnv.generateSequence(from, to)).
@@ -256,10 +326,18 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+   * Creates a new DataStream that contains a sequence of numbers in a parallel fashion.
+   */
+  def generateParallelSequence(from: Long, to: Long): DataStream[Long] = {
+    new DataStream[java.lang.Long](javaEnv.generateParallelSequence(from, to)).
+      asInstanceOf[DataStream[Long]]
+  }
+
+  /**
    * Creates a DataStream that contains the given elements. The elements must all be of the
-   * same type and must be serializable.
+   * same type.
    *
-   * * Note that this operation will result in a non-parallel data source, i.e. a data source with
+   * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
    */
   def fromElements[T: ClassTag: TypeInformation](data: T*): DataStream[T] = {
@@ -283,6 +361,26 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
         .asJavaCollection(data))
         
     javaEnv.addSource(sourceFunction).returns(typeInfo)
+  }
+
+  /**
+   * Creates a DataStream from the given [[Iterator]].
+   *
+   * Note that this operation will result in a non-parallel data source, i.e. a data source with
+   * a parallelism of one.
+   */
+  def fromCollection[T: ClassTag : TypeInformation] (data: Iterator[T]): DataStream[T] = {
+    val typeInfo = implicitly[TypeInformation[T]]
+    javaEnv.fromCollection(data.asJava, typeInfo)
+  }
+
+  /**
+   * Creates a DataStream from the given [[SplittableIterator]].
+   */
+  def fromParallelCollection[T: ClassTag : TypeInformation] (data: SplittableIterator[T]):
+    DataStream[T] = {
+    val typeInfo = implicitly[TypeInformation[T]]
+    javaEnv.fromParallelCollection(data, typeInfo)
   }
 
   /**
