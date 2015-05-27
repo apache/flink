@@ -33,8 +33,8 @@ import org.apache.flink.ml.math.Breeze._
 
 import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
 
-/** Implements the communication-efficient distributed dual coordinate ascent algorithm with
-  * hinge-loss function. The algorithm can be used to train a SVM with soft-margin.
+/** Implements a soft-maring SVM using the communication-efficient distributed dual coordinate
+  * ascent algorithm (CoCoA) with hinge-loss function.
   *
   * The algorithm solves the following minimization problem:
   *
@@ -84,43 +84,43 @@ import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
   *
   * =Parameters=
   *
-  *  - [[org.apache.flink.ml.classification.CoCoA.Blocks]]:
+  *  - [[org.apache.flink.ml.classification.SVM.Blocks]]:
   *  Sets the number of blocks into which the input data will be split. On each block the local
   *  stochastic dual coordinate ascent method is executed. This number should be set at least to
   *  the degree of parallelism. If no value is specified, then the parallelism of the input
   *  [[DataSet]] is used as the number of blocks. (Default value: '''None''')
   *
-  *  - [[org.apache.flink.ml.classification.CoCoA.Iterations]]:
+  *  - [[org.apache.flink.ml.classification.SVM.Iterations]]:
   *  Defines the maximum number of iterations of the outer loop method. In other words, it defines
   *  how often the SDCA method is applied to the blocked data. After each iteration, the locally
   *  computed weight vector updates have to be reduced to update the global weight vector value.
   *  The new weight vector is broadcast to all SDCA tasks at the beginning of each iteration.
   *  (Default value: '''10''')
   *
-  *  - [[org.apache.flink.ml.classification.CoCoA.LocalIterations]]:
+  *  - [[org.apache.flink.ml.classification.SVM.LocalIterations]]:
   *  Defines the maximum number of SDCA iterations. In other words, it defines how many data points
   *  are drawn from each local data block to calculate the stochastic dual coordinate ascent.
   *  (Default value: '''10''')
   *
-  *  - [[org.apache.flink.ml.classification.CoCoA.Regularization]]:
+  *  - [[org.apache.flink.ml.classification.SVM.Regularization]]:
   *  Defines the regularization constant of the CoCoA algorithm. The higher the value, the smaller
   *  will the 2-norm of the weight vector be. In case of a SVM with hinge loss this means that the
   *  SVM margin will be wider even though it might contain some false classifications.
   *  (Default value: '''1.0''')
   *
-  *  - [[org.apache.flink.ml.classification.CoCoA.Stepsize]]:
+  *  - [[org.apache.flink.ml.classification.SVM.Stepsize]]:
   *  Defines the initial step size for the updates of the weight vector. The larger the step size
   *  is, the larger will be the contribution of the weight vector updates to the next weight vector
   *  value. The effective scaling of the updates is `stepsize/blocks`. This value has to be tuned
   *  in case that the algorithm becomes instable. (Default value: '''1.0''')
   *
-  *  - [[org.apache.flink.ml.classification.CoCoA.Seed]]:
+  *  - [[org.apache.flink.ml.classification.SVM.Seed]]:
   *  Defines the seed to initialize the random number generator. The seed directly controls which
   *  data points are chosen for the SDCA method. (Default value: '''0''')
   */
-class CoCoA extends Predictor[CoCoA] {
+class SVM extends Predictor[SVM] {
 
-  import CoCoA._
+  import SVM._
 
   /** Stores the learned weight vector after the fit operation */
   var weightsOption: Option[DataSet[BreezeDenseVector[Double]]] = None
@@ -130,7 +130,7 @@ class CoCoA extends Predictor[CoCoA] {
     * @param blocks
     * @return itself
     */
-  def setBlocks(blocks: Int): CoCoA = {
+  def setBlocks(blocks: Int): SVM = {
     parameters.add(Blocks, blocks)
     this
   }
@@ -140,7 +140,7 @@ class CoCoA extends Predictor[CoCoA] {
     * @param iterations
     * @return itself
     */
-  def setIterations(iterations: Int): CoCoA = {
+  def setIterations(iterations: Int): SVM = {
     parameters.add(Iterations, iterations)
     this
   }
@@ -150,7 +150,7 @@ class CoCoA extends Predictor[CoCoA] {
     * @param localIterations
     * @return itselft
     */
-  def setLocalIterations(localIterations: Int): CoCoA =  {
+  def setLocalIterations(localIterations: Int): SVM =  {
     parameters.add(LocalIterations, localIterations)
     this
   }
@@ -160,7 +160,7 @@ class CoCoA extends Predictor[CoCoA] {
     * @param regularization
     * @return itself
     */
-  def setRegularization(regularization: Double): CoCoA = {
+  def setRegularization(regularization: Double): SVM = {
     parameters.add(Regularization, regularization)
     this
   }
@@ -170,7 +170,7 @@ class CoCoA extends Predictor[CoCoA] {
     * @param stepsize
     * @return itself
     */
-  def setStepsize(stepsize: Double): CoCoA = {
+  def setStepsize(stepsize: Double): SVM = {
     parameters.add(Stepsize, stepsize)
     this
   }
@@ -180,16 +180,16 @@ class CoCoA extends Predictor[CoCoA] {
     * @param seed
     * @return itself
     */
-  def setSeed(seed: Long): CoCoA = {
+  def setSeed(seed: Long): SVM = {
     parameters.add(Seed, seed)
     this
   }
 }
 
-/** Companion object of CoCoA. Contains convenience functions and the parameter type definitions
+/** Companion object of SVM. Contains convenience functions and the parameter type definitions
   * of the algorithm.
   */
-object CoCoA{
+object SVM{
   val WEIGHT_VECTOR ="weightVector"
 
   // ========================================== Parameters =========================================
@@ -220,8 +220,8 @@ object CoCoA{
 
   // ========================================== Factory methods ====================================
 
-  def apply(): CoCoA = {
-    new CoCoA()
+  def apply(): SVM = {
+    new SVM()
   }
 
   // ========================================== Operations =========================================
@@ -233,9 +233,9 @@ object CoCoA{
     * @return
     */
   implicit def predictValues[T <: Vector] = {
-    new PredictOperation[CoCoA, T, LabeledVector]{
+    new PredictOperation[SVM, T, LabeledVector]{
       override def predict(
-          instance: CoCoA,
+          instance: SVM,
           predictParameters: ParameterMap,
           input: DataSet[T])
         : DataSet[LabeledVector] = {
@@ -246,7 +246,7 @@ object CoCoA{
           }
 
           case None => {
-            throw new RuntimeException("The CoCoA model has not been trained. Call first fit" +
+            throw new RuntimeException("The SVM model has not been trained. Call first fit" +
               "before calling the predict operation.")
           }
         }
@@ -279,10 +279,10 @@ object CoCoA{
   /** [[FitOperation]] which trains a SVM with soft-margin based on the given training data set.
     *
     */
-  implicit val fitCoCoA = {
-    new FitOperation[CoCoA, LabeledVector] {
+  implicit val fitSVM = {
+    new FitOperation[SVM, LabeledVector] {
       override def fit(
-          instance: CoCoA,
+          instance: SVM,
           fitParameters: ParameterMap,
           input: DataSet[LabeledVector])
         : Unit = {

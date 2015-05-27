@@ -1,7 +1,7 @@
 ---
 mathjax: include
-htmlTitle: FlinkML - Communication efficient distributed dual coordinate ascent (CoCoA)
-title: <a href="../ml">FlinkML</a> - Communication efficient distributed dual coordinate ascent (CoCoA)
+htmlTitle: FlinkML - SVM using CoCoA
+title: <a href="../ml">FlinkML</a> - SVM using CoCoA
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -27,8 +27,8 @@ under the License.
 
 ## Description
 
-Implements the communication-efficient distributed dual coordinate ascent algorithm with hinge-loss function. 
-The algorithm can be used to train a SVM with soft-margin.
+Implements an SVM with soft-margin using the communication-efficient distributed dual coordinate 
+ascent algorithm with hinge-loss function. 
 The algorithm solves the following minimization problem:
   
 $$\min_{\mathbf{w} \in \mathbb{R}^d} \frac{\lambda}{2} \left\lVert \mathbf{w} \right\rVert^2 + \frac{1}{n} \sum_{i=1}^n l_{i}\left(\mathbf{w}^T\mathbf{x}_i\right)$$
@@ -76,7 +76,7 @@ CoCoA predicts for all subtypes of `Vector` the corresponding class label:
 
 ## Parameters
 
-The CoCoA implementation can be controlled by the following parameters:
+The SVM implementation can be controlled by the following parameters:
 
    <table class="table table-bordered">
     <thead>
@@ -139,7 +139,7 @@ The CoCoA implementation can be controlled by the following parameters:
             Defines the initial step size for the updates of the weight vector. 
             The larger the step size is, the larger will be the contribution of the weight vector updates to the next weight vector value. 
             The effective scaling of the updates is $\frac{stepsize}{blocks}$.
-            This value has to be tuned in case that the algorithm becomes instable. 
+            This value has to be tuned in case that the algorithm becomes unstable. 
             (Default value: <strong>1.0</strong>)
           </p>
         </td>
@@ -160,11 +160,11 @@ The CoCoA implementation can be controlled by the following parameters:
 ## Examples
 
 {% highlight scala %}
-// Read the training data set
-val trainingDS: DataSet[LabeledVector] = env.readSVMFile(pathToTrainingFile)
+// Read the training data set, from a LibSVM formatted file
+val trainingDS: DataSet[LabeledVector] = env.readLibSVM(pathToTrainingFile)
 
-// Create the CoCoA learner
-val svm = CoCoA()
+// Create the SVM learner
+val svm = SVM()
 .setBlocks(10)
 .setIterations(10)
 .setLocalIterations(10)
