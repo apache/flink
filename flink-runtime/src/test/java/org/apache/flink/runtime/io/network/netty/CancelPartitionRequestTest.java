@@ -38,7 +38,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.flink.runtime.io.network.netty.NettyMessage.*;
+import static org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
+import static org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
@@ -46,13 +47,17 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class CancelPartitionRequestTest {
 
 	/**
 	 * Verifies that requests for non-existing (failed/cancelled) input channels are properly
-	 * cancelled.
+	 * cancelled. The receiver receives data, but there is no input channel to receive the data.
+	 * This should cancel the request.
 	 */
 	@Test
 	public void testCancelPartitionRequest() throws Exception {
@@ -68,9 +73,11 @@ public class CancelPartitionRequestTest {
 
 			CountDownLatch sync = new CountDownLatch(1);
 
+			ResultSubpartitionView view = spy(new InfiniteSubpartitionView(outboundBuffers, sync));
+
 			// Return infinite subpartition
 			when(partitions.createSubpartitionView(eq(pid), eq(0), any(BufferProvider.class)))
-					.thenReturn(new InfiniteSubpartitionView(outboundBuffers, sync));
+					.thenReturn(view);
 
 			PartitionRequestProtocol protocol = new PartitionRequestProtocol(
 					partitions, mock(TaskEventDispatcher.class), mock(NetworkBufferPool.class));
@@ -87,6 +94,61 @@ public class CancelPartitionRequestTest {
 				fail("Timed out after waiting for " + TestingUtils.TESTING_DURATION().toMillis() +
 						" ms to be notified about cancelled partition.");
 			}
+
+			verify(view, times(1)).releaseAllResources();
+			verify(view, times(0)).notifySubpartitionConsumed();
+		}
+		finally {
+			shutdown(serverAndClient);
+		}
+	}
+
+	@Test
+	public void testDuplicateCancel() throws Exception {
+
+		NettyServerAndClient serverAndClient = null;
+
+		try {
+			TestPooledBufferProvider outboundBuffers = new TestPooledBufferProvider(16);
+
+			ResultPartitionManager partitions = mock(ResultPartitionManager.class);
+
+			ResultPartitionID pid = new ResultPartitionID();
+
+			CountDownLatch sync = new CountDownLatch(1);
+
+			ResultSubpartitionView view = spy(new InfiniteSubpartitionView(outboundBuffers, sync));
+
+			// Return infinite subpartition
+			when(partitions.createSubpartitionView(eq(pid), eq(0), any(BufferProvider.class)))
+					.thenReturn(view);
+
+			PartitionRequestProtocol protocol = new PartitionRequestProtocol(
+					partitions, mock(TaskEventDispatcher.class), mock(NetworkBufferPool.class));
+
+			serverAndClient = initServerAndClient(protocol);
+
+			Channel ch = connect(serverAndClient);
+
+			// Request for non-existing input channel => results in cancel request
+			InputChannelID inputChannelId = new InputChannelID();
+
+			ch.writeAndFlush(new PartitionRequest(pid, 0, inputChannelId)).await();
+
+			// Wait for the notification
+			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
+				fail("Timed out after waiting for " + TestingUtils.TESTING_DURATION().toMillis() +
+						" ms to be notified about cancelled partition.");
+			}
+
+			ch.writeAndFlush(new CancelPartitionRequest(inputChannelId)).await();
+
+			ch.close();
+
+			NettyTestUtil.awaitClose(ch);
+
+			verify(view, times(1)).releaseAllResources();
+			verify(view, times(0)).notifySubpartitionConsumed();
 		}
 		finally {
 			shutdown(serverAndClient);

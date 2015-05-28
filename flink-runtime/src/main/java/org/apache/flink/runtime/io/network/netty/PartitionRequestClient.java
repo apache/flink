@@ -58,7 +58,12 @@ public class PartitionRequestClient {
 	// If zero, the underlying TCP channel can be safely closed
 	private final AtomicDisposableReferenceCounter closeReferenceCounter = new AtomicDisposableReferenceCounter();
 
-	PartitionRequestClient(Channel tcpChannel, PartitionRequestClientHandler partitionRequestHandler, ConnectionID connectionId, PartitionRequestClientFactory clientFactory) {
+	PartitionRequestClient(
+			Channel tcpChannel,
+			PartitionRequestClientHandler partitionRequestHandler,
+			ConnectionID connectionId,
+			PartitionRequestClientFactory clientFactory) {
+
 		this.tcpChannel = checkNotNull(tcpChannel);
 		this.partitionRequestHandler = checkNotNull(partitionRequestHandler);
 		this.connectionId = checkNotNull(connectionId);
@@ -167,6 +172,9 @@ public class PartitionRequestClient {
 
 			// Make sure to remove the client from the factory
 			clientFactory.destroyPartitionRequestClient(connectionId, this);
+		}
+		else {
+			partitionRequestHandler.cancelRequestFor(inputChannel.getInputChannelId());
 		}
 	}
 }
