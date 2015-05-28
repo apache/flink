@@ -210,6 +210,3 @@ object GradientDescent {
     new GradientDescent()
   }
 }
-
-
-
