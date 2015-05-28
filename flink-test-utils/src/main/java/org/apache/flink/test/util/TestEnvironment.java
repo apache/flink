@@ -42,6 +42,10 @@ public class TestEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
+	public void startNewSession() throws Exception {
+	}
+
+	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		try {
 			OptimizedPlan op = compileProgram(jobName);

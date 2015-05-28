@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager
 
+
 import Tasks._
 import akka.actor.ActorSystem
 import akka.actor.Status.{Success, Failure}
@@ -27,7 +28,8 @@ import akka.util.Timeout
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph, ScheduleMode}
 import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{ExecutionGraphFound,
+RequestExecutionGraph, NotifyWhenJobRemoved}
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -609,6 +611,121 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         cluster.stop()
       }
     }
+
+    "remove execution graphs when the client ends the session explicitly" in {
+      val vertex = new AbstractJobVertex("Test Vertex")
+      vertex.setInvokableClass(classOf[NoOpInvokable])
+
+      val jobGraph1 = new JobGraph("Test Job", vertex)
+
+      val slowVertex = new WaitingOnFinalizeJobVertex("Long running Vertex", 2000)
+      slowVertex.setInvokableClass(classOf[NoOpInvokable])
+
+      val jobGraph2 = new JobGraph("Long running Job", slowVertex)
+
+      val cluster = TestingUtils.startTestingCluster(1)
+      val jm = cluster.getJobManager
+
+      try {
+        within(TestingUtils.TESTING_DURATION) {
+          /* jobgraph1 is removed after being terminated */
+          jobGraph1.setSessionTimeout(9999)
+          jm ! SubmitJob(jobGraph1, false)
+          expectMsg(Success(jobGraph1.getJobID))
+          expectMsgType[JobResultSuccess]
+
+          // should not be archived yet
+          jm ! RequestExecutionGraph(jobGraph1.getJobID)
+          var cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
+          assert(!cachedGraph.isArchived)
+
+          jm ! RemoveCachedJob(jobGraph1.getJobID)
+
+          jm ! RequestExecutionGraph(jobGraph1.getJobID)
+          cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
+          assert(cachedGraph.isArchived)
+
+          /* jobgraph2 is removed while running */
+          jobGraph2.setSessionTimeout(9999)
+          jm ! SubmitJob(jobGraph2, false)
+          expectMsg(Success(jobGraph2.getJobID))
+
+          // job stil running
+          jm ! RemoveCachedJob(jobGraph2.getJobID)
+
+          expectMsgType[JobResultSuccess]
+
+          // should be archived!
+          jm ! RequestExecutionGraph(jobGraph2.getJobID)
+          cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
+          assert(cachedGraph.isArchived)
+        }
+      } finally {
+        cluster.stop()
+      }
+    }
+
+    "remove execution graphs when when the client's session times out" in {
+      val vertex = new AbstractJobVertex("Test Vertex")
+      vertex.setParallelism(1)
+      vertex.setInvokableClass(classOf[NoOpInvokable])
+
+      val jobGraph = new JobGraph("Test Job", vertex)
+
+      val cluster = TestingUtils.startTestingCluster(1)
+      val jm = cluster.getJobManager
+
+      try {
+        within(TestingUtils.TESTING_DURATION) {
+          // try multiple times in case of flaky environments
+          var testSucceeded = false
+          var numTries = 0
+          while(!testSucceeded && numTries < 10) {
+            try {
+              // should be removed immediately
+              jobGraph.setSessionTimeout(0)
+              jm ! SubmitJob(jobGraph, false)
+              expectMsg(Success(jobGraph.getJobID))
+              expectMsgType[JobResultSuccess]
+
+              jm ! RequestExecutionGraph(jobGraph.getJobID)
+              val cachedGraph2 = expectMsgType[ExecutionGraphFound].executionGraph
+              assert(cachedGraph2.isArchived)
+
+              // removed after 2 seconds
+              jobGraph.setSessionTimeout(2)
+
+              jm ! SubmitJob(jobGraph, false)
+              expectMsg(Success(jobGraph.getJobID))
+              expectMsgType[JobResultSuccess]
+
+              // should not be archived yet
+              jm ! RequestExecutionGraph(jobGraph.getJobID)
+              val cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
+              assert(!cachedGraph.isArchived)
+
+              // wait until graph is archived
+              Thread.sleep(3000)
+
+              jm ! RequestExecutionGraph(jobGraph.getJobID)
+              val graph = expectMsgType[ExecutionGraphFound].executionGraph
+              assert(graph.isArchived)
+
+              testSucceeded = true
+            } catch {
+              case e: Throwable =>
+                numTries += 1
+            }
+          }
+          if(!testSucceeded) {
+            fail("Test case failed after " + numTries + " probes.")
+          }
+        }
+      } finally {
+        cluster.stop()
+      }
+    }
+
   }
 
   class WaitingOnFinalizeJobVertex(name: String, val waitingTime: Long) extends

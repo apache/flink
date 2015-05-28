@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager
 import java.io.{IOException, File}
 import java.net.InetSocketAddress
 import java.util.Collections
+import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Success, Failure}
 import grizzled.slf4j.Logger
@@ -63,6 +64,8 @@ import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 /**
  * The job manager is responsible for receiving Flink jobs, scheduling the tasks, gathering the
@@ -103,7 +106,7 @@ class JobManager(protected val flinkConfiguration: Configuration,
                  protected val mode: StreamingMode)
   extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
-  /** List of current jobs running jobs */
+  /** List of current running jobs */
   protected val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
 
 
@@ -322,7 +325,19 @@ class JobManager(protected val flinkConfiguration: Configuration,
                 throw exception
             }
 
-            removeJob(jobID)
+
+            if (jobInfo.sessionAlive) {
+              jobInfo.setLastActive()
+              val lastActivity = jobInfo.lastActive
+              context.system.scheduler.scheduleOnce(jobInfo.sessionTimeout seconds) {
+                // remove only if no activity occurred in the meantime
+                if (lastActivity == jobInfo.lastActive) {
+                  removeJob(jobID)
+                }
+              }
+            } else {
+              removeJob(jobID)
+            }
 
           }
         case None =>
@@ -426,6 +441,18 @@ class JobManager(protected val flinkConfiguration: Configuration,
     case RequestJobManagerStatus =>
       sender() ! JobManagerStatusAlive
 
+    case RemoveCachedJob(jobID) =>
+      currentJobs.get(jobID) match {
+        case Some((graph, info)) =>
+          if (graph.getState.isTerminalState) {
+            removeJob(graph.getJobID)
+          } else {
+            // triggers removal upon completion of job
+            info.sessionAlive = false
+          }
+        case None =>
+      }
+
     case Disconnect(msg) =>
       val taskManager = sender()
 
@@ -481,10 +508,17 @@ class JobManager(protected val flinkConfiguration: Configuration,
         }
 
         // see if there already exists an ExecutionGraph for the corresponding job ID
-        executionGraph = currentJobs.getOrElseUpdate(jobGraph.getJobID,
-          (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
-            jobGraph.getJobConfiguration, timeout, jobGraph.getUserJarBlobKeys, userCodeLoader),
-            JobInfo(sender(), System.currentTimeMillis())))._1
+        executionGraph = currentJobs.get(jobGraph.getJobID) match {
+          case Some((graph, jobInfo)) =>
+            jobInfo.setLastActive()
+            graph
+          case None =>
+            val graph = new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
+              jobGraph.getJobConfiguration, timeout, jobGraph.getUserJarBlobKeys, userCodeLoader)
+            val jobInfo = JobInfo(sender(), System.currentTimeMillis(), jobGraph.getSessionTimeout)
+            currentJobs.put(jobGraph.getJobID, (graph, jobInfo))
+            graph
+        }
 
         // configure the execution graph
         val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries >= 0) {

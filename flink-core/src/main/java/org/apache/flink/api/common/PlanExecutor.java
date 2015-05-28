@@ -33,7 +33,7 @@ import java.util.List;
  * dependencies of all runtime classes.
  */
 public abstract class PlanExecutor {
-	
+
 	private static final String LOCAL_EXECUTOR_CLASS = "org.apache.flink.client.LocalExecutor";
 	private static final String REMOTE_EXECUTOR_CLASS = "org.apache.flink.client.RemoteExecutor";
 
@@ -50,6 +50,43 @@ public abstract class PlanExecutor {
 	
 	public boolean isPrintingStatusDuringExecution() {
 		return this.printUpdatesToSysout;
+	}
+
+	/** Job identifer, may only be set for explicit resume of a job.  */
+	private JobID jobID = null;
+
+	private long sessionTimeout = 0;
+
+	/**
+	 * Sets the job identifier for execution of jobs. May be set to null to disable session management.
+	 * @param jobID
+	 */
+	public void setJobID(JobID jobID) {
+		this.jobID = jobID;
+	}
+
+	/**
+	 * Gets the job identifier of this executor.
+	 * @return
+	 */
+	public JobID getJobID() {
+		return jobID;
+	}
+
+	/**
+	 * Gets the session timeout.
+	 * @return The session timeout in seconds.
+	 */
+	public long getSessionTimeout() {
+		return sessionTimeout;
+	}
+
+	/**
+	 * Sets the session timeout.
+	 * @return The session timeout in seconds.
+	 */
+	public void setSessionTimeout(long sessionTimeout) {
+		this.sessionTimeout = sessionTimeout;
 	}
 	
 	// ------------------------------------------------------------------------
@@ -102,7 +139,7 @@ public abstract class PlanExecutor {
 	/**
 	 * Creates an executor that runs the plan on a remote environment. The remote executor is typically used
 	 * to send the program to a cluster for execution.
-	 * 
+	 *
 	 * @param hostname The address of the JobManager to send the program to.
 	 * @param port The port of the JobManager to send the program to.
 	 * @param jarFiles A list of jar files that contain the user-defined function (UDF) classes and all classes used

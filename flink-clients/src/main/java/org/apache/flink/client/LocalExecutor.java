@@ -151,9 +151,13 @@ public class LocalExecutor extends PlanExecutor {
 			// check if we start a session dedicated for this execution
 			final boolean shutDownAtEnd;
 			if (this.flink == null) {
-				// we start a session just for us now
-				shutDownAtEnd = true;
-				
+				if (getSessionTimeout() == 0) {
+					// we start a session just for us now
+					shutDownAtEnd = true;
+				} else {
+					shutDownAtEnd = false;
+				}
+
 				// configure the number of local slots equal to the parallelism of the local plan
 				if (this.taskManagerNumSlots == DEFAULT_TASK_MANAGER_NUM_SLOTS) {
 					int maxParallelism = plan.getMaximumParallelism();
@@ -174,6 +178,10 @@ public class LocalExecutor extends PlanExecutor {
 				
 				JobGraphGenerator jgg = new JobGraphGenerator();
 				JobGraph jobGraph = jgg.compileJobGraph(op);
+				if (getJobID() != null) {
+					jobGraph.setJobID(getJobID());
+					jobGraph.setSessionTimeout(getSessionTimeout());
+				}
 				
 				boolean sysoutPrint = isPrintingStatusDuringExecution();
 				SerializedJobExecutionResult result = flink.submitJobAndWait(jobGraph,sysoutPrint);

@@ -20,9 +20,11 @@ package org.apache.flink.api.java;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.configuration.Configuration;
+
 
 /**
  * An {@link ExecutionEnvironment} that runs the program locally, multi-threaded, in the JVM where the
@@ -34,6 +36,10 @@ import org.apache.flink.configuration.Configuration;
  */
 public class LocalEnvironment extends ExecutionEnvironment {
 	private Configuration configuration;
+
+	/** Create upon first */
+	private PlanExecutor executor = null;
+
 	/**
 	 * Creates a new local environment.
 	 */
@@ -47,9 +53,10 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
+		if (executor == null) {
+			startNewSession();
+		}
 		Plan p = createProgramPlan(jobName);
-		
-		PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
 		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
 		this.lastJobExecutionResult = executor.executePlan(p);
 		return this.lastJobExecutionResult;
@@ -57,11 +64,20 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	
 	@Override
 	public String getExecutionPlan() throws Exception {
+		if (executor == null) {
+			startNewSession();
+		}
 		Plan p = createProgramPlan(null, false);
-		
-		PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
 		return executor.getOptimizerPlanAsJSON(p);
 	}
+
+	@Override
+	public void startNewSession() {
+		jobID = JobID.generate();
+		// discard existing local cluster
+		executor = PlanExecutor.createLocalExecutor(configuration);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	@Override

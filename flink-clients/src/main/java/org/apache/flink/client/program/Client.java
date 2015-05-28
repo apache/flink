@@ -27,6 +27,8 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.List;
 
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -52,6 +54,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,6 +91,12 @@ public class Client {
 	 * connected to the client.
 	 */
 	private int maxSlots = -1;
+
+	/** Job identifer, may be null if no session management is desired */
+	private JobID jobID = null;
+
+	/** The session timeout in seconds */
+	private long sessionTimeout = 0;
 
 	/** ID of the last job submitted with this client. */
 	private JobID lastJobId = null;
@@ -185,6 +194,23 @@ public class Client {
 	 */
 	public void setPrintStatusDuringExecution(boolean print) {
 		this.printStatusDuringExecution = print;
+	}
+
+	/**
+	 * Sets the job identifier to be used when submitting a job. May be set to null to disable
+	 * session management.
+	 * @param jobID
+	 */
+	public void setJobID(JobID jobID) {
+		this.jobID = jobID;
+	}
+
+	/**
+	 * Sets the session timeout
+	 * @param sessionTimeout The session timeout in seconds.
+	 */
+	public void setSessionTimeout(long sessionTimeout) {
+		this.sessionTimeout = sessionTimeout;
 	}
 
 	/**
@@ -351,7 +377,11 @@ public class Client {
 
 	public JobSubmissionResult run(OptimizedPlan compiledPlan, List<File> libraries, boolean wait) throws ProgramInvocationException {
 		JobGraph job = getJobGraph(compiledPlan, libraries);
-		this.lastJobId = job.getJobID();
+		// if a JobID has been supplied, set it alongside with the session timeout
+		if (jobID != null) {
+			job.setJobID(jobID);
+			job.setSessionTimeout(sessionTimeout);
+		}
 		return run(job, wait);
 	}
 
@@ -420,6 +450,34 @@ public class Client {
 		}
 	}
 
+	/**
+	 * Finishes the current session at the job manager.
+	 */
+	public void endSession() throws Exception {
+		LOG.info("Telling job manager to end the session {}.", jobID);
+		final ActorSystem actorSystem;
+		try {
+			actorSystem = JobClient.startJobClientActorSystem(configuration);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Could start client actor system.", e);
+		}
+
+		LOG.info("Looking up JobManager");
+		final ActorRef jobManager;
+		try {
+			jobManager = JobManager.getJobManagerRemoteReference(jobManagerAddress, actorSystem, configuration);
+		}
+		catch (IOException e) {
+			throw new RuntimeException("Failed to resolve JobManager", e);
+		}
+
+		// TODO wait for an answer
+		Patterns.ask(jobManager,
+				new JobManagerMessages.RemoveCachedJob(jobID),
+				new Timeout(AkkaUtils.getDefaultTimeout()));
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	public static final class OptimizerPlanEnvironment extends ExecutionEnvironment {
@@ -450,7 +508,11 @@ public class Client {
 			// do not go on with anything now!
 			throw new ProgramAbortException();
 		}
-		
+
+		@Override
+		public void startNewSession() {
+		}
+
 		private void setAsContext() {
 			ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 				

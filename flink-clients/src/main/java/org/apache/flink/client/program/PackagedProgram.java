@@ -712,7 +712,11 @@ public class PackagedProgram {
 			// do not go on with anything now!
 			throw new Client.ProgramAbortException();
 		}
-		
+
+		@Override
+		public void startNewSession() throws Exception {
+		}
+
 		public void setAsContext() {
 			ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 				@Override

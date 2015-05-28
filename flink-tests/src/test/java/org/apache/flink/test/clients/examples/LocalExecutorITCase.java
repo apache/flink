@@ -55,7 +55,8 @@ public class LocalExecutorITCase {
 			executor.setTaskManagerNumSlots(parallelism);
 			executor.setPrintStatusDuringExecution(false);
 			executor.start();
-			Plan wcPlan = wc.getPlan(Integer.valueOf(parallelism).toString(), inFile.toURI().toString(),outFile.toURI().toString());
+			Plan wcPlan = wc.getPlan(Integer.valueOf(parallelism).toString(),
+					inFile.toURI().toString(), outFile.toURI().toString());
 			wcPlan.setExecutionConfig(new ExecutionConfig());
 			executor.executePlan(wcPlan);
 			executor.stop();
