@@ -84,7 +84,7 @@ package object ml {
   }
 
   private class BroadcastSingleElementMapperWithIteration[T, B, O](
-    fun: (T, B, Int) => O)
+      fun: (T, B, Int) => O)
     extends RichMapFunction[T, O] {
     var broadcastVariable: B = _
 
@@ -99,7 +99,7 @@ package object ml {
   }
 
   private class BroadcastSingleElementFilter[T, B](
-    fun: (T, B) => Boolean)
+      fun: (T, B) => Boolean)
     extends RichFilterFunction[T] {
     var broadcastVariable: B = _
 

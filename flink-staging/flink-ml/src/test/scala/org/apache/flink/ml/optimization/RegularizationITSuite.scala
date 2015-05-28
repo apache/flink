@@ -25,9 +25,6 @@ import org.apache.flink.test.util.FlinkTestBase
 
 import org.scalatest.{Matchers, FlatSpec}
 
-
-
-
 class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   behavior of "The regularization type implementations"
@@ -40,10 +37,10 @@ class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val regularization = NoRegularization
 
-    val weightVector = new WeightVector(DenseVector(1.0), 1.0)
+    val weights = DenseVector(1.0)
     val originalLoss = 1.0
 
-    val regValue = regularization.regularization(weightVector)
+    val regValue = originalLoss + regularization.regularization(weights)
 
     regValue should be (originalLoss +- 0.0001)
   }
@@ -58,9 +55,9 @@ class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val weightVector = WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
     val effectiveStepsize = 1.0
     val regParameter = 0.5
-    val gradient = WeightVector(DenseVector(0.0, 0.0, 0.0, 0.0, 0.0), 0.0)
+    val gradient = DenseVector(0.0, 0.0, 0.0, 0.0, 0.0)
 
-    regularization.updateWeightVector(weightVector,  gradient, effectiveStepsize, regParameter)
+    regularization.updateWeights(weightVector.weights,  gradient, effectiveStepsize, regParameter)
 
     val expectedWeights = DenseVector(-0.5, 0.5, 0.0, 0.0, 0.0)
 
@@ -79,7 +76,8 @@ class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val regParameter = 0.5
     val originalLoss = 1.0
 
-    val adjustedLoss = originalLoss + regParameter * regularization.regularization(weightVector)
+    val adjustedLoss = originalLoss +
+      regParameter * regularization.regularization(weightVector.weights)
 
     weightVector shouldEqual WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
     adjustedLoss should be (2.4 +- 0.1)
@@ -95,22 +93,20 @@ class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val weightVector = WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
     val regParameter = 0.5
     val lossGradient = DenseVector(0.0, 0.0, 0.0, 0.0, 0.0)
-    val lossIntercept = 0.0
     val originalLoss = 1.0
 
-    val adjustedLoss = originalLoss + regParameter * regularization.regularization(weightVector)
+    val adjustedLoss = originalLoss +
+      regParameter * regularization.regularization(weightVector.weights)
 
-    val Some(WeightVector(weights, intercept)) = regularization.gradient(weightVector)
+    val Some(weights) = regularization.gradient(weightVector.weights)
 
     BLAS.axpy(regParameter, weights, lossGradient)
 
-    val adjustedLossIntercept = lossIntercept + regParameter * intercept
 
     val expectedGradient = DenseVector(-0.5, 0.5, 0.2, -0.2, 0.0)
 
     weightVector shouldEqual WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
     adjustedLoss should be (1.58 +- 0.1)
     lossGradient shouldEqual expectedGradient
-    adjustedLossIntercept should be (1.0 +- 0.1)
   }
 }

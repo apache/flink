@@ -53,7 +53,7 @@ case class GenericLossFunction(
     val prediction = predictionFunction.predict(dataPoint.vector, weightVector)
 
     partialLossFunction.loss(prediction, dataPoint.label) +
-      regularizationValue * regularizationFunction.regularization(weightVector)
+      regularizationValue * regularizationFunction.regularization(weightVector.weights)
   }
 
   def gradient(dataPoint: LabeledVector, weightVector: WeightVector): WeightVector = {
@@ -64,13 +64,12 @@ case class GenericLossFunction(
     val WeightVector(predWeightGradient, predIntGradient) =
       predictionFunction.gradient(dataPoint.vector, weightVector)
 
-    regularizationFunction.gradient(weightVector) match {
-      case Some(WeightVector(regWeightGradient, regIntGradient)) => {
+    regularizationFunction.gradient(weightVector.weights) match {
+      case Some(regWeightGradient) => {
         BLAS.scal(regularizationValue, regWeightGradient)
         BLAS.axpy(lossDeriv, predWeightGradient, regWeightGradient)
 
-        WeightVector(regWeightGradient,
-          lossDeriv * predIntGradient + regularizationValue * regIntGradient)
+        WeightVector(regWeightGradient, lossDeriv * predIntGradient)
       }
       case None => {
         BLAS.scal(lossDeriv, predWeightGradient)
@@ -84,10 +83,13 @@ case class GenericLossFunction(
     gradient: WeightVector,
     learningRate: Double)
   : WeightVector = {
-    regularizationFunction.updateWeightVector(
-      oldWeightVector,
-      gradient,
+
+    val updatedWeigths = regularizationFunction.updateWeights(
+      oldWeightVector.weights,
+      gradient.weights,
       learningRate,
       regularizationValue)
+
+    WeightVector(updatedWeigths, oldWeightVector.intercept - learningRate * gradient.intercept)
   }
 }

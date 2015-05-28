@@ -27,7 +27,7 @@ import org.apache.flink.ml.optimization.IterativeSolver._
 /** Base class for optimization algorithms
  *
  */
-abstract class Solver() extends Serializable with WithParameters {
+abstract class Solver extends Serializable with WithParameters {
   import Solver._
 
   /** Provides a solution for the given optimization problem

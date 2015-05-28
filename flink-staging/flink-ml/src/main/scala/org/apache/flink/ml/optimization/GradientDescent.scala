@@ -44,7 +44,7 @@ import org.apache.flink.ml._
   *                      stop the iterations if the relative change in the value of the objective
   *                      function between successive iterations is is smaller than this value.
   */
-class GradientDescent() extends IterativeSolver {
+class GradientDescent extends IterativeSolver {
 
   /** Performs one iteration of Stochastic Gradient Descent using mini batches
     *
@@ -105,65 +105,103 @@ class GradientDescent() extends IterativeSolver {
     val initialWeightsDS: DataSet[WeightVector] = createInitialWeightsDS(initialWeights, data)
 
     // Perform the iterations
-    val optimizedWeights = convergenceThresholdOption match {
+    convergenceThresholdOption match {
       // No convergence criterion
       case None =>
-        initialWeightsDS.iterate(numberOfIterations) {
-          weightVectorDS => {
-            SGDStep(data, weightVectorDS, lossFunction, stepsize)
-          }
-        }
+        optimizeWithoutConvergenceCriterion(
+          data,
+          initialWeightsDS,
+          numberOfIterations,
+          stepsize,
+          lossFunction)
       case Some(convergence) =>
-        // Calculates the regularized loss, from the data and given weights
-        def calculateLoss(data: DataSet[LabeledVector], weightDS: DataSet[WeightVector])
-        : DataSet[Double] = {
-          data.mapWithBcVariable(weightDS){
-            (data, weightVector) => (lossFunction.loss(data, weightVector), 1)
-          }.reduce{
-            (left, right) => (left._1 + right._1, left._2 + right._2)
-          }.map {
-            lossCount => lossCount._1 / lossCount._2
+        optimizeWithConvergenceCriterion(
+          data,
+          initialWeightsDS,
+          numberOfIterations,
+          stepsize,
+          convergence,
+          lossFunction
+        )
+    }
+  }
+
+  def optimizeWithConvergenceCriterion(
+      dataPoints: DataSet[LabeledVector],
+      initialWeightsDS: DataSet[WeightVector],
+      numberOfIterations: Int,
+      stepsize: Double,
+      convergenceThreshold: Double,
+      lossFunction: LossFunction)
+    : DataSet[WeightVector] = {
+    // We have to calculate for each weight vector the sum of squared residuals,
+    // and then sum them and apply regularization
+    val initialLossSumDS = calculateLoss(dataPoints, initialWeightsDS, lossFunction)
+
+    // Combine weight vector with the current loss
+    val initialWeightsWithLossSum = initialWeightsDS.mapWithBcVariable(initialLossSumDS){
+      (weights, loss) => (weights, loss)
+    }
+
+    val resultWithLoss = initialWeightsWithLossSum.iterateWithTermination(numberOfIterations) {
+      weightsWithPreviousLossSum =>
+
+        // Extract weight vector and loss
+        val previousWeightsDS = weightsWithPreviousLossSum.map{_._1}
+        val previousLossSumDS = weightsWithPreviousLossSum.map{_._2}
+
+        val currentWeightsDS = SGDStep(dataPoints, previousWeightsDS, lossFunction, stepsize)
+
+        val currentLossSumDS = calculateLoss(dataPoints, currentWeightsDS, lossFunction)
+
+        // TODO: Why does the closure cleaner cannot remove the dataPoint parameter???
+        val convergence = convergenceThreshold
+        // Check if the relative change in the loss is smaller than the
+        // convergence threshold. If yes, then terminate i.e. return empty termination data set
+        val termination = previousLossSumDS.filterWithBcVariable(currentLossSumDS){
+          (previousLoss, currentLoss) => {
+            if (previousLoss <= 0) {
+              false
+            } else {
+              Math.abs((previousLoss - currentLoss)/previousLoss) >= convergence
+            }
           }
         }
-        // We have to calculate for each weight vector the sum of squared residuals,
-        // and then sum them and apply regularization
-        val initialLossSumDS = calculateLoss(data, initialWeightsDS)
 
-        // Combine weight vector with the current loss
-        val initialWeightsWithLossSum = initialWeightsDS.mapWithBcVariable(initialLossSumDS){
-          (weights, loss) => (weights, loss)
-        }
-
-        val resultWithLoss = initialWeightsWithLossSum.iterateWithTermination(numberOfIterations) {
-          weightsWithPreviousLossSum =>
-
-            // Extract weight vector and loss
-            val previousWeightsDS = weightsWithPreviousLossSum.map{_._1}
-            val previousLossSumDS = weightsWithPreviousLossSum.map{_._2}
-
-            val currentWeightsDS = SGDStep(data, previousWeightsDS, lossFunction, stepsize)
-
-            val currentLossSumDS = calculateLoss(data, currentWeightsDS)
-
-            // Check if the relative change in the loss is smaller than the
-            // convergence threshold. If yes, then terminate i.e. return empty termination data set
-            val termination = previousLossSumDS.filterWithBcVariable(currentLossSumDS){
-              (previousLoss, currentLoss) => {
-                if (previousLoss <= 0) {
-                  false
-                } else {
-                  Math.abs((previousLoss - currentLoss)/previousLoss) >= convergence
-                }
-              }
-            }
-
-            // Result for new iteration
-            (currentWeightsDS.mapWithBcVariable(currentLossSumDS)((w, l) => (w, l)), termination)
-        }
-        // Return just the weights
-        resultWithLoss.map{_._1}
+        // Result for new iteration
+        (currentWeightsDS.mapWithBcVariable(currentLossSumDS)((w, l) => (w, l)), termination)
     }
-    optimizedWeights
+    // Return just the weights
+    resultWithLoss.map{_._1}
+  }
+
+  def optimizeWithoutConvergenceCriterion(
+      data: DataSet[LabeledVector],
+      initialWeightsDS: DataSet[WeightVector],
+      numberOfIterations: Int,
+      stepsize: Double,
+      lossFunction: LossFunction)
+    : DataSet[WeightVector] = {
+    initialWeightsDS.iterate(numberOfIterations) {
+      weightVectorDS => {
+        SGDStep(data, weightVectorDS, lossFunction, stepsize)
+      }
+    }
+  }
+
+  // Calculates the regularized loss, from the data and given weights
+  private def calculateLoss(
+      data: DataSet[LabeledVector],
+      weightDS: DataSet[WeightVector],
+      lossFunction: LossFunction)
+    : DataSet[Double] = {
+    data.mapWithBcVariable(weightDS){
+      (data, weightVector) => (lossFunction.loss(data, weightVector), 1)
+    }.reduce{
+      (left, right) => (left._1 + right._1, left._2 + right._2)
+    }.map {
+      lossCount => lossCount._1 / lossCount._2
+    }
   }
 }
 

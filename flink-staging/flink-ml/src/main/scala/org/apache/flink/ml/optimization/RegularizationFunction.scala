@@ -18,63 +18,59 @@
 
 package org.apache.flink.ml.optimization
 
-import org.apache.flink.ml.common.WeightVector
+import org.apache.flink.ml.math.Vector
 import org.apache.flink.ml.math.BLAS
 
 trait RegularizationFunction extends Serializable {
-  def gradient(weightVector: WeightVector): Option[WeightVector]
+  def gradient(weightVector: Vector): Option[Vector]
 
-  def regularization(weightVector: WeightVector): Double
+  def regularization(weightVector: Vector): Double
 
-  def updateWeightVector(
-      oldWeightVector: WeightVector,
-      gradient: WeightVector,
+  def updateWeights(
+      oldWeightVector: Vector,
+      gradient: Vector,
       learningRate: Double,
       regularizationValue: Double)
-    : WeightVector
+    : Vector
 }
 
 object NoRegularization extends RegularizationFunction {
-  override def gradient(weightVector: WeightVector): Option[WeightVector] = None
+  override def gradient(weightVector: Vector): Option[Vector] = None
 
-  override def updateWeightVector(oldWeightVector: WeightVector, gradient: WeightVector,
-    learningRate: Double, regularizationValue: Double): WeightVector = {
-    val WeightVector(weights, intercept) = oldWeightVector
-    BLAS.axpy(-learningRate, gradient.weights, weights)
+  override def updateWeights(weights: Vector, gradient: Vector,
+    learningRate: Double, regularizationValue: Double): Vector = {
+    BLAS.axpy(-learningRate, gradient, weights)
 
-    WeightVector(weights, intercept - learningRate * gradient.intercept)
+    weights
   }
 
-  override def regularization(weightVector: WeightVector): Double = 0.0
+  override def regularization(weightVector: Vector): Double = 0.0
 }
 
 object L2Regularization extends RegularizationFunction {
-  override def gradient(weightVector: WeightVector): Option[WeightVector] = {
-    Some(weightVector)
+  override def gradient(weights: Vector): Option[Vector] = {
+    Some(weights)
   }
 
-  override def updateWeightVector(oldWeightVector: WeightVector, gradient: WeightVector,
-    learningRate: Double, regularizationValue: Double): WeightVector = {
-    val WeightVector(weights, intercept) = oldWeightVector
-    BLAS.axpy(-learningRate, gradient.weights, weights)
+  override def updateWeights(weights: Vector, gradient: Vector,
+    learningRate: Double, regularizationValue: Double): Vector = {
+    BLAS.axpy(-learningRate, gradient, weights)
 
-    WeightVector(weights, intercept - learningRate * gradient.intercept)
+    weights
   }
 
-  override def regularization(weightVector: WeightVector): Double = {
-    import weightVector._
-    0.5 * (BLAS.dot(weights, weights) + intercept * intercept)
+  override def regularization(weights: Vector): Double = {
+    0.5 * BLAS.dot(weights, weights)
   }
 }
 
 object L1Regularization extends RegularizationFunction {
-  override def gradient(weightVector: WeightVector): Option[WeightVector] = None
+  override def gradient(weightVector: Vector): Option[Vector] = None
 
-  override def updateWeightVector(oldWeightVector: WeightVector, gradient: WeightVector,
-    learningRate: Double, regularizationValue: Double): WeightVector = {
+  override def updateWeights(weights: Vector, gradient: Vector,
+    learningRate: Double, regularizationValue: Double): Vector = {
 
-    val WeightVector(weights, intercept) = oldWeightVector
-    BLAS.axpy(-learningRate, gradient.weights, weights)
+    BLAS.axpy(-learningRate, gradient, weights)
 
     // Apply proximal operator (soft thresholding)
     val shrinkageVal = regularizationValue * learningRate
@@ -85,11 +81,10 @@ object L1Regularization extends RegularizationFunction {
       i += 1
     }
 
-    WeightVector(weights, intercept - learningRate * gradient.intercept)
+    weights
   }
 
-  override def regularization(weightVector: WeightVector): Double = {
-    weightVector.weights.valueIterator.reduce(Math.abs(_) + Math.abs(_)) +
-      Math.abs(weightVector.intercept)
+  override def regularization(weights: Vector): Double = {
+    weights.valueIterator.reduce(Math.abs(_) + Math.abs(_))
   }
 }

@@ -35,6 +35,6 @@ object LinearPrediction extends PredictionFunction {
   }
 
   override def gradient(features: FlinkVector, weights: WeightVector): WeightVector = {
-    WeightVector(features, 1)
+    WeightVector(features.copy, 1)
   }
 }
