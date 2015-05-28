@@ -21,10 +21,8 @@ package org.apache.flink.ml.regression
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.ml.math.Vector
+import org.apache.flink.ml.math.{DenseVector, BLAS, Vector, vector2Array}
 import org.apache.flink.ml.common._
-
-import org.apache.flink.ml.math.vector2Array
 
 import org.apache.flink.api.scala._
 
@@ -346,6 +344,60 @@ object MultipleLinearRegression {
       val prediction = dotProduct + weight0
 
       LabeledVector(prediction, value)
+    }
+  }
+
+  /** Calculates the predictions for labeled data with respect to the learned linear model.
+    *
+    * @return A DataSet[(Double, Double)] where each tuple is a (truth, prediction) pair.
+    */
+  implicit def predictLabeledVectors = {
+    new PredictOperation[MultipleLinearRegression, LabeledVector, (Double, Double)] {
+      override def predict(
+                            instance: MultipleLinearRegression,
+                            predictParameters: ParameterMap,
+                            input: DataSet[LabeledVector])
+      : DataSet[(Double, Double)] = {
+        instance.weightsOption match {
+          case Some(weights) => {
+            input.map(new LinearRegressionLabeledPrediction)
+              .withBroadcastSet(weights, WEIGHTVECTOR_BROADCAST)
+          }
+
+          case None => {
+            throw new RuntimeException("The MultipleLinearRegression has not been fitted to the " +
+              "data. This is necessary to learn the weight vector of the linear function.")
+          }
+        }
+      }
+    }
+  }
+
+  private class LinearRegressionLabeledPrediction
+    extends RichMapFunction[LabeledVector, (Double, Double)] {
+    private var weights: Array[Double] = null
+    private var weight0: Double = 0
+
+
+    @throws(classOf[Exception])
+    override def open(configuration: Configuration): Unit = {
+      val t = getRuntimeContext
+        .getBroadcastVariable[(Array[Double], Double)](WEIGHTVECTOR_BROADCAST)
+
+      val weightsPair = t.get(0)
+
+      weights = weightsPair._1
+      weight0 = weightsPair._2
+    }
+
+    override def map(labeledVector: LabeledVector ): (Double, Double) = {
+
+      val truth = labeledVector.label
+      val dotProduct = BLAS.dot(DenseVector(weights), labeledVector.vector)
+
+      val prediction = dotProduct + weight0
+
+      (truth, prediction)
     }
   }
 }

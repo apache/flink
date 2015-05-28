@@ -106,4 +106,28 @@ class MultipleLinearRegressionITSuite
 
     srs should be(RegressionData.expectedPolynomialSquaredResidualSum +- 5)
   }
+
+  it should "make (mostly) correct predictions" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val mlr = MultipleLinearRegression()
+
+    import RegressionData._
+
+    val parameters = ParameterMap()
+
+    parameters.add(MultipleLinearRegression.Stepsize, 1.0)
+    parameters.add(MultipleLinearRegression.Iterations, 10)
+    parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.001)
+
+    val inputDS = env.fromCollection(data)
+    mlr.fit(inputDS, parameters)
+
+    val predictionPairs = mlr.predict(inputDS)
+
+    val absoluteErrorSum = predictionPairs.collect().map{
+      case (truth, prediction) => Math.abs(truth - prediction)}.sum
+
+    absoluteErrorSum should be < 50.0
+  }
 }
