@@ -30,7 +30,7 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
   it should "train a SVM" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val cocoa = SVM().
+    val svm = SVM().
     setBlocks(env.getParallelism).
     setIterations(100).
     setLocalIterations(100).
@@ -40,9 +40,9 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val trainingDS = env.fromCollection(Classification.trainingData)
 
-    cocoa.fit(trainingDS)
+    svm.fit(trainingDS)
 
-    val weightVector = cocoa.weightsOption.get.collect().apply(0)
+    val weightVector = svm.weightsOption.get.collect().apply(0)
 
     weightVector.valuesIterator.zip(Classification.expectedWeightVector.valueIterator).foreach {
       case (weight, expectedWeight) =>
