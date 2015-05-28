@@ -37,6 +37,7 @@ import org.apache.flink.runtime.state.FileStateHandle;
 import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.runtime.util.SerializedValue;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -296,18 +297,21 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	public void confirmCheckpoint(long checkpointId, long timestamp) throws Exception {
+	public void confirmCheckpoint(long checkpointId, SerializedValue<StateHandle<?>> state) throws Exception {
 		// we do nothing here so far. this should call commit on the source function, for example
 		synchronized (checkpointLock) {
 			if (streamOperator instanceof StatefulStreamOperator) {
-				((StatefulStreamOperator<?>) streamOperator).confirmCheckpointCompleted(checkpointId, timestamp, null);
+				((StatefulStreamOperator) streamOperator).confirmCheckpointCompleted(checkpointId,
+						state.deserializeValue(getUserCodeClassLoader()));
 			}
 
 			if (hasChainedOperators) {
 				for (OneInputStreamOperator<?, ?> chainedOperator : outputHandler.getChainedOperators()) {
 					if (chainedOperator instanceof StatefulStreamOperator) {
-						((StatefulStreamOperator<?>) chainedOperator).confirmCheckpointCompleted(checkpointId, timestamp, null);
+						((StatefulStreamOperator) chainedOperator).confirmCheckpointCompleted(checkpointId,
+								state.deserializeValue(getUserCodeClassLoader()));
 					}
 				}
 			}

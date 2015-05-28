@@ -38,7 +38,7 @@ public class CheckpointMessagesTest {
 	@Test
 	public void testTriggerAndConfirmCheckpoint() {
 		try {
-			ConfirmCheckpoint cc = new ConfirmCheckpoint(new JobID(), new ExecutionAttemptID(), 45287698767345L, 467L);
+			ConfirmCheckpoint cc = new ConfirmCheckpoint(new JobID(), new ExecutionAttemptID(), 45287698767345L, 467L, null);
 			testSerializabilityEqualsHashCode(cc);
 			
 			TriggerCheckpoint tc = new TriggerCheckpoint(new JobID(), new ExecutionAttemptID(), 347652734L, 7576752L);

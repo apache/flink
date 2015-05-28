@@ -33,5 +33,5 @@ public interface StatefulStreamOperator<OUT> extends StreamOperator<OUT> {
 
 	Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception;
 
-	void confirmCheckpointCompleted(long checkpointId, long timestamp, StateHandle<Serializable> checkpointedState) throws Exception;
+	void confirmCheckpointCompleted(long checkpointId, StateHandle<Serializable> checkpointedState) throws Exception;
 }
