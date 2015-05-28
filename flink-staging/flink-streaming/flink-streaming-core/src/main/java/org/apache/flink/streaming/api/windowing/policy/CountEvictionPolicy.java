@@ -89,7 +89,7 @@ public class CountEvictionPolicy<IN> implements CloneableEvictionPolicy<IN> {
 	 *            will be adjusted respectively but never below zero.
 	 * @param startValue
 	 *            A custom start value for the counter of arriving elements.
-	 * @see CountEvictionPolicy#NextGenCountEvictionPolicy(int, int)
+	 * @see CountEvictionPolicy#CountEvictionPolicy(int, int)
 	 */
 	public CountEvictionPolicy(int maxElements, int deleteOnEviction, int startValue) {
 		this.counter = startValue;

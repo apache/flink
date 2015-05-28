@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -32,7 +31,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 /**
  * A GroupedDataStream represents a {@link DataStream} which has been
  * partitioned by the given {@link KeySelector}. Operators like {@link #reduce},
- * {@link #batchReduce} etc. can be applied on the {@link GroupedDataStream} to
+ * {@link #fold} etc. can be applied on the {@link GroupedDataStream} to
  * get additional functionality by the grouping.
  * 
  * @param <OUT>
@@ -67,9 +66,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 * Applies a reduce transformation on the grouped data stream grouped on by
 	 * the given key position. The {@link ReduceFunction} will receive input
 	 * values based on the key value. Only input values with the same key will
-	 * go to the same reducer.The user can also extend
-	 * {@link RichReduceFunction} to gain access to other features provided by
-	 * the {@link RichFuntion} interface.
+	 * go to the same reducer.
 	 * 
 	 * @param reducer
 	 *            The {@link ReduceFunction} that will be called for every
@@ -86,9 +83,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 * Applies a fold transformation on the grouped data stream grouped on by
 	 * the given key position. The {@link FoldFunction} will receive input
 	 * values based on the key value. Only input values with the same key will
-	 * go to the same folder.The user can also extend {@link RichFoldFunction}
-	 * to gain access to other features provided by the {@link RichFuntion}
-	 * interface.
+	 * go to the same folder.
 	 * 
 	 * @param folder
 	 *            The {@link FoldFunction} that will be called for every element

@@ -42,11 +42,11 @@ public class IterativeDataStream<IN> extends
 	 * program part that will be fed back to the start of the iteration. </br>
 	 * </br>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
-	 * {@link SingleOutputStreamOperator#split(OutputSelector)} for more
-	 * information.
+	 * {@link DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)}
+	 * for more information.
 	 * 
 	 * 
-	 * @param iterationResult
+	 * @param iterationTail
 	 *            The data stream that is fed back to the next iteration head.
 	 * @return Returns the stream that was fed back to the iteration. In most
 	 *         cases no further transformation are applied on this stream.

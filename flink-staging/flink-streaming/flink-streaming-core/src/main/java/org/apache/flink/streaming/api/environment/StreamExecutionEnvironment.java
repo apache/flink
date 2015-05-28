@@ -251,7 +251,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Sets the {@link StateHandleProvider} used for storing operator state
 	 * checkpoints when checkpointing is enabled.
 	 * <p>
-	 * An example would be using a {@link FileStateHandle#createProvider(Path)}
+	 * An example would be using a {@link FileStateHandle#createProvider(String)}
 	 * to use any Flink supported file system as a state backend
 	 * 
 	 */
@@ -857,16 +857,14 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Generic method to create an input data stream with {@link org.apache.flink.api.common.io.InputFormat}. The data stream will not be immediately
-	 * created - instead, this method returns a data stream that will be lazily created from the input format once the
-	 * program is executed.
+	 * Generic method to create an input data stream with {@link org.apache.flink.api.common.io.InputFormat}.
 	 * <p/>
 	 * Since all data streams need specific information about their types, this method needs to determine the type of
 	 * the data produced by the input format. It will attempt to determine the data type by reflection, unless the
 	 * input
-	 * format implements the {@link org.apache.flink.api.java.typeutils .ResultTypeQueryable} interface. In the latter
-	 * case, this method will invoke the {@link org.apache.flink.api.java.typeutils
-	 * .ResultTypeQueryable#getProducedType()} method to determine data type produced by the input format.
+	 * format implements the {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable} interface. In the latter
+	 * case, this method will invoke the {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable#getProducedType()}
+	 * method to determine data type produced by the input format.
 	 *
 	 * @param inputFormat
 	 * 		The input format used to create the data stream
@@ -879,14 +877,12 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Generic method to create an input data stream with {@link org.apache.flink.api.common.io.InputFormat}. The data stream will not be immediately
-	 * created - instead, this method returns a data stream that will be lazily created from the input format once the
-	 * program is executed.
-	 * <p/>
+	 * Generic method to create an input data stream with {@link org.apache.flink.api.common.io.InputFormat}.
+	 * <p>
 	 * The data stream is typed to the given TypeInformation. This method is intended for input formats where the
 	 * return
-	 * type cannot be determined by reflection analysis, and that do not implement the {@link
-	 * org.apache.flink.api.java.typeutils.ResultTypeQueryable} interface.
+	 * type cannot be determined by reflection analysis, and that do not implement the
+	 * {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable} interface.
 	 *
 	 * @param inputFormat
 	 * 		The input format used to create the data stream
@@ -908,14 +904,13 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Ads a data source with a custom type information thus opening a {@link org.apache.flink.streaming.api
-	 * .datastream.DataStream}. Only in very special cases does the user need to support type information. Otherwise
-	 * use
-	 * {@link #addSource(org.apache.flink.streaming.api.function.source.SourceFunction)}
-	 * <p/>
+	 * Adds a data source with a custom type information thus opening a
+	 * {@link org.apache.flink.streaming.api.datastream.DataStream}. Only in very special cases does the user need
+	 * to support type information. Otherwise use {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+	 * <p>
 	 * By default sources have a parallelism of 1. To enable parallel execution, the user defined source should
-	 * implement {@link org.apache.flink.streaming.api.function.source.ParallelSourceFunction} or extend {@link
-	 * org.apache.flink.streaming.api.function.source.RichParallelSourceFunction}. In these cases the resulting source
+	 * implement {@link org.apache.flink.streaming.api.functions.source.ParallelSourceFunction} or extend {@link
+	 * org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction}. In these cases the resulting source
 	 * will have the parallelism of the environment. To change this afterwards call {@link
 	 * org.apache.flink.streaming.api.datastream.DataStreamSource#setParallelism(int)}
 	 *
