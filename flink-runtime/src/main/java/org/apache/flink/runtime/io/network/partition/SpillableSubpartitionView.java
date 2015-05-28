@@ -160,4 +160,9 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	public boolean isReleased() {
 		return isReleased.get();
 	}
+
+	@Override
+	public Throwable getFailureCause() {
+		return parent.getFailureCause();
+	}
 }

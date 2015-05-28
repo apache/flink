@@ -55,4 +55,6 @@ public interface ResultSubpartitionView {
 
 	boolean isReleased();
 
+	Throwable getFailureCause();
+
 }

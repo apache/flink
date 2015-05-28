@@ -191,5 +191,10 @@ public class CancelPartitionRequestTest {
 		public boolean isReleased() {
 			return false;
 		}
+
+		@Override
+		public Throwable getFailureCause() {
+			return null;
+		}
 	}
 }
