@@ -1,19 +1,19 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Licensed to the Apache Software Foundation (ASF) under one or more
+* contributor license agreements.  See the NOTICE file distributed with
+* this work for additional information regarding copyright ownership.
+* The ASF licenses this file to You under the Apache License, Version 2.0
+* (the "License"); you may not use this file except in compliance with
+* the License.  You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 
 package org.apache.flink.streaming.connectors.twitter;
 
@@ -26,15 +26,15 @@ import org.apache.flink.util.Collector;
 import org.apache.sling.commons.json.JSONException;
 
 /**
- * This program demonstrate the use of TwitterSource. 
- * Its aim is to count the frequency of the languages of tweets
- */
+* This program demonstrate the use of TwitterSource.
+* Its aim is to count the frequency of the languages of tweets
+*/
 public class TwitterTopology {
 
 	private static final int NUMBEROFTWEETS = 100;
-	
+
 	/**
-	 * FlatMapFunction to determine the language of tweets if possible 
+	 * FlatMapFunction to determine the language of tweets if possible
 	 */
 	public static class SelectLanguageFlatMap extends
 			JSONParseFlatMap<String, String> {
@@ -76,7 +76,7 @@ public class TwitterTopology {
 				.flatMap(new SelectLanguageFlatMap())
 				.map(new MapFunction<String, Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
-					
+
 					@Override
 					public Tuple2<String, Integer> map(String value) throws Exception {
 						return new Tuple2<String, Integer>(value, 1);

@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.util.Collector;
 
 import java.util.Random;
 
@@ -103,6 +104,7 @@ public class WindowJoin {
 
 		private Random rand;
 		private Tuple2<String, Integer> outTuple;
+		private volatile boolean isRunning = true;
 
 		public GradeSource() {
 			rand = new Random();
@@ -110,18 +112,19 @@ public class WindowJoin {
 		}
 
 		@Override
-		public boolean reachedEnd() throws Exception {
-			return false;
+		public void run(Object checkpointLock, Collector<Tuple2<String, Integer>> out) throws Exception {
+			while (isRunning) {
+				outTuple.f0 = names[rand.nextInt(names.length)];
+				outTuple.f1 = rand.nextInt(GRADE_COUNT) + 1;
+				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
+				out.collect(outTuple);
+			}
 		}
 
 		@Override
-		public Tuple2<String, Integer> next() throws Exception {
-			outTuple.f0 = names[rand.nextInt(names.length)];
-			outTuple.f1 = rand.nextInt(GRADE_COUNT) + 1;
-			Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
-			return outTuple;
+		public void cancel() {
+			isRunning = false;
 		}
-
 	}
 
 	/**
@@ -132,29 +135,35 @@ public class WindowJoin {
 
 		private transient Random rand;
 		private transient Tuple2<String, Integer> outTuple;
+		private volatile boolean isRunning;
 
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 			rand = new Random();
 			outTuple = new Tuple2<String, Integer>();
+			isRunning = true;
+		}
+
+
+		@Override
+		public void run(Object checkpointLock, Collector<Tuple2<String, Integer>> out) throws Exception {
+			while (isRunning) {
+				outTuple.f0 = names[rand.nextInt(names.length)];
+				outTuple.f1 = rand.nextInt(SALARY_MAX) + 1;
+				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
+				out.collect(outTuple);
+			}
 		}
 
 		@Override
-		public boolean reachedEnd() throws Exception {
-			return false;
+		public void cancel() {
+			isRunning = false;
 		}
-
-		@Override
-		public Tuple2<String, Integer> next() throws Exception {
-			outTuple.f0 = names[rand.nextInt(names.length)];
-			outTuple.f1 = rand.nextInt(SALARY_MAX) + 1;
-			Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
-			return outTuple;
-		}
-
 	}
 
 	public static class MySourceMap extends RichMapFunction<String, Tuple2<String, Integer>> {
+
+		private static final long serialVersionUID = 1L;
 
 		private String[] record;
 
@@ -188,6 +197,9 @@ public class WindowJoin {
 	}
 
 	public static class MyTimestamp implements Timestamp<Tuple2<String, Integer>> {
+
+		private static final long serialVersionUID = 1L;
+
 		private int counter;
 
 		public MyTimestamp(int starttime) {

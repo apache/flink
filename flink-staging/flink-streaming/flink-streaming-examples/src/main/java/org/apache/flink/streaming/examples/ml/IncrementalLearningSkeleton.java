@@ -94,17 +94,24 @@ public class IncrementalLearningSkeleton {
 		private static final long serialVersionUID = 1L;
 		private static final int NEW_DATA_SLEEP_TIME = 1000;
 
-		@Override
-		public boolean reachedEnd() throws Exception {
-			return false;
-		}
+		private volatile boolean isRunning = true;
 
 		@Override
-		public Integer next() throws Exception {
+		public void run(Object checkpointLock, Collector<Integer> collector) throws Exception {
+			while (isRunning) {
+				collector.collect(getNewData());
+			}
+		}
+
+		private Integer getNewData() throws InterruptedException {
 			Thread.sleep(NEW_DATA_SLEEP_TIME);
 			return 1;
 		}
-
+		
+		@Override
+		public void cancel() {
+			isRunning = true;
+		}
 	}
 
 	/**
@@ -115,22 +122,24 @@ public class IncrementalLearningSkeleton {
 		private static final long serialVersionUID = 1L;
 		private int counter;
 
+		@Override
+		public void run(Object checkpointLock, Collector<Integer> collector) throws Exception {
+			Thread.sleep(15);
+			while (counter < 50) {
+				collector.collect(getNewData());
+			}
+		}
+
+		@Override
+		public void cancel() {
+			// No cleanup needed
+		}
+
 		private Integer getNewData() throws InterruptedException {
 			Thread.sleep(5);
 			counter++;
 			return 1;
 		}
-
-		@Override
-		public boolean reachedEnd() throws Exception {
-			return counter >= 50;
-		}
-
-		@Override
-		public Integer next() throws Exception {
-			return getNewData();
-		}
-
 	}
 
 	/**
@@ -141,17 +150,26 @@ public class IncrementalLearningSkeleton {
 		private static final long serialVersionUID = 1L;
 		private static final int TRAINING_DATA_SLEEP_TIME = 10;
 
-		@Override
-		public boolean reachedEnd() throws Exception {
-			return false;
-		}
+		private volatile boolean isRunning = true;
 
 		@Override
-		public Integer next() throws Exception {
+		public void run(Object checkpointLock, Collector<Integer> collector) throws Exception {
+			while (isRunning) {
+				collector.collect(getTrainingData());
+			}
+
+		}
+
+		private Integer getTrainingData() throws InterruptedException {
 			Thread.sleep(TRAINING_DATA_SLEEP_TIME);
 			return 1;
-		}
 
+		}
+		
+		@Override
+		public void cancel() {
+			isRunning = false;
+		}
 	}
 
 	/**
@@ -162,21 +180,22 @@ public class IncrementalLearningSkeleton {
 		private static final long serialVersionUID = 1L;
 		private int counter = 0;
 
+		@Override
+		public void run(Object checkpointLock, Collector<Integer> collector) throws Exception {
+			while (counter < 8200) {
+				collector.collect(getTrainingData());
+			}
+		}
+
+		@Override
+		public void cancel() {
+			// No cleanup needed
+		}
+
 		private Integer getTrainingData() throws InterruptedException {
 			counter++;
 			return 1;
 		}
-
-		@Override
-		public boolean reachedEnd() throws Exception {
-			return counter >= 8200;
-		}
-
-		@Override
-		public Integer next() throws Exception {
-			return getTrainingData();
-		}
-
 	}
 
 	public static class LinearTimestamp implements Timestamp<Integer> {

@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment =>
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 import org.apache.flink.streaming.api.functions.source.{FromElementsFunction, SourceFunction}
 import org.apache.flink.types.StringValue
-import org.apache.flink.util.SplittableIterator
+import org.apache.flink.util.{Collector, SplittableIterator}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -399,20 +399,20 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     val typeInfo = implicitly[TypeInformation[T]]
     javaEnv.addSource(cleanFun).returns(typeInfo)
   }
-  
-   /**
+
+  /**
    * Create a DataStream using a user defined source function for arbitrary
    * source functionality.
    *
    */
-  def addSource[T: ClassTag: TypeInformation](function: () => T): DataStream[T] = {
+  def addSource[T: ClassTag: TypeInformation](function: Collector[T] => Unit): DataStream[T] = {
     require(function != null, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {
       val cleanFun = StreamExecutionEnvironment.clean(function)
-
-      override def reachedEnd(): Boolean = false
-
-      override def next(): T = cleanFun()
+      override def run(lockObject: AnyRef, out: Collector[T]) {
+        cleanFun(out)
+      }
+      override def cancel() = {}
     }
     addSource(sourceFunction)
   }

@@ -50,7 +50,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
 
-	private final Object checkpointLock = new Object();
+	protected final Object checkpointLock = new Object();
 
 	protected StreamConfig configuration;
 
@@ -191,9 +191,6 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	//  Checkpoint and Restore
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Re-injects the user states into the map. Also set the state on the functions.
-	 */
 	@Override
 	public void setInitialState(StateHandle<Serializable> stateHandle) throws Exception {
 		// here, we later resolve the state handle into the actual state by
@@ -230,13 +227,9 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		}
 	}
 
-	/**
-	 * This method is either called directly by the checkpoint coordinator, or called
-	 * when all incoming channels have reported a barrier
-	 */
 	@Override
 	public void triggerCheckpoint(long checkpointId, long timestamp) throws Exception {
-		
+
 		synchronized (checkpointLock) {
 			if (isRunning) {
 				try {
@@ -293,6 +286,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 				}
 			}
 		}
+
 	}
 
 	@Override
