@@ -65,11 +65,11 @@ under the License.
 				<module>flink-tachyon</module>
 			</modules>
 		</profile>
-        <profile>
-            <id>include-tez</id>
-            <modules>
-                <module>flink-tez</module>
-            </modules>
-        </profile>
+		<profile>
+			<id>include-tez</id>
+			<modules>
+				<module>flink-tez</module>
+			</modules>
+		</profile>
 	</profiles>
 </project>
