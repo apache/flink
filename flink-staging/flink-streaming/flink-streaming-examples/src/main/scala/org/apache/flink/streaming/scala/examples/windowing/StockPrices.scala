@@ -86,10 +86,10 @@ object StockPrices {
     })
 
     //Generate other stock streams
-    val SPX_Stream = env.addSource(generateStock("SPX")(10))
-    val FTSE_Stream = env.addSource(generateStock("FTSE")(20))
-    val DJI_Stream = env.addSource(generateStock("DJI")(30))
-    val BUX_Stream = env.addSource(generateStock("BUX")(40))
+    val SPX_Stream = env.addSource(generateStock("SPX")(10) _)
+    val FTSE_Stream = env.addSource(generateStock("FTSE")(20) _)
+    val DJI_Stream = env.addSource(generateStock("DJI")(30) _)
+    val BUX_Stream = env.addSource(generateStock("BUX")(40) _)
 
     //Merge all stock streams together
     val stockStream = socketStockStream.merge(SPX_Stream, FTSE_Stream, DJI_Stream, BUX_Stream)
@@ -121,7 +121,7 @@ object StockPrices {
     //Step 4 
     //Read a stream of tweets and extract the stock symbols
 
-    val tweetStream = env.addSource(generateTweets)
+    val tweetStream = env.addSource(generateTweets _)
 
     val mentionedSymbols = tweetStream.flatMap(tweet => tweet.split(" "))
       .map(_.toUpperCase())
@@ -189,24 +189,25 @@ object StockPrices {
     }
   }
 
-  def generateStock(symbol: String)(sigma: Int) = {
+  def generateStock(symbol: String)(sigma: Int)(out: Collector[StockPrice]) = {
     var price = 1000.0
-    () =>
+    while (true) {
       price = price + Random.nextGaussian * sigma
+      out.collect(StockPrice(symbol, price))
       Thread.sleep(Random.nextInt(200))
-      StockPrice(symbol, price)
-
+    }
   }
 
   def average[T](ts: Iterable[T])(implicit num: Numeric[T]) = {
     num.toDouble(ts.sum) / ts.size
   }
 
-  def generateTweets = {
-    () =>
+  def generateTweets(out: Collector[String]) = {
+    while (true) {
       val s = for (i <- 1 to 3) yield (symbols(Random.nextInt(symbols.size)))
+      out.collect(s.mkString(" "))
       Thread.sleep(Random.nextInt(500))
-      s.mkString(" ")
+    }
   }
 
   private def parseParameters(args: Array[String]): Boolean = {

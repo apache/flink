@@ -115,18 +115,17 @@ public class TypeFillTest {
 	}
 
 	private class TestSource<T> implements SourceFunction<T> {
-
+		private static final long serialVersionUID = 1L;
 
 		@Override
-		public boolean reachedEnd() throws Exception {
-			return false;
+		public void run(Object checkpointLock, Collector<T> out) throws Exception {
+
 		}
 
 		@Override
-		public T next() throws Exception {
-			return null;
-		}
+		public void cancel() {
 
+		}
 	}
 
 	private class TestMap<T, O> implements MapFunction<T, O> {

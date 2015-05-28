@@ -41,7 +41,7 @@ public abstract class AbstractStreamOperator<OUT> implements StreamOperator<OUT>
 	protected ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;
 
 	@Override
-	public final void setup(Output<OUT> output, RuntimeContext runtimeContext) {
+	public void setup(Output<OUT> output, RuntimeContext runtimeContext) {
 		this.output = output;
 		this.executionConfig = runtimeContext.getExecutionConfig();
 		this.runtimeContext = runtimeContext;

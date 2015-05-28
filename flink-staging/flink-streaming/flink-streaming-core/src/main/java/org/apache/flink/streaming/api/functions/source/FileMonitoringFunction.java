@@ -21,20 +21,18 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FileMonitoringFunction extends RichSourceFunction<Tuple3<String, Long, Long>> {
+public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Long, Long>> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileMonitoringFunction.class);
@@ -51,28 +49,50 @@ public class FileMonitoringFunction extends RichSourceFunction<Tuple3<String, Lo
 	private long interval;
 	private WatchType watchType;
 
-	private FileSystem fileSystem;
 	private Map<String, Long> offsetOfFiles;
 	private Map<String, Long> modificationTimes;
 
-	private Queue<Tuple3<String, Long, Long>> pendingFiles;
+	private volatile boolean isRunning;
 
 	public FileMonitoringFunction(String path, long interval, WatchType watchType) {
 		this.path = path;
 		this.interval = interval;
 		this.watchType = watchType;
+		this.modificationTimes = new HashMap<String, Long>();
+		this.offsetOfFiles = new HashMap<String, Long>();
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		this.modificationTimes = new HashMap<String, Long>();
-		this.offsetOfFiles = new HashMap<String, Long>();
-		this.pendingFiles = new LinkedList<Tuple3<String, Long, Long>>();
-		fileSystem = FileSystem.get(new URI(path));
+	public void run(Object checkpointLock, Collector<Tuple3<String, Long, Long>> collector) throws Exception {
+		isRunning = true;
+		FileSystem fileSystem = FileSystem.get(new URI(path));
+
+		while (isRunning) {
+			List<String> files = listNewFiles(fileSystem);
+			for (String filePath : files) {
+				if (watchType == WatchType.ONLY_NEW_FILES
+						|| watchType == WatchType.REPROCESS_WITH_APPENDED) {
+					collector.collect(new Tuple3<String, Long, Long>(filePath, 0L, -1L));
+					offsetOfFiles.put(filePath, -1L);
+				} else if (watchType == WatchType.PROCESS_ONLY_APPENDED) {
+					long offset = 0;
+					long fileSize = fileSystem.getFileStatus(new Path(filePath)).getLen();
+					if (offsetOfFiles.containsKey(filePath)) {
+						offset = offsetOfFiles.get(filePath);
+					}
+
+					collector.collect(new Tuple3<String, Long, Long>(filePath, offset, fileSize));
+					offsetOfFiles.put(filePath, fileSize);
+
+					LOG.info("File processed: {}, {}, {}", filePath, offset, fileSize);
+				}
+			}
+
+			Thread.sleep(interval);
+		}
 	}
 
-	private List<String> listNewFiles() throws IOException {
+	private List<String> listNewFiles(FileSystem fileSystem) throws IOException {
 		List<String> files = new ArrayList<String>();
 
 		FileStatus[] statuses = fileSystem.listStatus(new Path(path));
@@ -105,44 +125,8 @@ public class FileMonitoringFunction extends RichSourceFunction<Tuple3<String, Lo
 		}
 	}
 
-
 	@Override
-	public boolean reachedEnd() throws Exception {
-		return false;
-	}
-
-	@Override
-	public Tuple3<String, Long, Long> next() throws Exception {
-		if (pendingFiles.size() > 0) {
-			return pendingFiles.poll();
-		} else {
-			while (true) {
-				List<String> files = listNewFiles();
-				for (String filePath : files) {
-					if (watchType == WatchType.ONLY_NEW_FILES
-							|| watchType == WatchType.REPROCESS_WITH_APPENDED) {
-						pendingFiles.add(new Tuple3<String, Long, Long>(filePath, 0L, -1L));
-						offsetOfFiles.put(filePath, -1L);
-					} else if (watchType == WatchType.PROCESS_ONLY_APPENDED) {
-						long offset = 0;
-						long fileSize = fileSystem.getFileStatus(new Path(filePath)).getLen();
-						if (offsetOfFiles.containsKey(filePath)) {
-							offset = offsetOfFiles.get(filePath);
-						}
-
-						pendingFiles.add(new Tuple3<String, Long, Long>(filePath, offset, fileSize));
-						offsetOfFiles.put(filePath, fileSize);
-
-						LOG.info("File added to queue: {}, {}, {}", filePath, offset, fileSize);
-					}
-				}
-				if (files.size() > 0) {
-					break;
-				}
-				Thread.sleep(interval);
-			}
-		}
-
-		return pendingFiles.poll();
+	public void cancel() {
+		isRunning = false;
 	}
 }

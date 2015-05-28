@@ -21,14 +21,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Collector;
 
-public class FromElementsFunction<T> extends RichSourceFunction<T> {
+public class FromElementsFunction<T> implements SourceFunction<T> {
 	private static final long serialVersionUID = 1L;
 
-	private transient Iterator<T> iterator;
-
 	private Iterable<T> iterable;
+
+	private volatile boolean isRunning;
 
 	public FromElementsFunction(T... elements) {
 		this.iterable = Arrays.asList(elements);
@@ -43,19 +43,17 @@ public class FromElementsFunction<T> extends RichSourceFunction<T> {
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		iterator = iterable.iterator();
+	public void run(Object checkpointLock, Collector<T> out) throws Exception {
+		isRunning = true;
+		Iterator<T> it = iterable.iterator();
+
+		while (isRunning && it.hasNext()) {
+			out.collect(it.next());
+		}
 	}
 
 	@Override
-	public boolean reachedEnd() throws Exception {
-		return !iterator.hasNext();
+	public void cancel() {
+		isRunning = false;
 	}
-
-	@Override
-	public T next() throws Exception {
-		return iterator.next();
-	}
-
 }

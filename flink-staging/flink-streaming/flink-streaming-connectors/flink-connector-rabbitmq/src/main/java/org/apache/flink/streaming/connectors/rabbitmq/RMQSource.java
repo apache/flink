@@ -20,8 +20,10 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 import java.io.IOException;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.source.ConnectorSource;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,15 +40,11 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	private final String QUEUE_NAME;
 	private final String HOST_NAME;
 
-	private transient ConnectionFactory factory;
 	private transient Connection connection;
-	private transient Channel channel;
 	private transient QueueingConsumer consumer;
 	private transient QueueingConsumer.Delivery delivery;
 
 	private volatile boolean isRunning = false;
-
-	OUT out;
 
 	public RMQSource(String HOST_NAME, String QUEUE_NAME,
 			DeserializationSchema<OUT> deserializationSchema) {
@@ -59,11 +57,11 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	 * Initializes the connection to RMQ.
 	 */
 	private void initializeConnection() {
-		factory = new ConnectionFactory();
+		ConnectionFactory factory = new ConnectionFactory();
 		factory.setHost(HOST_NAME);
 		try {
 			connection = factory.newConnection();
-			channel = connection.createChannel();
+			Channel channel = connection.createChannel();
 			channel.queueDeclare(QUEUE_NAME, false, false, false, null);
 			consumer = new QueueingConsumer(channel);
 			channel.basicConsume(QUEUE_NAME, true, consumer);
@@ -73,66 +71,53 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 		}
 	}
 
+	/**
+	 * Called to forward the data from the source to the {@link DataStream}.
+	 *
+	 * @param collector
+	 *            The Collector for sending data to the dataStream
+	 */
+	@Override
+	public void run(Object checkpointLock, Collector<OUT> collector) throws Exception {
+		isRunning = true;
+		try {
+			while (isRunning) {
+
+				try {
+					delivery = consumer.nextDelivery();
+				} catch (Exception e) {
+					if (LOG.isErrorEnabled()) {
+						LOG.error("Cannot recieve RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
+					}
+				}
+
+				OUT out = schema.deserialize(delivery.getBody());
+				if (schema.isEndOfStream(out)) {
+					break;
+				} else {
+					collector.collect(out);
+				}
+			}
+		} finally {
+			connection.close();
+		}
+
+	}
+
 	@Override
 	public void open(Configuration config) throws Exception {
 		initializeConnection();
 	}
 
 	@Override
-	public void close() throws Exception {
-		super.close();
+	public void cancel() {
+		isRunning = false;
 		try {
 			connection.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Error while closing RMQ connection with " + QUEUE_NAME
 					+ " at " + HOST_NAME, e);
 		}
-	}
-
-	@Override
-	public boolean reachedEnd() throws Exception {
-		if (out != null) {
-			return true;
-		}
-		try {
-			delivery = consumer.nextDelivery();
-		} catch (Exception e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Cannot recieve RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
-			}
-		}
-
-		out = schema.deserialize(delivery.getBody());
-		if (schema.isEndOfStream(out)) {
-			out = null;
-			return false;
-		}
-		return true;
-	}
-
-	@Override
-	public OUT next() throws Exception {
-		if (out != null) {
-			OUT result = out;
-			out = null;
-			return result;
-		}
-
-		try {
-			delivery = consumer.nextDelivery();
-		} catch (Exception e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Cannot recieve RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
-			}
-		}
-
-		out = schema.deserialize(delivery.getBody());
-		if (schema.isEndOfStream(out)) {
-			throw new RuntimeException("RMQ source is at end.");
-		}
-		OUT result = out;
-		out = null;
-		return result;
 	}
 
 }

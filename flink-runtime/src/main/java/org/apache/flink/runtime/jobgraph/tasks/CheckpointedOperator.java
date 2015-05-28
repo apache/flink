@@ -19,6 +19,10 @@
 package org.apache.flink.runtime.jobgraph.tasks;
 
 public interface CheckpointedOperator {
-	
+
+	/**
+	 * This method is either called directly by the checkpoint coordinator, or called
+	 * when all incoming channels have reported a barrier
+	 */
 	void triggerCheckpoint(long checkpointId, long timestamp) throws Exception;
 }

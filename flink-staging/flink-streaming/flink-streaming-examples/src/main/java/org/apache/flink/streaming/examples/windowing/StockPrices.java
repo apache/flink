@@ -28,12 +28,11 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.WindowedDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.WindowMapFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.deltafunction.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.helper.Delta;
 import org.apache.flink.streaming.api.windowing.helper.Time;
@@ -255,42 +254,38 @@ public class StockPrices {
 	// USER FUNCTIONS
 	// *************************************************************************
 
-	public final static class StockSource extends RichSourceFunction<StockPrice> {
+	public final static class StockSource implements SourceFunction<StockPrice> {
 
 		private static final long serialVersionUID = 1L;
 		private Double price;
 		private String symbol;
 		private Integer sigma;
-		private transient Random random;
 
-
+		private volatile boolean isRunning;
 
 		public StockSource(String symbol, Integer sigma) {
 			this.symbol = symbol;
 			this.sigma = sigma;
+		}
+
+		@Override
+		public void run(Object checkpointLock, Collector<StockPrice> collector) throws Exception {
 			price = DEFAULT_PRICE;
+			Random random = new Random();
 
+			isRunning = true;
+
+			while (isRunning) {
+				price = price + random.nextGaussian() * sigma;
+				collector.collect(new StockPrice(symbol, price));
+				Thread.sleep(random.nextInt(200));
+			}
 		}
-
+		
 		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			random = new Random();
-
+		public void cancel() {
+			isRunning = false;
 		}
-
-		@Override
-		public boolean reachedEnd() throws Exception {
-			return false;
-		}
-
-		@Override
-		public StockPrice next() throws Exception {
-			price = price + random.nextGaussian() * sigma;
-			Thread.sleep(random.nextInt(200));
-			return new StockPrice(symbol, price);
-		}
-
 	}
 
 	public final static class WindowMean implements WindowMapFunction<StockPrice, StockPrice> {
@@ -314,35 +309,37 @@ public class StockPrices {
 		}
 	}
 
-	public static final class TweetSource extends RichSourceFunction<String> {
+	public static final class TweetSource implements SourceFunction<String> {
 
 		private static final long serialVersionUID = 1L;
-		private transient Random random;
-		private transient StringBuilder stringBuilder;
+		Random random;
+		StringBuilder stringBuilder;
+
+		private volatile boolean isRunning;
 
 		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
+		public void run(Object checkpointLock, Collector<String> collector) throws Exception {
 			random = new Random();
 			stringBuilder = new StringBuilder();
-		}
 
-		@Override
-		public boolean reachedEnd() throws Exception {
-			return false;
-		}
+			isRunning = true;
 
-		@Override
-		public String next() throws Exception {
-			stringBuilder.setLength(0);
-			for (int i = 0; i < 3; i++) {
-				stringBuilder.append(" ");
-				stringBuilder.append(SYMBOLS.get(random.nextInt(SYMBOLS.size())));
+			while (isRunning) {
+				stringBuilder.setLength(0);
+				for (int i = 0; i < 3; i++) {
+					stringBuilder.append(" ");
+					stringBuilder.append(SYMBOLS.get(random.nextInt(SYMBOLS.size())));
+				}
+				collector.collect(stringBuilder.toString());
+				Thread.sleep(500);
 			}
-			Thread.sleep(500);
-			return stringBuilder.toString();
-		}
 
+		}
+		
+		@Override
+		public void cancel() {
+			isRunning = false;
+		}
 	}
 
 	public static final class SendWarning implements WindowMapFunction<StockPrice, String> {
