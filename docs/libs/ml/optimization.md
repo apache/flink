@@ -75,13 +75,10 @@ The $L_2$ penalty penalizes large weights, favoring solutions with more small we
 few large ones.
 The $L_1$ penalty can be used to drive a number of the solution coefficients to 0, thereby
 producing sparse solutions.
-The optimization framework in Flink supports the $L_1$ and $L_2$ penalties, as well as no
-regularization. The
-regularization parameter $\lambda$ in $\eqref{eq:objectiveFunc}$ determines the amount of
-regularization applied to the model,
-and is usually determined through model cross-validation. A good comparison of regularization
-types can
-be found in [this](http://www.robotics.stanford.edu/~ang/papers/icml04-l1l2.pdf) paper by Andrew Ng.
+The regularization constant $\lambda$ in $\eqref{eq:objectiveFunc}$ determines the amount of regularization applied to the model,
+and is usually determined through model cross-validation. 
+A good comparison of regularization types can be found in [this](http://www.robotics.stanford.edu/~ang/papers/icml04-l1l2.pdf) paper by Andrew Ng.
+Which regularization type is supported depends on the actually used optimization algorithm.
 
 ## Stochastic Gradient Descent
 
@@ -107,6 +104,33 @@ The current implementation of SGD  uses the whole partition, making it
 effectively a batch gradient descent. Once a sampling operator has been introduced in Flink, true
 mini-batch SGD will be performed.
 
+### Regularization
+
+FlinkML supports Stochastic Gradient Descent with L1, L2 and no regularization.
+The following list contains a mapping between the implementing classes and the regularization function.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Class Name</th>
+      <th class="text-center">Regularization function $R(\wv)$</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>SimpleGradient</code></td>
+      <td>$R(\wv) = 0$</td>
+    </tr>
+    <tr>
+      <td><code>GradientDescentL1</code></td>
+      <td>$R(\wv) = \norm{\wv}_1$</td>
+    </tr>
+    <tr>
+      <td><code>GradientDescentL2</code></td>
+      <td>$R(\wv) = \frac{1}{2}\norm{\wv}_2^2$</td>
+    </tr>
+  </tbody>
+</table>
 
 ### Parameters
 
@@ -124,36 +148,15 @@ mini-batch SGD will be performed.
         <td><strong>LossFunction</strong></td>
         <td>
           <p>
-            The class of the loss function to be used. See <a href="#loss-function-values">loss function values</a> for a list of supported values. (Default value:
-            <strong>SquaredLoss</strong>, used for regression tasks)
+            The loss function to be optimized. (Default value: <strong>None</strong>)
           </p>
         </td>
       </tr>
       <tr>
-        <td><strong>RegularizationType</strong></td>
-        <td>
-          <p>
-            The type of regularization penalty to apply. See <a href="#regularization-function-values">regularization function values</a> for a list of supported values. (Default value:
-            <strong>NoRegularization</strong>)
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td><strong>RegularizationParameter</strong></td>
+        <td><strong>RegularizationConstant</strong></td>
         <td>
           <p>
             The amount of regularization to apply. (Default value: <strong>0.0</strong>)
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td><strong>PredictionFunction</strong></td>
-        <td>
-          <p>
-            Class that provides the prediction function, used to calculate $\hat{y}$ and the
-            prediction gradient based on the weights $\wv$ and the example features $\x$. See
-            <a href="#prediction-function-values">prediction function values</a> for a list of supported values.
-            (Default value: <strong>LinearPrediction</strong>)
           </p>
         </td>
       </tr>
@@ -166,10 +169,10 @@ mini-batch SGD will be performed.
         </td>
       </tr>
       <tr>
-        <td><strong>Stepsize</strong></td>
+        <td><strong>LearningRate</strong></td>
         <td>
           <p>
-            Initial step size for the gradient descent method.
+            Initial learning rate for the gradient descent method.
             This value controls how far the gradient descent method moves in the opposite direction
             of the gradient.
             (Default value: <strong>0.1</strong>)
@@ -189,7 +192,20 @@ mini-batch SGD will be performed.
     </tbody>
   </table>
   
-#### Loss Function Values ##
+### Loss Function
+
+The loss function which is minimized has to implement the `LossFunction` interface, which defines methods to compute the loss and the gradient of it.
+Either one defines ones own `LossFunction` or one uses the `GenericLossFunction` class which constructs the loss function from an outer loss function and a prediction function.
+An example can be seen here
+
+```Scala
+val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction) 
+```
+
+The full list of supported outer loss functions can be found [here](#partial-loss-function-values).
+The full list of supported prediction functions can be found [here](#prediction-function-values).
+  
+#### Partial Loss Function Values ##
 
   <table class="table table-bordered">
     <thead>
@@ -240,53 +256,10 @@ mini-batch SGD will be performed.
       </tbody>
     </table>
 
-#### Regularization Function Values ##
-
-  <table class="table table-bordered">
-    <thead>
-      <tr>
-        <th class="text-left" style="width: 20%">Regularization Name</th>
-        <th class="text-center">Description</th>
-        <th class="text-center">$R(\wv)$</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><strong>L1Regularization</strong></td>
-        <td>
-          <p>
-            This type of regularization will drive small weights to 0, potentially providing sparse
-            solutions.
-          </p>
-        </td>
-        <td class="text-center">$\norm{\wv}_1$</td>
-      </tr>
-      <tr>
-        <td><strong>L2Regularization</strong></td>
-        <td>
-          <p>
-            This type of regularization will keep weights from growing too large, favoring solutions
-            with more small weights, rather than few large ones.
-          </p>
-        </td>
-        <td class="text-center">$\frac{1}{2}\norm{\wv}_2^2$</td>
-      </tr>
-      <tr>
-        <td><strong>NoRegularization</strong></td>
-        <td>
-          <p>
-            No regularization is applied to the weights when this regularization type is used.
-          </p>
-        </td>
-        <td class="text-center">$0$</td>
-      </tr>
-    </tbody>
-  </table>
-
 ### Examples
 
 In the Flink implementation of SGD, given a set of examples in a `DataSet[LabeledVector]` and
-optionally some initial weights, we can use `GradientDescent.optimize()` in order to optimize
+optionally some initial weights, we can use `GradientDescentL1.optimize()` in order to optimize
 the weights for the given data.
 
 The user can provide an initial `DataSet[WeightVector]`,
@@ -298,12 +271,11 @@ weight vector. This allows us to avoid applying regularization to the intercept.
 
 {% highlight scala %}
 // Create stochastic gradient descent solver
-val sgd = GradientDescent()
+val sgd = GradientDescentL1()
   .setLossFunction(SquaredLoss())
-  .setRegularizationType(L1Regularization())
-  .setRegularizationParameter(0.2)
+  .setRegularizationConstant(0.2)
   .setIterations(100)
-  .setStepsize(0.01)
+  .setLearningRate(0.01)
 
 
 // Obtain data
@@ -311,7 +283,4 @@ val trainingDS: DataSet[LabeledVector] = ...
 
 // Optimize the weights, according to the provided data
 val weightDS = sgd.optimize(trainingDS)
-
-// We can now use weightDS to make predictions
-
 {% endhighlight %}

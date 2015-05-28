@@ -18,9 +18,6 @@
 
 package org.apache.flink.ml.pipeline
 
-import breeze.linalg
-import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.classification.SVM
 import org.apache.flink.ml.common.{ParameterMap, LabeledVector}
@@ -166,8 +163,7 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val chainedScalers5 = chainedScalers4.chainTransformer(StandardScaler())
 
     val predictor = MultipleLinearRegression()
-
-
+    
     val pipeline = chainedScalers5.chainPredictor(predictor)
 
     pipeline.fit(trainingData)

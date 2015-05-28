@@ -25,14 +25,16 @@ import org.apache.flink.ml.math.{Vector => FlinkVector, BLAS}
 abstract class PredictionFunction extends Serializable {
   def predict(features: FlinkVector, weights: WeightVector): Double
 
-  def gradient(features: FlinkVector, weights: WeightVector): FlinkVector
+  def gradient(features: FlinkVector, weights: WeightVector): WeightVector
 }
 
 /** A linear prediction function **/
-class LinearPrediction extends PredictionFunction {
+object LinearPrediction extends PredictionFunction {
   override def predict(features: FlinkVector, weightVector: WeightVector): Double = {
     BLAS.dot(features, weightVector.weights) + weightVector.intercept
   }
 
-  override def gradient(features: FlinkVector, weights: WeightVector): FlinkVector = {features}
+  override def gradient(features: FlinkVector, weights: WeightVector): WeightVector = {
+    WeightVector(features.copy, 1)
+  }
 }

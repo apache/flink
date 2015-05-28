@@ -540,17 +540,17 @@ object SVM{
 
     // compute projected gradient
     var proj_grad = if(alpha  <= 0.0){
-      Math.min(grad, 0)
+      math.min(grad, 0)
     } else if(alpha >= 1.0) {
-      Math.max(grad, 0)
+      math.max(grad, 0)
     } else {
       grad
     }
 
-    if(Math.abs(grad) != 0.0){
+    if(math.abs(grad) != 0.0){
       val qii = x dot x
       val newAlpha = if(qii != 0.0){
-        Math.min(Math.max((alpha - (grad / qii)), 0.0), 1.0)
+        math.min(math.max((alpha - (grad / qii)), 0.0), 1.0)
       } else {
         1.0
       }
