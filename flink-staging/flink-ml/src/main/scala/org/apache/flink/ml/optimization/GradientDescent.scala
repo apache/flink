@@ -154,8 +154,6 @@ class GradientDescent extends IterativeSolver {
 
         val currentLossSumDS = calculateLoss(dataPoints, currentWeightsDS, lossFunction)
 
-        // TODO: Why does the closure cleaner cannot remove the dataPoint parameter???
-        val convergence = convergenceThreshold
         // Check if the relative change in the loss is smaller than the
         // convergence threshold. If yes, then terminate i.e. return empty termination data set
         val termination = previousLossSumDS.filterWithBcVariable(currentLossSumDS){
@@ -163,7 +161,7 @@ class GradientDescent extends IterativeSolver {
             if (previousLoss <= 0) {
               false
             } else {
-              Math.abs((previousLoss - currentLoss)/previousLoss) >= convergence
+              Math.abs((previousLoss - currentLoss)/previousLoss) >= convergenceThreshold
             }
           }
         }

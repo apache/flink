@@ -50,20 +50,24 @@ package object ml {
   }
 
   implicit class RichDataSet[T](dataSet: DataSet[T]) {
-    def mapWithBcVariable[B, O: TypeInformation: ClassTag](broadcastVariable: DataSet[B])(fun: (T, B) => O): DataSet[O] = {
-      dataSet.map(new BroadcastSingleElementMapper[T, B, O](fun))
+    def mapWithBcVariable[B, O: TypeInformation: ClassTag](
+        broadcastVariable: DataSet[B])(
+        fun: (T, B) => O)
+      : DataSet[O] = {
+      dataSet.map(new BroadcastSingleElementMapper[T, B, O](dataSet.clean(fun)))
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
     }
 
     def filterWithBcVariable[B, O](broadcastVariable: DataSet[B])(fun: (T, B) => Boolean)
       : DataSet[T] = {
-      dataSet.filter(new BroadcastSingleElementFilter[T, B](fun))
+      dataSet.filter(new BroadcastSingleElementFilter[T, B](dataSet.clean(fun)))
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
     }
 
-    def mapWithBcVariableIteration[B, O: TypeInformation: ClassTag](broadcastVariable: DataSet[B])(fun: (T, B, Int) => O)
+    def mapWithBcVariableIteration[B, O: TypeInformation: ClassTag](
+        broadcastVariable: DataSet[B])(fun: (T, B, Int) => O)
       : DataSet[O] = {
-      dataSet.map(new BroadcastSingleElementMapperWithIteration[T, B, O](fun))
+      dataSet.map(new BroadcastSingleElementMapperWithIteration[T, B, O](dataSet.clean(fun)))
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
     }
   }
