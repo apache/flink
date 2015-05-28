@@ -372,16 +372,35 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned using the given {@link KeySelector}. This setting only
-	 * effects the how the outputs will be distributed between the parallel
-	 * instances of the next processing operator.
-	 * 
-	 * @param keySelector
-	 * @return
+	 * Specifies how elements will be distributed to parallel instances of downstream operations.
+	 *
+	 * @param fields The tuple fields that should be used for partitioning
 	 */
-	protected DataStream<OUT> partitionBy(KeySelector<OUT, ?> keySelector) {
+	public DataStream<OUT> partitionBy(int... fields) {
+		return partitionBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
+	}
+
+	/**
+	 * Specifies how elements will be distributed to parallel instances of downstream operations.
+	 *
+	 * @param fields The object fields that should be used for partitioning
+	 */
+	public DataStream<OUT> partitionBy(String... fields) {
+		return partitionBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
+	}
+
+	/**
+	 * Specifies how elements will be distributed to parallel instances of downstream operations.
+	 */
+	public DataStream<OUT> partitionBy(KeySelector<OUT, ?> keySelector) {
 		return setConnectionType(new FieldsPartitioner<OUT>(clean(keySelector)));
+	}
+
+
+	private DataStream<OUT> partitionBy(Keys<OUT> keys) {
+		return setConnectionType(
+				new FieldsPartitioner<OUT>(
+						clean(KeySelectorUtil.getSelectorForKeys(keys, getType(), getExecutionConfig()))));
 	}
 
 	/**
