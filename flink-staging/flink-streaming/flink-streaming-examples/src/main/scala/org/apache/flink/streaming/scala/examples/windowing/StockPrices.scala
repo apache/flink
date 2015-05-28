@@ -109,11 +109,14 @@ object StockPrices {
     val priceWarnings = stockStream.groupBy("symbol")
       .window(Delta.of(0.05, priceChange, defaultPrice))
       .mapWindow(sendWarning _)
+      .flatten()
       
-    val warningsPerStock = priceWarnings.map(Count(_, 1))
+    val warningsPerStock = priceWarnings
+      .map(Count(_, 1))
       .window(Time.of(30, SECONDS))
       .groupBy("symbol")
       .sum("count")
+      .flatten()
       
     //Step 4 
     //Read a stream of tweets and extract the stock symbols
@@ -128,6 +131,7 @@ object StockPrices {
       .window(Time.of(30, SECONDS))
       .groupBy("symbol")
       .sum("count")
+      .flatten()
       
     //Step 5
     //For advanced analysis we join the number of tweets and
@@ -136,7 +140,8 @@ object StockPrices {
     //This information is used to compute rolling correlations
     //between the tweets and the price changes                              
 
-    val tweetsAndWarning = warningsPerStock.join(tweetsPerStock)
+    val tweetsAndWarning = warningsPerStock
+      .join(tweetsPerStock)
       .onWindow(30, SECONDS)
       .where("symbol")
       .equalTo("symbol") { (c1, c2) => (c1.count, c2.count) }
@@ -144,6 +149,7 @@ object StockPrices {
 
     val rollingCorrelation = tweetsAndWarning.window(Time.of(30, SECONDS))
       .mapWindow(computeCorrelation _)
+      .flatten()
 
     if (fileOutput) {
       rollingCorrelation.writeAsText(outputPath, 1);
