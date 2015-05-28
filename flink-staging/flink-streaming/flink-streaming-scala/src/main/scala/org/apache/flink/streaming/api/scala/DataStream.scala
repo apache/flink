@@ -93,7 +93,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    * @return The named operator
    */
-  def name(name: String) : DataStream[_] = javaStream match {
+  def name(name: String) : DataStream[T] = javaStream match {
     case stream : SingleOutputStreamOperator[_,_] => javaStream.name(name)
     case _ => throw new
         UnsupportedOperationException("Only supported for operators.")
