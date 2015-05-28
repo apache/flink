@@ -190,6 +190,11 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 		return isReleased;
 	}
 
+	@Override
+	public Throwable getFailureCause() {
+		return parent.getFailureCause();
+	}
+
 	/**
 	 * Requests buffers from the buffer provider and triggers asynchronous read requests to fill
 	 * them.

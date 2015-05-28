@@ -342,7 +342,7 @@ public class NetworkEnvironment {
 			}
 
 			if (task.isCanceledOrFailed()) {
-				partitionManager.releasePartitionsProducedBy(executionId);
+				partitionManager.releasePartitionsProducedBy(executionId, task.getFailureCause());
 			}
 
 			ResultPartitionWriter[] writers = task.getAllWriters();

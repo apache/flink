@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
+import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
@@ -259,7 +260,16 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 				break;
 			}
 
-			if (view.registerListener(this) || view.isReleased()) {
+			if (view.registerListener(this)) {
+				return;
+			}
+			else if (view.isReleased()) {
+				Throwable cause = view.getFailureCause();
+
+				if (cause != null) {
+					setError(new ProducerFailedException(cause));
+				}
+
 				return;
 			}
 		}

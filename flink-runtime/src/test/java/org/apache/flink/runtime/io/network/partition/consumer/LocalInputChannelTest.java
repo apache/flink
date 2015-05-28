@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import com.google.common.collect.Lists;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNo
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.io.network.util.TestPartitionProducer;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
@@ -62,6 +64,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode.ASYNC;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -228,6 +231,31 @@ public class LocalInputChannelTest {
 		}
 		catch (Exception expected) {
 		}
+	}
+
+	@Test(expected = CancelTaskException.class)
+	public void testProducerFailedException() throws Exception {
+
+		ResultSubpartitionView view = mock(ResultSubpartitionView.class);
+		when(view.isReleased()).thenReturn(true);
+		when(view.getFailureCause()).thenReturn(new Exception("Expected test exception"));
+
+		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
+		when(partitionManager
+				.createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class)))
+				.thenReturn(view);
+
+		SingleInputGate inputGate = mock(SingleInputGate.class);
+		BufferProvider bufferProvider = mock(BufferProvider.class);
+		when(inputGate.getBufferProvider()).thenReturn(bufferProvider);
+
+		LocalInputChannel ch = createLocalInputChannel(
+				inputGate, partitionManager, new Tuple2<Integer, Integer>(0, 0));
+
+		ch.requestSubpartition(0);
+
+		// Should throw an instance of CancelTaskException.
+		ch.getNextBuffer();
 	}
 
 	// ---------------------------------------------------------------------------------------------

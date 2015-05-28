@@ -111,6 +111,11 @@ class SpilledSubpartitionViewSyncIO implements ResultSubpartitionView {
 		return isReleased.get();
 	}
 
+	@Override
+	public Throwable getFailureCause() {
+		return parent.getFailureCause();
+	}
+
 	/**
 	 * A buffer pool to provide buffer to read the file into.
 	 *
