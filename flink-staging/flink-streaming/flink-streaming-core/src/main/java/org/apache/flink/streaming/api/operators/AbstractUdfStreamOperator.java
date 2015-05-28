@@ -97,7 +97,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 		return (Serializable) snapshots;
 	}
 
-	public void confirmCheckpointCompleted(long checkpointId, long timestamp,
+	public void confirmCheckpointCompleted(long checkpointId,
 			StateHandle<Serializable> checkpointedState) throws Exception {
 		if (userFunction instanceof CheckpointCommitter) {
 			try {

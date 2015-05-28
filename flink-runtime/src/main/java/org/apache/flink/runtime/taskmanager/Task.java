@@ -882,7 +882,8 @@ public class Task implements Runnable {
 		}
 	}
 	
-	public void confirmCheckpoint(final long checkpointID, final long checkpointTimestamp) {
+	public void confirmCheckpoint(final long checkpointID, 
+		final SerializedValue<StateHandle<?>> state) {
 		AbstractInvokable invokable = this.invokable;
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
@@ -897,7 +898,7 @@ public class Task implements Runnable {
 					@Override
 					public void run() {
 						try {
-							checkpointer.confirmCheckpoint(checkpointID, checkpointTimestamp);
+							checkpointer.confirmCheckpoint(checkpointID, state);
 						}
 						catch (Throwable t) {
 							logger.error("Error while confirming checkpoint for " + taskName, t);

@@ -20,6 +20,8 @@ package org.apache.flink.runtime.messages.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.SerializedValue;
 
 /**
  * This message is sent from the {@link org.apache.flink.runtime.jobmanager.JobManager} to the
@@ -32,10 +34,15 @@ public class ConfirmCheckpoint extends AbstractCheckpointMessage implements java
 
 	/** The timestamp associated with the checkpoint */
 	private final long timestamp;
+
+	/** The stateHandle associated with the checkpoint confirmation message*/
+	private final SerializedValue<StateHandle<?>> state;
 	
-	public ConfirmCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId, long timestamp) {
+	public ConfirmCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId, long timestamp, 
+		SerializedValue<StateHandle<?>> state) {
 		super(job, taskExecutionId, checkpointId);
 		this.timestamp = timestamp;
+		this.state = state;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -46,6 +53,10 @@ public class ConfirmCheckpoint extends AbstractCheckpointMessage implements java
 
 	// --------------------------------------------------------------------------------------------
 
+	public SerializedValue<StateHandle<?>> getState() {
+		return state;
+	}
+	
 	@Override
 	public int hashCode() {
 		return super.hashCode() + (int) (timestamp ^ (timestamp >>> 32));
