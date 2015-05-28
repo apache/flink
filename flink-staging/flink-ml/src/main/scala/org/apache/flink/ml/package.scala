@@ -18,9 +18,14 @@
 
 package org.apache.flink
 
+import org.apache.flink.api.common.functions.{RichFilterFunction, RichMapFunction}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common.LabeledVector
+
+import scala.reflect.ClassTag
 
 package object ml {
 
@@ -38,9 +43,77 @@ package object ml {
     *
     * @param dataSet
     */
-  implicit class RichDataSet(dataSet: DataSet[LabeledVector]) {
+  implicit class RichLabeledDataSet(dataSet: DataSet[LabeledVector]) {
     def writeAsLibSVM(path: String): DataSink[String] = {
       MLUtils.writeLibSVM(path, dataSet)
+    }
+  }
+
+  implicit class RichDataSet[T](dataSet: DataSet[T]) {
+    def mapWithBcVariable[B, O: TypeInformation: ClassTag](
+        broadcastVariable: DataSet[B])(
+        fun: (T, B) => O)
+      : DataSet[O] = {
+      dataSet.map(new BroadcastSingleElementMapper[T, B, O](dataSet.clean(fun)))
+        .withBroadcastSet(broadcastVariable, "broadcastVariable")
+    }
+
+    def filterWithBcVariable[B, O](broadcastVariable: DataSet[B])(fun: (T, B) => Boolean)
+      : DataSet[T] = {
+      dataSet.filter(new BroadcastSingleElementFilter[T, B](dataSet.clean(fun)))
+        .withBroadcastSet(broadcastVariable, "broadcastVariable")
+    }
+
+    def mapWithBcVariableIteration[B, O: TypeInformation: ClassTag](
+        broadcastVariable: DataSet[B])(fun: (T, B, Int) => O)
+      : DataSet[O] = {
+      dataSet.map(new BroadcastSingleElementMapperWithIteration[T, B, O](dataSet.clean(fun)))
+        .withBroadcastSet(broadcastVariable, "broadcastVariable")
+    }
+  }
+
+  private class BroadcastSingleElementMapper[T, B, O](
+      fun: (T, B) => O)
+    extends RichMapFunction[T, O] {
+    var broadcastVariable: B = _
+
+    @throws(classOf[Exception])
+    override def open(configuration: Configuration): Unit = {
+      broadcastVariable = getRuntimeContext.getBroadcastVariable[B]("broadcastVariable").get(0)
+    }
+
+    override def map(value: T): O = {
+      fun(value, broadcastVariable)
+    }
+  }
+
+  private class BroadcastSingleElementMapperWithIteration[T, B, O](
+      fun: (T, B, Int) => O)
+    extends RichMapFunction[T, O] {
+    var broadcastVariable: B = _
+
+    @throws(classOf[Exception])
+    override def open(configuration: Configuration): Unit = {
+      broadcastVariable = getRuntimeContext.getBroadcastVariable[B]("broadcastVariable").get(0)
+    }
+
+    override def map(value: T): O = {
+      fun(value, broadcastVariable, getIterationRuntimeContext.getSuperstepNumber)
+    }
+  }
+
+  private class BroadcastSingleElementFilter[T, B](
+      fun: (T, B) => Boolean)
+    extends RichFilterFunction[T] {
+    var broadcastVariable: B = _
+
+    @throws(classOf[Exception])
+    override def open(configuration: Configuration): Unit = {
+      broadcastVariable = getRuntimeContext.getBroadcastVariable[B]("broadcastVariable").get(0)
+    }
+
+    override def filter(value: T): Boolean = {
+      fun(value, broadcastVariable)
     }
   }
 }

@@ -29,4 +29,4 @@ import org.apache.flink.ml.math.Vector
   * @param weights The vector of weights
   * @param intercept The intercept (bias) weight
   */
-case class WeightVector(weights: Vector, var intercept: Double) extends Serializable {}
+case class WeightVector(weights: Vector, intercept: Double) extends Serializable {}
