@@ -20,13 +20,18 @@ package org.apache.flink.streaming.api.operators.windowing;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.policy.CentralActiveTrigger;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GroupedActiveDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 
-	private static final long serialVersionUID = -3469545957144404137L;
+	private static final long serialVersionUID = 1L;
+
+	private static final Logger LOG = LoggerFactory.getLogger(GroupedActiveDiscretizer.class);
 
 	private volatile IN last;
 	private Thread centralThread;
+	private CentralCheck centralCheck;
 
 	public GroupedActiveDiscretizer(KeySelector<IN, ?> keySelector,
 			CentralActiveTrigger<IN> triggerPolicy, CloneableEvictionPolicy<IN> evictionPolicy) {
@@ -39,18 +44,18 @@ public class GroupedActiveDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 		StreamDiscretizer<IN> groupDiscretizer = new StreamDiscretizer<IN>(triggerPolicy.clone(),
 				evictionPolicy.clone());
 
-		groupDiscretizer.collector = taskContext.getOutputCollector();
+		groupDiscretizer.setup(this.output, this.runtimeContext);
 		// We omit the groupDiscretizer.open(...) call here to avoid starting
 		// new active threads
 		return groupDiscretizer;
 	}
 
 	@Override
-	public void run() throws Exception {
+	public void processElement(IN element) throws Exception {
 
-		while (isRunning && readNext() != null) {
-			last = copy(nextObject);
-			Object key = keySelector.getKey(nextObject);
+//			last = copy(element);
+			last = element;
+			Object key = keySelector.getKey(element);
 
 			synchronized (groupedDiscretizers) {
 				StreamDiscretizer<IN> groupDiscretizer = groupedDiscretizers.get(key);
@@ -60,29 +65,46 @@ public class GroupedActiveDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 					groupedDiscretizers.put(key, groupDiscretizer);
 				}
 
-				groupDiscretizer.processRealElement(nextObject);
+				groupDiscretizer.processRealElement(element);
 			}
 
-		}
 
-		for (StreamDiscretizer<IN> group : groupedDiscretizers.values()) {
-			group.emitWindow();
-		}
+
 
 	}
 
 	@Override
 	public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {
 		super.open(parameters);
-		centralThread = new Thread(new CentralCheck());
+		centralCheck = new CentralCheck();
+		centralThread = new Thread(centralCheck);
 		centralThread.start();
+	}
+
+	@Override
+	public void close() throws Exception {
+		super.close();
+		for (StreamDiscretizer<IN> group : groupedDiscretizers.values()) {
+			group.emitWindow();
+		}
+
+		try {
+			centralCheck.running = false;
+			centralThread.interrupt();
+			centralThread.join();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			LOG.info("GroupedActiveDiscretizer got interruped while joining with central thread: {}", e);
+		}
 	}
 
 	private class CentralCheck implements Runnable {
 
+		volatile boolean running = true;
+
 		@Override
 		public void run() {
-			while (isRunning) {
+			while (running) {
 				// wait for the specified granularity
 				try {
 					Thread.sleep(2000);

@@ -18,37 +18,28 @@
 package org.apache.flink.streaming.api.operators.co;
 
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 
-public class CoStreamMap<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OUT> {
+public class CoStreamMap<IN1, IN2, OUT>
+		extends AbstractUdfStreamOperator<OUT, CoMapFunction<IN1, IN2, OUT>>
+		implements TwoInputStreamOperator<IN1, IN2, OUT> {
+
 	private static final long serialVersionUID = 1L;
-
-	private CoMapFunction<IN1, IN2, OUT> mapper;
 
 	public CoStreamMap(CoMapFunction<IN1, IN2, OUT> mapper) {
 		super(mapper);
-		this.mapper = mapper;
 	}
 
 	@Override
-	public void handleStream1() throws Exception {
-		callUserFunctionAndLogException1();
-	}
-
-	@Override
-	public void handleStream2() throws Exception {
-		callUserFunctionAndLogException2();
-	}
-
-	@Override
-	protected void callUserFunction1() throws Exception {
-		collector.collect(mapper.map1(reuse1.getObject()));
+	public void processElement1(IN1 element) throws Exception {
+		output.collect(userFunction.map1(element));
 
 	}
 
 	@Override
-	protected void callUserFunction2() throws Exception {
-		collector.collect(mapper.map2(reuse2.getObject()));
+	public void processElement2(IN2 element) throws Exception {
+		output.collect(userFunction.map2(element));
 
 	}
-
 }

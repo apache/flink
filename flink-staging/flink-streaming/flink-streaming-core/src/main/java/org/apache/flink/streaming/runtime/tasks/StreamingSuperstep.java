@@ -27,34 +27,57 @@ import org.apache.flink.runtime.event.task.TaskEvent;
 public class StreamingSuperstep extends TaskEvent {
 
 	protected long id;
+	protected long timestamp;
 
-	public StreamingSuperstep() {
+	public StreamingSuperstep() {}
 
-	}
-
-	public StreamingSuperstep(long id) {
+	public StreamingSuperstep(long id, long timestamp) {
 		this.id = id;
-	}
-
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeLong(id);
-	}
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-		id = in.readLong();
+		this.timestamp = timestamp;
 	}
 
 	public long getId() {
 		return id;
 	}
 
+	public long getTimestamp() {
+		return id;
+	}
+
+	// ------------------------------------------------------------------------
+	
+	@Override
+	public void write(DataOutputView out) throws IOException {
+		out.writeLong(id);
+		out.writeLong(timestamp);
+	}
+
+	@Override
+	public void read(DataInputView in) throws IOException {
+		id = in.readLong();
+		timestamp = in.readLong();
+	}
+	
+	// ------------------------------------------------------------------------
+
+	@Override
+	public int hashCode() {
+		return (int) (id ^ (id >>> 32) ^ timestamp ^(timestamp >>> 32));
+	}
+
+	@Override
 	public boolean equals(Object other) {
 		if (other == null || !(other instanceof StreamingSuperstep)) {
 			return false;
-		} else {
-			return ((StreamingSuperstep) other).id == this.id;
 		}
+		else {
+			StreamingSuperstep that = (StreamingSuperstep) other;
+			return that.id == this.id && that.timestamp == this.timestamp;
+		}
+	}
+
+	@Override
+	public String toString() {
+		return String.format("StreamingSuperstep %d @ %d", id, timestamp);
 	}
 }

@@ -25,6 +25,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -53,7 +54,8 @@ public class SchedulerTestUtils {
 		InetAddress address;
 		try {
 			address = InetAddress.getByName("127.0.0.1");
-		} catch (UnknownHostException e) {
+		}
+		catch (UnknownHostException e) {
 			throw new RuntimeException("Test could not create IP address for localhost loopback.");
 		}
 		
@@ -133,9 +135,7 @@ public class SchedulerTestUtils {
 		}
 		
 		HashSet<Object> set = new HashSet<Object>();
-		for (Object o : obj) {
-			set.add(o);
-		}
+		Collections.addAll(set, obj);
 		
 		return set.size() == obj.length;
 	}
@@ -154,5 +154,4 @@ public class SchedulerTestUtils {
 		
 		return set.isEmpty();
 	}
-	
 }

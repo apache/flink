@@ -24,6 +24,7 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -48,7 +49,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 			env.setParallelism(43);
 			
 			IterativeDataSet<Long> iteration = env.generateSequence(-4, 1000).iterate(100);
-			iteration.closeWith(iteration).print();
+			iteration.closeWith(iteration).output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -76,7 +77,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 					
 			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iter = input.iterateDelta(input, 100, 0);
 			iter.closeWith(iter.getWorkset(), iter.getWorkset())
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -99,7 +100,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 			
 			iteration.closeWith(
 					iteration.map(new IdentityMapper<Long>()).union(iteration.map(new IdentityMapper<Long>())))
-					.print();
+					.output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -150,7 +151,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 				.union(
 						iter.getWorkset().map(new IdentityMapper<Tuple2<Long,Long>>()))
 				)
-			.print();
+			.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);

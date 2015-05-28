@@ -100,10 +100,9 @@ public class ReusingReOpenableHashTableITCase {
 	private TypeComparator<Record> recordProbeSideComparator;
 	private TypePairComparator<Record, Record> pactRecordComparator;
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Before
-	public void beforeTest()
-	{
+	public void beforeTest() {
 		this.recordSerializer = RecordSerializer.get();
 		
 		this.record1Comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
@@ -120,13 +119,12 @@ public class ReusingReOpenableHashTableITCase {
 		this.recordProbeSideComparator = new RecordComparator(keyPos, keyType);
 		this.pactRecordComparator = new HashTableITCase.RecordPairComparatorFirstInt();
 		
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE,1, PAGE_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1, PAGE_SIZE, true);
 		this.ioManager = new IOManagerAsync();
 	}
 
 	@After
-	public void afterTest()
-	{
+	public void afterTest() {
 		if (this.ioManager != null) {
 			this.ioManager.shutdown();
 			if (!this.ioManager.isProperlyShutDown()) {

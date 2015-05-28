@@ -21,9 +21,10 @@ package org.apache.flink.api.scala.operators;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -32,8 +33,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.AggregationFunctionFactory;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.SingleInputOperator;
@@ -42,6 +41,7 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
+import com.google.common.base.Preconditions;
 import scala.Product;
 
 /**
@@ -63,9 +63,9 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 	 * Non grouped aggregation
 	 */
 	public ScalaAggregateOperator(org.apache.flink.api.java.DataSet<IN> input, Aggregations function, int field) {
-		super(Validate.notNull(input), input.getType());
+		super(Preconditions.checkNotNull(input), input.getType());
 
-		Validate.notNull(function);
+		Preconditions.checkNotNull(function);
 
 		if (!input.getType().isTupleType()) {
 			throw new InvalidProgramException("Aggregating on field positions is only possible on tuple data types.");
@@ -95,9 +95,9 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 	 * @param field
 	 */
 	public ScalaAggregateOperator(Grouping<IN> input, Aggregations function, int field) {
-		super(Validate.notNull(input).getDataSet(), input.getDataSet().getType());
+		super(Preconditions.checkNotNull(input).getDataSet(), input.getDataSet().getType());
 
-		Validate.notNull(function);
+		Preconditions.checkNotNull(function);
 
 		if (!input.getDataSet().getType().isTupleType()) {
 			throw new InvalidProgramException("Aggregating on field positions is only possible on tuple data types.");
@@ -120,7 +120,7 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 
 
 	public ScalaAggregateOperator<IN> and(Aggregations function, int field) {
-		Validate.notNull(function);
+		Preconditions.checkNotNull(function);
 
 		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) getType();
 
@@ -243,10 +243,10 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 		private TypeInformation<T> typeInfo;
 
 		public AggregatingUdf(TypeInformation<T> typeInfo, AggregationFunction<Object>[] aggFunctions, int[] fieldPositions) {
-			Validate.notNull(typeInfo);
-			Validate.notNull(aggFunctions);
-			Validate.isTrue(aggFunctions.length == fieldPositions.length);
-			Validate.isTrue(typeInfo.isTupleType(), "TypeInfo for Scala Aggregate Operator must be a tuple TypeInfo.");
+			Preconditions.checkNotNull(typeInfo);
+			Preconditions.checkNotNull(aggFunctions);
+			Preconditions.checkArgument(aggFunctions.length == fieldPositions.length);
+			Preconditions.checkArgument(typeInfo.isTupleType(), "TypeInfo for Scala Aggregate Operator must be a tuple TypeInfo.");
 			this.typeInfo = typeInfo;
 			this.aggFunctions = aggFunctions;
 			this.fieldPositions = fieldPositions;

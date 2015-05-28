@@ -20,6 +20,7 @@ package org.apache.flink.test.compiler.examples;
 
 import java.util.Arrays;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.distributions.SimpleDistribution;
 import org.apache.flink.api.common.operators.Order;
@@ -62,8 +63,10 @@ public class WordCountCompilerTest extends CompilerTestBase {
 	private void checkWordCount(boolean estimates) {
 		try {
 			WordCount wc = new WordCount();
+			ExecutionConfig ec = new ExecutionConfig();
 			Plan p = wc.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE);
-			
+			p.setExecutionConfig(ec);
+
 			OptimizedPlan plan;
 			if (estimates) {
 				FileDataSource source = getContractResolver(p).getNode("Input Lines");
@@ -133,9 +136,11 @@ public class WordCountCompilerTest extends CompilerTestBase {
 			
 			Ordering ordering = new Ordering(0, StringValue.class, Order.DESCENDING);
 			out.setGlobalOrder(ordering, new SimpleDistribution(new StringValue[] {new StringValue("N")}));
-			
+
+			ExecutionConfig ec = new ExecutionConfig();
 			Plan p = new Plan(out, "WordCount Example");
 			p.setDefaultParallelism(DEFAULT_PARALLELISM);
+			p.setExecutionConfig(ec);
 	
 			OptimizedPlan plan;
 			if (estimates) {

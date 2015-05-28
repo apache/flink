@@ -24,7 +24,15 @@ import org.apache.flink.runtime.instance.InstanceID
  * Miscellaneous actor messages exchanged with the TaskManager.
  */
 object TaskManagerMessages {
-
+  
+  /**
+   * This message informs the TaskManager about a fatal error that prevents
+   * it from continuing.
+   * 
+   * @param description The description of the problem
+   */
+  case class FatalError(description: String, cause: Throwable)
+  
   /**
    * Tells the task manager to send a heartbeat message to the job manager.
    */
@@ -49,7 +57,7 @@ object TaskManagerMessages {
 
 
   // --------------------------------------------------------------------------
-  //  Utility messages used for notifications during TaskManager startup
+  //  Reporting the current TaskManager stack trace
   // --------------------------------------------------------------------------
 
   /**

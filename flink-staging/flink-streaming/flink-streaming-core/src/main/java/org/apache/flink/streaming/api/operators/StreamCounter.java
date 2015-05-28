@@ -17,28 +17,18 @@
 
 package org.apache.flink.streaming.api.operators;
 
+public class StreamCounter<IN> extends AbstractStreamOperator<Long> implements OneInputStreamOperator<IN, Long> {
 
-public class StreamCounter<IN> extends ChainableStreamOperator<IN, Long> {
 	private static final long serialVersionUID = 1L;
 
-	Long count = 0L;
+	private Long count = 0L;
 
 	public StreamCounter() {
-		super(null);
+		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override
-	public void run() throws Exception {
-		while (isRunning && readNext() != null) {
-			collector.collect(++count);
-		}
+	public void processElement(IN element) {
+		output.collect(++count);
 	}
-
-	@Override
-	public void collect(IN record) {
-		if (isRunning) {
-			collector.collect(++count);
-		}
-	}
-
 }

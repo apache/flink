@@ -21,6 +21,8 @@ package org.apache.flink.runtime.taskmanager;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -78,6 +80,37 @@ public class TaskExecutionStateTest {
 			// hash codes
 			assertEquals(original1.hashCode(), javaSerCopy1.hashCode());
 			assertEquals(original2.hashCode(), javaSerCopy2.hashCode());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void hanleNonSerializableException() {
+		try {
+			@SuppressWarnings({"ThrowableInstanceNeverThrown", "serial"})
+			Exception hostile = new Exception() {
+				// should be non serializable, because it contains the outer class reference
+				
+				@Override
+				public String getMessage() {
+					throw new RuntimeException("Cannot get Message");
+				}
+
+				@Override
+				public void printStackTrace(PrintStream s) {
+					throw new RuntimeException("Cannot print");
+				}
+
+				@Override
+				public void printStackTrace(PrintWriter s) {
+					throw new RuntimeException("Cannot print");
+				}
+			};
+
+			new TaskExecutionState(new JobID(), new ExecutionAttemptID(), ExecutionState.FAILED, hostile);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

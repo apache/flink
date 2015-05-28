@@ -30,33 +30,32 @@ import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.client._
+import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
-import org.apache.flink.runtime.messages.CheckpointingMessages.{StateBarrierAck, BarrierAck}
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
-import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
+import org.apache.flink.runtime.messages.TaskMessages
+import org.apache.flink.runtime.messages.TaskMessages.{FailTask, PartitionState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.messages.accumulators._
+import org.apache.flink.runtime.messages.checkpoint.{AcknowledgeCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.{SerializedValue, EnvironmentInformation}
-import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
+import org.apache.flink.runtime.{StreamingMode, ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
-import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus}
+import org.apache.flink.runtime.jobgraph.{JobVertexID, JobGraph, JobStatus}
 import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, Heartbeat}
-import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.apache.flink.util.{ExceptionUtils, InstantiationUtil}
-
-import org.slf4j.LoggerFactory
 
 import akka.actor._
 
@@ -92,20 +91,20 @@ import scala.collection.JavaConverters._
  * - [[JobStatusChanged]] indicates that the status of job (RUNNING, CANCELING, FINISHED, etc.) has
  * changed. This message is sent by the ExecutionGraph.
  */
-class JobManager(val flinkConfiguration: Configuration,
-                 val instanceManager: InstanceManager,
-                 val scheduler: FlinkScheduler,
-                 val libraryCacheManager: BlobLibraryCacheManager,
-                 val archive: ActorRef,
-                 val accumulatorManager: AccumulatorManager,
-                 val profiler: Option[ActorRef],
-                 val defaultExecutionRetries: Int,
-                 val delayBetweenRetries: Long,
-                 val timeout: FiniteDuration)
+class JobManager(protected val flinkConfiguration: Configuration,
+                 protected val instanceManager: InstanceManager,
+                 protected val scheduler: FlinkScheduler,
+                 protected val libraryCacheManager: BlobLibraryCacheManager,
+                 protected val archive: ActorRef,
+                 protected val accumulatorManager: AccumulatorManager,
+                 protected val defaultExecutionRetries: Int,
+                 protected val delayBetweenRetries: Long,
+                 protected val timeout: FiniteDuration,
+                 protected val mode: StreamingMode)
   extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
   /** List of current jobs running jobs */
-  val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
+  protected val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
 
 
   /**
@@ -124,7 +123,6 @@ class JobManager(val flinkConfiguration: Configuration,
     }
 
     archive ! PoisonPill
-    profiler.foreach( ref => ref ! PoisonPill )
 
     for((e,_) <- currentJobs.values) {
       e.fail(new Exception("The JobManager is shutting down."))
@@ -283,6 +281,9 @@ class JobManager(val flinkConfiguration: Configuration,
 
       sender ! NextInputSplit(serializedInputSplit)
 
+    case checkpointMessage : AbstractCheckpointMessage =>
+      handleCheckpointMessage(checkpointMessage)
+
     case JobStatusChanged(jobID, newJobStatus, timeStamp, error) =>
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
@@ -328,19 +329,6 @@ class JobManager(val flinkConfiguration: Configuration,
           removeJob(jobID)
       }
 
-    case msg: BarrierAck =>
-      currentJobs.get(msg.jobID) match {
-        case Some(jobExecution) =>
-          jobExecution._1.getStateCheckpointerActor forward  msg
-        case None =>
-      }
-    case msg: StateBarrierAck =>
-      currentJobs.get(msg.jobID) match {
-        case Some(jobExecution) =>
-          jobExecution._1.getStateCheckpointerActor forward  msg
-        case None =>
-      }
-
     case ScheduleOrUpdateConsumers(jobId, partitionId) =>
       currentJobs.get(jobId) match {
         case Some((executionGraph, _)) =>
@@ -352,6 +340,23 @@ class JobManager(val flinkConfiguration: Configuration,
           sender ! Failure(new IllegalStateException("Cannot find execution graph for job ID " +
             s"$jobId to schedule or update consumers."))
       }
+
+    case RequestPartitionState(jobId, partitionId, taskExecutionId, taskResultId) =>
+      val state = currentJobs.get(jobId) match {
+        case Some((executionGraph, _)) =>
+          val execution = executionGraph.getRegisteredExecutions.get(partitionId.getProducerId)
+
+          if (execution != null) execution.getState else null
+        case None =>
+          // Nothing to do. This is not an error, because the request is received when a sending
+          // task fails during a remote partition request.
+          log.debug(s"Cannot find execution graph for job $jobId.")
+
+          null
+      }
+
+      sender ! PartitionState(
+        taskExecutionId, taskResultId, partitionId.getPartitionId, state)
 
     case RequestJobStatus(jobID) =>
       currentJobs.get(jobID) match {
@@ -491,10 +496,7 @@ class JobManager(val flinkConfiguration: Configuration,
         executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
         executionGraph.setScheduleMode(jobGraph.getScheduleMode)
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
-
-        executionGraph.setCheckpointingEnabled(jobGraph.isCheckpointingEnabled)
-        executionGraph.setCheckpointingInterval(jobGraph.getCheckpointingInterval)
-
+        
         // initialize the vertices that have a master initialization hook
         // file output formats create directories here, input formats create splits
         if (log.isDebugEnabled) {
@@ -536,8 +538,33 @@ class JobManager(val flinkConfiguration: Configuration,
           log.debug(s"Successfully created execution graph from job graph ${jobId} (${jobName}).")
         }
 
-        // give an actorContext
-        executionGraph.setParentContext(context)
+        // configure the state checkpointing
+        val snapshotSettings = jobGraph.getSnapshotSettings
+        if (snapshotSettings != null) {
+
+          val idToVertex: JobVertexID => ExecutionJobVertex = id => {
+            val vertex = executionGraph.getJobVertex(id)
+            if (vertex == null) {
+              throw new JobSubmissionException(jobId,
+                "The snapshot checkpointing settings refer to non-existent vertex " + id)
+            }
+            vertex
+          }
+
+          val triggerVertices: java.util.List[ExecutionJobVertex] =
+            snapshotSettings.getVerticesToTrigger.asScala.map(idToVertex).asJava
+
+          val ackVertices: java.util.List[ExecutionJobVertex] =
+            snapshotSettings.getVerticesToAcknowledge.asScala.map(idToVertex).asJava
+
+          val confirmVertices: java.util.List[ExecutionJobVertex] =
+            snapshotSettings.getVerticesToConfirm.asScala.map(idToVertex).asJava
+
+          executionGraph.enableSnaphotCheckpointing(
+            snapshotSettings.getCheckpointInterval, snapshotSettings.getCheckpointTimeout,
+            triggerVertices, ackVertices, confirmVertices,
+            context.system)
+        }
 
         // get notified about job status changes
         executionGraph.registerJobStatusListener(self)
@@ -592,6 +619,40 @@ class JobManager(val flinkConfiguration: Configuration,
     }
   }
 
+  /**
+   * Dedicated handler for checkpoint messages.
+   * 
+   * @param actorMessage The checkpoint actor message.
+   */
+  private def handleCheckpointMessage(actorMessage: AbstractCheckpointMessage): Unit = {
+    actorMessage match {
+      case ackMessage: AcknowledgeCheckpoint =>
+        val jid = ackMessage.getJob()
+        currentJobs.get(jid) match {
+          case Some((graph, _)) =>
+            val coordinator = graph.getCheckpointCoordinator()
+            if (coordinator != null) {
+              try {
+                coordinator.receiveAcknowledgeMessage(ackMessage)
+              }
+              catch {
+                case t: Throwable =>
+                  log.error(s"Error in CheckpointCoordinator while processing $ackMessage", t)
+              }
+            }
+            else {
+              log.error(
+                s"Received ConfirmCheckpoint message for job $jid with no CheckpointCoordinator")
+            }
+            
+          case None => log.error(s"Received ConfirmCheckpoint for unavailable job $jid")
+        }
+
+      // unknown checkpoint message
+      case _ => unhandled(actorMessage)
+    }
+  }
+  
   /**
    * Handle unmatched messages with an exception.
    */
@@ -699,10 +760,11 @@ object JobManager {
   val STARTUP_FAILURE_RETURN_CODE = 1
   val RUNTIME_FAILURE_RETURN_CODE = 2
 
+  /** Name of the JobManager actor */
   val JOB_MANAGER_NAME = "jobmanager"
-  val EVENT_COLLECTOR_NAME = "eventcollector"
+
+  /** Name of the archive actor */
   val ARCHIVE_NAME = "archive"
-  val PROFILER_NAME = "profiler"
 
 
   /**
@@ -718,6 +780,7 @@ object JobManager {
     // parsing the command line arguments
     val (configuration: Configuration,
          executionMode: JobManagerMode,
+         streamingMode: StreamingMode,
          listeningHost: String, listeningPort: Int) =
     try {
       parseArgs(args)
@@ -754,13 +817,15 @@ object JobManager {
         LOG.info("Security is enabled. Starting secure JobManager.")
         SecurityUtils.runSecured(new FlinkSecuredRunner[Unit] {
           override def run(): Unit = {
-            runJobManager(configuration, executionMode, listeningHost, listeningPort)
+            runJobManager(configuration, executionMode, streamingMode,
+                          listeningHost, listeningPort)
           }
         })
       }
       else {
         LOG.info("Security is not enabled. Starting non-authenticated JobManager.")
-        runJobManager(configuration, executionMode, listeningHost, listeningPort)
+        runJobManager(configuration, executionMode, streamingMode,
+                      listeningHost, listeningPort)
       }
     }
     catch {
@@ -782,11 +847,13 @@ object JobManager {
    * @param configuration The configuration object for the JobManager.
    * @param executionMode The execution mode in which to run. Execution mode LOCAL will spawn an
    *                      an additional TaskManager in the same process.
+   * @param streamingMode The streaming mode to run the system in (streaming vs. batch-only)
    * @param listeningAddress The hostname where the JobManager should listen for messages.
    * @param listeningPort The port where the JobManager should listen for messages.
    */
   def runJobManager(configuration: Configuration,
                     executionMode: JobManagerMode,
+                    streamingMode: StreamingMode,
                     listeningAddress: String,
                     listeningPort: Int) : Unit = {
 
@@ -820,7 +887,8 @@ object JobManager {
     try {
       // bring up the job manager actor
       LOG.info("Starting JobManager actor")
-      val (jobManager, archiver) = startJobManagerActors(configuration, jobManagerSystem)
+      val (jobManager, archiver) = startJobManagerActors(configuration, 
+                                                         jobManagerSystem, streamingMode)
 
       // start a process reaper that watches the JobManager. If the JobManager actor dies,
       // the process reaper will kill the JVM process (to ensure easy failure detection)
@@ -838,7 +906,8 @@ object JobManager {
                         listeningAddress,
                         Some(TaskManager.TASK_MANAGER_NAME),
                         Some(jobManager.path.toString),
-                        true, classOf[TaskManager])
+                        true, streamingMode,
+                        classOf[TaskManager])
 
         LOG.debug("Starting TaskManager process reaper")
         jobManagerSystem.actorOf(
@@ -876,66 +945,65 @@ object JobManager {
    * @param args command line arguments
    * @return Quadruple of configuration, execution mode and an optional listening address
    */
-  def parseArgs(args: Array[String]): (Configuration, JobManagerMode, String, Int) = {
-    val parser = new scopt.OptionParser[JobManagerCLIConfiguration]("JobManager") {
+  def parseArgs(args: Array[String]):
+                     (Configuration, JobManagerMode, StreamingMode, String, Int) = {
+    val parser = new scopt.OptionParser[JobManagerCliOptions]("JobManager") {
       head("Flink JobManager")
 
-      opt[String]("configDir") action { (arg, c) => c.copy(configDir = arg) } text {
-        "The configuration directory." }
+      opt[String]("configDir") action { (arg, conf) => 
+        conf.setConfigDir(arg)
+        conf
+      } text {
+        "The configuration directory."
+      }
 
-      opt[String]("executionMode") action { (arg, c) =>
-        val argLower = arg.toLowerCase()
-        var result: JobManagerCLIConfiguration = null
-
-        for (mode <- JobManagerMode.values() if result == null) {
-          val modeName = mode.name().toLowerCase()
-
-          if (modeName.equals(argLower)) {
-            result = c.copy(executionMode = mode)
-          }
-        }
-
-        if (result == null) {
-          throw new Exception("Unknown execution mode: " + arg)
-        } else {
-          result
-        }
+      opt[String]("executionMode") action { (arg, conf) =>
+        conf.setJobManagerMode(arg)
+        conf
       } text {
         "The execution mode of the JobManager (CLUSTER / LOCAL)"
       }
+
+      opt[String]("streamingMode").optional().action { (arg, conf) =>
+        conf.setStreamingMode(arg)
+        conf
+      } text {
+        "The streaming mode of the JobManager (STREAMING / BATCH)"
+      }
     }
 
-    parser.parse(args, JobManagerCLIConfiguration()) map {
-      config =>
-
-        if (config.configDir == null) {
-          throw new Exception("Missing parameter '--configDir'")
-        }
-        if (config.executionMode == null) {
-          throw new Exception("Missing parameter '--executionMode'")
-        }
-
-        LOG.info("Loading configuration from " + config.configDir)
-        GlobalConfiguration.loadConfiguration(config.configDir)
-        val configuration = GlobalConfiguration.getConfiguration
-
-        if (config.configDir != null && new File(config.configDir).isDirectory) {
-          configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, config.configDir + "/..")
-        }
-
-        val hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
-        val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
-
-        (configuration, config.executionMode, hostname, port)
-    } getOrElse {
-      throw new Exception("Invalid command line arguments: " + parser.usage)
+    val config = parser.parse(args, new JobManagerCliOptions()).getOrElse {
+      throw new Exception(
+        s"Invalid command line agruments: ${args.mkString(" ")}. Usage: ${parser.usage}")
     }
+    
+    val configDir = config.getConfigDir()
+    
+    if (configDir == null) {
+      throw new Exception("Missing parameter '--configDir'")
+    }
+    if (config.getJobManagerMode() == null) {
+      throw new Exception("Missing parameter '--executionMode'")
+    }
+
+    LOG.info("Loading configuration from " + configDir)
+    GlobalConfiguration.loadConfiguration(configDir)
+    val configuration = GlobalConfiguration.getConfiguration()
+
+    if (new File(configDir).isDirectory) {
+      configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, configDir + "/..")
+    }
+
+    val hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+    val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+
+    (configuration, config.getJobManagerMode(), config.getStreamingMode(), hostname, port)
   }
 
   /**
    * Create the job manager components as (instanceManager, scheduler, libraryCacheManager,
-   *              archiverProps, accumulatorManager, profiler, defaultExecutionRetries,
+   *              archiverProps, accumulatorManager, defaultExecutionRetries,
    *              delayBetweenRetries, timeout)
    *
    * @param configuration The configuration from which to parse the config values.
@@ -943,14 +1011,12 @@ object JobManager {
    */
   def createJobManagerComponents(configuration: Configuration) :
     (InstanceManager, FlinkScheduler, BlobLibraryCacheManager,
-      Props, AccumulatorManager, Option[Props], Int, Long, FiniteDuration, Int) = {
+      Props, AccumulatorManager, Int, Long, FiniteDuration, Int) = {
 
     val timeout: FiniteDuration = AkkaUtils.getTimeout(configuration)
 
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
       ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT)
-
-    val profilingEnabled = configuration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, false)
 
     val cleanupInterval = configuration.getLong(
       ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
@@ -977,12 +1043,6 @@ object JobManager {
       }
 
     val archiveProps: Props = Props(classOf[MemoryArchivist], archiveCount)
-
-    val profilerProps: Option[Props] = if (profilingEnabled) {
-      Some(Props(classOf[JobManagerProfiler]))
-    } else {
-      None
-    }
 
     val accumulatorManager: AccumulatorManager = new AccumulatorManager(Math.min(1, archiveCount))
 
@@ -1018,7 +1078,7 @@ object JobManager {
     }
 
     (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
-      profilerProps, executionRetries, delayBetweenRetries, timeout, archiveCount)
+      executionRetries, delayBetweenRetries, timeout, archiveCount)
   }
 
   /**
@@ -1030,9 +1090,12 @@ object JobManager {
    * @return A tuple of references (JobManager Ref, Archiver Ref)
    */
   def startJobManagerActors(configuration: Configuration,
-                            actorSystem: ActorSystem): (ActorRef, ActorRef) = {
+                            actorSystem: ActorSystem,
+                            streamingMode: StreamingMode): (ActorRef, ActorRef) = {
 
-    startJobManagerActors(configuration,actorSystem, Some(JOB_MANAGER_NAME), Some(ARCHIVE_NAME))
+    startJobManagerActors(configuration, actorSystem,
+                          Some(JOB_MANAGER_NAME), Some(ARCHIVE_NAME),
+                          streamingMode)
   }
   /**
    * Starts the JobManager and job archiver based on the given configuration, in the
@@ -1044,29 +1107,29 @@ object JobManager {
    *                          the actor will have the name generated by the actor system.
    * @param archiverActorName Optionally the name of the archive actor. If none is given,
    *                          the actor will have the name generated by the actor system.
+   * @param streamingMode The mode to run the system in (streaming vs. batch-only)
+   * 
    * @return A tuple of references (JobManager Ref, Archiver Ref)
    */
   def startJobManagerActors(configuration: Configuration,
                             actorSystem: ActorSystem,
                             jobMangerActorName: Option[String],
-                            archiverActorName: Option[String]): (ActorRef, ActorRef) = {
+                            archiverActorName: Option[String],
+                            streamingMode: StreamingMode): (ActorRef, ActorRef) = {
 
     val (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
-      profilerProps, executionRetries, delayBetweenRetries,
+      executionRetries, delayBetweenRetries,
       timeout, _) = createJobManagerComponents(configuration)
 
-    val profiler: Option[ActorRef] =
-                 profilerProps.map( props => actorSystem.actorOf(props, PROFILER_NAME) )
-
-    // start the archiver wither with the given name, or without (avoid name conflicts)
+    // start the archiver with the given name, or without (avoid name conflicts)
     val archiver: ActorRef = archiverActorName match {
       case Some(actorName) => actorSystem.actorOf(archiveProps, actorName)
       case None => actorSystem.actorOf(archiveProps)
     }
 
     val jobManagerProps = Props(classOf[JobManager], configuration, instanceManager, scheduler,
-        libraryCacheManager, archiver, accumulatorManager, profiler, executionRetries,
-        delayBetweenRetries, timeout)
+        libraryCacheManager, archiver, accumulatorManager, executionRetries,
+        delayBetweenRetries, timeout, streamingMode)
 
     val jobManager: ActorRef = jobMangerActorName match {
       case Some(actorName) => actorSystem.actorOf(jobManagerProps, actorName)

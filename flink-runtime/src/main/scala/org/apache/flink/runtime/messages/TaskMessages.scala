@@ -18,14 +18,16 @@
 
 package org.apache.flink.runtime.messages
 
-import org.apache.flink.runtime.deployment.{TaskDeploymentDescriptor, InputChannelDeploymentDescriptor}
+import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
+import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
+import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, IntermediateResultPartitionID}
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
 /**
  * A set of messages that control the deployment and the state of Tasks executed
- * on the TaskManager
+ * on the TaskManager.
  */
 object TaskMessages {
 
@@ -67,18 +69,27 @@ object TaskMessages {
     extends TaskMessage
 
   /**
-   * Unregister the task identified by [[executionID]] from the TaskManager.
-   * Sent to the TaskManager by futures and callbacks.
+   * Notifies the TaskManager that the task has reached its final state,
+   * either FINISHED, CANCELED, or FAILED.
    *
    * @param executionID The task's execution attempt ID.
    */
-  case class UnregisterTask(executionID: ExecutionAttemptID)
+  case class TaskInFinalState(executionID: ExecutionAttemptID)
     extends TaskMessage
 
 
   // --------------------------------------------------------------------------
   //  Updates to Intermediate Results
   // --------------------------------------------------------------------------
+
+  /**
+   * Answer to a [[RequestPartitionState]] with the state of the respective partition.
+   */
+  case class PartitionState(
+    taskExecutionId: ExecutionAttemptID,
+    taskResultId: IntermediateDataSetID,
+    partitionId: IntermediateResultPartitionID,
+    state: ExecutionState) extends TaskMessage
 
   /**
    * Base class for messages that update the information about location of input partitions

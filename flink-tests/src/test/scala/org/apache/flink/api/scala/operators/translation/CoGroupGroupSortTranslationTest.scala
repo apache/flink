@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala.operators.translation
 
+import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.optimizer.util.CompilerTestBase
 import org.junit.Assert._
 import org.junit.Test
@@ -49,7 +50,7 @@ class CoGroupGroupSortTranslationTest {
           .sortSecondGroup(1, Order.ASCENDING).sortSecondGroup(0, Order.DESCENDING) {
                (first, second) => first.buffered.head
             }
-        .print()
+        .output(new DiscardingOutputFormat[(Long, Long)])
         
       val p = env.createProgramPlan()
       
@@ -92,7 +93,7 @@ class CoGroupGroupSortTranslationTest {
           .sortSecondGroup("c", Order.ASCENDING).sortSecondGroup("a", Order.DESCENDING) {
                (first, second) => first.buffered.head
             }
-          .print()
+          .output(new DiscardingOutputFormat[(Long, Long)])
           
       val p = env.createProgramPlan()
       

@@ -19,13 +19,19 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Lists;
+
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -36,10 +42,17 @@ import org.apache.flink.runtime.io.network.util.TestPartitionProducer;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.junit.Test;
 
+import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import scala.Tuple2;
+
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -47,7 +60,14 @@ import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode.ASYNC;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class LocalInputChannelTest {
 
@@ -93,7 +113,7 @@ public class LocalInputChannelTest {
 			partitionIds[i] = new ResultPartitionID();
 
 			final ResultPartition partition = new ResultPartition(
-					mock(Environment.class),
+					"Test Name",
 					jobId,
 					partitionIds[i],
 					ResultPartitionType.PIPELINED,
@@ -154,6 +174,77 @@ public class LocalInputChannelTest {
 			networkBuffers.destroy();
 			executor.shutdown();
 		}
+	}
+
+	@Test
+	public void testPartitionRequestExponentialBackoff() throws Exception {
+		// Config
+		Tuple2<Integer, Integer> backoff = new Tuple2<Integer, Integer>(500, 3000);
+
+		// Start with initial backoff, then keep doubling, and cap at max.
+		int[] expectedDelays = {backoff._1(), 1000, 2000, backoff._2()};
+
+		// Setup
+		SingleInputGate inputGate = mock(SingleInputGate.class);
+
+		BufferProvider bufferProvider = mock(BufferProvider.class);
+		when(inputGate.getBufferProvider()).thenReturn(bufferProvider);
+
+		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
+
+		LocalInputChannel ch = createLocalInputChannel(inputGate, partitionManager, backoff);
+
+		when(partitionManager
+				.createSubpartitionView(eq(ch.partitionId), eq(0), eq(bufferProvider)))
+				.thenThrow(new PartitionNotFoundException(ch.partitionId));
+
+		Timer timer = mock(Timer.class);
+		doAnswer(new Answer<Void>() {
+
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				((TimerTask) invocation.getArguments()[0]).run();
+				return null;
+			}
+		}).when(timer).schedule(any(TimerTask.class), anyLong());
+
+		// Initial request
+		ch.requestSubpartition(0);
+		verify(partitionManager)
+				.createSubpartitionView(eq(ch.partitionId), eq(0), eq(bufferProvider));
+
+		// Request subpartition and verify that the actual requests are delayed.
+		for (long expected : expectedDelays) {
+			ch.retriggerSubpartitionRequest(timer, 0);
+
+			verify(timer).schedule(any(TimerTask.class), eq(expected));
+		}
+
+		// Exception after backoff is greater than the maximum backoff.
+		try {
+			ch.retriggerSubpartitionRequest(timer, 0);
+			ch.getNextBuffer();
+			fail("Did not throw expected exception.");
+		}
+		catch (Exception expected) {
+		}
+	}
+
+	// ---------------------------------------------------------------------------------------------
+
+	private LocalInputChannel createLocalInputChannel(
+			SingleInputGate inputGate,
+			ResultPartitionManager partitionManager,
+			Tuple2<Integer, Integer> initialAndMaxRequestBackoff)
+			throws IOException, InterruptedException {
+
+		return new LocalInputChannel(
+				inputGate,
+				0,
+				new ResultPartitionID(),
+				partitionManager,
+				mock(TaskEventDispatcher.class),
+				initialAndMaxRequestBackoff);
 	}
 
 	/**
@@ -222,10 +313,13 @@ public class LocalInputChannelTest {
 			checkArgument(numberOfExpectedBuffersPerChannel >= 1);
 
 			this.inputGate = new SingleInputGate(
-					mock(Environment.class),
+					"Test Name",
+					new JobID(),
+					new ExecutionAttemptID(),
 					new IntermediateDataSetID(),
 					subpartitionIndex,
-					numberOfInputChannels);
+					numberOfInputChannels,
+					mock(PartitionStateChecker.class));
 
 			// Set buffer pool
 			inputGate.setBufferPool(bufferPool);

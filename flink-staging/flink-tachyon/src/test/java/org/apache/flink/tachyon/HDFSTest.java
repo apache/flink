@@ -45,10 +45,10 @@ import java.io.StringWriter;
  */
 public class HDFSTest {
 
-	private String hdfsURI;
+	protected String hdfsURI;
 	private MiniDFSCluster hdfsCluster;
 	private org.apache.hadoop.fs.Path hdPath;
-	private org.apache.hadoop.fs.FileSystem hdfs;
+	protected org.apache.hadoop.fs.FileSystem hdfs;
 
 	@Before
 	public void createHDFS() {

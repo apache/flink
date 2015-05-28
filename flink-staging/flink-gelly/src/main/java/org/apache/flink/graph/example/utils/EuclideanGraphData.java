@@ -22,7 +22,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.example.EuclideanGraphExample;
+import org.apache.flink.graph.example.EuclideanGraphWeighing;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,12 +38,12 @@ public class EuclideanGraphData {
 	public static final String VERTICES = "1,1.0,1.0\n" + "2,2.0,2.0\n" + "3,3.0,3.0\n" + "4,4.0,4.0\n" + "5,5.0,5.0\n" +
 			"6,6.0,6.0\n" + "7,7.0,7.0\n" + "8,8.0,8.0\n" + "9,9.0,9.0";
 
-	public static DataSet<Vertex<Long, EuclideanGraphExample.Point>> getDefaultVertexDataSet(ExecutionEnvironment env) {
+	public static DataSet<Vertex<Long, EuclideanGraphWeighing.Point>> getDefaultVertexDataSet(ExecutionEnvironment env) {
 
-		List<Vertex<Long, EuclideanGraphExample.Point>> vertices = new ArrayList<Vertex<Long, EuclideanGraphExample.Point>>();
+		List<Vertex<Long, EuclideanGraphWeighing.Point>> vertices = new ArrayList<Vertex<Long, EuclideanGraphWeighing.Point>>();
 		for(int i=1; i<=NUM_VERTICES; i++) {
-			vertices.add(new Vertex<Long, EuclideanGraphExample.Point>(new Long(i),
-					new EuclideanGraphExample.Point(new Double(i), new Double(i))));
+			vertices.add(new Vertex<Long, EuclideanGraphWeighing.Point>(new Long(i),
+					new EuclideanGraphWeighing.Point(new Double(i), new Double(i))));
 		}
 
 		return env.fromCollection(vertices);

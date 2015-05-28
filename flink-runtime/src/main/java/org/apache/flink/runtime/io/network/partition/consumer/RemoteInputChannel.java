@@ -24,9 +24,11 @@ import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Tuple2;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -65,18 +67,13 @@ public class RemoteInputChannel extends InputChannel {
 	private final AtomicBoolean isReleased = new AtomicBoolean();
 
 	/** Client to establish a (possibly shared) TCP connection and request the partition. */
-	private PartitionRequestClient partitionRequestClient;
+	private volatile PartitionRequestClient partitionRequestClient;
 
 	/**
 	 * The next expected sequence number for the next buffer. This is modified by the network
 	 * I/O thread only.
 	 */
 	private int expectedSequenceNumber = 0;
-
-	/**
-	 * An error possibly set by the network I/O thread.
-	 */
-	private volatile Throwable error;
 
 	RemoteInputChannel(
 			SingleInputGate inputGate,
@@ -85,7 +82,19 @@ public class RemoteInputChannel extends InputChannel {
 			ConnectionID connectionId,
 			ConnectionManager connectionManager) {
 
-		super(inputGate, channelIndex, partitionId);
+		this(inputGate, channelIndex, partitionId, connectionId, connectionManager,
+				new Tuple2<Integer, Integer>(0, 0));
+	}
+
+	RemoteInputChannel(
+			SingleInputGate inputGate,
+			int channelIndex,
+			ResultPartitionID partitionId,
+			ConnectionID connectionId,
+			ConnectionManager connectionManager,
+			Tuple2<Integer, Integer> initialAndMaxBackoff) {
+
+		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff);
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
@@ -95,17 +104,32 @@ public class RemoteInputChannel extends InputChannel {
 	// Consume
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Requests a remote subpartition.
+	 */
 	@Override
 	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
 		if (partitionRequestClient == null) {
-			LOG.debug("{}: Requesting REMOTE subpartition {} of partition {}.",
-					this, subpartitionIndex, partitionId);
-
 			// Create a client and request the partition
 			partitionRequestClient = connectionManager
 					.createPartitionRequestClient(connectionId);
 
-			partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this);
+			partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this, 0);
+		}
+	}
+
+	/**
+	 * Retriggers a remote subpartition request.
+	 */
+	void retriggerSubpartitionRequest(int subpartitionIndex) throws IOException, InterruptedException {
+		checkState(partitionRequestClient != null, "Missing initial subpartition request.");
+
+		if (increaseBackoff()) {
+			partitionRequestClient.requestSubpartition(
+					partitionId, subpartitionIndex, this, getCurrentBackoff());
+		}
+		else {
+			failPartitionRequest();
 		}
 	}
 
@@ -178,6 +202,10 @@ public class RemoteInputChannel extends InputChannel {
 		}
 	}
 
+	public void failPartitionRequest() {
+		setError(new PartitionNotFoundException(partitionId));
+	}
+
 	@Override
 	public String toString() {
 		return "RemoteInputChannel [" + partitionId + " at " + connectionId + "]";
@@ -245,24 +273,12 @@ public class RemoteInputChannel extends InputChannel {
 		}
 	}
 
-	public void onError(Throwable cause) {
-		if (error == null) {
-			error = cause;
-
-			// Notify the input gate to trigger querying of this channel
-			notifyAvailableBuffer();
-		}
+	public void onFailedPartitionRequest() {
+		inputGate.triggerPartitionStateCheck(partitionId);
 	}
 
-	/**
-	 * Checks whether this channel got notified by the network I/O thread about an error.
-	 */
-	private void checkError() throws IOException {
-		final Throwable t = error;
-
-		if (t != null) {
-			throw new IOException(t);
-		}
+	public void onError(Throwable cause) {
+		setError(cause);
 	}
 
 	public static class BufferReorderingException extends IOException {

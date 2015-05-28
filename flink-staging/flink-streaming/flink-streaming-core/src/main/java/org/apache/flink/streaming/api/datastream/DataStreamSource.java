@@ -32,7 +32,7 @@ public class DataStreamSource<OUT> extends SingleOutputStreamOperator<OUT, DataS
 	boolean isParallel;
 
 	public DataStreamSource(StreamExecutionEnvironment environment, String operatorType,
-			TypeInformation<OUT> outTypeInfo, StreamOperator<?, OUT> operator,
+			TypeInformation<OUT> outTypeInfo, StreamOperator<OUT> operator,
 			boolean isParallel, String sourceName) {
 		super(environment, operatorType, outTypeInfo, operator);
 

@@ -21,7 +21,6 @@ package org.apache.flink.api.java.record.operators;
 
 import java.util.List;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -31,6 +30,8 @@ import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.api.java.typeutils.RecordTypeInfo;
 import org.apache.flink.types.Nothing;
 import org.apache.flink.types.Record;
+
+import com.google.common.base.Preconditions;
 
 /**
  * 
@@ -128,7 +129,7 @@ public class FileDataSink extends FileDataSinkBase<Record> {
 	@Deprecated
 	public FileDataSink(FileOutputFormat<Record> f, String filePath, List<Operator<Record>> input, String name) {
 		this(f, filePath, name);
-		Validate.notNull(input, "The input must not be null.");
+		Preconditions.checkNotNull(input, "The input must not be null.");
 		setInput(Operator.createUnionCascade(input));
 	}
 
@@ -210,7 +211,7 @@ public class FileDataSink extends FileDataSinkBase<Record> {
 	@Deprecated
 	public FileDataSink(Class<? extends FileOutputFormat<Record>> f, String filePath, List<Operator<Record>> input, String name) {
 		this(f, filePath, name);
-		Validate.notNull(input, "The inputs must not be null.");
+		Preconditions.checkNotNull(input, "The inputs must not be null.");
 		setInput(Operator.createUnionCascade(input));
 	}
 

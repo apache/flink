@@ -17,47 +17,42 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 
-public class StreamProject<IN, OUT extends Tuple> extends ChainableStreamOperator<IN, OUT> {
+public class StreamProject<IN, OUT extends Tuple>
+		extends AbstractStreamOperator<OUT>
+		implements OneInputStreamOperator<IN, OUT> {
+
 	private static final long serialVersionUID = 1L;
 
-	transient OUT outTuple;
-	TypeSerializer<OUT> outTypeSerializer;
-	TypeInformation<OUT> outTypeInformation;
-	int[] fields;
-	int numFields;
+	private TypeSerializer<OUT> outSerializer;
+	private int[] fields;
+	private int numFields;
 
-	public StreamProject(int[] fields, TypeInformation<OUT> outTypeInformation) {
-		super(null);
+	private transient OUT outTuple;
+
+	public StreamProject(int[] fields, TypeSerializer<OUT> outSerializer) {
 		this.fields = fields;
 		this.numFields = this.fields.length;
-		this.outTypeInformation = outTypeInformation;
+		this.outSerializer = outSerializer;
+
+		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
-	@Override
-	public void run() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
-	}
 
 	@Override
-	protected void callUserFunction() throws Exception {
+	public void processElement(IN element) throws Exception {
 		for (int i = 0; i < this.numFields; i++) {
-			outTuple.setField(((Tuple)nextObject).getField(fields[i]), i);
+			outTuple.setField(((Tuple) element).getField(fields[i]), i);
 		}
-		collector.collect(outTuple);
+		output.collect(outTuple);
 	}
 
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
-		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
-		outTuple = outTypeSerializer.createInstance();
+		outTuple = outSerializer.createInstance();
 	}
-	
 }

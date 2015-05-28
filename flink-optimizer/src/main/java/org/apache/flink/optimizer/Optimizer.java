@@ -29,9 +29,6 @@ import org.apache.flink.optimizer.traversals.GraphCreatingVisitor;
 import org.apache.flink.optimizer.traversals.IdAndEstimatesVisitor;
 import org.apache.flink.optimizer.traversals.InterestingPropertyVisitor;
 import org.apache.flink.optimizer.traversals.PlanFinalizer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.optimizer.costs.CostEstimator;
@@ -39,7 +36,6 @@ import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.dag.OptimizerNode;
 import org.apache.flink.optimizer.dag.SinkJoiner;
-import org.apache.flink.optimizer.deadlockdetect.DeadlockPreventer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SinkJoinerPlanNode;
@@ -47,6 +43,9 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.postpass.OptimizerPostPass;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.InstantiationUtil;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The optimizer that takes the user specified program plan and creates an optimized plan that contains
@@ -514,9 +513,6 @@ public class Optimizer {
 		} else if (bestPlanRoot instanceof SinkJoinerPlanNode) {
 			((SinkJoinerPlanNode) bestPlanRoot).getDataSinks(bestPlanSinks);
 		}
-		
-		DeadlockPreventer dp = new DeadlockPreventer();
-		dp.resolveDeadlocks(bestPlanSinks);
 
 		// finalize the plan
 		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, program.getJobName(), program);

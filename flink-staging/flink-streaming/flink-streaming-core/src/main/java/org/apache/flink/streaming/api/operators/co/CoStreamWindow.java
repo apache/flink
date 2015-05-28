@@ -23,11 +23,16 @@ import java.util.List;
 
 import org.apache.commons.math.util.MathUtils;
 import org.apache.flink.streaming.api.functions.co.CoWindowFunction;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.state.CircularFifoList;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-public class CoStreamWindow<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OUT> {
+public class CoStreamWindow<IN1, IN2, OUT>
+		extends AbstractUdfStreamOperator<OUT, CoWindowFunction<IN1, IN2, OUT>>
+		implements TwoInputStreamOperator<IN1, IN2, OUT> {
+
 	private static final long serialVersionUID = 1L;
 
 	protected long windowSize;
@@ -57,31 +62,32 @@ public class CoStreamWindow<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OU
 	}
 
 	@Override
-	protected void handleStream1() throws Exception {
-		window.addToBuffer1(reuse1.getObject());
+	public void processElement1(IN1 element) throws Exception {
+		window.addToBuffer1(element);
 	}
 
 	@Override
-	protected void handleStream2() throws Exception {
-		window.addToBuffer2(reuse2.getObject());
+	public void processElement2(IN2 element) throws Exception {
+		window.addToBuffer2(element);
 	}
 
-	@Override
 	@SuppressWarnings("unchecked")
 	protected void callUserFunction() throws Exception {
 
 		List<IN1> first = new ArrayList<IN1>();
 		List<IN2> second = new ArrayList<IN2>();
 
+		// TODO: Give operators a way to copy elements
+
 		for (IN1 element : window.circularList1.getElements()) {
-			first.add(serializer1.copy(element));
+			first.add(element);
 		}
 		for (IN2 element : window.circularList2.getElements()) {
-			second.add(serializer2.copy(element));
+			second.add(element);
 		}
 
 		if (!window.circularList1.isEmpty() || !window.circularList2.isEmpty()) {
-			((CoWindowFunction<IN1, IN2, OUT>) userFunction).coWindow(first, second, collector);
+			userFunction.coWindow(first, second, output);
 		}
 	}
 
@@ -120,7 +126,7 @@ public class CoStreamWindow<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OU
 			}
 		}
 
-		protected synchronized void checkWindowEnd(long timeStamp) {
+		protected synchronized void checkWindowEnd(long timeStamp) throws Exception{
 			nextRecordTime = timeStamp;
 
 			while (miniBatchEnd()) {
@@ -128,7 +134,7 @@ public class CoStreamWindow<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OU
 				circularList2.newSlide();
 				minibatchCounter++;
 				if (windowEnd()) {
-					callUserFunctionAndLogException();
+					callUserFunction();
 					circularList1.shiftWindow(batchPerSlide);
 					circularList2.shiftWindow(batchPerSlide);
 				}
@@ -152,9 +158,9 @@ public class CoStreamWindow<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OU
 			return false;
 		}
 
-		public void reduceLastBatch() {
+		public void reduceLastBatch() throws Exception{
 			if (!miniBatchEnd()) {
-				callUserFunctionAndLogException();
+				callUserFunction();
 			}
 		}
 
@@ -174,19 +180,15 @@ public class CoStreamWindow<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OU
 	}
 
 	@Override
-	public void close() {
+	public void close() throws Exception {
 		if (!window.miniBatchEnd()) {
-			callUserFunctionAndLogException();
+			try {
+				callUserFunction();
+			} catch (Exception e) {
+				throw new RuntimeException("Could not call user function in CoStreamWindow.close()", e);
+			}
 		}
 		super.close();
-	}
-
-	@Override
-	protected void callUserFunction1() throws Exception {
-	}
-
-	@Override
-	protected void callUserFunction2() throws Exception {
 	}
 
 	public void setSlideSize(long slideSize) {

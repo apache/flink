@@ -22,7 +22,7 @@ import org.apache.flink.ml.math.Vector
 
 /** DistanceMeasure interface is used for object which determines distance between two points.
   */
-trait DistanceMetric {
+trait DistanceMetric extends Serializable {
   /** Returns the distance between the arguments.
     *
     * @param a a Vector defining a multi-dimensional point in some space

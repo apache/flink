@@ -24,6 +24,7 @@ import akka.actor._
 import grizzled.slf4j.Logger
 import org.apache.flink.client.CliFrontend
 import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
+import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
@@ -32,7 +33,7 @@ import org.apache.flink.yarn.Messages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
 import org.apache.hadoop.yarn.conf.YarnConfiguration
-import org.slf4j.LoggerFactory
+
 
 import scala.io.Source
 
@@ -54,6 +55,8 @@ object ApplicationMaster {
     EnvironmentInformation.logEnvironmentInfo(LOG.logger, "YARN ApplicationMaster/JobManager", args)
     EnvironmentInformation.checkJavaVersion()
     org.apache.flink.runtime.util.SignalHandler.register(LOG.logger)
+    
+    val streamingMode = StreamingMode.BATCH_ONLY
 
     val ugi = UserGroupInformation.createRemoteUser(yarnClientUsername)
 
@@ -91,9 +94,12 @@ object ApplicationMaster {
           val slots = env.get(FlinkYarnClient.ENV_SLOTS).toInt
           val dynamicPropertiesEncodedString = env.get(FlinkYarnClient.ENV_DYNAMIC_PROPERTIES)
 
-          val (config, system, jobManager, archiver) = startJobManager(currDir, ownHostname,
-                                                      dynamicPropertiesEncodedString)
-
+          val (config: Configuration,
+               system: ActorSystem,
+               jobManager: ActorRef,
+               archiver: ActorRef) = startJobManager(currDir, ownHostname,
+                                                     dynamicPropertiesEncodedString,
+                                                     streamingMode)
           actorSystem = system
           val extActor = system.asInstanceOf[ExtendedActorSystem]
           val jobManagerPort = extActor.provider.getDefaultAddress.port.get
@@ -195,15 +201,12 @@ object ApplicationMaster {
   /**
    * Starts the JobManager and all its components.
    *
-   * @param currDir
-   * @param hostname
-   * @param dynamicPropertiesEncodedString
-   *
    * @return (Configuration, JobManager ActorSystem, JobManager ActorRef, Archiver ActorRef)
    */
   def startJobManager(currDir: String,
                       hostname: String,
-                      dynamicPropertiesEncodedString: String):
+                      dynamicPropertiesEncodedString: String,
+                      streamingMode: StreamingMode):
     (Configuration, ActorSystem, ActorRef, ActorRef) = {
 
     LOG.info("Starting JobManager for YARN")
@@ -228,19 +231,15 @@ object ApplicationMaster {
     // start all the components inside the job manager
     LOG.debug("Starting JobManager components")
     val (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
-                   profilerProps, executionRetries, delayBetweenRetries,
+                   executionRetries, delayBetweenRetries,
                    timeout, _) = JobManager.createJobManagerComponents(configuration)
-
-    // start the profiler, if needed
-    val profiler: Option[ActorRef] =
-      profilerProps.map( props => jobManagerSystem.actorOf(props, JobManager.PROFILER_NAME) )
 
     // start the archiver
     val archiver: ActorRef = jobManagerSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
 
     val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
-      libraryCacheManager, archiver, accumulatorManager, profiler, executionRetries,
-      delayBetweenRetries, timeout) with ApplicationMasterActor)
+      libraryCacheManager, archiver, accumulatorManager, executionRetries,
+      delayBetweenRetries, timeout, streamingMode) with ApplicationMasterActor)
 
     LOG.debug("Starting JobManager actor")
     val jobManager = JobManager.startActor(jobManagerProps, jobManagerSystem)

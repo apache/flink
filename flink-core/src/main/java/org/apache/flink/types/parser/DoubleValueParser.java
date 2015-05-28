@@ -33,7 +33,7 @@ public class DoubleValueParser extends FieldParser<DoubleValue> {
 		
 		int i = startPos;
 
-		final int delimLimit = limit-delimiter.length+1;
+		final int delimLimit = limit - delimiter.length + 1;
 
 		while (i < limit) {
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
@@ -42,7 +42,13 @@ public class DoubleValueParser extends FieldParser<DoubleValue> {
 			i++;
 		}
 		
-		String str = new String(bytes, startPos, i-startPos);
+		if (i > startPos &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[i - 1]))) {
+			setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
+			return -1;
+		}
+
+		String str = new String(bytes, startPos, i - startPos);
 		try {
 			double value = Double.parseDouble(str);
 			reusable.setValue(value);

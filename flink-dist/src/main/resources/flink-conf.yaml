@@ -48,6 +48,21 @@ jobmanager.web.port: 8081
 webclient.port: 8080
 
 #==============================================================================
+# Streaming state checkpointing
+#==============================================================================
+
+# The backend that will be used to store operator state checkpoints if 
+# checkpointing is enabled. 
+#
+# Supported backends: jobmanager, filesystem
+
+state.backend: jobmanager
+
+# Directory for storing checkpoints in a flink supported filesystem
+#
+# state.backend.fs.checkpointdir: hdfs://checkpoints
+
+#==============================================================================
 # Advanced
 #==============================================================================
 

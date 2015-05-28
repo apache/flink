@@ -104,15 +104,13 @@ public class EnumTrianglesBasic {
 				.join(edgesById).where(Triad.V2, Triad.V3).equalTo(Edge.V1, Edge.V2).with(new TriadFilter());
 
 		// emit result
-		if(fileOutput) {
+		if (fileOutput) {
 			triangles.writeAsCsv(outputPath, "\n", ",");
+			// execute program
+			env.execute("Basic Triangle Enumeration Example");
 		} else {
 			triangles.print();
 		}
-
-		// execute program
-		env.execute("Basic Triangle Enumeration Example");
-
 	}
 	
 	// *************************************************************************

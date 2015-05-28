@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.datastream;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -63,12 +62,12 @@ import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamCounter;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamFold;
 import org.apache.flink.streaming.api.operators.StreamMap;
-import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamReduce;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.windowing.helper.Count;
@@ -86,6 +85,8 @@ import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+
+import com.google.common.base.Preconditions;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -112,6 +113,9 @@ public class DataStream<OUT> {
 	@SuppressWarnings("rawtypes")
 	protected TypeInformation typeInfo;
 	protected List<DataStream<OUT>> mergedStreams;
+	
+	protected Integer iterationID = null;
+	protected Long iterationWaitTime = null;
 
 	protected final StreamGraph streamGraph;
 	private boolean typeUsed;
@@ -159,6 +163,8 @@ public class DataStream<OUT> {
 		this.partitioner = dataStream.partitioner.copy();
 		this.streamGraph = dataStream.streamGraph;
 		this.typeInfo = dataStream.typeInfo;
+		this.iterationID = dataStream.iterationID;
+		this.iterationWaitTime = dataStream.iterationWaitTime;
 		this.mergedStreams = new ArrayList<DataStream<OUT>>();
 		this.mergedStreams.add(this);
 		if (dataStream.mergedStreams.size() > 1) {
@@ -935,6 +941,7 @@ public class DataStream<OUT> {
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public WindowedDataStream<OUT> window(WindowingHelper policyHelper) {
+		policyHelper.setExecutionConfig(getExecutionConfig());
 		return new WindowedDataStream<OUT>(this, policyHelper);
 	}
 
@@ -966,6 +973,7 @@ public class DataStream<OUT> {
 	 */
 	@SuppressWarnings("rawtypes")
 	public WindowedDataStream<OUT> every(WindowingHelper policyHelper) {
+		policyHelper.setExecutionConfig(getExecutionConfig());
 		return window(FullStream.window()).every(policyHelper);
 	}
 
@@ -1081,7 +1089,7 @@ public class DataStream<OUT> {
 	 */
 	@SuppressWarnings("unchecked")
 	public <X extends Tuple> DataStreamSink<OUT> writeAsCsv(String path) {
-		Validate.isTrue(getType().isTupleType(),
+		Preconditions.checkArgument(getType().isTupleType(),
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1103,7 +1111,7 @@ public class DataStream<OUT> {
 	 */
 	@SuppressWarnings("unchecked")
 	public <X extends Tuple> DataStreamSink<OUT> writeAsCsv(String path, long millis) {
-		Validate.isTrue(getType().isTupleType(),
+		Preconditions.checkArgument(getType().isTupleType(),
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1125,7 +1133,7 @@ public class DataStream<OUT> {
 	 */
 	@SuppressWarnings("unchecked")
 	public <X extends Tuple> DataStreamSink<OUT> writeAsCsv(String path, WriteMode writeMode) {
-		Validate.isTrue(getType().isTupleType(),
+		Preconditions.checkArgument(getType().isTupleType(),
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1154,7 +1162,7 @@ public class DataStream<OUT> {
 	@SuppressWarnings("unchecked")
 	public <X extends Tuple> DataStreamSink<OUT> writeAsCsv(String path, WriteMode writeMode,
 			long millis) {
-		Validate.isTrue(getType().isTupleType(),
+		Preconditions.checkArgument(getType().isTupleType(),
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1213,7 +1221,7 @@ public class DataStream<OUT> {
 	 * @return the data stream constructed
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
-			TypeInformation<R> outTypeInfo, StreamOperator<OUT, R> operator) {
+			TypeInformation<R> outTypeInfo, OneInputStreamOperator<OUT, R> operator) {
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
@@ -1223,8 +1231,19 @@ public class DataStream<OUT> {
 				operatorName);
 
 		connectGraph(inputStream, returnStream.getId(), 0);
+		
+		if (iterationID != null) {
+			//This data stream is an input to some iteration
+			addIterationSource(returnStream);
+		}
 
 		return returnStream;
+	}
+	
+	private <X> void addIterationSource(DataStream<X> dataStream) {
+		Integer id = ++counter;
+		streamGraph.addIterationHead(id, dataStream.getId(), iterationID, iterationWaitTime);
+		streamGraph.setParallelism(id, dataStream.getParallelism());
 	}
 
 	/**
@@ -1276,7 +1295,7 @@ public class DataStream<OUT> {
 	 */
 	public DataStreamSink<OUT> addSink(SinkFunction<OUT> sinkFunction) {
 
-		StreamOperator<OUT, OUT> sinkOperator = new StreamSink<OUT>(clean(sinkFunction));
+		OneInputStreamOperator<OUT, Object> sinkOperator = new StreamSink<OUT>(clean(sinkFunction));
 
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType(),
 				sinkOperator);

@@ -116,13 +116,15 @@ public class TypeFillTest {
 
 	private class TestSource<T> implements SourceFunction<T> {
 
-		@Override
-		public void run(Collector<T> collector) throws Exception {
 
+		@Override
+		public boolean reachedEnd() throws Exception {
+			return false;
 		}
 
 		@Override
-		public void cancel() {
+		public T next() throws Exception {
+			return null;
 		}
 
 	}

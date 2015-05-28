@@ -21,12 +21,18 @@ package org.apache.flink.runtime.jobgraph.tasks;
 import org.apache.flink.runtime.state.StateHandle;
 
 /**
- * This is an interface meant to be implemented by any invokable that has to support state recovery.
- * It is mainly used by the TaskManager to identify operators that support state recovery in order 
- * to inject their initial state upon creation.
+ * This interface must be implemented by any invokable that has recoverable state.
+ * The method {@link #setInitialState(org.apache.flink.runtime.state.StateHandle)} is used
+ * to set the initial state of the operator, upon recovery.
  */
-public interface OperatorStateCarrier {
+public interface OperatorStateCarrier<T extends StateHandle<?>> {
 
-	public void injectState(StateHandle stateHandle);
+	/**
+	 * Sets the initial state of the operator, upon recovery. The initial state is typically
+	 * a snapshot of the state from a previous execution.
+	 * 
+	 * @param stateHandle The handle to the state.
+	 */
+	public void setInitialState(T stateHandle) throws Exception;
 
 }

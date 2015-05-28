@@ -27,16 +27,13 @@ import org.apache.flink.runtime.memorymanager.MemoryManager;
 public class TezRuntimeEnvironment {
 
 	private static int DEFAULT_PAGE_SIZE = 32768;
-	private static int DEFAULT_NUM_SLOTS = 10;
 
 	private final IOManager ioManager;
 
 	private final MemoryManager memoryManager;
 
 	public TezRuntimeEnvironment(long totalMemory) {
-		int pageSize = DEFAULT_PAGE_SIZE;
-		int numSlots = DEFAULT_NUM_SLOTS;
-		this.memoryManager = new DefaultMemoryManager(totalMemory, numSlots, pageSize);
+		this.memoryManager = new DefaultMemoryManager(totalMemory, 1, DefaultMemoryManager.DEFAULT_PAGE_SIZE, true);
 		this.ioManager = new IOManagerAsync();
 	}
 

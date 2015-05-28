@@ -33,6 +33,16 @@ import scala.util.parsing.combinator.{PackratParsers, JavaTokenParsers}
  * lazy valined in the above files.
  */
 object ExpressionParser extends JavaTokenParsers with PackratParsers {
+  case class Keyword(key: String)
+
+  // Convert the keyword into an case insensitive Parser
+  implicit def keyword2Parser(kw: Keyword): Parser[String] = {
+    ("""(?i)\Q""" + kw.key + """\E""").r
+  }
+
+  // KeyWord
+
+  lazy val AS: Keyword = Keyword("as")
 
   // Literals
 
@@ -176,7 +186,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // alias
 
-  lazy val alias: PackratParser[Expression] = logic ~ "as" ~ fieldReference ^^ {
+  lazy val alias: PackratParser[Expression] = logic ~ AS ~ fieldReference ^^ {
     case e ~ _ ~ name => Naming(e, name.name)
   } | logic
 

@@ -28,6 +28,7 @@ import java.io.IOException;
 public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
 
 	private long timeout;
+	private boolean flushAlways = false;
 
 	private OutputFlusher outputFlusher;
 
@@ -44,9 +45,20 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 		super(writer, channelSelector);
 
 		this.timeout = timeout;
-		this.outputFlusher = new OutputFlusher();
-
-		outputFlusher.start();
+		if (timeout == 0) {
+			flushAlways = true;
+		} else {
+			this.outputFlusher = new OutputFlusher();
+			outputFlusher.start();
+		}
+	}
+	
+	@Override
+	public void emit(T record) throws IOException, InterruptedException {
+		super.emit(record);
+		if (flushAlways) {
+			flush();
+		}
 	}
 
 	public void close() {

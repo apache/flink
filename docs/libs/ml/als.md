@@ -1,6 +1,7 @@
 ---
 mathjax: include
-title: Alternating Least Squares
+htmlTitle: FlinkML - Alternating Least Squares
+title: <a href="../ml">FlinkML</a> - Alternating Least Squares
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -47,6 +48,22 @@ By applying this step alternately to the matrices $U$ and $V$, we can iterativel
 
 The matrix $R$ is given in its sparse representation as a tuple of $(i, j, r)$ where $i$ denotes the row index, $j$ the column index and $r$ is the matrix value at position $(i,j)$.
 
+## Operations
+
+`ALS` is a `Predictor`.
+As such, it supports the `fit` and `predict` operation.
+
+### Fit
+
+ALS is trained on the sparse representation of the rating matrix: 
+
+* `fit: DataSet[(Int, Int, Double)] => Unit` 
+
+### Predict
+
+ALS predicts for each tuple of row and column index the rating: 
+
+* `predict: DataSet[(Int, Int)] => DataSet[(Int, Int, Double)]`
 
 ## Parameters
 
@@ -97,7 +114,7 @@ The alternating least squares implementation can be controlled by the following 
             The fewer blocks one uses, the less data is sent redundantly. 
             However, bigger blocks entail bigger update messages which have to be stored on the heap. 
             If the algorithm fails because of an OutOfMemoryException, then try to increase the number of blocks. 
-            (Default value: '''None''')
+            (Default value: <strong>None</strong>)
           </p>
         </td>
       </tr>
@@ -114,9 +131,9 @@ The alternating least squares implementation can be controlled by the following 
         <td><strong>TemporaryPath</strong></td>
         <td>
           <p>
-            Path to a temporary directory into which intermediate results are stored. 
-            If this value is set, then the algorithm is split into two preprocessing steps, the ALS iteration  and a post-processing step which calculates a last ALS half-step. 
-            The preprocessing steps calculate the <code>OutBlockInformation</code> and <code>InBlockInformation</code> for the given rating matrix. 
+            Path to a temporary directory into which intermediate results are stored.
+            If this value is set, then the algorithm is split into two preprocessing steps, the ALS iteration and a post-processing step which calculates a last ALS half-step.
+            The preprocessing steps calculate the <code>OutBlockInformation</code> and <code>InBlockInformation</code> for the given rating matrix.
             The results of the individual steps are stored in the specified directory.
             By splitting the algorithm into multiple smaller steps, Flink does not have to split the available memory amongst too many operators. 
             This allows the system to process bigger individual messages and improves the overall performance.
@@ -144,14 +161,14 @@ val als = ALS()
 // Set the other parameters via a parameter map
 val parameters = ParameterMap()
 .add(ALS.Lambda, 0.9)
-.add(ALS.Seed, 42l)
+.add(ALS.Seed, 42L)
 
 // Calculate the factorization
-val factorization = als.fit(inputDS, parameters)
+als.fit(inputDS, parameters)
 
 // Read the testing data set from a csv file
 val testingDS: DataSet[(Int, Int)] = env.readCsvFile[(Int, Int)](pathToData)
 
 // Calculate the ratings according to the matrix factorization
-val predictedRatings = factorization.transform(testingDS)
+val predictedRatings = als.predict(testingDS)
 {% endhighlight %}

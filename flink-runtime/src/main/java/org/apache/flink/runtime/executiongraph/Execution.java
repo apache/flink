@@ -46,6 +46,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import scala.concurrent.Future;
@@ -69,7 +71,6 @@ import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
-
 import static org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import static org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
 import static org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
@@ -128,7 +129,7 @@ public class Execution implements Serializable {
 	
 	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
 	
-	private StateHandle operatorState;
+	private SerializedValue<StateHandle<?>> operatorState;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -201,6 +202,13 @@ public class Execution implements Serializable {
 
 		partialInputChannelDeploymentDescriptors.clear();
 		partialInputChannelDeploymentDescriptors = null;
+	}
+	
+	public void setInitialState(SerializedValue<StateHandle<?>> initialState) {
+		if (state != ExecutionState.CREATED) {
+			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
+		}
+		this.operatorState = initialState;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -324,13 +332,13 @@ public class Execution implements Serializable {
 						attemptNumber, slot.getInstance().getInstanceConnectionInfo().getHostname()));
 			}
 			
-			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot);
+			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot, operatorState);
 			
 			// register this execution at the execution graph, to receive call backs
 			vertex.getExecutionGraph().registerExecution(this);
 
 			final Instance instance = slot.getInstance();
-			Future<Object> deployAction = Patterns.ask(instance.getTaskManager(),
+			final Future<Object> deployAction = Patterns.ask(instance.getTaskManager(),
 					new SubmitTask(deployment), new Timeout(timeout));
 
 			deployAction.onComplete(new OnComplete<Object>(){
@@ -339,9 +347,13 @@ public class Execution implements Serializable {
 				public void onComplete(Throwable failure, Object success) throws Throwable {
 					if (failure != null) {
 						if (failure instanceof TimeoutException) {
+							String taskname = Task.getTaskNameWithSubtaskAndID(deployment.getTaskName(),
+									deployment.getIndexInSubtaskGroup(), deployment.getNumberOfSubtasks(),
+									attemptId);
+							
 							markFailed(new Exception(
-									"Cannot deploy task - TaskManager " + instance + " not responding.",
-									failure));
+									"Cannot deploy task " + taskname + " - TaskManager (" + instance
+											+ ") not responding after a timeout of " + timeout, failure));
 						}
 						else {
 							markFailed(failure);
@@ -402,13 +414,13 @@ public class Execution implements Serializable {
 					markTimestamp(CANCELING, getStateTimestamp(CANCELED));
 					
 					try {
-						vertex.executionCanceled();
-					}
-					finally {
 						vertex.getExecutionGraph().deregisterExecution(this);
 						if (assignedResource != null) {
 							assignedResource.releaseSlot();
 						}
+					}
+					finally {
+						vertex.executionCanceled();
 					}
 					return;
 				}
@@ -421,8 +433,13 @@ public class Execution implements Serializable {
 	}
 
 	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> allConsumers) {
-		if (allConsumers.size() != 1) {
+		final int numConsumers = allConsumers.size();
+
+		if (numConsumers > 1) {
 			fail(new IllegalStateException("Currently, only a single consumer group per partition is supported."));
+		}
+		else if (numConsumers == 0) {
+			return;
 		}
 
 		for (ExecutionEdge edge : allConsumers.get(0)) {
@@ -862,10 +879,8 @@ public class Execution implements Serializable {
 		if (STATE_UPDATER.compareAndSet(this, currentState, targetState)) {
 			markTimestamp(targetState);
 
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} ({}) switched from {} to {}.",
-						getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
-			}
+			LOG.info(getVertex().getTaskNameWithSubtaskIndex() + " ("  + getAttemptId() + ") switched from "
+				+ currentState + " to " + targetState);
 
 			// make sure that the state transition completes normally.
 			// potential errors (in listeners may not affect the main logic)
@@ -897,13 +912,5 @@ public class Execution implements Serializable {
 	public String toString() {
 		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getSimpleName(),
 				(assignedResource == null ? "(unassigned)" : assignedResource.toString()), state);
-	}
-
-	public void setOperatorState(StateHandle operatorStates) {
-		this.operatorState = operatorStates;
-	}
-
-	public StateHandle getOperatorState() {
-		return operatorState;
 	}
 }

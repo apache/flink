@@ -18,58 +18,63 @@
 
 package org.apache.flink.runtime.execution;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.state.StateHandle;
 
 import java.util.Map;
-import java.util.concurrent.FutureTask;
+import java.util.concurrent.Future;
 
 /**
- * The user code of every task runs inside an <code>Environment</code> object.
- * The environment provides important services to the task. It keeps track of
- * setting up the communication channels and provides access to input splits,
- * memory manager, etc.
+ * The Environment gives the code executed in a task access to the task's properties
+ * (such as name, parallelism), the configurations, the data stream readers and writers,
+ * as well as the various components that are provided by the TaskManager, such as
+ * memory manager, I/O manager, ...
  */
 public interface Environment {
 
 	/**
-	 * Returns the ID of the job from the original job graph. It is used by the library cache manager to find the
-	 * required
-	 * libraries for executing the assigned Nephele task.
+	 * Returns the ID of the job that the task belongs to.
 	 *
 	 * @return the ID of the job from the original job graph
 	 */
 	JobID getJobID();
 
 	/**
-	 * Gets the ID of the jobVertex that this task corresponds to.
+	 * Gets the ID of the JobVertex for which this task executes a parallel subtask.
 	 *
 	 * @return The JobVertexID of this task.
 	 */
 	JobVertexID getJobVertexId();
 
 	/**
-	 * Returns the task configuration object which was attached to the original JobVertex.
+	 * Gets the ID of the task execution attempt.
 	 *
-	 * @return the task configuration object which was attached to the original JobVertex.
+	 * @return The ID of the task execution attempt.
+	 */
+	ExecutionAttemptID getExecutionId();
+
+	/**
+	 * Returns the task-wide configuration object, originally attache to the job vertex.
+	 *
+	 * @return The task-wide configuration
 	 */
 	Configuration getTaskConfiguration();
 
 	/**
-	 * Returns the job configuration object which was attached to the original {@link JobGraph}.
+	 * Returns the job-wide configuration object that was attached to the JobGraph.
 	 *
-	 * @return the job configuration object which was attached to the original {@link JobGraph}
+	 * @return The job-wide configuration
 	 */
 	Configuration getJobConfiguration();
 
@@ -132,7 +137,7 @@ public interface Environment {
 	 */
 	ClassLoader getUserClassLoader();
 
-	Map<String, FutureTask<Path>> getCopyTask();
+	Map<String, Future<Path>> getDistributedCacheEntries();
 
 	BroadcastVariableManager getBroadcastVariableManager();
 
@@ -142,6 +147,25 @@ public interface Environment {
 	 * @param accumulators The accumulators to report.
 	 */
 	void reportAccumulators(Map<String, Accumulator<?, ?>> accumulators);
+
+	/**
+	 * Confirms that the invokable has successfully completed all steps it needed to
+	 * to for the checkpoint with the give checkpoint-ID. This method does not include
+	 * any state in the checkpoint.
+	 * 
+	 * @param checkpointId The ID of the checkpoint.
+	 */
+	void acknowledgeCheckpoint(long checkpointId);
+
+	/**
+	 * Confirms that the invokable has successfully completed all steps it needed to
+	 * to for the checkpoint with the give checkpoint-ID. This method does include
+	 * the given state in the checkpoint.
+	 *
+	 * @param checkpointId The ID of the checkpoint.
+	 * @param state A handle to the state to be included in the checkpoint.   
+	 */
+	void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state);
 
 	// --------------------------------------------------------------------------------------------
 	//  Fields relevant to the I/O system. Should go into Task
@@ -154,14 +178,4 @@ public interface Environment {
 	InputGate getInputGate(int index);
 
 	InputGate[] getAllInputGates();
-
-
-	/**
-	 * Returns the proxy object for the accumulator protocol.
-	 */
-	// THIS DOES NOT BELONG HERE, THIS TOTALLY BREAKS COMPONENTIZATION.
-	// THE EXECUTED TASKS HAVE BEEN KEPT INDEPENDENT OF ANY RPC OR ACTOR
-	// COMMUNICATION !!!
-	ActorRef getJobManager();
-
 }

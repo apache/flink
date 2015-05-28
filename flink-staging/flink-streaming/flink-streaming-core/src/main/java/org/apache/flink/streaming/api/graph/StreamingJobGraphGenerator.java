@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -26,12 +27,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.streaming.api.graph.StreamGraph.StreamLoop;
@@ -41,6 +45,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner.PartitioningStrategy;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
+import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,19 +82,10 @@ public class StreamingJobGraphGenerator {
 	public JobGraph createJobGraph(String jobName) {
 		jobGraph = new JobGraph(jobName);
 
-		// Turn lazy scheduling off
+		// make sure that all vertices start immediately
 		jobGraph.setScheduleMode(ScheduleMode.ALL);
-		jobGraph.setCheckpointingEnabled(streamGraph.isCheckpointingEnabled());
-		jobGraph.setCheckpointingInterval(streamGraph.getCheckpointingInterval());
-
-		if (jobGraph.isCheckpointingEnabled()) {
-			int executionRetries = streamGraph.getExecutionConfig().getNumberOfExecutionRetries();
-			if (executionRetries != -1) {
-				jobGraph.setNumberOfExecutionRetries(executionRetries);
-			} else {
-				jobGraph.setNumberOfExecutionRetries(Integer.MAX_VALUE);
-			}
-		}
+		
+		
 		init();
 
 		setChaining();
@@ -97,7 +93,15 @@ public class StreamingJobGraphGenerator {
 		setPhysicalEdges();
 
 		setSlotSharing();
+		
+		configureCheckpointing();
 
+		try {
+			InstantiationUtil.writeObjectToConfig(this.streamGraph.getExecutionConfig(), this.jobGraph.getJobConfiguration(), ExecutionConfig.CONFIG_KEY);
+		} catch (IOException e) {
+			throw new RuntimeException("Config object could not be written to Job Configuration: ", e);
+		}
+		
 		return jobGraph;
 	}
 
@@ -263,6 +267,7 @@ public class StreamingJobGraphGenerator {
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
 		config.setStateMonitoring(streamGraph.isCheckpointingEnabled());
+		config.setStateHandleProvider(streamGraph.getStateHandleProvider());
 
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 
@@ -313,20 +318,24 @@ public class StreamingJobGraphGenerator {
 		StreamNode upStreamVertex = edge.getSourceVertex();
 		StreamNode downStreamVertex = edge.getTargetVertex();
 
-		StreamOperator<?, ?> headOperator = upStreamVertex.getOperator();
-		StreamOperator<?, ?> outOperator = downStreamVertex.getOperator();
+		StreamOperator<?> headOperator = upStreamVertex.getOperator();
+		StreamOperator<?> outOperator = downStreamVertex.getOperator();
 
 		return downStreamVertex.getInEdges().size() == 1
 				&& outOperator != null
+				&& headOperator != null
 				&& upStreamVertex.getSlotSharingID() == downStreamVertex.getSlotSharingID()
 				&& upStreamVertex.getSlotSharingID() != -1
-				&& outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
-				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD || headOperator
-						.getChainingStrategy() == ChainingStrategy.ALWAYS)
+				&& (outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS ||
+					outOperator.getChainingStrategy() == ChainingStrategy.FORCE_ALWAYS)
+				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
+					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS ||
+					headOperator.getChainingStrategy() == ChainingStrategy.FORCE_ALWAYS)
 				&& (edge.getPartitioner().getStrategy() == PartitioningStrategy.FORWARD || downStreamVertex
 						.getParallelism() == 1)
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
-				&& streamGraph.isChainingEnabled();
+				&& (streamGraph.isChainingEnabled() ||
+					outOperator.getChainingStrategy() == ChainingStrategy.FORCE_ALWAYS);
 	}
 
 	private void setSlotSharing() {
@@ -349,11 +358,54 @@ public class StreamingJobGraphGenerator {
 
 		for (StreamLoop loop : streamGraph.getStreamLoops()) {
 			CoLocationGroup ccg = new CoLocationGroup();
-			AbstractJobVertex tail = jobVertices.get(loop.getTail().getID());
-			AbstractJobVertex head = jobVertices.get(loop.getHead().getID());
+			AbstractJobVertex tail = jobVertices.get(loop.getSink().getID());
+			AbstractJobVertex head = jobVertices.get(loop.getSource().getID());
 
 			ccg.addVertex(head);
 			ccg.addVertex(tail);
+		}
+	}
+	
+	private void configureCheckpointing() {
+
+		if (streamGraph.isCheckpointingEnabled()) {
+			long interval = streamGraph.getCheckpointingInterval();
+			if (interval < 1) {
+				throw new IllegalArgumentException("The checkpoint interval must be positive");
+			}
+
+			// collect the vertices that receive "trigger checkpoint" messages.
+			// currently, these are all the sources
+			List<JobVertexID> triggerVertices = new ArrayList<JobVertexID>();
+
+			// collect the vertices that need to acknowledge the checkpoint
+			// currently, these are all vertices
+			List<JobVertexID> ackVertices = new ArrayList<JobVertexID>(jobVertices.size());
+
+			// collect the vertices that receive "commit checkpoint" messages
+			// currently, these are only the sources
+			List<JobVertexID> commitVertices = new ArrayList<JobVertexID>();
+			
+			
+			for (AbstractJobVertex vertex : jobVertices.values()) {
+				if (vertex.isInputVertex()) {
+					triggerVertices.add(vertex.getID());
+					commitVertices.add(vertex.getID());
+				}
+				ackVertices.add(vertex.getID());
+			}
+
+			JobSnapshottingSettings settings = new JobSnapshottingSettings(
+					triggerVertices, ackVertices, commitVertices, interval);
+			
+			jobGraph.setSnapshotSettings(settings);
+
+			int executionRetries = streamGraph.getExecutionConfig().getNumberOfExecutionRetries();
+			if (executionRetries != -1) {
+				jobGraph.setNumberOfExecutionRetries(executionRetries);
+			} else {
+				jobGraph.setNumberOfExecutionRetries(Integer.MAX_VALUE);
+			}
 		}
 	}
 }

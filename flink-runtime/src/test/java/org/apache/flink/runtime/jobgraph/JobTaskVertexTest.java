@@ -144,7 +144,12 @@ public class JobTaskVertexTest {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class TestSplit extends GenericInputSplit {}
+	private static final class TestSplit extends GenericInputSplit {
+		
+		public TestSplit(int partitionNumber, int totalNumberOfPartitions) {
+			super(partitionNumber, totalNumberOfPartitions);
+		}
+	}
 	
 	private static final class TestInputFormat extends GenericInputFormat<Object> {
 
@@ -160,7 +165,7 @@ public class JobTaskVertexTest {
 		
 		@Override
 		public GenericInputSplit[] createInputSplits(int numSplits) throws IOException {
-			return new GenericInputSplit[] { new TestSplit() };
+			return new GenericInputSplit[] { new TestSplit(0, 1) };
 		}
 	}
 }

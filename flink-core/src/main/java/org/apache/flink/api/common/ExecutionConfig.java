@@ -22,7 +22,9 @@ import com.esotericsoftware.kryo.Serializer;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A config to define the behavior of the program execution. It allows to define (among other
@@ -45,7 +47,7 @@ import java.util.List;
  * </ul>
  */
 public class ExecutionConfig implements Serializable {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	// Key for storing it in the Job Configuration
@@ -74,10 +76,12 @@ public class ExecutionConfig implements Serializable {
 
 	private boolean disableAutoTypeRegistration = false;
 
-	private boolean serializeGenericTypesWithAvro = false;
+	private boolean forceAvro = false;
 
 	/** If set to true, progress updates are printed to System.out during execution */
 	private boolean printProgressDuringExecution = true;
+
+	private GlobalJobParameters globalJobParameters = null;
 
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in lists to ensure they are registered in order in all kryo instances.
@@ -94,9 +98,9 @@ public class ExecutionConfig implements Serializable {
 	private final List<Entry<Class<?>, Class<? extends Serializer<?>>>> defaultKryoSerializerClasses =
 			new ArrayList<Entry<Class<?>, Class<? extends Serializer<?>>>>();
 
-	private final List<Class<?>> registeredKryoTypes = new ArrayList<Class<?>>();
+	private final LinkedHashSet<Class<?>> registeredKryoTypes = new LinkedHashSet<Class<?>>();
 
-	private final List<Class<?>> registeredPojoTypes = new ArrayList<Class<?>>();
+	private final LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<Class<?>>();
 
 	// --------------------------------------------------------------------------------------------
 
@@ -272,16 +276,19 @@ public class ExecutionConfig implements Serializable {
 		return forceKryo;
 	}
 
-	public void enableGenericTypeSerializationWithAvro() {
-		serializeGenericTypesWithAvro = true;
+	/**
+	 * Force Flink to use the AvroSerializer for POJOs.
+	 */
+	public void enableForceAvro() {
+		forceAvro = true;
 	}
 
-	public void disableGenericTypeSerializationWithAvro() {
-		serializeGenericTypesWithAvro = true;
+	public void disableForceAvro() {
+		forceAvro = false;
 	}
 
-	public boolean serializeGenericTypesWithAvro() {
-		return serializeGenericTypesWithAvro;
+	public boolean isForceAvroEnabled() {
+		return forceAvro;
 	}
 
 	/**
@@ -337,6 +344,18 @@ public class ExecutionConfig implements Serializable {
 	 */
 	public boolean isSysoutLoggingEnabled() {
 		return this.printProgressDuringExecution;
+	}
+
+	public GlobalJobParameters getGlobalJobParameters() {
+		return globalJobParameters;
+	}
+
+	/**
+	 * Register a custom, serializable user configuration object.
+	 * @param globalJobParameters Custom user configuration object
+	 */
+	public void setGlobalJobParameters(GlobalJobParameters globalJobParameters) {
+		this.globalJobParameters = globalJobParameters;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -487,11 +506,11 @@ public class ExecutionConfig implements Serializable {
 	/**
 	 * Returns the registered Kryo types.
 	 */
-	public List<Class<?>> getRegisteredKryoTypes() {
+	public LinkedHashSet<Class<?>> getRegisteredKryoTypes() {
 		if (isForceKryoEnabled()) {
 			// if we force kryo, we must also return all the types that
 			// were previously only registered as POJO
-			List<Class<?>> result = new ArrayList<Class<?>>();
+			LinkedHashSet<Class<?>> result = new LinkedHashSet<Class<?>>();
 			result.addAll(registeredKryoTypes);
 			for(Class<?> t : registeredPojoTypes) {
 				if (!result.contains(t)) {
@@ -507,7 +526,7 @@ public class ExecutionConfig implements Serializable {
 	/**
 	 * Returns the registered POJO types.
 	 */
-	public List<Class<?>> getRegisteredPojoTypes() {
+	public LinkedHashSet<Class<?>> getRegisteredPojoTypes() {
 		return registeredPojoTypes;
 	}
 
@@ -525,6 +544,8 @@ public class ExecutionConfig implements Serializable {
 		this.disableAutoTypeRegistration = false;
 	}
 
+
+	// ------------------------------ Utilities  ----------------------------------
 
 	public static class Entry<K, V> implements Serializable {
 
@@ -582,4 +603,23 @@ public class ExecutionConfig implements Serializable {
 					'}';
 		}
 	}
+
+	/**
+	 * Abstract class for a custom user configuration object registered at the execution config.
+	 *
+	 * This user config is accessible at runtime through
+	 * getRuntimeContext().getExecutionConfig().getUserConfig()
+	 */
+	public static class GlobalJobParameters implements Serializable {
+		/**
+		 * Convert UserConfig into a Map<String, String> representation.
+		 * This can be used by the runtime, for example for presenting the user config in the web frontend.
+		 *
+		 * @return Key/Value representation of the UserConfig, or null.
+		 */
+		public Map<String, String> toMap() {
+			return null;
+		}
+	}
+
 }

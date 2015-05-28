@@ -221,8 +221,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	@Override
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
 
-		StreamGroupedReduce<OUT> operator = new StreamGroupedReduce<OUT>(clean(aggregate),
-				keySelector);
+		StreamGroupedReduce<OUT> operator = new StreamGroupedReduce<OUT>(clean(aggregate), keySelector);
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = transform("Grouped Aggregation",
 				getType(), operator);

@@ -21,6 +21,7 @@ package org.apache.flink.api.java.io;
 
 import com.google.common.base.Charsets;
 
+import org.apache.flink.api.common.io.ParseException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -320,24 +321,24 @@ public class CsvInputFormatTest {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
 		}
 	}
-	
+
 	@Test
-	public void testIntegerFieldsl() throws IOException {
+	public void testIntegerFields() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555\n666|777|888|999|000|\n";
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple5<Integer, Integer, Integer, Integer, Integer>> typeInfo =
-					TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class, Integer.class, Integer.class, Integer.class);
+				TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class, Integer.class, Integer.class, Integer.class);
 			final CsvInputFormat<Tuple5<Integer, Integer, Integer, Integer, Integer>> format = new CsvInputFormat<Tuple5<Integer, Integer, Integer, Integer, Integer>>(PATH, typeInfo);
-			
+
 			format.setFieldDelimiter("|");
 
 			format.configure(new Configuration());
 			format.open(split);
-			
+
 			Tuple5<Integer, Integer, Integer, Integer, Integer> result = new Tuple5<Integer, Integer, Integer, Integer, Integer>();
-			
+
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals(Integer.valueOf(111), result.f0);
@@ -345,7 +346,7 @@ public class CsvInputFormatTest {
 			assertEquals(Integer.valueOf(333), result.f2);
 			assertEquals(Integer.valueOf(444), result.f3);
 			assertEquals(Integer.valueOf(555), result.f4);
-			
+
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals(Integer.valueOf(666), result.f0);
@@ -353,6 +354,104 @@ public class CsvInputFormatTest {
 			assertEquals(Integer.valueOf(888), result.f2);
 			assertEquals(Integer.valueOf(999), result.f3);
 			assertEquals(Integer.valueOf(000), result.f4);
+
+			result = format.nextRecord(result);
+			assertNull(result);
+			assertTrue(format.reachedEnd());
+		}
+		catch (Exception ex) {
+			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
+		}
+	}
+
+	@Test
+	public void testEmptyFields() throws IOException {
+		try {
+			final String fileContent = "|0|0|0|0|0|\n" +
+				"1||1|1|1|1|\n" +
+				"2|2||2|2|2|\n" +
+				"3|3|3| |3|3|\n" +
+				"4|4|4|4||4|\n" +
+				"5|5|5|5|5||\n";
+			final FileInputSplit split = createTempFile(fileContent);
+
+			final TupleTypeInfo<Tuple6<Short, Integer, Long, Float, Double, Byte>> typeInfo =
+				TupleTypeInfo.getBasicTupleTypeInfo(Short.class, Integer.class, Long.class, Float.class, Double.class, Byte.class);
+			final CsvInputFormat<Tuple6<Short, Integer, Long, Float, Double, Byte>> format = new CsvInputFormat<Tuple6<Short, Integer, Long, Float, Double, Byte>>(PATH, typeInfo);
+
+			format.setFieldDelimiter("|");
+
+			format.configure(new Configuration());
+			format.open(split);
+
+			Tuple6<Short, Integer, Long, Float, Double, Byte> result = new Tuple6<Short, Integer, Long, Float, Double, Byte>();
+
+			try {
+				result = format.nextRecord(result);
+				fail("Empty String Parse Exception was not thrown! (ShortParser)");
+			} catch (ParseException e) {}
+			try {
+				result = format.nextRecord(result);
+				fail("Empty String Parse Exception was not thrown! (IntegerParser)");
+			} catch (ParseException e) {}
+			try {
+				result = format.nextRecord(result);
+				fail("Empty String Parse Exception was not thrown! (LongParser)");
+			} catch (ParseException e) {}
+			try {
+				result = format.nextRecord(result);
+				fail("Empty String Parse Exception was not thrown! (FloatParser)");
+			} catch (ParseException e) {}
+			try {
+				result = format.nextRecord(result);
+				fail("Empty String Parse Exception was not thrown! (DoubleParser)");
+			} catch (ParseException e) {}
+			try {
+				result = format.nextRecord(result);
+				fail("Empty String Parse Exception was not thrown! (ByteParser)");
+			} catch (ParseException e) {}
+
+			result = format.nextRecord(result);
+			assertNull(result);
+			assertTrue(format.reachedEnd());
+		}
+		catch (Exception ex) {
+			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
+		}
+	}
+
+	@Test
+	public void testDoubleFields() throws IOException {
+		try {
+			final String fileContent = "11.1|22.2|33.3|44.4|55.5\n66.6|77.7|88.8|99.9|00.0|\n";
+			final FileInputSplit split = createTempFile(fileContent);	
+
+			final TupleTypeInfo<Tuple5<Double, Double, Double, Double, Double>> typeInfo =
+					TupleTypeInfo.getBasicTupleTypeInfo(Double.class, Double.class, Double.class, Double.class, Double.class);
+			final CsvInputFormat<Tuple5<Double, Double, Double, Double, Double>> format = new CsvInputFormat<Tuple5<Double, Double, Double, Double, Double>>(PATH, typeInfo);
+			
+			format.setFieldDelimiter("|");
+
+			format.configure(new Configuration());
+			format.open(split);
+			
+			Tuple5<Double, Double, Double, Double, Double> result = new Tuple5<Double, Double, Double, Double, Double>();
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals(Double.valueOf(11.1), result.f0);
+			assertEquals(Double.valueOf(22.2), result.f1);
+			assertEquals(Double.valueOf(33.3), result.f2);
+			assertEquals(Double.valueOf(44.4), result.f3);
+			assertEquals(Double.valueOf(55.5), result.f4);
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals(Double.valueOf(66.6), result.f0);
+			assertEquals(Double.valueOf(77.7), result.f1);
+			assertEquals(Double.valueOf(88.8), result.f2);
+			assertEquals(Double.valueOf(99.9), result.f3);
+			assertEquals(Double.valueOf(00.0), result.f4);
 			
 			result = format.nextRecord(result);
 			assertNull(result);
@@ -367,7 +466,7 @@ public class CsvInputFormatTest {
 	public void testReadFirstN() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555|\n666|777|888|999|000|\n";
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple2<Integer, Integer>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class);
 			final CsvInputFormat<Tuple2<Integer, Integer>> format = new CsvInputFormat<Tuple2<Integer, Integer>>(PATH, typeInfo);
@@ -490,8 +589,9 @@ public class CsvInputFormatTest {
 			
 			format.setFieldDelimiter("&&");
 
-			format.setFields(new boolean[] { true, false, false, true, false, false, false, true }, new Class<?>[] { Integer.class,
-					Integer.class, Integer.class });
+			format.setFields(new boolean[]{true, false, false, true, false, false, false, true}, new 
+				Class<?>[]{Integer.class,
+				Integer.class, Integer.class});
 			
 			format.configure(new Configuration());
 			format.open(split);
@@ -547,7 +647,7 @@ public class CsvInputFormatTest {
 
 		Object[][] failures = {
 				{"\"string\" trailing", FieldParser.ParseErrorState.UNQUOTED_CHARS_AFTER_QUOTED_STRING},
-				{"\"unterminated ", 		FieldParser.ParseErrorState.UNTERMINATED_QUOTED_STRING}
+				{"\"unterminated ", FieldParser.ParseErrorState.UNTERMINATED_QUOTED_STRING}
 		};
 
 		for (Object[] failure : failures) {
@@ -809,7 +909,8 @@ public class CsvInputFormatTest {
 		@SuppressWarnings("unchecked")
 		TypeInformation<PojoItem> typeInfo = (TypeInformation<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
 		CsvInputFormat<PojoItem> inputFormat = new CsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
-		inputFormat.setFields(new boolean[]{true, false, true, false, true, true}, new Class[]{Integer.class, String.class, Double.class, String.class});
+		inputFormat.setFields(new boolean[]{true, false, true, false, true, true}, new Class[]{Integer.class, String
+			.class, Double.class, String.class});
 
 		inputFormat.configure(new Configuration());
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);

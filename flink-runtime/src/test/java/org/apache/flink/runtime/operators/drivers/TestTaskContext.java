@@ -69,7 +69,7 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 	public TestTaskContext() {}
 	
 	public TestTaskContext(long memoryInBytes) {
-		this.memoryManager = new DefaultMemoryManager(memoryInBytes,1 ,32 * 1024);
+		this.memoryManager = new DefaultMemoryManager(memoryInBytes,1 ,32 * 1024, true);
 	}
 	
 	// --------------------------------------------------------------------------------------------

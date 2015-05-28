@@ -117,11 +117,23 @@ public class PathTest {
 		p = new Path("y:/my/abs/windows/path");
 		assertTrue(p.isAbsolute());
 
+		p = new Path("/y:/my/abs/windows/path");
+		assertTrue(p.isAbsolute());
+
 		p = new Path("b:\\my\\abs\\windows\\path");
+		assertTrue(p.isAbsolute());
+
+		p = new Path("/c:/my/dir");
+		assertTrue(p.isAbsolute());
+
+		p = new Path("/C:/");
 		assertTrue(p.isAbsolute());
 
 		p = new Path("C:");
 		assertFalse(p.isAbsolute());
+
+		p = new Path("C:/");
+		assertTrue(p.isAbsolute());
 
 		p = new Path("C:my\\relative\\path");
 		assertFalse(p.isAbsolute());

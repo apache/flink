@@ -122,12 +122,12 @@ public class PageRankBasic {
 		// emit result
 		if(fileOutput) {
 			finalPageRanks.writeAsCsv(outputPath, "\n", " ");
+			// execute program
+			env.execute("Basic Page Rank Example");
 		} else {
 			finalPageRanks.print();
 		}
 
-		// execute program
-		env.execute("Basic Page Rank Example");
 		
 	}
 	

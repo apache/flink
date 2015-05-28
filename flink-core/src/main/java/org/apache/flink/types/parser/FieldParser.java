@@ -22,6 +22,7 @@ package org.apache.flink.types.parser;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.types.BooleanValue;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.FloatValue;
@@ -47,16 +48,16 @@ public abstract class FieldParser<T> {
 	public static enum ParseErrorState {
 		/** No error occurred. */
 		NONE,
-		
+
 		/** The domain of the numeric type is not large enough to hold the parsed value. */
 		NUMERIC_VALUE_OVERFLOW_UNDERFLOW,
-		
+
 		/** A stand-alone sign was encountered while parsing a numeric type. */
 		NUMERIC_VALUE_ORPHAN_SIGN,
-		
+
 		/** An illegal character was encountered while parsing a numeric type. */
 		NUMERIC_VALUE_ILLEGAL_CHARACTER,
-		
+
 		/** The field was not in a correct format for the numeric type. */
 		NUMERIC_VALUE_FORMAT_ERROR,
 
@@ -64,7 +65,13 @@ public abstract class FieldParser<T> {
 		UNTERMINATED_QUOTED_STRING,
 
 		/** The parser found characters between the end of the quoted string and the delimiter. */
-		UNQUOTED_CHARS_AFTER_QUOTED_STRING
+		UNQUOTED_CHARS_AFTER_QUOTED_STRING,
+
+		/** The string is empty. */
+		EMPTY_STRING,
+
+		/** Invalid Boolean value **/
+		BOOLEAN_INVALID
 	}
 	
 	private ParseErrorState errorState = ParseErrorState.NONE;
@@ -178,6 +185,7 @@ public abstract class FieldParser<T> {
 		PARSERS.put(String.class, StringParser.class);
 		PARSERS.put(Float.class, FloatParser.class);
 		PARSERS.put(Double.class, DoubleParser.class);
+		PARSERS.put(Boolean.class, BooleanParser.class);
 
 		// value types
 		PARSERS.put(ByteValue.class, ByteValueParser.class);
@@ -187,5 +195,6 @@ public abstract class FieldParser<T> {
 		PARSERS.put(StringValue.class, StringValueParser.class);
 		PARSERS.put(FloatValue.class, FloatValueParser.class);
 		PARSERS.put(DoubleValue.class, DoubleValueParser.class);
+		PARSERS.put(BooleanValue.class, BooleanValueParser.class);
 	}
 }

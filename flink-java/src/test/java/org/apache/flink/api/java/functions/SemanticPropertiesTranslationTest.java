@@ -34,6 +34,7 @@ import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.junit.Test;
@@ -55,7 +56,7 @@ public class SemanticPropertiesTranslationTest {
 
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(new Tuple3<Long, String, Integer>(3l, "test", 42));
-		input.map(new WildcardForwardedMapper<Tuple3<Long,String,Integer>>()).print();
+		input.map(new WildcardForwardedMapper<Tuple3<Long,String,Integer>>()).output(new DiscardingOutputFormat<Tuple3<Long, String, Integer>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -80,7 +81,7 @@ public class SemanticPropertiesTranslationTest {
 
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(new Tuple3<Long, String, Integer>(3l, "test", 42));
-		input.map(new IndividualForwardedMapper<Long, String, Integer>()).print();
+		input.map(new IndividualForwardedMapper<Long, String, Integer>()).output(new DiscardingOutputFormat<Tuple3<Long, String, Integer>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -102,7 +103,7 @@ public class SemanticPropertiesTranslationTest {
 
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
-		input.map(new ShufflingMapper<Long>()).print();
+		input.map(new ShufflingMapper<Long>()).output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -128,7 +129,7 @@ public class SemanticPropertiesTranslationTest {
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
 		input.map(new NoAnnotationMapper<Tuple3<Long, Long, Long>>()).withForwardedFields("0->1; 2")
-				.print();
+				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -151,7 +152,7 @@ public class SemanticPropertiesTranslationTest {
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
 		input.map(new ReadSetMapper<Tuple3<Long, Long, Long>>()).withForwardedFields("0->1; 2")
-				.print();
+				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -174,7 +175,7 @@ public class SemanticPropertiesTranslationTest {
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
 		input.map(new ReadSetMapper<Tuple3<Long, Long, Long>>()).withForwardedFields("0->1; 2")
-				.print();
+				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -196,7 +197,7 @@ public class SemanticPropertiesTranslationTest {
 
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
-		input.map(new AllForwardedExceptMapper<Tuple3<Long, Long, Long>>()).print();
+		input.map(new AllForwardedExceptMapper<Tuple3<Long, Long, Long>>()).output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -218,7 +219,7 @@ public class SemanticPropertiesTranslationTest {
 
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
-		input.map(new ReadSetMapper<Tuple3<Long, Long, Long>>()).print();
+		input.map(new ReadSetMapper<Tuple3<Long, Long, Long>>()).output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -260,7 +261,7 @@ public class SemanticPropertiesTranslationTest {
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple2<Long, Double>> input2 = env.fromElements(new Tuple2<Long, Double>(3l, 3.1415));
 		input1.join(input2).where(0).equalTo(0).with(new ForwardedBothAnnotationJoin<Long, String, Long, Double>())
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<String, Double>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -287,7 +288,7 @@ public class SemanticPropertiesTranslationTest {
 		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
 		input1.join(input2).where(0).equalTo(0).with(new NoAnnotationJoin<Long>())
 				.withForwardedFieldsFirst("0->1; 1->2").withForwardedFieldsSecond("1->0")
-				.print();
+				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -314,7 +315,7 @@ public class SemanticPropertiesTranslationTest {
 		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
 		input1.join(input2).where(0).equalTo(0).with(new ReadSetJoin<Long>())
 				.withForwardedFieldsFirst("0->1; 1->2").withForwardedFieldsSecond("1->0")
-				.print();
+				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -347,7 +348,7 @@ public class SemanticPropertiesTranslationTest {
 		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
 		input1.join(input2).where(0).equalTo(0).with(new ForwardedFirstAnnotationJoin<Long>())
 				.withForwardedFieldsSecond("1")
-				.print();
+				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -377,7 +378,7 @@ public class SemanticPropertiesTranslationTest {
 		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
 		input1.join(input2).where(0).equalTo(0).with(new ForwardedSecondAnnotationJoin<Long>())
 				.withForwardedFieldsFirst("0->1")
-				.print();
+				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -405,7 +406,7 @@ public class SemanticPropertiesTranslationTest {
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple3<Long, Long, Long>> input2 = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
 		input1.join(input2).where(0).equalTo(0).with(new AllForwardedExceptJoin<Long>())
-				.print();
+				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
@@ -435,7 +436,7 @@ public class SemanticPropertiesTranslationTest {
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
 		input1.join(input2).where(0).equalTo(0).with(new ReadSetJoin<Long>())
-				.print();
+				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();

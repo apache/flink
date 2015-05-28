@@ -98,13 +98,12 @@ public class TransitiveClosureNaive implements ProgramDescription {
 		// emit result
 		if (fileOutput) {
 			transitiveClosure.writeAsCsv(outputPath, "\n", " ");
+
+			// execute program explicitly, because file sinks are lazy
+			env.execute("Transitive Closure Example");
 		} else {
 			transitiveClosure.print();
 		}
-
-		// execute program
-		env.execute("Transitive Closure Example");
-
 	}
 
 	@Override

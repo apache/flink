@@ -260,7 +260,11 @@ public class Path implements IOReadableWritable, Serializable {
 		path = path.replaceAll("/+", "/");
 
 		// remove tailing separator
-		if(!path.equals(SEPARATOR) && path.endsWith(SEPARATOR)) {
+		if(!path.equals(SEPARATOR) &&         		// UNIX root path
+				!path.matches("/\\p{Alpha}+:/") &&  // Windows root path
+				path.endsWith(SEPARATOR))
+		{
+			// remove tailing slash
 			path = path.substring(0, path.length() - SEPARATOR.length());
 		}
 

@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -27,6 +29,8 @@ import java.util.List;
  * and that is considered completed.
  */
 public class SuccessfulCheckpoint {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(SuccessfulCheckpoint.class);
 	
 	private final JobID job;
 	
@@ -62,7 +66,10 @@ public class SuccessfulCheckpoint {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public void dispose() {
+	public void discard(ClassLoader userClassLoader) {
+		for(StateForTask state: states){
+			state.discard(userClassLoader);
+		}
 		states.clear();
 	}
 

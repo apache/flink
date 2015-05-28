@@ -433,7 +433,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 				}
 				
 				// check if there is a common predecessor and whether there is a dam on the way to all common predecessors
-				if (this.hereJoinedBranches != null) {
+				if (in.isOnDynamicPath() && this.hereJoinedBranches != null) {
 					for (OptimizerNode brancher : this.hereJoinedBranches) {
 						PlanNode candAtBrancher = in.getSource().getCandidateAtBranchPoint(brancher);
 						

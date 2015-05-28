@@ -111,10 +111,11 @@ h2, h3 {
 	border-bottom: 1px solid #E5E5E5;
 }
 
-
 code {
-	background: none;
-	color: black;
+	background: #f5f5f5;
+  padding: 0;
+  color: #333333;
+  font-family: "Menlo", "Lucida Console", monospace;
 }
 
 pre {

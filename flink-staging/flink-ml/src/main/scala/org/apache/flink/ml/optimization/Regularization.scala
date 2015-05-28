@@ -96,7 +96,7 @@ abstract class DiffRegularization extends Regularization {
 }
 
 /** Performs no regularization, equivalent to $R(w) = 0$ **/
-class NoRegularization extends Regularization {
+class NoRegularization extends DiffRegularization {
   /** Adds the regularization term to the loss value
     *
     * @param loss The loss value, before applying regularization
@@ -108,6 +108,24 @@ class NoRegularization extends Regularization {
     loss: Double,
     weightVector: FlinkVector,
     regParameter: Double):  Double = {loss}
+
+  /** Adds the regularization gradient term to the loss gradient. The gradient is updated in place.
+    *
+    * Since we don't apply any regularization, the gradient will stay the same.
+    * @param weightVector The current vector of weights
+    * @param lossGradient The loss gradient, without regularization. Updated in-place.
+    * @param regParameter The regularization parameter, $\lambda$.
+    */
+  override def regGradient(
+      weightVector: FlinkVector,
+      lossGradient: FlinkVector,
+      regParameter: Double) = {}
+}
+
+object NoRegularization {
+  def apply(): NoRegularization = {
+    new NoRegularization
+  }
 }
 
 /** $L_2$ regularization penalty.
@@ -140,6 +158,12 @@ class L2Regularization extends DiffRegularization {
       lossGradient: FlinkVector,
       regParameter: Double): Unit = {
     BLAS.axpy(regParameter, weightVector, lossGradient)
+  }
+}
+
+object L2Regularization {
+  def apply(): L2Regularization = {
+    new L2Regularization
   }
 }
 
@@ -194,5 +218,11 @@ class L1Regularization extends Regularization {
   /** $L_1$ norm of a Vector **/
   private def l1Norm(vector: FlinkVector) : Double = {
     vector.valueIterator.fold(0.0){(a,b) => math.abs(a) + math.abs(b)}
+  }
+}
+
+object L1Regularization {
+  def apply(): L1Regularization = {
+    new L1Regularization
   }
 }

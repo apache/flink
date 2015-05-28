@@ -25,16 +25,16 @@ import java.io.IOException;
 
 public interface InputGate {
 
-	public int getNumberOfInputChannels();
+	int getNumberOfInputChannels();
 
-	public boolean isFinished();
+	boolean isFinished();
 
-	public void requestPartitions() throws IOException, InterruptedException;
+	void requestPartitions() throws IOException, InterruptedException;
 
-	public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException;
+	BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException;
 
-	public void sendTaskEvent(TaskEvent event) throws IOException;
+	void sendTaskEvent(TaskEvent event) throws IOException;
 
-	public void registerListener(EventListener<InputGate> listener);
+	void registerListener(EventListener<InputGate> listener);
 
 }

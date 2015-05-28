@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.optimizer.DataStatistics;
@@ -67,6 +68,7 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 	
 	protected JobGraph getJobGraph() throws Exception {
 		Plan p = getTestJob();
+		p.setExecutionConfig(new ExecutionConfig());
 		if (p == null) {
 			Assert.fail("Error: Cannot obtain Pact plan. Did the thest forget to override either 'getPactPlan()' or 'getJobGraph()' ?");
 		}

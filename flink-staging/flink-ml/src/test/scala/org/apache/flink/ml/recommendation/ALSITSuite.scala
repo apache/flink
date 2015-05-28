@@ -48,13 +48,13 @@ class ALSITSuite
 
     val inputDS = env.fromCollection(data)
 
-    val model = als.fit(inputDS)
+    als.fit(inputDS)
 
     val testData = env.fromCollection(expectedResult.map{
       case (userID, itemID, rating) => (userID, itemID)
     })
 
-    val predictions = model.transform(testData).collect()
+    val predictions = als.predict(testData).collect()
 
     predictions.length should equal(expectedResult.length)
 
@@ -70,7 +70,7 @@ class ALSITSuite
       }
     }
 
-    val risk = model.empiricalRisk(inputDS).collect().apply(0)
+    val risk = als.empiricalRisk(inputDS).collect().apply(0)
 
     risk should be(expectedEmpiricalRisk +- 1)
   }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala.operators.translation
 
+import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.scala._
 import org.apache.flink.optimizer.util.CompilerTestBase
 import org.junit.Test
@@ -43,7 +44,7 @@ class CustomPartitioningTest extends CompilerTestBase {
       
       data.partitionCustom(part, 0)
           .mapPartition( x => x )
-          .print()
+          .output(new DiscardingOutputFormat[(Int, Int)])
 
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -113,7 +114,7 @@ class CustomPartitioningTest extends CompilerTestBase {
       data
           .partitionCustom(part, "a")
           .mapPartition( x => x)
-          .print()
+          .output(new DiscardingOutputFormat[Pojo])
           
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -184,7 +185,7 @@ class CustomPartitioningTest extends CompilerTestBase {
       data
           .partitionCustom(part, pojo => pojo.a)
           .mapPartition( x => x)
-          .print()
+          .output(new DiscardingOutputFormat[Pojo])
           
       val p = env.createProgramPlan()
       val op = compileNoStats(p)

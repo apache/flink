@@ -1,6 +1,7 @@
 ---
 mathjax: include
-title: Communication efficient distributed dual coordinate ascent (CoCoA)
+htmlTitle: FlinkML - Communication efficient distributed dual coordinate ascent (CoCoA)
+title: <a href="../ml">FlinkML</a> - Communication efficient distributed dual coordinate ascent (CoCoA)
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -54,7 +55,24 @@ The local SDCA iterations are embarrassingly parallel once the individual data p
 distributed across the cluster.
 
 The implementation of this algorithm is based on the work of 
-[Jaggi et al.](http://arxiv.org/abs/1409.1458 here)
+[Jaggi et al.](http://arxiv.org/abs/1409.1458)
+
+## Operations
+
+`CoCoA` is a `Predictor`.
+As such, it supports the `fit` and `predict` operation.
+
+### Fit
+
+CoCoA is trained given a set of `LabeledVector`: 
+
+* `fit: DataSet[LabeledVector] => Unit`
+
+### Predict
+
+CoCoA predicts for all subtypes of `Vector` the corresponding class label: 
+
+* `predict[T <: Vector]: DataSet[T] => DataSet[LabeledVector]`
 
 ## Parameters
 
@@ -146,7 +164,7 @@ The CoCoA implementation can be controlled by the following parameters:
 val trainingDS: DataSet[LabeledVector] = env.readSVMFile(pathToTrainingFile)
 
 // Create the CoCoA learner
-val cocoa = CoCoA()
+val svm = CoCoA()
 .setBlocks(10)
 .setIterations(10)
 .setLocalIterations(10)
@@ -154,11 +172,11 @@ val cocoa = CoCoA()
 .setStepsize(0.5)
 
 // Learn the SVM model
-val svm = cocoa.fit(trainingDS)
+svm.fit(trainingDS)
 
 // Read the testing data set
 val testingDS: DataSet[Vector] = env.readVectorFile(pathToTestingFile)
 
 // Calculate the predictions for the testing data set
-val predictionDS: DataSet[LabeledVector] = model.transform(testingDS)
+val predictionDS: DataSet[LabeledVector] = svm.predict(testingDS)
 {% endhighlight %}

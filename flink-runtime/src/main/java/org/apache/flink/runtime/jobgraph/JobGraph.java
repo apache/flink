@@ -38,9 +38,18 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 
 /**
- * A job graph represents an entire Flink runtime job.
+ * The JobGraph represents a Flink dataflow program, at the low level that the JobManager accepts.
+ * All programs from higher level APIs are transformed into JobGraphs.
+ * 
+ * <p>The JobGraph is a graph of vertices and intermediate results that are connected together to
+ * form a DAG. Note that iterations (feedback edges) are currently not encoded inside the JobGraph
+ * but inside certain special vertices that establish the feedback channel amongst themselves.</p>
+ * 
+ * <p>The JobGraph defines the job-wide configuration settings, while each vertex and intermediate result
+ * define the characteristics of the concrete operation and intermediate data.</p>
  */
 public class JobGraph implements Serializable {
 
@@ -74,11 +83,12 @@ public class JobGraph implements Serializable {
 	/** flag to enable queued scheduling */
 	private boolean allowQueuedScheduling;
 
+	/** The mode in which the job is scheduled */
 	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 	
-	private boolean checkpointingEnabled = false;
+	/** The settings for asynchronous snapshotting */
+	private JobSnapshottingSettings snapshotSettings;
 	
-	private long checkpointingInterval = 10000;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -258,20 +268,24 @@ public class JobGraph implements Serializable {
 		return this.taskVertices.size();
 	}
 
-	public void setCheckpointingEnabled(boolean checkpointingEnabled) {
-		this.checkpointingEnabled = checkpointingEnabled;
+	/**
+	 * Sets the settings for asynchronous snapshots. A value of {@code null} means that
+	 * snapshotting is not enabled.
+	 *
+	 * @param settings The snapshot settings, or null, to disable snapshotting.
+	 */
+	public void setSnapshotSettings(JobSnapshottingSettings settings) {
+		this.snapshotSettings = settings;
 	}
 
-	public boolean isCheckpointingEnabled() {
-		return checkpointingEnabled;
-	}
-
-	public void setCheckpointingInterval(long checkpointingInterval) {
-		this.checkpointingInterval = checkpointingInterval;
-	}
-
-	public long getCheckpointingInterval() {
-		return checkpointingInterval;
+	/**
+	 * Gets the settings for asynchronous snapshots. This method returns null, when
+	 * snapshotting is not enabled.
+	 * 
+	 * @return The snapshot settings, or null, if snapshotting is not enabled.
+	 */
+	public JobSnapshottingSettings getSnapshotSettings() {
+		return snapshotSettings;
 	}
 
 	/**

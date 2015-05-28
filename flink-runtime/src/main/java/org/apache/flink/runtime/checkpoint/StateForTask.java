@@ -20,25 +20,35 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.SerializedValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple bean to describe the state belonging to a parallel operator.
  * Since we hold the state across execution attempts, we identify a task by its
  * JobVertexId and subtask index.
+ * 
+ * The state itself is kept in serialized from, since the checkpoint coordinator itself
+ * is never looking at it anyways and only sends it back out in case of a recovery.
+ * Furthermore, the state may involve user-defined classes that are not accessible without
+ * the respective classloader.
  */
 public class StateForTask {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(StateForTask.class);
 
 	/** The state of the parallel operator */
-	private final StateHandle state;
+	private final SerializedValue<StateHandle<?>> state;
 
 	/** The vertex id of the parallel operator */
 	private final JobVertexID operatorId;
 	
 	/** The index of the parallel subtask */
 	private final int subtask;
-
-	public StateForTask(StateHandle state, JobVertexID operatorId, int subtask) {
-		if (state == null || operatorId == null || subtask < 0) {
+	
+	public StateForTask(SerializedValue<StateHandle<?>> state, JobVertexID operatorId, int subtask) {
+	if (state == null || operatorId == null || subtask < 0) {
 			throw new IllegalArgumentException();
 		}
 		
@@ -49,7 +59,7 @@ public class StateForTask {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public StateHandle getState() {
+	public SerializedValue<StateHandle<?>> getState() {
 		return state;
 	}
 
@@ -59,6 +69,14 @@ public class StateForTask {
 
 	public int getSubtask() {
 		return subtask;
+	}
+	
+	public void discard(ClassLoader userClassLoader) {
+		try {
+			state.deserializeValue(userClassLoader).discardState();
+		} catch (Exception e) {
+			LOG.warn("Failed to discard checkpoint state: " + this, e);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

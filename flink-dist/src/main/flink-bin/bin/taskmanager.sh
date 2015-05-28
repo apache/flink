@@ -19,6 +19,7 @@
 
 
 STARTSTOP=$1
+STREAMINGMODE=$2
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -46,6 +47,12 @@ case $STARTSTOP in
 
     (start)
 
+        # Use batch mode as default
+        if [ -z $STREAMINGMODE ]; then
+            echo "Did not specify [batch|streaming] mode. Falling back to batch mode as default."
+            STREAMINGMODE="batch"
+        fi
+
         if [[ ! ${FLINK_TM_HEAP} =~ ${IS_NUMBER} ]]; then
             echo "ERROR: Configured task manager heap size is not a number. Cancelling task manager startup."
             exit 1
@@ -68,7 +75,7 @@ case $STARTSTOP in
         rotateLogFile $out
 
         echo Starting task manager on host $HOSTNAME
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.runtime.taskmanager.TaskManager --configDir "$FLINK_CONF_DIR" > "$out" 2>&1 < /dev/null &
+        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.runtime.taskmanager.TaskManager --configDir "$FLINK_CONF_DIR" --streamingMode "$STREAMINGMODE" > "$out" 2>&1 < /dev/null &
         echo $! > $pid
 
     ;;
@@ -87,7 +94,7 @@ case $STARTSTOP in
     ;;
 
     (*)
-        echo Please specify start or stop
+        echo "Please specify 'start [batch|streaming]' or 'stop'"
     ;;
 
 esac

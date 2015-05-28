@@ -19,15 +19,16 @@ package org.apache.flink.streaming.api.functions.source;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 
-import org.apache.flink.util.Collector;
+import org.apache.flink.configuration.Configuration;
 
-public class FromElementsFunction<T> implements SourceFunction<T> {
+public class FromElementsFunction<T> extends RichSourceFunction<T> {
 	private static final long serialVersionUID = 1L;
 
-	Iterable<T> iterable;
+	private transient Iterator<T> iterator;
 
-	private volatile boolean isRunning;
+	private Iterable<T> iterable;
 
 	public FromElementsFunction(T... elements) {
 		this.iterable = Arrays.asList(elements);
@@ -42,20 +43,19 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 	}
 
 	@Override
-	public void run(Collector<T> collector) throws Exception {
-		isRunning = true;
-		for (T element : iterable) {
-			if (isRunning) {
-				collector.collect(element);
-			} else {
-				break;
-			}
-		}
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+		iterator = iterable.iterator();
 	}
 
 	@Override
-	public void cancel() {
-		isRunning = false;
+	public boolean reachedEnd() throws Exception {
+		return !iterator.hasNext();
+	}
+
+	@Override
+	public T next() throws Exception {
+		return iterator.next();
 	}
 
 }

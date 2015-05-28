@@ -165,14 +165,9 @@ public class JSONGenerator {
 			node.put(PACT, "Data Stream");
 		}
 
-		StreamOperator<?, ?> operator = streamGraph.getStreamNode(vertexID).getOperator();
+		StreamOperator<?> operator = streamGraph.getStreamNode(vertexID).getOperator();
 
-		if (operator != null && operator.getUserFunction() != null) {
-			node.put(CONTENTS, vertex.getOperatorName() + " at "
-					+ operator.getUserFunction().getClass().getSimpleName());
-		} else {
-			node.put(CONTENTS, vertex.getOperatorName());
-		}
+		node.put(CONTENTS, vertex.getOperatorName());
 
 		node.put(PARALLELISM, streamGraph.getStreamNode(vertexID).getParallelism());
 	}

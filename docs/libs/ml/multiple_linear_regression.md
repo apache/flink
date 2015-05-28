@@ -1,6 +1,7 @@
 ---
 mathjax: include
-title: "Multiple linear regression"
+htmlTitle: FlinkML - Multiple linear regression
+title: <a href="../ml">FlinkML</a> - Multiple linear regression
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -27,7 +28,7 @@ under the License.
 ## Description
 
  Multiple linear regression tries to find a linear function which best fits the provided input data.
- Given a set of input data with its value $(\mathbf{x}, y)$, the multiple linear regression finds
+ Given a set of input data with its value $(\mathbf{x}, y)$, multiple linear regression finds
  a vector $\mathbf{w}$ such that the sum of the squared residuals is minimized:
 
  $$ S(\mathbf{w}) = \sum_{i=1} \left(y - \mathbf{w}^T\mathbf{x_i} \right)^2$$
@@ -42,7 +43,7 @@ under the License.
 
   However, in cases where the input data set is so huge that a complete parse over the whole data
   set is prohibitive, one can apply stochastic gradient descent (SGD) to approximate the solution.
-  The SGD first calculates for a random subset of the input data set the gradients. The gradient
+  SGD first calculates for a random subset of the input data set the gradients. The gradient
   for a given point $\mathbf{x}_i$ is given by:
 
   $$\nabla_{\mathbf{w}} S(\mathbf{w}, \mathbf{x_i}) = 2\left(\mathbf{w}^T\mathbf{x_i} -
@@ -58,6 +59,23 @@ under the License.
   The convergence criterion is the relative change in the sum of squared residuals:
 
   $$\frac{S_{k-1} - S_k}{S_{k-1}} < \rho$$
+  
+## Operations
+
+`MultipleLinearRegression` is a `Predictor`.
+As such, it supports the `fit` and `predict` operation.
+
+### Fit
+
+MultipleLinearRegression is trained on a set of `LabeledVector`: 
+
+* `fit: DataSet[LabeledVector] => Unit`
+
+### Predict
+
+MultipleLinearRegression predicts for all subtypes of `Vector` the corresponding regression value: 
+
+* `predict[T <: Vector]: DataSet[T] => DataSet[LabeledVector]`
 
 ## Parameters
 
@@ -117,8 +135,8 @@ val trainingDS: DataSet[LabeledVector] = ...
 val testingDS: DataSet[Vector] = ...
 
 // Fit the linear model to the provided data
-val model = mlr.fit(trainingDS)
+mlr.fit(trainingDS)
 
 // Calculate the predictions for the test data
-val predictions = model.transform(testingDS)
+val predictions = mlr.predict(testingDS)
 {% endhighlight %}

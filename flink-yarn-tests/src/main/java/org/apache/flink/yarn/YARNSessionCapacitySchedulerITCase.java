@@ -56,7 +56,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		LOG.info("Starting testClientStartup()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 						"-n", "1",
-						"-jm", "512",
+						"-jm", "768",
 						"-tm", "1024", "-qu", "qa-team"},
 				"Number of connected TaskManagers changed to 1. Slots available: 1", null, RunTypes.YARN_SESSION, 0);
 		LOG.info("Finished testClientStartup()");
@@ -73,7 +73,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		addTestAppender(FlinkYarnClient.class, Level.WARN);
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 				"-n", "1",
-				"-jm", "512",
+				"-jm", "768",
 				"-tm", "1024",
 				"-qu", "doesntExist"}, "to unknown queue: doesntExist", null, RunTypes.YARN_SESSION, 1);
 		checkForLogString("The specified queue 'doesntExist' does not exist. Available queues: default, qa-team");

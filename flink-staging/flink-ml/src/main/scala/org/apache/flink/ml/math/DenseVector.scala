@@ -24,7 +24,10 @@ package org.apache.flink.ml.math
  *
  * @param data Array of doubles to store the vector elements
  */
-case class DenseVector(val data: Array[Double]) extends Vector with Serializable {
+case class DenseVector(
+    val data: Array[Double])
+  extends Vector
+  with Serializable {
 
   /**
    * Number of elements in a vector
@@ -65,7 +68,7 @@ case class DenseVector(val data: Array[Double]) extends Vector with Serializable
    *
    * @return Copy of the vector instance
    */
-  override def copy: Vector = {
+  override def copy: DenseVector = {
     DenseVector(data.clone())
   }
 

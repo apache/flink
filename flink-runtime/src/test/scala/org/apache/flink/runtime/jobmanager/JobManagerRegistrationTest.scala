@@ -23,6 +23,7 @@ import java.net.InetAddress
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.instance.{HardwareDescription, InstanceConnectionInfo, InstanceID}
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
@@ -122,8 +123,9 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
   }
 
   private def startTestingJobManager(system: ActorSystem): ActorRef = {
-    val (jm: ActorRef, _) = JobManager.startJobManagerActors(
-                                        new Configuration(), _system, None, None)
+    val (jm: ActorRef, _) = JobManager.startJobManagerActors(new Configuration(), _system,
+                                                             None, None,
+                                                             StreamingMode.BATCH_ONLY)
     jm
   }
 }

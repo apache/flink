@@ -18,18 +18,19 @@
 
 package org.apache.flink.runtime.minicluster
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, ExtendedActorSystem}
+
 import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
+
 import org.slf4j.LoggerFactory
-import akka.actor.ExtendedActorSystem
 
 /**
  * Local Flink mini cluster which executes all [[TaskManager]]s and the [[JobManager]] in the same
@@ -41,9 +42,20 @@ import akka.actor.ExtendedActorSystem
  * @param singleActorSystem true if all actors (JobManager and TaskManager) shall be run in the same
  *                          [[ActorSystem]], otherwise false
  */
-class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem: Boolean = true)
-  extends FlinkMiniCluster(userConfiguration, singleActorSystem) {
+class LocalFlinkMiniCluster(userConfiguration: Configuration,
+                            singleActorSystem: Boolean,
+                            streamingMode: StreamingMode)
+  extends FlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
 
+  
+  def this(userConfiguration: Configuration, singleActorSystem: Boolean)
+       = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
+  
+  def this(userConfiguration: Configuration) = this(userConfiguration, true)
+
+  // --------------------------------------------------------------------------
+  
+  
   val jobClientActorSystem = if (singleActorSystem) {
     jobManagerActorSystem
   } else {
@@ -64,7 +76,9 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
 
   override def startJobManager(system: ActorSystem): ActorRef = {
     val config = configuration.clone()
-    val (jobManager, archiver) = JobManager.startJobManagerActors(config, system)
+       
+    val (jobManager, archiver) = JobManager.startJobManagerActors(config, system, streamingMode)
+    
     if (config.getBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, false)) {
       val webServer = new WebInfoServer(configuration, jobManager, archiver)
       webServer.start()
@@ -103,12 +117,13 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
     } else {
       None
     }
-
+    
     TaskManager.startTaskManagerComponentsAndActor(config, system,
-                                                   HOSTNAME, // network interface to bind to
+                                                   hostname, // network interface to bind to
                                                    Some(taskManagerActorName), // actor name
                                                    jobManagerPath, // job manager akka URL
                                                    localExecution, // start network stack?
+                                                   streamingMode,
                                                    classOf[TaskManager])
   }
 
@@ -158,11 +173,25 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
     // set this only if no memory was preconfigured
     if (config.getInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1) == -1) {
 
-      val bufferMem: Long =
-        config.getLong(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
-          ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS) *
-          config.getLong(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
-            ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
+      val bufferSizeNew: Int = config.getInteger(
+                                      ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, -1)
+
+      val bufferSizeOld: Int = config.getInteger(
+                                      ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY, -1)
+      val bufferSize: Int =
+        if (bufferSizeNew != -1) {
+          bufferSizeNew
+        }
+        else if (bufferSizeOld == -1) {
+          // nothing has been configured, take the default
+          ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE
+        }
+        else {
+          bufferSizeOld
+        }
+      
+      val bufferMem: Long = config.getLong(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
+          ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS) * bufferSize.toLong
 
       val numTaskManager = config.getInteger(
         ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
@@ -192,7 +221,7 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
   def getDefaultConfig: Configuration = {
     val config: Configuration = new Configuration()
 
-    config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME)
+    config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, hostname)
 
     config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
 

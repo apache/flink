@@ -19,7 +19,9 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 
-public class StreamReduce<IN> extends ChainableStreamOperator<IN, IN> {
+public class StreamReduce<IN> extends AbstractUdfStreamOperator<IN, ReduceFunction<IN>>
+		implements OneInputStreamOperator<IN, IN> {
+
 	private static final long serialVersionUID = 1L;
 
 	private IN currentValue;
@@ -27,27 +29,20 @@ public class StreamReduce<IN> extends ChainableStreamOperator<IN, IN> {
 	public StreamReduce(ReduceFunction<IN> reducer) {
 		super(reducer);
 		currentValue = null;
+
+		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override
-	public void run() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction() throws Exception {
+	public void processElement(IN element) throws Exception {
 
 		if (currentValue != null) {
-			currentValue = ((ReduceFunction<IN>) userFunction).reduce(copy(currentValue), nextObject);
+			// TODO: give operator a way to specify that elements should be copied
+			currentValue = userFunction.reduce(currentValue, element);
 		} else {
-			currentValue = nextObject;
+			currentValue = element;
 
 		}
-		collector.collect(currentValue);
-
+		output.collect(currentValue);
 	}
-
 }

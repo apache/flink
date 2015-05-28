@@ -22,6 +22,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.pattern.Patterns;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -61,7 +62,7 @@ public class JobSubmitTest {
 
 		scala.Option<Tuple2<String, Object>> listeningAddress = scala.Option.empty();
 		jobManagerSystem = AkkaUtils.createActorSystem(config, listeningAddress);
-		jobManager = JobManager.startJobManagerActors(config, jobManagerSystem)._1();
+		jobManager = JobManager.startJobManagerActors(config, jobManagerSystem, StreamingMode.BATCH_ONLY)._1();
 	}
 
 	@AfterClass

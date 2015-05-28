@@ -41,7 +41,6 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String DEFAULT_PARALLELISM_KEY_OLD = "parallelization.degree.default";
 
-
 	/**
 	 * Config parameter for the number of re-tries for failed tasks. Setting this
 	 * value to 0 effectively disables fault tolerance.
@@ -137,10 +136,16 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY = "taskmanager.network.numberOfBuffers";
 
 	/**
-	 * The config parameter defining the size of the buffers used in the network stack.
+	 * Deprecated config parameter defining the size of the buffers used in the network stack.
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY = "taskmanager.network.bufferSizeInBytes";
 
+	/**
+	 * Config parameter defining the size of memory buffers used by the network stack and the memory manager.
+	 */
+	public static final String TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY = "taskmanager.memory.segment-size";
+	
 	/**
 	 * The implementation to use for spillable/spilled intermediate results, which have both
 	 * synchronous and asynchronous implementations: "sync" or "async".
@@ -255,7 +260,7 @@ public final class ConfigConstants {
 	 */
 	public static final String PATH_HADOOP_CONFIG = "fs.hdfs.hadoopconf";
 	
-	// ------------------------ File System Bahavior ------------------------
+	// ------------------------ File System Behavior ------------------------
 
 	/**
 	 * Key to specify whether the file systems should simply overwrite existing files.
@@ -401,6 +406,23 @@ public final class ConfigConstants {
 	 * Timeout for all blocking calls that look up remote actors
 	 */
 	public static final String AKKA_LOOKUP_TIMEOUT = "akka.lookup.timeout";
+
+	/**
+	 * Exit JVM on fatal Akka errors
+	 */
+	public static final String AKKA_JVM_EXIT_ON_FATAL_ERROR = "akka.jvm-exit-on-fatal-error";
+	
+	// ----------------------------- Streaming --------------------------------
+	
+	/**
+	 * State backend for checkpoints;
+	 */
+	public static final String STATE_BACKEND = "state.backend";
+	
+	/**
+	 * Directory for saving streaming checkpoints
+	 */
+	public static final String STATE_BACKEND_FS_DIR = "state.backend.fs.checkpointdir";
 	
 	// ----------------------------- Miscellaneous ----------------------------
 	
@@ -484,7 +506,13 @@ public final class ConfigConstants {
 	/**
 	 * Default size of network stack buffers.
 	 */
+	@Deprecated
 	public static final int DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE = 32768;
+
+	/**
+	 * Default size of memory segments in the network stack and the memory manager.
+	 */
+	public static final int DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE = 32768;
 
 	/**
 	 * The implementation to use for spillable/spilled intermediate results, which have both
@@ -525,9 +553,17 @@ public final class ConfigConstants {
 	// ------------------------ YARN Configuration ------------------------
 
 
-	public static final int DEFAULT_YARN_MIN_HEAP_CUTOFF = 384;
+	/**
+	 * Minimum amount of Heap memory to subtract from the requested TaskManager size.
+	 * We came up with these values experimentally.
+	 * Flink fails when the cutoff is set only to 500 mb.
+	 */
+	public static final int DEFAULT_YARN_MIN_HEAP_CUTOFF = 600;
 
-	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.15f;
+	/**
+	 * Relative amount of memory to subtract from the requested memory.
+	 */
+	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;
 	
 	
 	// ------------------------ File System Behavior ------------------------
@@ -624,6 +660,9 @@ public final class ConfigConstants {
 
 	public static String DEFAULT_AKKA_LOOKUP_TIMEOUT = "10 s";
 	
+	// ----------------------------- Streaming Values --------------------------
+	
+	public static String DEFAULT_STATE_BACKEND = "jobmanager";
 
 	// ----------------------------- LocalExecution ----------------------------
 

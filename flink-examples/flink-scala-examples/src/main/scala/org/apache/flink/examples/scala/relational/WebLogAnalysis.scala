@@ -123,11 +123,11 @@ object WebLogAnalysis {
     // emit result
     if (fileOutput) {
       result.writeAsCsv(outputPath, "\n", "|")
+      env.execute("Scala WebLogAnalysis Example")
     } else {
       result.print()
     }
 
-    env.execute("Scala WebLogAnalysis Example")
   }
 
   private var fileOutput: Boolean = false

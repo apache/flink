@@ -25,6 +25,10 @@ import org.apache.flink.graph.Edge;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Provides the default data set used for the Single Source Shortest Paths example program.
+ * If no parameters are given to the program, the default edge data set is used.
+ */
 public class SingleSourceShortestPathsData {
 
 	public static final Long SRC_VERTEX_ID = 1L;

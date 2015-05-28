@@ -38,6 +38,8 @@ import java.util.List;
  */
 public class CheckpointCoordinatorTest {
 	
+	ClassLoader cl = Thread.currentThread().getContextClassLoader();
+	
 	@Test
 	public void testCheckpointAbortsIfTriggerTasksAreNotExecuted() {
 		try {
@@ -59,7 +61,7 @@ public class CheckpointCoordinatorTest {
 					jid, 1, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
-					new ExecutionVertex[] {} );
+					new ExecutionVertex[] {}, cl );
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -101,7 +103,7 @@ public class CheckpointCoordinatorTest {
 					jid, 1, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
-					new ExecutionVertex[] {} );
+					new ExecutionVertex[] {}, cl );
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -139,7 +141,7 @@ public class CheckpointCoordinatorTest {
 					jid, 1, 600000,
 					new ExecutionVertex[] { vertex1, vertex2 },
 					new ExecutionVertex[] { vertex1, vertex2 },
-					new ExecutionVertex[] { vertex1, vertex2 });
+					new ExecutionVertex[] { vertex1, vertex2 }, cl);
 			
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -197,8 +199,8 @@ public class CheckpointCoordinatorTest {
 			
 			// validate that the relevant tasks got a confirmation message
 			{
-				ConfirmCheckpoint confirmMessage1 = new ConfirmCheckpoint(jid, attemptID1, checkpointId);
-				ConfirmCheckpoint confirmMessage2 = new ConfirmCheckpoint(jid, attemptID2, checkpointId);
+				ConfirmCheckpoint confirmMessage1 = new ConfirmCheckpoint(jid, attemptID1, checkpointId, timestamp);
+				ConfirmCheckpoint confirmMessage2 = new ConfirmCheckpoint(jid, attemptID2, checkpointId, timestamp);
 				verify(vertex1, times(1)).sendMessageToCurrentExecution(eq(confirmMessage1), eq(attemptID1));
 				verify(vertex2, times(1)).sendMessageToCurrentExecution(eq(confirmMessage2), eq(attemptID2));
 			}
@@ -235,8 +237,8 @@ public class CheckpointCoordinatorTest {
 				verify(vertex1, times(1)).sendMessageToCurrentExecution(eq(expectedMessage1), eq(attemptID1));
 				verify(vertex2, times(1)).sendMessageToCurrentExecution(eq(expectedMessage2), eq(attemptID2));
 
-				ConfirmCheckpoint confirmMessage1 = new ConfirmCheckpoint(jid, attemptID1, checkpointIdNew);
-				ConfirmCheckpoint confirmMessage2 = new ConfirmCheckpoint(jid, attemptID2, checkpointIdNew);
+				ConfirmCheckpoint confirmMessage1 = new ConfirmCheckpoint(jid, attemptID1, checkpointIdNew, timestampNew);
+				ConfirmCheckpoint confirmMessage2 = new ConfirmCheckpoint(jid, attemptID2, checkpointIdNew, timestampNew);
 				verify(vertex1, times(1)).sendMessageToCurrentExecution(eq(confirmMessage1), eq(attemptID1));
 				verify(vertex2, times(1)).sendMessageToCurrentExecution(eq(confirmMessage2), eq(attemptID2));
 			}
@@ -282,7 +284,7 @@ public class CheckpointCoordinatorTest {
 					jid, 2, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
-					new ExecutionVertex[] { commitVertex });
+					new ExecutionVertex[] { commitVertex }, cl);
 			
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -341,7 +343,7 @@ public class CheckpointCoordinatorTest {
 			
 			// the first confirm message should be out
 			verify(commitVertex, times(1)).sendMessageToCurrentExecution(
-					new ConfirmCheckpoint(jid, commitAttemptID, checkpointId1), commitAttemptID);
+					new ConfirmCheckpoint(jid, commitAttemptID, checkpointId1, timestamp1), commitAttemptID);
 			
 			// send the last remaining ack for the second checkpoint
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID3, checkpointId2));
@@ -353,7 +355,7 @@ public class CheckpointCoordinatorTest {
 
 			// the second commit message should be out
 			verify(commitVertex, times(1)).sendMessageToCurrentExecution(
-					new ConfirmCheckpoint(jid, commitAttemptID, checkpointId2), commitAttemptID);
+					new ConfirmCheckpoint(jid, commitAttemptID, checkpointId2, timestamp2), commitAttemptID);
 			
 			// validate the committed checkpoints
 			List<SuccessfulCheckpoint> scs = coord.getSuccessfulCheckpoints();
@@ -409,7 +411,7 @@ public class CheckpointCoordinatorTest {
 					jid, 10, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
-					new ExecutionVertex[] { commitVertex });
+					new ExecutionVertex[] { commitVertex }, cl);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -480,7 +482,7 @@ public class CheckpointCoordinatorTest {
 
 			// the first confirm message should be out
 			verify(commitVertex, times(1)).sendMessageToCurrentExecution(
-					new ConfirmCheckpoint(jid, commitAttemptID, checkpointId2), commitAttemptID);
+					new ConfirmCheckpoint(jid, commitAttemptID, checkpointId2, timestamp2), commitAttemptID);
 
 			// send the last remaining ack for the first checkpoint. This should not do anything
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID3, checkpointId1));
@@ -523,7 +525,7 @@ public class CheckpointCoordinatorTest {
 					jid, 2, 200,
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
-					new ExecutionVertex[] { commitVertex });
+					new ExecutionVertex[] { commitVertex }, cl);
 			
 			// trigger a checkpoint, partially acknowledged
 			assertTrue(coord.triggerCheckpoint(timestamp));
@@ -581,7 +583,7 @@ public class CheckpointCoordinatorTest {
 					jid, 2, 200000,
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
-					new ExecutionVertex[] { commitVertex });
+					new ExecutionVertex[] { commitVertex }, cl);
 
 			assertTrue(coord.triggerCheckpoint(timestamp));
 			

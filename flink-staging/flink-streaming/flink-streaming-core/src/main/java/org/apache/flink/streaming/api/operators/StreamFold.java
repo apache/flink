@@ -20,31 +20,34 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.Configuration;
 
-public class StreamFold<IN, OUT> extends ChainableStreamOperator<IN, OUT> {
+public class StreamFold<IN, OUT>
+		extends AbstractUdfStreamOperator<OUT, FoldFunction<IN, OUT>>
+		implements OneInputStreamOperator<IN, OUT> {
+
 	private static final long serialVersionUID = 1L;
 
 	private OUT accumulator;
 	protected TypeSerializer<OUT> outTypeSerializer;
+	protected TypeInformation<OUT> outTypeInformation;
 
-	public StreamFold(FoldFunction<IN, OUT> folder, OUT initialValue,
-			TypeInformation<OUT> outTypeInformation) {
+	public StreamFold(FoldFunction<IN, OUT> folder, OUT initialValue, TypeInformation<OUT> outTypeInformation) {
 		super(folder);
 		this.accumulator = initialValue;
+		this.outTypeInformation = outTypeInformation;
+		this.chainingStrategy = ChainingStrategy.FORCE_ALWAYS;
+	}
+
+	@Override
+	public void processElement(IN element) throws Exception {
+		accumulator = userFunction.fold(outTypeSerializer.copy(accumulator), element);
+		output.collect(accumulator);
+	}
+
+	@Override
+	public void open(Configuration config) throws Exception {
+		super.open(config);
 		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
-	}
-
-	@Override
-	public void run() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction() throws Exception {
-		accumulator = ((FoldFunction<IN, OUT>) userFunction).fold(outTypeSerializer.copy(accumulator), nextObject);
-		collector.collect(accumulator);
 	}
 }

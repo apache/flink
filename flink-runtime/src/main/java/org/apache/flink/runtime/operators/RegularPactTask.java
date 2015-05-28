@@ -25,6 +25,7 @@ import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -70,6 +71,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -507,15 +509,14 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			// Collect the accumulators of all involved UDFs and send them to the
 			// JobManager. close() has been called earlier for all involved UDFs
 			// (using this.stub.close() and closeChainedTasks()), so UDFs can no longer
-			// modify accumulators.ll;
-			if (this.stub != null) {
-				// collect the counters from the stub
-				if (FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext) != null) {
-					Map<String, Accumulator<?, ?>> accumulators =
-							FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
-					RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
-				}
-			}
+			// modify accumulators;
+
+			// collect the counters from the udf in the core driver
+			Map<String, Accumulator<?, ?>> accumulators =
+					FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
+			
+			// collect accumulators from chained tasks and report them
+			reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
@@ -572,16 +573,25 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// We can merge here the accumulators from the stub and the chained
 		// tasks. Type conflicts can occur here if counters with same name but
 		// different type were used.
-		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			if (FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null) != null) {
-				Map<String, Accumulator<?, ?>> chainedAccumulators =
-						FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators();
-				AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
+		
+		if (!chainedTasks.isEmpty()) {
+			if (accumulators == null) {
+				accumulators = new HashMap<String, Accumulator<?, ?>>();
+			}
+			
+			for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
+				RuntimeContext rc = FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null);
+				if (rc != null) {
+					Map<String, Accumulator<?, ?>> chainedAccumulators = rc.getAllAccumulators();
+					if (chainedAccumulators != null) {
+						AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
+					}
+				}
 			}
 		}
 
 		// Don't report if the UDF didn't collect any accumulators
-		if (accumulators.size() == 0) {
+		if (accumulators == null || accumulators.size() == 0) {
 			return;
 		}
 
@@ -592,9 +602,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// (e.g. in iterations) and we don't want to count twice. This may not be
 		// done before sending
 		AccumulatorHelper.resetAndClearAccumulators(accumulators);
+		
 		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			if (FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null) != null) {
-				AccumulatorHelper.resetAndClearAccumulators(FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators());
+			RuntimeContext rc = FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null);
+			if (rc != null) {
+				AccumulatorHelper.resetAndClearAccumulators(rc.getAllAccumulators());
 			}
 		}
 	}
@@ -1067,7 +1079,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new DistributedRuntimeUDFContext(taskName, env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(), env.getCopyTask());
+				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
+				env.getDistributedCacheEntries());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1139,7 +1152,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			} catch (InterruptedException iex) {
 				throw new RuntimeException("Interrupted while waiting for input " + index + " to become available.");
 			} catch (IOException ioex) {
-				throw new RuntimeException("An I/O Exception occurred whily obaining input " + index + ".");
+				throw new RuntimeException("An I/O Exception occurred while obtaining input " + index + ".");
 			}
 		}
 	}

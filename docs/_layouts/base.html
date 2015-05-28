@@ -23,7 +23,11 @@ under the License.
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    {% if page.htmlTitle %}
+    <title>Apache Flink {{ site.version}} Documentation: {{ page.htmlTitle }}</title>
+    {% else %}
     <title>Apache Flink {{ site.version}} Documentation: {{ page.title }}</title>
+    {% endif %}
     <link rel="shortcut icon" href="{{ site.baseurl }}/page/favicon.ico" type="image/x-icon">
     <link rel="icon" href="{{ site.baseurl }}/page/favicon.ico" type="image/x-icon">
 
@@ -34,7 +38,12 @@ under the License.
     <link rel="stylesheet" href="{{ site.baseurl }}/page/css/codetabs.css">
     {% if page.mathjax %}
     <script type="text/x-mathjax-config">
-        MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});
+        MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [['$','$'], ['\\(','\\)']] },
+        TeX: {
+          equationNumbers: { autoNumber: "AMS" } }
+        });
     </script>
     <script type="text/javascript"
             src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
@@ -47,7 +56,7 @@ under the License.
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
   </head>
-  <body>  
+  <body>
     {% comment %} Includes are found in the _includes directory. {% endcomment %}
     {% include navbar.html %}
 

@@ -51,7 +51,8 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		
 		PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
 		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
-		return executor.executePlan(p);
+		this.lastJobExecutionResult = executor.executePlan(p);
+		return this.lastJobExecutionResult;
 	}
 	
 	@Override

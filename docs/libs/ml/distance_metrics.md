@@ -1,6 +1,7 @@
 ---
 mathjax: include
-title: Distance Metrics
+htmlTitle: FlinkML - Distance Metrics
+title: <a href="../ml">FlinkML</a> - Distance Metrics
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,9 +27,9 @@ under the License.
 
 ## Description
 
-Different metrics of distance are convenient for different types of analysis. Flink Machine
-Learning Library provides built-in implementations for many standard distance metric. You can also
-use other distance metric by implementing `DistanceMetric` trait.
+Different metrics of distance are convenient for different types of analysis. Flink ML provides
+built-in implementations for many standard distance metrics. You can create custom
+distance metrics by implementing the `DistanceMetric` trait.
 
 ## Built-in Implementations
 
@@ -91,7 +92,7 @@ Currently, FlinkML supports the following metrics:
 
 ## Custom Implementation
 
-You can use your own distance metric by implementing `DistanceMetric` trait.
+You can create your own distance metric by implementing the `DistanceMetric` trait.
 
 {% highlight scala %}
 class MyDistance extends DistanceMetric {
@@ -102,5 +103,5 @@ object MyDistance {
   def apply() = new MyDistance()
 }
 
-val metric = MyDistance()
+val myMetric = MyDistance()
 {% endhighlight %}

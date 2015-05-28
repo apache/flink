@@ -35,7 +35,7 @@ if [ ! -f "$HOSTLIST" ]; then
 fi
 
 # cluster mode, bring up job manager locally and a task manager on every slave host
-"$FLINK_BIN_DIR"/jobmanager.sh start cluster
+"$FLINK_BIN_DIR"/jobmanager.sh start cluster batch
 
 GOON=true
 while $GOON
@@ -43,6 +43,6 @@ do
     read line || GOON=false
     if [ -n "$line" ]; then
         HOST=$( extractHostName $line)
-        ssh -n $FLINK_SSH_OPTS $HOST -- "nohup /bin/bash -l $FLINK_BIN_DIR/taskmanager.sh start &"
+        ssh -n $FLINK_SSH_OPTS $HOST -- "nohup /bin/bash -l $FLINK_BIN_DIR/taskmanager.sh start batch &"
     fi
 done < "$HOSTLIST"

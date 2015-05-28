@@ -28,6 +28,7 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
@@ -55,7 +56,7 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 			
 			input1
 				.join(input2, JoinHint.REPARTITION_HASH_FIRST).where(1).equalTo(0).withPartitioner(partitioner)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<Tuple2<Long, Long>, Tuple3<Long, Long, Long>>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -114,7 +115,7 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 			input1
 				.join(input2, JoinHint.REPARTITION_HASH_FIRST)
 				.where("b").equalTo("a").withPartitioner(partitioner)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<Pojo2, Pojo3>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -176,7 +177,7 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 				.where(new Pojo2KeySelector())
 				.equalTo(new Pojo3KeySelector())
 				.withPartitioner(partitioner)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<Pojo2, Pojo3>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -248,7 +249,7 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 			grouped
 				.join(partitioned, JoinHint.REPARTITION_HASH_FIRST).where(0).equalTo(0)
 				.with(new DummyFlatJoinFunction<Tuple3<Long,Long,Long>>())
-				.print();
+				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);

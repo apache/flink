@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.java.DataSet;
@@ -72,21 +73,20 @@ public class EmptyFieldsCountAccumulator {
 		final DataSet<Tuple> filteredLines = file.filter(new EmptyFieldFilter());
 
 		// Here, we could do further processing with the filtered lines...
-		
+		JobExecutionResult result;
 		// output the filtered lines
 		if (outputPath == null) {
 			filteredLines.print();
+			result = env.getLastJobExecutionResult();
 		} else {
 			filteredLines.writeAsCsv(outputPath);
+			// execute program
+			result = env.execute("Accumulator example");
 		}
-
-		// execute program
-		final JobExecutionResult result = env.execute("Accumulator example");
 
 		// get the accumulator result via its registration key
 		final List<Integer> emptyFields = result.getAccumulatorResult(EMPTY_FIELD_ACCUMULATOR);
 		System.out.format("Number of detected empty fields per column: %s\n", emptyFields);
-
 	}
 
 	// *************************************************************************
@@ -245,6 +245,11 @@ public class EmptyFieldsCountAccumulator {
 		@Override
 		public Accumulator<Integer, ArrayList<Integer>> clone() {
 			return new VectorAccumulator(new ArrayList<Integer>(resultVector));
+		}
+
+		@Override
+		public String toString() {
+			return StringUtils.join(resultVector, ',');
 		}
 	}
 }

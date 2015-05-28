@@ -22,6 +22,7 @@ package org.apache.flink.test.operators;
 import java.io.Serializable;
 import java.util.Collection;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.MapFunction;
 import org.apache.flink.api.java.record.operators.FileDataSink;
@@ -122,6 +123,7 @@ public class UnionSinkITCase extends RecordAPITestBase {
 		output.addInput(testMapper2);
 		
 		Plan plan = new Plan(output);
+		plan.setExecutionConfig(new ExecutionConfig());
 		plan.setDefaultParallelism(parallelism);
 
 		Optimizer pc = new Optimizer(new DataStatistics(), this.config);

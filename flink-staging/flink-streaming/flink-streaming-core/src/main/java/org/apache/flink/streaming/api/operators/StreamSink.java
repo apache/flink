@@ -19,23 +19,19 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
-public class StreamSink<IN> extends ChainableStreamOperator<IN, IN> {
+public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFunction<IN>>
+		implements OneInputStreamOperator<IN, Object> {
+
 	private static final long serialVersionUID = 1L;
 
 	public StreamSink(SinkFunction<IN> sinkFunction) {
 		super(sinkFunction);
+
+		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override
-	public void run() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction() throws Exception {
-		((SinkFunction<IN>) userFunction).invoke(nextObject);
+	public void processElement(IN element) throws Exception {
+		userFunction.invoke(element);
 	}
 }

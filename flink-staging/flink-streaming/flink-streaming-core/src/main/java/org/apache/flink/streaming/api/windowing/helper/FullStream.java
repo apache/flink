@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
  * policy and only with operations that support pre-aggregator such as reduce or
  * aggregations.
  */
-public class FullStream<DATA> implements WindowingHelper<DATA>, Serializable {
+public class FullStream<DATA> extends WindowingHelper<DATA> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 

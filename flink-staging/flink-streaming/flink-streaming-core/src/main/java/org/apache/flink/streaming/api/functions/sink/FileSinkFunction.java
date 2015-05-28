@@ -74,6 +74,9 @@ public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> {
 		try {
 			format.close();
 		} catch (Exception ex) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Error while writing element.", ex);
+			}
 			try {
 				if (!cleanupCalled && format instanceof CleanupWhenUnsuccessful) {
 					cleanupCalled = true;
@@ -92,6 +95,9 @@ public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> {
 			}
 		} catch (Exception ex) {
 			try {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Error while writing element.", ex);
+				}
 				if (!cleanupCalled && format instanceof CleanupWhenUnsuccessful) {
 					cleanupCalled = true;
 					((CleanupWhenUnsuccessful) format).tryCleanupOnError();

@@ -18,17 +18,13 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import java.util.Map;
-
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.runtime.state.OperatorState;
 
 /**
  * Implementation of the {@link RuntimeContext}, created by runtime stream UDF
@@ -37,65 +33,13 @@ import org.apache.flink.runtime.state.OperatorState;
 public class StreamingRuntimeContext extends RuntimeUDFContext {
 
 	private final Environment env;
-	private final Map<String, OperatorState<?>> operatorStates;
+
 
 	public StreamingRuntimeContext(String name, Environment env, ClassLoader userCodeClassLoader,
-			ExecutionConfig executionConfig, Map<String, OperatorState<?>> operatorStates) {
+			ExecutionConfig executionConfig) {
 		super(name, env.getNumberOfSubtasks(), env.getIndexInSubtaskGroup(), userCodeClassLoader,
-				executionConfig, env.getCopyTask());
+				executionConfig, env.getDistributedCacheEntries());
 		this.env = env;
-		this.operatorStates = operatorStates;
-	}
-
-	/**
-	 * Returns the operator state registered by the given name for the operator.
-	 * 
-	 * @param name
-	 *            Name of the operator state to be returned.
-	 * @return The operator state.
-	 */
-	public OperatorState<?> getState(String name) {
-		if (operatorStates == null) {
-			throw new RuntimeException("No state has been registered for this operator.");
-		} else {
-			OperatorState<?> state = operatorStates.get(name);
-			if (state != null) {
-				return state;
-			} else {
-				throw new RuntimeException("No state has been registered for the name: " + name);
-			}
-		}
-	}
-
-	/**
-	 * Returns whether there is a state stored by the given name
-	 */
-	public boolean containsState(String name) {
-		return operatorStates.containsKey(name);
-	}
-
-	/**
-	 * This is a beta feature </br></br> Register an operator state for this
-	 * operator by the given name. This name can be used to retrieve the state
-	 * during runtime using {@link StreamingRuntimeContext#getState(String)}. To
-	 * obtain the {@link StreamingRuntimeContext} from the user-defined function
-	 * use the {@link RichFunction#getRuntimeContext()} method.
-	 * 
-	 * @param name
-	 *            The name of the operator state.
-	 * @param state
-	 *            The state to be registered for this name.
-	 */
-	public void registerState(String name, OperatorState<?> state) {
-		if (state == null) {
-			throw new RuntimeException("Cannot register null state");
-		} else {
-			if (operatorStates.containsKey(name)) {
-				throw new RuntimeException("State is already registered");
-			} else {
-				operatorStates.put(name, state);
-			}
-		}
 	}
 
 	/**
