@@ -44,6 +44,7 @@ public class SlidingTimePreReducerTest {
 	ReduceFunction<Tuple2<Integer, Integer>> tupleReducer = new TupleSumReducer();
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testPreReduce1() throws Exception {
 		// This ensures that the buffer is properly cleared after a burst of elements by
 		// replaying the same sequence of elements with a later timestamp and expecting the same
