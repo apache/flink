@@ -166,8 +166,7 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val chainedScalers5 = chainedScalers4.chainTransformer(StandardScaler())
 
     val predictor = MultipleLinearRegression()
-
-
+    
     val pipeline = chainedScalers5.chainPredictor(predictor)
 
     pipeline.fit(trainingData)

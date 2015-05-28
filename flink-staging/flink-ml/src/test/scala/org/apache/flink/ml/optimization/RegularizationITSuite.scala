@@ -19,7 +19,7 @@
 package org.apache.flink.ml.optimization
 
 import org.apache.flink.ml.common.WeightVector
-import org.apache.flink.ml.math.DenseVector
+import org.apache.flink.ml.math.{BLAS, DenseVector}
 import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase
 
@@ -38,21 +38,14 @@ class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
-    val regularization = new NoRegularization
+    val regularization = NoRegularization
 
     val weightVector = new WeightVector(DenseVector(1.0), 1.0)
-    val regParameter = 1.0
-    val gradient = DenseVector(0.0)
     val originalLoss = 1.0
 
-    val adjustedLoss = regularization.regularizedLossAndGradient(
-      originalLoss,
-      weightVector.weights,
-      gradient,
-      regParameter)
+    val regValue = regularization.regularization(weightVector)
 
-    adjustedLoss should be (originalLoss +- 0.0001)
-    gradient shouldEqual DenseVector(0.0)
+    regValue should be (originalLoss +- 0.0001)
   }
 
   it should "correctly apply L1 regularization" in {
@@ -60,14 +53,14 @@ class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
-    val regularization = new L1Regularization
+    val regularization = L1Regularization
 
-    val weightVector = new WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
+    val weightVector = WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
     val effectiveStepsize = 1.0
     val regParameter = 0.5
-    val gradient = DenseVector(0.0, 0.0, 0.0, 0.0, 0.0)
+    val gradient = WeightVector(DenseVector(0.0, 0.0, 0.0, 0.0, 0.0), 0.0)
 
-    regularization.takeStep(weightVector.weights,  gradient, effectiveStepsize, regParameter)
+    regularization.updateWeightVector(weightVector,  gradient, effectiveStepsize, regParameter)
 
     val expectedWeights = DenseVector(-0.5, 0.5, 0.0, 0.0, 0.0)
 
@@ -80,13 +73,13 @@ class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
-    val regularization = new L1Regularization
+    val regularization = L1Regularization
 
     val weightVector = new WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
     val regParameter = 0.5
     val originalLoss = 1.0
 
-    val adjustedLoss = regularization.regLoss(originalLoss, weightVector.weights, regParameter)
+    val adjustedLoss = originalLoss + regParameter * regularization.regularization(weightVector)
 
     weightVector shouldEqual WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
     adjustedLoss should be (2.4 +- 0.1)
@@ -97,23 +90,27 @@ class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
-    val regularization = new L2Regularization
+    val regularization = L2Regularization
 
-    val weightVector = new WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
+    val weightVector = WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
     val regParameter = 0.5
     val lossGradient = DenseVector(0.0, 0.0, 0.0, 0.0, 0.0)
+    val lossIntercept = 0.0
     val originalLoss = 1.0
 
-    val adjustedLoss = regularization.regularizedLossAndGradient(
-      originalLoss,
-      weightVector.weights,
-      lossGradient,
-      regParameter)
+    val adjustedLoss = originalLoss + regParameter * regularization.regularization(weightVector)
+
+    val Some(WeightVector(weights, intercept)) = regularization.gradient(weightVector)
+
+    BLAS.axpy(regParameter, weights, lossGradient)
+
+    val adjustedLossIntercept = lossIntercept + regParameter * intercept
 
     val expectedGradient = DenseVector(-0.5, 0.5, 0.2, -0.2, 0.0)
 
     weightVector shouldEqual WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
     adjustedLoss should be (1.58 +- 0.1)
     lossGradient shouldEqual expectedGradient
+    adjustedLossIntercept should be (1.0 +- 0.1)
   }
 }

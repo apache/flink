@@ -18,23 +18,18 @@
 
 package org.apache.flink.ml.optimization
 
-import org.apache.flink.ml.common.WeightVector
-import org.apache.flink.ml.math.{Vector => FlinkVector, BLAS}
+trait PartialLossFunction extends Serializable {
+  def loss(prediction: Double, label: Double): Double
 
-/** An abstract class for prediction functions to be used in optimization **/
-abstract class PredictionFunction extends Serializable {
-  def predict(features: FlinkVector, weights: WeightVector): Double
-
-  def gradient(features: FlinkVector, weights: WeightVector): WeightVector
+  def gradient(prediction: Double, label: Double): Double
 }
 
-/** A linear prediction function **/
-object LinearPrediction extends PredictionFunction {
-  override def predict(features: FlinkVector, weightVector: WeightVector): Double = {
-    BLAS.dot(features, weightVector.weights) + weightVector.intercept
+object SquaredLoss extends PartialLossFunction {
+  override def loss(prediction: Double, label: Double): Double = {
+    0.5 * (prediction - label) * (prediction - label)
   }
 
-  override def gradient(features: FlinkVector, weights: WeightVector): WeightVector = {
-    WeightVector(features, 1)
+  override def gradient(prediction: Double, label: Double): Double = {
+    (prediction - label)
   }
 }

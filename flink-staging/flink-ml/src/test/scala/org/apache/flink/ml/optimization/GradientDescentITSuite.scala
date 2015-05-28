@@ -38,12 +38,12 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
+    val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction, L1Regularization, 0.3)
+
     val sgd = GradientDescent()
       .setStepsize(0.01)
       .setIterations(2000)
-      .setLossFunction(SquaredLoss())
-      .setRegularizationType(L1Regularization())
-      .setRegularizationParameter(0.3)
+      .setLossFunction(lossFunction)
 
     val inputDS: DataSet[LabeledVector] = env.fromCollection(regularizationData)
 
@@ -69,12 +69,12 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
+    val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction, L2Regularization, 1.0)
+
     val sgd = GradientDescent()
       .setStepsize(0.1)
       .setIterations(1)
-      .setLossFunction(SquaredLoss())
-      .setRegularizationType(L2Regularization())
-      .setRegularizationParameter(1.0)
+      .setLossFunction(lossFunction)
 
     val inputDS: DataSet[LabeledVector] = env.fromElements(LabeledVector(1.0, DenseVector(2.0)))
     val currentWeights = new WeightVector(DenseVector(1.0), 1.0)
@@ -86,12 +86,9 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     weightList.size should equal(1)
 
-    val weightVector: WeightVector = weightList.head
+    val WeightVector(updatedWeights, updatedIntercept) = weightList.head
 
-    val updatedIntercept = weightVector.intercept
-    val updatedWeight = weightVector.weights(0)
-
-    updatedWeight should be (0.5 +- 0.001)
+    updatedWeights(0) should be (0.5 +- 0.001)
     updatedIntercept should be (0.8 +- 0.01)
   }
 
@@ -100,12 +97,12 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
+    val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction, NoRegularization, 0)
+
     val sgd = GradientDescent()
       .setStepsize(1.0)
       .setIterations(800)
-      .setLossFunction(SquaredLoss())
-      .setRegularizationType(NoRegularization())
-      .setRegularizationParameter(0.0)
+      .setLossFunction(lossFunction)
 
     val inputDS = env.fromCollection(data)
     val weightDS = sgd.optimize(inputDS, None)
@@ -131,12 +128,12 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
+    val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction, NoRegularization, 0)
+
     val sgd = GradientDescent()
       .setStepsize(0.0001)
       .setIterations(100)
-      .setLossFunction(SquaredLoss())
-      .setRegularizationType(NoRegularization())
-      .setRegularizationParameter(0.0)
+      .setLossFunction(lossFunction)
 
     val inputDS = env.fromCollection(noInterceptData)
     val weightDS = sgd.optimize(inputDS, None)
@@ -162,12 +159,12 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
+    val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction, NoRegularization, 0)
+
     val sgd = GradientDescent()
       .setStepsize(0.1)
       .setIterations(1)
-      .setLossFunction(SquaredLoss())
-      .setRegularizationType(NoRegularization())
-      .setRegularizationParameter(0.0)
+      .setLossFunction(lossFunction)
 
     val inputDS: DataSet[LabeledVector] = env.fromElements(LabeledVector(1.0, DenseVector(2.0)))
     val currentWeights = new WeightVector(DenseVector(1.0), 1.0)
@@ -198,13 +195,13 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
+    val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction, NoRegularization, 0)
+
     val sgdEarlyTerminate = GradientDescent()
       .setConvergenceThreshold(1e2)
       .setStepsize(1.0)
       .setIterations(800)
-      .setLossFunction(SquaredLoss())
-      .setRegularizationType(NoRegularization())
-      .setRegularizationParameter(0.0)
+      .setLossFunction(lossFunction)
 
     val inputDS = env.fromCollection(data)
 
@@ -221,9 +218,7 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val sgdNoConvergence = GradientDescent()
       .setStepsize(1.0)
       .setIterations(800)
-      .setLossFunction(SquaredLoss())
-      .setRegularizationType(NoRegularization())
-      .setRegularizationParameter(0.0)
+      .setLossFunction(lossFunction)
 
     val weightDSNoConvergence = sgdNoConvergence.optimize(inputDS, None)
 
