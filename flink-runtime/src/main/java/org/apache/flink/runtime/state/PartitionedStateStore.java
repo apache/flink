@@ -21,6 +21,8 @@ package org.apache.flink.runtime.state;
 import java.io.Serializable;
 import java.util.Map;
 
+import org.apache.flink.api.common.state.StateCheckpointer;
+
 /**
  * Interface for storing and accessing partitioned state. The interface is
  * designed in a way that allows implementations for lazily state access.
@@ -43,5 +45,7 @@ public interface PartitionedStateStore<S, C extends Serializable> {
 	void restoreStates(Map<Serializable, StateHandle<C>> snapshots) throws Exception;
 
 	boolean containsKey(Serializable key);
+	
+	void setCheckPointer(StateCheckpointer<S, C> checkpointer);
 
 }

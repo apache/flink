@@ -42,8 +42,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StatefulStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.state.PartitionedStreamOperatorState;
-import org.apache.flink.streaming.api.state.StreamOperatorState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,6 +64,8 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	protected volatile boolean isRunning = false;
 
 	protected List<StreamingRuntimeContext> contexts;
+	
+	protected StreamingRuntimeContext headContext;
 
 	protected ClassLoader userClassLoader;
 	
@@ -93,7 +93,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 			// IterationHead and IterationTail don't have an Operator...
 
 			//Create context of the head operator
-			StreamingRuntimeContext headContext = createRuntimeContext(configuration);
+			headContext = createRuntimeContext(configuration);
 			this.contexts.add(headContext);
 			streamOperator.setup(outputHandler.getOutput(), headContext);
 		}
@@ -105,19 +105,14 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		return getEnvironment().getTaskName();
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public StreamingRuntimeContext createRuntimeContext(StreamConfig conf) {
 		Environment env = getEnvironment();
 		String operatorName = conf.getStreamOperator(userClassLoader).getClass().getSimpleName();
 		
 		KeySelector<?,Serializable> statePartitioner = conf.getStatePartitioner(userClassLoader);
 		
-		StreamOperatorState state = statePartitioner == null ? new StreamOperatorState(
-				getStateHandleProvider()) : new PartitionedStreamOperatorState(
-				getStateHandleProvider(), statePartitioner);
-		
 		return new StreamingRuntimeContext(operatorName, env, getUserCodeClassLoader(),
-				getExecutionConfig(), state);
+				getExecutionConfig(), statePartitioner, getStateHandleProvider());
 	}
 	
 	private StateHandleProvider<Serializable> getStateHandleProvider() {
@@ -216,16 +211,16 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 			Serializable headState = chainedStates.get(0);
 			if (headState != null) {
 				if (streamOperator instanceof StatefulStreamOperator) {
-					((StatefulStreamOperator) streamOperator).restoreInitialState(headState);
+					((StatefulStreamOperator<?>) streamOperator).restoreInitialState(headState);
 				}
 			}
 
 			for (int i = 1; i < chainedStates.size(); i++) {
 				Serializable chainedState = chainedStates.get(i);
 				if (chainedState != null) {
-					StreamOperator chainedOperator = outputHandler.getChainedOperators().get(i - 1);
+					StreamOperator<?> chainedOperator = outputHandler.getChainedOperators().get(i - 1);
 					if (chainedOperator instanceof StatefulStreamOperator) {
-						((StatefulStreamOperator) chainedOperator).restoreInitialState(chainedState);
+						((StatefulStreamOperator<?>) chainedOperator).restoreInitialState(chainedState);
 					}
 
 				}
@@ -233,7 +228,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 		} else {
 			if (streamOperator instanceof StatefulStreamOperator) {
-				((StatefulStreamOperator) streamOperator).restoreInitialState(state);
+				((StatefulStreamOperator<?>) streamOperator).restoreInitialState(state);
 			}
 
 		}
@@ -254,7 +249,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 						Serializable userState = null;
 
 						if (streamOperator instanceof StatefulStreamOperator) {
-							userState = ((StatefulStreamOperator) streamOperator).getStateSnapshotFromFunction(checkpointId, timestamp);
+							userState = ((StatefulStreamOperator<?>) streamOperator).getStateSnapshotFromFunction(checkpointId, timestamp);
 						}
 
 
@@ -266,7 +261,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 							for (OneInputStreamOperator<?, ?> chainedOperator : outputHandler.getChainedOperators()) {
 								if (chainedOperator instanceof StatefulStreamOperator) {
-									chainedStates.add(((StatefulStreamOperator) chainedOperator).getStateSnapshotFromFunction(checkpointId, timestamp));
+									chainedStates.add(((StatefulStreamOperator<?>) chainedOperator).getStateSnapshotFromFunction(checkpointId, timestamp));
 								}
 							}
 
@@ -306,13 +301,13 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		// we do nothing here so far. this should call commit on the source function, for example
 		synchronized (checkpointLock) {
 			if (streamOperator instanceof StatefulStreamOperator) {
-				((StatefulStreamOperator) streamOperator).confirmCheckpointCompleted(checkpointId, timestamp, null);
+				((StatefulStreamOperator<?>) streamOperator).confirmCheckpointCompleted(checkpointId, timestamp, null);
 			}
 
 			if (hasChainedOperators) {
 				for (OneInputStreamOperator<?, ?> chainedOperator : outputHandler.getChainedOperators()) {
 					if (chainedOperator instanceof StatefulStreamOperator) {
-						((StatefulStreamOperator) chainedOperator).confirmCheckpointCompleted(checkpointId, timestamp, null);
+						((StatefulStreamOperator<?>) chainedOperator).confirmCheckpointCompleted(checkpointId, timestamp, null);
 					}
 				}
 			}

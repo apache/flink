@@ -166,10 +166,11 @@ public interface RuntimeContext {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Returns the {@link OperatorState} of this operator instance, which can be
-	 * used to store and update user state in a fault tolerant fashion. The
-	 * state will be initialized by the provided default value, and the
-	 * {@link StateCheckpointer} will be used to draw the state snapshots.
+	 * Returns the {@link OperatorState} with the given name of the underlying
+	 * operator instance, which can be used to store and update user state in a
+	 * fault tolerant fashion. The state will be initialized by the provided
+	 * default value, and the {@link StateCheckpointer} will be used to draw the
+	 * state snapshots.
 	 * 
 	 * <p>
 	 * When storing a {@link Serializable} state the user can omit the
@@ -177,6 +178,9 @@ public interface RuntimeContext {
 	 * the snapshot.
 	 * </p>
 	 * 
+	 * @param name
+	 *            Identifier for the state allowing that more operator states
+	 *            can be used by the same operator.
 	 * @param defaultState
 	 *            Default value for the operator state. This will be returned
 	 *            the first time {@link OperatorState#getState()} (for every
@@ -185,26 +189,30 @@ public interface RuntimeContext {
 	 * @param checkpointer
 	 *            The {@link StateCheckpointer} that will be used to draw
 	 *            snapshots from the user state.
-	 * @return The {@link OperatorState} for this instance.
+	 * @return The {@link OperatorState} for the underlying operator.
 	 */
-	<S,C extends Serializable> OperatorState<S> getOperatorState(S defaultState, StateCheckpointer<S,C> checkpointer);
+	<S,C extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState, StateCheckpointer<S,C> checkpointer);
 
 	/**
-	 * Returns the {@link OperatorState} of this operator instance, which can be
-	 * used to store and update user state in a fault tolerant fashion. The
-	 * state will be initialized by the provided default value.
+	 * Returns the {@link OperatorState} with the given name of the underlying
+	 * operator instance, which can be used to store and update user state in a
+	 * fault tolerant fashion. The state will be initialized by the provided
+	 * default value.
 	 * 
 	 * <p>
 	 * When storing a non-{@link Serializable} state the user needs to specify a
 	 * {@link StateCheckpointer} for drawing snapshots.
 	 * </p>
 	 * 
+	 * @param name
+	 *            Identifier for the state allowing that more operator states can be
+	 *            used by the same operator.
 	 * @param defaultState
 	 *            Default value for the operator state. This will be returned
 	 *            the first time {@link OperatorState#getState()} (for every
 	 *            state partition) is called before
 	 *            {@link OperatorState#updateState(Object)}.
-	 * @return The {@link OperatorState} for this instance.
+	 * @return The {@link OperatorState} for the underlying operator.
 	 */
-	<S extends Serializable> OperatorState<S> getOperatorState(S defaultState);
+	<S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState);
 }

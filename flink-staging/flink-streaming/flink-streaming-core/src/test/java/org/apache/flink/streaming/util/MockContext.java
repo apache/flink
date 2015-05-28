@@ -105,7 +105,7 @@ public class MockContext<IN, OUT> {
 		MockContext<IN, OUT> mockContext = new MockContext<IN, OUT>(inputs);
 		StreamingRuntimeContext runtimeContext = new StreamingRuntimeContext("MockTask",
 				new MockEnvironment(3 * 1024 * 1024, new MockInputSplitProvider(), 1024), null,
-				new ExecutionConfig(), null);
+				new ExecutionConfig(), null, null);
 
 		operator.setup(mockContext.output, runtimeContext);
 		try {

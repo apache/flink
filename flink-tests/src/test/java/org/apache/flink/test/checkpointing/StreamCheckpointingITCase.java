@@ -211,7 +211,7 @@ public class StreamCheckpointingITCase {
 			step = getRuntimeContext().getNumberOfParallelSubtasks();
 			
 			
-			index = getRuntimeContext().getOperatorState(getRuntimeContext().getIndexOfThisSubtask());
+			index = getRuntimeContext().getOperatorState("index", getRuntimeContext().getIndexOfThisSubtask());
 			
 			isRunning = true;
 		}
@@ -265,7 +265,7 @@ public class StreamCheckpointingITCase {
 
 		@Override
 		public void open(Configuration conf) {
-			count = getRuntimeContext().getOperatorState(0L);
+			count = getRuntimeContext().getOperatorState("count", 0L);
 		}
 
 		@Override
@@ -347,7 +347,7 @@ public class StreamCheckpointingITCase {
 		
 		@Override
 		public void open(Configuration conf) {
-			this.count = getRuntimeContext().getOperatorState(0L);
+			this.count = getRuntimeContext().getOperatorState("count", 0L);
 		}
 
 		@Override
@@ -369,7 +369,7 @@ public class StreamCheckpointingITCase {
 		
 		@Override
 		public void open(Configuration conf) {
-			this.count = getRuntimeContext().getOperatorState(0L);
+			this.count = getRuntimeContext().getOperatorState("count", 0L);
 		}
 
 		@Override
