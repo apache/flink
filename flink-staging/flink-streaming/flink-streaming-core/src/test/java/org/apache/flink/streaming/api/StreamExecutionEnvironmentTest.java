@@ -41,6 +41,7 @@ public class StreamExecutionEnvironmentTest {
 	private static int PARALLELISM = 4;
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testFromCollectionParallelism() {
 		TypeInformation<Object> typeInfo = TypeExtractor.getForClass(Object.class);
 		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);

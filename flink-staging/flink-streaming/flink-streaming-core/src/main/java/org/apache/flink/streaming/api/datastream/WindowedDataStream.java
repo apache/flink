@@ -76,7 +76,7 @@ import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 /**
  * A {@link WindowedDataStream} represents a data stream that has been
  * discretised into windows. User defined function such as
- * {@link #reduceWindow(ReduceFunction)}, {@link #mapWindow()} or aggregations
+ * {@link #reduceWindow(ReduceFunction)}, {@link #mapWindow(WindowMapFunction)} or aggregations
  * can be applied to the windows. The results of these transformations are also
  * WindowedDataStreams of the same discretisation unit.
  * 
@@ -610,7 +610,7 @@ public class WindowedDataStream<OUT> {
 	 * stream's underlying type. A dot can be used to drill down into objects,
 	 * as in {@code "field1.getInnerField2()" }.
 	 * 
-	 * @param positionToSum
+	 * @param field
 	 *            The field to sum
 	 * @return The transformed DataStream.
 	 */

@@ -378,7 +378,7 @@ public class DataStream<OUT> {
 	 * instances of the next processing operator.
 	 * 
 	 * @param keySelector
-	 * @return
+	 * @return The partitioned DataStream
 	 */
 	protected DataStream<OUT> partitionBy(KeySelector<OUT, ?> keySelector) {
 		return setConnectionType(new FieldsPartitioner<OUT>(clean(keySelector)));
@@ -607,17 +607,13 @@ public class DataStream<OUT> {
 	 * Initiates a Project transformation on a {@link Tuple} {@link DataStream}.<br/>
 	 * <b>Note: Only Tuple DataStreams can be projected.</b></br> The
 	 * transformation projects each Tuple of the DataSet onto a (sub)set of
-	 * fields.</br> This method returns a {@link StreamProjection} on which
-	 * {@link StreamProjection#types(Class)} needs to be called to completed the
-	 * transformation.
+	 * fields.
 	 * 
 	 * @param fieldIndexes
 	 *            The field indexes of the input tuples that are retained. The
 	 *            order of fields in the output tuple corresponds to the order
 	 *            of field indexes.
-	 * @return A StreamProjection that needs to be converted into a DataStream
-	 *         to complete the project transformation by calling
-	 *         {@link StreamProjection#types(Class)}.
+	 * @return The projected DataStream
 	 * 
 	 * @see Tuple
 	 * @see DataStream
@@ -639,8 +635,8 @@ public class DataStream<OUT> {
 	 * {@link StreamCrossOperator#onWindow} should be called to define the
 	 * window.
 	 * <p>
-	 * Call {@link StreamCrossOperator.CrossWindow#with(crossFunction)} to
-	 * define a custom cross function.
+	 * Call {@link StreamCrossOperator.CrossWindow#with(org.apache.flink.api.common.functions.CrossFunction)}
+	 * to define a custom cross function.
 	 * 
 	 * @param dataStreamToCross
 	 *            The other DataStream with which this DataStream is crossed.
@@ -658,14 +654,17 @@ public class DataStream<OUT> {
 	 * {@link DataStream}s on key equality over a specified time window.</br>
 	 * 
 	 * This method returns a {@link StreamJoinOperator} on which the
-	 * {@link StreamJoinOperator#onWindow} should be called to define the
-	 * window, and then the {@link StreamJoinOperator.JoinWindow#where} and
-	 * {@link StreamJoinOperator.JoinPredicate#equalTo} can be used to define
-	 * the join keys.</p> The user can also use the
-	 * {@link StreamJoinOperator.JoinedStream#with(joinFunction)} to apply
-	 * custom join function.
+	 * {@link StreamJoinOperator#onWindow(long, java.util.concurrent.TimeUnit)}
+	 * should be called to define the window, and then the
+	 * {@link StreamJoinOperator.JoinWindow#where(int...)} and
+	 * {@link StreamJoinOperator.JoinPredicate#equalTo(int...)} can be used to define
+	 * the join keys.
+	 * <p>
+	 * The user can also use the
+	 * {@link StreamJoinOperator.JoinedStream#with(org.apache.flink.api.common.functions.JoinFunction)}
+	 * to apply a custom join function.
 	 * 
-	 * @param other
+	 * @param dataStreamToJoin
 	 *            The other DataStream with which this DataStream is joined.
 	 * @return A {@link StreamJoinOperator} to continue the definition of the
 	 *         Join transformation.
@@ -923,11 +922,11 @@ public class DataStream<OUT> {
 	 * to a grouped data stream, the windows (evictions) and slide sizes
 	 * (triggers) will be computed on a per group basis. </br></br> For more
 	 * advanced control over the trigger and eviction policies please refer to
-	 * {@link #window(trigger, eviction)} </br> </br> For example to create a
+	 * {@link #window(TriggerPolicy, EvictionPolicy)} </br> </br> For example to create a
 	 * sum every 5 seconds in a tumbling fashion:</br>
 	 * {@code ds.window(Time.of(5, TimeUnit.SECONDS)).sum(field)} </br></br> To
 	 * create sliding windows use the
-	 * {@link WindowedDataStream#every(WindowingHelper...)} </br></br> The same
+	 * {@link WindowedDataStream#every(WindowingHelper)} </br></br> The same
 	 * example with 3 second slides:</br>
 	 * 
 	 * {@code ds.window(Time.of(5, TimeUnit.SECONDS)).every(Time.of(3,

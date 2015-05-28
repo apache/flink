@@ -40,6 +40,7 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	private Iterator<InputSplit> splitIterator;
 	private transient OUT nextElement;
 
+	@SuppressWarnings("unchecked")
 	public FileSourceFunction(InputFormat<OUT, ?> format, TypeInformation<OUT> typeInfo) {
 		this.format = (InputFormat<OUT, InputSplit>) format;
 		this.typeInfo = typeInfo;

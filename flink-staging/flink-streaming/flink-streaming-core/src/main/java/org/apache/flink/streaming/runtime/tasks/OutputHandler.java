@@ -226,8 +226,8 @@ public class OutputHandler<OUT> {
 		}
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public void collect(T record) {
-
 			try {
 				operator.processElement(record);
 			} catch (Exception e) {
