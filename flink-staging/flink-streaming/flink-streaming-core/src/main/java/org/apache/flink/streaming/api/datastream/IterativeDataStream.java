@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-
 /**
  * The iterative data stream represents the start of an iteration in a
  * {@link DataStream}.

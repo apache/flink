@@ -30,10 +30,10 @@ import org.apache.flink.runtime.state.StateHandleProvider;
 
 public class EagerStateStore<S, C extends Serializable> implements PartitionedStateStore<S, C> {
 
-	protected StateCheckpointer<S, C> checkpointer;
-	protected StateHandleProvider<C> provider;
+	private StateCheckpointer<S, C> checkpointer;
+	private final StateHandleProvider<C> provider;
 
-	Map<Serializable, S> fetchedState;
+	private Map<Serializable, S> fetchedState;
 
 	public EagerStateStore(StateCheckpointer<S, C> checkpointer, StateHandleProvider<C> provider) {
 		this.checkpointer = checkpointer;
@@ -81,6 +81,11 @@ public class EagerStateStore<S, C extends Serializable> implements PartitionedSt
 	@Override
 	public boolean containsKey(Serializable key) {
 		return fetchedState.containsKey(key);
+	}
+
+	@Override
+	public void setCheckPointer(StateCheckpointer<S, C> checkpointer) {
+		this.checkpointer = checkpointer;
 	}
 
 }

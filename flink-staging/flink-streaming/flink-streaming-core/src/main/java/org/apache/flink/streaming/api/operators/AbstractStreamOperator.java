@@ -79,4 +79,9 @@ public abstract class AbstractStreamOperator<OUT> implements StreamOperator<OUT>
 	public void disableInputCopy() {
 		this.inputCopyDisabled = true;
 	}
+	
+	@Override
+	public StreamingRuntimeContext getRuntimeContext(){
+		return runtimeContext;
+	}
 }

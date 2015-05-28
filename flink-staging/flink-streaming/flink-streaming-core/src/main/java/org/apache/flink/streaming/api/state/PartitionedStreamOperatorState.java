@@ -45,9 +45,9 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 		StreamOperatorState<S, C> {
 
 	// KeySelector for getting the state partition key for each input
-	private KeySelector<IN, Serializable> keySelector;
+	private final KeySelector<IN, Serializable> keySelector;
 
-	private PartitionedStateStore<S, C> stateStore;
+	private final PartitionedStateStore<S, C> stateStore;
 	
 	private S defaultState;
 

@@ -19,7 +19,9 @@
 package org.apache.flink.streaming.api.operators;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -67,24 +69,32 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 		FunctionUtils.closeFunction(userFunction);
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public void restoreInitialState(Serializable state) throws Exception {
 
-		Map<Serializable, StateHandle<Serializable>> snapshots = (Map<Serializable, StateHandle<Serializable>>) state;
+		Map<String, Map<Serializable, StateHandle<Serializable>>> snapshots = (Map<String, Map<Serializable, StateHandle<Serializable>>>) state;
 
-		StreamOperatorState<?, Serializable> operatorState = (StreamOperatorState<?, Serializable>) runtimeContext
-				.getOperatorState();
-
-		operatorState.restoreState(snapshots);
+		Map<String, StreamOperatorState> operatorStates = runtimeContext.getOperatorStates();
+		
+		for (Entry<String, Map<Serializable, StateHandle<Serializable>>> snapshot : snapshots.entrySet()) {
+			StreamOperatorState restoredState = runtimeContext.createRawState();
+			restoredState.restoreState(snapshot.getValue());
+			operatorStates.put(snapshot.getKey(), restoredState);
+		}
 
 	}
 
-	public Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp)
-			throws Exception {
-		
-		StreamOperatorState<?,?> operatorState = (StreamOperatorState<?,?>) runtimeContext.getOperatorState();
-		
-		return (Serializable) operatorState.snapshotState(checkpointId, timestamp); 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception {
+
+		Map<String, StreamOperatorState> operatorStates = runtimeContext.getOperatorStates();
+		Map<String, Map<Serializable, StateHandle<Serializable>>> snapshots = new HashMap<String, Map<Serializable, StateHandle<Serializable>>>();
+
+		for (Entry<String, StreamOperatorState> state : operatorStates.entrySet()) {
+			snapshots.put(state.getKey(), state.getValue().snapshotState(checkpointId, timestamp));
+		}
+
+		return (Serializable) snapshots;
 	}
 
 	public void confirmCheckpointCompleted(long checkpointId, long timestamp,

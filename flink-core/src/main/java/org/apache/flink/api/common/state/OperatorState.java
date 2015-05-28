@@ -21,7 +21,7 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.api.common.functions.MapFunction;
 
 /**
- * Base class for all streaming operator states. It can represent both
+ * Base interface for all streaming operator states. It can represent both
  * partitioned (when state partitioning is defined in the program) or
  * non-partitioned user states.
  * 
@@ -30,7 +30,7 @@ import org.apache.flink.api.common.functions.MapFunction;
  * transformation call the operator represents, for instance inside
  * {@link MapFunction#map()} and invalid in
  * {@link #open(org.apache.flink.configuration.Configuration)} or
- * {@link #close()}.
+ * {@link #close()} methods.
  * 
  * @param <T>
  *            Type of the operator state
@@ -42,13 +42,7 @@ public interface OperatorState<T> {
 	 * partitioned the returned state is the same for all inputs. If state
 	 * partitioning is applied the state returned depends on the current
 	 * operator input, as the operator maintains an independent state for each
-	 * partitions.
-	 * 
-	 * <p>
-	 * {@link #getState()} returns <code>null</code> if there is no state stored
-	 * in the operator. This is the expected behaviour before initializing the
-	 * state with {@link #updateState(T)}.
-	 * </p>
+	 * partition.
 	 * 
 	 * @return The operator state corresponding to the current input.
 	 */
@@ -60,7 +54,7 @@ public interface OperatorState<T> {
 	 * partition) the returned state will represent the updated value.
 	 * 
 	 * @param state
-	 *            The updated state.
+	 *            The new state.
 	 */
 	void updateState(T state);
 	

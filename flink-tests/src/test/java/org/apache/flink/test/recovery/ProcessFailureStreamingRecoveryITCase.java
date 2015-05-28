@@ -154,7 +154,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		
 		@Override
 		public void open(Configuration conf) {
-			collected = getRuntimeContext().getOperatorState(0L);
+			collected = getRuntimeContext().getOperatorState("count", 0L);
 		}
 
 		@Override
@@ -199,7 +199,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 			stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
 			congruence = getRuntimeContext().getIndexOfThisSubtask();
 			toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
-			collected = getRuntimeContext().getOperatorState(0L);
+			collected = getRuntimeContext().getOperatorState("count", 0L);
 		}
 
 		@Override

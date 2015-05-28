@@ -44,7 +44,7 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 
 	private S state;
 	private StateCheckpointer<S, C> checkpointer;
-	private StateHandleProvider<C> provider;
+	private final StateHandleProvider<C> provider;
 
 	public StreamOperatorState(StateCheckpointer<S, C> checkpointer, StateHandleProvider<C> provider) {
 		this.checkpointer = checkpointer;
@@ -66,8 +66,11 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 		this.state = state;
 	}
 	
-	public void setDefaultState(S defaultState){
-		updateState(defaultState);
+	public void setDefaultState(S defaultState) {
+		// reconsider this as it might cause issues when setting the state to null
+		if (getState() == null) {
+			updateState(defaultState);
+		}
 	}
 
 	public StateCheckpointer<S, C> getCheckpointer() {

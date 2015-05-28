@@ -157,7 +157,7 @@ public class MockCoContext<IN1, IN2, OUT> {
 		MockCoContext<IN1, IN2, OUT> mockContext = new MockCoContext<IN1, IN2, OUT>(input1, input2);
 		StreamingRuntimeContext runtimeContext = new StreamingRuntimeContext("CoMockTask",
 				new MockEnvironment(3 * 1024 * 1024, new MockInputSplitProvider(), 1024), null,
-				new ExecutionConfig(), null);
+				new ExecutionConfig(), null, null);
 
 		operator.setup(mockContext.collector, runtimeContext);
 

@@ -47,10 +47,10 @@ import org.apache.flink.runtime.state.StateHandleProvider;
 public class LazyStateStore<S, C extends Serializable> implements PartitionedStateStore<S, C> {
 
 	protected StateCheckpointer<S, C> checkpointer;
-	protected StateHandleProvider<C> provider;
+	protected final StateHandleProvider<C> provider;
 
-	Map<Serializable, StateHandle<C>> unfetchedState;
-	Map<Serializable, S> fetchedState;
+	private final Map<Serializable, StateHandle<C>> unfetchedState;
+	private final Map<Serializable, S> fetchedState;
 
 	public LazyStateStore(StateCheckpointer<S, C> checkpointer, StateHandleProvider<C> provider) {
 		this.checkpointer = checkpointer;
@@ -112,6 +112,11 @@ public class LazyStateStore<S, C extends Serializable> implements PartitionedSta
 	@Override
 	public boolean containsKey(Serializable key) {
 		return fetchedState.containsKey(key) || unfetchedState.containsKey(key);
+	}
+
+	@Override
+	public void setCheckPointer(StateCheckpointer<S, C> checkpointer) {
+		this.checkpointer = checkpointer;
 	}
 
 }
