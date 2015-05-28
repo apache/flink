@@ -67,6 +67,10 @@ public abstract class ResultSubpartition {
 		parent.onConsumedSubpartition(index);
 	}
 
+	protected Throwable getFailureCause() {
+		return parent.getFailureCause();
+	}
+
 	abstract public boolean add(Buffer buffer) throws IOException;
 
 	abstract public void finish() throws IOException;

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
@@ -156,6 +157,9 @@ public abstract class InputChannel {
 		final Throwable t = cause.get();
 
 		if (t != null) {
+			if (t instanceof CancelTaskException) {
+				throw (CancelTaskException) t;
+			}
 			if (t instanceof IOException) {
 				throw (IOException) t;
 			}
