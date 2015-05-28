@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import com.google.common.collect.Sets;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
+import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
@@ -50,6 +52,8 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	private final ChannelFutureListener writeListener = new WriteAndFlushNextMessageIfPossibleListener();
 
 	private final Queue<SequenceNumberingSubpartitionView> queue = new ArrayDeque<SequenceNumberingSubpartitionView>();
+
+	private final Set<InputChannelID> released = Sets.newHashSet();
 
 	private SequenceNumberingSubpartitionView currentPartitionQueue;
 
@@ -88,9 +92,14 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		else if (msg.getClass() == InputChannelID.class) {
 			InputChannelID toCancel = (InputChannelID) msg;
 
+			if (released.contains(toCancel)) {
+				return;
+			}
+
 			// Cancel the request for the input channel
 			if (currentPartitionQueue != null && currentPartitionQueue.getReceiverId().equals(toCancel)) {
 				currentPartitionQueue.releaseAllResources();
+				markAsReleased(currentPartitionQueue.receiverId);
 				currentPartitionQueue = null;
 			}
 			else {
@@ -101,6 +110,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 					if (curr.getReceiverId().equals(toCancel)) {
 						curr.releaseAllResources();
+						markAsReleased(curr.receiverId);
 					}
 					else {
 						queue.add(curr);
@@ -139,6 +149,8 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 							currentPartitionQueue = null;
 						}
 						else if (currentPartitionQueue.isReleased()) {
+							markAsReleased(currentPartitionQueue.getReceiverId());
+
 							currentPartitionQueue = null;
 						}
 					}
@@ -150,8 +162,9 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 							currentPartitionQueue.notifySubpartitionConsumed();
 							currentPartitionQueue.releaseAllResources();
-							currentPartitionQueue = null;
+							markAsReleased(currentPartitionQueue.getReceiverId());
 
+							currentPartitionQueue = null;
 						}
 
 						channel.writeAndFlush(resp).addListener(writeListener);
@@ -194,12 +207,23 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	private void releaseAllResources() throws IOException {
 		if (currentPartitionQueue != null) {
 			currentPartitionQueue.releaseAllResources();
+			markAsReleased(currentPartitionQueue.getReceiverId());
+
 			currentPartitionQueue = null;
 		}
 
 		while ((currentPartitionQueue = queue.poll()) != null) {
 			currentPartitionQueue.releaseAllResources();
+
+			markAsReleased(currentPartitionQueue.getReceiverId());
 		}
+	}
+
+	/**
+	 * Marks a receiver as released.
+	 */
+	private void markAsReleased(InputChannelID receiverId) {
+		released.add(receiverId);
 	}
 
 	// This listener is called after an element of the current queue has been
@@ -285,5 +309,4 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 			ctx.pipeline().fireUserEventTriggered(this);
 		}
 	}
-
 }
