@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.SplittableIterator;
 
 import java.util.Iterator;
@@ -26,8 +27,11 @@ public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunctio
 
 	private static final long serialVersionUID = 1L;
 
-	SplittableIterator<T> fullIterator;
-	Iterator<T> iterator;
+	private SplittableIterator<T> fullIterator;
+
+	private transient Iterator<T> iterator;
+
+	private volatile boolean isRunning;
 
 	public FromSplittableIteratorFunction(SplittableIterator<T> iterator) {
 		this.fullIterator = iterator;
@@ -38,15 +42,20 @@ public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunctio
 		int numberOfSubTasks = getRuntimeContext().getNumberOfParallelSubtasks();
 		int indexofThisSubTask = getRuntimeContext().getIndexOfThisSubtask();
 		iterator = fullIterator.split(numberOfSubTasks)[indexofThisSubTask];
+		isRunning = true;
 	}
 
 	@Override
-	public boolean reachedEnd() throws Exception {
-		return !iterator.hasNext();
+	public void run(Object checkpointLock, Collector<T> out) throws Exception {
+		isRunning = true;
+
+		while (isRunning && iterator.hasNext()) {
+			out.collect(iterator.next());
+		}
 	}
 
 	@Override
-	public T next() throws Exception {
-		return iterator.next();
+	public void cancel() {
+		isRunning = false;
 	}
 }

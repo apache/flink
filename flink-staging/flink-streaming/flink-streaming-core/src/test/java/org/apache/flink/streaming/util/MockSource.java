@@ -34,9 +34,7 @@ public class MockSource<T> {
 		}
 		try {
 			Collector<T> collector = new MockOutput<T>(outputs);
-			while (!sourceFunction.reachedEnd()) {
-				collector.collect(sourceFunction.next());
-			}
+			sourceFunction.run(new Object(), collector);
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot invoke source.", e);
 		}

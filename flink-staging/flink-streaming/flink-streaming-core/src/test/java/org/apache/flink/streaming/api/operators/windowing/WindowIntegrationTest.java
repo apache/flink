@@ -159,22 +159,23 @@ public class WindowIntegrationTest implements Serializable {
 				.getDiscretizedStream().addSink(new TestSink12());
 
 		DataStream<Integer> source2 = env.addSource(new ParallelSourceFunction<Integer>() {
-
-			private int i = 1;
+			private static final long serialVersionUID = 1L;
 
 			@Override
-			public boolean reachedEnd() throws Exception {
-				return i > 10;
+			public void run(Object checkpointLock, Collector<Integer> out) throws Exception {
+				for (int i = 1; i <= 10; i++) {
+					out.collect(i);
+				}
 			}
 
 			@Override
-			public Integer next() throws Exception {
-				return i++;
+			public void cancel() {
 			}
-
 		});
 
 		DataStream<Integer> source3 = env.addSource(new RichParallelSourceFunction<Integer>() {
+			private static final long serialVersionUID = 1L;
+
 			private int i = 1;
 
 			@Override
@@ -184,17 +185,16 @@ public class WindowIntegrationTest implements Serializable {
 			}
 
 			@Override
-			public boolean reachedEnd() throws Exception {
-				return i > 11;
+			public void cancel() {
 			}
 
 			@Override
-			public Integer next() throws Exception {
-				int result = i;
-				i += 2;
-				return result;
-			}
+			public void run(Object checkpointLock, Collector<Integer> out) throws Exception {
+				for (;i < 11; i += 2) {
+					out.collect(i);
+				}
 
+			}
 		});
 
 		source2.window(Time.of(2, ts, 1)).sum(0).getDiscretizedStream().addSink(new TestSink9());

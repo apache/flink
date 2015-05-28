@@ -309,18 +309,13 @@ parallelism of 1. To create parallel sources the users source function needs to 
 the parallelism of the environment. The parallelism for ParallelSourceFunctions can be changed
 after creation by using `source.setParallelism(parallelism)`.
 
-The `SourceFunction` interface has two methods: `reachedEnd()` and `next()`. The former is used
-by the system to determine whether more input data is available. This method can block if there
-is no data available right now but there might come more data in the future. The `next()` method
-is called to get next data element. This method will only be called if `reachedEnd()` returns 
-false. This method can also block if no data is currently available but more will arrive in the
-future. 
-
-The methods must react to thread interrupt calls and break out of blocking calls with
-`InterruptedException`. The method may ignore interrupt calls and/or swallow InterruptedExceptions,
-if it is guaranteed that the method returns quasi immediately irrespectively of the input.
-This is true for example for file streams, where the call is guaranteed to return after a very
-short I/O delay in the order of milliseconds.
+The `SourceFunction` interface has two methods: `run(SourceContext)` and `cancel()`. The `run()`
+method is not expected to return until the source has either finished by itself or received
+a cancel request. The source can communicate with the outside world using the source context. For
+example, the `emit(element)` method is used to emit one element from the source. Most sources will
+have an infinite while loop inside the `run()` method to read from the input and emit elements.
+Upon invocation of the `cancel()` method the source is required to break out of its internal
+loop and return from the `run()` method.
 
 In addition to the bounded data sources (with similar method signatures as the
 [batch API](programming_guide.html#data-sources)) there are several predefined stream sources

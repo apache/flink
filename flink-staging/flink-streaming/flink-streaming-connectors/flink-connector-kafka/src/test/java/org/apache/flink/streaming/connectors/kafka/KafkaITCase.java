@@ -70,7 +70,6 @@ import org.apache.flink.streaming.connectors.kafka.util.KafkaLocalSystemTime;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.StringUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -316,9 +315,9 @@ public class KafkaITCase {
 		Assert.assertTrue("The offset seems incorrect, got " + o2, o2 > 50L);
 		Assert.assertTrue("The offset seems incorrect, got " + o3, o3 > 50L);
 		/** Once we have proper shutdown of streaming jobs, enable these tests
-		Assert.assertEquals("The offset seems incorrect", 99L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 0));
-		Assert.assertEquals("The offset seems incorrect", 99L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 1));
-		Assert.assertEquals("The offset seems incorrect", 99L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 2));*/
+		 Assert.assertEquals("The offset seems incorrect", 99L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 0));
+		 Assert.assertEquals("The offset seems incorrect", 99L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 1));
+		 Assert.assertEquals("The offset seems incorrect", 99L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 2));*/
 
 
 		LOG.info("Manipulating offsets");
@@ -342,18 +341,22 @@ public class KafkaITCase {
 		DataStream<Tuple2<Integer, Integer>> source = env.addSource(
 				new PersistentKafkaSource<Tuple2<Integer, Integer>>(topicName, new Utils.TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1,1), env.getConfig()), cc)
 		)
-		//add a sleeper mapper. Since there is no good way of "shutting down" a running topology, we have
-		// to play this trick. The problem is that we have to wait until all checkpoints are confirmed
-		.map(new MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
-			@Override
-			public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
-				Thread.sleep(150);
-				return value;
-			}
-		}).setParallelism(3);
+				//add a sleeper mapper. Since there is no good way of "shutting down" a running topology, we have
+				// to play this trick. The problem is that we have to wait until all checkpoints are confirmed
+				.map(new MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
+						Thread.sleep(150);
+						return value;
+					}
+				}).setParallelism(3);
 
 		// verify data
 		DataStream<Integer> validIndexes = source.flatMap(new RichFlatMapFunction<Tuple2<Integer, Integer>, Integer>() {
+			private static final long serialVersionUID = 1L;
+
 			int[] values = new int[valuesCount];
 			int count = 0;
 
@@ -391,33 +394,32 @@ public class KafkaITCase {
 
 	private void writeSequence(StreamExecutionEnvironment env, String topicName, final int from, final int to) throws Exception {
 		LOG.info("Writing sequence from {} to {} to topic {}", from, to, topicName);
-
 		DataStream<Tuple2<Integer, Integer>> stream = env.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
 			private static final long serialVersionUID = 1L;
-			int cnt = from;
-			int partition;
+			boolean running = true;
 
 			@Override
-			public void open(Configuration parameters) throws Exception {
-				super.open(parameters);
-				partition = getRuntimeContext().getIndexOfThisSubtask();
-
+			public void run(Object checkpointLock, Collector<Tuple2<Integer, Integer>> collector) throws Exception {
+				LOG.info("Starting source.");
+				int cnt = from;
+				int partition = getRuntimeContext().getIndexOfThisSubtask();
+				while (running) {
+					LOG.info("Writing " + cnt + " to partition " + partition);
+					collector.collect(new Tuple2<Integer, Integer>(getRuntimeContext().getIndexOfThisSubtask(), cnt));
+					if (cnt == to) {
+						LOG.info("Writer reached end.");
+						return;
+					}
+					cnt++;
+				}
 			}
 
 			@Override
-			public boolean reachedEnd() throws Exception {
-				return cnt > to;
-			}
-
-			@Override
-			public Tuple2<Integer, Integer> next() throws Exception {
-				LOG.info("Writing " + cnt + " to partition " + partition);
-				Tuple2<Integer, Integer> result = new Tuple2<Integer, Integer>(getRuntimeContext().getIndexOfThisSubtask(), cnt);
-				cnt++;
-				return result;
+			public void cancel() {
+				LOG.info("Source got cancel()");
+				running = false;
 			}
 		}).setParallelism(3);
-
 		stream.addSink(new KafkaSink<Tuple2<Integer, Integer>>(brokerConnectionStrings,
 				topicName,
 				new Utils.TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1, 1), env.getConfig()),
@@ -428,6 +430,8 @@ public class KafkaITCase {
 	}
 
 	private static class T2Partitioner implements SerializableKafkaPartitioner {
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public int partition(Object key, int numPartitions) {
 			if(numPartitions != 3) {
@@ -451,6 +455,8 @@ public class KafkaITCase {
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(
 				new KafkaSource<Tuple2<Long, String>>(zookeeperConnectionString, topic, "myFlinkGroup", new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()), 5000));
 		consuming.addSink(new SinkFunction<Tuple2<Long, String>>() {
+			private static final long serialVersionUID = 1L;
+
 			int elCnt = 0;
 			int start = -1;
 			BitSet validator = new BitSet(101);
@@ -483,17 +489,25 @@ public class KafkaITCase {
 		// add producing topology
 		DataStream<Tuple2<Long, String>> stream = env.addSource(new SourceFunction<Tuple2<Long, String>>() {
 			private static final long serialVersionUID = 1L;
-			int cnt = 0;
+			boolean running = true;
 
 			@Override
-			public boolean reachedEnd() throws Exception {
-				return false;
+			public void run(Object checkpointLock, Collector<Tuple2<Long, String>> collector) throws Exception {
+				LOG.info("Starting source.");
+				int cnt = 0;
+				while (running) {
+					collector.collect(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
+					try {
+						Thread.sleep(100);
+					} catch (InterruptedException ignored) {
+					}
+				}
 			}
 
 			@Override
-			public Tuple2<Long, String> next() throws Exception {
-				Thread.sleep(100);
-				return new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++);
+			public void cancel() {
+				LOG.info("Source got cancel()");
+				running = false;
 			}
 		});
 		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig())));
@@ -519,6 +533,8 @@ public class KafkaITCase {
 						standardCC
 				));
 		consuming.addSink(new RichSinkFunction<Tuple2<Long, String>>() {
+			private static final long serialVersionUID = 1L;
+
 			int elCnt = 0;
 			int start = -1;
 			BitSet validator = new BitSet(101);
@@ -557,17 +573,27 @@ public class KafkaITCase {
 		// add producing topology
 		DataStream<Tuple2<Long, String>> stream = env.addSource(new SourceFunction<Tuple2<Long, String>>() {
 			private static final long serialVersionUID = 1L;
-			int cnt = 0;
+			boolean running = true;
 
 			@Override
-			public boolean reachedEnd() throws Exception {
-				return false;
+			public void run(Object checkpointLock, Collector<Tuple2<Long, String>> collector) throws Exception {
+				LOG.info("Starting source.");
+				int cnt = 0;
+				while (running) {
+					collector.collect(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
+					LOG.info("Produced " + cnt);
+
+					try {
+						Thread.sleep(100);
+					} catch (InterruptedException ignored) {
+					}
+				}
 			}
 
 			@Override
-			public Tuple2<Long, String> next() throws Exception {
-				Thread.sleep(100);
-				return new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++);
+			public void cancel() {
+				LOG.info("Source got cancel()");
+				running = false;
 			}
 		});
 		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig())));
@@ -608,6 +634,8 @@ public class KafkaITCase {
 				new PersistentKafkaSource<Tuple2<Long, byte[]>>(topic, serSchema, cc));
 
 		consuming.addSink(new SinkFunction<Tuple2<Long, byte[]>>() {
+			private static final long serialVersionUID = 1L;
+
 			int elCnt = 0;
 
 			@Override
@@ -631,45 +659,47 @@ public class KafkaITCase {
 		// add producing topology
 		DataStream<Tuple2<Long, byte[]>> stream = env.addSource(new RichSourceFunction<Tuple2<Long, byte[]>>() {
 			private static final long serialVersionUID = 1L;
-			boolean running = true;
-			long cnt;
-			transient Random rnd;
+			boolean running;
 
 			@Override
 			public void open(Configuration parameters) throws Exception {
 				super.open(parameters);
-				cnt = 0;
-				rnd = new Random(1337);
-
+				running = true;
 			}
 
 			@Override
-			public boolean reachedEnd() throws Exception {
-				return cnt > 10;
-			}
-
-			@Override
-			public Tuple2<Long, byte[]> next() throws Exception {
-				Thread.sleep(100);
-
-				if (cnt < 10) {
-				byte[] wl = new byte[Math.abs(rnd.nextInt(1024 * 1024 * 30))];
-					Tuple2<Long, byte[]> result = new Tuple2<Long, byte[]>(cnt++, wl);
+			public void run(Object checkpointLock, Collector<Tuple2<Long, byte[]>> collector) throws Exception {
+				LOG.info("Starting source.");
+				long cnt = 0;
+				Random rnd = new Random(1337);
+				while (running) {
+					//
+					byte[] wl = new byte[Math.abs(rnd.nextInt(1024 * 1024 * 30))];
+					collector.collect(new Tuple2<Long, byte[]>(cnt++, wl));
 					LOG.info("Emitted cnt=" + (cnt - 1) + " with byte.length = " + wl.length);
-					return result;
 
-				} else if (cnt == 10) {
-					Tuple2<Long, byte[]> result = new Tuple2<Long, byte[]>(-1L, new byte[]{1});
-					cnt++;
-					return result;
-				} else {
-					throw new RuntimeException("Source is exhausted.");
+					try {
+						Thread.sleep(100);
+					} catch (InterruptedException ignored) {
+					}
+					if(cnt == 10) {
+						LOG.info("Send end signal");
+						// signal end
+						collector.collect(new Tuple2<Long, byte[]>(-1L, new byte[]{1}));
+						running = false;
+					}
 				}
+			}
+
+			@Override
+			public void cancel() {
+				LOG.info("Source got cancel()");
+				running = false;
 			}
 		});
 
 		stream.addSink(new KafkaSink<Tuple2<Long, byte[]>>(brokerConnectionStrings, topic,
-				new Utils.TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(new Tuple2<Long, byte[]>(0L, new byte[]{0}), env.getConfig()))
+						new Utils.TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(new Tuple2<Long, byte[]>(0L, new byte[]{0}), env.getConfig()))
 		);
 
 		tryExecute(env, "big topology test");
@@ -694,6 +724,8 @@ public class KafkaITCase {
 						new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()),
 						standardCC));
 		consuming.addSink(new SinkFunction<Tuple2<Long, String>>() {
+			private static final long serialVersionUID = 1L;
+
 			int start = -1;
 			BitSet validator = new BitSet(101);
 
@@ -741,17 +773,25 @@ public class KafkaITCase {
 		// add producing topology
 		DataStream<Tuple2<Long, String>> stream = env.addSource(new SourceFunction<Tuple2<Long, String>>() {
 			private static final long serialVersionUID = 1L;
-			int cnt = 0;
+			boolean running = true;
 
 			@Override
-			public boolean reachedEnd() throws Exception {
-				return false;
+			public void run(Object checkpointLock, Collector<Tuple2<Long, String>> collector) throws Exception {
+				LOG.info("Starting source.");
+				int cnt = 0;
+				while (running) {
+					collector.collect(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
+					try {
+						Thread.sleep(100);
+					} catch (InterruptedException ignored) {
+					}
+				}
 			}
 
 			@Override
-			public Tuple2<Long, String> next() throws Exception {
-				Thread.sleep(100);
-				return new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++);
+			public void cancel() {
+				LOG.info("Source got cancel()");
+				running = false;
 			}
 		});
 		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()), new CustomPartitioner()));
@@ -765,6 +805,7 @@ public class KafkaITCase {
 	 * This is for a topic with 3 partitions and Tuple2<Long, String>
 	 */
 	private static class CustomPartitioner implements SerializableKafkaPartitioner {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public int partition(Object key, int numPartitions) {
@@ -794,6 +835,8 @@ public class KafkaITCase {
 		DataStreamSource<String> consuming = env.addSource(
 				new PersistentKafkaSource<String>(topic, new JavaDefaultStringSchema(), standardCC));
 		consuming.addSink(new SinkFunction<String>() {
+			private static final long serialVersionUID = 1L;
+
 			int elCnt = 0;
 			int start = -1;
 			BitSet validator = new BitSet(101);
@@ -824,17 +867,24 @@ public class KafkaITCase {
 		DataStream<String> stream = env.addSource(new SourceFunction<String>() {
 			private static final long serialVersionUID = 1L;
 			boolean running = true;
-			int cnt = 0;
 
 			@Override
-			public boolean reachedEnd() throws Exception {
-				return false;
+			public void run(Object checkpointLock, Collector<String> collector) throws Exception {
+				LOG.info("Starting source.");
+				int cnt = 0;
+				while (running) {
+					collector.collect("kafka-" + cnt++);
+					try {
+						Thread.sleep(100);
+					} catch (InterruptedException ignored) {
+					}
+				}
 			}
 
 			@Override
-			public String next() throws Exception {
-				Thread.sleep(100);
-				return "kafka-" + cnt++;
+			public void cancel() {
+				LOG.info("Source got cancel()");
+				running = false;
 			}
 		});
 		stream.addSink(new KafkaSink<String>(brokerConnectionStrings, topic, new JavaDefaultStringSchema()));
@@ -856,26 +906,35 @@ public class KafkaITCase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		DataStream<String> stream = env.addSource(new SourceFunction<String>() {
+			private static final long serialVersionUID = 1L;
 
-			private int cnt = 0;
-
-			@Override
-			public boolean reachedEnd() throws Exception {
-				return cnt == 200;
-			}
+			boolean running = true;
 
 			@Override
-			public String next() throws Exception {
-				String msg = "kafka-" + cnt++;
-				LOG.info("sending message = "+msg);
+			public void run(Object checkpointLock, Collector<String> collector) throws Exception {
+				LOG.info("Starting source.");
+				int cnt = 0;
+				while (running) {
+					String msg = "kafka-" + cnt++;
+					collector.collect(msg);
+					LOG.info("sending message = "+msg);
 
-				if ((cnt - 1) % 20 == 0) {
-					LOG.debug("Sending message #{}", cnt - 1);
+					if ((cnt - 1) % 20 == 0) {
+						LOG.debug("Sending message #{}", cnt - 1);
+					}
+					if(cnt == 200) {
+						LOG.info("Stopping to produce after 200 msgs");
+						break;
+					}
+
 				}
-
-				return msg;
 			}
 
+			@Override
+			public void cancel() {
+				LOG.info("Source got chancel()");
+				running = false;
+			}
 		});
 		stream.addSink(new KafkaSink<String>(brokerConnectionStrings, topic, new JavaDefaultStringSchema()))
 				.setParallelism(1);
@@ -928,6 +987,8 @@ public class KafkaITCase {
 		consuming.setParallelism(1);
 
 		consuming.addSink(new SinkFunction<String>() {
+			private static final long serialVersionUID = 1L;
+
 			int elCnt = 0;
 			int start = 0;
 			int numOfMessagesToBeCorrect = 100;
@@ -987,13 +1048,13 @@ public class KafkaITCase {
 			while (!(t instanceof SuccessException)) {
 				if(t == null) {
 					LOG.warn("Test failed with exception", good);
-					Assert.fail("Test failed with: " + StringUtils.stringifyException(good));
+					Assert.fail("Test failed with: " + good.getMessage());
 				}
 
 				t = t.getCause();
 				if (limit++ == 20) {
 					LOG.warn("Test failed with exception", good);
-					Assert.fail("Test failed with: " + StringUtils.stringifyException(good));
+					Assert.fail("Test failed with: " + good.getMessage());
 				}
 			}
 		}

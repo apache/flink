@@ -32,12 +32,13 @@ import kafka.javaapi.consumer.ConsumerConnector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.ConnectorSource;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Source that listens to a Kafka topic using the high level Kafka API.
- * 
+ *
  * @param <OUT>
  *            Type of the messages on the topic.
  */
@@ -59,9 +60,7 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	private static final long ZOOKEEPER_DEFAULT_SYNC_TIME = 200;
 	private static final String DEFAULT_GROUP_ID = "flink-group";
 
-	// We must read this in reachedEnd() to check for the end. We keep it to return it in
-	// next()
-	private OUT nextElement;
+	private volatile boolean isRunning = false;
 
 	/**
 	 * Creates a KafkaSource that consumes a topic.
@@ -78,14 +77,15 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	 *            Synchronization time with zookeeper.
 	 */
 	public KafkaSource(String zookeeperAddress,
-					String topicId, String groupId,
-					DeserializationSchema<OUT> deserializationSchema,
-					long zookeeperSyncTimeMillis) {
+		String topicId,
+		String groupId,
+		DeserializationSchema<OUT> deserializationSchema,
+		long zookeeperSyncTimeMillis) {
 		this(zookeeperAddress, topicId, groupId, deserializationSchema, zookeeperSyncTimeMillis, null);
 	}
 	/**
 	 * Creates a KafkaSource that consumes a topic.
-	 * 
+	 *
 	 * @param zookeeperAddress
 	 *            Address of the Zookeeper host (with port number).
 	 * @param topicId
@@ -100,9 +100,9 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	 * 			  Custom properties for Kafka
 	 */
 	public KafkaSource(String zookeeperAddress,
-					String topicId, String groupId,
-					DeserializationSchema<OUT> deserializationSchema,
-					long zookeeperSyncTimeMillis, Properties customProperties) {
+		String topicId, String groupId,
+		DeserializationSchema<OUT> deserializationSchema,
+		long zookeeperSyncTimeMillis, Properties customProperties) {
 		super(deserializationSchema);
 		Preconditions.checkNotNull(zookeeperAddress, "ZK address is null");
 		Preconditions.checkNotNull(topicId, "Topic ID is null");
@@ -178,42 +178,31 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	}
 
 	@Override
-	public void open(Configuration config) throws Exception {
-		super.open(config);
-		initializeConnection();
-	}
-
-	@Override
-	public void close() throws Exception {
-		super.close();
-		if (consumer != null) {
+	public void run(Object checkpointLock, Collector<OUT> collector) throws Exception {
+		isRunning = true;
+		try {
+			while (isRunning && consumerIterator.hasNext()) {
+				OUT out = schema.deserialize(consumerIterator.next().message());
+				if (schema.isEndOfStream(out)) {
+					break;
+				}
+				collector.collect(out);
+			}
+		} finally {
 			consumer.shutdown();
 		}
 	}
 
 	@Override
-	public boolean reachedEnd() throws Exception {
-		if (nextElement != null) {
-			return false;
-		} else if (consumerIterator.hasNext()) {
-			OUT out = schema.deserialize(consumerIterator.next().message());
-			if (schema.isEndOfStream(out)) {
-				return true;
-			}
-			nextElement = out;
-		}
-		return false;
+	public void open(Configuration config) throws Exception {
+		initializeConnection();
 	}
 
 	@Override
-	public OUT next() throws Exception {
-		if (!reachedEnd()) {
-			OUT result = nextElement;
-			nextElement = null;
-			return result;
-		} else {
-			throw new RuntimeException("Source exhausted");
+	public void cancel() {
+		isRunning = false;
+		if (consumer != null) {
+			consumer.shutdown();
 		}
 	}
-
 }

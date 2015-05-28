@@ -48,17 +48,22 @@ public class HBaseWriteStreamExample {
 
 		// data stream with random numbers
 		DataStream<String> dataStream = env.addSource(new SourceFunction<String>() {
+			private static final long serialVersionUID = 1L;
+
+			private volatile boolean isRunning = true;
 
 			@Override
-			public boolean reachedEnd() throws Exception {
-				return false;
+			public void run(Object checkpointLock, Collector<String> out) throws Exception {
+				while (isRunning) {
+					out.collect(String.valueOf(Math.floor(Math.random() * 100)));
+				}
+
 			}
 
 			@Override
-			public String next() throws Exception {
-				return 	String.valueOf(Math.floor(Math.random() * 100));
+			public void cancel() {
+				isRunning = false;
 			}
-
 		});
 		dataStream.write(new HBaseOutputFormat(), 0L);
 

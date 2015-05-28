@@ -18,7 +18,11 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.util.Collector;
 
+/**
+ * {@link StreamOperator} for streaming sources.
+ */
 public class StreamSource<OUT> extends AbstractUdfStreamOperator<OUT, SourceFunction<OUT>> implements StreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
@@ -29,19 +33,11 @@ public class StreamSource<OUT> extends AbstractUdfStreamOperator<OUT, SourceFunc
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
-	public void run() throws Exception {
-		while (true) {
+	public void run(Object lockingObject, Collector<OUT> collector) throws Exception {
+		userFunction.run(lockingObject, collector);
+	}
 
-			synchronized (userFunction) {
-				if (userFunction.reachedEnd()) {
-					break;
-				}
-
-				OUT result = userFunction.next();
-
-				output.collect(result);
-			}
-			Thread.yield();
-		}
+	public void cancel() {
+		userFunction.cancel();
 	}
 }

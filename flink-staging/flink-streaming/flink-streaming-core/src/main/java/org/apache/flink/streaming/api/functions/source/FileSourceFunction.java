@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.util.Collector;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -34,11 +35,12 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	private TypeInformation<OUT> typeInfo;
 	private transient TypeSerializer<OUT> serializer;
 
-	private InputSplitProvider provider;
 	private InputFormat<OUT, InputSplit> format;
 
-	private Iterator<InputSplit> splitIterator;
-	private transient OUT nextElement;
+	private transient InputSplitProvider provider;
+	private transient Iterator<InputSplit> splitIterator;
+
+	private volatile boolean isRunning;
 
 	@SuppressWarnings("unchecked")
 	public FileSourceFunction(InputFormat<OUT, ?> format, TypeInformation<OUT> typeInfo) {
@@ -58,7 +60,7 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 		if (splitIterator.hasNext()) {
 			format.open(splitIterator.next());
 		}
-
+		isRunning = true;
 	}
 
 	@Override
@@ -115,30 +117,25 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	}
 
 	@Override
-	public boolean reachedEnd() throws Exception {
-		if (nextElement != null) {
-			return false;
+	public void run(Object checkpointLock, Collector<OUT> out) throws Exception {
+		isRunning = true;
+
+		while (isRunning) {
+			OUT nextElement = serializer.createInstance();
+			nextElement =  format.nextRecord(nextElement);
+			if (nextElement == null && splitIterator.hasNext()) {
+				format.open(splitIterator.next());
+				continue;
+			} else if (nextElement == null) {
+				break;
+			}
+			out.collect(nextElement);
 		}
-		nextElement = serializer.createInstance();
-		nextElement =  format.nextRecord(nextElement);
-		if (nextElement == null && splitIterator.hasNext()) {
-			format.open(splitIterator.next());
-			return reachedEnd();
-		} else if (nextElement == null) {
-			return true;
-		}
-		return false;
 	}
 
 	@Override
-	public OUT next() throws Exception {
-		if (reachedEnd()) {
-			throw new RuntimeException("End of FileSource reached.");
-		}
-
-		OUT result = nextElement;
-		nextElement = null;
-		return result;
+	public void cancel() {
+		isRunning = false;
 	}
 
 }

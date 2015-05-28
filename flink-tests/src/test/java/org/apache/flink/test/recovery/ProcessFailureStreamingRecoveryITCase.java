@@ -19,20 +19,11 @@
 package org.apache.flink.test.recovery;
 
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.charset.Charset;
-import java.util.HashSet;
 import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
@@ -46,6 +37,9 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.util.Collector;
+import org.junit.Assert;
 
 /**
  * Test for streaming program behaviour in case of TaskManager failure
@@ -68,11 +62,6 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 	@Override
 	public void testProgram(int jobManagerPort, final File coordinateDir) throws Exception {
 		
-		final File tempTestOutput = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH),
-												UUID.randomUUID().toString());
-
-		assertTrue("Cannot create directory for temp output", tempTestOutput.mkdirs());
-		
 		final File tempCheckpointDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH),
 				UUID.randomUUID().toString());
 
@@ -88,64 +77,28 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 
 		DataStream<Long> result = env.addSource(new SleepyDurableGenerateSequence(coordinateDir, DATA_COUNT))
 				// add a non-chained no-op map to test the chain state restore logic
-				.rebalance().map(new MapFunction<Long, Long>() {
+				.map(new MapFunction<Long, Long>() {
 					@Override
 					public Long map(Long value) throws Exception {
 						return value;
 					}
-				})
+				}).startNewChain()
 				// populate the coordinate directory so we can proceed to TaskManager failure
-				.map(new StatefulMapper(coordinateDir));				
+				.map(new StatefulMapper(coordinateDir));
 
 		//write result to temporary file
-		result.addSink(new RichSinkFunction<Long>() {
-
-			// the sink needs to do its write operations synchronized with
-			// the disk FS, otherwise the process kill will discard data
-			// in buffers in the process
-			private transient FileChannel writer;
-
-			@Override
-			public void open(Configuration parameters) throws IOException {
-
-				int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
-				File output = new File(tempTestOutput, "task-" + taskIndex + "-" + UUID.randomUUID().toString());
-
-				// "rws" causes writes to go synchronously to the filesystem, nothing is cached
-				RandomAccessFile outputFile = new RandomAccessFile(output, "rws");
-				this.writer = outputFile.getChannel();
-			}
-
-			@Override
-			public void invoke(Long value) throws Exception {
-				String text = value + "\n";
-				byte[] bytes = text.getBytes(Charset.defaultCharset());
-				ByteBuffer buffer = ByteBuffer.wrap(bytes);
-				writer.write(buffer);
-			}
-
-			@Override
-			public void close() throws Exception {
-				writer.close();
-			}
-		});
+		result.addSink(new CheckpointedSink(DATA_COUNT));
 
 		try {
 			// blocking call until execution is done
 			env.execute();
 
-			// validate
-			fileBatchHasEveryNumberLower(PARALLELISM, DATA_COUNT, tempTestOutput);
-			
 			// TODO: Figure out why this fails when ran with other tests
 			// Check whether checkpoints have been cleaned up properly
 			// assertDirectoryEmpty(tempCheckpointDir);
 		}
 		finally {
 			// clean up
-			if (tempTestOutput.exists()) {
-				FileUtils.deleteDirectory(tempTestOutput);
-			}
 			if (tempCheckpointDir.exists()) {
 				FileUtils.deleteDirectory(tempCheckpointDir);
 			}
@@ -154,18 +107,16 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 
 	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long>
 			implements Checkpointed<Long> {
+		private static final long serialVersionUID = 1L;
 
 		private static final long SLEEP_TIME = 50;
 
 		private final File coordinateDir;
 		private final long end;
 
-		private long toCollect;
 		private long collected;
-		private boolean checkForProceedFile;
-		private File proceedFile;
-		private long stepSize;
-		private long congruence;
+
+		private volatile boolean isRunning = true;
 
 		public SleepyDurableGenerateSequence(File coordinateDir, long end) {
 			this.coordinateDir = coordinateDir;
@@ -173,37 +124,39 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		}
 
 		@Override
-		public void open(Configuration config) {
-			stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
-			congruence = getRuntimeContext().getIndexOfThisSubtask();
-			toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
-			collected = 0L;
+		public void run(Object checkpointLock, Collector<Long> collector) throws Exception {
 
-			proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
-			checkForProceedFile = true;
-		}
+			StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
 
-		@Override
-		public boolean reachedEnd() throws Exception {
-			return collected >= toCollect;
-		}
+			final long stepSize = context.getNumberOfParallelSubtasks();
+			final long congruence = context.getIndexOfThisSubtask();
+			final long toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
 
-		@Override
-		public Long next() throws Exception {
-			// check if the proceed file exists (then we go full speed)
-			// if not, we always recheck and sleep
-			if (checkForProceedFile) {
-				if (proceedFile.exists()) {
-					checkForProceedFile = false;
-				} else {
-					// otherwise wait so that we make slow progress
-					Thread.sleep(SLEEP_TIME);
+			final File proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
+			boolean checkForProceedFile = true;
+
+			while (isRunning && collected < toCollect) {
+				// check if the proceed file exists (then we go full speed)
+				// if not, we always recheck and sleep
+				if (checkForProceedFile) {
+					if (proceedFile.exists()) {
+						checkForProceedFile = false;
+					} else {
+						// otherwise wait so that we make slow progress
+						Thread.sleep(SLEEP_TIME);
+					}
+				}
+
+				synchronized (checkpointLock) {
+					collector.collect(collected * stepSize + congruence);
+					collected++;
 				}
 			}
+		}
 
-			long result = collected * stepSize + congruence;
-			collected++;
-			return result;
+		@Override
+		public void cancel() {
+			isRunning = false;
 		}
 
 		@Override
@@ -216,7 +169,6 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 			collected = state;
 		}
 	}
-	
 	public static class StatefulMapper extends RichMapFunction<Long, Long> implements
 			Checkpointed<Integer> {
 		private boolean markerCreated = false;
@@ -255,39 +207,47 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		}
 	}
 
+	private static class CheckpointedSink extends RichSinkFunction<Long> implements Checkpointed<Long> {
 
-	private static void fileBatchHasEveryNumberLower(int numFiles, int numbers, File path) throws IOException {
+		private long stepSize;
+		private long congruence;
+		private long toCollect;
+		private long collected = 0L;
+		private long end;
 
-		HashSet<Integer> set = new HashSet<Integer>(numbers);
-
-		File[] files = path.listFiles();
-		assertNotNull(files);
-		assertTrue("Not enough output files", files.length >= numFiles);
-
-		for (File file : files) {
-			assertTrue("Output file does not exist", file.exists());
-
-			BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
-
-			String line;
-			while ((line = bufferedReader.readLine()) != null) {
-				int num = Integer.parseInt(line);
-				set.add(num);
-			}
-
-			bufferedReader.close();
+		public CheckpointedSink(long end) {
+			this.end = end;
 		}
 
-		for (int i = 0; i < numbers; i++) {
-			if (!set.contains(i)) {
-				fail("Missing number: " + i);
-			}
+		@Override
+		public void open(Configuration parameters) throws IOException {
+			stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
+			congruence = getRuntimeContext().getIndexOfThisSubtask();
+			toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
 		}
-	}
-	
-	private static void assertDirectoryEmpty(File path){
-		File[] files = path.listFiles();
-		assertNotNull(files);
-		assertEquals("Checkpoint dir is not empty", 0, files.length);
+
+		@Override
+		public void invoke(Long value) throws Exception {
+			long expected = collected * stepSize + congruence;
+
+			Assert.assertTrue("Value did not match expected value. " + expected + " != " + value, value.equals(expected));
+
+			collected++;
+
+			if (collected > toCollect) {
+				Assert.fail("Collected <= toCollect: " + collected + " > " + toCollect);
+			}
+
+		}
+
+		@Override
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+			return collected;
+		}
+
+		@Override
+		public void restoreState(Long state) {
+			collected = state;
+		}
 	}
 }

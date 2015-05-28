@@ -275,7 +275,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		env.addSource(new RectangleSource())
 				.global()
 				.map(new RectangleMapFunction())
-				.window(Delta.of(0.0, new MyDelta(), new Tuple2<RectangleClass, Integer>(new RectangleClass(100, 100), 0)))
+				.window(Delta.of(0.0, new MyDelta(), new Tuple2<Rectangle, Integer>(new Rectangle(100, 100), 0)))
 				.mapWindow(new MyWindowMapFunction())
 				.flatten()
 				.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
@@ -283,11 +283,11 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		env.execute();
 	}
 
-	private static class MyDelta implements DeltaFunction<Tuple2<RectangleClass, Integer>> {
+	private static class MyDelta implements DeltaFunction<Tuple2<Rectangle, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public double getDelta(Tuple2<RectangleClass, Integer> oldDataPoint, Tuple2<RectangleClass,
+		public double getDelta(Tuple2<Rectangle, Integer> oldDataPoint, Tuple2<Rectangle,
 				Integer> newDataPoint) {
 			return (newDataPoint.f0.b - newDataPoint.f0.a) - (oldDataPoint.f0.b - oldDataPoint.f0.a);
 		}
@@ -484,33 +484,35 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		long cnt = 0;
 
 		@Override
-		public boolean reachedEnd() throws Exception {
-			return cnt >= 20;
+		public void run(Object checkpointLock,
+				Collector<OuterPojo> out) throws Exception {
+			for (int i = 0; i < 20; i++) {
+				OuterPojo result = new OuterPojo(new InnerPojo(cnt / 2, "water_melon-b"), 2L);
+				out.collect(result);
+			}
 		}
 
 		@Override
-		public OuterPojo next() throws Exception {
-			OuterPojo result = new OuterPojo(new InnerPojo(cnt / 2, "water_melon-b"), 2L);
-			cnt++;
-			return result;
+		public void cancel() {
+
 		}
 	}
 
 	private static class TupleSource implements SourceFunction<Tuple2<Long, Tuple2<String, Long>>> {
 		private static final long serialVersionUID = 1L;
 
-		int cnt = 0;
-
 		@Override
-		public boolean reachedEnd() throws Exception {
-			return cnt >= 20;
+		public void run(Object checkpointLock,
+				Collector<Tuple2<Long, Tuple2<String, Long>>> out) throws Exception {
+			for (int i = 0; i < 20; i++) {
+				Tuple2<Long, Tuple2<String, Long>> result = new Tuple2<Long, Tuple2<String, Long>>(1L, new Tuple2<String, Long>("a", 1L));
+				out.collect(result);
+			}
 		}
 
 		@Override
-		public Tuple2<Long, Tuple2<String, Long>> next() throws Exception {
-			Tuple2<Long, Tuple2<String, Long>> result = new Tuple2<Long, Tuple2<String, Long>>(1L, new Tuple2<String, Long>("a", 1L));
-			cnt++;
-			return result;
+		public void cancel() {
+
 		}
 	}
 
@@ -611,46 +613,44 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	private static class RectangleSource extends RichSourceFunction<RectangleClass> {
+	private static class RectangleSource extends RichSourceFunction<Rectangle> {
 		private static final long serialVersionUID = 1L;
-		private transient RectangleClass rectangle;
-		private transient int cnt;
+		private transient Rectangle rectangle;
 
 		public void open(Configuration parameters) throws Exception {
-			rectangle = new RectangleClass(100, 100);
-			cnt = 0;
+			rectangle = new Rectangle(100, 100);
 		}
 
 		@Override
-		public boolean reachedEnd() throws Exception {
-			return cnt >= 100;
+		public void run(Object checkpointLock,
+				Collector<Rectangle> out) throws Exception {
+			for (int i = 0; i < 100; i++) {
+				out.collect(rectangle);
+				rectangle = rectangle.next();
+			}
 		}
 
 		@Override
-		public RectangleClass next() throws Exception {
-			RectangleClass result = rectangle;
-			cnt++;
-			rectangle = rectangle.next();
-			return result;
+		public void cancel() {
 		}
 	}
 
-	private static class RectangleMapFunction implements MapFunction<RectangleClass, Tuple2<RectangleClass, Integer>> {
+	private static class RectangleMapFunction implements MapFunction<Rectangle, Tuple2<Rectangle, Integer>> {
 		private static final long serialVersionUID = 1L;
 		private int counter = 0;
 
 		@Override
-		public Tuple2<RectangleClass, Integer> map(RectangleClass value) throws Exception {
-			return new Tuple2<RectangleClass, Integer>(value, counter++);
+		public Tuple2<Rectangle, Integer> map(Rectangle value) throws Exception {
+			return new Tuple2<Rectangle, Integer>(value, counter++);
 		}
 	}
 
-	private static class MyWindowMapFunction implements WindowMapFunction<Tuple2<RectangleClass, Integer>,
-			Tuple2<RectangleClass, Integer>> {
+	private static class MyWindowMapFunction implements WindowMapFunction<Tuple2<Rectangle, Integer>,
+			Tuple2<Rectangle, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void mapWindow(Iterable<Tuple2<RectangleClass, Integer>> values, Collector<Tuple2<RectangleClass,
+		public void mapWindow(Iterable<Tuple2<Rectangle, Integer>> values, Collector<Tuple2<Rectangle,
 				Integer>> out) throws Exception {
 			out.collect(values.iterator().next());
 		}
@@ -769,23 +769,21 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	public static class RectangleClass {
-
-		private static final long serialVersionUID = 1L;
+	public static class Rectangle {
 
 		public int a;
 		public int b;
 
 		//default constructor to qualify as Flink POJO
-		public RectangleClass() {}
+		public Rectangle() {}
 
-		public RectangleClass(int a, int b) {
+		public Rectangle(int a, int b) {
 			this.a = a;
 			this.b = b;
 		}
 
-		public RectangleClass next() {
-			return new RectangleClass(a + (b % 11), b + (a % 9));
+		public Rectangle next() {
+			return new Rectangle(a + (b % 11), b + (a % 9));
 		}
 
 		@Override

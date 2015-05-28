@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.util.Collector;
 import org.junit.Test;
 
 @SuppressWarnings("serial")
@@ -46,13 +47,11 @@ public class ChainedRuntimeContextTest {
 	private static class TestSource extends RichParallelSourceFunction<Integer> {
 
 		@Override
-		public boolean reachedEnd() throws Exception {
-			return true;
+		public void run(Object checkpointLock, Collector<Integer> out) throws Exception {
 		}
 
 		@Override
-		public Integer next() throws Exception {
-			return null;
+		public void cancel() {
 		}
 
 		@Override

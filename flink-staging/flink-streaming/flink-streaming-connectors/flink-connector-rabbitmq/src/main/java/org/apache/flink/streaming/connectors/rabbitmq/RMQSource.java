@@ -27,6 +27,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
+import org.apache.flink.util.Collector;
 
 public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	private static final long serialVersionUID = 1L;
@@ -40,7 +41,7 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	private transient QueueingConsumer consumer;
 	private transient QueueingConsumer.Delivery delivery;
 
-	OUT out;
+	private transient volatile boolean running;
 
 	public RMQSource(String HOST_NAME, String QUEUE_NAME,
 			DeserializationSchema<OUT> deserializationSchema) {
@@ -70,6 +71,7 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	@Override
 	public void open(Configuration config) throws Exception {
 		initializeConnection();
+		running = true;
 	}
 
 	@Override
@@ -84,47 +86,21 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	}
 
 	@Override
-	public boolean reachedEnd() throws Exception {
-		if (out != null) {
-			return true;
-		}
-		try {
+	public void run(Object checkpointLock, Collector<OUT> out) throws Exception {
+		while (running) {
 			delivery = consumer.nextDelivery();
-		} catch (Exception e) {
-			throw new RuntimeException("Error while reading message from RMQ source from " + QUEUE_NAME
-					+ " at " + HOST_NAME, e);
-		}
 
-		out = schema.deserialize(delivery.getBody());
-		if (schema.isEndOfStream(out)) {
-			out = null;
-			return false;
+			OUT result = schema.deserialize(delivery.getBody());
+			if (schema.isEndOfStream(result)) {
+				break;
+			}
+
+			out.collect(result);
 		}
-		return true;
 	}
 
 	@Override
-	public OUT next() throws Exception {
-		if (out != null) {
-			OUT result = out;
-			out = null;
-			return result;
-		}
-
-		try {
-			delivery = consumer.nextDelivery();
-		} catch (Exception e) {
-			throw new RuntimeException("Error while reading message from RMQ source from " + QUEUE_NAME
-					+ " at " + HOST_NAME, e);
-		}
-
-		out = schema.deserialize(delivery.getBody());
-		if (schema.isEndOfStream(out)) {
-			throw new RuntimeException("RMQ source is at end for " + QUEUE_NAME + " at " + HOST_NAME);
-		}
-		OUT result = out;
-		out = null;
-		return result;
+	public void cancel() {
+		running = false;
 	}
-
 }

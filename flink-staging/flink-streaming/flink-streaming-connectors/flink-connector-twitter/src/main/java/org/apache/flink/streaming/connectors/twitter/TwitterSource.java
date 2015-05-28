@@ -26,6 +26,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +41,8 @@ import com.twitter.hbc.httpclient.auth.OAuth1;
 
 /**
  * Implementation of {@link SourceFunction} specialized to emit tweets from
- * Twitter.
+ * Twitter. This is not a parallel source because the Twitter API only allows
+ * two concurrent connections.
  */
 public class TwitterSource extends RichSourceFunction<String> {
 
@@ -55,6 +57,8 @@ public class TwitterSource extends RichSourceFunction<String> {
 
 	private int maxNumberOfTweets;
 	private int currentNumberOfTweets;
+
+	private transient volatile boolean isRunning;
 
 	/**
 	 * Create {@link TwitterSource} for streaming
@@ -86,6 +90,7 @@ public class TwitterSource extends RichSourceFunction<String> {
 	public void open(Configuration parameters) throws Exception {
 		initializeConnection();
 		currentNumberOfTweets = 0;
+		isRunning = true;
 	}
 
 	/**
@@ -148,13 +153,16 @@ public class TwitterSource extends RichSourceFunction<String> {
 		client.connect();
 	}
 
-	private void closeConnection() {
+	@Override
+	public void close() {
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Initiating connection close");
 		}
 
-		client.stop();
+		if (client != null) {
+			client.stop();
+		}
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Connection closed successfully");
@@ -201,30 +209,26 @@ public class TwitterSource extends RichSourceFunction<String> {
 	}
 
 	@Override
-	public boolean reachedEnd() throws Exception {
-		if (maxNumberOfTweets != -1 && currentNumberOfTweets >= maxNumberOfTweets){
-			closeConnection();
-			return true;
-		}
-
-		if (client.isDone()) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Client connection closed unexpectedly: {}", client.getExitEvent()
-						.getMessage());
+	public void run(Object checkpointLock, Collector<String> out) throws Exception {
+		while (isRunning) {
+			if (client.isDone()) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Client connection closed unexpectedly: {}", client.getExitEvent()
+							.getMessage());
+				}
+				break;
 			}
-			return true;
+
+			out.collect(queue.take());
+
+			if (maxNumberOfTweets != -1 && currentNumberOfTweets >= maxNumberOfTweets) {
+				break;
+			}
 		}
-		
-		return false;
 	}
 
 	@Override
-	public String next() throws Exception {
-		if (reachedEnd()) {
-			throw new RuntimeException("Twitter stream end reached.");
-		}
-
-		String msg = queue.take();
-		return msg;
+	public void cancel() {
+		isRunning = false;
 	}
 }
