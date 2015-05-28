@@ -49,4 +49,35 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
         weight should be(expectedWeight +- 0.1)
     }
   }
+
+  it should "make (mostly) correct predictions" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val svm = SVM().
+      setBlocks(env.getParallelism).
+      setIterations(100).
+      setLocalIterations(100).
+      setRegularization(0.002).
+      setStepsize(0.1).
+      setSeed(0)
+
+    val trainingDS = env.fromCollection(Classification.trainingData)
+
+    svm.fit(trainingDS)
+
+    val threshold = 0.0
+
+    val predictionPairs = svm.predict(trainingDS).map {
+      truthPrediction =>
+        val truth = truthPrediction._1
+        val prediction = truthPrediction._2
+        val thresholdedPrediction = if (prediction > threshold) 1.0 else -1.0
+        (truth, thresholdedPrediction)
+    }
+
+    val absoluteErrorSum = predictionPairs.collect().map{
+      case (truth, prediction) => Math.abs(truth - prediction)}.sum
+
+    absoluteErrorSum should be < 15.0
+  }
 }

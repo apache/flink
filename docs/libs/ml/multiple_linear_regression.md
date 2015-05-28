@@ -77,6 +77,14 @@ MultipleLinearRegression predicts for all subtypes of `Vector` the corresponding
 
 * `predict[T <: Vector]: DataSet[T] => DataSet[LabeledVector]`
 
+If we call predict with a `DataSet[LabeledVector]`, we make a prediction on the regression value
+for each example, and return a `DataSet[(Double, Double)]`. In each tuple the first element
+is the true value, as was provided from the input `DataSet[LabeledVector]` and the second element
+is the predicted value. You can then use these `(truth, prediction)` tuples to evaluate
+the algorithm's performance.
+
+* `predict: DataSet[LabeledVector] => DataSet[(Double, Double)]`
+
 ## Parameters
 
   The multiple linear regression implementation can be controlled by the following parameters:
