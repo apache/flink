@@ -33,7 +33,7 @@ import org.apache.flink.ml.math.Breeze._
 
 import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
 
-/** Implements a soft-maring SVM using the communication-efficient distributed dual coordinate
+/** Implements a soft-margin SVM using the communication-efficient distributed dual coordinate
   * ascent algorithm (CoCoA) with hinge-loss function.
   *
   * The algorithm solves the following minimization problem:
@@ -275,6 +275,57 @@ object SVM{
       LabeledVector(dotProduct, vector)
     }
   }
+
+  /** [[org.apache.flink.ml.pipeline.PredictOperation]] for [[LabeledVector ]]types. The result type
+    * is a [[(Double, Double)]] tuple, corresponding to (truth, prediction)
+    *
+    * @return A DataSet[(Double, Double)] where each tuple is a (truth, prediction) pair.
+    */
+  implicit def predictLabeledValues = {
+    new PredictOperation[SVM, LabeledVector, (Double, Double)]{
+      override def predict(
+                            instance: SVM,
+                            predictParameters: ParameterMap,
+                            input: DataSet[LabeledVector])
+      : DataSet[(Double, Double)] = {
+
+        instance.weightsOption match {
+          case Some(weights) => {
+            input.map(new LabeledPredictionMapper).withBroadcastSet(weights, WEIGHT_VECTOR)
+          }
+
+          case None => {
+            throw new RuntimeException("The SVM model has not been trained. Call first fit" +
+              "before calling the predict operation.")
+          }
+        }
+      }
+    }
+  }
+
+  /** Mapper to calculate the value of the prediction function. This is a RichMapFunction, because
+    * we broadcast the weight vector to all mappers.
+    */
+  class LabeledPredictionMapper extends RichMapFunction[LabeledVector, (Double, Double)] {
+
+    var weights: BreezeDenseVector[Double] = _
+
+    @throws(classOf[Exception])
+    override def open(configuration: Configuration): Unit = {
+      // get current weights
+      weights = getRuntimeContext.
+        getBroadcastVariable[BreezeDenseVector[Double]](WEIGHT_VECTOR).get(0)
+    }
+
+    override def map(labeledVector: LabeledVector): (Double, Double) = {
+      // calculate the prediction value (scaled distance from the separating hyperplane)
+      val prediction = weights dot labeledVector.vector.asBreeze
+      val truth = labeledVector.label
+
+      (truth, prediction)
+    }
+  }
+
 
   /** [[FitOperation]] which trains a SVM with soft-margin based on the given training data set.
     *
