@@ -68,7 +68,7 @@ import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
   *          {{{
   *             val trainingDS: DataSet[LabeledVector] = env.readSVMFile(pathToTrainingFile)
   *
-  *             val svm = CoCoA()
+  *             val svm = SVM()
   *               .setBlocks(10)
   *               .setIterations(10)
   *               .setLocalIterations(10)
@@ -103,7 +103,7 @@ import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
   *  (Default value: '''10''')
   *
   *  - [[org.apache.flink.ml.classification.SVM.Regularization]]:
-  *  Defines the regularization constant of the CoCoA algorithm. The higher the value, the smaller
+  *  Defines the regularization constant of the SVM algorithm. The higher the value, the smaller
   *  will the 2-norm of the weight vector be. In case of a SVM with hinge loss this means that the
   *  SVM margin will be wider even though it might contain some false classifications.
   *  (Default value: '''1.0''')

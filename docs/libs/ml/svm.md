@@ -59,18 +59,18 @@ The implementation of this algorithm is based on the work of
 
 ## Operations
 
-`CoCoA` is a `Predictor`.
+`SVM` is a `Predictor`.
 As such, it supports the `fit` and `predict` operation.
 
 ### Fit
 
-CoCoA is trained given a set of `LabeledVector`: 
+SVM is trained given a set of `LabeledVector`: 
 
 * `fit: DataSet[LabeledVector] => Unit`
 
 ### Predict
 
-CoCoA predicts for all subtypes of `Vector` the corresponding class label: 
+SVM predicts for all subtypes of `Vector` the corresponding class label: 
 
 * `predict[T <: Vector]: DataSet[T] => DataSet[LabeledVector]`
 
@@ -125,7 +125,7 @@ The SVM implementation can be controlled by the following parameters:
         <td><strong>Regularization</strong></td>
         <td>
           <p>
-            Defines the regularization constant of the CoCoA algorithm. 
+            Defines the regularization constant of the SVM algorithm. 
             The higher the value, the smaller will the 2-norm of the weight vector be. 
             In case of a SVM with hinge loss this means that the SVM margin will be wider even though it might contain some false classifications.
             (Default value: <strong>1.0</strong>)
