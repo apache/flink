@@ -242,14 +242,19 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 		@Override
 		public void operationComplete(ChannelFuture future) throws Exception {
-			if (future.isSuccess()) {
-				writeAndFlushNextMessageIfPossible(future.channel());
+			try {
+				if (future.isSuccess()) {
+					writeAndFlushNextMessageIfPossible(future.channel());
+				}
+				else if (future.cause() != null) {
+					handleException(future.channel(), future.cause());
+				}
+				else {
+					handleException(future.channel(), new IllegalStateException("Sending cancelled by user."));
+				}
 			}
-			else if (future.cause() != null) {
-				handleException(future.channel(), future.cause());
-			}
-			else {
-				handleException(future.channel(), new IllegalStateException("Sending cancelled by user."));
+			catch (Throwable t) {
+				handleException(future.channel(), t);
 			}
 		}
 	}
