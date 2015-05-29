@@ -85,16 +85,23 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception {
+	public Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp)
+			throws Exception {
 
 		Map<String, StreamOperatorState> operatorStates = runtimeContext.getOperatorStates();
-		Map<String, Map<Serializable, StateHandle<Serializable>>> snapshots = new HashMap<String, Map<Serializable, StateHandle<Serializable>>>();
+		if (operatorStates.isEmpty()) {
+			return null;
+		} else {
+			Map<String, Map<Serializable, StateHandle<Serializable>>> snapshots = new HashMap<String, Map<Serializable, StateHandle<Serializable>>>();
 
-		for (Entry<String, StreamOperatorState> state : operatorStates.entrySet()) {
-			snapshots.put(state.getKey(), state.getValue().snapshotState(checkpointId, timestamp));
+			for (Entry<String, StreamOperatorState> state : operatorStates.entrySet()) {
+				snapshots.put(state.getKey(),
+						state.getValue().snapshotState(checkpointId, timestamp));
+			}
+
+			return (Serializable) snapshots;
 		}
 
-		return (Serializable) snapshots;
 	}
 
 	public void confirmCheckpointCompleted(long checkpointId,
