@@ -22,7 +22,7 @@ import breeze.linalg
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.classification.CoCoA
+import org.apache.flink.ml.classification.SVM
 import org.apache.flink.ml.common.{ParameterMap, LabeledVector}
 import org.apache.flink.ml.math._
 import org.apache.flink.ml.preprocessing.{PolynomialFeatures, StandardScaler}
@@ -187,7 +187,7 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val data = List(1.0, 2.0, 3.0)
     val doubleData = env.fromCollection(data)
 
-    val svm = CoCoA()
+    val svm = SVM()
 
     intercept[RuntimeException] {
       svm.fit(doubleData)
