@@ -32,6 +32,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.ConfirmCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -373,8 +375,10 @@ public class CheckpointCoordinator {
 				Execution ee = ev.getCurrentExecutionAttempt();
 				if (ee != null) {
 					ExecutionAttemptID attemptId = ee.getAttemptId();
+					StateForTask stateForTask = completed.getState(ev.getJobvertexId());
+					SerializedValue<StateHandle<?>> taskState = (stateForTask != null) ? stateForTask.getState() : null;
 					ConfirmCheckpoint confirmMessage = new ConfirmCheckpoint(job, attemptId, checkpointId, 
-							timestamp, completed.getState(ev.getJobvertexId()).getState() );
+							timestamp, taskState);
 					ev.sendMessageToCurrentExecution(confirmMessage, ee.getAttemptId());
 				}
 			}

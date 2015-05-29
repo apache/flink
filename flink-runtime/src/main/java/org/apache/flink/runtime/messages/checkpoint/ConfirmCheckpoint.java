@@ -53,6 +53,10 @@ public class ConfirmCheckpoint extends AbstractCheckpointMessage implements java
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Returns the stateHandle that was included in the confirmed checkpoint for a given task or null
+	 * if no state was commited in that checkpoint.
+	 */
 	public SerializedValue<StateHandle<?>> getState() {
 		return state;
 	}
