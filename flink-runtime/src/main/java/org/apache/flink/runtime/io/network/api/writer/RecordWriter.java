@@ -162,9 +162,13 @@ public class RecordWriter<T extends IOReadableWritable> {
 	public void clearBuffers() {
 		if (serializers != null) {
 			for (RecordSerializer<?> s : serializers) {
-				Buffer b = s.getCurrentBuffer();
-				if (b != null) {
-					b.recycle();
+				synchronized (s) {
+					Buffer b = s.getCurrentBuffer();
+					s.clear();
+
+					if (b != null) {
+						b.recycle();
+					}
 				}
 			}
 		}
