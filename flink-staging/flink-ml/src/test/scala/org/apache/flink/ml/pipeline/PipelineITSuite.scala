@@ -170,11 +170,11 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val weightVector = predictor.weightsOption.get.collect().head
 
-    weightVector._1.foreach{
-      _ should be (0.367282 +- 0.01)
+    weightVector.weights.valueIterator.foreach{
+      _ should be (0.268050 +- 0.01)
     }
 
-    weightVector._2 should be (1.3131727 +- 0.01)
+    weightVector.intercept should be (0.807924 +- 0.01)
   }
 
   it should "throw an exception when the input data is not supported by a predictor" in {
