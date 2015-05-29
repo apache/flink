@@ -35,7 +35,7 @@ import org.apache.flink.ml.common.{FlinkMLTools, ParameterMap, WithParameters}
   *
   * @tparam Self Type of the implementing class
   */
-trait Predictor[Self] extends Estimator[Self] with WithParameters with Serializable {
+trait Predictor[Self] extends Estimator[Self] with WithParameters {
   that: Self =>
 
   /** Predict testing data according the learned model. The implementing class has to provide
