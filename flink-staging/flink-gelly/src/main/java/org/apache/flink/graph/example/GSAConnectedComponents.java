@@ -66,11 +66,13 @@ public class GSAConnectedComponents implements ProgramDescription {
 		// emit result
 		if (fileOutput) {
 			connectedComponents.writeAsCsv(outputPath, "\n", " ");
+
+			// since file sinks are lazy, we trigger the execution explicitly
+			env.execute("GSA Connected Components");
 		} else {
 			connectedComponents.print();
 		}
 
-		env.execute("GSA Connected Components");
 	}
 
 	@SuppressWarnings("serial")
