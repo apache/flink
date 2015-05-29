@@ -18,8 +18,8 @@
 
 package org.apache.flink.ml.optimization
 
-import org.apache.flink.ml.common.{LabeledVector, WeightVector, ParameterMap}
-import org.apache.flink.ml.math.{BLAS, Vector => FlinkVector, DenseVector}
+import org.apache.flink.ml.common.{LabeledVector, WeightVector}
+import org.apache.flink.ml.math.DenseVector
 import org.scalatest.{Matchers, FlatSpec}
 
 import org.apache.flink.api.scala._
@@ -35,7 +35,7 @@ class LossFunctionITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     env.setParallelism(2)
 
-    val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction, NoRegularization, 0.0)
+    val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
 
     val example = LabeledVector(1.0, DenseVector(2))

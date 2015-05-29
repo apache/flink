@@ -19,77 +19,78 @@
 package org.apache.flink.ml.optimization
 
 import org.apache.flink.ml.common.{WeightVector, LabeledVector}
-import org.apache.flink.ml.math.{Vector => FlinkVector, BLAS}
+import org.apache.flink.ml.math.BLAS
 
 /** Abstract class that implements some of the functionality for common loss functions
   *
   * A loss function determines the loss term $L(w) of the objective function  $f(w) = L(w) +
   * \lambda R(w)$ for prediction tasks, the other being regularization, $R(w)$.
   *
+  * The regularization is specific to the used optimization algorithm and, thus, implemented there.
+  *
   * We currently only support differentiable loss functions, in the future this class
-  * could be changed to DiffLossFunction in order to support other types, such absolute loss.
+  * could be changed to DiffLossFunction in order to support other types, such as absolute loss.
   */
 trait LossFunction extends Serializable {
 
-  def loss(dataPoint: LabeledVector, weightVector: WeightVector): Double
+  /** Calculates the loss given the prediction and label value
+    *
+    * @param dataPoint
+    * @param weightVector
+    * @return
+    */
+  def loss(dataPoint: LabeledVector, weightVector: WeightVector): Double = {
+    lossGradient(dataPoint, weightVector)._1
+  }
 
-  def gradient(dataPoint: LabeledVector, weightVector: WeightVector): WeightVector
+  /** Calculates the gradient of the loss function given a data point and weight vector
+    *
+    * @param dataPoint
+    * @param weightVector
+    * @return
+    */
+  def gradient(dataPoint: LabeledVector, weightVector: WeightVector): WeightVector = {
+    lossGradient(dataPoint, weightVector)._2
+  }
 
-  def updateWeightVector(
-      oldWeightVector: WeightVector,
-      gradient: WeightVector,
-      learningRate: Double)
-    : WeightVector
+  /** Calculates the gradient as well as the loss given a data point and the weight vector
+    *
+    * @param dataPoint
+    * @param weightVector
+    * @return
+    */
+  def lossGradient(dataPoint: LabeledVector, weightVector: WeightVector): (Double, WeightVector)
 }
 
+/** Generic loss function which lets you build a loss function out of the [[PartialLossFunction]]
+  * and the [[PredictionFunction]].
+  *
+  * @param partialLossFunction
+  * @param predictionFunction
+  */
 case class GenericLossFunction(
     partialLossFunction: PartialLossFunction,
-    predictionFunction: PredictionFunction,
-    regularizationFunction: RegularizationFunction,
-    regularizationValue: Double)
+    predictionFunction: PredictionFunction)
   extends LossFunction {
 
-  def loss(dataPoint: LabeledVector, weightVector: WeightVector): Double = {
+  /** Calculates the gradient as well as the loss given a data point and the weight vector
+    *
+    * @param dataPoint
+    * @param weightVector
+    * @return
+    */
+  def lossGradient(dataPoint: LabeledVector, weightVector: WeightVector): (Double, WeightVector) = {
     val prediction = predictionFunction.predict(dataPoint.vector, weightVector)
 
-    partialLossFunction.loss(prediction, dataPoint.label) +
-      regularizationValue * regularizationFunction.regularization(weightVector.weights)
-  }
+    val loss = partialLossFunction.loss(prediction, dataPoint.label)
 
-  def gradient(dataPoint: LabeledVector, weightVector: WeightVector): WeightVector = {
-    val prediction = predictionFunction.predict(dataPoint.vector, weightVector)
+    val lossDerivative = partialLossFunction.derivative(prediction, dataPoint.label)
 
-    val lossDeriv = partialLossFunction.gradient(prediction, dataPoint.label)
-
-    val WeightVector(predWeightGradient, predIntGradient) =
+    val WeightVector(weightGradient, interceptGradient) =
       predictionFunction.gradient(dataPoint.vector, weightVector)
 
-    regularizationFunction.gradient(weightVector.weights) match {
-      case Some(regWeightGradient) => {
-        BLAS.scal(regularizationValue, regWeightGradient)
-        BLAS.axpy(lossDeriv, predWeightGradient, regWeightGradient)
+    BLAS.scal(lossDerivative, weightGradient)
 
-        WeightVector(regWeightGradient, lossDeriv * predIntGradient)
-      }
-      case None => {
-        BLAS.scal(lossDeriv, predWeightGradient)
-        WeightVector(predWeightGradient, lossDeriv * predIntGradient)
-      }
-    }
-  }
-
-  def updateWeightVector(
-    oldWeightVector: WeightVector,
-    gradient: WeightVector,
-    learningRate: Double)
-  : WeightVector = {
-
-    val updatedWeigths = regularizationFunction.updateWeights(
-      oldWeightVector.weights,
-      gradient.weights,
-      learningRate,
-      regularizationValue)
-
-    WeightVector(updatedWeigths, oldWeightVector.intercept - learningRate * gradient.intercept)
+    (loss, WeightVector(weightGradient, lossDerivative * interceptGradient))
   }
 }

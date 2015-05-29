@@ -90,8 +90,8 @@ abstract class Solver extends Serializable with WithParameters {
     this
   }
 
-  def setRegularizationParameter(regularizationParameter: Double): this.type = {
-    parameters.add(RegularizationParameter, regularizationParameter)
+  def setRegularizationConstant(regularizationConstant: Double): this.type = {
+    parameters.add(RegularizationConstant, regularizationConstant)
     this
   }
 }
@@ -104,7 +104,7 @@ object Solver {
     val defaultValue = None
   }
 
-  case object RegularizationParameter extends Parameter[Double] {
+  case object RegularizationConstant extends Parameter[Double] {
     val defaultValue = Some(0.0) // TODO(tvas): Properly initialize this, ensure Parameter > 0!
   }
 }
@@ -123,7 +123,7 @@ abstract class IterativeSolver() extends Solver {
   }
 
   def setStepsize(stepsize: Double): this.type = {
-    parameters.add(Stepsize, stepsize)
+    parameters.add(LearningRate, stepsize)
     this
   }
 
@@ -138,7 +138,7 @@ object IterativeSolver {
   val MAX_DLOSS: Double = 1e12
 
   // Define parameters for IterativeSolver
-  case object Stepsize extends Parameter[Double] {
+  case object LearningRate extends Parameter[Double] {
     val defaultValue = Some(0.1)
   }
 

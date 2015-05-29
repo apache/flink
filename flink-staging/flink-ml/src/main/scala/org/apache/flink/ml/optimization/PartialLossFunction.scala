@@ -18,18 +18,50 @@
 
 package org.apache.flink.ml.optimization
 
+/** Represents loss functions which can be used with the [[GenericLossFunction]].
+  *
+  */
 trait PartialLossFunction extends Serializable {
+  /** Calculates the loss depending on the label and the prediction
+    *
+    * @param prediction
+    * @param label
+    * @return
+    */
   def loss(prediction: Double, label: Double): Double
 
-  def gradient(prediction: Double, label: Double): Double
+  /** Calculates the derivative of the [[PartialLossFunction]]
+    * 
+    * @param prediction
+    * @param label
+    * @return
+    */
+  def derivative(prediction: Double, label: Double): Double
 }
 
+/** Squared loss function which can be used with the [[GenericLossFunction]]
+  *
+  * The [[SquaredLoss]] function implements `1/2 (prediction - label)^2`
+  */
 object SquaredLoss extends PartialLossFunction {
+
+  /** Calculates the loss depending on the label and the prediction
+    *
+    * @param prediction
+    * @param label
+    * @return
+    */
   override def loss(prediction: Double, label: Double): Double = {
     0.5 * (prediction - label) * (prediction - label)
   }
 
-  override def gradient(prediction: Double, label: Double): Double = {
+  /** Calculates the derivative of the [[PartialLossFunction]]
+    *
+    * @param prediction
+    * @param label
+    * @return
+    */
+  override def derivative(prediction: Double, label: Double): Double = {
     (prediction - label)
   }
 }
