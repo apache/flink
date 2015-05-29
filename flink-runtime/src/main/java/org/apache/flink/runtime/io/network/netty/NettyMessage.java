@@ -264,19 +264,19 @@ abstract class NettyMessage {
 
 		private static final byte ID = 1;
 
-		Throwable error;
+		Throwable cause;
 
 		InputChannelID receiverId;
 
 		public ErrorResponse() {
 		}
 
-		ErrorResponse(Throwable error) {
-			this.error = error;
+		ErrorResponse(Throwable cause) {
+			this.cause = cause;
 		}
 
-		ErrorResponse(Throwable error, InputChannelID receiverId) {
-			this.error = error;
+		ErrorResponse(Throwable cause, InputChannelID receiverId) {
+			this.cause = cause;
 			this.receiverId = receiverId;
 		}
 
@@ -297,7 +297,7 @@ abstract class NettyMessage {
 
 				oos = new ObjectOutputStream(new DataOutputViewStream(outputView));
 
-				oos.writeObject(error);
+				oos.writeObject(cause);
 
 				if (receiverId != null) {
 					result.writeBoolean(true);
@@ -338,7 +338,7 @@ abstract class NettyMessage {
 					throw new ClassCastException("Read object expected to be of type Throwable, " +
 							"actual type is " + obj.getClass() + ".");
 				} else {
-					error = (Throwable) obj;
+					cause = (Throwable) obj;
 
 					if (buffer.readBoolean()) {
 						receiverId = InputChannelID.fromByteBuf(buffer);

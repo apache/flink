@@ -93,8 +93,8 @@ public class NettyMessageSerializationTest {
 				NettyMessage.ErrorResponse expected = new NettyMessage.ErrorResponse(expectedError, receiverId);
 				NettyMessage.ErrorResponse actual = encodeAndDecode(expected);
 
-				assertEquals(expected.error.getClass(), actual.error.getClass());
-				assertEquals(expected.error.getMessage(), actual.error.getMessage());
+				assertEquals(expected.cause.getClass(), actual.cause.getClass());
+				assertEquals(expected.cause.getMessage(), actual.cause.getMessage());
 				assertEquals(receiverId, actual.receiverId);
 			}
 
@@ -105,8 +105,8 @@ public class NettyMessageSerializationTest {
 				NettyMessage.ErrorResponse expected = new NettyMessage.ErrorResponse(expectedError, receiverId);
 				NettyMessage.ErrorResponse actual = encodeAndDecode(expected);
 
-				assertEquals(expected.error.getClass(), actual.error.getClass());
-				assertEquals(expected.error.getMessage(), actual.error.getMessage());
+				assertEquals(expected.cause.getClass(), actual.cause.getClass());
+				assertEquals(expected.cause.getMessage(), actual.cause.getMessage());
 				assertEquals(receiverId, actual.receiverId);
 			}
 
@@ -116,8 +116,8 @@ public class NettyMessageSerializationTest {
 				NettyMessage.ErrorResponse expected = new NettyMessage.ErrorResponse(expectedError);
 				NettyMessage.ErrorResponse actual = encodeAndDecode(expected);
 
-				assertEquals(expected.error.getClass(), actual.error.getClass());
-				assertEquals(expected.error.getMessage(), actual.error.getMessage());
+				assertEquals(expected.cause.getClass(), actual.cause.getClass());
+				assertEquals(expected.cause.getMessage(), actual.cause.getMessage());
 				assertNull(actual.receiverId);
 				assertTrue(actual.isFatalError());
 			}

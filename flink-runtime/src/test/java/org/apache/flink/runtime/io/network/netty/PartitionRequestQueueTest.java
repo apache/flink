@@ -51,6 +51,6 @@ public class PartitionRequestQueueTest {
 		assertEquals(msg.getClass(), NettyMessage.ErrorResponse.class);
 
 		NettyMessage.ErrorResponse err = (NettyMessage.ErrorResponse) msg;
-		assertTrue(err.error instanceof CancelTaskException);
+		assertTrue(err.cause instanceof CancelTaskException);
 	}
 }

@@ -222,19 +222,19 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			if (error.isFatalError()) {
 				notifyAllChannelsOfErrorAndClose(new RemoteTransportException(
 						"Fatal error at remote task manager '" + remoteAddr + "'.",
-						remoteAddr, error.error));
+						remoteAddr, error.cause));
 			}
 			else {
 				RemoteInputChannel inputChannel = inputChannels.get(error.receiverId);
 
 				if (inputChannel != null) {
-					if (error.error.getClass() == PartitionNotFoundException.class) {
+					if (error.cause.getClass() == PartitionNotFoundException.class) {
 						inputChannel.onFailedPartitionRequest();
 					}
 					else {
 						inputChannel.onError(new RemoteTransportException(
 								"Error at remote task manager '" + remoteAddr + "'.",
-										remoteAddr, error.error));
+										remoteAddr, error.cause));
 					}
 				}
 			}
