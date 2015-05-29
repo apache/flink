@@ -72,10 +72,21 @@ public class SuccessfulCheckpoint {
 	public List<StateForTask> getStates() {
 		return states;
 	}
-	
+
+	/**
+	 * Returns the task state included in the checkpoint for a given JobVertexID if it exists or 
+	 * null if no state is included for that id.
+	 * 
+	 * @param jobVertexID
+	 * @return
+	 */
 	public StateForTask getState(JobVertexID jobVertexID)
 	{
-		return vertexToState.get(jobVertexID);
+		if(vertexToState.containsKey(jobVertexID)) {
+			return vertexToState.get(jobVertexID);
+		}
+		
+		return null;
 	}
 
 	// --------------------------------------------------------------------------------------------
