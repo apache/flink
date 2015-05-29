@@ -78,11 +78,13 @@ public class CommunityDetection implements ProgramDescription {
 		// emit result
 		if (fileOutput) {
 			communityVertices.writeAsCsv(outputPath, "\n", ",");
+
+			// since file sinks are lazy, we trigger the execution explicitly
+			env.execute("Executing Community Detection Example");
 		} else {
 			communityVertices.print();
 		}
 
-		env.execute("Executing Community Detection Example");
 	}
 
 	@Override

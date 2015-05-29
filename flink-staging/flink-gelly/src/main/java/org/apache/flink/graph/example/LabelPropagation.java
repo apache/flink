@@ -72,12 +72,13 @@ public class LabelPropagation implements ProgramDescription {
 		// Emit results
 		if(fileOutput) {
 			verticesWithCommunity.writeAsCsv(outputPath, "\n", ",");
+
+			// Execute the program
+			env.execute("Label Propagation Example");
 		} else {
 			verticesWithCommunity.print();
 		}
 
-		// Execute the program
-		env.execute("Label Propagation Example");
 	}
 
 	// *************************************************************************

@@ -75,11 +75,14 @@ public class ConnectedComponents implements ProgramDescription {
 		// emit result
 		if (fileOutput) {
 			verticesWithMinIds.writeAsCsv(outputPath, "\n", ",");
+
+			// since file sinks are lazy, we trigger the execution explicitly
+			env.execute("Connected Components Example");
 		} else {
 			verticesWithMinIds.print();
 		}
 
-		env.execute("Connected Components Example");
+
 	}
 
 	@Override
