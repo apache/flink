@@ -270,10 +270,10 @@ object SVM{
   implicit def predictLabeledValues = {
     new PredictOperation[SVM, LabeledVector, (Double, Double)]{
       override def predict(
-                            instance: SVM,
-                            predictParameters: ParameterMap,
-                            input: DataSet[LabeledVector])
-      : DataSet[(Double, Double)] = {
+          instance: SVM,
+          predictParameters: ParameterMap,
+          input: DataSet[LabeledVector])
+        : DataSet[(Double, Double)] = {
 
         instance.weightsOption match {
           case Some(weights) => {

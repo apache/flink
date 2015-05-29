@@ -34,7 +34,7 @@ import org.apache.flink.ml.common.{FlinkMLTools, ParameterMap, WithParameters}
   *
   * @tparam Self
   */
-trait Estimator[Self] extends WithParameters with Serializable {
+trait Estimator[Self] extends WithParameters {
   that: Self =>
 
   /** Fits the estimator to the given input data. The fitting logic is contained in the

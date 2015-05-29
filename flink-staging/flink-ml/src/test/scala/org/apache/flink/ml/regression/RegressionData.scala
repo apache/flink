@@ -25,7 +25,7 @@ object RegressionData {
 
   val expectedWeights = Array[Double](3.0094)
   val expectedWeight0: Double = 9.8158
-  val expectedSquaredResidualSum: Double = 49.7596
+  val expectedSquaredResidualSum: Double = 49.7596/2
 
   val data: Seq[LabeledVector] = Seq(
     LabeledVector(10.7949, DenseVector(0.2714)),
@@ -119,7 +119,7 @@ object RegressionData {
 
   val expectedPolynomialWeights = Seq(0.2375, -0.3493, -0.1674)
   val expectedPolynomialWeight0 = 0.0233
-  val expectedPolynomialSquaredResidualSum = 1.5389e+03
+  val expectedPolynomialSquaredResidualSum = 1.5389e+03/2
 
   val polynomialData: Seq[LabeledVector] = Seq(
     LabeledVector(2.1415, DenseVector(3.6663)),
