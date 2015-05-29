@@ -241,6 +241,28 @@ public class RecordWriterTest {
 		}
 	}
 
+	@Test
+	public void testSerializerClearedAfterClearBuffers() throws Exception {
+
+		final Buffer buffer = TestBufferFactory.createBuffer(16);
+
+		ResultPartitionWriter partitionWriter = createResultPartitionWriter(
+				createBufferProvider(buffer));
+
+		RecordWriter<IntValue> recordWriter = new RecordWriter<IntValue>(partitionWriter);
+
+		// Fill a buffer, but don't write it out.
+		recordWriter.emit(new IntValue(0));
+		verify(partitionWriter, never()).writeBuffer(any(Buffer.class), anyInt());
+
+		// Clear all buffers.
+		recordWriter.clearBuffers();
+
+		// This should not throw an Exception iff the serializer state
+		// has been cleared as expected.
+		recordWriter.flush();
+	}
+
 	// ---------------------------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------------------------
