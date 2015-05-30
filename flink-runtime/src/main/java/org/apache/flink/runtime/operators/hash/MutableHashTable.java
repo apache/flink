@@ -513,7 +513,10 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 
 			List<MemorySegment> memory = new ArrayList<MemorySegment>();
 			memory.add(getNextBuffer());
-			memory.add(getNextBuffer());
+			MemorySegment nextBuffer = getNextBuffer();
+			if (nextBuffer != null) {
+				memory.add(nextBuffer);
+			}
 
 			ChannelReaderInputViewIterator<PT> probeReader = new ChannelReaderInputViewIterator<PT>(this.currentSpilledProbeSide,
 				returnQueue, memory, this.availableMemory, this.probeSideSerializer, p.getProbeSideBlockCount());
@@ -652,6 +655,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 				throw new RuntimeException("Hashtable closing was interrupted");
 			}
 		}
+		this.writeBehindBuffersAvailable = 0;
 	}
 	
 	public void abort() {
