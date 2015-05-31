@@ -330,10 +330,12 @@ public class EnumerateNestedFilesTest {
 			final long SIZE1 = 2077;
 			final long SIZE2 = 31909;
 			final long SIZE3 = 10;
-			final long TOTAL = SIZE1 + SIZE2 + SIZE3;
+			final long SIZE4 = 71;
+			final long TOTAL = SIZE1 + SIZE2 + SIZE3 + SIZE4;
 
 			String firstLevelDir = TestFileUtils.randomFileName();
 			String secondLevelDir = TestFileUtils.randomFileName();
+			String secondLevelDir2 = TestFileUtils.randomFileName();
 
 			File nestedDir = new File(tempPath + System.getProperty("file.separator") 
 					+ firstLevelDir);
@@ -345,10 +347,16 @@ public class EnumerateNestedFilesTest {
 			insideNestedDir.mkdirs();
 			insideNestedDir.deleteOnExit();
 
+			File insideNestedDir2 = new File(tempPath + System.getProperty("file.separator")
+					+ firstLevelDir + System.getProperty("file.separator") + secondLevelDir2);
+			insideNestedDir2.mkdirs();
+			insideNestedDir2.deleteOnExit();
+
 			// create a file in the first-level and two files in the nested dir
 			TestFileUtils.createTempFileInDirectory(nestedDir.getAbsolutePath(), SIZE1);
 			TestFileUtils.createTempFileInDirectory(insideNestedDir.getAbsolutePath(), SIZE2);
 			TestFileUtils.createTempFileInDirectory(insideNestedDir.getAbsolutePath(), SIZE3);
+			TestFileUtils.createTempFileInDirectory(insideNestedDir2.getAbsolutePath(), SIZE4);
 
 			this.format.setFilePath(new Path(nestedDir.toURI().toString()));
 			this.config.setBoolean("recursive.file.enumeration", true);
