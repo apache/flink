@@ -24,24 +24,25 @@ import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.collection.mutable
-
 class KMeansITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   behavior of "The KMeans implementation"
 
-  it should "data points are clustered into 'K' cluster centers" in {
-
+  def fixture = new {
     val env = ExecutionEnvironment.getExecutionEnvironment
-
-    val learner = KMeans().
+    val kmeans = KMeans().
       setInitialCentroids(env.fromCollection(Clustering.centroidData)).
       setNumIterations(Clustering.iterations)
 
     val trainingDS = env.fromCollection(Clustering.trainingData)
 
-    val model = learner.fit(trainingDS)
-    val centroidsResult = model.centroids.collect()
+    kmeans.fit(trainingDS)
+  }
+
+  it should "data points are clustered into 'K' cluster centers" in {
+    val f = fixture
+
+    val centroidsResult = f.kmeans.centroids.get.collect()
 
     val centroidsExpected = Clustering.expectedCentroids
 
@@ -66,6 +67,26 @@ class KMeansITSuite extends FlatSpec with Matchers with FlinkTestBase {
         case (expectedVector, entryVector) =>
           entryVector should be(expectedVector +- 0.00001)
       }
+    })
+  }
+
+  it should "predict points to cluster centers" in {
+    val f = fixture
+
+    val vectorsWithExpectedLabels = Clustering.testData
+    // create a lookup table for better matching
+    val expectedMap = vectorsWithExpectedLabels map (v =>
+      v.vector.asInstanceOf[DenseVector] -> v.label
+      ) toMap
+
+    // calculate the vector to cluster mapping on the plain vectors
+    val plainVectors = vectorsWithExpectedLabels.map(v => v.vector)
+    val predictedVectors = f.kmeans.predict(f.env.fromCollection(plainVectors))
+
+    // check if all vectors were labeled correctly
+    predictedVectors.collect() foreach (result => {
+      val expectedLabel = expectedMap.get(result.vector.asInstanceOf[DenseVector]).get
+      result.label should be(expectedLabel)
     })
 
   }

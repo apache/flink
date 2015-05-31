@@ -235,4 +235,22 @@ object Clustering {
     LabeledVector(6, DenseVector(-0.28812266733768305, -0.4380759022409115, -0.2696436452528952)),
     LabeledVector(8, DenseVector(0.46770288137823535, -0.4198470028007058, -0.1961898225195882))
   )
+
+  /*
+   * Contains points with their expected label.
+   */
+  val testData = Seq[LabeledVector](
+    LabeledVector(1, DenseVector(-0.37971876676276917, 0.4979574657403462, -0.4891930004726923)),
+    LabeledVector(6, DenseVector(-0.28812266733768305, -0.4380759022409115, -0.2696436452528952)),
+    LabeledVector(8, DenseVector(0.46770288137823535, -0.4198470028007058, -0.1961898225195882)),
+    LabeledVector(1, DenseVector(-0.4, 0.5, -0.5)),
+    LabeledVector(6, DenseVector(-0.3, -0.45, -0.27)),
+    LabeledVector(8, DenseVector(0.48, -0.42, -0.2)),
+    LabeledVector(1, DenseVector(-0.3, 0.47, -0.4)),
+    LabeledVector(6, DenseVector(-0.25, -0.4, -0.2)),
+    LabeledVector(8, DenseVector(0.5, -0.4, -0.25)),
+    LabeledVector(1, DenseVector(-0.28, 0.6, -0.5)),
+    LabeledVector(6, DenseVector(-0.2, -0.5, -0.2)),
+    LabeledVector(8, DenseVector(0.6, -0.4, -0.1))
+  )
 }
