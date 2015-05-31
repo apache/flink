@@ -29,7 +29,7 @@ class DecisionTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
   it should "train a decision tree" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val learner = DecisionTree().setMaxBins(3).setDepth(20).setDimension(4).setClasses(3)
+    val learner = DecisionTree().setMaxBins(5).setDepth(20).setDimension(4).setClasses(3)
       .setSplitStrategy("Entropy")
 
     val trainingDS = env.fromCollection(Classification.IrisTrainingData).setParallelism(4)

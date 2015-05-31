@@ -77,23 +77,15 @@ class Tree(
 
     // first, every unlabeled leaf node must have sent something.
     // If not, its sibling will be stuck forever
-
-    nodes.valuesIterator.foreach(
-      this_node => {
-        if (this_node.predict == -1 && this_node.split.isEmpty
-          && activeNodes.get(this_node.id).isEmpty) {
-          // we're in trouble
-          var sibling_id = 0
-          if (this_node.id % 2 == 0) {
-            sibling_id = this_node.id + 1
-          }
-          else {
-            sibling_id = this_node.id - 1
-          }
-          // this node is pointless. Remove it from the tree
-          nodes.remove(this_node.id)
-          // we're not going to split the sibling anymore.
-          activeNodes.put(sibling_id, 1) // we'll check for this '1' later
+    val finalNodes = new mutable.HashMap[Int,Int]()
+    activeNodes.keysIterator.foreach(
+      x=>{
+        // since this node received instances, it's sibling also must have done so
+        val y = 2*(x/2) + 1 - x%2
+        if(activeNodes.get(y).isEmpty){
+          finalNodes.put(x,1)
+        } else{
+          finalNodes.put(x,-1)
         }
       }
     )
@@ -176,7 +168,8 @@ class Tree(
                 val scaling = Math.pow(0.1, Node.getDepth(node_id) + 1)
                 val balancing = Math.abs(total_left - total_right) / totalNumPointsHere
                 val childGain = (1 - scaling) * (gainParent - total_left * findGain
-                  (leftClassCounts) / totalNumPointsHere - total_right * findGain(rightClassCounts)
+                  (leftClassCounts) / totalNumPointsHere - total_right * findGain
+                  (rightClassCounts)
                   / totalNumPointsHere) + scaling * balancing
                 if (childGain > bestGainChild) {
                   bestGainChild = childGain
@@ -199,20 +192,22 @@ class Tree(
     Array.ofDim(splitNodes)
   }
 
-  def findGain(classCounts: mutable.HashMap[Double, Int]) = {
+  private def findGain(classCounts: mutable.HashMap[Double, Int]) = {
     var result = 0.0
     val strategy = config.splitStrategy == "Gini"
     if (strategy) {
       result = 1.0
     }
-    val total = classCounts.reduce((x, y) => (x._1, x._2 + y._2))._2
+    val total = classCounts.reduce((x, y) => (x._1, x._2 + y._2))._2.toDouble
     classCounts.keysIterator.foreach(
       x => {
         if (strategy) {
           result -= Math.pow(classCounts.get(x).get, 2) / Math.pow(total, 2)
         } else {
           val p = classCounts.get(x).get
-          result -= p * Math.log(p)
+          if(p!=0){
+            result -= (p/total) * Math.log(p/total)
+          }
         }
       }
     )
