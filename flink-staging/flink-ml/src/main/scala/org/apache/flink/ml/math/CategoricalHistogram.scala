@@ -69,8 +69,8 @@ class CategoricalHistogram(
     val finalValues = Array.ofDim[Double](bins)
     val finalCounts = Array.ofDim[Int](bins)
     for (i <- 0 to bins - 1) {
-      require(getValue(i) == h1.getValue(i), "Both histograms must have the same classes, in same " +
-        "order")
+      require(getValue(i) == h1.getValue(i), "Both histograms must have the same classes, in same" +
+        " order")
       finalCounts(i) = getCounter(i) + h1.getCounter(i)
       finalValues(i) = getValue(i)
     }

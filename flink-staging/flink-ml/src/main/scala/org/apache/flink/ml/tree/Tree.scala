@@ -115,48 +115,57 @@ class Tree(
     activeNodes.keysIterator.foreach(
       node_id => {
 
-        var node: Node = nodes.get(node_id).get
-        // find the gini index of this node
-        val (sumClassSquare, totalNumPointsHere, maxClassCountLabel, _) =
-          findGini(node_id, histogram, labels)
-        // println(node_id  + " " + totalNumPointsHere+ " "+ sumClassSquare+ " "+maxClassCountLabel)
-
+        val classCounts = findCountsAtThisNode(node_id, histogram, labels)
+        val totalNumPointsHere = classCounts.reduce((x, y) => (x._1, x._2 + y._2))._2
+        var maxClassCount = -1
+        var maxClassCountLabel = -1.0
+        classCounts.keysIterator.foreach(
+          x => {
+            val thisClassCount = classCounts.get(x).get
+            if (thisClassCount > maxClassCount) {
+              maxClassCount = thisClassCount
+              maxClassCountLabel = x
+            }
+          }
+        )
         // now see if this node has become pure or if it's depth is at a maximum
-        if (totalNumPointsHere * totalNumPointsHere == sumClassSquare || node.getDepth == depth) {
-          node.predict = maxClassCountLabel + labelAddition
+        if (totalNumPointsHere == maxClassCount || Node.getDepth(node_id) == depth) {
+          nodes.get(node_id).get.predict = maxClassCountLabel + labelAddition
           // sanity check. If we're declaring something a leaf, it better not have any children
-          require(node.split.isEmpty, "An unexpected error occurred")
+          require(nodes.get(node_id).get.split.isEmpty, "An unexpected error occurred")
         } else if (activeNodes.get(node_id).get == 1) {
           // this node is meaningless. The parent didn't do anything at all.
           // just remove this node from the tree and set the label of parent,
           // which would be same as the label of this
-          node = nodes.get(node_id / 2).get
-          node.predict = maxClassCountLabel + labelAddition
-          node.split = None
+          nodes.get(node_id / 2).get.predict = maxClassCountLabel + labelAddition
+          nodes.get(node_id / 2).get.split = None
           nodes.remove(node_id)
         } else {
-          val giniParent = 1 - sumClassSquare / Math.pow(totalNumPointsHere, 2)
-          var best_gini = -java.lang.Double.MAX_VALUE
-          var best_split_value: SplitValue = new SplitValue(-1, true, 0)
-          var best_left_total, best_right_total = 0.0
+          val gainParent = findGain(classCounts)
+          var bestGainChild = -java.lang.Double.MAX_VALUE
+          var bestSplitValue: SplitValue = new SplitValue(-1, true, 0)
           // consider all splits across all dimensions and pick the best one
           for (j <- 0 to dimension - 1) {
             val splitsArray = splits.get((node_id, j)).get
             val actualSplits = splitsArray.length
             for (k <- 0 to actualSplits - 1) {
-              // maintain how many instances go left and right for Gini
-              var total_left, total_right, left_sum_sqr, right_sum_sqr = 0.0
+              // maintain left and right class counts
+              val leftClassCounts = new mutable.HashMap[Double, Int]()
+              val rightClassCounts = new mutable.HashMap[Double, Int]()
               for (l <- 0 to numClasses - 1) {
                 val h = histogram.get((node_id, j, labels.apply(l)))
                 if (h.nonEmpty) {
-                  val left = h.get.count(splitsArray.apply(k).splitValueDouble)
-                  val right = h.get.total - left
-                  total_left = total_left + left
-                  total_right = total_right + right
-                  left_sum_sqr = left_sum_sqr + left * left
-                  right_sum_sqr = right_sum_sqr + right * right
+                  val (left, right) = evaluateSplit(splitsArray.apply(k), h.get)
+                  leftClassCounts.put(labels.apply(l), left)
+                  rightClassCounts.put(labels.apply(l), right)
+                } else {
+                  leftClassCounts.put(labels.apply(l), 0)
+                  rightClassCounts.put(labels.apply(l), 0)
                 }
               }
+              // count total entries in the left and right
+              val total_left = leftClassCounts.reduce((x, y) => (x._1, x._2 + y._2))._2
+              val total_right = rightClassCounts.reduce((x, y) => (x._1, x._2 + y._2))._2
               // ensure that the split is allowed by user. We need at least this many instances
               if (total_left >= minInstancePerNode && total_right >= minInstancePerNode) {
                 // use a balancing term to ensure the tree is balanced more on the top
@@ -164,28 +173,25 @@ class Tree(
                 // Gini becomes more important in splits
                 // this makes sense. We want balanced tree on top and fine-grained splitting at
                 // deeper levels
-                val scaling = Math.pow(0.1, node.getDepth + 1)
+                val scaling = Math.pow(0.1, Node.getDepth(node_id) + 1)
                 val balancing = Math.abs(total_left - total_right) / totalNumPointsHere
-                val this_gini = (1 - scaling) * (giniParent -
-                  total_left * (1 - left_sum_sqr / Math.pow(total_left, 2)) / totalNumPointsHere -
-                  total_right * (1 - right_sum_sqr / Math.pow(total_right, 2)) / totalNumPointsHere
-                  ) + scaling * balancing
-                if (this_gini > best_gini) {
-                  best_gini = this_gini
-                  best_split_value = splits.get((node_id, j)).get.apply(k)
-                  best_left_total = total_left
-                  best_right_total = total_right
+                val childGain = (1 - scaling) * (gainParent - total_left * findGain
+                  (leftClassCounts) / totalNumPointsHere - total_right * findGain(rightClassCounts)
+                  / totalNumPointsHere) + scaling * balancing
+                if (childGain > bestGainChild) {
+                  bestGainChild = childGain
+                  bestSplitValue = splits.get((node_id, j)).get.apply(k)
                 }
               }
             }
           }
-          if (best_split_value.attribute != -1) {
-            node.split = Some(best_split_value)
+          if (bestSplitValue.attribute != -1) {
+            nodes.get(node_id).get.split = Some(bestSplitValue)
             nodes.put(node_id * 2, new Node(node_id * 2, this.treeID, None))
             nodes.put(node_id * 2 + 1, new Node(node_id * 2 + 1, this.treeID, None))
             splitNodes = splitNodes + 1
           } else {
-            node.predict = maxClassCountLabel + labelAddition
+            nodes.get(node_id).get.predict = maxClassCountLabel + labelAddition
           }
         }
       }
@@ -193,33 +199,66 @@ class Tree(
     Array.ofDim(splitNodes)
   }
 
-  private def findGini(
-                        nodeId: Int,
-                        histogram: mutable.HashMap[(Int, Int, Double), OnlineHistogram],
-                        labels: Array[Double]):
-  (Double, Double, Double, Double) = {
-    var sumClassSquare, totalNumPointsHere, maxClassCountLabel, maxClassCount = 0.0
-    // since the count of classes across any dimension is same, pick 0
-    // for calculating Gini index, we need count(c)^2 and \sum count(c)^2
-    // also maintain which class occurred most frequently in case we need to mark this as a leaf
-    // node
-    labels.iterator.foreach(
+  def findGain(classCounts: mutable.HashMap[Double, Int]) = {
+    var result = 0.0
+    val strategy = config.splitStrategy == "Gini"
+    if (strategy) {
+      result = 1.0
+    }
+    val total = classCounts.reduce((x, y) => (x._1, x._2 + y._2))._2
+    classCounts.keysIterator.foreach(
       x => {
-        val h = histogram.get((nodeId, 0, x))
-        if (h.nonEmpty) {
-          val countOfClass = h.get.total
-          totalNumPointsHere = totalNumPointsHere + countOfClass
-          sumClassSquare = sumClassSquare + countOfClass * countOfClass
-          if (countOfClass > maxClassCount) {
-            maxClassCount = countOfClass
-            maxClassCountLabel = x
-          }
+        if (strategy) {
+          result -= Math.pow(classCounts.get(x).get, 2) / Math.pow(total, 2)
+        } else {
+          val p = classCounts.get(x).get
+          result -= p * Math.log(p)
         }
       }
     )
-    (sumClassSquare, totalNumPointsHere, maxClassCountLabel, maxClassCount)
+    result
   }
 
+  def evaluateSplit(splitVal: SplitValue, histogram: OnlineHistogram): (Int, Int) = {
+    var left, right = 0
+    if (splitVal.splitType) {
+      left = histogram.count(splitVal.splitValueDouble)
+      right = histogram.total - left
+    } else {
+      for (i <- 0 to splitVal.splitValueList.length - 1) {
+        left += histogram.count(splitVal.splitValueList.apply(i))
+      }
+      right = histogram.total - left
+    }
+    (left, right)
+  }
+
+  private def findCountsAtThisNode(
+                                    nodeID: Int,
+                                    histogram: mutable.HashMap[(Int, Int, Double), OnlineHistogram],
+                                    labels: Array[Double])
+  : mutable.HashMap[Double, Int] = {
+    val ret = new mutable.HashMap[Double, Int]()
+    // since the count of classes across any dimension is same, pick 0
+    labels.iterator.foreach(
+      x => {
+        val h = histogram.get((nodeID, 0, x))
+        if (h.nonEmpty) {
+          val countOfClass = h.get.total
+          ret.put(x, countOfClass)
+        } else ret.put(x, 0)
+      }
+    )
+    ret
+  }
+
+  /** Returns an Array of possible splits for each node at each dimension
+    * For every node, we merge histogram at each dimension for all labels to figure out the
+    * distribution of values on that dimension
+    * Also returned is a set of nodes for which we need to consider splitting, basically all the
+    * nodes for which we have received histograms
+    *
+    */
   private def calculateSplits(
                                histogram: mutable.HashMap[(Int, Int, Double), OnlineHistogram]
                                )
@@ -230,12 +269,16 @@ class Tree(
     val activeNodes = new mutable.HashMap[Int, Int]()
     histogram.keysIterator.foreach(
       x => {
+        // we need to consider this node for splitting in the calling function
         activeNodes.put(x._1, -1)
+        // if this (node,dimension) hasn't been considered, start afresh
         if (mergedHistograms.get((x._1, x._2)).isEmpty) {
           mergedHistograms.put((x._1, x._2), histogram.get(x).get)
         } else {
+          // otherwise merge with the previous histogram at this (mode,dimension)
           var maxBins = config.MaxBins
           if (!fieldStats.apply(x._2).fieldType) {
+            // for categorical fields, we don't care about the maximum bins allowed
             maxBins = fieldStats.apply(x._2).fieldCategories.length
           }
           val tempHist = histogram.get(x).get.merge(
@@ -244,11 +287,13 @@ class Tree(
         }
       }
     )
+    // for each merged histogram at (node,dimension), find possible splits
     mergedHistograms.keysIterator.foreach(
       x => {
         val h = mergedHistograms.get(x).get
+        // for continuous fields, use quantiles for find maxBins values
         if (h.isInstanceOf[ContinuousHistogram]) {
-          val actualBins = Math.min(config.MaxBins, h.bins - 1)
+          val actualBins = Math.min(config.MaxBins, h.bins)
           val quantileArray = new Array[SplitValue](actualBins)
           for (i <- 1 to actualBins) {
             quantileArray(i - 1) = new SplitValue(
@@ -256,7 +301,24 @@ class Tree(
           }
           splits.put((x._1, x._2), quantileArray)
         } else {
-          // TODO handle categorical splits
+          // for categorical fields, we can potentially have 2^numClass splits
+          // Let's spit them all out for now
+          // TODO figure out some heuristic measure to only pick some of these splits
+          val numClasses = fieldStats.apply(x._2).fieldCategories.length
+          val splitArray = Array.ofDim[SplitValue](Math.pow(2, numClasses).toInt)
+          for (i <- 0 to Math.pow(2, numClasses).toInt - 1) {
+            val binaryString = String.format("%0" + numClasses + "d", i.toInt.toBinaryString)
+            val thisSplitCategoryList = new util.ArrayList[Double]()
+            for (j <- 0 to numClasses - 1) {
+              if (binaryString.charAt(j) == '1') thisSplitCategoryList.add(config.labels.apply(j))
+            }
+            val thisSplitCategory = Array.ofDim[Double](thisSplitCategoryList.size())
+            for (j <- 0 to thisSplitCategoryList.size() - 1) {
+              thisSplitCategory(j) = thisSplitCategoryList.get(j)
+            }
+            splitArray(i) = new SplitValue(x._2, false, splitValueList = thisSplitCategory)
+          }
+          splits.put((x._1, x._2), splitArray)
         }
       }
     )

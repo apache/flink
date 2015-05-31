@@ -39,8 +39,15 @@ class Node(
   override def toString: String = {
     s"ID=$id, Tree ID=$treeID, predict=$predict, split=$split"
   }
+}
 
-  def getDepth: Int = {
+object Node{
+
+  /** Return the depth of a node with ID = id
+    * Starts from one at root node [id = 1]
+    *
+    */
+  def getDepth(id: Int): Int = {
     // taking log base 2 of the node id
     // depth starts from one. A matter of convention really
     java.lang.Integer.numberOfTrailingZeros(java.lang.Integer.highestOneBit(id)) + 1

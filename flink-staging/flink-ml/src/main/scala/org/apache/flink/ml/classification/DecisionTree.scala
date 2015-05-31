@@ -269,7 +269,6 @@ object DecisionTree {
         val numClasses = resultingParameters(Classes)
 
         require(category.length == 0, "Only continuous fields supported right now")
-        require(splitStrategy == "Gini", "Only Gini algorithm implemented right now")
         val (initialTree, numberVectors) = createInitialTree(input, new TreeConfiguration(maxBins,
           minInstancePerNode, depth, pruneTree, splitStrategy, numClasses, dimension, category))
 
