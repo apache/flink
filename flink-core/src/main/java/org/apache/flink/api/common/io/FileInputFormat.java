@@ -330,7 +330,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 
 		// enumerate all files
 		if (file.isDir()) {
-			totalLength += addFilesInDir(file.getPath(), files, totalLength, false);
+			totalLength += addFilesInDir(file.getPath(), files, false);
 		} else {
 			files.add(file);
 			testForUnsplittable(file);
@@ -390,7 +390,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		final FileStatus pathFile = fs.getFileStatus(path);
 
 		if (pathFile.isDir()) {
-			totalLength += addFilesInDir(path, files, totalLength, true);
+			totalLength += addFilesInDir(path, files, true);
 		} else {
 			testForUnsplittable(pathFile);
 
@@ -497,14 +497,16 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * Enumerate all files in the directory and recursive if enumerateNestedFiles is true.
 	 * @return the total length of accepted files.
 	 */
-	private long addFilesInDir(Path path, List<FileStatus> files, long length, boolean logExcludedFiles)
+	private long addFilesInDir(Path path, List<FileStatus> files, boolean logExcludedFiles)
 			throws IOException {
 		final FileSystem fs = path.getFileSystem();
+
+		long length = 0;
 
 		for(FileStatus dir: fs.listStatus(path)) {
 			if (dir.isDir()) {
 				if (acceptFile(dir) && enumerateNestedFiles) {
-					length += addFilesInDir(dir.getPath(), files, length, logExcludedFiles);
+					length += addFilesInDir(dir.getPath(), files, logExcludedFiles);
 				} else {
 					if (logExcludedFiles && LOG.isDebugEnabled()) {
 						LOG.debug("Directory "+dir.getPath().toString()+" did not pass the file-filter and is excluded.");
