@@ -81,15 +81,20 @@ class Tree(
     activeNodes.keysIterator.foreach(
       x=>{
         // since this node received instances, it's sibling also must have done so
-        val y = 2*(x/2) + 1 - x%2
-        if(activeNodes.get(y).isEmpty){
-          finalNodes.put(x,1)
+        // for the root node, which happens only at level zero, there is no sibling. So just add it
+        if(x!=1){
+          val y = 2*(x/2) + 1 - x%2
+          if(activeNodes.get(y).isEmpty){
+            finalNodes.put(x,1)
+          } else{
+            finalNodes.put(x,-1)
+          }
         } else{
           finalNodes.put(x,-1)
         }
       }
     )
-    evaluateNodes(activeNodes, splits, h)
+    evaluateNodes(finalNodes, splits, h)
   }
 
   private def evaluateNodes(
