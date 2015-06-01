@@ -360,9 +360,10 @@ public class StreamingJobGraphGenerator {
 			CoLocationGroup ccg = new CoLocationGroup();
 			AbstractJobVertex tail = jobVertices.get(loop.getSink().getID());
 			AbstractJobVertex head = jobVertices.get(loop.getSource().getID());
-
 			ccg.addVertex(head);
 			ccg.addVertex(tail);
+			tail.updateCoLocationGroup(ccg);
+			head.updateCoLocationGroup(ccg);
 		}
 	}
 	
