@@ -59,9 +59,8 @@ class MapVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode
     def testWithSameValue {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
         val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-        val mappedVertices: DataSet[Vertex[Long, Long]] = graph.mapVertices(new AddOneMapper).getVertices
-        // Convert Edge into a Scala Tuple for writing to csv @TODO: do this implicitly?
-        mappedVertices.map(vertex => (vertex.getId, vertex.getValue)).writeAsCsv(resultPath)
+        graph.mapVertices(new AddOneMapper)
+            .getVerticesAsTuple2().writeAsCsv(resultPath)
         env.execute
 
         expectedResult = "1,2\n" +
@@ -76,9 +75,8 @@ class MapVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode
     def testWithSameValueSugar {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
         val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-        val mappedVertices: DataSet[Vertex[Long, Long]] = graph.mapVertices(vertex => vertex.getValue + 1).getVertices
-        // Convert Edge into a Scala Tuple for writing to csv @TODO: do this implicitly?
-        mappedVertices.map(vertex => (vertex.getId, vertex.getValue)).writeAsCsv(resultPath)
+        graph.mapVertices(vertex => vertex.getValue + 1)
+            .getVerticesAsTuple2().writeAsCsv(resultPath)
         env.execute
 
         expectedResult = "1,2\n" +
