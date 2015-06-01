@@ -77,20 +77,20 @@ class Tree(
 
     // first, every unlabeled leaf node must have sent something.
     // If not, its sibling will be stuck forever
-    val finalNodes = new mutable.HashMap[Int,Int]()
+    val finalNodes = new mutable.HashMap[Int, Int]()
     activeNodes.keysIterator.foreach(
-      x=>{
+      x => {
         // since this node received instances, it's sibling also must have done so
         // for the root node, which happens only at level zero, there is no sibling. So just add it
-        if(x!=1){
-          val y = 2*(x/2) + 1 - x%2
-          if(activeNodes.get(y).isEmpty){
-            finalNodes.put(x,1)
-          } else{
-            finalNodes.put(x,-1)
+        if (x != 1) {
+          val y = 2 * (x / 2) + 1 - x % 2
+          if (activeNodes.get(y).isEmpty) {
+            finalNodes.put(x, 1)
+          } else {
+            finalNodes.put(x, -1)
           }
-        } else{
-          finalNodes.put(x,-1)
+        } else {
+          finalNodes.put(x, -1)
         }
       }
     )
@@ -210,8 +210,8 @@ class Tree(
           result -= Math.pow(classCounts.get(x).get, 2) / Math.pow(total, 2)
         } else {
           val p = classCounts.get(x).get
-          if(p!=0){
-            result -= (p/total) * Math.log(p/total)
+          if (p != 0) {
+            result -= (p / total) * Math.log(p / total)
           }
         }
       }
@@ -279,7 +279,7 @@ class Tree(
           var maxBins = config.MaxBins
           if (!fieldStats.apply(x._2).fieldType) {
             // for categorical fields, we don't care about the maximum bins allowed
-            maxBins = fieldStats.apply(x._2).fieldCategories.length
+            maxBins = fieldStats.apply(x._2).fieldCategories.length - 1
           }
           val tempHist = histogram.get(x).get.merge(
             mergedHistograms.get((x._1, x._2)).get, maxBins + 1)
@@ -307,7 +307,7 @@ class Tree(
           val numClasses = fieldStats.apply(x._2).fieldCategories.length
           val splitArray = Array.ofDim[SplitValue](Math.pow(2, numClasses).toInt)
           for (i <- 0 to Math.pow(2, numClasses).toInt - 1) {
-            val binaryString = String.format("%0" + numClasses + "d", i.toInt.toBinaryString)
+            val binaryString = String.format("%" + numClasses + "s", Integer.toBinaryString(i))
             val thisSplitCategoryList = new util.ArrayList[Double]()
             for (j <- 0 to numClasses - 1) {
               if (binaryString.charAt(j) == '1') thisSplitCategoryList.add(config.labels.apply(j))

@@ -41,7 +41,7 @@ class Node(
   }
 }
 
-object Node{
+object Node {
 
   /** Return the depth of a node with ID = id
     * Starts from one at root node [id = 1]

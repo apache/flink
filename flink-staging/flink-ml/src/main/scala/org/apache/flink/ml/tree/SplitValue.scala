@@ -19,6 +19,8 @@
 
 package org.apache.flink.ml.tree
 
+import java.util
+
 import org.apache.flink.ml.math.Vector
 
 /**
@@ -45,7 +47,7 @@ class SplitValue(
       s"Attribute Index: $attribute, Split: Continuous Value at $splitValueDouble"
     }
     else {
-      s"Attribute Index: $attribute, Split: Categorical at $splitValueList"
+      s"Attribute Index: $attribute, Split: Categorical at: " + util.Arrays.toString(splitValueList)
     }
   }
 

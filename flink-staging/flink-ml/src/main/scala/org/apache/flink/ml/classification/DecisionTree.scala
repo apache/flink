@@ -268,7 +268,6 @@ object DecisionTree {
         val category = resultingParameters(Category)
         val numClasses = resultingParameters(Classes)
 
-        require(category.length == 0, "Only continuous fields supported right now")
         val (initialTree, numberVectors) = createInitialTree(input, new TreeConfiguration(maxBins,
           minInstancePerNode, depth, pruneTree, splitStrategy, numClasses, dimension, category))
 
