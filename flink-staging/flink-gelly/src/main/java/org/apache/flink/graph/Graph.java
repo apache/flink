@@ -753,6 +753,24 @@ public class Graph<K, VV, EV> {
         }
     }
 
+    public <T> DataSet<T> groupReduceOnEdges(EdgesFunctionWithVertexValue<K, VV, EV, T> edgesFunction,
+                                             EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
+
+        switch (direction) {
+            case IN:
+                return vertices.coGroup(edges).where(0).equalTo(1)
+                        .with(new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction)).returns(typeInfo);
+            case OUT:
+                return vertices.coGroup(edges).where(0).equalTo(0)
+                        .with(new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction)).returns(typeInfo);
+            case ALL:
+                return vertices.coGroup(edges.flatMap(new EmitOneEdgePerNode<K, VV, EV>()))
+                        .where(0).equalTo(0).with(new ApplyCoGroupFunctionOnAllEdges<K, VV, EV, T>(edgesFunction)).returns(typeInfo);
+            default:
+                throw new IllegalArgumentException("Illegal edge direction");
+        }
+    }
+
     /**
      * Compute an aggregate over the edges of each vertex. The function applied
      * on the edges only has access to the vertex id (not the vertex value).

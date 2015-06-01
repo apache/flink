@@ -22,8 +22,10 @@ import org.apache.flink.api.common.functions.{FilterFunction, MapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{tuple => jtuple}
 import org.apache.flink.api.scala._
-import org.apache.flink.graph.{Edge, Vertex}
+import org.apache.flink.graph._
 import org.apache.flink.{graph => jg}
+
+import _root_.scala.reflect.ClassTag
 
 
 object Graph {
@@ -45,6 +47,14 @@ final class Graph[K: TypeInformation, VV: TypeInformation, EV: TypeInformation](
     def getVertices = wrap(jgraph.getVertices)
 
     def getEdges = wrap(jgraph.getEdges)
+
+    def getVerticesAsTuple2(): DataSet[(K, VV)] = {
+        wrap(jgraph.getVerticesAsTuple2).map(jtuple => (jtuple.f0, jtuple.f1))
+    }
+
+    def getEdgesAsTuple3(): DataSet[(K, K, EV)] = {
+        wrap(jgraph.getEdgesAsTuple3).map(jtuple => (jtuple.f0, jtuple.f1, jtuple.f2))
+    }
 
     def mapVertices[NV: TypeInformation](mapper: MapFunction[Vertex[K, VV], NV]): Graph[K, NV, EV] = {
         new Graph[K, NV, EV](jgraph.mapVertices[NV](
@@ -215,7 +225,7 @@ final class Graph[K: TypeInformation, VV: TypeInformation, EV: TypeInformation](
     }
 
     def inDegrees(): DataSet[(K, Long)] = {
-       wrap(jgraph.inDegrees).map(javatuple => (javatuple.f0, javatuple.f1))
+        wrap(jgraph.inDegrees).map(javatuple => (javatuple.f0, javatuple.f1))
     }
 
     def outDegrees(): DataSet[(K, Long)] = {
@@ -224,6 +234,18 @@ final class Graph[K: TypeInformation, VV: TypeInformation, EV: TypeInformation](
 
     def getDegrees(): DataSet[(K, Long)] = {
         wrap(jgraph.getDegrees).map(javatuple => (javatuple.f0, javatuple.f1))
+    }
+
+    def getUndirected(): Graph[K, VV, EV] = {
+        new Graph(jgraph.getUndirected)
+    }
+
+    def reverse(): Graph[K, VV, EV] = {
+        new Graph(jgraph.reverse())
+    }
+
+    def groupReduceOnEdges[T: TypeInformation : ClassTag](edgesFunction: EdgesFunctionWithVertexValue[K, VV, EV, T], direction: EdgeDirection): DataSet[T] = {
+        wrap(jgraph.groupReduceOnEdges(edgesFunction, direction, createTypeInformation[T]))
     }
 
 }

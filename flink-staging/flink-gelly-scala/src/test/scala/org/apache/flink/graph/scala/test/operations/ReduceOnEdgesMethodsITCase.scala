@@ -18,20 +18,19 @@
 
 package org.apache.flink.graph.scala.test.operations
 
-
-import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.scala._
-import org.apache.flink.graph.Edge
 import org.apache.flink.graph.scala._
 import org.apache.flink.graph.scala.test.TestGraphUtils
+import org.apache.flink.graph.{Edge, EdgeDirection, Vertex}
 import org.apache.flink.test.util.{AbstractMultipleProgramsTestBase, MultipleProgramsTestBase}
+import org.apache.flink.util.Collector
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
 
 @RunWith(classOf[Parameterized])
-class MapEdgesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class ReduceOnEdgesMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) extends MultipleProgramsTestBase(mode) {
 
     private var resultPath: String = null
     private var expectedResult: String = null
@@ -60,40 +59,28 @@ class MapEdgesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) e
     def testWithSameValue {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
         val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-        graph.mapEdges(new AddOneMapper)
-            .getEdgesAsTuple3().writeAsCsv(resultPath)
+        val result = graph.groupReduceOnEdges(new SelectNeighborsValueGreaterThanFour, EdgeDirection.ALL)
+        result.writeAsCsv(resultPath)
         env.execute
-        expectedResult = "1,2,13\n" +
-            "1,3,14\n" + "" +
-            "2,3,24\n" +
-            "3,4,35\n" +
-            "3,5,36\n" +
-            "4,5,46\n" +
-            "5,1,52\n"
+
+        expectedResult = "5,1\n" + "5,3\n" + "5,4"
     }
 
-    @Test
-    @throws(classOf[Exception])
-    def testWithSameValueSugar {
-        val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-        graph.mapEdges(edge => edge.getValue + 1)
-            .getEdgesAsTuple3().writeAsCsv(resultPath)
-        env.execute
-        expectedResult = "1,2,13\n" +
-            "1,3,14\n" + "" +
-            "2,3,24\n" +
-            "3,4,35\n" +
-            "3,5,36\n" +
-            "4,5,46\n" +
-            "5,1,52\n"
-    }
-
-    final class AddOneMapper extends MapFunction[Edge[Long, Long], Long] {
+    final class SelectNeighborsValueGreaterThanFour extends EdgesFunctionWithVertexValue[Long, Long, Long, (Long, Long)] {
         @throws(classOf[Exception])
-        def map(edge: Edge[Long, Long]): Long = {
-            edge.getValue + 1
+        override def iterationFunction(v: Vertex[Long, Long], edges: Iterable[Edge[Long, Long]], out: Collector[(Long, Long)]): Unit = {
+            for (edge <- edges) {
+                if (v.getValue > 4) {
+                    if (v.getId == edge.getTarget) {
+                        out.collect((v.getId, edge.getSource))
+                    }
+                    else {
+                        out.collect((v.getId, edge.getTarget))
+                    }
+                }
+            }
         }
     }
+
 
 }
