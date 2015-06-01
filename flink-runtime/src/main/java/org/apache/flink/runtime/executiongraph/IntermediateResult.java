@@ -26,6 +26,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+/**
+ * Result produced by an {@link ExecutionJobVertex}.
+ */
 public class IntermediateResult {
 
 	private final IntermediateDataSetID id;

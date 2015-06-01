@@ -36,6 +36,8 @@ import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
@@ -588,23 +590,74 @@ public class Execution implements Serializable {
 
 			if (current == RUNNING || current == DEPLOYING) {
 
+				ScheduleMode scheduleMode = getVertex().getExecutionGraph().getScheduleMode();
+
+				// Get the successors
+				final List<JobVertexID> successors = getVertex().getJobVertex()
+						.getJobVertex().getBatchSuccessors();
+
+				// Sanity check that successors are only set for BATCH scheduling
+				if (scheduleMode != ScheduleMode.BATCH_FROM_SOURCES
+						&& successors != null && successors.size() > 0) {
+
+					fail(new IllegalStateException("Successors only allowed in BATCH schedule mode."));
+					return;
+				}
+
 				if (transitionState(current, FINISHED)) {
 					try {
-						for (IntermediateResultPartition finishedPartition
-								: getVertex().finishAllBlockingPartitions()) {
+						// Release the slot first
+						assignedResource.releaseSlot();
 
-							IntermediateResultPartition[] allPartitions = finishedPartition
-									.getIntermediateResult().getPartitions();
+						// All blocking result partitions whose receivers can be scheduled/updated.
+						final List<IntermediateResultPartition> finished = getVertex()
+								.finishAllBlockingPartitions();
 
-							for (IntermediateResultPartition partition : allPartitions) {
-								scheduleOrUpdateConsumers(partition.getConsumers());
-							}
+						if (finished.isEmpty()) {
+							return;
 						}
 
-						assignedResource.releaseSlot();
-						vertex.getExecutionGraph().deregisterExecution(this);
+						future(new Callable<Boolean>() {
+							@Override
+							public Boolean call() throws Exception {
+								if (successors == null || successors.size() == 0) {
+									// No successors set, normal operation => schedule consumers
+									for (IntermediateResultPartition partition : finished) {
+										IntermediateResultPartition[] allPartitions = partition
+												.getIntermediateResult().getPartitions();
+
+										for (IntermediateResultPartition p : allPartitions) {
+											scheduleOrUpdateConsumers(p.getConsumers());
+										}
+									}
+								}
+								else {
+									for (JobVertexID vid : successors) {
+										ExecutionJobVertex ejv = getVertex()
+												.getExecutionGraph().getJobVertex(vid);
+
+										Scheduler scheduler = ejv.getGraph().getScheduler();
+										boolean queued = ejv.getGraph().isQueuedSchedulingAllowed();
+
+										// Sanity check that manually configured successors have
+										// not been scheduled already, because they cannot be
+										// updated during runtime.
+										for (ExecutionVertex ev : ejv.getTaskVertices()) {
+											if (!ev.scheduleForExecution(scheduler, queued)) {
+												ev.fail(new IllegalStateException("Scheduled"));
+												return false;
+											}
+										}
+									}
+								}
+
+								return true;
+							}
+						}, AkkaUtils.globalExecutionContext());
 					}
 					finally {
+						vertex.getExecutionGraph().deregisterExecution(this);
+
 						vertex.executionFinished();
 					}
 					return;

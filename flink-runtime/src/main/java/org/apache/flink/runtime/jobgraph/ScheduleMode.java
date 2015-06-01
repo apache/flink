@@ -21,9 +21,14 @@ package org.apache.flink.runtime.jobgraph;
 public enum ScheduleMode {
 
 	/**
-	 * Schedule tasks from sources to sinks with lazy deployment of receiving tasks.
+	 * Schedule tasks from all sources to sinks with lazy deployment of receiving tasks.
 	 */
 	FROM_SOURCES,
+
+	/**
+	 * Schedule tasks from manually configured sources.
+	 */
+	BATCH_FROM_SOURCES,
 
 	BACKTRACKING,
 

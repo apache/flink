@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.executiongraph;
 
 import akka.actor.ActorRef;
-
 import akka.actor.ActorSystem;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -31,7 +31,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -40,11 +39,9 @@ import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.ExceptionUtils;
-
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
@@ -508,6 +505,26 @@ public class ExecutionGraph implements Serializable {
 							ejv.scheduleAll(scheduler, allowQueuedScheduling);
 						}
 					}
+					break;
+
+				case BATCH_FROM_SOURCES:
+					boolean success = false;
+
+					// Take *configured* source vertices without inputs.
+					for (ExecutionJobVertex ejv : this.tasks.values()) {
+						if (ejv.getJobVertex().isInputVertex()
+								&& ejv.getJobVertex().isBatchSource()) {
+
+							ejv.scheduleAll(scheduler, allowQueuedScheduling);
+							success = true;
+						}
+					}
+
+					if (!success) {
+						throw new JobException("Did not configure any sources for schedule mode "
+								+ scheduleMode + ".");
+					}
+
 					break;
 
 				case ALL:

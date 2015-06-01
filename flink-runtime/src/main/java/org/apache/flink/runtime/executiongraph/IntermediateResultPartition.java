@@ -24,6 +24,9 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Partition of an {@link IntermediateResult} produced by an {@link ExecutionVertex}.
+ */
 public class IntermediateResultPartition {
 
 	private final IntermediateResult totalResult;
