@@ -106,32 +106,6 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Gets the parallelism with which operation are executed by default.
-	 * Operations can individually override this value to use a specific
-	 * parallelism.
-	 *
-	 * @return The parallelism used by operations, unless they override that
-	 * value.
-	 * @deprecated Please use {@link #getParallelism}
-	 */
-	@Deprecated
-	public int getDegreeOfParallelism() {
-		return getParallelism();
-	}
-
-	/**
-	 * Gets the parallelism with which operation are executed by default.
-	 * Operations can individually override this value to use a specific
-	 * parallelism.
-	 *
-	 * @return The parallelism used by operations, unless they override that
-	 * value.
-	 */
-	public int getParallelism() {
-		return config.getParallelism();
-	}
-
-	/**
 	 * Sets the parallelism for operations executed through this environment.
 	 * Setting a parallelism of x here will cause all operators (such as map,
 	 * batchReduce) to run with x parallel instances. This method overrides the
@@ -148,6 +122,20 @@ public abstract class StreamExecutionEnvironment {
 	@Deprecated
 	public StreamExecutionEnvironment setDegreeOfParallelism(int parallelism) {
 		return setParallelism(parallelism);
+	}
+
+	/**
+	 * Gets the parallelism with which operation are executed by default.
+	 * Operations can individually override this value to use a specific
+	 * parallelism.
+	 *
+	 * @return The parallelism used by operations, unless they override that
+	 * value.
+	 * @deprecated Please use {@link #getParallelism}
+	 */
+	@Deprecated
+	public int getDegreeOfParallelism() {
+		return getParallelism();
 	}
 
 	/**
@@ -169,6 +157,18 @@ public abstract class StreamExecutionEnvironment {
 		}
 		config.setParallelism(parallelism);
 		return this;
+	}
+
+	/**
+	 * Gets the parallelism with which operation are executed by default.
+	 * Operations can individually override this value to use a specific
+	 * parallelism.
+	 *
+	 * @return The parallelism used by operations, unless they override that
+	 * value.
+	 */
+	public int getParallelism() {
+		return config.getParallelism();
 	}
 
 	/**
@@ -197,6 +197,17 @@ public abstract class StreamExecutionEnvironment {
 
 		this.bufferTimeout = timeoutMillis;
 		return this;
+	}
+
+	/**
+	 * Sets the maximum time frequency (milliseconds) for the flushing of the
+	 * output buffers. For clarification on the extremal values see
+	 * {@link #setBufferTimeout(long)}.
+	 *
+	 * @return The timeout of the buffer.
+	 */
+	public long getBufferTimeout() {
+		return this.bufferTimeout;
 	}
 
 	/**
@@ -284,17 +295,6 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public int getNumberOfExecutionRetries() {
 		return config.getNumberOfExecutionRetries();
-	}
-
-	/**
-	 * Sets the maximum time frequency (milliseconds) for the flushing of the
-	 * output buffers. For clarification on the extremal values see
-	 * {@link #setBufferTimeout(long)}.
-	 *
-	 * @return The timeout of the buffer.
-	 */
-	public long getBufferTimeout() {
-		return this.bufferTimeout;
 	}
 
 	/**
@@ -654,31 +654,6 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a data stream that contains the contents of file created while system watches the given path. The file
-	 * will be read with the system's default character set.
-	 *
-	 * @param filePath
-	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path/")
-	 * @param intervalMillis
-	 * 		The interval of file watching in milliseconds
-	 * @param watchType
-	 * 		The watch type of file stream. When watchType is {@link org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType#ONLY_NEW_FILES}, the system processes
-	 * 		only
-	 * 		new files. {@link org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType#REPROCESS_WITH_APPENDED} means that the system re-processes all contents of
-	 * 		appended file. {@link org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType#PROCESS_ONLY_APPENDED} means that the system processes only appended
-	 * 		contents
-	 * 		of files.
-	 * @return The DataStream containing the given directory.
-	 */
-	public DataStream<String> readFileStream(String filePath, long intervalMillis,
-			WatchType watchType) {
-		DataStream<Tuple3<String, Long, Long>> source = addSource(new FileMonitoringFunction(
-				filePath, intervalMillis, watchType), "Read File Stream source");
-
-		return source.flatMap(new FileReadFunction());
-	}
-
-	/**
 	 * Creates a data stream that represents the strings produced by reading the given file line wise. This method is
 	 * similar to {@link #readTextFile(String)}, but it produces a data stream with mutable {@link org.apache.flink.types.StringValue}
 	 * objects,
@@ -794,6 +769,31 @@ public abstract class StreamExecutionEnvironment {
 		TypeInformation<OUT> typeInfo = TypeExtractor.getForClass(typeClass);
 
 		return createInput(inputFormat, typeInfo, "Read File of Primitives source");
+	}
+
+	/**
+	 * Creates a data stream that contains the contents of file created while system watches the given path. The file
+	 * will be read with the system's default character set.
+	 *
+	 * @param filePath
+	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path/")
+	 * @param intervalMillis
+	 * 		The interval of file watching in milliseconds
+	 * @param watchType
+	 * 		The watch type of file stream. When watchType is {@link org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType#ONLY_NEW_FILES}, the system processes
+	 * 		only
+	 * 		new files. {@link org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType#REPROCESS_WITH_APPENDED} means that the system re-processes all contents of
+	 * 		appended file. {@link org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType#PROCESS_ONLY_APPENDED} means that the system processes only appended
+	 * 		contents
+	 * 		of files.
+	 * @return The DataStream containing the given directory.
+	 */
+	public DataStream<String> readFileStream(String filePath, long intervalMillis,
+											WatchType watchType) {
+		DataStream<Tuple3<String, Long, Long>> source = addSource(new FileMonitoringFunction(
+				filePath, intervalMillis, watchType), "Read File Stream source");
+
+		return source.flatMap(new FileReadFunction());
 	}
 
 	/**
