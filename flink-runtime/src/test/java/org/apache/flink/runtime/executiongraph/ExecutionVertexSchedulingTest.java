@@ -28,17 +28,17 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import akka.testkit.TestActorRef;
+
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
-
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -46,6 +46,7 @@ import org.junit.Test;
 import org.mockito.Matchers;
 
 public class ExecutionVertexSchedulingTest {
+
 	private static ActorSystem system;
 
 	@BeforeClass
@@ -58,93 +59,91 @@ public class ExecutionVertexSchedulingTest {
 		JavaTestKit.shutdownActorSystem(system);
 		system = null;
 	}
-	
+
 	@Test
 	public void testSlotReleasedWhenScheduledImmediately() {
-		
 		try {
-			// a slot than cannot be deployed to
-			final Instance instance = getInstance(ActorRef.noSender());
-			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
-			slot.cancel();
-			assertFalse(slot.isReleased());
-			
 			final ExecutionJobVertex ejv = getExecutionVertex(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
+
+			// a slot than cannot be deployed to
+			final Instance instance = getInstance(ActorRef.noSender());
+			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 			
+			slot.releaseSlot();
+			assertTrue(slot.isReleased());
+
 			Scheduler scheduler = mock(Scheduler.class);
 			when(scheduler.scheduleImmediately(Matchers.any(ScheduledUnit.class))).thenReturn(slot);
-			
+
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
 			vertex.scheduleForExecution(scheduler, false);
-			
+
 			// will have failed
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-			assertTrue(slot.isReleased());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testSlotReleasedWhenScheduledQueued() {
-
 		try {
-			// a slot than cannot be deployed to
-			final Instance instance = getInstance(ActorRef.noSender());
-			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
-			slot.cancel();
-			assertFalse(slot.isReleased());
-			
-			final SlotAllocationFuture future = new SlotAllocationFuture();
-			
 			final ExecutionJobVertex ejv = getExecutionVertex(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
-			
+
+			// a slot than cannot be deployed to
+			final Instance instance = getInstance(ActorRef.noSender());
+			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+
+			slot.releaseSlot();
+			assertTrue(slot.isReleased());
+
+			final SlotAllocationFuture future = new SlotAllocationFuture();
+
 			Scheduler scheduler = mock(Scheduler.class);
 			when(scheduler.scheduleQueued(Matchers.any(ScheduledUnit.class))).thenReturn(future);
-			
+
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
 			vertex.scheduleForExecution(scheduler, true);
-			
+
 			// future has not yet a slot
 			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
-			
+
 			future.setSlot(slot);
-			
+
 			// will have failed
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-			assertTrue(slot.isReleased());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testScheduleToDeploying() {
 		try {
+			final ExecutionJobVertex ejv = getExecutionVertex(new JobVertexID());
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
+					AkkaUtils.getDefaultTimeout());
+
 			TestingUtils.setCallingThreadDispatcher(system);
 			ActorRef tm = TestActorRef.create(system, Props.create(ExecutionGraphTestUtils
 					.SimpleAcknowledgingTaskManager.class));
 
 			final Instance instance = getInstance(tm);
-			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
-			
-			final ExecutionJobVertex ejv = getExecutionVertex(new JobVertexID());
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
-			
+			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+
 			Scheduler scheduler = mock(Scheduler.class);
 			when(scheduler.scheduleImmediately(Matchers.any(ScheduledUnit.class))).thenReturn(slot);
-			
+
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
 			// try to deploy to the slot

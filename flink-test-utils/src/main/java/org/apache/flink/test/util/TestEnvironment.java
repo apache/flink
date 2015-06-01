@@ -79,7 +79,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 		return pc.compile(p);
 	}
 
-	protected void setAsContext() {
+	public void setAsContext() {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {

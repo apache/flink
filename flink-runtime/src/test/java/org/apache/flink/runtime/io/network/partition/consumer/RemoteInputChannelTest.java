@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.junit.Test;
@@ -245,12 +247,33 @@ public class RemoteInputChannelTest {
 				0,
 				partitionId,
 				mock(ConnectionID.class),
-				connectionManager
-		);
+				connectionManager);
 
 		ch.onFailedPartitionRequest();
 
 		verify(inputGate).triggerPartitionStateCheck(eq(partitionId));
+	}
+
+	@Test(expected = CancelTaskException.class)
+	public void testProducerFailedException() throws Exception {
+
+		ConnectionManager connManager = mock(ConnectionManager.class);
+		when(connManager.createPartitionRequestClient(any(ConnectionID.class)))
+				.thenReturn(mock(PartitionRequestClient.class));
+
+		final RemoteInputChannel ch = new RemoteInputChannel(
+				mock(SingleInputGate.class),
+				0,
+				new ResultPartitionID(),
+				mock(ConnectionID.class),
+				connManager);
+
+		ch.onError(new ProducerFailedException(new RuntimeException("Expected test exception.")));
+
+		ch.requestSubpartition(0);
+
+		// Should throw an instance of CancelTaskException.
+		ch.getNextBuffer();
 	}
 
 	// ---------------------------------------------------------------------------------------------

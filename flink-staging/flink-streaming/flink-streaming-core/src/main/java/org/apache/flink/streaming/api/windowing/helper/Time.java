@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 /**
  * This helper represents a time based count or eviction policy. By default the
  * time is measured with {@link System#currentTimeMillis()} in
- * {@link DefaultTimeStamp}.
+ * {@link SystemTimestamp}.
  * 
  * @param <DATA>
  *            The data type which is handled by the time stamp used in the

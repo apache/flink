@@ -1,6 +1,7 @@
 ---
 mathjax: include
-title: "Standard Scaler"
+htmlTitle: FlinkML - Standard Scaler
+title: <a href="../ml">FlinkML</a> - Standard Scaler
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -28,7 +29,7 @@ under the License.
 
  The standard scaler scales the given data set, so that all features will have a user specified mean and variance. 
  In case the user does not provide a specific mean and standard deviation, the standard scaler transforms the features of the input data set to have mean equal to 0 and standard deviation equal to 1.
- Given a set of input data $x_{1}, x_{2},... x_{n}$, with mean: 
+ Given a set of input data $x_1, x_2,... x_n$, with mean: 
  
  $$\bar{x} = \frac{1}{n}\sum_{i=1}^{n}x_{i}$$ 
  
@@ -36,11 +37,30 @@ under the License.
  
  $$\sigma_{x}=\sqrt{ \frac{1}{n} \sum_{i=1}^{n}(x_{i}-\bar{x})^{2}}$$
 
-The scaled data set $z_{1}, z_{2},...,z_{n}$ will be:
+The scaled data set $z_1, z_2,...,z_n$ will be:
 
  $$z_{i}= std \left (\frac{x_{i} - \bar{x}  }{\sigma_{x}}\right ) + mean$$
 
 where $\textit{std}$ and $\textit{mean}$ are the user specified values for the standard deviation and mean.
+
+## Operations
+
+`StandardScaler` is a `Transformer`.
+As such, it supports the `fit` and `transform` operation.
+
+### Fit
+
+StandardScaler is trained on all subtypes of `Vector` or `LabeledVector`: 
+
+* `fit[T <: Vector]: DataSet[T] => Unit` 
+* `fit: DataSet[LabeledVector] => Unit`
+
+### Transform
+
+StandardScaler transforms all subtypes of `Vector` or `LabeledVector` into the respective type: 
+
+* `transform[T <: Vector]: DataSet[T] => DataSet[T]` 
+* `transform: DataSet[LabeledVector] => DataSet[LabeledVector]`
 
 ## Parameters
 

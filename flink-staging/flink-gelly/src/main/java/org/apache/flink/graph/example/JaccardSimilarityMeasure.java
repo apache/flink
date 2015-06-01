@@ -89,11 +89,13 @@ public class JaccardSimilarityMeasure implements ProgramDescription {
 		// emit result
 		if (fileOutput) {
 			result.writeAsCsv(outputPath, "\n", ",");
+
+			// since file sinks are lazy, we trigger the execution explicitly
+			env.execute("Executing Jaccard Similarity Measure");
 		} else {
 			result.print();
 		}
 
-		env.execute("Executing Jaccard Similarity Measure");
 	}
 
 	@Override

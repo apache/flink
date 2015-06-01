@@ -83,12 +83,16 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 	}
 
 	public void releasePartitionsProducedBy(ExecutionAttemptID executionId) {
+		releasePartitionsProducedBy(executionId, null);
+	}
+
+	public void releasePartitionsProducedBy(ExecutionAttemptID executionId, Throwable cause) {
 		synchronized (registeredPartitions) {
 			final Map<IntermediateResultPartitionID, ResultPartition> partitions =
 					registeredPartitions.row(executionId);
 
 			for (ResultPartition partition : partitions.values()) {
-				partition.release();
+				partition.release(cause);
 			}
 
 			for (IntermediateResultPartitionID partitionId : ImmutableList

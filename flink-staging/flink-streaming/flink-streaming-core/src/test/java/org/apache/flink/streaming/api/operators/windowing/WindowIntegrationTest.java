@@ -109,6 +109,7 @@ public class WindowIntegrationTest implements Serializable {
 		};
 
 		StreamExecutionEnvironment env = new TestStreamEnvironment(2, MEMORYSIZE);
+		env.disableOperatorChaining();
 
 		DataStream<Integer> source = env.fromCollection(inputs);
 

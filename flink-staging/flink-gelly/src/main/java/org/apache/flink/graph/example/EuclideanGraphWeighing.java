@@ -101,11 +101,13 @@ public class EuclideanGraphWeighing implements ProgramDescription {
 		// emit result
 		if (fileOutput) {
 			result.writeAsCsv(outputPath, "\n", ",");
+
+			// since file sinks are lazy, we trigger the execution explicitly
+			env.execute("Euclidean Graph Weighing Example");
 		} else {
 			result.print();
 		}
 
-		env.execute("Euclidean Graph Weighing Example");
 	}
 
 	@Override

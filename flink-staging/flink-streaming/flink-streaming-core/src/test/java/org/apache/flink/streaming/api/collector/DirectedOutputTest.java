@@ -101,7 +101,7 @@ public class DirectedOutputTest {
 		TestListResultSink<Long> evenAndOddSink = new TestListResultSink<Long>();
 		TestListResultSink<Long> allSink = new TestListResultSink<Long>();
 
-		SplitDataStream<Long> source = env.generateSequence(1, 11).split(new MyOutputSelector());
+		SplitDataStream<Long> source = env.generateParallelSequence(1, 11).split(new MyOutputSelector());
 		source.select(EVEN).addSink(evenSink);
 		source.select(ODD, TEN).addSink(oddAndTenSink);
 		source.select(EVEN, ODD).addSink(evenAndOddSink);

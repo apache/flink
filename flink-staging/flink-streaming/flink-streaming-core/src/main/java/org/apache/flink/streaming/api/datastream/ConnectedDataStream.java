@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.Utils;
@@ -28,8 +27,6 @@ import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoReduceFunction;
 import org.apache.flink.streaming.api.functions.co.CoWindowFunction;
-import org.apache.flink.streaming.api.functions.co.RichCoMapFunction;
-import org.apache.flink.streaming.api.functions.co.RichCoReduceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
@@ -232,9 +229,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * the output to a common type. The transformation calls a
 	 * {@link CoMapFunction#map1} for each element of the first input and
 	 * {@link CoMapFunction#map2} for each element of the second input. Each
-	 * CoMapFunction call returns exactly one element. The user can also extend
-	 * {@link RichCoMapFunction} to gain access to other features provided by
-	 * the {@link RichFuntion} interface.
+	 * CoMapFunction call returns exactly one element.
 	 * 
 	 * @param coMapper
 	 *            The CoMapFunction used to jointly transform the two input
@@ -258,9 +253,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * {@link CoFlatMapFunction#flatMap1} for each element of the first input
 	 * and {@link CoFlatMapFunction#flatMap2} for each element of the second
 	 * input. Each CoFlatMapFunction call returns any number of elements
-	 * including none. The user can also extend {@link RichFlatMapFunction} to
-	 * gain access to other features provided by the {@link RichFuntion}
-	 * interface.
+	 * including none.
 	 * 
 	 * @param coFlatMapper
 	 *            The CoFlatMapFunction used to jointly transform the two input
@@ -285,9 +278,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * sliding batch/window of the data stream. If the connected data stream is
 	 * grouped then the reducer is applied on every group of elements sharing
 	 * the same key. This type of reduce is much faster than reduceGroup since
-	 * the reduce function can be applied incrementally. The user can also
-	 * extend the {@link RichCoReduceFunction} to gain access to other features
-	 * provided by the {@link RichFuntion} interface.
+	 * the reduce function can be applied incrementally.
 	 * 
 	 * @param coReducer
 	 *            The {@link CoReduceFunction} that will be called for every

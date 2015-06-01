@@ -19,11 +19,17 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import scala.Tuple2;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * An input channel consumes a single {@link ResultSubpartitionView}.
@@ -43,10 +49,41 @@ public abstract class InputChannel {
 
 	protected final SingleInputGate inputGate;
 
-	protected InputChannel(SingleInputGate inputGate, int channelIndex, ResultPartitionID partitionId) {
-		this.inputGate = inputGate;
+	// - Asynchronous error notification --------------------------------------
+
+	private final AtomicReference<Throwable> cause = new AtomicReference<Throwable>();
+
+	// - Partition request backoff --------------------------------------------
+
+	/** The initial backoff (in ms). */
+	private final int initialBackoff;
+
+	/** The maximum backoff (in ms). */
+	private final int maxBackoff;
+
+	/** The current backoff (in ms) */
+	private int currentBackoff;
+
+	protected InputChannel(
+			SingleInputGate inputGate,
+			int channelIndex,
+			ResultPartitionID partitionId,
+			Tuple2<Integer, Integer> initialAndMaxBackoff) {
+
+		checkArgument(channelIndex >= 0);
+
+		int initial = initialAndMaxBackoff._1();
+		int max = initialAndMaxBackoff._2();
+
+		checkArgument(initial >= 0 && initial <= max);
+
+		this.inputGate = checkNotNull(inputGate);
 		this.channelIndex = channelIndex;
-		this.partitionId = partitionId;
+		this.partitionId = checkNotNull(partitionId);
+
+		this.initialBackoff = initial;
+		this.maxBackoff = max;
+		this.currentBackoff = initial == 0 ? -1 : 0;
 	}
 
 	// ------------------------------------------------------------------------
@@ -109,4 +146,77 @@ public abstract class InputChannel {
 	 */
 	abstract void releaseAllResources() throws IOException;
 
+	// ------------------------------------------------------------------------
+	// Error notification
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Checks for an error and rethrows it if one was reported.
+	 */
+	protected void checkError() throws IOException {
+		final Throwable t = cause.get();
+
+		if (t != null) {
+			if (t instanceof CancelTaskException) {
+				throw (CancelTaskException) t;
+			}
+			if (t instanceof IOException) {
+				throw (IOException) t;
+			}
+			else {
+				throw new IOException(t);
+			}
+		}
+	}
+
+	/**
+	 * Atomically sets an error for this channel and notifies the input gate about available data to
+	 * trigger querying this channel by the task thread.
+	 */
+	protected void setError(Throwable cause) {
+		if (this.cause.compareAndSet(null, checkNotNull(cause))) {
+			// Notify the input gate.
+			notifyAvailableBuffer();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	// Partition request exponential backoff
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Returns the current backoff in ms.
+	 */
+	protected int getCurrentBackoff() {
+		return currentBackoff <= 0 ? 0 : currentBackoff;
+	}
+
+	/**
+	 * Increases the current backoff and returns whether the operation was successful.
+	 *
+	 * @return <code>true</code>, iff the operation was successful. Otherwise, <code>false</code>.
+	 */
+	protected boolean increaseBackoff() {
+		// Backoff is disabled
+		if (currentBackoff < 0) {
+			return false;
+		}
+
+		// This is the first time backing off
+		if (currentBackoff == 0) {
+			currentBackoff = initialBackoff;
+
+			return true;
+		}
+
+		// Continue backing off
+		else if (currentBackoff < maxBackoff) {
+			currentBackoff = Math.min(currentBackoff * 2, maxBackoff);
+
+			return true;
+		}
+
+		// Reached maximum backoff
+		return false;
+	}
 }

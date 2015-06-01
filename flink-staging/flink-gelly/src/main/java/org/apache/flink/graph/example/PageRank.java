@@ -78,11 +78,13 @@ public class PageRank implements ProgramDescription {
 
 		if (fileOutput) {
 			pageRanks.writeAsCsv(outputPath, "\n", "\t");
+
+			// since file sinks are lazy, we trigger the execution explicitly
+			env.execute();
 		} else {
 			pageRanks.print();
 		}
 
-		env.execute();
 	}
 
 	@Override

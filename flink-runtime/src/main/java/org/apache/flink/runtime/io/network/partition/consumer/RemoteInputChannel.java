@@ -34,9 +34,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -55,12 +53,6 @@ public class RemoteInputChannel extends InputChannel {
 
 	/** The connection manager to use connect to the remote partition provider. */
 	private final ConnectionManager connectionManager;
-
-	/**
-	 * An asynchronous error notification. Set by either the network I/O thread or the thread
-	 * failing a partition request.
-	 */
-	private final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 
 	/**
 	 * The received buffers. Received buffers are enqueued by the network I/O thread and the queue
@@ -83,13 +75,7 @@ public class RemoteInputChannel extends InputChannel {
 	 */
 	private int expectedSequenceNumber = 0;
 
-	/** The current backoff time (in ms) for partition requests. */
-	private int nextRequestBackoffMs;
-
-	/** The maximum backoff time (in ms) after which a request fails */
-	private final int maxRequestBackoffMs;
-
-	RemoteInputChannel(
+	public RemoteInputChannel(
 			SingleInputGate inputGate,
 			int channelIndex,
 			ResultPartitionID partitionId,
@@ -100,7 +86,7 @@ public class RemoteInputChannel extends InputChannel {
 				new Tuple2<Integer, Integer>(0, 0));
 	}
 
-	RemoteInputChannel(
+	public RemoteInputChannel(
 			SingleInputGate inputGate,
 			int channelIndex,
 			ResultPartitionID partitionId,
@@ -108,15 +94,10 @@ public class RemoteInputChannel extends InputChannel {
 			ConnectionManager connectionManager,
 			Tuple2<Integer, Integer> initialAndMaxBackoff) {
 
-		super(inputGate, channelIndex, partitionId);
+		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff);
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
-
-		checkArgument(initialAndMaxBackoff._1() <= initialAndMaxBackoff._2());
-
-		this.nextRequestBackoffMs = initialAndMaxBackoff._1();
-		this.maxRequestBackoffMs = initialAndMaxBackoff._2();
 	}
 
 	// ------------------------------------------------------------------------
@@ -143,17 +124,9 @@ public class RemoteInputChannel extends InputChannel {
 	void retriggerSubpartitionRequest(int subpartitionIndex) throws IOException, InterruptedException {
 		checkState(partitionRequestClient != null, "Missing initial subpartition request.");
 
-		// Disabled
-		if (nextRequestBackoffMs == 0) {
-			failPartitionRequest();
-		}
-		else if (nextRequestBackoffMs <= maxRequestBackoffMs) {
-			partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this, nextRequestBackoffMs);
-
-			// Exponential backoff
-			nextRequestBackoffMs = nextRequestBackoffMs < maxRequestBackoffMs
-					? Math.min(nextRequestBackoffMs * 2, maxRequestBackoffMs)
-					: maxRequestBackoffMs + 1; // Fail the next request
+		if (increaseBackoff()) {
+			partitionRequestClient.requestSubpartition(
+					partitionId, subpartitionIndex, this, getCurrentBackoff());
 		}
 		else {
 			failPartitionRequest();
@@ -220,6 +193,8 @@ public class RemoteInputChannel extends InputChannel {
 				}
 			}
 
+			// The released flag has to be set before closing the connection to ensure that
+			// buffers received concurrently with closing are properly recycled.
 			if (partitionRequestClient != null) {
 				partitionRequestClient.close(this);
 			}
@@ -230,7 +205,7 @@ public class RemoteInputChannel extends InputChannel {
 	}
 
 	public void failPartitionRequest() {
-		onError(new PartitionNotFoundException(partitionId));
+		setError(new PartitionNotFoundException(partitionId));
 	}
 
 	@Override
@@ -305,26 +280,7 @@ public class RemoteInputChannel extends InputChannel {
 	}
 
 	public void onError(Throwable cause) {
-		if (error.compareAndSet(null, cause)) {
-			// Notify the input gate to trigger querying of this channel
-			notifyAvailableBuffer();
-		}
-	}
-
-	/**
-	 * Checks whether this channel got notified about an error.
-	 */
-	private void checkError() throws IOException {
-		final Throwable t = error.get();
-
-		if (t != null) {
-			if (t instanceof IOException) {
-				throw (IOException) t;
-			}
-			else {
-				throw new IOException(t);
-			}
-		}
+		setError(cause);
 	}
 
 	public static class BufferReorderingException extends IOException {

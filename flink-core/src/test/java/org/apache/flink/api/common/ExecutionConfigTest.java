@@ -18,19 +18,20 @@
 
 package org.apache.flink.api.common;
 
-import org.junit.Test;
 import static org.junit.Assert.*;
 
 import java.util.Arrays;
 import java.util.List;
+
+import org.junit.Test;
 
 public class ExecutionConfigTest {
 
 	@Test
 	public void testDoubleTypeRegistration() {
 		ExecutionConfig config = new ExecutionConfig();
-		List<Class<?>> types = Arrays.asList((Class<?>)Double.class, Integer.class, Double.class);
-		List<Class<?>> expectedTypes = Arrays.asList((Class<?>)Double.class, Integer.class);
+		List<Class<?>> types = Arrays.<Class<?>>asList(Double.class, Integer.class, Double.class);
+		List<Class<?>> expectedTypes = Arrays.<Class<?>>asList(Double.class, Integer.class);
 
 		for(Class<?> tpe: types) {
 			config.registerKryoType(tpe);

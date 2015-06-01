@@ -24,9 +24,12 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 
 import akka.actor.ActorRef;
+
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.api.common.JobID;
+
 import org.junit.Test;
+
 import org.mockito.Matchers;
 
 public class SimpleSlotTest {
@@ -34,28 +37,28 @@ public class SimpleSlotTest {
 	@Test
 	public void testStateTransitions() {
 		try {
-			// cancel, then release
+			// release immediately
 			{
 				SimpleSlot slot = getSlot();
 				assertTrue(slot.isAlive());
-				
-				slot.cancel();
-				assertFalse(slot.isAlive());
-				assertTrue(slot.isCanceled());
-				assertFalse(slot.isReleased());
-				
+
 				slot.releaseSlot();
 				assertFalse(slot.isAlive());
 				assertTrue(slot.isCanceled());
 				assertTrue(slot.isReleased());
 			}
-			
-			// release immediately
+
+			// state transitions manually
 			{
 				SimpleSlot slot = getSlot();
 				assertTrue(slot.isAlive());
-				
-				slot.releaseSlot();
+
+				slot.markCancelled();
+				assertFalse(slot.isAlive());
+				assertTrue(slot.isCanceled());
+				assertFalse(slot.isReleased());
+
+				slot.markReleased();
 				assertFalse(slot.isAlive());
 				assertTrue(slot.isCanceled());
 				assertTrue(slot.isReleased());
@@ -66,41 +69,51 @@ public class SimpleSlotTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testSetExecutionVertex() {
 		try {
 			Execution ev = mock(Execution.class);
 			Execution ev_2 = mock(Execution.class);
-			
+
 			// assign to alive slot
 			{
 				SimpleSlot slot = getSlot();
-				
+
 				assertTrue(slot.setExecutedVertex(ev));
-				assertEquals(ev, slot.getExecution());
-				
+				assertEquals(ev, slot.getExecutedVertex());
+
 				// try to add another one
 				assertFalse(slot.setExecutedVertex(ev_2));
-				assertEquals(ev, slot.getExecution());
+				assertEquals(ev, slot.getExecutedVertex());
 			}
-			
+
 			// assign to canceled slot
 			{
 				SimpleSlot slot = getSlot();
-				slot.cancel();
-				
+				assertTrue(slot.markCancelled());
+
 				assertFalse(slot.setExecutedVertex(ev));
-				assertNull(slot.getExecution());
+				assertNull(slot.getExecutedVertex());
+			}
+
+			// assign to released marked slot
+			{
+				SimpleSlot slot = getSlot();
+				assertTrue(slot.markCancelled());
+				assertTrue(slot.markReleased());
+
+				assertFalse(slot.setExecutedVertex(ev));
+				assertNull(slot.getExecutedVertex());
 			}
 			
 			// assign to released
 			{
 				SimpleSlot slot = getSlot();
 				slot.releaseSlot();
-				
+
 				assertFalse(slot.setExecutedVertex(ev));
-				assertNull(slot.getExecution());
+				assertNull(slot.getExecutedVertex());
 			}
 		}
 		catch (Exception e) {
@@ -108,20 +121,20 @@ public class SimpleSlotTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testReleaseCancelsVertex() {
 		try {
 			Execution ev = mock(Execution.class);
-			
+
 			SimpleSlot slot = getSlot();
 			assertTrue(slot.setExecutedVertex(ev));
-			assertEquals(ev, slot.getExecution());
-			
-			slot.cancel();
+			assertEquals(ev, slot.getExecutedVertex());
+
 			slot.releaseSlot();
-			slot.cancel();
-			
+			slot.releaseSlot();
+			slot.releaseSlot();
+
 			verify(ev, times(1)).fail(Matchers.any(Throwable.class));
 		}
 		catch (Exception e) {
@@ -129,12 +142,12 @@ public class SimpleSlotTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	public static SimpleSlot getSlot() throws Exception {
 		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 		InetAddress address = InetAddress.getByName("127.0.0.1");
 		InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
-		
+
 		Instance instance = new Instance(ActorRef.noSender(), connection, new InstanceID(), hardwareDescription, 1);
 		return instance.allocateSimpleSlot(new JobID());
 	}

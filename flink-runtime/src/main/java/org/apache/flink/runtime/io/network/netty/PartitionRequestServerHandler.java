@@ -134,7 +134,7 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 	}
 
 	private void respondWithError(ChannelHandlerContext ctx, Throwable error, InputChannelID sourceId) {
-		LOG.debug("Responding with error {}.", error);
+		LOG.debug("Responding with error: {}.", error.getClass());
 
 		ctx.writeAndFlush(new NettyMessage.ErrorResponse(error, sourceId));
 	}

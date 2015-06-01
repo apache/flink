@@ -31,6 +31,7 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -605,6 +606,41 @@ public class TaskTest {
 	}
 
 	@Test
+	public void testCancelTaskException() throws Exception {
+		final Task task = createTask(InvokableWithCancelTaskExceptionInInvoke.class);
+
+		// Cause CancelTaskException.
+		triggerLatch.trigger();
+
+		task.run();
+
+		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+	}
+
+	@Test
+	public void testCancelTaskExceptionAfterTaskMarkedFailed() throws Exception {
+		final Task task = createTask(InvokableWithCancelTaskExceptionInInvoke.class);
+
+		task.startTaskThread();
+
+		// Wait till the task is in invoke.
+		awaitLatch.await();
+
+		task.failExternally(new Exception("external"));
+		assertEquals(ExecutionState.FAILED, task.getExecutionState());
+
+		// Either we cause the CancelTaskException or the TaskCanceler
+		// by interrupting the invokable.
+		triggerLatch.trigger();
+
+		task.getExecutingThread().join();
+
+		assertEquals(ExecutionState.FAILED, task.getExecutionState());
+		assertTrue(task.isCanceledOrFailed());
+		assertTrue(task.getFailureCause().getMessage().contains("external"));
+	}
+
+	@Test
 	public void testOnPartitionStateUpdate() throws Exception {
 		IntermediateDataSetID resultId = new IntermediateDataSetID();
 		ResultPartitionID partitionId = new ResultPartitionID();
@@ -900,7 +936,7 @@ public class TaskTest {
 					// fall through the loop
 				}
 			}
-			
+
 			throw new RuntimeException("test");
 		}
 	}
@@ -937,6 +973,25 @@ public class TaskTest {
 			// block forever
 			synchronized (this) {
 				wait();
+			}
+		}
+	}
+
+	public static final class InvokableWithCancelTaskExceptionInInvoke extends AbstractInvokable {
+
+		@Override
+		public void registerInputOutput() {
+		}
+
+		@Override
+		public void invoke() throws Exception {
+			awaitLatch.trigger();
+
+			try {
+				triggerLatch.await();
+			}
+			finally {
+				throw new CancelTaskException();
 			}
 		}
 	}

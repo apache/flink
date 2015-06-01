@@ -1,5 +1,6 @@
 ---
-title: "FlinkML - Vision and Roadmap"
+htmlTitle: FlinkML - Vision and Roadmap
+title: <a href="../ml">FlinkML</a> - Vision and Roadmap
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

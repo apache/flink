@@ -43,6 +43,7 @@ public class WindowMerger<T> extends AbstractStreamOperator<StreamWindow<T>>
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void processElement(StreamWindow<T> nextWindow) throws Exception {
 
 		StreamWindow<T> current = windows.get(nextWindow.windowID);

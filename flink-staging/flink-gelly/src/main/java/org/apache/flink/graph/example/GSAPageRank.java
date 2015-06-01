@@ -90,11 +90,13 @@ public class GSAPageRank implements ProgramDescription {
 		// emit result
 		if (fileOutput) {
 			pageRanks.writeAsCsv(outputPath, "\n", "\t");
+
+			// since file sinks are lazy, we trigger the execution explicitly
+			env.execute("GSA Page Ranks");
 		} else {
 			pageRanks.print();
 		}
 
-		env.execute("GSA Page Ranks");
 	}
 
 	// --------------------------------------------------------------------------------------------

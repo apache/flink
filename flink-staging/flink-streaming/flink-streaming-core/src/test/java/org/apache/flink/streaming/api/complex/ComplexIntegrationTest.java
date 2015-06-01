@@ -219,9 +219,11 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		expected2 += "(" + 20000 + "," + 1 + ")";
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		
+		env.setBufferTimeout(0);
 
-		DataStream<Long> sourceStream31 = env.generateSequence(1, 10000);
-		DataStream<Long> sourceStream32 = env.generateSequence(10001, 20000);
+		DataStream<Long> sourceStream31 = env.generateParallelSequence(1, 10000);
+		DataStream<Long> sourceStream32 = env.generateParallelSequence(10001, 20000);
 
 		sourceStream31.filter(new PrimeFilterFunction())
 				.window(Count.of(100))
@@ -303,8 +305,10 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 				"12\n" + "15\n" + "16\n" + "20\n" + "25\n";
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		
+		env.setBufferTimeout(0);
 
-		DataStream<Long> dataStream51 = env.generateSequence(1, 5)
+		DataStream<Long> dataStream51 = env.generateParallelSequence(1, 5)
 				.map(new MapFunction<Long, Long>() {
 
 					@Override

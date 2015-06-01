@@ -86,6 +86,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 					if (buffer != null) {
 						writer.writeBuffer(buffer, targetChannel);
+						serializer.clearCurrentBuffer();
 					}
 
 					buffer = writer.getBufferProvider().requestBufferBlocking();
@@ -108,6 +109,8 @@ public class RecordWriter<T extends IOReadableWritable> {
 					}
 
 					writer.writeBuffer(buffer, targetChannel);
+					serializer.clearCurrentBuffer();
+
 					writer.writeEvent(event, targetChannel);
 
 					buffer = writer.getBufferProvider().requestBufferBlocking();
@@ -127,8 +130,8 @@ public class RecordWriter<T extends IOReadableWritable> {
 			synchronized (serializer) {
 				Buffer buffer = serializer.getCurrentBuffer();
 				if (buffer != null) {
-
 					writer.writeBuffer(buffer, targetChannel);
+					serializer.clearCurrentBuffer();
 
 					buffer = writer.getBufferProvider().requestBufferBlocking();
 					serializer.setNextBuffer(buffer);
@@ -145,11 +148,13 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 			synchronized (serializer) {
 				Buffer buffer = serializer.getCurrentBuffer();
-				serializer.clear();
 
 				if (buffer != null) {
+					// Only clear the serializer after the buffer was written out.
 					writer.writeBuffer(buffer, targetChannel);
 				}
+
+				serializer.clear();
 			}
 		}
 	}
@@ -157,9 +162,13 @@ public class RecordWriter<T extends IOReadableWritable> {
 	public void clearBuffers() {
 		if (serializers != null) {
 			for (RecordSerializer<?> s : serializers) {
-				Buffer b = s.getCurrentBuffer();
-				if (b != null && !b.isRecycled()) {
-					b.recycle();
+				synchronized (s) {
+					Buffer b = s.getCurrentBuffer();
+					s.clear();
+
+					if (b != null) {
+						b.recycle();
+					}
 				}
 			}
 		}

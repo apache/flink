@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import com.google.common.collect.Sets;
+import com.google.common.collect.Maps;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.flink.core.memory.MemorySegment;
@@ -39,7 +39,6 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayDeque;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -65,7 +64,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	 * Set of cancelled partition requests. A request is cancelled iff an input channel is cleared
 	 * while data is still coming in for this channel.
 	 */
-	private volatile Set<InputChannelID> cancelled;
+	private final ConcurrentMap<InputChannelID, InputChannelID> cancelled = Maps.newConcurrentMap();
 
 	private ChannelHandlerContext ctx;
 
@@ -83,6 +82,12 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 
 	void removeInputChannel(RemoteInputChannel listener) {
 		inputChannels.remove(listener.getInputChannelId());
+	}
+
+	void cancelRequestFor(InputChannelID inputChannelId) {
+		if (cancelled.putIfAbsent(inputChannelId, inputChannelId) == null) {
+			ctx.writeAndFlush(new NettyMessage.CancelPartitionRequest(inputChannelId));
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -183,18 +188,6 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		}
 	}
 
-	private void cancelRequestFor(InputChannelID inputChannelId) {
-		if (cancelled == null) {
-			cancelled = Sets.newConcurrentHashSet();
-		}
-
-		if (!cancelled.contains(inputChannelId)) {
-			ctx.writeAndFlush(new NettyMessage.CancelPartitionRequest(inputChannelId));
-
-			cancelled.add(inputChannelId);
-		}
-	}
-
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -229,19 +222,19 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			if (error.isFatalError()) {
 				notifyAllChannelsOfErrorAndClose(new RemoteTransportException(
 						"Fatal error at remote task manager '" + remoteAddr + "'.",
-						remoteAddr, error.error));
+						remoteAddr, error.cause));
 			}
 			else {
 				RemoteInputChannel inputChannel = inputChannels.get(error.receiverId);
 
 				if (inputChannel != null) {
-					if (error.error.getClass() == PartitionNotFoundException.class) {
+					if (error.cause.getClass() == PartitionNotFoundException.class) {
 						inputChannel.onFailedPartitionRequest();
 					}
 					else {
 						inputChannel.onError(new RemoteTransportException(
 								"Error at remote task manager '" + remoteAddr + "'.",
-										remoteAddr, error.error));
+										remoteAddr, error.cause));
 					}
 				}
 			}

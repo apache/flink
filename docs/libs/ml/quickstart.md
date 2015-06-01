@@ -1,5 +1,6 @@
 ---
-title: "FlinkML - Quickstart guide"
+htmlTitle: FlinkML - Quickstart Guide
+title: <a href="../ml">FlinkML</a> - Quickstart Guide
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
