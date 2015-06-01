@@ -17,12 +17,16 @@
 
 package org.apache.flink.streaming.api;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Collections;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -74,6 +78,17 @@ public class IterateTest {
 		public void invoke(Boolean tuple) {
 		}
 	}
+	
+	public static final class NoOpMap implements MapFunction<Boolean, Boolean>{
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Boolean map(Boolean value) throws Exception {
+			return value;
+		}
+		
+	}
 
 	public StreamExecutionEnvironment constructIterativeJob(StreamExecutionEnvironment env){
 		env.setBufferTimeout(10);
@@ -87,6 +102,43 @@ public class IterateTest {
 
 		iteration.closeWith(increment).addSink(new MySink());
 		return env;
+	}
+	
+	@Test
+	public void testColocation() throws Exception {
+		StreamExecutionEnvironment env = new TestStreamEnvironment(4, MEMORYSIZE);
+
+		IterativeDataStream<Boolean> it = env.fromElements(true).distribute().map(new NoOpMap())
+				.iterate();
+
+		DataStream<Boolean> head = it.map(new NoOpMap()).setParallelism(2).name("HeadOperator");
+
+		it.closeWith(head.map(new NoOpMap()).setParallelism(3).name("TailOperator")).print();
+
+		JobGraph graph = env.getStreamGraph().getJobGraph();
+
+		AbstractJobVertex itSource = null;
+		AbstractJobVertex itSink = null;
+		AbstractJobVertex headOp = null;
+		AbstractJobVertex tailOp = null;
+
+		for (AbstractJobVertex vertex : graph.getVertices()) {
+			if (vertex.getName().contains("IterationHead")) {
+				itSource = vertex;
+			} else if (vertex.getName().contains("IterationTail")) {
+				itSink = vertex;
+			} else if (vertex.getName().contains("HeadOperator")) {
+				headOp = vertex;
+			} else if (vertex.getName().contains("TailOp")) {
+				tailOp = vertex;
+			}
+		}
+
+		assertTrue(itSource.getCoLocationGroup() != null);
+		assertEquals(itSource.getCoLocationGroup(), itSink.getCoLocationGroup());
+		assertEquals(headOp.getParallelism(), 2);
+		assertEquals(tailOp.getParallelism(), 3);
+		assertEquals(itSource.getParallelism(), itSink.getParallelism());
 	}
 
 	@Test
