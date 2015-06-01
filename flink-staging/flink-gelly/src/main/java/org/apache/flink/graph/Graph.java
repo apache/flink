@@ -409,7 +409,7 @@ public class Graph<K, VV, EV> {
     /**
      * Apply a function to the attribute of each edge in the graph
      *
-     * @param mapper the map function to apply.
+     * @param mapper     the map function to apply.
      * @param returnType the explicit TypeInformation for the return type.
      * @return a new graph
      */
@@ -795,6 +795,26 @@ public class Graph<K, VV, EV> {
             case ALL:
                 return edges.flatMap(new EmitOneEdgePerNode<K, VV, EV>())
                         .groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction));
+            default:
+                throw new IllegalArgumentException("Illegal edge direction");
+        }
+    }
+
+    public <T> DataSet<T> groupReduceOnEdges(EdgesFunction<K, EV, T> edgesFunction,
+                                             EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
+
+        switch (direction) {
+            case IN:
+                return edges.map(new ProjectVertexIdMap<K, EV>(1))
+                        .withForwardedFields("f1->f0")
+                        .groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction)).returns(typeInfo);
+            case OUT:
+                return edges.map(new ProjectVertexIdMap<K, EV>(0))
+                        .withForwardedFields("f0")
+                        .groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction)).returns(typeInfo);
+            case ALL:
+                return edges.flatMap(new EmitOneEdgePerNode<K, VV, EV>())
+                        .groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction)).returns(typeInfo);
             default:
                 throw new IllegalArgumentException("Illegal edge direction");
         }
