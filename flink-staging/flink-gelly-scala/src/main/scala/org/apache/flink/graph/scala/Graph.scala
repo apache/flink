@@ -248,4 +248,8 @@ final class Graph[K: TypeInformation, VV: TypeInformation, EV: TypeInformation](
         wrap(jgraph.groupReduceOnEdges(edgesFunction, direction, createTypeInformation[T]))
     }
 
+    def groupReduceOnEdges[T: TypeInformation : ClassTag](edgesFunction: EdgesFunction[K, EV, T], direction: EdgeDirection): DataSet[T] = {
+        wrap(jgraph.groupReduceOnEdges(edgesFunction, direction, createTypeInformation[T]))
+    }
+
 }

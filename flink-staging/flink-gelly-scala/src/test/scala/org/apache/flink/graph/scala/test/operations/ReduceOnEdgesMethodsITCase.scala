@@ -56,19 +56,34 @@ class ReduceOnEdgesMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestExec
 
     @Test
     @throws(classOf[Exception])
-    def testWithSameValue {
+    def testAllNeighborsWithValueGreaterThanFour {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
         val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         val result = graph.groupReduceOnEdges(new SelectNeighborsValueGreaterThanFour, EdgeDirection.ALL)
         result.writeAsCsv(resultPath)
         env.execute
 
+
         expectedResult = "5,1\n" + "5,3\n" + "5,4"
+    }
+
+
+    @Test
+    @throws(classOf[Exception])
+    def testAllNeighbors {
+        val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val result = graph.groupReduceOnEdges(new SelectNeighbors, EdgeDirection.ALL)
+        result.writeAsCsv(resultPath)
+        env.execute
+
+
+        expectedResult = "1,2\n" + "1,3\n" + "1,5\n" + "2,1\n" + "2,3\n" + "3,1\n" + "3,2\n" + "3,4\n" + "3,5\n" + "4,3\n" + "4,5\n" + "5,1\n" + "5,3\n" + "5,4"
     }
 
     final class SelectNeighborsValueGreaterThanFour extends EdgesFunctionWithVertexValue[Long, Long, Long, (Long, Long)] {
         @throws(classOf[Exception])
-        override def iterationFunction(v: Vertex[Long, Long], edges: Iterable[Edge[Long, Long]], out: Collector[(Long, Long)]): Unit = {
+        override def iterateEdges(v: Vertex[Long, Long], edges: Iterable[Edge[Long, Long]], out: Collector[(Long, Long)]): Unit = {
             for (edge <- edges) {
                 if (v.getValue > 4) {
                     if (v.getId == edge.getTarget) {
@@ -77,6 +92,20 @@ class ReduceOnEdgesMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestExec
                     else {
                         out.collect((v.getId, edge.getTarget))
                     }
+                }
+            }
+        }
+    }
+
+    final class SelectNeighbors extends EdgesFunction[Long, Long, (Long, Long)] {
+        @throws(classOf[Exception])
+        override def iterateEdges(edges: Iterable[(Long, Edge[Long, Long])], out: Collector[(Long, Long)]) {
+            for (edge <- edges) {
+                if (edge._1.equals(edge._2.getTarget)) {
+                    out.collect(new Tuple2[Long, Long](edge._1, edge._2.getSource))
+                }
+                else {
+                    out.collect(new Tuple2[Long, Long](edge._1, edge._2.getTarget))
                 }
             }
         }
