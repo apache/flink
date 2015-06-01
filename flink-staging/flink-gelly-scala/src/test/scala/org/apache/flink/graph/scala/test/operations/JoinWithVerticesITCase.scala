@@ -56,7 +56,7 @@ class JoinWithVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutio
 
     @Test
     @throws(classOf[Exception])
-    def testWithSameValue {
+    def testJoinWithVertexSet {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
         val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         val result: Graph[Long, Long, Long] = graph.joinWithVertices(graph.getVertices.map(new VertexToTuple2Map[Long, Long]), new AddValuesMapper)
@@ -65,8 +65,20 @@ class JoinWithVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutio
         expectedResult = "1,2\n" + "2,4\n" + "3,6\n" + "4,8\n" + "5,10\n"
     }
 
+    @Test
+    @throws(classOf[Exception])
+    def testJoinWithVertexSetSugar {
+        val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val tupleSet = graph.getVertices.map(new VertexToTuple2Map[Long, Long])
+        val result: Graph[Long, Long, Long] = graph.joinWithVertices[Long](tupleSet,(originalvalue: Long, tuplevalue: Long) => originalvalue + tuplevalue)
+        result.getVertices.map(vertex => (vertex.getId, vertex.getValue)).writeAsCsv(resultPath)
+        env.execute
+        expectedResult = "1,2\n" + "2,4\n" + "3,6\n" + "4,8\n" + "5,10\n"
+    }
 
-   final class AddValuesMapper extends MapFunction[(Long, Long), Long] {
+
+    final class AddValuesMapper extends MapFunction[(Long, Long), Long] {
         @throws(classOf[Exception])
         def map(tuple: (Long, Long)): Long = {
             tuple._1 + tuple._2

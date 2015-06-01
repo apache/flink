@@ -87,4 +87,84 @@ final class Graph[K: TypeInformation, VV: TypeInformation, EV: TypeInformation](
         val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
         new Graph[K, VV, EV](jgraph.joinWithVertices[T](javaTupleSet, newmapper))
     }
+
+    def joinWithVertices[T: TypeInformation](inputDataset: DataSet[(K, T)], fun: (VV, T) => VV): Graph[K, VV, EV] = {
+        val newmapper = new MapFunction[jtuple.Tuple2[VV, T], VV]() {
+            val cleanFun = clean(fun)
+
+            override def map(value: jtuple.Tuple2[VV, T]): VV = {
+                cleanFun(value.f0, value.f1)
+            }
+        }
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
+        new Graph[K, VV, EV](jgraph.joinWithVertices[T](javaTupleSet, newmapper))
+    }
+
+    def joinWithEdges[T: TypeInformation](inputDataset: DataSet[(K, K, T)], mapper: MapFunction[(EV, T), EV]): Graph[K, VV, EV] = {
+        val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
+            override def map(value: jtuple.Tuple2[EV, T]): EV = {
+                mapper.map((value.f0, value.f1))
+            }
+        }
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple3(scalatuple._1, scalatuple._2, scalatuple._3)).javaSet
+        new Graph[K, VV, EV](jgraph.joinWithEdges[T](javaTupleSet, newmapper))
+    }
+
+    def joinWithEdges[T: TypeInformation](inputDataset: DataSet[(K, K, T)], fun: (EV, T) => EV): Graph[K, VV, EV] = {
+        val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
+            val cleanFun = clean(fun)
+
+            override def map(value: jtuple.Tuple2[EV, T]): EV = {
+                cleanFun(value.f0, value.f1)
+            }
+        }
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple3(scalatuple._1, scalatuple._2, scalatuple._3)).javaSet
+        new Graph[K, VV, EV](jgraph.joinWithEdges[T](javaTupleSet, newmapper))
+    }
+
+    def joinWithEdgesOnSource[T: TypeInformation](inputDataset: DataSet[(K, T)], mapper: MapFunction[(EV, T), EV]): Graph[K, VV, EV] = {
+        val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
+            override def map(value: jtuple.Tuple2[EV, T]): EV = {
+                mapper.map((value.f0, value.f1))
+            }
+        }
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
+        new Graph[K, VV, EV](jgraph.joinWithEdgesOnSource[T](javaTupleSet, newmapper))
+    }
+
+    def joinWithEdgesOnSource[T: TypeInformation](inputDataset: DataSet[(K, T)], fun: (EV, T) => EV): Graph[K, VV, EV] = {
+        val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
+            val cleanFun = clean(fun)
+
+            override def map(value: jtuple.Tuple2[EV, T]): EV = {
+                cleanFun(value.f0, value.f1)
+            }
+        }
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
+        new Graph[K, VV, EV](jgraph.joinWithEdgesOnSource[T](javaTupleSet, newmapper))
+    }
+
+    def joinWithEdgesOnTarget[T: TypeInformation](inputDataset: DataSet[(K, T)], mapper: MapFunction[(EV, T), EV]): Graph[K, VV, EV] = {
+        val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
+            override def map(value: jtuple.Tuple2[EV, T]): EV = {
+                mapper.map((value.f0, value.f1))
+            }
+        }
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
+        new Graph[K, VV, EV](jgraph.joinWithEdgesOnTarget[T](javaTupleSet, newmapper))
+    }
+
+    def joinWithEdgesOnTarget[T: TypeInformation](inputDataset: DataSet[(K, T)], fun: (EV, T) => EV): Graph[K, VV, EV] = {
+        val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
+            val cleanFun = clean(fun)
+
+            override def map(value: jtuple.Tuple2[EV, T]): EV = {
+                cleanFun(value.f0, value.f1)
+            }
+        }
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
+        new Graph[K, VV, EV](jgraph.joinWithEdgesOnTarget[T](javaTupleSet, newmapper))
+    }
+
+
 }
