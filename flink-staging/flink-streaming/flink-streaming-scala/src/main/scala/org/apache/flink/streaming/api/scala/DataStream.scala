@@ -46,12 +46,19 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def getJavaStream: JavaStream[T] = javaStream
 
   /**
+   * Returns the ID of the {@link DataStream}.
+   *
+   * @return ID of the DataStream
+   */
+  def getId = javaStream.getId
+
+  /**
    * Returns the TypeInformation for the elements of this DataStream.
    */
   def getType(): TypeInformation[T] = javaStream.getType
 
   /**
-   * Sets the parallelism of this operation. This must be greater than 1.
+   * Sets the parallelism of this operation. This must be at least 1.
    */
   def setParallelism(parallelism: Int): DataStream[T] = {
     javaStream match {
@@ -67,13 +74,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   /**
    * Returns the parallelism of this operation.
    */
-  def getParallelism: Int = javaStream match {
-    case op: SingleOutputStreamOperator[_, _] => op.getParallelism
-    case _ =>
-      throw new UnsupportedOperationException("Operator " + javaStream.toString + " does not have" +
-        " "  +
-        "parallelism.")
-  }
+  def getParallelism = javaStream.getParallelism
 
   /**
    * Gets the name of the current data stream. This name is
@@ -161,6 +162,23 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def startNewResourceGroup(): DataStream[T] = {
     javaStream match {
       case ds: SingleOutputStreamOperator[_, _] => ds.startNewResourceGroup();
+      case _ =>
+        throw new UnsupportedOperationException("Only supported for operators.")
+    }
+    this
+  }
+
+  /**
+   * Sets the maximum time frequency (ms) for the flushing of the output
+   * buffer. By default the output buffers flush only when they are full.
+   *
+   * @param timeoutMillis
+   * The maximum time between two output flushes.
+   * @return The operator with buffer timeout set.
+   */
+  def setBufferTimeout(timeoutMillis: Long): DataStream[T] = {
+    javaStream match {
+      case ds: SingleOutputStreamOperator[_, _] => ds.setBufferTimeout(timeoutMillis);
       case _ =>
         throw new UnsupportedOperationException("Only supported for operators.")
     }
@@ -660,7 +678,16 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * written.
    *
    */
-  def print(): DataStream[T] = javaStream.print()
+  def print(): DataStream[T] = javaStream.print
+
+  /**
+   * Writes a DataStream to the standard output stream (stderr).<br>
+   * For each element of the DataStream the result of
+   * {@link Object#toString()} is written.
+   *
+   * @return The closed DataStream.
+   */
+  def printToErr() = javaStream.printToErr
 
   /**
    * Writes a DataStream to the file specified by path in text format. The
