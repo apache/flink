@@ -19,7 +19,8 @@
 package org.apache.flink.ml.regression
 
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.ml.common.ParameterMap
+import org.apache.flink.ml.common.{WeightVector, ParameterMap}
+import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.preprocessing.PolynomialFeatures
 import org.scalatest.{Matchers, FlatSpec}
 
@@ -45,8 +46,8 @@ class MultipleLinearRegressionITSuite
     val parameters = ParameterMap()
 
     parameters.add(MultipleLinearRegression.Stepsize, 1.0)
-    parameters.add(MultipleLinearRegression.Iterations, 10)
-    parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.001)
+    parameters.add(MultipleLinearRegression.Iterations, 500)
+    parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.0001)
 
     val inputDS = env.fromCollection(data)
     mlr.fit(inputDS, parameters)
@@ -55,7 +56,10 @@ class MultipleLinearRegressionITSuite
 
     weightList.size should equal(1)
 
-    val (weights, weight0) = weightList(0)
+    val weightVector: WeightVector = weightList.head
+
+    val weights = weightVector.weights.asInstanceOf[DenseVector].data
+    val weight0 = weightVector.intercept
 
     expectedWeights zip weights foreach {
       case (expectedWeight, weight) =>
@@ -82,8 +86,8 @@ class MultipleLinearRegressionITSuite
 
     val parameters = ParameterMap()
       .add(PolynomialFeatures.Degree, 3)
-      .add(MultipleLinearRegression.Stepsize, 0.002)
-      .add(MultipleLinearRegression.Iterations, 100)
+      .add(MultipleLinearRegression.Stepsize, 0.001)
+      .add(MultipleLinearRegression.Iterations, 800)
 
     pipeline.fit(inputDS, parameters)
 
@@ -91,19 +95,22 @@ class MultipleLinearRegressionITSuite
 
     weightList.size should equal(1)
 
-    val (weights, weight0) = weightList(0)
+    val weightVector: WeightVector = weightList.head
+
+    val weights = weightVector.weights.asInstanceOf[DenseVector].data
+    val weight0 = weightVector.intercept
 
     RegressionData.expectedPolynomialWeights.zip(weights) foreach {
       case (expectedWeight, weight) =>
         weight should be(expectedWeight +- 0.1)
     }
 
-    weight0 should be(RegressionData.expectedPolynomialWeight0 +- 0.1)
+    weight0 should be (RegressionData.expectedPolynomialWeight0 +- 0.1)
 
     val transformedInput = polynomialBase.transform(inputDS, parameters)
 
     val srs = mlr.squaredResidualSum(transformedInput).collect().apply(0)
 
-    srs should be(RegressionData.expectedPolynomialSquaredResidualSum +- 5)
+    srs should be (RegressionData.expectedPolynomialSquaredResidualSum +- 5)
   }
 }

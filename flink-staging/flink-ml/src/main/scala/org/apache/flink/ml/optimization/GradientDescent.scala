@@ -104,19 +104,7 @@ class GradientDescent() extends IterativeSolver {
           }
         }
       case Some(convergence) =>
-        // Calculates the regularized loss, from the data and given weights
-        def lossCalculation(data: DataSet[LabeledVector], weightDS: DataSet[WeightVector]):
-        DataSet[Double] = {
-          data
-            .map {new LossCalculation}.withBroadcastSet(weightDS, WEIGHTVECTOR_BROADCAST)
-            .reduce {
-              (left, right) =>
-                val (leftLoss, leftCount) = left
-                val (rightLoss, rightCount) = right
-                (leftLoss + rightLoss, rightCount + leftCount)
-            }
-            .map{new RegularizedLossCalculation}.withBroadcastSet(weightDS, WEIGHTVECTOR_BROADCAST)
-        }
+
         // We have to calculate for each weight vector the sum of squared residuals,
         // and then sum them and apply regularization
         val initialLossSumDS = lossCalculation(data, initialWeightsDS)
@@ -160,66 +148,6 @@ class GradientDescent() extends IterativeSolver {
     }
     optimizedWeights
   }
-
-  /** Calculates the loss value, given a labeled vector and the current weight vector
-    *
-    * The weight vector is received as a broadcast variable.
-    */
-  private class LossCalculation extends RichMapFunction[LabeledVector, (Double, Int)] {
-
-    var weightVector: WeightVector = null
-
-    @throws(classOf[Exception])
-    override def open(configuration: Configuration): Unit = {
-      val list = this.getRuntimeContext.
-        getBroadcastVariable[WeightVector](WEIGHTVECTOR_BROADCAST)
-
-      weightVector = list.get(0)
-    }
-
-    override def map(example: LabeledVector): (Double, Int) = {
-      val lossFunction = parameters(LossFunction)
-      val predictionFunction = parameters(PredictionFunction)
-
-      val loss = lossFunction.lossValue(
-        example,
-        weightVector,
-        predictionFunction)
-
-      (loss, 1)
-    }
-  }
-
-/** Calculates the regularized loss value, given the loss and the current weight vector
-  *
-  * The weight vector is received as a broadcast variable.
-  */
-private class RegularizedLossCalculation extends RichMapFunction[(Double, Int), Double] {
-
-  var weightVector: WeightVector = null
-
-  @throws(classOf[Exception])
-  override def open(configuration: Configuration): Unit = {
-    val list = this.getRuntimeContext.
-      getBroadcastVariable[WeightVector](WEIGHTVECTOR_BROADCAST)
-
-    weightVector = list.get(0)
-  }
-
-  override def map(lossAndCount: (Double, Int)): Double = {
-    val (lossSum, count) = lossAndCount
-    val regType = parameters(RegularizationType)
-    val regParameter = parameters(RegularizationParameter)
-
-    val regularizedLoss = {
-      regType.regLoss(
-        lossSum/count,
-        weightVector.weights,
-        regParameter)
-    }
-    regularizedLoss
-  }
-}
 
   /** Performs the update of the weights, according to the given gradients and regularization type.
     *
