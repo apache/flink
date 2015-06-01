@@ -36,6 +36,11 @@ import scala.reflect.ClassTag
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
+   * Gets the config object.
+   */
+  def getConfig = javaEnv.getConfig
+
+  /**
    * Sets the parallelism for operations executed through this environment.
    * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
    * with x parallel instances. This value can be overridden by specific operations using
@@ -48,6 +53,14 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+   * Returns the default parallelism for this execution environment. Note that this
+   * value can be overridden by individual operations using [[DataStream.setParallelism]]
+   * @deprecated Please use [[getParallelism]]
+   */
+  @deprecated
+  def getDegreeOfParallelism = javaEnv.getParallelism
+
+  /**
    * Sets the parallelism for operations executed through this environment.
    * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
    * with x parallel instances. This value can be overridden by specific operations using
@@ -56,14 +69,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def setParallelism(parallelism: Int): Unit = {
     javaEnv.setParallelism(parallelism)
   }
-
-  /**
-   * Returns the default parallelism for this execution environment. Note that this
-   * value can be overridden by individual operations using [[DataStream.setParallelism]]
-   * @deprecated Please use [[getParallelism]]
-   */
-  @deprecated
-  def getDegreeOfParallelism = javaEnv.getParallelism
 
   /**
    * Returns the default parallelism for this execution environment. Note that this
@@ -96,7 +101,18 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Gets the default buffer timeout set for this environment
    */
-  def getBufferTimout: Long = javaEnv.getBufferTimeout()
+  def getBufferTimeout = javaEnv.getBufferTimeout
+
+  /**
+   * Disables operator chaining for streaming operators. Operator chaining
+   * allows non-shuffle operations to be co-located in the same thread fully
+   * avoiding serialization and de-serialization.
+   *
+   */
+  def disableOperatorChaining(): StreamExecutionEnvironment = {
+    javaEnv.disableOperatorChaining()
+    this
+  }
 
   /**
    * Method for enabling fault-tolerance. Activates monitoring and backup of streaming
@@ -134,17 +150,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     javaEnv.setStateHandleProvider(provider)
     this
   }
- 
-  /**
-   * Disables operator chaining for streaming operators. Operator chaining
-   * allows non-shuffle operations to be co-located in the same thread fully
-   * avoiding serialization and de-serialization.
-   * 
-   */
-  def disableOperatorChaning(): StreamExecutionEnvironment = {
-    javaEnv.disableOperatorChaining()
-    this
-  }
 
   /**
    * Sets the number of times that failed tasks are re-executed. A value of zero
@@ -162,6 +167,36 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
+  // --------------------------------------------------------------------------------------------
+  // Registry for types and serializers
+  // --------------------------------------------------------------------------------------------
+  /**
+   * Adds a new Kryo default serializer to the Runtime.
+   * <p/>
+   * Note that the serializer instance must be serializable (as defined by
+   * java.io.Serializable), because it may be distributed to the worker nodes
+   * by java serialization.
+   *
+   * @param type
+   * The class of the types serialized with the given serializer.
+   * @param serializer
+   * The serializer to use.
+   */
+  def addDefaultKryoSerializer(`type`: Class[_], serializer: Serializer[_]) {
+    javaEnv.addDefaultKryoSerializer(`type`, serializer)
+  }
+
+  /**
+   * Adds a new Kryo default serializer to the Runtime.
+   *
+   * @param type
+   * The class of the types serialized with the given serializer.
+   * @param serializerClass
+   * The class of the serializer to use.
+   */
+  def addDefaultKryoSerializer(`type`: Class[_], serializerClass: Class[_ <: Serializer[_]]) {
+    javaEnv.addDefaultKryoSerializer(`type`, serializerClass)
+  }
 
   /**
    * Registers the given type with the serializer at the [[KryoSerializer]].
@@ -180,24 +215,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     javaEnv.registerTypeWithKryoSerializer(clazz, serializer)
   }
 
-
-  /**
-   * Registers a default serializer for the given class and its sub-classes at Kryo.
-   */
-  def registerDefaultKryoSerializer(clazz: Class[_], serializer: Class[_ <: Serializer[_]]) {
-    javaEnv.addDefaultKryoSerializer(clazz, serializer)
-  }
-
-  /**
-   * Registers a default serializer for the given class and its sub-classes at Kryo.
-   *
-   * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
-   * because it may be distributed to the worker nodes by java serialization.
-   */
-  def registerDefaultKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
-    javaEnv.addDefaultKryoSerializer(clazz, serializer)
-  }
-
   /**
    * Registers the given type with the serialization stack. If the type is eventually
    * serialized as a POJO, then the type is registered with the POJO serializer. If the
@@ -207,6 +224,78 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def registerType(typeClass: Class[_]) {
     javaEnv.registerType(typeClass)
+  }
+
+  // --------------------------------------------------------------------------------------------
+  // Data stream creations
+  // --------------------------------------------------------------------------------------------
+
+  /**
+   * Creates a new DataStream that contains a sequence of numbers.
+   *
+   * Note that this operation will result in a non-parallel data source, i.e. a data source with
+   * a parallelism of one.
+   */
+  def generateSequence(from: Long, to: Long): DataStream[Long] = {
+    new DataStream[java.lang.Long](javaEnv.generateSequence(from, to)).
+      asInstanceOf[DataStream[Long]]
+  }
+
+  /**
+   * Creates a new DataStream that contains a sequence of numbers in a parallel fashion.
+   */
+  def generateParallelSequence(from: Long, to: Long): DataStream[Long] = {
+    new DataStream[java.lang.Long](javaEnv.generateParallelSequence(from, to)).
+      asInstanceOf[DataStream[Long]]
+  }
+
+  /**
+   * Creates a DataStream that contains the given elements. The elements must all be of the
+   * same type.
+   *
+   * Note that this operation will result in a non-parallel data source, i.e. a data source with
+   * a parallelism of one.
+   */
+  def fromElements[T: ClassTag: TypeInformation](data: T*): DataStream[T] = {
+    val typeInfo = implicitly[TypeInformation[T]]
+    fromCollection(data)(implicitly[ClassTag[T]], typeInfo)
+  }
+
+  /**
+   * Creates a DataStream from the given non-empty [[Seq]]. The elements need to be serializable
+   * because the framework may move the elements into the cluster if needed.
+   *
+   * Note that this operation will result in a non-parallel data source, i.e. a data source with
+   * a parallelism of one.
+   */
+  def fromCollection[T: ClassTag: TypeInformation](data: Seq[T]): DataStream[T] = {
+    require(data != null, "Data must not be null.")
+    val typeInfo = implicitly[TypeInformation[T]]
+
+    val sourceFunction = new FromElementsFunction[T](scala.collection.JavaConversions
+      .asJavaCollection(data))
+
+    javaEnv.addSource(sourceFunction).returns(typeInfo)
+  }
+
+  /**
+   * Creates a DataStream from the given [[Iterator]].
+   *
+   * Note that this operation will result in a non-parallel data source, i.e. a data source with
+   * a parallelism of one.
+   */
+  def fromCollection[T: ClassTag : TypeInformation] (data: Iterator[T]): DataStream[T] = {
+    val typeInfo = implicitly[TypeInformation[T]]
+    javaEnv.fromCollection(data.asJava, typeInfo)
+  }
+
+  /**
+   * Creates a DataStream from the given [[SplittableIterator]].
+   */
+  def fromParallelCollection[T: ClassTag : TypeInformation] (data: SplittableIterator[T]):
+  DataStream[T] = {
+    val typeInfo = implicitly[TypeInformation[T]]
+    javaEnv.fromParallelCollection(data, typeInfo)
   }
 
   /**
@@ -260,17 +349,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * line wise. The file path should be passed as a URI (e.g., "file:///some/local/file" or
    * "hdfs://host:port/file/path").
    */
-  def readFileOfPrimitives[T: ClassTag : TypeInformation](filePath: String, typeClass: Class[T]):
-    DataStream[T] =
-    javaEnv.readFileOfPrimitives(filePath, typeClass)
-
-  /**
-   * Creates a data stream that represents the primitive type produced by reading the given file
-   * line wise. The file path should be passed as a URI (e.g., "file:///some/local/file" or
-   * "hdfs://host:port/file/path").
-   */
-  def readFileOfPrimitives[T: ClassTag : TypeInformation](filePath: String, delimiter: String,
-    typeClass: Class[T]): DataStream[T] =
+  def readFileOfPrimitives[T: ClassTag : TypeInformation](filePath: String,
+    delimiter: String = "\n", typeClass: Class[T]): DataStream[T] =
     javaEnv.readFileOfPrimitives(filePath, delimiter, typeClass)
 
   /**
@@ -303,85 +383,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def createInput[T: ClassTag : TypeInformation](inputFormat: InputFormat[T, _]): DataStream[T] =
     javaEnv.createInput(inputFormat)
-
-  /**
-   * Generic method to create an input data stream with a specific input format.
-   * Since all data streams need specific information about their types, this method needs to
-   * determine the type of the data produced by the input format. It will attempt to determine the
-   * data type by reflection, unless the input format implements the ResultTypeQueryable interface.
-   */
-  def createInput[T: ClassTag : TypeInformation](inputFormat: InputFormat[T, _],
-    typeInfo: TypeInformation[T]): DataStream[T] =
-    javaEnv.createInput(inputFormat, typeInfo)
-
-  /**
-   * Creates a new DataStream that contains a sequence of numbers.
-   *
-   * Note that this operation will result in a non-parallel data source, i.e. a data source with
-   * a parallelism of one.
-   */
-  def generateSequence(from: Long, to: Long): DataStream[Long] = {
-    new DataStream[java.lang.Long](javaEnv.generateSequence(from, to)).
-      asInstanceOf[DataStream[Long]]
-  }
-
-  /**
-   * Creates a new DataStream that contains a sequence of numbers in a parallel fashion.
-   */
-  def generateParallelSequence(from: Long, to: Long): DataStream[Long] = {
-    new DataStream[java.lang.Long](javaEnv.generateParallelSequence(from, to)).
-      asInstanceOf[DataStream[Long]]
-  }
-
-  /**
-   * Creates a DataStream that contains the given elements. The elements must all be of the
-   * same type.
-   *
-   * Note that this operation will result in a non-parallel data source, i.e. a data source with
-   * a parallelism of one.
-   */
-  def fromElements[T: ClassTag: TypeInformation](data: T*): DataStream[T] = {
-    val typeInfo = implicitly[TypeInformation[T]]
-    fromCollection(data)(implicitly[ClassTag[T]], typeInfo)
-  }
-
-  /**
-   * Creates a DataStream from the given non-empty [[Seq]]. The elements need to be serializable
-   * because the framework may move the elements into the cluster if needed.
-   *
-   * Note that this operation will result in a non-parallel data source, i.e. a data source with
-   * a parallelism of one.
-   */
-  def fromCollection[T: ClassTag: TypeInformation](
-    data: Seq[T]): DataStream[T] = {
-    require(data != null, "Data must not be null.")
-    val typeInfo = implicitly[TypeInformation[T]]
-
-    val sourceFunction = new FromElementsFunction[T](scala.collection.JavaConversions
-        .asJavaCollection(data))
-        
-    javaEnv.addSource(sourceFunction).returns(typeInfo)
-  }
-
-  /**
-   * Creates a DataStream from the given [[Iterator]].
-   *
-   * Note that this operation will result in a non-parallel data source, i.e. a data source with
-   * a parallelism of one.
-   */
-  def fromCollection[T: ClassTag : TypeInformation] (data: Iterator[T]): DataStream[T] = {
-    val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.fromCollection(data.asJava, typeInfo)
-  }
-
-  /**
-   * Creates a DataStream from the given [[SplittableIterator]].
-   */
-  def fromParallelCollection[T: ClassTag : TypeInformation] (data: SplittableIterator[T]):
-    DataStream[T] = {
-    val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.fromParallelCollection(data, typeInfo)
-  }
 
   /**
    * Create a DataStream using a user defined source function for arbitrary
@@ -444,7 +445,14 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * executed.
    *
    */
-  def getExecutionPlan() = javaEnv.getStreamGraph.getStreamingPlanAsJSON
+  def getExecutionPlan = javaEnv.getExecutionPlan
+
+  /**
+   * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
+   *
+   * @return The StreamGraph representing the transformations
+   */
+  def getStreamGraph = javaEnv.getStreamGraph
 
 }
 
@@ -454,6 +462,16 @@ object StreamExecutionEnvironment {
     ClosureCleaner.clean(f, checkSerializable)
     f
   }
+
+  /**
+   * Sets the default parallelism that will be used for the local execution
+   * environment created by {@link #createLocalEnvironment()}.
+   *
+   * @param parallelism
+   * The parallelism to use as the default local parallelism.
+   */
+  def setDefaultLocalParallelism(parallelism: Int) : Unit =
+    StreamExecutionEnvironment.setDefaultLocalParallelism(parallelism)
 
   /**
    * Creates an execution environment that represents the context in which the program is
