@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.test.join;
+package org.apache.flink.streaming.test.exampleJavaPrograms.join;
 
 import org.apache.flink.streaming.examples.join.WindowJoin;
 import org.apache.flink.streaming.examples.join.util.WindowJoinData;

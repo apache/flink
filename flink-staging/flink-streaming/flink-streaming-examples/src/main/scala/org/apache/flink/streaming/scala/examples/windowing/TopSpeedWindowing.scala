@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.scala.examples.windowing
 
-import java.util.concurrent.TimeUnit._
 
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.windowing.{Delta, Time}
@@ -38,27 +37,48 @@ import scala.util.Random
  */
 object TopSpeedWindowing {
 
+  // *************************************************************************
+  // PROGRAM
+  // *************************************************************************
+
   case class CarEvent(carId: Int, speed: Int, distance: Double, time: Long)
+
+  val numOfCars = 2
+  val evictionSec = 10
+  val triggerMeters = 50d
 
   def main(args: Array[String]) {
     if (!parseParameters(args)) {
       return
     }
 
-    val cars = genCarStream().groupBy("carId")
-      .window(Time.of(evictionSec, SECONDS))
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val cars = setCarsInput(env)
+
+    val topSeed = cars.groupBy("carId")
+      .window(Time.of(evictionSec, (car : CarEvent) => car.time))
       .every(Delta.of[CarEvent](triggerMeters,
           (oldSp,newSp) => newSp.distance-oldSp.distance, CarEvent(0,0,0,0)))
       .local    
       .maxBy("speed")
+      .flatten()
 
-    cars.flatten print
+    if (fileOutput) {
+      topSeed.writeAsText(outputPath)
+    } else {
+      topSeed.print
+    }
 
-    StreamExecutionEnvironment.getExecutionEnvironment.execute("TopSpeedWindowing")
+    env.execute("TopSpeedWindowing")
 
   }
 
-  def genCarStream(): DataStream[CarEvent] = {
+  // *************************************************************************
+  // USER FUNCTIONS
+  // *************************************************************************
+
+  def genCarStream(): Stream[CarEvent] = {
 
     def nextSpeed(carEvent : CarEvent) : CarEvent =
     {
@@ -74,15 +94,30 @@ object TopSpeedWindowing {
     carStream(range(0, numOfCars).map(CarEvent(_,50,0,System.currentTimeMillis())))
   }
 
+  def parseMap(line : String): (Int, Int, Double, Long) = {
+    val record = line.substring(1, line.length - 1).split(",")
+    (record(0).toInt, record(1).toInt, record(2).toDouble, record(3).toLong)
+  }
+
+  // *************************************************************************
+  // UTIL METHODS
+  // *************************************************************************
+
+  var fileInput = false
+  var fileOutput = false
+  var inputPath : String = null
+  var outputPath : String = null
+
   def parseParameters(args: Array[String]): Boolean = {
     if (args.length > 0) {
-      if (args.length == 3) {
-        numOfCars = args(0).toInt
-        evictionSec = args(1).toInt
-        triggerMeters = args(2).toDouble
+      if (args.length == 2) {
+        fileInput = true
+        fileOutput = true
+        inputPath = args(0)
+        outputPath = args(1)
         true
       } else {
-        System.err.println("Usage: TopSpeedWindowing <numCars> <evictSec> <triggerMeters>")
+        System.err.println("Usage: TopSpeedWindowing <input path> <output path>")
         false
       }
     } else {
@@ -90,8 +125,12 @@ object TopSpeedWindowing {
     }
   }
 
-  var numOfCars = 2
-  var evictionSec = 10
-  var triggerMeters = 50d
+  private def setCarsInput(env: StreamExecutionEnvironment) : DataStream[CarEvent] = {
+    if (fileInput) {
+      env.readTextFile(inputPath).map(parseMap(_)).map(x => CarEvent(x._1, x._2, x._3, x._4))
+    } else {
+      env.fromCollection(genCarStream())
+    }
+  }
 
 }

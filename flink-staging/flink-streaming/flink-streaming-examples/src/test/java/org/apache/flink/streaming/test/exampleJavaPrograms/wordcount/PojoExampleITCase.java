@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.test.wordcount;
+package org.apache.flink.streaming.test.exampleJavaPrograms.wordcount;
 
-import org.apache.flink.streaming.examples.wordcount.WordCount;
+import org.apache.flink.streaming.examples.wordcount.PojoExample;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
-public class WordCountITCase extends StreamingProgramTestBase {
+public class PojoExampleITCase extends StreamingProgramTestBase {
 
 	protected String textPath;
 	protected String resultPath;
@@ -40,6 +40,6 @@ public class WordCountITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		WordCount.main(new String[]{textPath, resultPath});
+		PojoExample.main(new String[]{textPath, resultPath});
 	}
 }

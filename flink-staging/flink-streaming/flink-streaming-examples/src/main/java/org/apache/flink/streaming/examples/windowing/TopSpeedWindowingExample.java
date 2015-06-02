@@ -39,6 +39,10 @@ import java.util.Random;
 */
 public class TopSpeedWindowingExample {
 
+	// *************************************************************************
+	// PROGRAM
+	// *************************************************************************
+
 	public static void main(String[] args) throws Exception {
 
 		if (!parseParameters(args)) {
@@ -73,6 +77,10 @@ public class TopSpeedWindowingExample {
 
 		env.execute("CarTopSpeedWindowingExample");
 	}
+
+	// *************************************************************************
+	// USER FUNCTIONS
+	// *************************************************************************
 
 	private static class CarSource implements SourceFunction<Tuple4<Integer, Integer, Double, Long>> {
 
@@ -140,6 +148,10 @@ public class TopSpeedWindowingExample {
 		}
 	}
 
+	// *************************************************************************
+	// UTIL METHODS
+	// *************************************************************************
+
 	private static boolean fileInput = false;
 	private static boolean fileOutput = false;
 	private static int numOfCars = 2;
@@ -151,18 +163,14 @@ public class TopSpeedWindowingExample {
 	private static boolean parseParameters(String[] args) {
 
 		if (args.length > 0) {
-			if (args.length == 3) {
-				numOfCars = Integer.valueOf(args[0]);
-				evictionSec = Integer.valueOf(args[1]);
-				triggerMeters = Double.valueOf(args[2]);
-			} else if (args.length == 2) {
+			if (args.length == 2) {
 				fileInput = true;
 				fileOutput = true;
 				inputPath = args[0];
 				outputPath = args[1];
 			} else {
 				System.err
-						.println("Usage: TopSpeedWindowingExample <numCars> <evictSec> <triggerMeters>");
+						.println("Usage: TopSpeedWindowingExample <input path> <output path>");
 				return false;
 			}
 		}

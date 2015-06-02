@@ -15,28 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.test.twitter;
+package org.apache.flink.streaming.test.exampleJavaPrograms.iteration;
 
-import org.apache.flink.streaming.examples.twitter.TwitterStream;
-import org.apache.flink.streaming.examples.twitter.util.TwitterStreamData;
+import org.apache.flink.streaming.examples.iteration.IterateExample;
+import org.apache.flink.streaming.examples.iteration.util.IterateExampleData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
-public class TwitterStreamITCase extends StreamingProgramTestBase {
+public class IterateExampleITCase extends StreamingProgramTestBase {
+
+
+	protected String inputPath;
 	protected String resultPath;
 
 	@Override
 	protected void preSubmit() throws Exception {
+		inputPath = createTempFile("fibonacciInput.txt", IterateExampleData.INPUT_PAIRS);
 		resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(TwitterStreamData.STREAMING_COUNTS_AS_TUPLES, resultPath);
+		compareResultsByLinesInMemory(IterateExampleData.RESULTS, resultPath);
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		TwitterStream.main(new String[]{resultPath});
+		IterateExample.main(new String[]{inputPath, resultPath});
 	}
-
 }

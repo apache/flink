@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.test.ml;
+package org.apache.flink.streaming.test.exampleJavaPrograms.ml;
 
 import org.apache.flink.streaming.examples.ml.IncrementalLearningSkeleton;
 import org.apache.flink.streaming.examples.ml.util.IncrementalLearningSkeletonData;

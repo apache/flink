@@ -15,31 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.test.iteration;
+package org.apache.flink.streaming.test.exampleJavaPrograms.windowing;
 
-import org.apache.flink.streaming.examples.iteration.IterateExample;
-import org.apache.flink.streaming.examples.iteration.util.IterateExampleData;
+import org.apache.flink.streaming.examples.windowing.SessionWindowing;
+import org.apache.flink.streaming.examples.windowing.util.SessionWindowingData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
-public class IterateExampleITCase extends StreamingProgramTestBase {
+public class SessionWindowingITCase extends StreamingProgramTestBase {
 
-
-	protected String inputPath;
 	protected String resultPath;
 
 	@Override
 	protected void preSubmit() throws Exception {
-		inputPath = createTempFile("fibonacciInput.txt", IterateExampleData.INPUT_PAIRS);
 		resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(IterateExampleData.RESULTS, resultPath);
+		compareResultsByLinesInMemory(SessionWindowingData.EXPECTED, resultPath);
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		IterateExample.main(new String[]{inputPath, resultPath});
+		SessionWindowing.main(new String[]{resultPath});
 	}
 }
