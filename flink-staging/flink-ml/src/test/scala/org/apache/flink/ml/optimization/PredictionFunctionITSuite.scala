@@ -34,7 +34,7 @@ class PredictionFunctionITSuite extends FlatSpec with Matchers with FlinkTestBas
 
     env.setParallelism(2)
 
-    val predFunction = new LinearPrediction
+    val predFunction = LinearPrediction
 
     val weightVector = new WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
     val features = DenseVector(1.0, 1.0, 1.0, 1.0, 1.0)
@@ -49,14 +49,14 @@ class PredictionFunctionITSuite extends FlatSpec with Matchers with FlinkTestBas
 
     env.setParallelism(2)
 
-    val predFunction = new LinearPrediction
+    val predFunction = LinearPrediction
 
     val weightVector = new WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
     val features = DenseVector(1.0, 1.0, 1.0, 1.0, 1.0)
 
     val gradient = predFunction.gradient(features, weightVector)
 
-    gradient shouldEqual DenseVector(1.0, 1.0, 1.0, 1.0, 1.0)
+    gradient shouldEqual WeightVector(DenseVector(1.0, 1.0, 1.0, 1.0, 1.0), 1.0)
   }
 
 }
