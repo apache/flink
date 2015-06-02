@@ -25,7 +25,8 @@ import org.apache.flink.ml._
 import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
 import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.{BreezeVectorConverter, Vector}
-import org.apache.flink.ml.pipeline.{FitOperation, TransformOperation, Transformer}
+import org.apache.flink.ml.pipeline.{TransformDataSetOperation, FitOperation,
+Transformer}
 import org.apache.flink.ml.preprocessing.MinMaxScaler.{Max, Min}
 
 import scala.reflect.ClassTag
@@ -161,18 +162,18 @@ object MinMaxScaler {
     minMax
   }
 
-  /** [[TransformOperation]] which scales input data of subtype of [[Vector]] with respect to
+  /** [[TransformDataSetOperation]] which scales input data of subtype of [[Vector]] with respect to
     * the calculated minimum and maximum of the training data. The minimum and maximum
     * values of the resulting data is configurable.
     *
     * @tparam T Type of the input and output data which has to be a subtype of [[Vector]]
-    * @return [[TransformOperation]] scaling subtypes of [[Vector]] such that the feature values are
-    *        in the configured range
+    * @return [[TransformDataSetOperation]] scaling subtypes of [[Vector]] such that the feature
+    *        values are in the configured range
     */
   implicit def transformVectors[T <: Vector : BreezeVectorConverter : TypeInformation : ClassTag]
   = {
-    new TransformOperation[MinMaxScaler, T, T] {
-      override def transform(
+    new TransformDataSetOperation[MinMaxScaler, T, T] {
+      override def transformDataSet(
         instance: MinMaxScaler,
         transformParameters: ParameterMap,
         input: DataSet[T])
@@ -201,8 +202,8 @@ object MinMaxScaler {
   }
 
   implicit val transformLabeledVectors = {
-    new TransformOperation[MinMaxScaler, LabeledVector, LabeledVector] {
-      override def transform(instance: MinMaxScaler,
+    new TransformDataSetOperation[MinMaxScaler, LabeledVector, LabeledVector] {
+      override def transformDataSet(instance: MinMaxScaler,
         transformParameters: ParameterMap,
         input: DataSet[LabeledVector]): DataSet[LabeledVector] = {
         val resultingParameters = instance.parameters ++ transformParameters

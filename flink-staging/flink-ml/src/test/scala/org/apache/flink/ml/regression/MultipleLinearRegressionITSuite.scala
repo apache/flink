@@ -121,9 +121,11 @@ class MultipleLinearRegressionITSuite
     parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.001)
 
     val inputDS = env.fromCollection(data)
+    val evaluationDS = inputDS.map(x => (x.vector, x.label))
+
     mlr.fit(inputDS, parameters)
 
-    val predictionPairs = mlr.predict(inputDS)
+    val predictionPairs = mlr.evaluate(evaluationDS)
 
     val absoluteErrorSum = predictionPairs.collect().map{
       case (truth, prediction) => Math.abs(truth - prediction)}.sum

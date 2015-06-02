@@ -18,18 +18,21 @@
 
 package org.apache.flink.ml.pipeline
 
-import scala.reflect.ClassTag
-
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.DataSet
+import org.apache.flink.ml._
 import org.apache.flink.ml.common.{FlinkMLTools, ParameterMap, WithParameters}
+
+import scala.reflect.ClassTag
 
 /** Transformer trait for Flink's pipeline operators.
   *
   * A Transformer transforms a [[DataSet]] of an input type into a [[DataSet]] of an output type.
   * Furthermore, a [[Transformer]] is also an [[Estimator]], because some transformations depend
   * on the training data. In order to do that the implementing class has to provide a
-  * [[TransformOperation]] and [[FitOperation]] implementation. The Scala compiler finds these
-  * implicit values if it is put in the scope of the companion object of the implementing class.
+  * [[TransformDataSetOperation]] and [[FitOperation]] implementation. The Scala compiler finds
+  * these implicit values if it is put in the scope of the companion object of the implementing
+  * class.
   *
   * [[Transformer]] can be chained with other [[Transformer]] and [[Predictor]] to create
   * pipelines. These pipelines can consist of an arbitrary number of [[Transformer]] and at most
@@ -46,11 +49,13 @@ trait Transformer[Self <: Transformer[Self]]
   that: Self =>
 
   /** Transform operation which transforms an input [[DataSet]] of type I into an ouptut [[DataSet]]
-    * of type O. The actual transform operation is implemented within the [[TransformOperation]].
+    * of type O. The actual transform operation is implemented within the
+    * [[TransformDataSetOperation]].
     *
     * @param input Input [[DataSet]] of type I
-    * @param transformParameters Additional parameters for the [[TransformOperation]]
-    * @param transformOperation [[TransformOperation]] which encapsulates the algorithm's logic
+    * @param transformParameters Additional parameters for the [[TransformDataSetOperation]]
+    * @param transformOperation [[TransformDataSetOperation]] which encapsulates the algorithm's
+    *                          logic
     * @tparam Input Input data type
     * @tparam Output Ouptut data type
     * @return
@@ -58,10 +63,10 @@ trait Transformer[Self <: Transformer[Self]]
   def transform[Input, Output](
       input: DataSet[Input],
       transformParameters: ParameterMap = ParameterMap.Empty)
-      (implicit transformOperation: TransformOperation[Self, Input, Output])
+      (implicit transformOperation: TransformDataSetOperation[Self, Input, Output])
     : DataSet[Output] = {
     FlinkMLTools.registerFlinkMLTypes(input.getExecutionEnvironment)
-    transformOperation.transform(that, transformParameters, input)
+    transformOperation.transformDataSet(that, transformParameters, input)
   }
 
   /** Chains two [[Transformer]] to form a [[ChainedTransformer]].
@@ -86,93 +91,74 @@ trait Transformer[Self <: Transformer[Self]]
 }
 
 object Transformer{
-
-  /** Fallback [[TransformOperation]] for [[ChainedTransformer]] which is used if no suitable
-    * [[TransformOperation]] implementation can be found. This implementation is used if there is no
-    * [[TransformOperation]] for one of the leaves of the [[ChainedTransformer]] for the given
-    * input types. This is usually the case if one [[Transformer]] does not support the transform
-    * operation for the input type.
-    *
-    * The fallback [[TransformOperation]] for [[ChainedTransformer]] calls first the transform
-    * operation of the left transformer and then the transform operation of the right transformer.
-    * That way the fallback [[TransformOperation]] for a [[Transformer]] will be called which
-    * will fail the job in the pre-flight phase by throwing an exception.
-    *
-    * @param transformLeft Left [[Transformer]] of the pipeline
-    * @param transformRight Right [[Transformer]] of the pipeline
-    * @tparam L Type of the left [[Transformer]]
-    * @tparam R Type of the right [[Transformer]]
-    * @tparam LI Input type of left transformer's [[TransformOperation]]
-    * @tparam LO Output type of left transformer's [[TransformOperation]]
-    * @tparam RO Output type of right transformer's [[TransformOperation]]
-    * @return
-    */
-  implicit def fallbackChainedTransformOperation[
-      L <: Transformer[L],
-      R <: Transformer[R],
-      LI,
-      LO,
-      RO]
-      (implicit transformLeft: TransformOperation[L, LI, LO],
-      transformRight: TransformOperation[R, LO, RO])
-    : TransformOperation[ChainedTransformer[L,R], LI, RO] = {
-
-    new TransformOperation[ChainedTransformer[L, R], LI, RO] {
-      override def transform(
-          chain: ChainedTransformer[L, R],
+  implicit def defaultTransformDataSetOperation[
+      Instance <: Estimator[Instance],
+      Model,
+      Input,
+      Output](
+      implicit transformOperation: TransformOperation[Instance, Model, Input, Output],
+      outputTypeInformation: TypeInformation[Output],
+      outputClassTag: ClassTag[Output])
+    : TransformDataSetOperation[Instance, Input, Output] = {
+    new TransformDataSetOperation[Instance, Input, Output] {
+      override def transformDataSet(
+          instance: Instance,
           transformParameters: ParameterMap,
-          input: DataSet[LI]): DataSet[RO] = {
-        val intermediate = transformLeft.transform(chain.left, transformParameters, input)
-        transformRight.transform(chain.right, transformParameters, intermediate)
-      }
-    }
-  }
+          input: DataSet[Input])
+        : DataSet[Output] = {
+        val resultingParameters = instance.parameters ++ transformParameters
+        val model = transformOperation.getModel(instance, resultingParameters)
 
-  /** Fallback [[TransformOperation]] for [[Transformer]] which do not support the input or output
-    * type with which they are called. This is usualy the case if pipeline operators are chained
-    * which have incompatible input/output types. In order to detect these failures, the fallback
-    * [[TransformOperation]] throws a [[RuntimeException]] with the corresponding input/output
-    * types. Consequently, a wrong pipeline will be detected at pre-flight phase of Flink and
-    * thus prior to execution time.
-    *
-    * @tparam Self Type of the [[Transformer]] for which the [[TransformOperation]] is defined
-    * @tparam IN Input data type of the [[TransformOperation]]
-    * @return
-    */
-  implicit def fallbackTransformOperation[
-      Self: ClassTag,
-      IN: ClassTag]
-    : TransformOperation[Self, IN, Any] = {
-    new TransformOperation[Self, IN, Any] {
-      override def transform(
-          instance: Self,
-          transformParameters: ParameterMap,
-          input: DataSet[IN])
-        : DataSet[Any] = {
-        val self = implicitly[ClassTag[Self]]
-        val in = implicitly[ClassTag[IN]]
-
-        throw new RuntimeException("There is no TransformOperation defined for " +
-          self.runtimeClass +  " which takes a DataSet[" + in.runtimeClass +
-          "] as input.")
+        input.mapWithBcVariable(model){
+          (element, model) => transformOperation.transform(element, model)
+        }
       }
     }
   }
 }
 
-/** Type class for a transform operation of [[Transformer]].
+/** Type class for a transform operation of [[Transformer]]. This works on [[DataSet]] of elements.
   *
-  * The [[TransformOperation]] contains a self type parameter so that the Scala compiler looks into
-  * the companion object of this class to find implicit values.
+  * The [[TransformDataSetOperation]] contains a self type parameter so that the Scala compiler
+  * looks into the companion object of this class to find implicit values.
   *
-  * @tparam Self Type of the [[Transformer]] for which the [[TransformOperation]] is defined
+  * @tparam Instance Type of the [[Transformer]] for which the [[TransformDataSetOperation]] is
+  *                  defined
   * @tparam Input Input data type
   * @tparam Output Ouptut data type
   */
-abstract class TransformOperation[Self, Input, Output] extends Serializable{
-  def transform(
-      instance: Self,
+trait TransformDataSetOperation[Instance, Input, Output] extends Serializable{
+  def transformDataSet(
+      instance: Instance,
       transformParameters: ParameterMap,
       input: DataSet[Input])
     : DataSet[Output]
+}
+
+/** Type class for a transform operation which works on a single element and the corresponding model
+  * of the [[Transformer]].
+  *
+  * @tparam Instance
+  * @tparam Model
+  * @tparam Input
+  * @tparam Output
+  */
+trait TransformOperation[Instance, Model, Input, Output] extends Serializable{
+
+  /** Retrieves the model of the [[Transformer]] for which this operation has been defined.
+    *
+    * @param instance
+    * @param transformParemters
+    * @return
+    */
+  def getModel(instance: Instance, transformParemters: ParameterMap): DataSet[Model]
+
+  /** Transforms a single element with respect to the model associated with the respective
+    * [[Transformer]]
+    *
+    * @param element
+    * @param model
+    * @return
+    */
+  def transform(element: Input, model: Model): Output
 }

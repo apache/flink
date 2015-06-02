@@ -25,7 +25,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
+import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Predictor}
 import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner, GroupReduceFunction, CoGroupFunction}
@@ -390,8 +390,8 @@ object ALS {
   // ===================================== Operations ==============================================
 
   /** Predict operation which calculates the matrix entry for the given indices  */
-  implicit val predictRating = new PredictOperation[ALS, (Int, Int), (Int ,Int, Double)] {
-    override def predict(
+  implicit val predictRating = new PredictDataSetOperation[ALS, (Int, Int), (Int ,Int, Double)] {
+    override def predictDataSet(
         instance: ALS,
         predictParameters: ParameterMap,
         input: DataSet[(Int, Int)])

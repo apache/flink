@@ -40,11 +40,13 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val trainingDS = env.fromCollection(Classification.trainingData)
 
+    val testingDS = trainingDS.map(_.vector)
+
     svm.fit(trainingDS)
 
     val weightVector = svm.weightsOption.get.collect().apply(0)
 
-    weightVector.valuesIterator.zip(Classification.expectedWeightVector.valueIterator).foreach {
+    weightVector.valueIterator.zip(Classification.expectedWeightVector.valueIterator).foreach {
       case (weight, expectedWeight) =>
         weight should be(expectedWeight +- 0.1)
     }
@@ -63,11 +65,13 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val trainingDS = env.fromCollection(Classification.trainingData)
 
+    val test = trainingDS.map(x => (x.vector, x.label))
+
     svm.fit(trainingDS)
 
     val threshold = 0.0
 
-    val predictionPairs = svm.predict(trainingDS).map {
+    val predictionPairs = svm.evaluate(test).map {
       truthPrediction =>
         val truth = truthPrediction._1
         val prediction = truthPrediction._2

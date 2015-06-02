@@ -18,6 +18,7 @@
 
 package org.apache.flink.ml.pipeline
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.ml.common.ParameterMap
 
@@ -40,15 +41,15 @@ case class ChainedPredictor[T <: Transformer[T], P <: Predictor[P]](transformer:
 
 object ChainedPredictor{
 
-  /** [[PredictOperation]] for the [[ChainedPredictor]].
+  /** [[PredictDataSetOperation]] for the [[ChainedPredictor]].
     *
-    * The [[PredictOperation]] requires the [[TransformOperation]] of the preceding [[Transformer]]
-    * and the [[PredictOperation]] of the trailing [[Predictor]]. Upon calling predict, the testing
-    * data is first transformed by the preceding [[Transformer]] and the result is then used to
-    * calculate the prediction via the trailing [[Predictor]].
+    * The [[PredictDataSetOperation]] requires the [[TransformDataSetOperation]] of the preceding
+    * [[Transformer]] and the [[PredictDataSetOperation]] of the trailing [[Predictor]]. Upon
+    * calling predict, the testing data is first transformed by the preceding [[Transformer]] and
+    * the result is then used to calculate the prediction via the trailing [[Predictor]].
     *
-    * @param transformOperation [[TransformOperation]] for the preceding [[Transformer]]
-    * @param predictOperation [[PredictOperation]] for the trailing [[Predictor]]
+    * @param transformOperation [[TransformDataSetOperation]] for the preceding [[Transformer]]
+    * @param predictOperation [[PredictDataSetOperation]] for the trailing [[Predictor]]
     * @tparam T Type of the preceding [[Transformer]]
     * @tparam P Type of the trailing [[Predictor]]
     * @tparam Testing Type of the testing data
@@ -62,12 +63,12 @@ object ChainedPredictor{
       Testing,
       Intermediate,
       Prediction](
-      implicit transformOperation: TransformOperation[T, Testing, Intermediate],
-      predictOperation: PredictOperation[P, Intermediate, Prediction])
-    : PredictOperation[ChainedPredictor[T, P], Testing, Prediction] = {
+      implicit transformOperation: TransformDataSetOperation[T, Testing, Intermediate],
+      predictOperation: PredictDataSetOperation[P, Intermediate, Prediction])
+    : PredictDataSetOperation[ChainedPredictor[T, P], Testing, Prediction] = {
 
-    new PredictOperation[ChainedPredictor[T, P], Testing, Prediction] {
-      override def predict(
+    new PredictDataSetOperation[ChainedPredictor[T, P], Testing, Prediction] {
+      override def predictDataSet(
           instance: ChainedPredictor[T, P],
           predictParameters: ParameterMap,
           input: DataSet[Testing])
@@ -81,15 +82,15 @@ object ChainedPredictor{
 
   /** [[FitOperation]] for the [[ChainedPredictor]].
     *
-    * The [[FitOperation]] requires the [[FitOperation]] and the [[TransformOperation]] of the
-    * preceding [[Transformer]] as well as the [[FitOperation]] of the trailing [[Predictor]].
+    * The [[FitOperation]] requires the [[FitOperation]] and the [[TransformDataSetOperation]] of
+    * the preceding [[Transformer]] as well as the [[FitOperation]] of the trailing [[Predictor]].
     * Upon calling fit, the preceding [[Transformer]] is first fitted to the training data.
     * The training data is then transformed by the fitted [[Transformer]]. The transformed data
     * is then used to fit the [[Predictor]].
     *
     * @param fitOperation [[FitOperation]] of the preceding [[Transformer]]
-    * @param transformOperation [[TransformOperation]] of the preceding [[Transformer]]
-    * @param predictorFitOperation [[PredictOperation]] of the trailing [[Predictor]]
+    * @param transformOperation [[TransformDataSetOperation]] of the preceding [[Transformer]]
+    * @param predictorFitOperation [[PredictDataSetOperation]] of the trailing [[Predictor]]
     * @tparam L Type of the preceding [[Transformer]]
     * @tparam R Type of the trailing [[Predictor]]
     * @tparam I Type of the training data
@@ -98,7 +99,7 @@ object ChainedPredictor{
     */
   implicit def chainedFitOperation[L <: Transformer[L], R <: Predictor[R], I, T](implicit
     fitOperation: FitOperation[L, I],
-    transformOperation: TransformOperation[L, I, T],
+    transformOperation: TransformDataSetOperation[L, I, T],
     predictorFitOperation: FitOperation[R, T]): FitOperation[ChainedPredictor[L, R], I] = {
     new FitOperation[ChainedPredictor[L, R], I] {
       override def fit(
@@ -109,6 +110,29 @@ object ChainedPredictor{
         instance.transformer.fit(input, fitParameters)
         val intermediateResult = instance.transformer.transform(input, fitParameters)
         instance.predictor.fit(intermediateResult, fitParameters)
+      }
+    }
+  }
+
+  implicit def chainedEvaluationOperation[
+      T <: Transformer[T],
+      P <: Predictor[P],
+      Testing,
+      Intermediate,
+      PredictionValue](
+      implicit transformOperation: TransformDataSetOperation[T, Testing, Intermediate],
+      evaluateOperation: EvaluateDataSetOperation[P, Intermediate, PredictionValue],
+      testingTypeInformation: TypeInformation[Testing],
+      predictionValueTypeInformation: TypeInformation[PredictionValue])
+    : EvaluateDataSetOperation[ChainedPredictor[T, P], Testing, PredictionValue] = {
+    new EvaluateDataSetOperation[ChainedPredictor[T, P], Testing, PredictionValue] {
+      override def evaluateDataSet(
+          instance: ChainedPredictor[T, P],
+          evaluateParameters: ParameterMap,
+          testing: DataSet[Testing])
+        : DataSet[(PredictionValue, PredictionValue)] = {
+        val intermediate = instance.transformer.transform(testing, evaluateParameters)
+        instance.predictor.evaluate(intermediate, evaluateParameters)
       }
     }
   }
