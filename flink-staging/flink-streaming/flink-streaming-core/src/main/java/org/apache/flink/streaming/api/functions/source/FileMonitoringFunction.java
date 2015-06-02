@@ -52,7 +52,7 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 	private Map<String, Long> offsetOfFiles;
 	private Map<String, Long> modificationTimes;
 
-	private volatile boolean isRunning;
+	private volatile boolean isRunning = true;
 
 	public FileMonitoringFunction(String path, long interval, WatchType watchType) {
 		this.path = path;
@@ -64,7 +64,6 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 
 	@Override
 	public void run(Object checkpointLock, Collector<Tuple3<String, Long, Long>> collector) throws Exception {
-		isRunning = true;
 		FileSystem fileSystem = FileSystem.get(new URI(path));
 
 		while (isRunning) {
@@ -117,11 +116,7 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 			return true;
 		} else {
 			Long lastModification = modificationTimes.get(fileName);
-			if (lastModification == null) {
-				return false;
-			} else {
-				return lastModification >= modificationTime;
-			}
+			return lastModification != null && lastModification >= modificationTime;
 		}
 	}
 

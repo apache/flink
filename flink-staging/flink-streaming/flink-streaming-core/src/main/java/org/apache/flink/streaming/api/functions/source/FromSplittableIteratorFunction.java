@@ -31,7 +31,7 @@ public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunctio
 
 	private transient Iterator<T> iterator;
 
-	private volatile boolean isRunning;
+	private volatile boolean isRunning = true;
 
 	public FromSplittableIteratorFunction(SplittableIterator<T> iterator) {
 		this.fullIterator = iterator;
@@ -47,8 +47,6 @@ public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunctio
 
 	@Override
 	public void run(Object checkpointLock, Collector<T> out) throws Exception {
-		isRunning = true;
-
 		while (isRunning && iterator.hasNext()) {
 			out.collect(iterator.next());
 		}

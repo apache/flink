@@ -86,7 +86,7 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 
 	@Override
 	public void cancel() {
-		streamOperator.cancel();
 		super.cancel();
+		streamOperator.cancel();
 	}
 }

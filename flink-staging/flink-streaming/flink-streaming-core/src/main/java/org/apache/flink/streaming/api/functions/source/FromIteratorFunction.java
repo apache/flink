@@ -25,9 +25,9 @@ public class FromIteratorFunction<T> implements SourceFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	Iterator<T> iterator;
+	private final Iterator<T> iterator;
 
-	private volatile boolean isRunning;
+	private volatile boolean isRunning = true;
 
 	public FromIteratorFunction(Iterator<T> iterator) {
 		this.iterator = iterator;
@@ -35,7 +35,6 @@ public class FromIteratorFunction<T> implements SourceFunction<T> {
 
 	@Override
 	public void run(Object checkpointLock, Collector<T> out) throws Exception {
-		isRunning = true;
 		while (isRunning && iterator.hasNext()) {
 			out.collect(iterator.next());
 		}

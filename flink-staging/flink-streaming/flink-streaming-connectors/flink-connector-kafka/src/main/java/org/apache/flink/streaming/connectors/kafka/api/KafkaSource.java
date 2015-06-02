@@ -38,6 +38,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Source that listens to a Kafka topic using the high level Kafka API.
+ * 
+ * <p><b>IMPORTANT:</b> This source is not participating in the checkpointing procedure
+ * and hence gives no form of processing guarantees.
+ * Use the {@link org.apache.flink.streaming.connectors.kafka.api.persistent.PersistentKafkaSource}
+ * for a fault tolerant source that provides "exactly once" processing guarantees when used with
+ * checkpointing enabled.</p>
  *
  * @param <OUT>
  *            Type of the messages on the topic.
@@ -47,20 +53,20 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaSource.class);
+	
+	private static final String DEFAULT_GROUP_ID = "flink-group";
+	private static final long ZOOKEEPER_DEFAULT_SYNC_TIME = 200;
 
 	private final String zookeeperAddress;
 	private final String groupId;
 	private final String topicId;
-	private Properties customProperties;
-
+	private final Properties customProperties;
+	private final long zookeeperSyncTimeMillis;
+	
 	private transient ConsumerConnector consumer;
 	private transient ConsumerIterator<byte[], byte[]> consumerIterator;
-
-	private long zookeeperSyncTimeMillis;
-	private static final long ZOOKEEPER_DEFAULT_SYNC_TIME = 200;
-	private static final String DEFAULT_GROUP_ID = "flink-group";
-
-	private volatile boolean isRunning = false;
+	
+	private volatile boolean isRunning;
 
 	/**
 	 * Creates a KafkaSource that consumes a topic.
@@ -100,10 +106,12 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	 * 			  Custom properties for Kafka
 	 */
 	public KafkaSource(String zookeeperAddress,
-		String topicId, String groupId,
-		DeserializationSchema<OUT> deserializationSchema,
-		long zookeeperSyncTimeMillis, Properties customProperties) {
+						String topicId, String groupId,
+						DeserializationSchema<OUT> deserializationSchema,
+						long zookeeperSyncTimeMillis, Properties customProperties)
+	{
 		super(deserializationSchema);
+		
 		Preconditions.checkNotNull(zookeeperAddress, "ZK address is null");
 		Preconditions.checkNotNull(topicId, "Topic ID is null");
 		Preconditions.checkNotNull(deserializationSchema, "deserializationSchema is null");
@@ -156,7 +164,7 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 		props.put("zookeeper.sync.time.ms", Long.toString(zookeeperSyncTimeMillis));
 		props.put("auto.commit.interval.ms", "1000");
 
-		if(customProperties != null) {
+		if (customProperties != null) {
 			for(Map.Entry<Object, Object> e : props.entrySet()) {
 				if(props.contains(e.getKey())) {
 					LOG.warn("Overwriting property "+e.getKey()+" with value "+e.getValue());
@@ -179,7 +187,9 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 
 	@Override
 	public void run(Object checkpointLock, Collector<OUT> collector) throws Exception {
-		isRunning = true;
+		
+		// NOTE: Since this source is not checkpointed, we do not need to
+		// acquire the checkpoint lock
 		try {
 			while (isRunning && consumerIterator.hasNext()) {
 				OUT out = schema.deserialize(consumerIterator.next().message());
@@ -196,6 +206,7 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	@Override
 	public void open(Configuration config) throws Exception {
 		initializeConnection();
+		isRunning = true;
 	}
 
 	@Override
