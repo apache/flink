@@ -18,7 +18,9 @@
 
 package org.apache.flink.ml.classification
 
-import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, PredictDataSetOperation,
+Predictor}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
@@ -29,7 +31,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml._
 import org.apache.flink.ml.common.FlinkMLTools.ModuloKeyPartitioner
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.math.Vector
+import org.apache.flink.ml.math.{DenseVector, Vector}
 import org.apache.flink.ml.math.Breeze._
 
 import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
@@ -124,7 +126,7 @@ class SVM extends Predictor[SVM] {
   import SVM._
 
   /** Stores the learned weight vector after the fit operation */
-  var weightsOption: Option[DataSet[BreezeDenseVector[Double]]] = None
+  var weightsOption: Option[DataSet[DenseVector]] = None
 
   /** Sets the number of data blocks/partitions
     *
@@ -228,70 +230,20 @@ object SVM{
 
   // ========================================== Operations =========================================
 
-  /** [[org.apache.flink.ml.pipeline.PredictOperation]] for vector types. The result type is a
-    * [[LabeledVector]]
-    *
-    * @tparam T Subtype of [[Vector]]
-    * @return
-    */
-  implicit def predictValues[T <: Vector] = {
-    new PredictOperation[SVM, T, LabeledVector]{
-      override def predict(
-          instance: SVM,
-          predictParameters: ParameterMap,
-          input: DataSet[T])
-        : DataSet[LabeledVector] = {
-
-        instance.weightsOption match {
-          case Some(weights) => {
-            input.mapWithBcVariable(weights){
-              (vector, weights) => {
-                val dotProduct = weights dot vector.asBreeze
-
-                LabeledVector(dotProduct, vector)
-              }
-            }
-          }
-
+  implicit def predictVectors[T <: Vector] = {
+    new PredictOperation[SVM, DenseVector, T, Double](){
+      override def getModel(self: SVM, predictParameters: ParameterMap): DataSet[DenseVector] = {
+        self.weightsOption match {
+          case Some(model) => model
           case None => {
             throw new RuntimeException("The SVM model has not been trained. Call first fit" +
               "before calling the predict operation.")
           }
         }
       }
-    }
-  }
 
-  /** [[org.apache.flink.ml.pipeline.PredictOperation]] for [[LabeledVector ]]types. The result type
-    * is a [[(Double, Double)]] tuple, corresponding to (truth, prediction)
-    *
-    * @return A DataSet[(Double, Double)] where each tuple is a (truth, prediction) pair.
-    */
-  implicit def predictLabeledValues = {
-    new PredictOperation[SVM, LabeledVector, (Double, Double)]{
-      override def predict(
-          instance: SVM,
-          predictParameters: ParameterMap,
-          input: DataSet[LabeledVector])
-        : DataSet[(Double, Double)] = {
-
-        instance.weightsOption match {
-          case Some(weights) => {
-            input.mapWithBcVariable(weights){
-              (labeledVector, weights) => {
-                val prediction = weights dot labeledVector.vector.asBreeze
-                val truth = labeledVector.label
-
-                (truth, prediction)
-              }
-            }
-          }
-
-          case None => {
-            throw new RuntimeException("The SVM model has not been trained. Call first fit" +
-              "before calling the predict operation.")
-          }
-        }
+      override def predict(value: T, model: DenseVector): Double = {
+        value.asBreeze dot model.asBreeze
       }
     }
   }
@@ -368,7 +320,7 @@ object SVM{
         }
 
         // Store the learned weight vector in hte given instance
-        instance.weightsOption = Some(resultingWeights)
+        instance.weightsOption = Some(resultingWeights.map(_.fromBreeze[DenseVector]))
       }
     }
   }

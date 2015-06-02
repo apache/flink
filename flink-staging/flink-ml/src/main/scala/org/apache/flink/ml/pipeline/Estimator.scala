@@ -19,6 +19,7 @@
 package org.apache.flink.ml.pipeline
 
 import scala.reflect.ClassTag
+import scala.reflect.runtime.universe._
 
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.ml.common.{FlinkMLTools, ParameterMap, WithParameters}
@@ -68,7 +69,9 @@ object Estimator{
     * @tparam Training Type of training data
     * @return
     */
-  implicit def fallbackFitOperation[Self: ClassTag, Training: ClassTag]
+  implicit def fallbackFitOperation[
+      Self: TypeTag,
+      Training: TypeTag]
     : FitOperation[Self, Training] = {
     new FitOperation[Self, Training]{
       override def fit(
@@ -76,88 +79,90 @@ object Estimator{
           fitParameters: ParameterMap,
           input: DataSet[Training])
         : Unit = {
+        val self = typeOf[Self]
+        val training = typeOf[Training]
 
-          val self = implicitly[ClassTag[Self]]
-          val training = implicitly[ClassTag[Training]]
-
-          throw new RuntimeException("There is no FitOperation defined for " + self.runtimeClass +
-            " which trains on a DataSet[" + training.runtimeClass + "]")
-        }
-      }
-    }
-
-  /** Fallback [[FitOperation]] type class implementation for [[ChainedTransformer]]. The fallback
-    * implementation is used if the Scala compiler could not instantiate the chained fit operation
-    * defined in the companion object of [[ChainedTransformer]]. This is usually the case if either
-    * a [[FitOperation]] or a [[TransformOperation]] could not be instantiated for one of the
-    * leaves of the chained transformer. The fallback [[FitOperation]] calls the first the
-    * fit operation of the left transformer, then the transform operation of the left transformer
-    * and last the fit operation of the right transformer.
-    *
-    * @param leftFitOperation [[FitOperation]] of the left transformer
-    * @param leftTransformOperation [[TransformOperation]] of the left transformer
-    * @param rightFitOperaiton [[FitOperation]] of the right transformer
-    * @tparam L Type of left transformer
-    * @tparam R Type of right transformer
-    * @tparam LI Input type of left transformer's [[FitOperation]]
-    * @tparam LO Output type of left transformer's [[TransformOperation]]
-    * @return
-    */
-  implicit def fallbackChainedFitOperationTransformer[
-      L <: Transformer[L],
-      R <: Transformer[R],
-      LI,
-      LO](implicit
-      leftFitOperation: FitOperation[L, LI],
-      leftTransformOperation: TransformOperation[L, LI, LO],
-      rightFitOperaiton: FitOperation[R, LO])
-    : FitOperation[ChainedTransformer[L, R], LI] = {
-    new FitOperation[ChainedTransformer[L, R], LI] {
-      override def fit(
-          instance: ChainedTransformer[L, R],
-          fitParameters: ParameterMap,
-          input: DataSet[LI]): Unit = {
-        instance.left.fit(input, fitParameters)
-        val intermediate = instance.left.transform(input, fitParameters)
-        instance.right.fit(intermediate, fitParameters)
+        throw new RuntimeException("There is no FitOperation defined for " + self +
+          " which trains on a DataSet[" + training + "]")
       }
     }
   }
 
-  /** Fallback [[FitOperation]] type class implementation for [[ChainedPredictor]]. The fallback
-    * implementation is used if the Scala compiler could not instantiate the chained fit operation
-    * defined in the companion object of [[ChainedPredictor]]. This is usually the case if either
-    * a [[FitOperation]] or a [[TransformOperation]] could not be instantiated for one of the
-    * leaves of the chained transformer. The fallback [[FitOperation]] calls the first the
-    * fit operation of the left transformer, then the transform operation of the left transformer
-    * and last the fit operation of the right transformer.
+  /** Fallback [[PredictDataSetOperation]] if a [[Predictor]] is called with a not supported input
+    * data type. The fallback [[PredictDataSetOperation]] lets the system fail with a
+    * [[RuntimeException]] stating which input and output data types were inferred but for which no
+    * [[PredictDataSetOperation]] could be found.
     *
-    * @param leftFitOperation [[FitOperation]] of the left transformer
-    * @param leftTransformOperation [[TransformOperation]] of the left transformer
-    * @param rightFitOperaiton [[FitOperation]] of the right transformer
-    * @tparam L Type of left transformer
-    * @tparam R Type of right transformer
-    * @tparam LI Input type of left transformer's [[FitOperation]]
-    * @tparam LO Output type of left transformer's [[TransformOperation]]
+    * @tparam Self Type of the [[Predictor]]
+    * @tparam Testing Type of the testing data
     * @return
     */
-  implicit def fallbackChainedFitOperationPredictor[
-  L <: Transformer[L],
-  R <: Predictor[R],
-  LI,
-  LO](implicit
-    leftFitOperation: FitOperation[L, LI],
-    leftTransformOperation: TransformOperation[L, LI, LO],
-    rightFitOperaiton: FitOperation[R, LO])
-  : FitOperation[ChainedPredictor[L, R], LI] = {
-    new FitOperation[ChainedPredictor[L, R], LI] {
-      override def fit(
-          instance: ChainedPredictor[L, R],
-          fitParameters: ParameterMap,
-          input: DataSet[LI]): Unit = {
-        instance.transformer.fit(input, fitParameters)
-        val intermediate = instance.transformer.transform(input, fitParameters)
-        instance.predictor.fit(intermediate, fitParameters)
+  implicit def fallbackPredictOperation[
+      Self: TypeTag,
+      Testing: TypeTag]
+    : PredictDataSetOperation[Self, Testing, Any] = {
+    new PredictDataSetOperation[Self, Testing, Any] {
+      override def predictDataSet(
+          instance: Self,
+          predictParameters: ParameterMap,
+          input: DataSet[Testing])
+        : DataSet[Any] = {
+        val self = typeOf[Self]
+        val testing = typeOf[Testing]
+
+        throw new RuntimeException("There is no PredictOperation defined for " + self +
+          " which takes a DataSet[" + testing + "] as input.")
+      }
+    }
+  }
+
+  /** Fallback [[TransformDataSetOperation]] for [[Transformer]] which do not support the input or
+    * output type with which they are called. This is usualy the case if pipeline operators are
+    * chained which have incompatible input/output types. In order to detect these failures, the
+    * fallback [[TransformDataSetOperation]] throws a [[RuntimeException]] with the corresponding
+    * input/output types. Consequently, a wrong pipeline will be detected at pre-flight phase of
+    * Flink and thus prior to execution time.
+    *
+    * @tparam Self Type of the [[Transformer]] for which the [[TransformDataSetOperation]] is
+    *              defined
+    * @tparam IN Input data type of the [[TransformDataSetOperation]]
+    * @return
+    */
+  implicit def fallbackTransformOperation[
+  Self: TypeTag,
+  IN: TypeTag]
+  : TransformDataSetOperation[Self, IN, Any] = {
+    new TransformDataSetOperation[Self, IN, Any] {
+      override def transformDataSet(
+        instance: Self,
+        transformParameters: ParameterMap,
+        input: DataSet[IN])
+      : DataSet[Any] = {
+        val self = typeOf[Self]
+        val in = typeOf[IN]
+
+        throw new RuntimeException("There is no TransformOperation defined for " +
+          self +  " which takes a DataSet[" + in +
+          "] as input.")
+      }
+    }
+  }
+
+  implicit def fallbackEvaluateOperation[
+      Self: TypeTag,
+      Testing: TypeTag]
+    : EvaluateDataSetOperation[Self, Testing, Any] = {
+    new EvaluateDataSetOperation[Self, Testing, Any] {
+      override def evaluateDataSet(
+        instance: Self,
+        predictParameters: ParameterMap,
+        input: DataSet[Testing])
+      : DataSet[(Any, Any)] = {
+        val self = typeOf[Self]
+        val testing = typeOf[Testing]
+
+        throw new RuntimeException("There is no PredictOperation defined for " + self +
+          " which takes a DataSet[" + testing + "] as input.")
       }
     }
   }
