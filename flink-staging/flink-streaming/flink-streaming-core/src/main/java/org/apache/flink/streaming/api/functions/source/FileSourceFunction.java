@@ -40,7 +40,7 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	private transient InputSplitProvider provider;
 	private transient Iterator<InputSplit> splitIterator;
 
-	private volatile boolean isRunning;
+	private volatile boolean isRunning = true;
 
 	@SuppressWarnings("unchecked")
 	public FileSourceFunction(InputFormat<OUT, ?> format, TypeInformation<OUT> typeInfo) {
@@ -65,7 +65,6 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 
 	@Override
 	public void close() throws Exception {
-		super.close();
 		format.close();
 	}
 
@@ -118,8 +117,6 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 
 	@Override
 	public void run(Object checkpointLock, Collector<OUT> out) throws Exception {
-		isRunning = true;
-
 		while (isRunning) {
 			OUT nextElement = serializer.createInstance();
 			nextElement =  format.nextRecord(nextElement);
