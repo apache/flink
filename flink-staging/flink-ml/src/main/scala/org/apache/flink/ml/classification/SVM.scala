@@ -26,6 +26,7 @@ import scala.util.Random
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.ml._
 import org.apache.flink.ml.common.FlinkMLTools.ModuloKeyPartitioner
 import org.apache.flink.ml.common._
 import org.apache.flink.ml.math.Vector
@@ -190,6 +191,7 @@ class SVM extends Predictor[SVM] {
   * of the algorithm.
   */
 object SVM{
+
   val WEIGHT_VECTOR ="weightVector"
 
   // ========================================== Parameters =========================================
@@ -242,7 +244,13 @@ object SVM{
 
         instance.weightsOption match {
           case Some(weights) => {
-            input.map(new PredictionMapper[T]).withBroadcastSet(weights, WEIGHT_VECTOR)
+            input.mapWithBcVariable(weights){
+              (vector, weights) => {
+                val dotProduct = weights dot vector.asBreeze
+
+                LabeledVector(dotProduct, vector)
+              }
+            }
           }
 
           case None => {
@@ -251,28 +259,6 @@ object SVM{
           }
         }
       }
-    }
-  }
-
-  /** Mapper to calculate the value of the prediction function. This is a RichMapFunction, because
-    * we broadcast the weight vector to all mappers.
-    */
-  class PredictionMapper[T <: Vector] extends RichMapFunction[T, LabeledVector] {
-
-    var weights: BreezeDenseVector[Double] = _
-
-    @throws(classOf[Exception])
-    override def open(configuration: Configuration): Unit = {
-      // get current weights
-      weights = getRuntimeContext.
-        getBroadcastVariable[BreezeDenseVector[Double]](WEIGHT_VECTOR).get(0)
-    }
-
-    override def map(vector: T): LabeledVector = {
-      // calculate the prediction value (scaled distance from the separating hyperplane)
-      val dotProduct = weights dot vector.asBreeze
-
-      LabeledVector(dotProduct, vector)
     }
   }
 
@@ -291,7 +277,14 @@ object SVM{
 
         instance.weightsOption match {
           case Some(weights) => {
-            input.map(new LabeledPredictionMapper).withBroadcastSet(weights, WEIGHT_VECTOR)
+            input.mapWithBcVariable(weights){
+              (labeledVector, weights) => {
+                val prediction = weights dot labeledVector.vector.asBreeze
+                val truth = labeledVector.label
+
+                (truth, prediction)
+              }
+            }
           }
 
           case None => {
@@ -302,30 +295,6 @@ object SVM{
       }
     }
   }
-
-  /** Mapper to calculate the value of the prediction function. This is a RichMapFunction, because
-    * we broadcast the weight vector to all mappers.
-    */
-  class LabeledPredictionMapper extends RichMapFunction[LabeledVector, (Double, Double)] {
-
-    var weights: BreezeDenseVector[Double] = _
-
-    @throws(classOf[Exception])
-    override def open(configuration: Configuration): Unit = {
-      // get current weights
-      weights = getRuntimeContext.
-        getBroadcastVariable[BreezeDenseVector[Double]](WEIGHT_VECTOR).get(0)
-    }
-
-    override def map(labeledVector: LabeledVector): (Double, Double) = {
-      // calculate the prediction value (scaled distance from the separating hyperplane)
-      val prediction = weights dot labeledVector.vector.asBreeze
-      val truth = labeledVector.label
-
-      (truth, prediction)
-    }
-  }
-
 
   /** [[FitOperation]] which trains a SVM with soft-margin based on the given training data set.
     *
@@ -540,17 +509,17 @@ object SVM{
 
     // compute projected gradient
     var proj_grad = if(alpha  <= 0.0){
-      math.min(grad, 0)
+      scala.math.min(grad, 0)
     } else if(alpha >= 1.0) {
-      math.max(grad, 0)
+      scala.math.max(grad, 0)
     } else {
       grad
     }
 
-    if(math.abs(grad) != 0.0){
+    if(scala.math.abs(grad) != 0.0){
       val qii = x dot x
       val newAlpha = if(qii != 0.0){
-        math.min(math.max((alpha - (grad / qii)), 0.0), 1.0)
+        scala.math.min(scala.math.max((alpha - (grad / qii)), 0.0), 1.0)
       } else {
         1.0
       }
