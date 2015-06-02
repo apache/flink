@@ -226,7 +226,7 @@ public class WindowJoin {
 				salariesPath = args[1];
 				outputPath = args[2];
 			} else {
-				System.err.println("Usage: WindowJoin <result path> or WindowJoin <input path 1> <input path 1> " +
+				System.err.println("Usage: WindowJoin <result path> or WindowJoin <input path 1> <input path 2> " +
 						"<result path>");
 				return false;
 			}

@@ -15,11 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.test.socket;
+package org.apache.flink.streaming.util;
 
 import org.apache.flink.runtime.net.NetUtils;
-import org.apache.flink.streaming.examples.socket.SocketTextStreamWordCount;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 import org.junit.Assert;
 
@@ -27,10 +25,10 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public class SocketTextStreamWordCountITCase extends StreamingProgramTestBase {
+public abstract class SocketProgramITCaseBase extends StreamingProgramTestBase {
 
-	private static final String HOST = "localhost";
-	private static Integer port;
+	protected static final String HOST = "localhost";
+	protected static Integer port;
 	protected String resultPath;
 
 	private ServerSocket temporarySocket;
@@ -46,11 +44,6 @@ public class SocketTextStreamWordCountITCase extends StreamingProgramTestBase {
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
 		temporarySocket.close();
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
-		SocketTextStreamWordCount.main(new String[]{HOST, port.toString(), resultPath});
 	}
 
 	public ServerSocket createSocket(String host, int port, String contents) throws Exception {

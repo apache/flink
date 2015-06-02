@@ -28,47 +28,124 @@ import scala.util.Random
 
 object WindowJoin {
 
-  case class Name(id: Long, name: String)
-  case class Age(id: Long, age: Int)
-  case class Person(name: String, age: Long)
+  // *************************************************************************
+  // PROGRAM
+  // *************************************************************************
+
+  case class Grade(name: String, grade: Int)
+  case class Salary(name: String, salary: Int)
+  case class Person(name: String, grade: Int, salary: Int)
 
   def main(args: Array[String]) {
 
-   val env = StreamExecutionEnvironment.getExecutionEnvironment
+    if (!parseParameters(args)) {
+      return
+    }
 
-    //Create streams for names and ages by mapping the inputs to the corresponding objects
-    val names = env.fromCollection(nameStream).map(x => Name(x._1, x._2))
-    val ages = env.fromCollection(ageStream).map(x => Age(x._1, x._2))
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    //Join the two input streams by id on the last 2 seconds every second and create new 
-    //Person objects containing both name and age
+    //Create streams for grades and salaries by mapping the inputs to the corresponding objects
+    val grades = setGradesInput(env)
+    val salaries = setSalariesInput(env)
+
+    //Join the two input streams by name on the last 2 seconds every second and create new
+    //Person objects containing both grade and salary
     val joined =
-      names.join(ages).onWindow(2, TimeUnit.SECONDS)
+      grades.join(salaries).onWindow(2, TimeUnit.SECONDS)
                       .every(1, TimeUnit.SECONDS)
-                      .where("id")
-                      .equalTo("id") { (n, a) => Person(n.name, a.age) }
+                      .where("name")
+                      .equalTo("name") { (g, s) => Person(g.name, g.grade, s.salary) }
 
-    joined print
+    if (fileOutput) {
+      joined.writeAsText(outputPath)
+    } else {
+      joined.print()
+    }
 
     env.execute("WindowJoin")
   }
 
-  def nameStream(): Stream[(Long, String)] = {
-    def nameMapper(names: Array[String])(x: Int): (Long, String) =
+  // *************************************************************************
+  // USER FUNCTIONS
+  // *************************************************************************
+
+  val names = Array("tom", "jerry", "alice", "bob", "john", "grace")
+  val gradeCount = 5
+  val salaryMax = 10000
+  val sleepInterval = 100
+  
+  def gradeStream(): Stream[(String, Int)] = {
+    def gradeMapper(names: Array[String])(x: Int): (String, Int) =
       {
-        if (x % 100 == 0) Thread.sleep(1000)
-        (x, names(Random.nextInt(names.length)))
+        if (x % sleepInterval == 0) Thread.sleep(sleepInterval)
+        (names(Random.nextInt(names.length)), Random.nextInt(gradeCount))
       }
-    range(1, 10000).map(nameMapper(Array("tom", "jerry", "alice", "bob", "john", "grace")))
+    range(1, 100).map(gradeMapper(names))
   }
 
-  def ageStream(): Stream[(Long, Int)] = {
-    def ageMapper(x: Int): (Long, Int) =
+  def salaryStream(): Stream[(String, Int)] = {
+    def salaryMapper(x: Int): (String, Int) =
       {
-        if (x % 100 == 0) Thread.sleep(1000)
-        (x, Random.nextInt(90))
+        if (x % sleepInterval == 0) Thread.sleep(sleepInterval)
+        (names(Random.nextInt(names.length)), Random.nextInt(salaryMax))
       }
-    range(1, 10000).map(ageMapper)
+    range(1, 100).map(salaryMapper)
   }
 
+  def parseMap(line : String): (String, Int) = {
+    val record = line.substring(1, line.length - 1).split(",")
+    (record(0), record(1).toInt)
+  }
+
+  // *************************************************************************
+  // UTIL METHODS
+  // *************************************************************************
+
+  private var fileInput: Boolean = false
+  private var fileOutput: Boolean = false
+
+  private var gradesPath: String = null
+  private var salariesPath: String = null
+  private var outputPath: String = null
+
+  private def parseParameters(args: Array[String]): Boolean = {
+    if (args.length > 0) {
+      if (args.length == 1) {
+        fileOutput = true
+        outputPath = args(0)
+      }
+      else if (args.length == 3) {
+        fileInput = true
+        fileOutput = true
+        gradesPath = args(0)
+        salariesPath = args(1)
+        outputPath = args(2)
+      } else {
+        System.err.println("Usage: WindowJoin <result path> or WindowJoin <input path 1> <input path 2> " + "<result path>")
+        return false
+      }
+    } else {
+      System.out.println("Executing WindowJoin with generated data.")
+      System.out.println("  Provide parameter to write to file.")
+      System.out.println("  Usage: WindowJoin <result path>")
+    }
+    return true
+  }
+
+  private def setGradesInput(env: StreamExecutionEnvironment) : DataStream[Grade] = {
+    if (fileInput) {
+      env.readTextFile(gradesPath).map(parseMap(_)).map(x => Grade(x._1, x._2))
+    } else {
+      env.fromCollection(gradeStream).map(x => Grade(x._1, x._2))
+    }
+  }
+
+  private def setSalariesInput(env: StreamExecutionEnvironment) : DataStream[Salary] = {
+    if (fileInput) {
+      env.readTextFile(salariesPath).map(parseMap(_)).map(x => Salary(x._1, x._2))
+    }
+    else {
+      env.fromCollection(salaryStream).map(x => Salary(x._1, x._2))
+    }
+  }
 }
