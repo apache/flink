@@ -1,5 +1,8 @@
 package org.apache.flink.graph.library;
 
+import org.apache.flink.api.common.aggregators.LongSumAggregator;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
@@ -7,6 +10,8 @@ import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.Hits;
+
+import java.io.Serializable;
 
 
 /**
@@ -36,94 +41,121 @@ import org.apache.flink.graph.utils.Hits;
  *
  */
 
-public class HITS <K> implements GraphAlgorithm<K, Double, Double> {
+public class HITS <K extends Comparable<K> & Serializable>implements GraphAlgorithm<K, Double, String> {
 
-    private Graph<K, Double, Double>AuthorityGraph=null;
     private Hits HubAuthority;
     private int maxIterations;
 
     public HITS(Hits choice, int maxIter){
+
         this.HubAuthority=choice;
-        this.maxIterations=maxIter;
+
+        if(this.HubAuthority.equals(Hits.AUTHORITY)) {
+
+            this.maxIterations=(maxIter*4)-2;
+
+        }else {
+
+            this.maxIterations=maxIter*4;
+
+        }
+
     }
 
     /**
      * this method will get a graph and process for Hub and Authority and it will return a graph( Hub or Authority
      * values).
-     * @param HubGraph
+     * @param HitsGraph
      * @return Graph
      * @throws Exception
      */
 
     @Override
-    public Graph<K, Double, Double> run(Graph<K, Double, Double> HubGraph) throws Exception {
+    public Graph<K, Double, String> run(Graph<K, Double, String> HitsGraph) throws Exception {
 
-        AuthorityGraph = (HubGraph.runVertexCentricIteration(new VertexHitsUpdater(), new HitsMessenger(), 2));
+        HitsGraph=(HitsGraph.mapEdges(new MapFunction<Edge<K,String>, String>() {
 
-        for(int i=1; i<=maxIterations; i++) {
+            @Override
+            public String map(Edge<K, String> value) throws Exception { return "H"; } })).
 
-            HubGraph = (AuthorityGraph.reverse()).runVertexCentricIteration(new VertexHitsUpdater(), new HitsMessenger(), 2);
+                union(HitsGraph.reverse().mapEdges(new MapFunction<Edge<K, String>, String>() {
 
-            if(!(i==maxIterations)) {
-                AuthorityGraph = (HubGraph.reverse()).runVertexCentricIteration(new VertexHitsUpdater(), new HitsMessenger(), 2);
-            }
+                    @Override
+                    public String map(Edge<K, String> value) throws Exception {
+                        return "A";
+                    }
+                }));
+
+            return HitsGraph.runVertexCentricIteration(new VertexHitsUpdater<K>(),new HitsMessenger<K>(),maxIterations);
         }
-
-        if(HubAuthority.equals(Hits.HUB))
-        {   return HubGraph;    }
-        else
-        {    return AuthorityGraph;   }
-
-    }
-    /**
-     * Function that updates in odd superStep Iteration either the Hub or Authority values of a vertex by summing up
-     * the partial Hits or Authority values from all incoming messages and then applying the normalization process on
-     * even superstep for either Hub or Authority values.
-     */
-    @SuppressWarnings("serial")
+                /**
+                 * Function that updates in odd superStep Iteration either the Hub or Authority values of a vertex by summing up
+                 * the partial Hits or Authority values from all incoming messages and then applying the normalization process on
+                 * even superstep for either Hub or Authority values.
+                 */
+        @SuppressWarnings("serial")
     public static final class VertexHitsUpdater<K> extends VertexUpdateFunction<K, Double, Double> {
 
-        static double norml;
-
+        double sum;
+        LongSumAggregator aggregator=new LongSumAggregator();
+        public void preSuperstep() {
+        // retrieve the Aggregator
+            sum = getIterationAggregator("sum");
+            
+            if(getSuperstepNumber()%4==3)
+                sum=0.0;
+        }
         @Override
         public void updateVertex(Vertex<K, Double> vertex, MessageIterator<Double> inMessages) {
 
             double num=0.0;
+            switch (getSuperstepNumber()%4){
+                case 1:
+                    for(double m:inMessages)
+                        num+=m;
+                    sum+=Math.pow(num,2);
+                    break;
 
-            if (getSuperstepNumber() % 2 == 1) {
+                case 2:
+                    setNewVertexValue(vertex.f1/(Math.sqrt(sum)));
+                    break;
 
-                for(double m:inMessages)
-                    num+=m;
-                norml+=Math.pow(num,2);
-                setNewVertexValue(num);
+                case 3:
+                    for(double m:inMessages)
+                        num+=m;
+                    sum+=Math.pow(num,2);
+                    break;
 
-            } else {
-
-                double tmp=0.0;
-                tmp=Math.sqrt(norml);
-                setNewVertexValue(vertex.f1/tmp);
-
+                case 4:
+                    setNewVertexValue(vertex.f1/(Math.sqrt(sum)));
+                    break;
             }
         }
     }
 
     /**
-     *Distributes in odd superstep iteration either the Hub or Authority values of a vertex among all target neighbor
-     * vertices, and in even superstep iteration the normalization value to the target vertices.
+     *Distributes in even superstep iteration the normalization value to the target vertices.
      */
     @SuppressWarnings("serial")
-    public static final class HitsMessenger<K> extends MessagingFunction<K, Double, Double, Double> {
+    public static final class HitsMessenger<K> extends MessagingFunction<K, Double, Double, String> {
 
         @Override
         public void sendMessages(Vertex<K, Double> vertex) {
 
-            if(getSuperstepNumber()%2==1)
+            switch (getSuperstepNumber()%4) {
+                case 2:
+                    for(Edge<K,String> ed: getEdges()){
+                        if (ed.f1.equals("A"))
+                            sendMessageTo(ed.getTarget(),vertex.f1);
+                    }
+                    break;
 
-                sendMessageToAllNeighbors(vertex.f1);
-
-            else {
-
-                sendMessageTo(vertex.f0,vertex.f1);
+                case 4:
+                    for(Edge<K,String> ed: getEdges()){
+                        if (ed.f1.equals("H"))
+                            sendMessageTo(ed.getTarget(),vertex.f1);
+                    }
+                    break;
             }
         }
     }

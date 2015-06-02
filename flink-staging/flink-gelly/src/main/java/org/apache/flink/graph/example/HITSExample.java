@@ -30,9 +30,9 @@ public class HITSExample implements ProgramDescription {
         }
 
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<Edge<Long, Double>> links = getEdgesDataSet(env);
+        DataSet<Edge<Long, String>> links = getEdgesDataSet(env);
 
-        Graph<Long, Double, Double> network = Graph.fromDataSet(links, new MapFunction<Long, Double>() {
+        Graph<Long, Double, String> network = Graph.fromDataSet(links, new MapFunction<Long, Double>() {
 
             public Double map(Long value) throws Exception {
                 return 1.0;
@@ -40,16 +40,15 @@ public class HITSExample implements ProgramDescription {
         }, env);
 
     // add  graph to HITS class with iteration value and hub or authority enum value.
-        DataSet<Vertex<Long, Double>> HitsValue = network.run(
-                new HITS<Long>(Hits.AUTHORITY,maxIterations))
-                .getVertices();
+        DataSet<Vertex<Long, Double>> HitsValue =network.run(
+                    new HITS<Long>(Hits.AUTHORITY,maxIterations)).getVertices();
 
         if (fileOutput) {
             HitsValue.writeAsCsv(outputPath, "\n", "\t");
         } else {
             HitsValue.print();
         }
-        env.execute("HITS algorithm");
+//        env.execute("HITS algorithm");
     }
 
     @Override
@@ -89,24 +88,24 @@ public class HITSExample implements ProgramDescription {
     }
 
     @SuppressWarnings("serial")
-    private static DataSet<Edge<Long, Double>> getEdgesDataSet(ExecutionEnvironment env) {
+    private static DataSet<Edge<Long, String>> getEdgesDataSet(ExecutionEnvironment env) {
 
         if (fileOutput) {
             return env.readCsvFile(edgeInputPath)
                     .fieldDelimiter("\t")
                     .lineDelimiter("\n")
-                    .types(Long.class, Long.class, Double.class)
-                    .map(new Tuple3ToEdgeMap<Long, Double>());
+                    .types(Long.class, Long.class, String.class)
+                    .map(new Tuple3ToEdgeMap<Long, String>());
         }
 
         return env.generateSequence(1, numPages).flatMap(
-                new FlatMapFunction<Long, Edge<Long, Double>>() {
+                new FlatMapFunction<Long, Edge<Long, String>>() {
                     @Override
-                    public void flatMap(Long key, Collector<Edge<Long, Double>> out) throws Exception {
+                    public void flatMap(Long key, Collector<Edge<Long, String>> out) throws Exception {
                         int numOutEdges = (int) (Math.random() * (numPages / 2));
                         for (int i = 0; i < numOutEdges; i++) {
                             long target = (long) (Math.random() * numPages) + 1;
-                            out.collect(new Edge<Long, Double>(key, target, 1.0));
+                            out.collect(new Edge<Long, String>(key, target, " "));
                         }
                     }
                 });
