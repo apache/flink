@@ -105,6 +105,7 @@ public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> {
 			} catch (Throwable t) {
 				LOG.error("Cleanup on error failed.", t);
 			}
+			throw new RuntimeException(ex);
 		}
 		resetParameters();
 	}
