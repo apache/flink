@@ -382,7 +382,7 @@ Let us consider computing Single-Source-Shortest-Paths with vertex-centric itera
 <p class="text-center">
     <img alt="Vertex-centric SSSP superstep 1" width="70%" src="fig/gelly-vc-sssp1.png"/>
 </p>
-<br>
+
 <p class="text-center">
     <img alt="Vertex-centric SSSP superstep 2" width="70%" src="fig/gelly-vc-sssp2.png"/>
 </p>
@@ -606,7 +606,7 @@ Let us consider computing Single-Source-Shortest-Paths with GSA on the following
 <p class="text-center">
     <img alt="GSA SSSP superstep 1" width="70%" src="fig/gelly-gsa-sssp1.png"/>
 </p>
-<br>
+
 <p class="text-center">
     <img alt="GSA SSSP superstep 2" width="70%" src="fig/gelly-gsa-sssp2.png"/>
 </p>
