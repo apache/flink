@@ -18,6 +18,9 @@
 
 package org.apache.flink.ml.math
 
+import breeze.linalg.{SparseVector => BreezeSparseVector, DenseVector => BreezeDenseVector, Vector => BreezeVector}
+import org.apache.flink.ml.math.Vector
+
 /** Base trait for Vectors
   *
   */
@@ -69,6 +72,26 @@ trait Vector extends Serializable {
       }
     } else {
       false
+    }
+  }
+}
+
+object Vector{
+  /** BreezeVectorConverter implementation for [[Vector]]
+    *
+    * This allows to convert Breeze vectors into [[Vector]].
+    */
+  implicit val vectorConverter = new BreezeVectorConverter[Vector] {
+    override def convert(vector: BreezeVector[Double]): Vector = {
+      vector match {
+        case dense: BreezeDenseVector[Double] => new DenseVector(dense.data)
+
+        case sparse: BreezeSparseVector[Double] =>
+          new SparseVector(
+            sparse.used,
+            sparse.index.take(sparse.used),
+            sparse.data.take(sparse.used))
+      }
     }
   }
 }

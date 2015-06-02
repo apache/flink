@@ -250,7 +250,7 @@ object StandardScaler {
                 breezeVector -= broadcastMean
                 breezeVector :/= broadcastStd
                 breezeVector = (breezeVector :* std) + mean
-                LabeledVector(label, breezeVector.fromBreeze[Vector])
+                LabeledVector(label, breezeVector.fromBreeze)
               }
             }
           }
