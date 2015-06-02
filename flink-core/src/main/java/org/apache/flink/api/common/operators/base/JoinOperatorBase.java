@@ -68,7 +68,7 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 		BROADCAST_HASH_FIRST,
 		
 		/**
-		 * Hint that the second join input is much smaller than the second. This results in
+		 * Hint that the second join input is much smaller than the first. This results in
 		 * broadcasting and hashing the second input, unless the optimizer infers that
 		 * prior existing partitioning is available that is even cheaper to exploit.
 		 */
