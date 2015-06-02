@@ -18,6 +18,10 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.common.io.OutputFormat
+import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
+import org.apache.flink.core.fs.{FileSystem, Path}
+
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
@@ -27,10 +31,10 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, GroupedDataStream, SingleOutputStreamOperator}
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, GroupedDataStream, SingleOutputStreamOperator}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.SumFunction
-import org.apache.flink.streaming.api.functions.sink.SinkFunction
+import org.apache.flink.streaming.api.functions.sink.{FileSinkFunctionByMillis, SinkFunction}
 import org.apache.flink.streaming.api.operators.{StreamGroupedReduce, StreamReduce}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
@@ -728,8 +732,27 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * is written.
    *
    */
-  def writeAsCsv(path: String, millis: Long = 0): DataStream[T] =
-    javaStream.writeAsCsv(path, millis)
+  def writeAsCsv(
+      path: String,
+      millis: Long = 0,
+      rowDelimiter: String = ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
+      fieldDelimiter: String = ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER,
+      writeMode: FileSystem.WriteMode = null): DataStream[T] = {
+    require(javaStream.getType.isTupleType, "CSV output can only be used with Tuple DataSets.")
+    val of = new ScalaCsvOutputFormat[Product](new Path(path), rowDelimiter, fieldDelimiter)
+    if (writeMode != null) {
+      of.setWriteMode(writeMode)
+    }
+    javaStream.writeToFile(of.asInstanceOf[OutputFormat[T]], millis)
+  }
+
+  /**
+   * Writes a DataStream using the given [[OutputFormat]]. The
+   * writing is performed periodically, in every millis milliseconds.
+   */
+  def writeToFile(format: OutputFormat[T], millis: Long): DataStreamSink[T] = {
+    javaStream.writeToFile(format, millis)
+  }
 
   /**
    * Writes the DataStream to a socket as a byte array. The format of the output is
@@ -744,8 +767,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * method is called.
    *
    */
-  def addSink(sinkFuntion: SinkFunction[T]): DataStream[T] =
-    javaStream.addSink(sinkFuntion)
+  def addSink(sinkFunction: SinkFunction[T]): DataStream[T] =
+    javaStream.addSink(sinkFunction)
 
   /**
    * Adds the given sink to this DataStream. Only streams with sinks added
