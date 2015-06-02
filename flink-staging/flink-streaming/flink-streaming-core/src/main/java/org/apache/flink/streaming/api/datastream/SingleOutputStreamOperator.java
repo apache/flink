@@ -126,8 +126,8 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	}
 
 	@SuppressWarnings("unchecked")
-	public SingleOutputStreamOperator<OUT, O> distribute() {
-		return (SingleOutputStreamOperator<OUT, O>) super.distribute();
+	public SingleOutputStreamOperator<OUT, O> rebalance() {
+		return (SingleOutputStreamOperator<OUT, O>) super.rebalance();
 	}
 
 	@SuppressWarnings("unchecked")

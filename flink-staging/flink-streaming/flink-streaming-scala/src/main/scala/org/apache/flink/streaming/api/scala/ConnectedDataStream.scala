@@ -260,8 +260,8 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * second input stream.
    * @return The transformed { @link ConnectedDataStream}
    */
-  def partitionBy(keyPosition1: Int, keyPosition2: Int): ConnectedDataStream[IN1, IN2] = {
-    javaStream.partitionBy(keyPosition1, keyPosition2)
+  def partitionByHash(keyPosition1: Int, keyPosition2: Int): ConnectedDataStream[IN1, IN2] = {
+    javaStream.partitionByHash(keyPosition1, keyPosition2)
   }
 
   /**
@@ -274,9 +274,9 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The fields used to partition the second input stream.
    * @return The transformed { @link ConnectedDataStream}
    */
-  def partitionBy(keyPositions1: Array[Int], keyPositions2: Array[Int]):
+  def partitionByHash(keyPositions1: Array[Int], keyPositions2: Array[Int]):
   ConnectedDataStream[IN1, IN2] = {
-    javaStream.partitionBy(keyPositions1, keyPositions2)
+    javaStream.partitionByHash(keyPositions1, keyPositions2)
   }
 
   /**
@@ -292,8 +292,8 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The partitioning expression for the second input
    * @return The grouped { @link ConnectedDataStream}
    */
-  def partitionBy(field1: String, field2: String): ConnectedDataStream[IN1, IN2] = {
-    javaStream.partitionBy(field1, field2)
+  def partitionByHash(field1: String, field2: String): ConnectedDataStream[IN1, IN2] = {
+    javaStream.partitionByHash(field1, field2)
   }
 
   /**
@@ -306,9 +306,9 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The partitioning expressions for the second input
    * @return The partitioned { @link ConnectedDataStream}
    */
-  def partitionBy(fields1: Array[String], fields2: Array[String]):
+  def partitionByHash(fields1: Array[String], fields2: Array[String]):
   ConnectedDataStream[IN1, IN2] = {
-    javaStream.partitionBy(fields1, fields2)
+    javaStream.partitionByHash(fields1, fields2)
   }
 
   /**
@@ -321,7 +321,7 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The function used for partitioning the second input
    * @return The partitioned { @link ConnectedDataStream}
    */
-  def partitionBy[K: TypeInformation, L: TypeInformation](fun1: IN1 => K, fun2: IN2 => L):
+  def partitionByHash[K: TypeInformation, L: TypeInformation](fun1: IN1 => K, fun2: IN2 => L):
   ConnectedDataStream[IN1, IN2] = {
 
     val keyExtractor1 = new KeySelector[IN1, K] {
@@ -331,7 +331,7 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
       def getKey(in: IN2) = clean(fun2)(in)
     }
 
-    javaStream.partitionBy(keyExtractor1, keyExtractor2)
+    javaStream.partitionByHash(keyExtractor1, keyExtractor2)
   }
 
   /**
@@ -367,14 +367,9 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * the same key. This type of reduce is much faster than reduceGroup since
    * the reduce function can be applied incrementally.
    *
-   * @param reducer1
-   * @param reducer2
-   * @param mapper1
-   * @param mapper2
-   *
    * @return The transformed { @link DataStream}.
    */
-  def reduce[R: TypeInformation: ClassTag](reducer1: (IN1, IN1) => IN1, 
+  def reduce[R: TypeInformation: ClassTag](reducer1: (IN1, IN1) => IN1,
       reducer2: (IN2, IN2) => IN2,mapper1: IN1 => R, mapper2: IN2 => R): DataStream[R] = {
     if (mapper1 == null || mapper2 == null) {
       throw new NullPointerException("Map functions must not be null.")

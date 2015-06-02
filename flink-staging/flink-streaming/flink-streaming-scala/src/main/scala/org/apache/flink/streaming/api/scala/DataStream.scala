@@ -191,8 +191,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * will be transformed simultaneously.
    *
    */
-  def merge(dataStreams: DataStream[T]*): DataStream[T] =
-    javaStream.merge(dataStreams.map(_.getJavaStream): _*)
+  def union(dataStreams: DataStream[T]*): DataStream[T] =
+    javaStream.union(dataStreams.map(_.getJavaStream): _*)
 
   /**
    * Creates a new ConnectedDataStream by connecting
@@ -232,31 +232,31 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Partitions the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def partitionBy(fields: Int*): DataStream[T] = javaStream.partitionBy(fields: _*)
+  def partitionByHash(fields: Int*): DataStream[T] = javaStream.partitionByHash(fields: _*)
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def partitionBy(firstField: String, otherFields: String*): DataStream[T] =
-    javaStream.partitionBy(firstField +: otherFields.toArray: _*)
+  def partitionByHash(firstField: String, otherFields: String*): DataStream[T] =
+    javaStream.partitionByHash(firstField +: otherFields.toArray: _*)
 
   /**
    * Groups the elements of a DataStream by the given K key to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def partitionBy[K: TypeInformation](fun: T => K): DataStream[T] = {
+  def partitionByHash[K: TypeInformation](fun: T => K): DataStream[T] = {
 
     val keyExtractor = new KeySelector[T, K] {
       val cleanFun = clean(fun)
       def getKey(in: T) = cleanFun(in)
     }
-    javaStream.partitionBy(keyExtractor)
+    javaStream.partitionByHash(keyExtractor)
   }
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
-   * are broadcasted to every parallel instance of the next component. This
+   * are broad casted to every parallel instance of the next component. This
    * setting only effects the how the outputs will be distributed between the
    * parallel instances of the next processing operator.
    *
@@ -296,7 +296,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * the next processing operator.
    *
    */
-  def distribute: DataStream[T] = javaStream.distribute()
+  def rebalance: DataStream[T] = javaStream.rebalance()
 
   /**
    * Initiates an iterative part of the program that creates a loop by feeding

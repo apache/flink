@@ -61,7 +61,7 @@ import org.apache.flink.util.Collector;
  * <p>
  * This example shows how to:
  * <ul>
- * <li>merge and join data streams,
+ * <li>union and join data streams,
  * <li>use different windowing policies,
  * <li>define windowing aggregations.
  * </ul>
@@ -89,7 +89,7 @@ public class StockPrices {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		//Step 1 
-	    //Read a stream of stock prices from different sources and merge it into one stream
+	    //Read a stream of stock prices from different sources and union it into one stream
 		
 		//Read from a socket stream at map it to StockPrice objects
 		DataStream<StockPrice> socketStockStream = env.socketTextStream(hostName, port)
@@ -111,7 +111,7 @@ public class StockPrices {
 
 		//Merge all stock streams together
 		@SuppressWarnings("unchecked")
-		DataStream<StockPrice> stockStream = socketStockStream.merge(SPX_stream, FTSE_stream, DJI_stream, BUX_stream);
+		DataStream<StockPrice> stockStream = socketStockStream.union(SPX_stream, FTSE_stream, DJI_stream, BUX_stream);
 		
 		//Step 2
 	    //Compute some simple statistics on a rolling window

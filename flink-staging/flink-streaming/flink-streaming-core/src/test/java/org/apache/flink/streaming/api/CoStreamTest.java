@@ -79,7 +79,7 @@ public class CoStreamTest {
 						return new Tuple2<Integer, Integer>(value, value + 1);
 					}
 				})
-				.distribute()
+				.rebalance()
 				.filter(new FilterFunction<Tuple2<Integer, Integer>>() {
 
 					private static final long serialVersionUID = 1L;
