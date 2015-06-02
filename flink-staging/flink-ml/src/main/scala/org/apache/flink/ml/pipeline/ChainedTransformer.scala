@@ -39,13 +39,13 @@ case class ChainedTransformer[L <: Transformer[L], R <: Transformer[R]](left: L,
 
 object ChainedTransformer{
 
-  /** [[TransformOperation]] implementation for [[ChainedTransformer]].
+  /** [[TransformDataSetOperation]] implementation for [[ChainedTransformer]].
     *
     * First the transform operation of the left [[Transformer]] is called with the input data. This
     * generates intermediate data which is fed to the right [[Transformer]]'s transform operation.
     *
-    * @param transformOpLeft [[TransformOperation]] for the left [[Transformer]]
-    * @param transformOpRight [[TransformOperation]] for the right [[Transformer]]
+    * @param transformOpLeft [[TransformDataSetOperation]] for the left [[Transformer]]
+    * @param transformOpRight [[TransformDataSetOperation]] for the right [[Transformer]]
     * @tparam L Type of the left [[Transformer]]
     * @tparam R Type of the right [[Transformer]]
     * @tparam I Type of the input data
@@ -59,17 +59,20 @@ object ChainedTransformer{
       I,
       T,
       O](implicit
-      transformOpLeft: TransformOperation[L, I, T],
-      transformOpRight: TransformOperation[R, T, O])
-    : TransformOperation[ChainedTransformer[L,R], I, O] = {
+      transformOpLeft: TransformDataSetOperation[L, I, T],
+      transformOpRight: TransformDataSetOperation[R, T, O])
+    : TransformDataSetOperation[ChainedTransformer[L,R], I, O] = {
 
-    new TransformOperation[ChainedTransformer[L, R], I, O] {
-      override def transform(
+    new TransformDataSetOperation[ChainedTransformer[L, R], I, O] {
+      override def transformDataSet(
           chain: ChainedTransformer[L, R],
           transformParameters: ParameterMap,
           input: DataSet[I]): DataSet[O] = {
-        val intermediateResult = transformOpLeft.transform(chain.left, transformParameters, input)
-        transformOpRight.transform(chain.right, transformParameters, intermediateResult)
+        val intermediateResult = transformOpLeft.transformDataSet(
+          chain.left,
+          transformParameters,
+          input)
+        transformOpRight.transformDataSet(chain.right, transformParameters, intermediateResult)
       }
     }
   }
@@ -81,7 +84,7 @@ object ChainedTransformer{
     * right [[Transformer]].
     *
     * @param leftFitOperation [[FitOperation]] for the left [[Transformer]]
-    * @param leftTransformOperation [[TransformOperation]] for the left [[Transformer]]
+    * @param leftTransformOperation [[TransformDataSetOperation]] for the left [[Transformer]]
     * @param rightFitOperation [[FitOperation]] for the right [[Transformer]]
     * @tparam L Type of the left [[Transformer]]
     * @tparam R Type of the right [[Transformer]]
@@ -91,7 +94,7 @@ object ChainedTransformer{
     */
   implicit def chainedFitOperation[L <: Transformer[L], R <: Transformer[R], I, T](implicit
       leftFitOperation: FitOperation[L, I],
-      leftTransformOperation: TransformOperation[L, I, T],
+      leftTransformOperation: TransformDataSetOperation[L, I, T],
       rightFitOperation: FitOperation[R, T]): FitOperation[ChainedTransformer[L, R], I] = {
     new FitOperation[ChainedTransformer[L, R], I] {
       override def fit(
