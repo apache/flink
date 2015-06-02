@@ -27,10 +27,13 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/java version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
+JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
 
-if [ "$JAVA_VERSION" -lt 18 ]; then
-    JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
+# Only set JVM 8 arguments if we have correctly extracted the version
+if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
+    if [ "$JAVA_VERSION" -lt 18 ]; then
+        JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
+    fi
 fi
 
 if [ "$FLINK_IDENT_STRING" = "" ]; then
