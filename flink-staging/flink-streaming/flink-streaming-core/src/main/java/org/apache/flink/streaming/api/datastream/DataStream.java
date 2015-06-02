@@ -1190,7 +1190,16 @@ public class DataStream<OUT> {
 		return returnStream;
 	}
 
-	private DataStreamSink<OUT> writeToFile(OutputFormat<OUT> format, long millis) {
+	/**
+	 * Writes a DataStream using the given {@link OutputFormat}. The
+	 * writing is performed periodically, in every millis milliseconds.
+	 *
+	 * @param format The output format that should be used for writing.
+	 * @param millis the file update frequency
+	 *
+	 * @return the closed DataStream
+	 */
+	public DataStreamSink<OUT> writeToFile(OutputFormat<OUT> format, long millis) {
 		DataStreamSink<OUT> returnStream = addSink(new FileSinkFunctionByMillis<OUT>(format, millis));
 		return returnStream;
 	}
