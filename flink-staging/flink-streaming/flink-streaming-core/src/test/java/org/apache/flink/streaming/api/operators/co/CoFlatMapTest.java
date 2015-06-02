@@ -28,7 +28,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
-import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.util.MockCoContext;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
@@ -71,10 +70,10 @@ public class CoFlatMapTest implements Serializable {
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		DataStream<Integer> ds1 = env.fromElements(1, 3, 5);
-		DataStream<Integer> ds2 = env.fromElements(2, 4).merge(ds1);
+		DataStream<Integer> ds2 = env.fromElements(2, 4).union(ds1);
 		
 		try {
-			ds1.forward().merge(ds2);
+			ds1.forward().union(ds2);
 			fail();
 		} catch (RuntimeException e) {
 			// expected

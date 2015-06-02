@@ -108,7 +108,7 @@ public class IterateTest {
 	public void testColocation() throws Exception {
 		StreamExecutionEnvironment env = new TestStreamEnvironment(4, MEMORYSIZE);
 
-		IterativeDataStream<Boolean> it = env.fromElements(true).distribute().map(new NoOpMap())
+		IterativeDataStream<Boolean> it = env.fromElements(true).rebalance().map(new NoOpMap())
 				.iterate();
 
 		DataStream<Boolean> head = it.map(new NoOpMap()).setParallelism(2).name("HeadOperator");

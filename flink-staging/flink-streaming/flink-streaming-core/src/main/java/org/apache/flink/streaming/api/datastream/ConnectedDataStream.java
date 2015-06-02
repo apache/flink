@@ -236,9 +236,9 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            second input stream.
 	 * @return The partitioned {@link ConnectedDataStream}
 	 */
-	public ConnectedDataStream<IN1, IN2> partitionBy(int keyPosition1, int keyPosition2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionBy(keyPosition1),
-				dataStream2.partitionBy(keyPosition2));
+	public ConnectedDataStream<IN1, IN2> partitionByHash(int keyPosition1, int keyPosition2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(keyPosition1),
+				dataStream2.partitionByHash(keyPosition2));
 	}
 
 	/**
@@ -251,9 +251,9 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            The fields used to group the second input stream.
 	 * @return The partitioned {@link ConnectedDataStream}
 	 */
-	public ConnectedDataStream<IN1, IN2> partitionBy(int[] keyPositions1, int[] keyPositions2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionBy(keyPositions1),
-				dataStream2.partitionBy(keyPositions2));
+	public ConnectedDataStream<IN1, IN2> partitionByHash(int[] keyPositions1, int[] keyPositions2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(keyPositions1),
+				dataStream2.partitionByHash(keyPositions2));
 	}
 
 	/**
@@ -269,9 +269,9 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            The partitioning expressions for the second input
 	 * @return The partitioned {@link ConnectedDataStream}
 	 */
-	public ConnectedDataStream<IN1, IN2> partitionBy(String field1, String field2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionBy(field1),
-				dataStream2.partitionBy(field2));
+	public ConnectedDataStream<IN1, IN2> partitionByHash(String field1, String field2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(field1),
+				dataStream2.partitionByHash(field2));
 	}
 
 	/**
@@ -287,9 +287,9 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            The partitioning expressions for the second input
 	 * @return The partitioned {@link ConnectedDataStream}
 	 */
-	public ConnectedDataStream<IN1, IN2> partitionBy(String[] fields1, String[] fields2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionBy(fields1),
-				dataStream2.partitionBy(fields2));
+	public ConnectedDataStream<IN1, IN2> partitionByHash(String[] fields1, String[] fields2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(fields1),
+				dataStream2.partitionByHash(fields2));
 	}
 
 	/**
@@ -302,10 +302,10 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            The {@link KeySelector} used for partitioning the second input
 	 * @return @return The partitioned {@link ConnectedDataStream}
 	 */
-	public ConnectedDataStream<IN1, IN2> partitionBy(KeySelector<IN1, ?> keySelector1,
-												 KeySelector<IN2, ?> keySelector2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionBy(keySelector1),
-				dataStream2.partitionBy(keySelector2));
+	public ConnectedDataStream<IN1, IN2> partitionByHash(KeySelector<IN1, ?> keySelector1,
+														KeySelector<IN2, ?> keySelector2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(keySelector1),
+				dataStream2.partitionByHash(keySelector2));
 	}
 
 	/**

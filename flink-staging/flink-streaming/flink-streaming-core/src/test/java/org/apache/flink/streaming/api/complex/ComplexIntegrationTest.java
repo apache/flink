@@ -53,7 +53,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -228,13 +227,13 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		sourceStream31.filter(new PrimeFilterFunction())
 				.window(Count.of(100))
 				.max(0).flatten()
-				.merge(sourceStream32.filter(new PrimeFilterFunction())
+				.union(sourceStream32.filter(new PrimeFilterFunction())
 						.window(Count.of(100))
 						.max(0).flatten())
 				.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
 
 		sourceStream31.flatMap(new DivisorsFlatMapFunction())
-				.merge(sourceStream32.flatMap(new DivisorsFlatMapFunction())).map(new MapFunction<Long, Tuple2<Long,
+				.union(sourceStream32.flatMap(new DivisorsFlatMapFunction())).map(new MapFunction<Long, Tuple2<Long,
 				Integer>>() {
 
 			@Override
@@ -348,7 +347,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		});
 
 
-		dataStream53.merge(dataStream52)
+		dataStream53.union(dataStream52)
 				.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();

@@ -50,7 +50,7 @@ import scala.util.Random
  *
  * This example shows how to:
  *
- *   - merge and join data streams,
+ *   - union and join data streams,
  *   - use different windowing policies,
  *   - define windowing aggregations.
  */
@@ -77,7 +77,7 @@ object StockPrices {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     //Step 1 
-    //Read a stream of stock prices from different sources and merge it into one stream
+    //Read a stream of stock prices from different sources and union it into one stream
 
     //Read from a socket stream at map it to StockPrice objects
     val socketStockStream = env.socketTextStream(hostName, port).map(x => {
@@ -91,8 +91,8 @@ object StockPrices {
     val DJI_Stream = env.addSource(generateStock("DJI")(30))
     val BUX_Stream = env.addSource(generateStock("BUX")(40))
 
-    //Merge all stock streams together
-    val stockStream = socketStockStream.merge(SPX_Stream, FTSE_Stream, DJI_Stream, BUX_Stream)
+    //Union all stock streams together
+    val stockStream = socketStockStream.union(SPX_Stream, FTSE_Stream, DJI_Stream, BUX_Stream)
 
     //Step 2
     //Compute some simple statistics on a rolling window
@@ -103,7 +103,7 @@ object StockPrices {
     val rollingMean = windowedStream.groupBy("symbol").mapWindow(mean _).getDiscretizedStream
 
     //Step 3 
-    //Use  delta policy to create price change warnings,
+    //Use delta policy to create price change warnings,
     // and also count the number of warning every half minute
 
     val priceWarnings = stockStream.groupBy("symbol")
@@ -152,9 +152,9 @@ object StockPrices {
       .flatten()
 
     if (fileOutput) {
-      rollingCorrelation.writeAsText(outputPath, 1);
+      rollingCorrelation.writeAsText(outputPath, 1)
     } else {
-      rollingCorrelation.print;
+      rollingCorrelation.print
     }
 
     env.execute("Stock stream")

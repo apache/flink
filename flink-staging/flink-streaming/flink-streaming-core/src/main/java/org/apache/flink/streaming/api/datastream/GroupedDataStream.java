@@ -49,7 +49,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 * @param keySelector Function for determining group inclusion
 	 */
 	public GroupedDataStream(DataStream<OUT> dataStream, KeySelector<OUT, ?> keySelector) {
-		super(dataStream.partitionBy(keySelector));
+		super(dataStream.partitionByHash(keySelector));
 		this.keySelector = keySelector;
 	}
 
