@@ -19,12 +19,12 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
-public abstract class ConnectorSource<OUT> extends RichParallelSourceFunction<OUT> implements ResultTypeQueryable<OUT>{
+public abstract class ConnectorSource<OUT> extends RichParallelSourceFunction<OUT> implements ResultTypeQueryable<OUT> {
 
 	private static final long serialVersionUID = 1L;
+	
 	protected DeserializationSchema<OUT> schema;
 
 	public ConnectorSource(DeserializationSchema<OUT> schema) {

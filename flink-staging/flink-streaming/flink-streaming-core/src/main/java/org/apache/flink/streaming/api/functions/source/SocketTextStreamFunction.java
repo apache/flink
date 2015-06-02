@@ -45,7 +45,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	private static final int CONNECTION_TIMEOUT_TIME = 0;
 	private static final int CONNECTION_RETRY_SLEEP = 1000;
 
-	private volatile boolean isRunning = false;
+	private volatile boolean isRunning;
 
 	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxRetry) {
 		this.hostname = hostname;
@@ -60,6 +60,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 		super.open(parameters);
 		socket = new Socket();
 		socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
+		isRunning = true;
 	}
 
 	@Override
@@ -68,7 +69,6 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	}
 
 	public void streamFromSocket(Collector<String> collector, Socket socket) throws Exception {
-		isRunning = true;
 		try {
 			StringBuffer buffer = new StringBuffer();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(

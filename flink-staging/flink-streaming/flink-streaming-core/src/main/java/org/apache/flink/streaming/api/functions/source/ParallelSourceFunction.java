@@ -25,7 +25,7 @@ package org.apache.flink.streaming.api.functions.source;
  * <p>This interface acts only as a marker to tell the system that this source may
  * be executed in parallel. When different parallel instances are required to perform
  * different tasks, use the {@link RichParallelSourceFunction} to get access to the runtime
- * context, which revels information like the number of parallel tasks, and which parallel
+ * context, which reveals information like the number of parallel tasks, and which parallel
  * task the current instance is.
  *
  * @param <OUT> The type of the records produced by this source.

@@ -33,6 +33,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 
 public class RMQSource<OUT> extends ConnectorSource<OUT> {
+	
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSource.class);
@@ -44,7 +45,7 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	private transient QueueingConsumer consumer;
 	private transient QueueingConsumer.Delivery delivery;
 
-	private volatile boolean isRunning = false;
+	private volatile boolean isRunning;
 
 	public RMQSource(String HOST_NAME, String QUEUE_NAME,
 			DeserializationSchema<OUT> deserializationSchema) {
@@ -79,16 +80,13 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	 */
 	@Override
 	public void run(Object checkpointLock, Collector<OUT> collector) throws Exception {
-		isRunning = true;
 		try {
 			while (isRunning) {
-
 				try {
 					delivery = consumer.nextDelivery();
-				} catch (Exception e) {
-					if (LOG.isErrorEnabled()) {
-						LOG.error("Cannot recieve RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
-					}
+				}
+				catch (Exception e) {
+					LOG.error("Cannot receive RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
 				}
 
 				OUT out = schema.deserialize(delivery.getBody());
@@ -98,15 +96,16 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 					collector.collect(out);
 				}
 			}
-		} finally {
+		}
+		finally {
 			connection.close();
 		}
-
 	}
 
 	@Override
 	public void open(Configuration config) throws Exception {
 		initializeConnection();
+		isRunning = true;
 	}
 
 	@Override
@@ -114,10 +113,10 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 		isRunning = false;
 		try {
 			connection.close();
-		} catch (IOException e) {
+		}
+		catch (IOException e) {
 			throw new RuntimeException("Error while closing RMQ connection with " + QUEUE_NAME
 					+ " at " + HOST_NAME, e);
 		}
 	}
-
 }

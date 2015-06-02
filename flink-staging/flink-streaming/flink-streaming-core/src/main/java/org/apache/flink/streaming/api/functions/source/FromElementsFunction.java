@@ -24,11 +24,12 @@ import java.util.Iterator;
 import org.apache.flink.util.Collector;
 
 public class FromElementsFunction<T> implements SourceFunction<T> {
+	
 	private static final long serialVersionUID = 1L;
 
 	private Iterable<T> iterable;
 
-	private volatile boolean isRunning;
+	private volatile boolean isRunning = true;
 
 	public FromElementsFunction(T... elements) {
 		this.iterable = Arrays.asList(elements);
@@ -44,7 +45,6 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 
 	@Override
 	public void run(Object checkpointLock, Collector<T> out) throws Exception {
-		isRunning = true;
 		Iterator<T> it = iterable.iterator();
 
 		while (isRunning && it.hasNext()) {
