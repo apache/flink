@@ -21,21 +21,20 @@ import static org.junit.Assert.*;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.partitioner.DistributePartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.junit.Before;
 import org.junit.Test;
 
 public class ForwardPartitionerTest {
 
-	private DistributePartitioner<Tuple> forwardPartitioner;
+	private RebalancePartitioner<Tuple> forwardPartitioner;
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>();
 	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(
 			null);
 
 	@Before
 	public void setPartitioner() {
-		forwardPartitioner = new DistributePartitioner<Tuple>(true);
+		forwardPartitioner = new RebalancePartitioner<Tuple>(true);
 	}
 
 	@Test

@@ -330,7 +330,7 @@ public class StreamGraph extends StreamingPlan {
 		return streamNodes.keySet();
 	}
 
-	protected StreamEdge getEdge(int sourceId, int targetId) {
+	public StreamEdge getStreamEdge(int sourceId, int targetId) {
 		Iterator<StreamEdge> outIterator = getStreamNode(sourceId).getOutEdges().iterator();
 		while (outIterator.hasNext()) {
 			StreamEdge edge = outIterator.next();

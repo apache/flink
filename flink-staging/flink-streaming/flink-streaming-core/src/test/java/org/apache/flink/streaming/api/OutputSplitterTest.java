@@ -48,7 +48,7 @@ public class OutputSplitterTest {
 		DataStream<Integer> d1 = env.fromElements(0, 2, 4, 6, 8);
 		DataStream<Integer> d2 = env.fromElements(1, 3, 5, 7, 9);
 
-		d1 = d1.merge(d2);
+		d1 = d1.union(d2);
 
 		d1.split(new OutputSelector<Integer>() {
 			private static final long serialVersionUID = 8354166915727490130L;

@@ -88,7 +88,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 
 		DataStream<Long> result = env.addSource(new SleepyDurableGenerateSequence(coordinateDir, DATA_COUNT))
 				// add a non-chained no-op map to test the chain state restore logic
-				.distribute().map(new MapFunction<Long, Long>() {
+				.rebalance().map(new MapFunction<Long, Long>() {
 					@Override
 					public Long map(Long value) throws Exception {
 						return value;
