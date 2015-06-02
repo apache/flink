@@ -30,6 +30,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.GZIPOutputStream;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -39,6 +41,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
+import org.jets3t.service.io.GZipDeflatingInputStream;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -112,6 +115,86 @@ public class GenericCsvInputFormatTest {
 			assertEquals(999, ((IntValue) values[3]).getValue());
 			assertEquals(000, ((IntValue) values[4]).getValue());
 			
+			assertNull(format.nextRecord(values));
+			assertTrue(format.reachedEnd());
+		}
+		catch (Exception ex) {
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+
+	@Test
+	public void testReadNoPosAllDeflate() throws IOException {
+		try {
+			final String fileContent = "111|222|333|444|555\n666|777|888|999|000|";
+			final FileInputSplit split = createTempDeflateFile(fileContent);
+
+			final Configuration parameters = new Configuration();
+
+			format.setFieldDelimiter("|");
+			format.setFieldTypesGeneric(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
+
+			format.configure(parameters);
+			format.open(split);
+
+			Value[] values = createIntValues(5);
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals(111, ((IntValue) values[0]).getValue());
+			assertEquals(222, ((IntValue) values[1]).getValue());
+			assertEquals(333, ((IntValue) values[2]).getValue());
+			assertEquals(444, ((IntValue) values[3]).getValue());
+			assertEquals(555, ((IntValue) values[4]).getValue());
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals(666, ((IntValue) values[0]).getValue());
+			assertEquals(777, ((IntValue) values[1]).getValue());
+			assertEquals(888, ((IntValue) values[2]).getValue());
+			assertEquals(999, ((IntValue) values[3]).getValue());
+			assertEquals(000, ((IntValue) values[4]).getValue());
+
+			assertNull(format.nextRecord(values));
+			assertTrue(format.reachedEnd());
+		}
+		catch (Exception ex) {
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+
+	@Test
+	public void testReadNoPosAllGzip() throws IOException {
+		try {
+			final String fileContent = "111|222|333|444|555\n666|777|888|999|000|";
+			final FileInputSplit split = createTempGzipFile(fileContent);
+
+			final Configuration parameters = new Configuration();
+
+			format.setFieldDelimiter("|");
+			format.setFieldTypesGeneric(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
+
+			format.configure(parameters);
+			format.open(split);
+
+			Value[] values = createIntValues(5);
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals(111, ((IntValue) values[0]).getValue());
+			assertEquals(222, ((IntValue) values[1]).getValue());
+			assertEquals(333, ((IntValue) values[2]).getValue());
+			assertEquals(444, ((IntValue) values[3]).getValue());
+			assertEquals(555, ((IntValue) values[4]).getValue());
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals(666, ((IntValue) values[0]).getValue());
+			assertEquals(777, ((IntValue) values[1]).getValue());
+			assertEquals(888, ((IntValue) values[2]).getValue());
+			assertEquals(999, ((IntValue) values[3]).getValue());
+			assertEquals(000, ((IntValue) values[4]).getValue());
+
 			assertNull(format.nextRecord(values));
 			assertTrue(format.reachedEnd());
 		}
@@ -582,6 +665,28 @@ public class GenericCsvInputFormatTest {
 		dos.writeBytes(content);
 		dos.close();
 			
+		return new FileInputSplit(0, new Path(this.tempFile.toURI().toString()), 0, this.tempFile.length(), new String[] {"localhost"});
+	}
+
+	private FileInputSplit createTempDeflateFile(String content) throws IOException {
+		this.tempFile = File.createTempFile("test_contents", "tmp.deflate");
+		this.tempFile.deleteOnExit();
+
+		DataOutputStream dos = new DataOutputStream(new DeflaterOutputStream(new FileOutputStream(tempFile)));
+		dos.writeBytes(content);
+		dos.close();
+
+		return new FileInputSplit(0, new Path(this.tempFile.toURI().toString()), 0, this.tempFile.length(), new String[] {"localhost"});
+	}
+
+	private FileInputSplit createTempGzipFile(String content) throws IOException {
+		this.tempFile = File.createTempFile("test_contents", "tmp.gz");
+		this.tempFile.deleteOnExit();
+
+		DataOutputStream dos = new DataOutputStream(new GZIPOutputStream(new FileOutputStream(tempFile)));
+		dos.writeBytes(content);
+		dos.close();
+
 		return new FileInputSplit(0, new Path(this.tempFile.toURI().toString()), 0, this.tempFile.length(), new String[] {"localhost"});
 	}
 	

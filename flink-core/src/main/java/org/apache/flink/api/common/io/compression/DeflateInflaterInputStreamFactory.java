@@ -15,18 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.api.common.io.compression;
 
-
-package org.apache.flink.api.common.io;
-
-import org.apache.flink.core.fs.FSDataInputStream;
-
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.zip.InflaterInputStream;
 
-public class InflaterInputStreamFSInputWrapper extends InputStreamFSInputWrapper {
+/**
+ * Factory for input streams that decompress the "deflate" compression format.
+ */
+public class DeflateInflaterInputStreamFactory implements InflaterInputStreamFactory<InflaterInputStream> {
 
-	public InflaterInputStreamFSInputWrapper(FSDataInputStream inStream) {
-		super(new InflaterInputStream(inStream));
+	private static DeflateInflaterInputStreamFactory INSTANCE = null;
+
+	public static DeflateInflaterInputStreamFactory getInstance() {
+		if (INSTANCE == null) {
+			INSTANCE = new DeflateInflaterInputStreamFactory();
+		}
+		return INSTANCE;
 	}
 
+	@Override
+	public InflaterInputStream create(InputStream in) throws IOException {
+		return new InflaterInputStream(in);
+	}
+
+	@Override
+	public Collection<String> getCommonFileExtensions() {
+		return Collections.singleton("deflate");
+	}
 }

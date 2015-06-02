@@ -21,10 +21,16 @@ package org.apache.flink.api.common.io;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+import com.google.common.base.Preconditions;
+import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFactory;
+import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
+import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -68,10 +74,11 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	private static long DEFAULT_OPENING_TIMEOUT;
 
 	/**
-	 * Files with that suffix are unsplittable at a file level
-	 * and compressed.
+	 * A mapping of file extensions to decompression algorithms based on DEFLATE. Such compressions lead to
+	 * unsplittable files.
 	 */
-	protected static final String DEFLATE_SUFFIX = ".deflate";
+	protected static final Map<String, InflaterInputStreamFactory<?>> INFLATER_INPUT_STREAM_FACTORIES =
+			new HashMap<String, InflaterInputStreamFactory<?>>();
 	
 	/**
 	 * The splitLength is set to -1L for reading the whole split.
@@ -80,6 +87,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	
 	static {
 		initDefaultsFromConfiguration();
+		initDefaultInflaterInputStreamFactories();
 	}
 	
 	private static void initDefaultsFromConfiguration() {
@@ -94,6 +102,52 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 			DEFAULT_OPENING_TIMEOUT = 300000; // 5 minutes
 		} else {
 			DEFAULT_OPENING_TIMEOUT = to;
+		}
+	}
+
+	private static void initDefaultInflaterInputStreamFactories() {
+		InflaterInputStreamFactory<?>[] defaultFactories = {
+				DeflateInflaterInputStreamFactory.getInstance(),
+				GzipInflaterInputStreamFactory.getInstance()
+		};
+		for (InflaterInputStreamFactory<?> inputStreamFactory : defaultFactories) {
+			for (String fileExtension : inputStreamFactory.getCommonFileExtensions()) {
+				registerInflaterInputStreamFactory(fileExtension, inputStreamFactory);
+			}
+		}
+	}
+
+	/**
+	 * Registers a decompression algorithm through a {@link org.apache.flink.api.common.io.compression.InflaterInputStreamFactory}
+	 * with a file extension for transparent decompression.
+	 * @param fileExtension of the compressed files
+	 * @param factory to create an {@link java.util.zip.InflaterInputStream} that handles the decompression format
+	 */
+	public static void registerInflaterInputStreamFactory(String fileExtension, InflaterInputStreamFactory<?> factory) {
+		synchronized (INFLATER_INPUT_STREAM_FACTORIES) {
+			if (INFLATER_INPUT_STREAM_FACTORIES.put(fileExtension, factory) != null) {
+				LOG.warn("Overwriting an existing decompression algorithm for \"{}\" files.", fileExtension);
+			}
+		}
+	}
+
+	protected static InflaterInputStreamFactory<?> getInflaterInputStreamFactory(String fileExtension) {
+		synchronized (INFLATER_INPUT_STREAM_FACTORIES) {
+			return INFLATER_INPUT_STREAM_FACTORIES.get(fileExtension);
+		}
+	}
+
+	/**
+	 * Returns the extension of a file name (!= a path).
+	 * @return the extension of the file name or {@code null} if there is no extension.
+	 */
+	protected static String extractFileExtension(String fileName) {
+		Preconditions.checkNotNull(fileName);
+		int lastPeriodIndex = fileName.lastIndexOf('.');
+		if (lastPeriodIndex < 0){
+			return null;
+		} else {
+			return fileName.substring(lastPeriodIndex + 1);
 		}
 	}
 	
@@ -533,11 +587,21 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	}
 
 	protected boolean testForUnsplittable(FileStatus pathFile) {
-		if(pathFile.getPath().getName().endsWith(DEFLATE_SUFFIX)) {
+		if(getInflaterInputStreamFactory(pathFile.getPath()) != null) {
 			unsplittable = true;
 			return true;
 		}
 		return false;
+	}
+
+	private InflaterInputStreamFactory<?> getInflaterInputStreamFactory(Path path) {
+		String fileExtension = extractFileExtension(path.getName());
+		if (fileExtension != null) {
+			return getInflaterInputStreamFactory(fileExtension);
+		} else {
+			return null;
+		}
+
 	}
 
 	/**
@@ -633,9 +697,10 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * @see org.apache.flink.api.common.io.InputStreamFSInputWrapper
 	 */
 	protected FSDataInputStream decorateInputStream(FSDataInputStream inputStream, FileInputSplit fileSplit) throws Throwable {
-		// Wrap stream in a extracting (decompressing) stream if file ends with .deflate.
-		if (fileSplit.getPath().getName().endsWith(DEFLATE_SUFFIX)) {
-			return new InflaterInputStreamFSInputWrapper(stream);
+		// Wrap stream in a extracting (decompressing) stream if file ends with a known compression file extension.
+		InflaterInputStreamFactory<?> inflaterInputStreamFactory = getInflaterInputStreamFactory(fileSplit.getPath());
+		if (inflaterInputStreamFactory != null) {
+			return new InputStreamFSInputWrapper(inflaterInputStreamFactory.create(stream));
 		}
 
 		return inputStream;

@@ -1880,6 +1880,39 @@ env.readTextFile("file:///path/with.nested/files").withParameters(parameters)
 
 </div>
 </div>
+
+### Read Compressed Files
+
+Flink currently supports transparent decompression of input files if these are marked with an appropriate file extension. In particular, this means that no further configuration of the input formats is necessary and any `FileInputFormat` support the compression, including custom input formats. Please notice that compressed files might not be read in parallel, thus impacting job scalability.
+
+The following table lists the currently supported compression methods.
+
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Compression method</th>
+      <th class="text-left">File extensions</th>
+      <th class="text-left" style="width: 20%">Parallelizable</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><strong>DEFLATE</strong></td>
+      <td>`.deflate`</td>
+      <td>no</td>
+    </tr>
+    <tr>
+      <td><strong>GZip</strong></td>
+      <td>`.gz`, `.gzip`</td>
+      <td>no</td>
+    </tr>
+  </tbody>
+</table>
+
+
 [Back to top](#top)
 
 
