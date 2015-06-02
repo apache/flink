@@ -18,7 +18,21 @@
 
 package org.apache.flink.runtime.jobgraph.tasks;
 
+/**
+ * This interface must be implemented by invokable operators (subclasses
+ * of {@link org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable} that
+ * participate in state checkpoints.
+ */
 public interface CheckpointedOperator {
-	
+
+	/**
+	 * This method is either called directly and asynchronously by the checkpoint
+	 * coordinator (in the case of functions that are directly notified - usually
+	 * the data sources), or called synchronously when all incoming channels have
+	 * reported a checkpoint barrier.
+	 * 
+	 * @param checkpointId The ID of the checkpoint, incrementing.
+	 * @param timestamp The timestamp when the checkpoint was triggered at the JobManager.
+	 */
 	void triggerCheckpoint(long checkpointId, long timestamp) throws Exception;
 }

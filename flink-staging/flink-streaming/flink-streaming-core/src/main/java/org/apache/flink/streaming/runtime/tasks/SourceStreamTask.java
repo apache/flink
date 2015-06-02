@@ -22,6 +22,18 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Task for executing streaming sources.
+ *
+ * One important aspect of this is that the checkpointing and the emission of elements must never
+ * occur at the same time. The execution must be serial. This is achieved by having the contract
+ * with the StreamFunction that it must only modify its state or emit elements in
+ * a synchronized block that locks on the checkpointLock Object. Also, the modification of the state
+ * and the emission of elements must happen in the same block of code that is protected by the
+ * synchronized block.
+ *
+ * @param <OUT> Type of the output elements of this source.
+ */
 public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SourceStreamTask.class);
@@ -40,7 +52,7 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 			openOperator();
 			operatorOpen = true;
 
-			streamOperator.run();
+			streamOperator.run(checkpointLock, outputHandler.getOutput());
 
 			closeOperator();
 			operatorOpen = false;
@@ -70,5 +82,11 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 			clearBuffers();
 		}
 
+	}
+
+	@Override
+	public void cancel() {
+		super.cancel();
+		streamOperator.cancel();
 	}
 }

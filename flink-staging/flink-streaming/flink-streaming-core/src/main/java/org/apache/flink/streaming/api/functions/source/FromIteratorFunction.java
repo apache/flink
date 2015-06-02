@@ -17,25 +17,31 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.util.Collector;
+
 import java.util.Iterator;
 
 public class FromIteratorFunction<T> implements SourceFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	Iterator<T> iterator;
+	private final Iterator<T> iterator;
+
+	private volatile boolean isRunning = true;
 
 	public FromIteratorFunction(Iterator<T> iterator) {
 		this.iterator = iterator;
 	}
 
 	@Override
-	public boolean reachedEnd() throws Exception {
-		return !iterator.hasNext();
+	public void run(Object checkpointLock, Collector<T> out) throws Exception {
+		while (isRunning && iterator.hasNext()) {
+			out.collect(iterator.next());
+		}
 	}
 
 	@Override
-	public T next() throws Exception {
-		return iterator.next();
+	public void cancel() {
+		isRunning = false;
 	}
 }

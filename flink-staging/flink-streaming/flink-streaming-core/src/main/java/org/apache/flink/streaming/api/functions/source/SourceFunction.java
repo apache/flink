@@ -19,66 +19,81 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
 /**
  * Base interface for all stream data sources in Flink. The contract of a stream source
- * is similar to an iterator - it is consumed as in the following pseudo code:
+ * is the following: When the source should start emitting elements the {@link #run} method
+ * is called with a {@link org.apache.flink.util.Collector} that can be used for emitting elements.
+ * The run method can run for as long as necessary. The source must, however, react to an
+ * invocation of {@link #cancel} by breaking out of its main loop.
  * 
- * <pre>{@code
- * StreamSource<T> source = ...;
- * Collector<T> out = ...;
- * while (!source.reachedEnd()) {
- *   out.collect(source.next());
- * }
+ * <b>Note about checkpointed sources</b>
+ * <p>
+ * Sources that also implement the {@link org.apache.flink.streaming.api.checkpoint.Checkpointed}
+ * interface must ensure that state checkpointing, updating of internal state and emission of
+ * elements are not done concurrently. This is achieved by using the provided checkpointing lock
+ * object to protect update of state and emission of elements in a synchronized block.
+ * </p>
+ *
+ * <p>
+ * This is the basic pattern one should follow when implementing a (checkpointed) source:
+ * </p>
+ *
+ * <pre>
+ * {@code
+ *  public class ExampleSource<T> implements SourceFunction<T>, Checkpointed<Long> {
+ *      private long count = 0L;
+ *      private volatile boolean isRunning;
+ *
+ *      @Override
+ *      public void run(Object checkpointLock, Collector<T> out) {
+ *          isRunning = true;
+ *          while (isRunning && count < 1000) {
+ *              synchronized (checkpointLock) {
+ *                  out.collect(count);
+ *                  count++;
+ *              }
+ *          }
+ *      }
+ *
+ *      @Override
+ *      public void cancel() {
+ *          isRunning = false;
+ *      }
+ *
+ *      @Override
+ *      public Long snapshotState(long checkpointId, long checkpointTimestamp) { return count; }
+ *
+ *      @Override
+ *      public void restoreState(Long state) { this.count = state; }
  * }
  * </pre>
- * 
- * <b>Note about blocking behavior</b>
- * <p>This implementations of the methods in the stream sources must have certain guarantees about
- * blocking behavior. One of the two characteristics must be fulfilled.</p>
- * <ul>
- *     <li>The methods must react to thread interrupt calls and break out of blocking calls with
- *         an {@link InterruptedException}.</li>
- *     <li>The method may ignore interrupt calls and/or swallow InterruptedExceptions, if it is guaranteed
- *         that the method returns quasi immediately irrespectively of the input. This is true for example
- *         for file streams, where the call is guaranteed to return after a very short I/O delay in
- *         the order of milliseconds.</li>
- * </ul>
- * 
- * @param <T> The type of the records produced by this source.
+ *
+ * @param <T> The type of the elements produced by this source.
  */
 public interface SourceFunction<T> extends Function, Serializable {
-	
+
 	/**
-	 * Checks whether the stream has reached its end.
+	 * Starts the source. You can use the {@link org.apache.flink.util.Collector} parameter to emit
+	 * elements. Sources that implement
+	 * {@link org.apache.flink.streaming.api.checkpoint.Checkpointed} must lock on the
+	 * checkpoint lock (using a synchronized block) before updating internal state and/or emitting
+	 * elements. Also, the update of state and emission of elements must happen in the same
+	 * synchronized block.
 	 *
-	 * <p>This method must obey the contract about blocking behavior declared in the
-	 * description of this class.</p>
-	 * 
-	 * @return True, if the end of the stream has been reached, false if more data is available.
-	 * 
-	 * @throws InterruptedException The calling thread may be interrupted to pull the function out of this
-	 *                              method during checkpoints.
-	 * @throws Exception Any other exception that is thrown causes the source to fail and results in failure of
-	 *                   the streaming program, or triggers recovery, depending on the program setup.
+	 * @param checkpointLock The object to synchronize on when updating state and emitting elements.
+	 * @param out The collector to use for emitting elements
 	 */
-	boolean reachedEnd() throws Exception;
-
+	void run(final Object checkpointLock, Collector<T> out) throws Exception;
 
 	/**
-	 * Produces the next record.
-	 * 
-	 * <p>This method must obey the contract about blocking behavior declared in the
-	 * description of this class.</p>
-	 * 
-	 * @return The next record produced by this stream source.
-	 * 
-	 * @throws InterruptedException The calling thread may be interrupted to pull the function out of this
-	 *                              method during checkpoints.
-	 * @throws Exception Any other exception that is thrown causes the source to fail and results in failure of
-	 *                   the streaming program, or triggers recovery, depending on the program setup.
+	 * Cancels the source. Most sources will have a while loop inside the
+	 * {@link #run} method. You need to ensure that the source will break out of this loop. This
+	 * can be achieved by having a volatile field "isRunning" that is checked in the loop and that
+	 * is set to false in this method.
 	 */
-	T next() throws Exception;
+	void cancel();
 }
