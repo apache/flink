@@ -15,28 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.test.windowing;
+package org.apache.flink.streaming.test.exampleJavaPrograms.socket;
 
-import org.apache.flink.streaming.examples.windowing.SessionWindowing;
-import org.apache.flink.streaming.examples.windowing.util.SessionWindowingData;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.streaming.examples.socket.SocketTextStreamWordCount;
+import org.apache.flink.streaming.util.SocketProgramITCaseBase;
 
-public class SessionWindowingITCase extends StreamingProgramTestBase {
-
-	protected String resultPath;
-
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
-
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(SessionWindowingData.EXPECTED, resultPath);
-	}
+public class SocketTextStreamWordCountITCase extends SocketProgramITCaseBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		SessionWindowing.main(new String[]{resultPath});
+		SocketTextStreamWordCount.main(new String[]{HOST, port.toString(), resultPath});
 	}
+
 }

@@ -15,31 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.test.windowing;
+package org.apache.flink.streaming.test.exampleJavaPrograms.twitter;
 
-import org.apache.flink.streaming.examples.windowing.TopSpeedWindowingExample;
-import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
+import org.apache.flink.streaming.examples.twitter.TwitterStream;
+import org.apache.flink.streaming.examples.twitter.util.TwitterStreamData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
-public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {
-	protected String textPath;
+public class TwitterStreamITCase extends StreamingProgramTestBase {
 	protected String resultPath;
 
 	@Override
 	protected void preSubmit() throws Exception {
-		setParallelism(1); //needed to ensure total ordering for windows
-		textPath = createTempFile("text.txt", TopSpeedWindowingExampleData.CAR_DATA);
 		resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(TopSpeedWindowingExampleData.TOP_SPEEDS, resultPath);
+		compareResultsByLinesInMemory(TwitterStreamData.STREAMING_COUNTS_AS_TUPLES, resultPath);
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		TopSpeedWindowingExample.main(new String[]{textPath, resultPath});
-
+		TwitterStream.main(new String[]{resultPath});
 	}
+
 }
