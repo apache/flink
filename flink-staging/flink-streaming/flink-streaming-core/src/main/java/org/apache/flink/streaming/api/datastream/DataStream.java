@@ -344,9 +344,7 @@ public class DataStream<OUT> {
 	 * @return The grouped {@link DataStream}
 	 **/
 	public GroupedDataStream<OUT> groupBy(String... fields) {
-
 		return groupBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
-
 	}
 
 	/**
@@ -383,7 +381,11 @@ public class DataStream<OUT> {
 	 *
 	 */
 	public DataStream<OUT> partitionBy(int... fields) {
-		return partitionBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
+		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
+			return groupBy(new KeySelectorUtil.ArrayKeySelector<OUT>(fields));
+		} else {
+			return groupBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
+		}
 	}
 
 	/**
