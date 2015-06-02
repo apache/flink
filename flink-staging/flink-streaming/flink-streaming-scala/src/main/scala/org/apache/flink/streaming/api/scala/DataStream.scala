@@ -198,30 +198,26 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Creates a new ConnectedDataStream by connecting
    * DataStream outputs of different type with each other. The
    * DataStreams connected using this operators can be used with CoFunctions.
-   *
    */
   def connect[T2](dataStream: DataStream[T2]): ConnectedDataStream[T, T2] = 
     javaStream.connect(dataStream.getJavaStream)
 
   /**
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
-   * be used with grouped operators like grouped reduce or grouped aggregations
-   *
+   * be used with grouped operators like grouped reduce or grouped aggregations.
    */
   def groupBy(fields: Int*): DataStream[T] = javaStream.groupBy(fields: _*)
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
-   * be used with grouped operators like grouped reduce or grouped aggregations
-   *
+   * be used with grouped operators like grouped reduce or grouped aggregations.
    */
   def groupBy(firstField: String, otherFields: String*): DataStream[T] = 
    javaStream.groupBy(firstField +: otherFields.toArray: _*)   
   
   /**
    * Groups the elements of a DataStream by the given K key to
-   * be used with grouped operators like grouped reduce or grouped aggregations
-   *
+   * be used with grouped operators like grouped reduce or grouped aggregations.
    */
   def groupBy[K: TypeInformation](fun: T => K): DataStream[T] = {
 
@@ -230,6 +226,32 @@ class DataStream[T](javaStream: JavaStream[T]) {
       def getKey(in: T) = cleanFun(in)
     }
     javaStream.groupBy(keyExtractor)
+  }
+
+  /**
+   * Partitions the elements of a DataStream by the given key positions (for tuple/array types) to
+   * be used with grouped operators like grouped reduce or grouped aggregations.
+   */
+  def partitionBy(fields: Int*): DataStream[T] = javaStream.partitionBy(fields: _*)
+
+  /**
+   * Groups the elements of a DataStream by the given field expressions to
+   * be used with grouped operators like grouped reduce or grouped aggregations.
+   */
+  def partitionBy(firstField: String, otherFields: String*): DataStream[T] =
+    javaStream.partitionBy(firstField +: otherFields.toArray: _*)
+
+  /**
+   * Groups the elements of a DataStream by the given K key to
+   * be used with grouped operators like grouped reduce or grouped aggregations.
+   */
+  def partitionBy[K: TypeInformation](fun: T => K): DataStream[T] = {
+
+    val keyExtractor = new KeySelector[T, K] {
+      val cleanFun = clean(fun)
+      def getKey(in: T) = cleanFun(in)
+    }
+    javaStream.partitionBy(keyExtractor)
   }
 
   /**
