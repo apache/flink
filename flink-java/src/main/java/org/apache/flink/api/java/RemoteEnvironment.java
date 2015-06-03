@@ -30,9 +30,9 @@ import org.apache.flink.api.common.PlanExecutor;
  */
 public class RemoteEnvironment extends ExecutionEnvironment {
 	
-	private final String host;
+	protected final String host;
 	
-	private final int port;
+	protected final int port;
 	
 	private final String[] jarFiles;
 	

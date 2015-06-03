@@ -266,7 +266,7 @@ public class StreamJoinOperator<I1, I2> extends
 		}
 	}
 
-	public static <I1, I2, OUT> JoinWindowFunction<I1, I2, OUT> getJoinWindowFunction(
+	private static <I1, I2, OUT> JoinWindowFunction<I1, I2, OUT> getJoinWindowFunction(
 			JoinFunction<I1, I2, OUT> joinFunction, JoinPredicate<I1, I2> predicate) {
 		return new JoinWindowFunction<I1, I2, OUT>(predicate.keys1, predicate.keys2, joinFunction);
 	}

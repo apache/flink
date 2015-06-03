@@ -69,7 +69,7 @@ public abstract class TemporalOperator<I1, I2, OP extends TemporalWindow<OP>> {
 	 * transformed.To define sliding windows call {@link TemporalWindow#every}
 	 * on the resulting operator.
 	 * 
-	 * @param windowSize
+	 * @param length
 	 *            The size of the window in milliseconds.
 	 * @param timeStamp1
 	 *            The timestamp used to extract time from the elements of the
@@ -89,7 +89,7 @@ public abstract class TemporalOperator<I1, I2, OP extends TemporalWindow<OP>> {
 	 * transformed.To define sliding windows call {@link TemporalWindow#every}
 	 * on the resulting operator.
 	 * 
-	 * @param windowSize
+	 * @param length
 	 *            The size of the window in milliseconds.
 	 * @param timeStamp1
 	 *            The timestamp used to extract time from the elements of the

@@ -81,12 +81,11 @@ object TopSpeedWindowing {
         evictionSec = args(1).toInt
         triggerMeters = args(2).toDouble
         true
-      }
-      else {
+      } else {
         System.err.println("Usage: TopSpeedWindowing <numCars> <evictSec> <triggerMeters>")
         false
       }
-    }else{
+    } else {
       true
     }
   }

@@ -68,11 +68,13 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 		// emit result
 		if (fileOutput) {
 			singleSourceShortestPaths.writeAsCsv(outputPath, "\n", ",");
+
+			// since file sinks are lazy, we trigger the execution explicitly
+			env.execute("Single Source Shortest Paths Example");
 		} else {
 			singleSourceShortestPaths.print();
 		}
 
-		env.execute("Single Source Shortest Paths Example");
 	}
 
 	@Override

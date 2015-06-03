@@ -75,7 +75,7 @@ public class RemoteInputChannel extends InputChannel {
 	 */
 	private int expectedSequenceNumber = 0;
 
-	RemoteInputChannel(
+	public RemoteInputChannel(
 			SingleInputGate inputGate,
 			int channelIndex,
 			ResultPartitionID partitionId,
@@ -86,7 +86,7 @@ public class RemoteInputChannel extends InputChannel {
 				new Tuple2<Integer, Integer>(0, 0));
 	}
 
-	RemoteInputChannel(
+	public RemoteInputChannel(
 			SingleInputGate inputGate,
 			int channelIndex,
 			ResultPartitionID partitionId,
@@ -193,6 +193,8 @@ public class RemoteInputChannel extends InputChannel {
 				}
 			}
 
+			// The released flag has to be set before closing the connection to ensure that
+			// buffers received concurrently with closing are properly recycled.
 			if (partitionRequestClient != null) {
 				partitionRequestClient.close(this);
 			}

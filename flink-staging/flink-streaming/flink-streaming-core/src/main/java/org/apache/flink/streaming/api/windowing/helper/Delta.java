@@ -94,6 +94,7 @@ public class Delta<DATA> extends WindowingHelper<DATA> {
 		return new Delta<DATA>(deltaFunction, initVal, threshold);
 	}
 
+	@SuppressWarnings("unchecked")
 	private void instantiateTypeSerializer(){
 		if (executionConfig == null){
 			throw new UnsupportedOperationException("ExecutionConfig has to be set to instantiate TypeSerializer.");

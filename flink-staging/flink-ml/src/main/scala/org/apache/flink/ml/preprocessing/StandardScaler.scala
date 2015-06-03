@@ -25,6 +25,7 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.ml._
 import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
 import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.{BreezeVectorConverter, Vector}
@@ -209,20 +210,9 @@ object StandardScaler {
 
         instance.metricsOption match {
           case Some(metrics) => {
-            input.map(new RichMapFunction[T, T]() {
-
-              var broadcastMean: linalg.Vector[Double] = null
-              var broadcastStd: linalg.Vector[Double] = null
-
-              override def open(parameters: Configuration): Unit = {
-                val broadcastedMetrics = getRuntimeContext().getBroadcastVariable[
-                    (linalg.Vector[Double], linalg.Vector[Double])
-                  ]("broadcastedMetrics").get(0)
-                broadcastMean = broadcastedMetrics._1
-                broadcastStd = broadcastedMetrics._2
-              }
-
-              override def map(vector: T): T = {
+            input.mapWithBcVariable(metrics){
+              (vector, metrics) => {
+                val (broadcastMean, broadcastStd) = metrics
                 var myVector = vector.asBreeze
 
                 myVector -= broadcastMean
@@ -230,7 +220,7 @@ object StandardScaler {
                 myVector = (myVector :* std) + mean
                 myVector.fromBreeze
               }
-            }).withBroadcastSet(metrics, "broadcastedMetrics")
+            }
           }
 
           case None =>
@@ -251,29 +241,18 @@ object StandardScaler {
 
         instance.metricsOption match {
           case Some(metrics) => {
-            input.map(new RichMapFunction[LabeledVector, LabeledVector]() {
-
-              var broadcastMean: linalg.Vector[Double] = null
-              var broadcastStd: linalg.Vector[Double] = null
-
-              override def open(parameters: Configuration): Unit = {
-                val broadcastedMetrics = getRuntimeContext().getBroadcastVariable[
-                  (linalg.Vector[Double], linalg.Vector[Double])
-                  ]("broadcastedMetrics").get(0)
-                broadcastMean = broadcastedMetrics._1
-                broadcastStd = broadcastedMetrics._2
-              }
-
-              override def map(labeledVector: LabeledVector): LabeledVector = {
+            input.mapWithBcVariable(metrics){
+              (labeledVector, metrics) => {
+                val (broadcastMean, broadcastStd) = metrics
                 val LabeledVector(label, vector) = labeledVector
                 var breezeVector = vector.asBreeze
 
                 breezeVector -= broadcastMean
                 breezeVector :/= broadcastStd
                 breezeVector = (breezeVector :* std) + mean
-                LabeledVector(label, breezeVector.fromBreeze[Vector])
+                LabeledVector(label, breezeVector.fromBreeze)
               }
-            }).withBroadcastSet(metrics, "broadcastedMetrics")
+            }
           }
 
           case None =>

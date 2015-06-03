@@ -145,11 +145,13 @@ public class MusicProfiles implements ProgramDescription {
 
 		if (fileOutput) {
 			verticesWithCommunity.writeAsCsv(communitiesOutputPath, "\n", "\t");
+
+			// since file sinks are lazy, we trigger the execution explicitly
+			env.execute();
 		} else {
 			verticesWithCommunity.print();
 		}
 
-		env.execute();
 	}
 
 	public static final class ExtractMismatchSongIds implements MapFunction<String, Tuple1<String>> {

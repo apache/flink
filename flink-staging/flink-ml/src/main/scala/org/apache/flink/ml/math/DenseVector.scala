@@ -18,6 +18,8 @@
 
 package org.apache.flink.ml.math
 
+import breeze.linalg.{SparseVector => BreezeSparseVector, DenseVector => BreezeDenseVector, Vector => BreezeVector}
+
 /**
  * Dense vector implementation of [[Vector]]. The data is represented in a continuous array of
  * doubles.
@@ -133,5 +135,18 @@ object DenseVector {
 
   def init(size: Int, value: Double): DenseVector = {
     new DenseVector(Array.fill(size)(value))
+  }
+
+  /** BreezeVectorConverter implementation for [[org.apache.flink.ml.math.DenseVector]]
+    *
+    * This allows to convert Breeze vectors into [[DenseVector]].
+    */
+  implicit val denseVectorConverter = new BreezeVectorConverter[DenseVector] {
+    override def convert(vector: BreezeVector[Double]): DenseVector = {
+      vector match {
+        case dense: BreezeDenseVector[Double] => new DenseVector(dense.data)
+        case sparse: BreezeSparseVector[Double] => new DenseVector(sparse.toDenseVector.data)
+      }
+    }
   }
 }

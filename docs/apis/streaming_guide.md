@@ -23,7 +23,7 @@ under the License.
 
 <a href="#top"></a>
 
-Flink Streaming is a system for high-throughput, low-latency data stream processing. The system can connect to and process data streams from different data sources like file sources, web sockets, message queues(Apache Kafka, RabbitMQ, Apache Flume, Twitter…) and also from any user defined data source using a very simple interface. Data streams can be transformed and modified to create new data streams using high-level functions similar to the ones provided by the batch processing API. Flink Streaming natively supports flexible, data-driven windowing semantics and iterative stream processing. The processed data can be pushed to different output types.
+Flink Streaming is a system for high-throughput, low-latency data stream processing. The system can connect to and process data streams from different data sources like file sources, web sockets, message queues(Apache Kafka, RabbitMQ, Twitter Streaming API …) and also from any user defined data source using a very simple interface. Data streams can be transformed and modified to create new data streams using high-level functions similar to the ones provided by the batch processing API. Flink Streaming natively supports flexible, data-driven windowing semantics and iterative stream processing. The processed data can be pushed to different output types.
 
 * This will be replaced by the TOC
 {:toc}
@@ -1205,7 +1205,8 @@ To minimise latency, set the timeout to a value close to 0 (for example 5 or 10 
 Stream connectors
 ----------------
 
-Connectors provide an interface for accessing data from various third party sources (message queues). Currently four connectors are natively supported, namely [Apache Kafka](https://kafka.apache.org/),  [RabbitMQ](http://www.rabbitmq.com/), [Apache Flume](https://flume.apache.org/index.html) and [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis).
+<!-- TODO: reintroduce flume -->
+Connectors provide an interface for accessing data from various third party sources (message queues). Currently three connectors are natively supported, namely [Apache Kafka](https://kafka.apache.org/),  [RabbitMQ](http://www.rabbitmq.com/) and the [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis).
 
 Typically the connector packages consist of a source and sink class (with the exception of Twitter where only a source is provided). To use these sources the user needs to pass Serialization/Deserialization schemas for the connectors for the desired types. (Or use some predefined ones)
 
@@ -1213,7 +1214,15 @@ To run an application using one of these connectors usually additional third par
 
 ### Apache Kafka
 
-This connector provides access to data streams from [Apache Kafka](https://kafka.apache.org/).
+This connector provides access to data streams from [Apache Kafka](https://kafka.apache.org/). For using this connector add the following dependency to your project:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-kafka-connector</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
 
 #### Installing Apache Kafka
 * Follow the instructions from [Kafka's quickstart](https://kafka.apache.org/documentation.html#quickstart) to download the code and launch a server (launching a Zookeeper and a Kafka server is required every time before starting the application).
@@ -1339,101 +1348,17 @@ More about Kafka can be found [here](https://kafka.apache.org/documentation.html
 
 [Back to top](#top)
 
-### Apache Flume
-
-This connector provides access to data streams from [Apache Flume](http://flume.apache.org/).
-
-#### Installing Apache Flume
-[Download](http://flume.apache.org/download.html) Apache Flume. A configuration file is required for starting agents in Flume. A configuration file for running the example can be found [here](#config_file).
-
-#### Flume Source
-A class providing an interface for receiving data from Flume.
-
-The followings have to be provided for the `FlumeSource(…)` constructor in order:
-
-1. The hostname
-2. The port number
-3. Deserialization schema
-
-Example:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<String> stream = env
-	.addSource(new FlumeSource<String>("localhost", 41414, new SimpleStringSchema()))
-	.print();
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-stream = env
-    .addSource(new FlumeSource[String]("localhost", 41414, new SimpleStringSchema))
-    .print
-{% endhighlight %}
-</div>
-</div>
-
-#### Flume Sink
-A class providing an interface for sending data to Flume. 
-
-The followings have to be provided for the `FlumeSink(…)` constructor in order:
-
-1. The hostname
-2. The port number
-3. Serialisation schema
-
-Example: 
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-stream.addSink(new FlumeSink<String>("localhost", 42424, new StringToByteSerializer()));
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-stream.addSink(new FlumeSink[String]("localhost", 42424, new StringToByteSerializer))
-{% endhighlight %}
-</div>
-</div>
-
-##### Configuration file<a name="config_file"></a>
-An example of a configuration file:
-
-~~~
-a1.channels = c1
-a1.sources = r1
-a1.sinks = k1
-
-a1.channels.c1.type = memory
-
-a1.sources.r1.channels = c1
-a1.sources.r1.type = avro
-a1.sources.r1.bind = localhost
-a1.sources.r1.port = 42424
-
-a1.sinks.k1.channel = c1
-a1.sinks.k1.type = avro
-a1.sinks.k1.hostname = localhost
-a1.sinks.k1.port = 41414
-~~~
-
-To run the `FlumeTopology` example the previous configuration file must located in the Flume directory and named example.conf and the agent can be started with the following command:
-
-~~~
-bin/flume-ng agent --conf conf --conf-file example.conf --name a1 -Dflume.root.logger=INFO,console
-~~~
-
-If the agent is not started before the application starts a `FlumeSink` then the sink will retry to build the connection for 90 seconds, if unsuccessful it throws a `RuntimeException`.
-
-More on Flume can be found [here](http://flume.apache.org).
-
-[Back to top](#top)
-
 ### RabbitMQ
 
-This connector provides access to data streams from [RabbitMQ](http://www.rabbitmq.com/).
+This connector provides access to data streams from [RabbitMQ](http://www.rabbitmq.com/).For using this connector add the following dependency to your project:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-rabbitmq-connector</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
 
 ##### Installing RabbitMQ
 Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.com/download.html). After the installation the server automatically starts and the application connecting to RabbitMQ can be launched.
@@ -1497,7 +1422,15 @@ More about RabbitMQ can be found [here](http://www.rabbitmq.com/).
 
 ### Twitter Streaming API
 
-Twitter Streaming API provides opportunity to connect to the stream of tweets made available by Twitter. Flink Streaming comes with a built-in `TwitterSource` class for establishing a connection to this stream.
+Twitter Streaming API provides opportunity to connect to the stream of tweets made available by Twitter. Flink Streaming comes with a built-in `TwitterSource` class for establishing a connection to this stream.For using this connector add the following dependency to your project:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-twitter-connector</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
 
 #### Authentication
 In order to connect to Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.
@@ -1571,7 +1504,7 @@ There are two basic types of tweets. The usual tweets contain information such a
 
 ### Docker containers for connectors
 
-A Docker container is provided with all the required configurations for test running the connectors of Apache Flink. The servers for the message queues will be running on the docker container while the example topology can be run on the user's computer. The only exception is Flume, more can be read about this issue in the [Flume section](#flume). 
+A Docker container is provided with all the required configurations for test running the connectors of Apache Flink. The servers for the message queues will be running on the docker container while the example topology can be run on the user's computer. 
 
 #### Installing Docker
 The official Docker installation guide can be found [here](https://docs.docker.com/installation/).
@@ -1677,60 +1610,3 @@ In the example there are two connectors. One that sends messages to Kafka and on
 <DATE> INFO kafka.KafkaTopology: String: (8) arrived from Kafka
 <DATE> INFO kafka.KafkaTopology: String: (9) arrived from Kafka
 ~~~
-
-#### Apache Flume
-
-At the moment remote access for Flume connectors does not work. This example is only runnable on the same machine where the Flume server is. In this case both will be in the Docker container.
-
-Pull the image:
-
-~~~bash
-sudo docker pull flinkstreaming/flink-connectors-flume
-~~~
-
-To run the container type:
-
-~~~bash
-sudo docker run -t -i flinkstreaming/flink-connectors-flume
-~~~
-
-Now a terminal started running from the image with all the necessary configurations to test run the Flume connector. The -p flag binds the localhost's and the Docker container's ports so flume can communicate with the application through these.
-
-To have the latest version of Flink type:
-~~~bash
-cd /git/flink/
-git pull
-~~~
-
-Then build the code with:
-
-~~~bash
-cd /git/flink/flink-staging/flink-streaming/flink-streaming-connectors/
-mvn install -DskipTests
-~~~
-
-First start the server in the background:
-
-~~~bash
-/apache-flume-1.5.0-bin/bin/flume-ng agent \
---conf conf --conf-file /apache-flume-1.5.0-bin/example.conf --name a1 \
--Dflume.root.logger=INFO,console > /flumelog.txt 2> /flumeerr.txt &
-~~~
-
-Then press enter and launch the example with:
-
-~~~bash
-java -cp /PATH/TO/JAR-WITH-DEPENDENCIES org.apache.flink.streaming.connectors.flume.FlumeTopology
-~~~
-
-In the example there are to connectors. One that sends messages to Flume and one that receives messages from the same queue. In the logger messages the arriving messages can be observed in the following format:
-
-~~~
-<DATE> INFO flume.FlumeTopology: String: <one> arrived from Flume
-<DATE> INFO flume.FlumeTopology: String: <two> arrived from Flume
-<DATE> INFO flume.FlumeTopology: String: <three> arrived from Flume
-<DATE> INFO flume.FlumeTopology: String: <four> arrived from Flume
-<DATE> INFO flume.FlumeTopology: String: <five> arrived from Flume
-~~~
-
-[Back to top](#top)

@@ -18,6 +18,8 @@
 
 package org.apache.flink.ml.math
 
+import breeze.linalg.{SparseVector => BreezeSparseVector, DenseVector => BreezeDenseVector, Vector => BreezeVector}
+
 import scala.util.Sorting
 
 /** Sparse vector implementation storing the data in two arrays. One index contains the sorted
@@ -225,5 +227,25 @@ object SparseVector {
     */
   def fromCOO(size: Int, entry: (Int, Int)): SparseVector = {
     fromCOO(size, (entry._1, entry._2.toDouble))
+  }
+
+  /** BreezeVectorConverter implementation for [[org.apache.flink.ml.math.SparseVector]]
+    *
+    * This allows to convert Breeze vectors into [[SparseVector]]
+    */
+  implicit val sparseVectorConverter = new BreezeVectorConverter[SparseVector] {
+    override def convert(vector: BreezeVector[Double]): SparseVector = {
+      vector match {
+        case dense: BreezeDenseVector[Double] =>
+          SparseVector.fromCOO(
+            dense.length,
+            dense.iterator.toIterable)
+        case sparse: BreezeSparseVector[Double] =>
+          new SparseVector(
+            sparse.used,
+            sparse.index.take(sparse.used),
+            sparse.data.take(sparse.used))
+      }
+    }
   }
 }

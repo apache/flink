@@ -53,9 +53,8 @@ import org.apache.flink.streaming.api.windowing.WindowUtils.WindowTransformation
 /**
  * A {@link DiscretizedStream} represents a data stream that has been divided
  * into windows (predefined chunks). User defined function such as
- * {@link #reduceWindow(ReduceFunction)}, {@link #mapWindow()},
- * {@link #foldWindow(FoldFunction, initialValue)} or aggregations can be
- * applied to the windows.
+ * {@link #reduceWindow(ReduceFunction)}, {@link #mapWindow(WindowMapFunction)},
+ * or aggregations can be applied to the windows.
  * 
  * @param <OUT>
  *            The output type of the {@link DiscretizedStream}
@@ -127,7 +126,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	 * 
 	 * @param reduceFunction
 	 *            The reduce function to be applied on the windows
-	 * @return
+	 * @return The reduced DataStream
 	 */
 	protected DiscretizedStream<OUT> timeReduce(ReduceFunction<OUT> reduceFunction) {
 

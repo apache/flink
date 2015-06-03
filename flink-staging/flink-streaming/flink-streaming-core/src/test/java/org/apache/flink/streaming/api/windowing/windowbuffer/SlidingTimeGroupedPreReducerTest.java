@@ -52,6 +52,7 @@ public class SlidingTimeGroupedPreReducerTest {
 	KeySelector<Tuple2<Integer, Integer>, ?> tupleKey = new TupleModKey(2);
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testPreReduce1() throws Exception {
 		// This ensures that the buffer is properly cleared after a burst of elements by
 		// replaying the same sequence of elements with a later timestamp and expecting the same

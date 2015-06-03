@@ -110,6 +110,8 @@ public class ResultPartition implements BufferPoolOwner {
 
 	private boolean isFinished;
 
+	private volatile Throwable cause;
+
 	// - Statistics ----------------------------------------------------------
 
 	/** The total number of buffers (both data and event buffers) */
@@ -275,12 +277,21 @@ public class ResultPartition implements BufferPoolOwner {
 		}
 	}
 
+	public void release() {
+		release(null);
+	}
+
 	/**
 	 * Releases the result partition.
 	 */
-	public void release() {
+	public void release(Throwable cause) {
 		if (isReleased.compareAndSet(false, true)) {
 			LOG.debug("{}: Releasing {}.", owningTaskName, this);
+
+			// Set the error cause
+			if (cause != null) {
+				this.cause = cause;
+			}
 
 			// Release all subpartitions
 			for (ResultSubpartition subpartition : subpartitions) {
@@ -315,6 +326,10 @@ public class ResultPartition implements BufferPoolOwner {
 		checkElementIndex(index, subpartitions.length, "Subpartition not found.");
 
 		return subpartitions[index].createReadView(bufferProvider);
+	}
+
+	public Throwable getFailureCause() {
+		return cause;
 	}
 
 	/**

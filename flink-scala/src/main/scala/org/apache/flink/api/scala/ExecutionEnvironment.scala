@@ -455,8 +455,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-   * Creates a DataSet from the given non-empty [[Seq]]. The elements need to be serializable
-   * because the framework may move the elements into the cluster if needed.
+   * Creates a DataSet from the given non-empty [[Seq]].
    *
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
@@ -476,8 +475,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-   * Creates a DataSet from the given [[Iterator]]. The iterator must be serializable because the
-   * framework might move into the cluster if needed.
+   * Creates a DataSet from the given [[Iterator]].
    *
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
@@ -496,8 +494,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-   * Creates a new data set that contains the given elements. The elements must all be of the
-   * same type and must be serializable.
+   * Creates a new data set that contains the given elements.
    *
    * * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
@@ -511,8 +508,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a new data set that contains elements in the iterator. The iterator is splittable,
    * allowing the framework to create a parallel data source that returns the elements in the
-   * iterator. The iterator must be serializable because the execution environment may ship the
-   * elements into the cluster.
+   * iterator.
    */
   def fromParallelCollection[T: ClassTag : TypeInformation](
       iterator: SplittableIterator[T]): DataSet[T] = {

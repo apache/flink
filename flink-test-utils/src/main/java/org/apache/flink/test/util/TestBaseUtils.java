@@ -97,10 +97,11 @@ public class TestBaseUtils {
 	}
 	
 	
-	protected static ForkableFlinkMiniCluster startCluster(int numTaskManagers,
+	public static ForkableFlinkMiniCluster startCluster(int numTaskManagers,
 															int taskManagerNumSlots,
 															StreamingMode mode,
-															boolean startWebserver) throws Exception {
+															boolean startWebserver,
+															boolean singleActorSystem) throws Exception {
 		
 		logDir = File.createTempFile("TestBaseUtils-logdir", null);
 		Assert.assertTrue("Unable to delete temp file", logDir.delete());
@@ -121,10 +122,10 @@ public class TestBaseUtils {
 		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 8081);
 		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDir.toString());
 		
-		return new ForkableFlinkMiniCluster(config, true, mode);
+		return new ForkableFlinkMiniCluster(config, singleActorSystem, mode);
 	}
 
-	protected static void stopCluster(ForkableFlinkMiniCluster executor, FiniteDuration timeout) throws Exception {
+	public static void stopCluster(ForkableFlinkMiniCluster executor, FiniteDuration timeout) throws Exception {
 		if (logDir != null) {
 			FileUtils.deleteDirectory(logDir);
 		}

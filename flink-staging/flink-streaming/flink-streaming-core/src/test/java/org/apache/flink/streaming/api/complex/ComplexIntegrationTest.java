@@ -222,8 +222,8 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		
 		env.setBufferTimeout(0);
 
-		DataStream<Long> sourceStream31 = env.generateSequence(1, 10000);
-		DataStream<Long> sourceStream32 = env.generateSequence(10001, 20000);
+		DataStream<Long> sourceStream31 = env.generateParallelSequence(1, 10000);
+		DataStream<Long> sourceStream32 = env.generateParallelSequence(10001, 20000);
 
 		sourceStream31.filter(new PrimeFilterFunction())
 				.window(Count.of(100))
@@ -308,7 +308,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		
 		env.setBufferTimeout(0);
 
-		DataStream<Long> dataStream51 = env.generateSequence(1, 5)
+		DataStream<Long> dataStream51 = env.generateParallelSequence(1, 5)
 				.map(new MapFunction<Long, Long>() {
 
 					@Override

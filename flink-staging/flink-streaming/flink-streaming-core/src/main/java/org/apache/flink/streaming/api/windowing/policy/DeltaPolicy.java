@@ -86,6 +86,7 @@ public class DeltaPolicy<DATA> implements CloneableTriggerPolicy<DATA>,
 	 * 				TypeSerializer to properly forward the initial value to
 	 * 				the cluster
 	 */
+	@SuppressWarnings("unchecked")
 	public DeltaPolicy(DeltaFunction<DATA> deltaFuntion, DATA init, double threshold, TypeSerializer typeSerializer) {
 		this.deltaFuntion = deltaFuntion;
 		this.triggerDataPoint = init;

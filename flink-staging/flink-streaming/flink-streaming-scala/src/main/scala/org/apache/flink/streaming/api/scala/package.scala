@@ -48,9 +48,6 @@ package object scala {
 
   implicit def seqToFlinkSource[T: ClassTag: TypeInformation](scalaSeq: Seq[T]) : DataStream[T] =
     StreamExecutionEnvironment.getExecutionEnvironment.fromCollection(scalaSeq)
-    
-  implicit def windowedToDataStream[R](windowedStream: WindowedDataStream[R]): DataStream[R] =
-    windowedStream.flatten      
 
   private[flink] def fieldNames2Indices(
       typeInfo: TypeInformation[_],

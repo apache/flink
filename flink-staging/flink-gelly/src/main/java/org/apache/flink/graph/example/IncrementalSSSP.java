@@ -110,20 +110,24 @@ public class IncrementalSSSP implements ProgramDescription {
 			// Emit results
 			if(fileOutput) {
 				resultedVertices.writeAsCsv(outputPath, "\n", ",");
+
+				// since file sinks are lazy, we trigger the execution explicitly
+				env.execute("Incremental SSSP Example");
 			} else {
 				resultedVertices.print();
 			}
 
-			env.execute("Incremental SSSP Example");
 		} else {
 			// print the vertices
 			if(fileOutput) {
 				vertices.writeAsCsv(outputPath, "\n", ",");
+
+				// since file sinks are lazy, we trigger the execution explicitly
+				env.execute("Incremental SSSP Example");
 			} else {
 				vertices.print();
 			}
 
-			env.execute("Incremental SSSP Example");
 		}
 	}
 

@@ -55,8 +55,6 @@ public class FileMonitoringFunction extends RichSourceFunction<Tuple3<String, Lo
 	private Map<String, Long> offsetOfFiles;
 	private Map<String, Long> modificationTimes;
 
-	private volatile boolean isRunning = false;
-
 	private Queue<Tuple3<String, Long, Long>> pendingFiles;
 
 	public FileMonitoringFunction(String path, long interval, WatchType watchType) {
