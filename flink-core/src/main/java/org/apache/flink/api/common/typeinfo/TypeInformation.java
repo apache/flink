@@ -42,9 +42,6 @@ import java.util.List;
  *   <li>Basic types are indivisible and are considered a single field.</li>
  *   <li>Arrays and collections are one field</li>
  *   <li>Tuples and case classes represent as many fields as the class has fields</li>
- *   <li></li>
- *   <li></li>
- *   <li></li>
  * </ul>
  * <p>
  * To represent this properly, each type has an <i>arity</i> (the number of fields it contains
