@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.lang3.Validate;
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
@@ -142,7 +142,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * @return the extension of the file name or {@code null} if there is no extension.
 	 */
 	protected static String extractFileExtension(String fileName) {
-		Validate.notNull(fileName);
+		Preconditions.checkNotNull(fileName);
 		int lastPeriodIndex = fileName.lastIndexOf('.');
 		if (lastPeriodIndex < 0){
 			return null;
