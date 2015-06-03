@@ -22,6 +22,8 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -113,6 +115,33 @@ public class FirstNITCase extends MultipleProgramsTestBase {
 				+ "(4,10)\n(4,9)\n(4,8)\n"
 				+ "(5,15)\n(5,14)\n(5,13)\n"
 				+ "(6,21)\n(6,20)\n(6,19)\n";
+	}
+
+	/**
+	 * Test for FLINK-2135
+	 */
+	@Test
+	public void testFaultyCast() throws Exception {
+		ExecutionEnvironment ee = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<String> b = ee.fromElements("a", "b");
+		GroupReduceOperator<String, String> a = b.groupBy(new KeySelector<String, Long>() {
+			@Override
+			public Long getKey(String value) throws Exception {
+				return 1L;
+			}
+		}).sortGroup(new KeySelector<String, Double>() {
+			@Override
+			public Double getKey(String value) throws Exception {
+				return 1.0;
+			}
+		}, Order.DESCENDING).first(1);
+
+		b.writeAsText(resultPath);
+		ee.execute();
+
+		expected = "a\nb";
+
 	}
 	
 	public static class OneMapper implements MapFunction<Tuple3<Integer, Long, String>, Tuple1<Integer>> {
