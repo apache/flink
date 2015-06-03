@@ -19,9 +19,11 @@
 package org.apache.flink.graph.scala.test.operations
 
 import org.apache.flink.api.scala._
-import org.apache.flink.graph.scala._
+import org.apache.flink.graph.scala.EdgesFunction
+import org.apache.flink.graph.scala.EdgesFunctionWithVertexValue
+import org.apache.flink.graph.scala.Graph
 import org.apache.flink.graph.scala.test.TestGraphUtils
-import org.apache.flink.graph.{Edge, EdgeDirection, Vertex}
+import org.apache.flink.graph._
 import org.apache.flink.test.util.{AbstractMultipleProgramsTestBase, MultipleProgramsTestBase}
 import org.apache.flink.util.Collector
 import org.junit.rules.TemporaryFolder
@@ -81,6 +83,39 @@ class ReduceOnEdgesMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestExec
         expectedResult = "1,2\n" + "1,3\n" + "1,5\n" + "2,1\n" + "2,3\n" + "3,1\n" + "3,2\n" + "3,4\n" + "3,5\n" + "4,3\n" + "4,5\n" + "5,1\n" + "5,3\n" + "5,4"
     }
 
+    @Test
+    @throws(classOf[Exception])
+    def testLowestWeightOutNeighborNoValue {
+        val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val verticesWithLowestOutNeighbor: DataSet[(Long, Long)] = graph.reduceOnEdges(new SelectMinWeightNeighborNoValue, EdgeDirection.OUT)
+        verticesWithLowestOutNeighbor.writeAsCsv(resultPath)
+        env.execute
+        expectedResult = "1,12\n" + "2,23\n" + "3,34\n" + "4,45\n" + "5,51\n"
+    }
+
+    @Test
+    @throws(classOf[Exception])
+    def testLowestWeightInNeighborNoValue {
+        val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val verticesWithLowestOutNeighbor: DataSet[(Long, Long)] = graph.reduceOnEdges(new SelectMinWeightNeighborNoValue, EdgeDirection.IN)
+        verticesWithLowestOutNeighbor.writeAsCsv(resultPath)
+        env.execute
+        expectedResult = "1,51\n" + "2,12\n" + "3,13\n" + "4,34\n" + "5,35\n"
+    }
+
+    @Test
+    @throws(classOf[Exception])
+    def testMaxWeightAllNeighbors {
+        val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val verticesWithMaxEdgeWeight: DataSet[(Long, Long)] = graph.reduceOnEdges(new SelectMaxWeightNeighborNoValue, EdgeDirection.ALL)
+        verticesWithMaxEdgeWeight.writeAsCsv(resultPath)
+        env.execute
+        expectedResult = "1,51\n" + "2,23\n" + "3,35\n" + "4,45\n" + "5,51\n"
+    }
+
     final class SelectNeighborsValueGreaterThanFour extends EdgesFunctionWithVertexValue[Long, Long, Long, (Long, Long)] {
         @throws(classOf[Exception])
         override def iterateEdges(v: Vertex[Long, Long], edges: Iterable[Edge[Long, Long]], out: Collector[(Long, Long)]): Unit = {
@@ -111,5 +146,15 @@ class ReduceOnEdgesMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestExec
         }
     }
 
+    final class SelectMinWeightNeighborNoValue extends ReduceEdgesFunction[Long] {
+        override def reduceEdges(firstEdgeValue: Long, secondEdgeValue: Long): Long = {
+            Math.min(firstEdgeValue, secondEdgeValue)
+        }
+    }
 
+    final class SelectMaxWeightNeighborNoValue extends ReduceEdgesFunction[Long] {
+        override def reduceEdges(firstEdgeValue: Long, secondEdgeValue: Long): Long = {
+            Math.max(firstEdgeValue, secondEdgeValue)
+        }
+    }
 }

@@ -1315,6 +1315,38 @@ public class Graph<K, VV, EV> {
         }
     }
 
+    public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunctionWithVertexValue<K, VV, EV, T> neighborsFunction,
+                                                 EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
+        switch (direction) {
+            case IN:
+                // create <edge-sourceVertex> pairs
+                DataSet<Tuple2<Edge<K, EV>, Vertex<K, VV>>> edgesWithSources = edges
+                        .join(this.vertices).where(0).equalTo(0);
+                return vertices.coGroup(edgesWithSources)
+                        .where(0).equalTo("f0.f1")
+                        .with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+            case OUT:
+                // create <edge-targetVertex> pairs
+                DataSet<Tuple2<Edge<K, EV>, Vertex<K, VV>>> edgesWithTargets = edges
+                        .join(this.vertices).where(1).equalTo(0);
+                return vertices.coGroup(edgesWithTargets)
+                        .where(0).equalTo("f0.f0")
+                        .with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+            case ALL:
+                // create <edge-sourceOrTargetVertex> pairs
+                DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithNeighbors = edges
+                        .flatMap(new EmitOneEdgeWithNeighborPerNode<K, EV>())
+                        .join(this.vertices).where(1).equalTo(0)
+                        .with(new ProjectEdgeWithNeighbor<K, VV, EV>());
+
+                return vertices.coGroup(edgesWithNeighbors)
+                        .where(0).equalTo(0)
+                        .with(new ApplyCoGroupFunctionOnAllNeighbors<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+            default:
+                throw new IllegalArgumentException("Illegal edge direction");
+        }
+    }
+
     /**
      * Compute an aggregate over the neighbors (edges and vertices) of each
      * vertex. The function applied on the neighbors only has access to the
@@ -1354,6 +1386,39 @@ public class Graph<K, VV, EV> {
 
                 return edgesWithNeighbors.groupBy(0).reduceGroup(
                         new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction));
+            default:
+                throw new IllegalArgumentException("Illegal edge direction");
+        }
+    }
+
+    public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunction<K, VV, EV, T> neighborsFunction,
+                                                 EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
+        switch (direction) {
+            case IN:
+                // create <edge-sourceVertex> pairs
+                DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithSources = edges
+                        .join(this.vertices).where(0).equalTo(0)
+                        .with(new ProjectVertexIdJoin<K, VV, EV>(1))
+                        .withForwardedFieldsFirst("f1->f0");
+                return edgesWithSources.groupBy(0).reduceGroup(
+                        new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+            case OUT:
+                // create <edge-targetVertex> pairs
+                DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithTargets = edges
+                        .join(this.vertices).where(1).equalTo(0)
+                        .with(new ProjectVertexIdJoin<K, VV, EV>(0))
+                        .withForwardedFieldsFirst("f0");
+                return edgesWithTargets.groupBy(0).reduceGroup(
+                        new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+            case ALL:
+                // create <edge-sourceOrTargetVertex> pairs
+                DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithNeighbors = edges
+                        .flatMap(new EmitOneEdgeWithNeighborPerNode<K, EV>())
+                        .join(this.vertices).where(1).equalTo(0)
+                        .with(new ProjectEdgeWithNeighbor<K, VV, EV>());
+
+                return edgesWithNeighbors.groupBy(0).reduceGroup(
+                        new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
             default:
                 throw new IllegalArgumentException("Illegal edge direction");
         }
