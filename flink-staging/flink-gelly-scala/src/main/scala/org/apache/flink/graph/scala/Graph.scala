@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{tuple => jtuple}
 import org.apache.flink.api.scala._
 import org.apache.flink.graph._
+import org.apache.flink.graph.spargel.{MessagingFunction, VertexCentricConfiguration, VertexUpdateFunction}
 import org.apache.flink.{graph => jg}
 
 import _root_.scala.collection.JavaConversions._
@@ -311,5 +312,13 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
 
     def run(algorithm: GraphAlgorithm[K, VV, EV]) = {
         wrapGraph(jgraph.run(algorithm))
+    }
+
+    def runVertexCentricIteration[M](vertexUpdateFunction: VertexUpdateFunction[K, VV, M], messagingFunction: MessagingFunction[K, VV, M, EV], maxIterations: Int): Graph[K, VV, EV] = {
+        wrapGraph(jgraph.runVertexCentricIteration(vertexUpdateFunction, messagingFunction, maxIterations))
+    }
+
+    def runVertexCentricIteration[M](vertexUpdateFunction: VertexUpdateFunction[K, VV, M], messagingFunction: MessagingFunction[K, VV, M, EV], maxIterations: Int, parameters: VertexCentricConfiguration): Graph[K, VV, EV] = {
+        wrapGraph(jgraph.runVertexCentricIteration(vertexUpdateFunction, messagingFunction, maxIterations, parameters))
     }
 }
