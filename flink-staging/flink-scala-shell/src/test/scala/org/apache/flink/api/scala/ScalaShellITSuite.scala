@@ -55,8 +55,6 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
     output should not include "failed"
     output should not include "error"
     output should not include "Exception"
-
-    output should include("Job execution switched to status FINISHED.")
   }
 
   test("WordCount in Shell") {
@@ -85,7 +83,7 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
     output should include("(arrows,1)")
   }
 
-  test("Sum 1..0, should be 55") {
+  test("Sum 1..10, should be 55") {
     val input : String =
       """
         val input: DataSet[Int] = env.fromElements(0,1,2,3,4,5,6,7,8,9,10)
@@ -98,8 +96,6 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
     output should not include "failed"
     output should not include "error"
     output should not include "Exception"
-
-    output should include("Job execution switched to status FINISHED.")
 
     output should include("55")
   }
@@ -124,8 +120,6 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
     output should not include "failed"
     output should not include "error"
     output should not include "Exception"
-
-    output should include("Job execution switched to status FINISHED.")
 
     output should include("WC(hello,1)")
     output should include("WC(world,10)")
