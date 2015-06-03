@@ -22,8 +22,6 @@ import java.io.IOException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.ConnectorSource;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -33,8 +31,6 @@ import com.rabbitmq.client.QueueingConsumer;
 public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(RMQSource.class);
-
 	private final String QUEUE_NAME;
 	private final String HOST_NAME;
 
@@ -43,8 +39,6 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	private transient Channel channel;
 	private transient QueueingConsumer consumer;
 	private transient QueueingConsumer.Delivery delivery;
-
-	private volatile boolean isRunning = false;
 
 	OUT out;
 
@@ -97,9 +91,8 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 		try {
 			delivery = consumer.nextDelivery();
 		} catch (Exception e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Cannot recieve RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
-			}
+			throw new RuntimeException("Error while reading message from RMQ source from " + QUEUE_NAME
+					+ " at " + HOST_NAME, e);
 		}
 
 		out = schema.deserialize(delivery.getBody());
@@ -121,14 +114,13 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 		try {
 			delivery = consumer.nextDelivery();
 		} catch (Exception e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Cannot recieve RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
-			}
+			throw new RuntimeException("Error while reading message from RMQ source from " + QUEUE_NAME
+					+ " at " + HOST_NAME, e);
 		}
 
 		out = schema.deserialize(delivery.getBody());
 		if (schema.isEndOfStream(out)) {
-			throw new RuntimeException("RMQ source is at end.");
+			throw new RuntimeException("RMQ source is at end for " + QUEUE_NAME + " at " + HOST_NAME);
 		}
 		OUT result = out;
 		out = null;
