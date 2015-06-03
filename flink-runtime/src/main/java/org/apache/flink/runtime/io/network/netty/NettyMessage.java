@@ -150,6 +150,9 @@ abstract class NettyMessage {
 			else if (msgId == CancelPartitionRequest.ID) {
 				decodedMsg = new CancelPartitionRequest();
 			}
+			else if (msgId == CloseRequest.ID) {
+				decodedMsg = new CloseRequest();
+			}
 			else {
 				throw new IllegalStateException("Received unknown message from producer: " + msg);
 			}
@@ -518,6 +521,23 @@ abstract class NettyMessage {
 		@Override
 		void readFrom(ByteBuf buffer) throws Exception {
 			receiverId = InputChannelID.fromByteBuf(buffer);
+		}
+	}
+
+	static class CloseRequest extends NettyMessage {
+
+		private static final byte ID = 5;
+
+		public CloseRequest() {
+		}
+
+		@Override
+		ByteBuf write(ByteBufAllocator allocator) throws Exception {
+			return allocateBuffer(allocator, ID, 0);
+		}
+
+		@Override
+		void readFrom(ByteBuf buffer) throws Exception {
 		}
 	}
 
