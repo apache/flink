@@ -79,6 +79,12 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		ctx.pipeline().fireUserEventTriggered(receiverId);
 	}
 
+	public void close() {
+		if (ctx != null) {
+			ctx.channel().close();
+		}
+	}
+
 	@Override
 	public void userEventTriggered(ChannelHandlerContext ctx, Object msg) throws Exception {
 		if (msg.getClass() == SequenceNumberingSubpartitionView.class) {

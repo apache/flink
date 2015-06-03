@@ -96,6 +96,8 @@ public class PartitionRequestClient {
 			final RemoteInputChannel inputChannel,
 			int delayMs) throws IOException {
 
+		checkNotClosed();
+
 		LOG.debug("Requesting subpartition {} of partition {} with {} ms delay.",
 				subpartitionIndex, partitionId, delayMs);
 
@@ -146,6 +148,7 @@ public class PartitionRequestClient {
 	 * consumer task run pipelined.
 	 */
 	public void sendTaskEvent(ResultPartitionID partitionId, TaskEvent event, final RemoteInputChannel inputChannel) throws IOException {
+		checkNotClosed();
 
 		tcpChannel.writeAndFlush(new TaskEventRequest(event, partitionId, inputChannel.getInputChannelId()))
 				.addListener(
@@ -167,14 +170,22 @@ public class PartitionRequestClient {
 		partitionRequestHandler.removeInputChannel(inputChannel);
 
 		if (closeReferenceCounter.decrement()) {
-			// Close the TCP connection
-			tcpChannel.close();
+			// Close the TCP connection. Send a close request msg to ensure
+			// that outstanding backwards task events are not discarded.
+			tcpChannel.writeAndFlush(new NettyMessage.CloseRequest())
+					.addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
 
 			// Make sure to remove the client from the factory
 			clientFactory.destroyPartitionRequestClient(connectionId, this);
 		}
 		else {
 			partitionRequestHandler.cancelRequestFor(inputChannel.getInputChannelId());
+		}
+	}
+
+	private void checkNotClosed() throws IOException {
+		if (closeReferenceCounter.isDisposed()) {
+			throw new LocalTransportException("Channel closed.", tcpChannel.localAddress());
 		}
 	}
 }
