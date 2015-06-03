@@ -24,7 +24,7 @@ under the License.
 
 Analysis programs in Flink are regular programs that implement transformations on data sets
 (e.g., filtering, mapping, joining, grouping). The data sets are initially created from certain
-sources (e.g., by reading files, or from collections). Results are returned via sinks, which may for
+sources (e.g., by reading files, or from local collections). Results are returned via sinks, which may for
 example write the data to (distributed) files, or to standard output (for example the command line
 terminal). Flink programs run in a variety of contexts, standalone, or embedded in other programs.
 The execution can happen in a local JVM, or on clusters of many machines.
@@ -63,8 +63,6 @@ public class WordCountExample {
             .sum(1);
 
         wordCounts.print();
-
-        env.execute("Word Count Example");
     }
 
     public static class LineSplitter implements FlatMapFunction<String, Tuple2<String, Integer>> {
@@ -98,8 +96,6 @@ object WordCount {
       .sum(1)
 
     counts.print()
-
-    env.execute("Scala WordCount Example")
   }
 }
 {% endhighlight %}
@@ -139,6 +135,8 @@ mvn archetype:generate /
 {% endhighlight %}
 </div>
 </div>
+
+The archetypes are working for stable releases and preview versions (`-SNAPSHOT`)
 
 If you want to add Flink to an existing Maven project, add the following entry to your
 *dependencies* section in the *pom.xml* file of your project:
@@ -189,6 +187,10 @@ that creates the type information for Flink operations.
 </div>
 </div>
 
+
+
+#### Hadoop Dependency Versions
+
 If you are using Flink together with Hadoop, the version of the dependency may vary depending on the
 version of Hadoop (or more specifically, HDFS) that you want to use Flink with. Please refer to the
 [downloads page]({{site.baseurl}}/downloads.html) for a list of available versions, and instructions
@@ -216,9 +218,9 @@ programs with a `main()` method. Each program consists of the same basic parts:
 2. Load/create the initial data,
 3. Specify transformations on this data,
 4. Specify where to put the results of your computations, and
-5. Execute your program.
+5. Trigger the program execution
 
-We will now give an overview of each of those steps but please refer to the respective sections for
+We will now give an overview of each of those steps, please refer to the respective sections for
 more details. Note that all
 {% gh_link /flink-java/src/main/java/org/apache/flink/api/java "core classes of the Java API" %}
 are found in the package `org.apache.flink.api.java`.
@@ -243,8 +245,7 @@ your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
 you created a JAR file from you program, and invoke it through the [command line](cli.html)
 or the [web interface](web_client.html),
-the Flink cluster manager will
-execute your main method and `getExecutionEnvironment()` will return
+the Flink cluster manager will execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
 
 For specifying data sources the execution environment has several methods
@@ -283,7 +284,7 @@ This will create a new DataSet by converting every String in the original
 set to an Integer. For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
-Once you have a DataSet that needs to be written to disk you call one
+Once you have a DataSet that needs to be processed further you can call one
 of these methods on DataSet:
 
 {% highlight java %}
@@ -292,21 +293,9 @@ writeAsCsv(String path)
 write(FileOutputFormat<T> outputFormat, String filePath)
 
 print()
+
+collect()
 {% endhighlight %}
-
-The last method is only useful for developing/debugging on a local machine,
-it will output the contents of the DataSet to standard output. (Note that in
-a cluster, the result goes to the standard out stream of the cluster nodes and ends
-up in the *.out* files of the workers).
-The first two do as the name suggests, the third one can be used to specify a
-custom data output format. Please refer
-to [Data Sinks](#data-sinks) for more information on writing to files and also
-about custom data output formats.
-
-Once you specified the complete program you need to call `execute` on
-the `ExecutionEnvironment`. This will either execute on your local
-machine or submit your program for execution on a cluster, depending on
-how you created the execution environment.
 
 </div>
 <div data-lang="scala" markdown="1">
@@ -318,7 +307,7 @@ programs with a `main()` method. Each program consists of the same basic parts:
 2. Load/create the initial data,
 3. Specify transformations on this data,
 4. Specify where to put the results of your computations, and
-5. Execute your program.
+5. Trigger the program execution
 
 We will now give an overview of each of those steps but please refer to the respective sections for
 more details. Note that all core classes of the Scala API are found in the package 
@@ -344,8 +333,7 @@ your program inside an IDE or as a regular Scala program it will create
 a local environment that will execute your program on your local machine. If
 you created a JAR file from you program, and invoke it through the [command line](cli.html)
 or the [web interface](web_client.html),
-the Flink cluster manager will
-execute your main method and `getExecutionEnvironment()` will return
+the Flink cluster manager will execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
 
 For specifying data sources the execution environment has several methods
@@ -379,7 +367,7 @@ This will create a new DataSet by converting every String in the original
 set to an Integer. For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
-Once you have a DataSet that needs to be written to disk you can call one
+Once you have a DataSet that needs to be processed further you can call one
 of these methods on DataSet:
 
 {% highlight scala %}
@@ -394,24 +382,64 @@ def write(outputFormat: FileOutputFormat[T],
     writeMode: WriteMode = WriteMode.NO_OVERWRITE)
 
 def print()
+
+def collect()
 {% endhighlight %}
 
-The last method is only useful for developing/debugging on a local machine,
-it will output the contents of the DataSet to standard output. (Note that in
-a cluster, the result goes to the standard out stream of the cluster nodes and ends
-up in the *.out* files of the workers).
-The first two do as the name suggests, the third one can be used to specify a
-custom data output format. Please refer
-to [Data Sinks](#data-sinks) for more information on writing to files and also
-about custom data output formats.
-
-Once you specified the complete program you need to call `execute` on
-the `ExecutionEnvironment`. This will either execute on your local
-machine or submit your program for execution on a cluster, depending on
-how you created the execution environment.
-
 </div>
 </div>
+
+
+The first two methods (`writeAsText()` and `writeAsCsv()`) do as the name suggests, the third one 
+can be used to specify a custom data output format. Please refer to [Data Sinks](#data-sinks) for 
+more information on writing to files and also about custom data output formats.
+
+The `print()` method is useful for developing/debugging. It will output the contents of the DataSet 
+to standard output (on the JVM starting the Flink execution). **NOTE** The behavior of the `print()`
+method changed with Flink 0.9.x. Before it was printing to the log file of the workers, now its 
+sending the DataSet results to the client and printing the results there.
+
+`collect()` allows to retrieve the DataSet from the cluster to the local JVM. The `collect()` method 
+will return a `List` containing the elements.
+
+Both `print()` and `collect()` will trigger the execution of the program.
+
+
+**NOTE** `print()` and `collect()` retrieve the data from the cluster to the client. Currently,
+the data sizes you can retrieve with `collect()` are limited due to our RPC system. It is not advised
+to collect DataSets larger than 10MBs.
+
+
+Once you specified the complete program you need to **trigger the program execution**. You can call
+`execute()` directly on the `ExecutionEnviroment` or you implicitly trigger the execution with
+`collect()` or `print()`.
+Depending on the type of the `ExecutionEnvironment` the execution will be triggered on your local 
+machine or submit your program for execution on a cluster.
+
+Note that you can not call both `print()` (or `collect()`) and `execute()` at the end of program.
+
+The `execute()` method is returning the `JobExecutionResult`, including execution times and
+accumulator results. `print()` and `collect()` are not returning the result, but it can be
+accessed from the `getLastJobExecutionResult()` method.
+
+
+[Back to top](#top)
+
+
+DataSet abstraction
+---------------
+
+The batch processing APIs of Flink are centered around the `DataSet` abstraction. A `DataSet` is only
+an abstract representation of a set of data that can contain duplicates.
+
+Also note that Flink is not always physically creating (materializing) each DataSet at runtime. This 
+depends on the used runtime, the configuration and optimizer decisions.
+
+The Flink runtime is usually not materializing the DataSets because it is using a streaming runtime model.
+DataSets are only materialized to avoid distributed deadlocks (usually at points where the data flow 
+graph branches out to join again later) or if the execution mode has explicitly been set to a batched execution.
+
+When using Flink on Tez, all DataSets are materialized.
 
 
 [Back to top](#top)
@@ -422,8 +450,9 @@ Lazy Evaluation
 
 All Flink programs are executed lazily: When the program's main method is executed, the data loading
 and transformations do not happen directly. Rather, each operation is created and added to the
-program's plan. The operations are actually executed when one of the `execute()` methods is invoked
-on the ExecutionEnvironment object. Whether the program is executed locally or on a cluster depends
+program's plan. The operations are actually executed when the execution is explicitly triggered by 
+an `execute()` call on the ExecutionEnvironment object. Also, `collect()` and `print()` will trigger
+the job execution. Whether the program is executed locally or on a cluster depends
 on the environment of the program.
 
 The lazy evaluation lets you construct sophisticated programs that Flink executes as one
@@ -596,7 +625,7 @@ result = input1.join(input2)
 result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
                .where(0).equalTo(1);
 {% endhighlight %}
-
+        Note that the join transformation works only for equi-joins. Other join types, for example outer-joins need to be expressed using CoGroup.
       </td>
     </tr>
 
@@ -630,6 +659,7 @@ DataSet<Integer> data1 = // [...]
 DataSet<String> data2 = // [...]
 DataSet<Tuple2<Integer, String>> result = data1.cross(data2);
 {% endhighlight %}
+      <p>Note: Cross is potentially a <b>very</b> compute-intensive operation which can challenge even large compute clusters! It is adviced to hint the system with the DataSet sizes by using <i>crossWithTiny()</i> and <i>crossWithHuge()</i>.</p>
       </td>
     </tr>
     <tr>
@@ -647,7 +677,7 @@ DataSet<String> result = data1.union(data2);
     <tr>
       <td><strong>Rebalance</strong></td>
       <td>
-        <p>Evenly rebalances the parallel partitions of a data set to eliminate data skew. Only Map-like transformations may follow a rebalance transformation. (Java API Only)</p>
+        <p>Evenly rebalances the parallel partitions of a data set to eliminate data skew. Only Map-like transformations may follow a rebalance transformation.</p>
 {% highlight java %}
 DataSet<String> in = // [...]
 DataSet<String> result = in.rebalance()
@@ -860,6 +890,7 @@ val result = input1.join(input2).where(0).equalTo(1)
 val result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
                    .where(0).equalTo(1)
 {% endhighlight %}
+          Note that the join transformation works only for equi-joins. Other join types, for example outer-joins need to be expressed using CoGroup.
       </td>
     </tr>
 
@@ -886,6 +917,7 @@ val data1: DataSet[Int] = // [...]
 val data2: DataSet[String] = // [...]
 val result: DataSet[(Int, String)] = data1.cross(data2)
 {% endhighlight %}
+        <p>Note: Cross is potentially a <b>very</b> compute-intensive operation which can challenge even large compute clusters! It is adviced to hint the system with the DataSet sizes by using <i>crossWithTiny()</i> and <i>crossWithHuge()</i>.</p>
       </td>
     </tr>
     <tr>
@@ -894,6 +926,16 @@ val result: DataSet[(Int, String)] = data1.cross(data2)
         <p>Produces the union of two data sets.</p>
 {% highlight scala %}
 data.union(data2)
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Rebalance</strong></td>
+      <td>
+        <p>Evenly rebalances the parallel partitions of a data set to eliminate data skew. Only Map-like transformations may follow a rebalance transformation.</p>
+{% highlight scala %}
+val data1: DataSet[Int] = // [...]
+val result: DataSet[(Int, String)] = data1.rebalance().map(...)
 {% endhighlight %}
       </td>
     </tr>
@@ -946,6 +988,8 @@ val result3 = in.groupBy(0).sortGroup(1, Order.ASCENDING).first(3)
 The [parallelism](#parallel-execution) of a transformation can be defined by `setParallelism(int)` while
 `name(String)` assigns a custom name to a transformation which is helpful for debugging. The same is
 possible for [Data Sources](#data-sources) and [Data Sinks](#data-sinks).
+
+`withParameters(Configuration)` allows to pass Configuration objects, which can be accessed from the `open()` method inside the user function.
 
 [Back to Top](#top)
 
