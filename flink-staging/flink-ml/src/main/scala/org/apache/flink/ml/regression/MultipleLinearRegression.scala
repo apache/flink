@@ -18,15 +18,12 @@
 
 package org.apache.flink.ml.regression
 
-import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala.DataSet
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.ml.math.{DenseVector, BLAS, Vector, vector2Array}
+import org.apache.flink.ml.math.Vector
 import org.apache.flink.ml.common._
 
 import org.apache.flink.api.scala._
 
-import com.github.fommil.netlib.BLAS.{ getInstance => blas }
 import org.apache.flink.ml.optimization.{LinearPrediction, SquaredLoss, GenericLossFunction,
 SimpleGradientDescent}
 import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
@@ -46,7 +43,7 @@ import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
   * the current value `w` which gives the new value of `w_new`. The weight is defined as
   * `stepsize/math.sqrt(iteration)`.
   *
-  * The optimization runs at most a maximum number of iteratinos or, if a convergence threshold has
+  * The optimization runs at most a maximum number of iterations or, if a convergence threshold has
   * been set, until the convergence criterion has been met. As convergence criterion the relative
   * change of the sum of squared residuals is used:
   *
@@ -196,7 +193,8 @@ object MultipleLinearRegression {
     *
     * @tparam T Testing data type for which the prediction is calculated. Has to be a subtype of
     *           [[Vector]]
-    * @return
+    * @return [[PredictOperation]] which calculates for a given vector it's label according to the
+    *        linear model. The result of this [[PredictOperation]] is a [[LabeledVector]]
     */
   implicit def predictVectors[T <: Vector] = {
     new PredictOperation[MultipleLinearRegression, T, LabeledVector] {
