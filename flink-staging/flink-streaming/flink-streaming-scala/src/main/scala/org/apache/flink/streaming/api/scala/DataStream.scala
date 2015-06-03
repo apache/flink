@@ -87,7 +87,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * @return Name of the stream.
    */
   def getName : String = javaStream match {
-    case stream : SingleOutputStreamOperator[_,_] => javaStream.getName
+    case stream : SingleOutputStreamOperator[T,_] => stream.getName
     case _ => throw new
         UnsupportedOperationException("Only supported for operators.")
   }
@@ -99,7 +99,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * @return The named operator
    */
   def name(name: String) : DataStream[T] = javaStream match {
-    case stream : SingleOutputStreamOperator[_,_] => javaStream.name(name)
+    case stream : SingleOutputStreamOperator[T,_] => stream.name(name)
     case _ => throw new
         UnsupportedOperationException("Only supported for operators.")
     this
@@ -575,7 +575,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Creates a new [[DataStream]] by folding the elements of this DataStream
    * using an associative fold function and an initial value.
    */
-  def fold[R: TypeInformation: ClassTag](initialValue: R)(fun: (R,T) => R): DataStream[R] = {
+  def fold[R: TypeInformation: ClassTag](initialValue: R, fun: (R,T) => R): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
