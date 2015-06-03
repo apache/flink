@@ -32,6 +32,7 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichFoldFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -1132,7 +1133,7 @@ public class DataStream<OUT> {
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-		return writeToFile((OutputFormat<OUT>) of, 0L);
+		return writeToFile((FileOutputFormat<OUT>) of, 0L);
 	}
 
 	/**
@@ -1154,7 +1155,7 @@ public class DataStream<OUT> {
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-		return writeToFile((OutputFormat<OUT>) of, millis);
+		return writeToFile((FileOutputFormat<OUT>) of, millis);
 	}
 
 	/**
@@ -1179,7 +1180,7 @@ public class DataStream<OUT> {
 		if (writeMode != null) {
 			of.setWriteMode(writeMode);
 		}
-		return writeToFile((OutputFormat<OUT>) of, 0L);
+		return writeToFile((FileOutputFormat<OUT>) of, 0L);
 	}
 
 	/**
@@ -1208,7 +1209,7 @@ public class DataStream<OUT> {
 		if (writeMode != null) {
 			of.setWriteMode(writeMode);
 		}
-		return writeToFile((OutputFormat<OUT>) of, millis);
+		return writeToFile((FileOutputFormat<OUT>) of, millis);
 	}
 
 	/**
@@ -1230,7 +1231,18 @@ public class DataStream<OUT> {
 		return returnStream;
 	}
 
-	private DataStreamSink<OUT> writeToFile(OutputFormat<OUT> format, long millis) {
+	private DataStreamSink<OUT> writeToFile(FileOutputFormat<OUT> format, long millis) {
+		DataStreamSink<OUT> returnStream = addSink(new FileSinkFunctionByMillis<OUT>(format, millis));
+		return returnStream;
+	}
+	
+	/**
+	 * Writes the dataStream into an output.
+	 * @param format The output format
+	 * @param millis the write frequency
+	 * @return the closed DataStream
+	 */
+	public DataStreamSink<OUT> write(OutputFormat<OUT> format, long millis) {
 		DataStreamSink<OUT> returnStream = addSink(new FileSinkFunctionByMillis<OUT>(format, millis));
 		return returnStream;
 	}
