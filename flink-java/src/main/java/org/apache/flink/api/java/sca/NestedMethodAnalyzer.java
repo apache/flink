@@ -110,6 +110,12 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 		return (methodNode.access & ACC_BRIDGE) == ACC_BRIDGE;
 	}
 
+	private boolean isGetRuntimeContext(MethodInsnNode methodInsnNode) {
+		return methodInsnNode.name.equals("getRuntimeContext")
+				&& findMethodNode(methodInsnNode.owner, methodInsnNode.name, methodInsnNode.desc)[1]
+				.equals("org/apache/flink/api/common/functions/AbstractRichFunction");
+	}
+
 	private Type checkForUnboxing(String name, String methodOwner) {
 		// for performance improvement
 		if (!methodOwner.startsWith("java/lang/")
@@ -375,7 +381,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 					return super.unaryOperation(insn, value);
 				}
 				// access of input container field
-				else if (taggedValue.isContainer()
+				else if (taggedValue.canContainFields()
 						&& taggedValue.containerContains(field.name)) {
 					final TaggedValue tv = taggedValue.getContainerMapping().get(field.name);
 					if (tv != null) {
@@ -442,13 +448,17 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 				// if value1 is input/input container, make value2 a container and add value1 to it
 				// PUTFIELD on inputs is not allowed
 				if (!taggedValue.isInput() && value2HasInputDependency) {
-					taggedValue.setTag(Tag.CONTAINER);
+					if (!taggedValue.canContainFields()) {
+						taggedValue.setTag(Tag.CONTAINER);
+					}
 					taggedValue.addContainerMapping(field.name, tagged(value2), currentFrame);
 				}
 				// if value1 is filled with non-input, make it container and mark the field
 				// PUTFIELD on inputs is not allowed
 				else if (!taggedValue.isInput() && !value2HasInputDependency) {
-					taggedValue.setTag(Tag.CONTAINER);
+					if (!taggedValue.canContainFields()) {
+						taggedValue.setTag(Tag.CONTAINER);
+					}
 					taggedValue.addContainerMapping(field.name, null, currentFrame);
 				}
 				// PUTFIELD on input leads to input modification
@@ -539,9 +549,30 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 						return analyzer.getInput2AsTaggedValue();
 					}
 				}
-				// the arguments have input dependencies
+				// if the UDF class contains instance variables that contain input,
+				// we need to analyze also methods without input-dependent arguments
+				// special case: do not follow the getRuntimeContext method of RichFunctions
+				else if (!isStatic
+						&& isTagged(values.get(0))
+						&& tagged(values.get(0)).isThis()
+						&& hasInputDependencies(values.get(0))
+						&& !isGetRuntimeContext(method)) {
+					TaggedValue tv = invokeNestedMethod(values, method);
+					if (tv != null) {
+						return tv;
+					}
+				}
+				// the arguments have input dependencies ("THIS" does not count to the arguments)
 				// we can assume that method has at least one argument
-				else if (hasInputDependencies(values, false)) {
+				else if ((!isStatic
+							&& isTagged(values.get(0))
+							&& tagged(values.get(0)).isThis()
+							&& hasInputDependencies(values, true))
+						||
+						(!isStatic && (!isTagged(values.get(0)) || !tagged(values.get(0)).isThis())
+							&& hasInputDependencies(values, false))
+						||
+						isStatic && hasInputDependencies(values, false)) {
 					// special case: Java unboxing/boxing methods on input
 					Type newType;
 					if (isTagged(values.get(0))
@@ -614,16 +645,6 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 						if (tv != null) {
 							return tv;
 						}
-					}
-				}
-				// if the UDF class contains instance variables that contain input,
-				// we need to analyze also methods without input-dependent arguments
-				else if (methodOwner.equals(analyzer.getInternalUdfClassName())
-						&& !isStatic
-						&& hasInputDependencies(values.get(0))) {
-					TaggedValue tv = invokeNestedMethod(values, method);
-					if (tv != null) {
-						return tv;
 					}
 				}
 				return super.naryOperation(insn, values);

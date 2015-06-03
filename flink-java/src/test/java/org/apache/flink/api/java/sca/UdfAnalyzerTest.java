@@ -25,6 +25,7 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -762,6 +763,24 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithRecursion() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map40.class,
+				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>",
+				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>");
+	}
+
+	@ForwardedFields("field;field2")
+	public static class Map41 extends RichMapFunction<MyPojo, MyPojo> {
+		private MyPojo field;
+		@Override
+		public MyPojo map(MyPojo value) throws Exception {
+			field = value;
+			getRuntimeContext().getIntCounter("test").getLocalValue();
+			return field;
+		}
+	}
+
+	@Test
+	public void testForwardWithGetRuntimeContext() {
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map41.class,
 				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>",
 				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>");
 	}

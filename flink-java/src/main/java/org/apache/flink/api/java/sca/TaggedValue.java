@@ -29,9 +29,15 @@ import java.util.Map.Entry;
 public class TaggedValue extends BasicValue {
 
 	public static enum Tag {
-		REGULAR, THIS, INPUT, COLLECTOR, CONTAINER, INT_CONSTANT,
-		INPUT_1_ITERABLE, INPUT_2_ITERABLE, INPUT_1_ITERATOR, INPUT_2_ITERATOR,
-		ITERATOR_TRUE_ASSUMPTION, NULL
+		REGULAR, // regular object with no special meaning
+		THIS, // a special container which is the instance of the UDF
+		INPUT, // atomic input field
+		COLLECTOR, // collector of UDF
+		CONTAINER, // container that contains fields
+		INT_CONSTANT, // int constant
+		INPUT_1_ITERABLE, INPUT_2_ITERABLE, INPUT_1_ITERATOR, INPUT_2_ITERATOR, // input iterators
+		ITERATOR_TRUE_ASSUMPTION, // boolean value that is "true" at least once
+		NULL // null
 	};
 
 	public static enum Input {
@@ -152,6 +158,10 @@ public class TaggedValue extends BasicValue {
 		return tag == Tag.INPUT || tag == Tag.CONTAINER || tag == Tag.THIS;
 	}
 
+	public boolean canContainFields() {
+		return tag == Tag.CONTAINER || tag == Tag.THIS;
+	}
+
 	public boolean isCallByValue() {
 		return callByValue;
 	}
@@ -190,7 +200,7 @@ public class TaggedValue extends BasicValue {
 			return flatFieldExpr + "->*";
 		}
 		// equivalent to "f3;f0.f0->f0.f1;f1->f2;..."
-		else if (isContainer() && containerMapping != null) {
+		else if (canContainFields() && containerMapping != null) {
 			final StringBuilder sb = new StringBuilder();
 			traverseContainer(input, containerMapping, sb, "");
 			final String returnValue = sb.toString();
@@ -226,7 +236,7 @@ public class TaggedValue extends BasicValue {
 				sb.append(';');
 			}
 			// input containers
-			else if (entry.getValue().isContainer()) {
+			else if (entry.getValue().canContainFields()) {
 				traverseContainer(input, entry.getValue().containerMapping, sb,
 						((prefix.length() > 0)? prefix + "." : "") + entry.getKey());
 			}
@@ -247,7 +257,7 @@ public class TaggedValue extends BasicValue {
 			return input == other.input && flatFieldExpr.equals(other.flatFieldExpr)
 					&& grouped == other.grouped && callByValue == other.callByValue;
 		}
-		else if (isContainer() || isThis()) {
+		else if (canContainFields()) {
 			if ((containerMapping == null && other.containerMapping != null)
 					|| (containerMapping != null && other.containerMapping == null)) {
 				return false;
@@ -265,7 +275,7 @@ public class TaggedValue extends BasicValue {
 		if (isInput()) {
 			return "TaggedValue(" + tag + ":" + flatFieldExpr + ")";
 		}
-		else if (isContainer() || isThis()) {
+		else if (canContainFields()) {
 			return "TaggedValue(" + tag + ":" + containerMapping + ")";
 		}
 		else if (isIntConstant()) {
@@ -349,7 +359,7 @@ public class TaggedValue extends BasicValue {
 	}
 
 	public void makeRegular() {
-		if (isContainer() && containerMapping != null) {
+		if (canContainFields() && containerMapping != null) {
 			for (TaggedValue value : containerMapping.values()) {
 				value.makeRegular();
 			}
@@ -378,23 +388,21 @@ public class TaggedValue extends BasicValue {
 			newValue.grouped = this.grouped;
 			newValue.callByValue = this.callByValue;
 		}
-		else if (isContainer()) {
+		else if (canContainFields()) {
 			final HashMap<String, TaggedValue> containerMapping = new HashMap<String, TaggedValue>(this.containerMapping.size());
 			final HashMap<String, ModifiedASMFrame> containerFrameMapping;
 			if (this.containerFrameMapping != null) {
 				containerFrameMapping = new HashMap<String, ModifiedASMFrame>(this.containerFrameMapping.size());
-			}
-			else {
+			} else {
 				containerFrameMapping = null;
 			}
-			for (Map.Entry<String, TaggedValue> entry : this.containerMapping.entrySet()) {
+			for (Entry<String, TaggedValue> entry : this.containerMapping.entrySet()) {
 				if (entry.getValue() != null) {
 					containerMapping.put(entry.getKey(), entry.getValue().copy());
 					if (containerFrameMapping != null) {
 						containerFrameMapping.put(entry.getKey(), this.containerFrameMapping.get(entry.getKey()));
 					}
-				}
-				else {
+				} else {
 					containerMapping.put(entry.getKey(), null);
 				}
 			}
@@ -402,7 +410,7 @@ public class TaggedValue extends BasicValue {
 			newValue.containerFrameMapping = containerFrameMapping;
 		}
 		else if (isIntConstant()) {
-			newValue.intConstant = this.intConstant;
+				newValue.intConstant = this.intConstant;
 		}
 		return newValue;
 	}

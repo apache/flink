@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
@@ -45,12 +46,20 @@ public final class UdfAnalyzerUtils {
 
 	public static TaggedValue convertTypeInfoToTaggedValue(TaggedValue.Input input, TypeInformation<?> typeInfo,
 			String flatFieldExpr, List<CompositeType.FlatFieldDescriptor> flatFieldDesc, int[] groupedKeys) {
-		// tuples
-		if (typeInfo instanceof TupleTypeInfo) {
-			final TupleTypeInfo<?> tupleTypeInfo = (TupleTypeInfo<?>) typeInfo;
+		// java tuples & scala tuples
+		if (typeInfo instanceof TupleTypeInfoBase) {
+			final TupleTypeInfoBase<?> tupleTypeInfo = (TupleTypeInfoBase<?>) typeInfo;
 			HashMap<String, TaggedValue> containerMapping = new HashMap<String, TaggedValue>();
 			for (int i = 0; i < tupleTypeInfo.getArity(); i++) {
-				final String fieldName = "f" + i;
+				final String fieldName;
+				// java
+				if (typeInfo instanceof TupleTypeInfo) {
+					fieldName = "f" + i;
+				}
+				// scala
+				else {
+					fieldName = "_" + (i+1);
+				}
 				containerMapping.put(fieldName,
 						convertTypeInfoToTaggedValue(input,
 								tupleTypeInfo.getTypeAt(i),
@@ -156,7 +165,7 @@ public final class UdfAnalyzerUtils {
 		if (value.isInput()) {
 			return true;
 		}
-		else if ((value.isContainer() || value.isThis()) && value.getContainerMapping() != null) {
+		else if (value.canContainFields() && value.getContainerMapping() != null) {
 			for (TaggedValue tv : value.getContainerMapping().values()) {
 				if (hasInputDependencies(tv)) {
 					return true;
@@ -293,7 +302,7 @@ public final class UdfAnalyzerUtils {
 				else if (entry.getValue().isInput() && !entry.getValue().isGrouped()) {
 					it.remove();
 				}
-				else if (entry.getValue().isContainer()) {
+				else if (entry.getValue().canContainFields()) {
 					removeUngroupedInputsFromContainer(entry.getValue());
 				}
 			}
@@ -306,7 +315,7 @@ public final class UdfAnalyzerUtils {
 				return value;
 			}
 		}
-		else if (value.isContainer()) {
+		else if (value.canContainFields()) {
 			removeUngroupedInputsFromContainer(value);
 			if (value.getContainerMapping() != null && value.getContainerMapping().size() > 0) {
 				return value;

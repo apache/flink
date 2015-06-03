@@ -49,7 +49,7 @@ import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.removeUngroupedInpu
 
 public class UdfAnalyzer {
 	// exclusion to suppress hints for API operators
-	private static final String EXCLUDED_CLASSPATH = "org/apache/flink";
+	private static final String EXCLUDED_CLASSPATH = "org/apache/flinkx";
 	private static final int MAX_NESTING = 20;
 
 	private final Method baseClassMethod;
@@ -278,7 +278,7 @@ public class UdfAnalyzer {
 				// remove ungrouped inputs from result if UDF has iterators
 				// or is a reduce function
 				if ((isIterableInput || isReduceFunction) && returnValue != null) {
-					if (returnValue.isContainer()) {
+					if (returnValue.canContainFields()) {
 						removeUngroupedInputsFromContainer(returnValue);
 					}
 					else if (returnValue.isInput() && !returnValue.isGrouped()) {
