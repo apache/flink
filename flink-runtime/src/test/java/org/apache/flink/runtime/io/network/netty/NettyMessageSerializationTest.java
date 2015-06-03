@@ -147,6 +147,13 @@ public class NettyMessageSerializationTest {
 
 			assertEquals(expected.receiverId, actual.receiverId);
 		}
+
+		{
+			NettyMessage.CloseRequest expected = new NettyMessage.CloseRequest();
+			NettyMessage.CloseRequest actual = encodeAndDecode(expected);
+
+			assertEquals(expected.getClass(), actual.getClass());
+		}
 	}
 
 	@SuppressWarnings("unchecked")

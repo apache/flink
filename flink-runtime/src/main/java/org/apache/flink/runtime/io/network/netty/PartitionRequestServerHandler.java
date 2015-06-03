@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.CloseRequest;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
@@ -119,6 +120,9 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 				CancelPartitionRequest request = (CancelPartitionRequest) msg;
 
 				outboundQueue.cancel(request.receiverId);
+			}
+			else if (msgClazz == CloseRequest.class) {
+				outboundQueue.close();
 			}
 			else {
 				LOG.warn("Received unexpected client request: {}", msg);
