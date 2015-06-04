@@ -18,19 +18,21 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
 import org.apache.flink.streaming.api.windowing.helper.Count
 import org.apache.flink.streaming.runtime.partitioner.FieldsPartitioner
 import org.apache.flink.util.Collector
+import org.junit.Assert._
 import org.junit.Test
 
 class DataStreamTest {
 
-  private val parallelism = 2;
+  private val parallelism = 2
 
   @Test
   def testNaming(): Unit = {
-    val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism);
+    val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism)
 
     val source1 = env.generateSequence(0, 0).name("testSource1")
     assert("testSource1" == source1.getName)
@@ -106,7 +108,8 @@ class DataStreamTest {
     val connectedGroup3: ConnectedDataStream[_, _] = connected.groupBy("_1", "_1")
     val downStreamId3: Integer = createDownStreamId(connectedGroup3)
 
-    val connectedGroup4: ConnectedDataStream[_, _] = connected.groupBy(Array[String]("_1"), Array[String]("_1"))
+    val connectedGroup4: ConnectedDataStream[_, _] =
+      connected.groupBy(Array[String]("_1"), Array[String]("_1"))
     val downStreamId4: Integer = createDownStreamId(connectedGroup4)
 
     val connectedGroup5: ConnectedDataStream[_, _] = connected.groupBy(x => x._1, x => x._1)
@@ -131,33 +134,136 @@ class DataStreamTest {
     val connectedPartition1: ConnectedDataStream[_, _] = connected.partitionByHash(0, 0)
     val connectDownStreamId1: Integer = createDownStreamId(connectedPartition1)
 
-    val connectedPartition2: ConnectedDataStream[_, _] = connected.partitionByHash(Array[Int](0), Array[Int](0))
+    val connectedPartition2: ConnectedDataStream[_, _] =
+      connected.partitionByHash(Array[Int](0), Array[Int](0))
     val connectDownStreamId2: Integer = createDownStreamId(connectedPartition2)
 
     val connectedPartition3: ConnectedDataStream[_, _] = connected.partitionByHash("_1", "_1")
     val connectDownStreamId3: Integer = createDownStreamId(connectedPartition3)
 
-    val connectedPartition4: ConnectedDataStream[_, _] = connected.partitionByHash(Array[String]("_1"), Array[String]("_1"))
+    val connectedPartition4: ConnectedDataStream[_, _] =
+      connected.partitionByHash(Array[String]("_1"), Array[String]("_1"))
     val connectDownStreamId4: Integer = createDownStreamId(connectedPartition4)
 
-    val connectedPartition5: ConnectedDataStream[_, _] = connected.partitionByHash(x => x._1, x => x._1)
+    val connectedPartition5: ConnectedDataStream[_, _] =
+      connected.partitionByHash(x => x._1, x => x._1)
     val connectDownStreamId5: Integer = createDownStreamId(connectedPartition5)
 
-    assert(isPartitioned(graph.getStreamEdge(connectedPartition1.getFirst.getId, connectDownStreamId1)))
-    assert(isPartitioned(graph.getStreamEdge(connectedPartition1.getSecond.getId, connectDownStreamId1)))
+    assert(
+      isPartitioned(graph.getStreamEdge(connectedPartition1.getFirst.getId, connectDownStreamId1))
+    )
+    assert(
+      isPartitioned(graph.getStreamEdge(connectedPartition1.getSecond.getId, connectDownStreamId1))
+    )
 
-    assert(isPartitioned(graph.getStreamEdge(connectedPartition2.getFirst.getId, connectDownStreamId2)))
-    assert(isPartitioned(graph.getStreamEdge(connectedPartition2.getSecond.getId, connectDownStreamId2)))
+    assert(
+      isPartitioned(graph.getStreamEdge(connectedPartition2.getFirst.getId, connectDownStreamId2))
+    )
+    assert(
+      isPartitioned(graph.getStreamEdge(connectedPartition2.getSecond.getId, connectDownStreamId2))
+    )
 
-    assert(isPartitioned(graph.getStreamEdge(connectedPartition3.getFirst.getId, connectDownStreamId3)))
-    assert(isPartitioned(graph.getStreamEdge(connectedPartition3.getSecond.getId, connectDownStreamId3)))
+    assert(
+      isPartitioned(graph.getStreamEdge(connectedPartition3.getFirst.getId, connectDownStreamId3))
+    )
+    assert(
+      isPartitioned(graph.getStreamEdge(connectedPartition3.getSecond.getId, connectDownStreamId3))
+    )
 
-    assert(isPartitioned(graph.getStreamEdge(connectedPartition4.getFirst.getId, connectDownStreamId4)))
-    assert(isPartitioned(graph.getStreamEdge(connectedPartition4.getSecond.getId, connectDownStreamId4)))
+    assert(
+      isPartitioned(graph.getStreamEdge(connectedPartition4.getFirst.getId, connectDownStreamId4))
+    )
+    assert(
+      isPartitioned(graph.getStreamEdge(connectedPartition4.getSecond.getId, connectDownStreamId4))
+    )
 
-    assert(isPartitioned(graph.getStreamEdge(connectedPartition5.getFirst.getId, connectDownStreamId5)))
-    assert(isPartitioned(graph.getStreamEdge(connectedPartition5.getSecond.getId, connectDownStreamId5)))
+    assert(
+      isPartitioned(graph.getStreamEdge(connectedPartition5.getFirst.getId, connectDownStreamId5))
+    )
+    assert(
+      isPartitioned(graph.getStreamEdge(connectedPartition5.getSecond.getId, connectDownStreamId5))
+    )
   }
+
+  /**
+   * Tests whether parallelism gets set.
+   */
+  @Test
+  def testParallelism {
+    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.createLocalEnvironment(10)
+
+    val graph: StreamGraph = env.getStreamGraph
+
+    val src = env.fromElements(new Tuple2[Long, Long](0L, 0L))
+    val map = src.map(x => 0L)
+    val windowed: DataStream[Long] = map
+      .window(Count.of(10))
+      .foldWindow(0L, (x: Long, y: Long) => 0L)
+      .flatten
+    val sink = map.addSink(x => {})
+
+    assert(1 == graph.getStreamNode(src.getId).getParallelism)
+    assert(10 == graph.getStreamNode(map.getId).getParallelism)
+    assert(10 == graph.getStreamNode(windowed.getId).getParallelism)
+    assert(10 == graph.getStreamNode(sink.getId).getParallelism)
+
+    try {
+      src.setParallelism(3)
+      fail
+    }
+    catch {
+      case success: IllegalArgumentException => {
+      }
+    }
+
+    env.setParallelism(7)
+    assert(1 == graph.getStreamNode(src.getId).getParallelism)
+    assert(7 == graph.getStreamNode(map.getId).getParallelism)
+    assert(7 == graph.getStreamNode(windowed.getId).getParallelism)
+    assert(7 == graph.getStreamNode(sink.getId).getParallelism)
+
+    val parallelSource = env.generateParallelSequence(0, 0)
+
+    assert(7 == graph.getStreamNode(parallelSource.getId).getParallelism)
+
+    parallelSource.setParallelism(3)
+    assert(3 == graph.getStreamNode(parallelSource.getId).getParallelism)
+
+    map.setParallelism(2)
+    assert(2 == graph.getStreamNode(map.getId).getParallelism)
+
+    sink.setParallelism(4)
+    assert(4 == graph.getStreamNode(sink.getId).getParallelism)
+  }
+
+  @Test
+  def testTypeInfo {
+    val env: StreamExecutionEnvironment = StreamExecutionEnvironment
+      .createLocalEnvironment(parallelism)
+
+    val src1: DataStream[Long] = env.generateSequence(0, 0)
+    assertEquals(TypeExtractor.getForClass(classOf[Long]), src1.getType)
+
+    val map: DataStream[(Integer, String)] = src1.map(x => null)
+    assertEquals(classOf[scala.Tuple2[Integer, String]], map.getType.getTypeClass)
+
+    val window: WindowedDataStream[String] = map
+      .window(Count.of(5))
+      .mapWindow((x: Iterable[(Integer, String)], y: Collector[String]) => {})
+    assertEquals(TypeExtractor.getForClass(classOf[String]), window.getType)
+
+    val flatten: DataStream[Int] = window
+      .foldWindow(0,
+        (accumulator: Int, value: String) => 0
+      ).flatten
+    assertEquals(TypeExtractor.getForClass(classOf[Int]), flatten.getType)
+
+    // TODO check for custom case class
+  }
+
+  /////////////////////////////////////////////////////////////
+  // Utilities
+  /////////////////////////////////////////////////////////////
 
   private def isPartitioned(edge: StreamEdge): Boolean = {
     return edge.getPartitioner.isInstanceOf[FieldsPartitioner[_]]
@@ -168,7 +274,7 @@ class DataStreamTest {
   }
 
   private def createDownStreamId(dataStream: ConnectedDataStream[_, _]): Integer = {
-    return dataStream.map(x  => 0, x => 0).getId
+    return dataStream.map(x => 0, x => 0).getId
   }
 
 }
