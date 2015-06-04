@@ -23,6 +23,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
+
 Start working on your Flink Scala program in a few simple steps.
 
 ## Requirements
@@ -132,5 +133,21 @@ object WordCountJob {
 {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala "Check GitHub" %} for the full example code.
 
 For a complete overview over our API, have a look at the [Programming Guide]({{ site.baseurl }}/apis/programming_guide.html) and [further example programs]({{ site.baseurl }}/apis/examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/). We are happy to provide help.
+
+
+
+## Alternative Build Tools: SBT
+ 
+To build and run applications with SBT instead of Maven is pretty straight forward. After creating the standard sbt [directory layout](http://www.scala-sbt.org/0.13/tutorial/Directories.html) it's enough to add the Flink dependencies to the `build.sbt` file:
+
+~~~scala
+libraryDependencies ++= Seq("org.apache.flink" % "flink-scala" % "{{site.version}}", "org.apache.flink" % "flink-clients" % "{{site.version}}") 
+~~~
+
+Now the application can be executed by `sbt run`. By default SBT runs an application in the same JVM itself is running in. This can lead to lass loading issues with Flink. To avoid these, append the following line to `build.sbt`:
+
+~~~scala
+fork in run := true 
+~~~
 
 
