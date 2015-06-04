@@ -314,29 +314,6 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!-- StockPrices -->
-					<execution>
-						<id>StockPrices</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>StockPrices</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.windowing.StockPrices</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/windowing/StockPrices.class</include>
-								<include>org/apache/flink/streaming/examples/windowing/StockPrices$*.class</include>
-							</includes>
-						</configuration>
-					</execution>
-
 					<!-- TopSpeedWindowing -->
 					<execution>
 						<id>TopSpeedWindowing</id>
