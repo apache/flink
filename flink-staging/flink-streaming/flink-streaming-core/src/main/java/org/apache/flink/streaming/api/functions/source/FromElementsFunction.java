@@ -21,8 +21,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 
-import org.apache.flink.util.Collector;
-
 public class FromElementsFunction<T> implements SourceFunction<T> {
 	
 	private static final long serialVersionUID = 1L;
@@ -44,11 +42,11 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 	}
 
 	@Override
-	public void run(Object checkpointLock, Collector<T> out) throws Exception {
+	public void run(SourceContext<T> ctx) throws Exception {
 		Iterator<T> it = iterable.iterator();
 
 		while (isRunning && it.hasNext()) {
-			out.collect(it.next());
+			ctx.collect(it.next());
 		}
 	}
 

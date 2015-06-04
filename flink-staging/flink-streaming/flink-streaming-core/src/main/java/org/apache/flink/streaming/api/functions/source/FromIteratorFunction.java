@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import org.apache.flink.util.Collector;
-
 import java.util.Iterator;
 
 public class FromIteratorFunction<T> implements SourceFunction<T> {
@@ -34,9 +32,9 @@ public class FromIteratorFunction<T> implements SourceFunction<T> {
 	}
 
 	@Override
-	public void run(Object checkpointLock, Collector<T> out) throws Exception {
+	public void run(SourceContext<T> ctx) throws Exception {
 		while (isRunning && iterator.hasNext()) {
-			out.collect(iterator.next());
+			ctx.collect(iterator.next());
 		}
 	}
 

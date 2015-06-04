@@ -26,7 +26,6 @@ import java.net.Socket;
 import java.net.SocketException;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,11 +63,11 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	}
 
 	@Override
-	public void run(Object checkpointLock, Collector<String> collector) throws Exception {
-		streamFromSocket(collector, socket);
+	public void run(SourceContext<String> ctx) throws Exception {
+		streamFromSocket(ctx, socket);
 	}
 
-	public void streamFromSocket(Collector<String> collector, Socket socket) throws Exception {
+	public void streamFromSocket(SourceContext<String> ctx, Socket socket) throws Exception {
 		try {
 			StringBuffer buffer = new StringBuffer();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(
@@ -117,7 +116,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 				}
 
 				if (data == delimiter) {
-					collector.collect(buffer.toString());
+					ctx.collect(buffer.toString());
 					buffer = new StringBuffer();
 				} else if (data != '\r') { // ignore carriage return
 					buffer.append((char) data);
@@ -125,7 +124,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 			}
 
 			if (buffer.length() > 0) {
-				collector.collect(buffer.toString());
+				ctx.collect(buffer.toString());
 			}
 		} finally {
 			socket.close();

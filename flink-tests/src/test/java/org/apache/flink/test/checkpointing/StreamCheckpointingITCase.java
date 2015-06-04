@@ -35,7 +35,6 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
-import org.apache.flink.util.Collector;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -219,7 +218,9 @@ public class StreamCheckpointingITCase {
 		}
 
 		@Override
-		public void run(Object lockingObject, Collector out) throws Exception {
+		public void run(SourceContext<String> ctx) throws Exception {
+			final Object lockingObject = ctx.getCheckpointLock();
+
 			while (isRunning && index < numElements) {
 				char first = (char) ((index % 40) + 40);
 
@@ -230,7 +231,7 @@ public class StreamCheckpointingITCase {
 
 				synchronized (lockingObject) {
 					index += step;
-					out.collect(result);
+					ctx.collect(result);
 				}
 			}
 		}

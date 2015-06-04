@@ -21,7 +21,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.api.KafkaSink;
 import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
-import org.apache.flink.util.Collector;
 
 @SuppressWarnings("serial")
 public class KafkaProducerExample {
@@ -44,13 +43,13 @@ public class KafkaProducerExample {
 			private volatile boolean running = true;
 			
 			@Override
-			public void run(Object checkpointLock, Collector<String> collector) throws Exception {
+			public void run(SourceContext<String> ctx) throws Exception {
 				for (int i = 0; i < 20 && running; i++) {
-					collector.collect("message #" + i);
+					ctx.collect("message #" + i);
 					Thread.sleep(100L);
 				}
 
-				collector.collect("q");
+				ctx.collect("q");
 			}
 
 			@Override

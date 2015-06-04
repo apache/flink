@@ -23,7 +23,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.policy.CentralActiveTrigger;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
-import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,13 +57,12 @@ public class SessionWindowing {
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public void run(Object checkpointLock, Collector<Tuple3<String, Long, Integer>> collector)
-							throws Exception {
+					public void run(SourceContext<Tuple3<String, Long, Integer>> ctx) throws Exception {
 						for (Tuple3<String, Long, Integer> value : input) {
 							// We sleep three seconds between every output so we
 							// can see whether we properly detect sessions
 							// before the next start for a specific id
-							collector.collect(value);
+							ctx.collect(value);
 							if (!fileOutput) {
 								System.out.println("Collected: " + value);
 								Thread.sleep(3000);

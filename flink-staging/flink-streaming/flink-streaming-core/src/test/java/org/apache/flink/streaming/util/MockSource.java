@@ -33,8 +33,20 @@ public class MockSource<T> {
 			((RichSourceFunction<T>) sourceFunction).open(new Configuration());
 		}
 		try {
-			Collector<T> collector = new MockOutput<T>(outputs);
-			sourceFunction.run(new Object(), collector);
+			final Collector<T> collector = new MockOutput<T>(outputs);
+			final Object lockObject = new Object();
+			SourceFunction.SourceContext<T> ctx = new SourceFunction.SourceContext<T>() {
+				@Override
+				public void collect(T element) {
+					collector.collect(element);
+				}
+
+				@Override
+				public Object getCheckpointLock() {
+					return lockObject;
+				}
+			};
+			sourceFunction.run(ctx);
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot invoke source.", e);
 		}

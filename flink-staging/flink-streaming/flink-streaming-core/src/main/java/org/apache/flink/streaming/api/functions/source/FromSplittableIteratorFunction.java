@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.Collector;
 import org.apache.flink.util.SplittableIterator;
 
 import java.util.Iterator;
@@ -46,9 +45,9 @@ public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunctio
 	}
 
 	@Override
-	public void run(Object checkpointLock, Collector<T> out) throws Exception {
+	public void run(SourceContext<T> ctx) throws Exception {
 		while (isRunning && iterator.hasNext()) {
-			out.collect(iterator.next());
+			ctx.collect(iterator.next());
 		}
 	}
 

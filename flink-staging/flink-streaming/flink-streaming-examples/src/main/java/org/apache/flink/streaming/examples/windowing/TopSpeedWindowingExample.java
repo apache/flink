@@ -26,7 +26,6 @@ import org.apache.flink.streaming.api.windowing.deltafunction.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.helper.Delta;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
-import org.apache.flink.util.Collector;
 
 import java.util.Arrays;
 import java.util.Random;
@@ -108,8 +107,7 @@ public class TopSpeedWindowingExample {
 		}
 
 		@Override
-		public void run(Object checkpointLock, Collector<Tuple4<Integer, Integer, Double, Long>> collector)
-				throws Exception {
+		public void run(SourceContext<Tuple4<Integer, Integer, Double, Long>> ctx) throws Exception {
 
 			while (isRunning) {
 				Thread.sleep(1000);
@@ -122,7 +120,7 @@ public class TopSpeedWindowingExample {
 					distances[carId] += speeds[carId] / 3.6d;
 					Tuple4<Integer, Integer, Double, Long> record = new Tuple4<Integer, Integer, Double, Long>(carId,
 							speeds[carId], distances[carId], System.currentTimeMillis());
-					collector.collect(record);
+					ctx.collect(record);
 				}
 			}
 		}

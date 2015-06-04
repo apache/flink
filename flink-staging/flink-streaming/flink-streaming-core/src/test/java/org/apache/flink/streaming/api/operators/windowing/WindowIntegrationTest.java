@@ -162,9 +162,9 @@ public class WindowIntegrationTest implements Serializable {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public void run(Object checkpointLock, Collector<Integer> out) throws Exception {
+			public void run(SourceContext<Integer> ctx) throws Exception {
 				for (int i = 1; i <= 10; i++) {
-					out.collect(i);
+					ctx.collect(i);
 				}
 			}
 
@@ -189,9 +189,9 @@ public class WindowIntegrationTest implements Serializable {
 			}
 
 			@Override
-			public void run(Object checkpointLock, Collector<Integer> out) throws Exception {
+			public void run(SourceContext<Integer> ctx) throws Exception {
 				for (;i < 11; i += 2) {
-					out.collect(i);
+					ctx.collect(i);
 				}
 
 			}

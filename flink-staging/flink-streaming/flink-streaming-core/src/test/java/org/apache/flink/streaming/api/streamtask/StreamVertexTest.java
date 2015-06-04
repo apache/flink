@@ -37,7 +37,6 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.util.Collector;
 import org.junit.Test;
 
 public class StreamVertexTest {
@@ -52,10 +51,10 @@ public class StreamVertexTest {
 		private int i = 0;
 
 		@Override
-		public void run(Object checkpointLock, Collector<Tuple1<Integer>> out) throws Exception {
+		public void run(SourceContext<Tuple1<Integer>> ctx) throws Exception {
 			for (int i = 0; i < 10; i++) {
 				tuple.f0 = i;
-				out.collect(tuple);
+				ctx.collect(tuple);
 			}
 		}
 

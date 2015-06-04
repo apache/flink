@@ -26,6 +26,7 @@ import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.runtime.state.StateHandleProvider
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
+import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.functions.source.{FromElementsFunction, SourceFunction}
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.{Collector, SplittableIterator}
@@ -405,12 +406,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * source functionality.
    *
    */
-  def addSource[T: ClassTag: TypeInformation](function: Collector[T] => Unit): DataStream[T] = {
+  def addSource[T: ClassTag: TypeInformation](function: SourceContext[T] => Unit): DataStream[T] = {
     require(function != null, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {
       val cleanFun = StreamExecutionEnvironment.clean(function)
-      override def run(lockObject: AnyRef, out: Collector[T]) {
-        cleanFun(out)
+      override def run(ctx: SourceContext[T]) {
+        cleanFun(ctx)
       }
       override def cancel() = {}
     }

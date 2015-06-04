@@ -32,7 +32,6 @@ import kafka.javaapi.consumer.ConsumerConnector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.ConnectorSource;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -186,7 +185,7 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	}
 
 	@Override
-	public void run(Object checkpointLock, Collector<OUT> collector) throws Exception {
+	public void run(SourceContext<OUT> ctx) throws Exception {
 		
 		// NOTE: Since this source is not checkpointed, we do not need to
 		// acquire the checkpoint lock
@@ -196,7 +195,7 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 				if (schema.isEndOfStream(out)) {
 					break;
 				}
-				collector.collect(out);
+				ctx.collect(out);
 			}
 		} finally {
 			consumer.shutdown();
