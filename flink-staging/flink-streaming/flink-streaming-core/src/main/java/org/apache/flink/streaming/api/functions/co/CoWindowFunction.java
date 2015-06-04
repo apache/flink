@@ -26,5 +26,5 @@ import org.apache.flink.util.Collector;
 
 public interface CoWindowFunction<IN1, IN2, O> extends Function, Serializable {
 
-	public void coWindow(List<IN1> first, List<IN2> second, Collector<O> out) throws Exception;
+	void coWindow(List<IN1> first, List<IN2> second, Collector<O> out) throws Exception;
 }

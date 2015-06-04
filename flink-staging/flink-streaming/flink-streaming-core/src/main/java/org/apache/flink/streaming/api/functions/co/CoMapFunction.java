@@ -35,7 +35,7 @@ import org.apache.flink.api.common.functions.Function;
  */
 public interface CoMapFunction<IN1, IN2, OUT> extends Function, Serializable {
 
-	public OUT map1(IN1 value);
+	OUT map1(IN1 value) throws Exception;
 
-	public OUT map2(IN2 value);
+	OUT map2(IN2 value) throws Exception;
 }
