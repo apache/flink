@@ -97,9 +97,9 @@ public class IncrementalLearningSkeleton {
 		private volatile boolean isRunning = true;
 
 		@Override
-		public void run(Object checkpointLock, Collector<Integer> collector) throws Exception {
+		public void run(SourceContext<Integer> ctx) throws Exception {
 			while (isRunning) {
-				collector.collect(getNewData());
+				ctx.emit(getNewData());
 			}
 		}
 
@@ -123,10 +123,10 @@ public class IncrementalLearningSkeleton {
 		private int counter;
 
 		@Override
-		public void run(Object checkpointLock, Collector<Integer> collector) throws Exception {
+		public void run(SourceContext<Integer> ctx) throws Exception {
 			Thread.sleep(15);
 			while (counter < 50) {
-				collector.collect(getNewData());
+				ctx.emit(getNewData());
 			}
 		}
 
@@ -153,9 +153,9 @@ public class IncrementalLearningSkeleton {
 		private volatile boolean isRunning = true;
 
 		@Override
-		public void run(Object checkpointLock, Collector<Integer> collector) throws Exception {
+		public void run(SourceContext<Integer> collector) throws Exception {
 			while (isRunning) {
-				collector.collect(getTrainingData());
+				collector.emit(getTrainingData());
 			}
 
 		}
@@ -181,9 +181,9 @@ public class IncrementalLearningSkeleton {
 		private int counter = 0;
 
 		@Override
-		public void run(Object checkpointLock, Collector<Integer> collector) throws Exception {
+		public void run(SourceContext<Integer> collector) throws Exception {
 			while (counter < 8200) {
-				collector.collect(getTrainingData());
+				collector.emit(getTrainingData());
 			}
 		}
 
