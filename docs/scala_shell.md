@@ -38,7 +38,7 @@ in your link directory.
 To use it with a running cluster you can supply the host and port of the JobManager with:
 
 ~~~bash
-bin/start-scala-shell.sh -host <hostname> -port <portnumber>
+bin/start-scala-shell.sh --host <hostname> --port <portnumber>
 ~~~
 
 ## Usage
