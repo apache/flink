@@ -46,6 +46,9 @@ under the License.
 			<!-- Allow imports for JavaDocs -->
 			<property name="processJavadoc" value="true"/>
 		</module>
+		<module name="IllegalImport">
+			<property name="illegalPkgs" value="org.apache.commons.lang3.Validate,org.apache.flink.shaded"/>
+		</module>
 		<module name="NeedBraces">
 			<property name="tokens" value="LITERAL_IF, LITERAL_ELSE"/>
 		</module>
