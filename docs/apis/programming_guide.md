@@ -1525,7 +1525,7 @@ You can use types that implement the `org.apache.hadoop.Writable` interface. The
 defined in the `write()`and `readFields()` methods will be used for serialization.
 
 
-#### Type Erasure & Type Inferrence
+#### Type Erasure & Type Inference
 
 *Note: This Section is only relevant for Java.*
 
@@ -1550,6 +1550,22 @@ The
 interface can be implemented by input formats and functions to tell the API
 explicitly about their return type. The *input types* that the functions are invoked with can
 usually be inferred by the result types of the previous operations.
+
+
+#### Object reuse behavior
+
+Apache Flink is trying to reduce the number of object allocations for better performance.
+
+By default, user defined functions (like `map()` or `groupReduce()`) are getting new objects on each call (or through an iterator). So it is possible to keep references to the objects inside the function (for example in a List).
+
+User defined functions are often chained, for example when two mappers with the same parallelism are defined one after another. In the chaining case, the functions in the chain are receiving the same object instances. So the the second `map()` function is receiving the objects the first `map()` is returning.
+This behavior can lead to errors when the first `map()` function keeps a list of all objects and the second mapper is modifying objects. In that case, the user has to manually create copies of the objects before putting them into the list.
+
+Also note that the system assumes that the user is not modifying the incoming objects in the `filter()` function.
+
+There is a switch at the `ExectionConfig` which allows users to enable the object reuse mode (`enableObjectReuse()`). For mutable types, Flink will reuse object instances. In practice that means that a `map()` function will always receive the same object instance (with its fields set to new values). The object reuse mode will lead to better performance because fewer objects are created, but the user has to manually take care of what they are doing with the object references.
+
+
 
 [Back to top](#top)
 
@@ -1814,6 +1830,69 @@ env.readTextFile("file:///path/with.nested/files").withParameters(parameters)
 
 </div>
 </div>
+[Back to top](#top)
+
+
+Execution Configuration
+----------
+
+The `ExecutionEnvironment` also contains the `ExecutionConfig` which allows to set job specific configuration values for the runtime.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+ExecutionConfig executionConfig = env.getConfig();
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = ExecutionEnvironment.getExecutionEnvironment
+var executionConfig = env.getConfig
+{% endhighlight %}
+</div>
+</div>
+
+The following configuration options are available: (the default is bold)
+
+- **`enableClosureCleaner()`** / `disableClosureCleaner()`. The closure cleaner is enabled by default. The closure cleaner removes unneeded references to the surrounding class of anonymous functions inside Flink programs.
+With the closure cleaner disabled, it might happen that an anonymous user function is referencing the surrounding class, which is usually not Serializable. This will lead to exceptions by the serializer.
+
+- `getParallelism()` / `setParallelism(int parallelism)` Set the default parallelism for the job.
+
+- `getNumberOfExecutionRetries()` / `setNumberOfExecutionRetries(int numberOfExecutionRetries)` Sets the number of times that failed tasks are re-executed. A value of zero effectively disables fault tolerance. A value of `-1` indicates that the system default value (as defined in the configuration) should be used.
+
+- `getExecutionMode()` / `setExecutionMode()`. The default execution mode is PIPELINED. Sets the execution mode to execute the program. The execution mode defines whether data exchanges are performed in a batch or on a pipelined manner. 
+
+- `enableForceKryo()` / **`disableForceKryo`**. Kryo is not forced by default. Forces the GenericTypeInformation to use the Kryo serializer for POJOS even though we could analyze them as a POJO. In some cases this might be preferable. For example, when Flink's internal serializers fail to handle a POJO properly.
+
+- `enableForceAvro()` / **`disableForceAvro()`**. Avro is not forced by default. Forces the Flink AvroTypeInformation to use the Avro serializer instead of Kryo for serializing Avro POJOs.
+
+- `enableObjectReuse()` / **`disableObjectReuse()`** By default, objects are not reused in Flink. Enabling the [object reuse mode](programming_guide.html#object-reuse-behavior) will instruct the runtime to reuse user objects for better performance. Keep in mind that this can lead to bugs when the user-code function of an operation is not aware of this behavior. 
+
+- **`enableSysoutLogging()`** / `disableSysoutLogging()` JobManager status updates are printed to `System.out` by default. This setting allows to disable this behavior.
+
+- `getGlobalJobParameters()` / `setGlobalJobParameters()` This method allows users to set custom objects as a global configuration for the job. Since the `ExecutionConfig` is accessible in all user defined functions, this is an easy method for making configuration globally available in a job.
+
+- `addDefaultKryoSerializer(Class<?> type, Serializer<?> serializer)` Register a Kryo serializer instance for the given `type`.
+
+- `addDefaultKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass)` Register a Kryo serializer class for the given `type`.
+
+- `registerTypeWithKryoSerializer(Class<?> type, Serializer<?> serializer)` Register the given type with Kryo and specify a serializer for it. By registering a type with Kryo, the serialization of the type will be much more efficient.
+
+- `registerKryoType(Class<?> type)` If the type ends up being serialized with Kryo, then it will be registered at Kryo to make sure that only tags (integer IDs) are written. If a type is not registered with Kryo, its entire class-name will be serialized with every instance, leading to much higher I/O costs.
+
+- `registerPojoType(Class<?> type)` Registers the given type with the serialization stack. If the type is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the type ends up being serialized with Kryo, then it will be registered at Kryo to make sure that only tags are written. If a type is not registered with Kryo, its entire class-name will be serialized with every instance, leading to much higher I/O costs. 
+
+Note that types registered with `registerKryoType()` are not available to Flink's Kryo serializer instance.
+
+- `disableAutoTypeRegistration()` Automatic type registration is enabled by default. The automatic type registration is registering all types (including sub-types) used by usercode with Kryo and the POJO serializer.
+
+
+
+The `RuntimeContext` which is accessible in `Rich*` functions through the `getRuntimeContext()` method also allows to access the `ExecutionConfig` in all user defined functions.
+
+
 [Back to top](#top)
 
 Data Sinks
