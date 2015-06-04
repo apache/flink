@@ -22,18 +22,26 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.List;
+
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.ConnectedDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.GroupedDataStream;
+import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.datastream.WindowedDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.WindowMapFunction;
@@ -42,8 +50,17 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamGraph.StreamLoop;
+import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.windowing.helper.Count;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.FieldsPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
@@ -329,9 +346,166 @@ public class DataStreamTest {
 		assertEquals(TypeExtractor.getForClass(CustomPOJO.class), flatten.getType());
 	}
 
+	@Test
+	public void operatorTest() {
+		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+
+		DataStreamSource<Long> src = env.generateSequence(0, 0);
+
+		MapFunction<Long, Integer> mapFunction = new MapFunction<Long, Integer>() {
+			@Override
+			public Integer map(Long value) throws Exception {
+				return null;
+			}
+		};
+		DataStream<Integer> map = src.map(mapFunction);
+		assertEquals(mapFunction, getFunctionForDataStream(map));
+
+
+		FlatMapFunction<Long, Integer> flatMapFunction = new FlatMapFunction<Long, Integer>() {
+			@Override
+			public void flatMap(Long value, Collector<Integer> out) throws Exception {
+			}
+		};
+		DataStream<Integer> flatMap = src.flatMap(flatMapFunction);
+		assertEquals(flatMapFunction, getFunctionForDataStream(flatMap));
+
+		FilterFunction<Integer> filterFunction = new FilterFunction<Integer>() {
+			@Override
+			public boolean filter(Integer value) throws Exception {
+				return false;
+			}
+		};
+
+		DataStream<Integer> unionFilter = map
+				.union(flatMap)
+				.filter(filterFunction);
+
+		assertEquals(filterFunction, getFunctionForDataStream(unionFilter));
+
+		try {
+			streamGraph.getStreamEdge(map.getId(), unionFilter.getId());
+		} catch (RuntimeException e) {
+			fail(e.getMessage());
+		}
+
+		try {
+			streamGraph.getStreamEdge(flatMap.getId(), unionFilter.getId());
+		} catch (RuntimeException e) {
+			fail(e.getMessage());
+		}
+
+		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
+			@Override
+			public Iterable<String> select(Integer value) {
+				return null;
+			}
+		};
+
+		SplitDataStream<Integer> split = unionFilter.split(outputSelector);
+		List<OutputSelector<?>> outputSelectors = streamGraph.getStreamNode(split.getId()).getOutputSelectors();
+		assertEquals(1, outputSelectors.size());
+		assertEquals(outputSelector, outputSelectors.get(0));
+
+		DataStream<Integer> select = split.select("a");
+		DataStreamSink<Integer> sink = select.print();
+
+		StreamEdge splitEdge = streamGraph.getStreamEdge(select.getId(), sink.getId());
+		assertEquals("a", splitEdge.getSelectedNames().get(0));
+
+		FoldFunction<Integer, String> foldFunction = new FoldFunction<Integer, String>() {
+			@Override
+			public String fold(String accumulator, Integer value) throws Exception {
+				return null;
+			}
+		};
+		DataStream<String> fold = map.fold("", foldFunction);
+		assertEquals(foldFunction, getFunctionForDataStream(fold));
+
+		ConnectedDataStream<String, Integer> connect = fold.connect(flatMap);
+		CoMapFunction<String, Integer, String> coMapper = new CoMapFunction<String, Integer, String>() {
+			@Override
+			public String map1(String value) {
+				return null;
+			}
+
+			@Override
+			public String map2(Integer value) {
+				return null;
+			}
+		};
+		DataStream<String> coMap = connect.map(coMapper);
+		assertEquals(coMapper, getFunctionForDataStream(coMap));
+
+		try {
+			streamGraph.getStreamEdge(fold.getId(), coMap.getId());
+		} catch (RuntimeException e) {
+			fail(e.getMessage());
+		}
+
+		try {
+			streamGraph.getStreamEdge(flatMap.getId(), coMap.getId());
+		} catch (RuntimeException e) {
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testChannelSelectors() {
+		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+
+		DataStreamSource<Long> src = env.generateSequence(0, 0);
+
+		DataStream<Long> broadcast = src.broadcast();
+		DataStreamSink<Long> broadcastSink = broadcast.print();
+		StreamPartitioner<?> broadcastPartitioner =
+				streamGraph.getStreamEdge(broadcast.getId(), broadcastSink.getId()).getPartitioner();
+		assertTrue(broadcastPartitioner instanceof BroadcastPartitioner);
+
+		DataStream<Long> shuffle = src.shuffle();
+		DataStreamSink<Long> shuffleSink = shuffle.print();
+		StreamPartitioner<?> shufflePartitioner =
+				streamGraph.getStreamEdge(shuffle.getId(), shuffleSink.getId()).getPartitioner();
+		assertTrue(shufflePartitioner instanceof ShufflePartitioner);
+
+		DataStream<Long> forward = src.forward();
+		DataStreamSink<Long> forwardSink = forward.print();
+		StreamPartitioner<?> forwardPartitioner =
+				streamGraph.getStreamEdge(forward.getId(), forwardSink.getId()).getPartitioner();
+		assertTrue(forwardPartitioner instanceof RebalancePartitioner);
+
+		DataStream<Long> rebalance = src.rebalance();
+		DataStreamSink<Long> rebalanceSink = rebalance.print();
+		StreamPartitioner<?> rebalancePartitioner =
+				streamGraph.getStreamEdge(rebalance.getId(), rebalanceSink.getId()).getPartitioner();
+		assertTrue(rebalancePartitioner instanceof RebalancePartitioner);
+
+		DataStream<Long> global = src.global();
+		DataStreamSink<Long> globalSink = global.print();
+		StreamPartitioner<?> globalPartitioner =
+				streamGraph.getStreamEdge(global.getId(), globalSink.getId()).getPartitioner();
+		assertTrue(globalPartitioner instanceof GlobalPartitioner);
+	}
+
 	/////////////////////////////////////////////////////////////
 	// Utilities
 	/////////////////////////////////////////////////////////////
+
+	private static StreamOperator<?> getOperatorForDataStream(DataStream<?> dataStream) {
+		StreamExecutionEnvironment env = dataStream.getExecutionEnvironment();
+		StreamGraph streamGraph = env.getStreamGraph();
+		return streamGraph.getStreamNode(dataStream.getId()).getOperator();
+	}
+
+	private static Function getFunctionForDataStream(DataStream<?> dataStream) {
+		AbstractUdfStreamOperator<?, ?> operator =
+				(AbstractUdfStreamOperator<?, ?>) getOperatorForDataStream(dataStream);
+		return operator.getUserFunction();
+	}
 
 	private static Integer createDownStreamId(DataStream dataStream) {
 		return dataStream.print().getId();

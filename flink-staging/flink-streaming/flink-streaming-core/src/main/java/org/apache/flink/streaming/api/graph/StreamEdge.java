@@ -68,12 +68,12 @@ public class StreamEdge implements Serializable {
 		return targetVertex;
 	}
 
-	public int getSourceID() {
-		return sourceVertex.getID();
+	public int getSourceId() {
+		return sourceVertex.getId();
 	}
 
-	public int getTargetID() {
-		return targetVertex.getID();
+	public int getTargetId() {
+		return targetVertex.getId();
 	}
 
 	public int getTypeNumber() {
