@@ -1120,7 +1120,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			@Override
 			public void reduce(Iterable<Tuple2<Integer, Date>> values, Collector<String> out) throws Exception {
 				for (Tuple2<Integer, Date> e : values) {
-					out.collect(e.toString());
+					out.collect(Integer.toString(e.f0));
 				}
 			}
 		});
@@ -1128,7 +1128,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		r.writeAsText(resultPath);
 		env.execute();
 
-		expected = "(0,Thu Jan 15 06:40:00 CET 1970)\n(1,null)\n(2,Thu Jan 15 06:40:00 CET 1970)\n";
+		expected = "0\n1\n2\n";
 	}
 
 
