@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{tuple => jtuple}
 import org.apache.flink.api.scala._
 import org.apache.flink.graph._
+import org.apache.flink.graph.gsa.{ApplyFunction, GSAConfiguration, GatherFunction, SumFunction}
 import org.apache.flink.graph.spargel.{MessagingFunction, VertexCentricConfiguration, VertexUpdateFunction}
 import org.apache.flink.{graph => jg}
 
@@ -324,5 +325,13 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
 
     def runVertexCentricIteration[M](vertexUpdateFunction: VertexUpdateFunction[K, VV, M], messagingFunction: MessagingFunction[K, VV, M, EV], maxIterations: Int, parameters: VertexCentricConfiguration): Graph[K, VV, EV] = {
         wrapGraph(jgraph.runVertexCentricIteration(vertexUpdateFunction, messagingFunction, maxIterations, parameters))
+    }
+
+    def runGatherSumApplyIteration[M](gatherFunction: GatherFunction[VV, EV, M], sumFunction: SumFunction[VV, EV, M], applyFunction: ApplyFunction[K, VV, M], maxIterations: Int): Graph[K, VV, EV] = {
+        wrapGraph(jgraph.runGatherSumApplyIteration(gatherFunction, sumFunction, applyFunction, maxIterations))
+    }
+
+    def runGatherSumApplyIteration[M](gatherFunction: GatherFunction[VV, EV, M], sumFunction: SumFunction[VV, EV, M], applyFunction: ApplyFunction[K, VV, M], maxIterations: Int, parameters: GSAConfiguration): Graph[K, VV, EV] = {
+        wrapGraph(jgraph.runGatherSumApplyIteration(gatherFunction, sumFunction, applyFunction, maxIterations, parameters))
     }
 }
