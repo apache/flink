@@ -282,7 +282,7 @@ public class StreamingJobGraphGenerator {
 
 		for (StreamEdge output : allOutputs) {
 			config.setSelectedNames(output.getTargetID(),
-					streamGraph.getEdge(vertexID, output.getTargetID()).getSelectedNames());
+					streamGraph.getStreamEdge(vertexID, output.getTargetID()).getSelectedNames());
 		}
 
 		vertexConfigs.put(vertexID, config);

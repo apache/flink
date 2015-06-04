@@ -1349,13 +1349,35 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def printToErr(): Unit = {
     javaSet.printToErr()
   }
+
+  /**
+   * Writes a DataSet to the standard output streams (stdout) of the TaskManagers that execute
+   * the program (or more specifically, the data sink operators). On a typical cluster setup, the
+   * data will appear in the TaskManagers' <i>.out</i> files.
+   *
+   * To print the data to the console or stdout stream of the client process instead, use the
+   * [[print()]] method.
+   *
+   * For each element of the DataSet the result of [[AnyRef.toString()]] is written.
+   *
+   * @param prefix The string to prefix each line of the output with. This helps identifying outputs
+   *               from different printing sinks.   
+   * @return The DataSink operator that writes the DataSet.
+   */
+  def printOnTaskManager(prefix: String): DataSink[T] = {
+    javaSet.printOnTaskManager(prefix)
+  }
   
   /**
    * *
    * Writes a DataSet to the standard output stream (stdout) with a sink identifier prefixed.
    * This uses [[AnyRef.toString]] on each element.
    * @param sinkIdentifier The string to prefix the output with.
+   * 
+   * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
+  @Deprecated
+  @deprecated
   def print(sinkIdentifier: String): DataSink[T] = {
     output(new PrintingOutputFormat[T](sinkIdentifier, false))
   }
@@ -1364,7 +1386,11 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Writes a DataSet to the standard error stream (stderr) with a sink identifier prefixed.
    * This uses [[AnyRef.toString]] on each element.
    * @param sinkIdentifier The string to prefix the output with.
+   * 
+   * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
+  @Deprecated
+  @deprecated
   def printToErr(sinkIdentifier: String): DataSink[T] = {
       output(new PrintingOutputFormat[T](sinkIdentifier, true))
   }

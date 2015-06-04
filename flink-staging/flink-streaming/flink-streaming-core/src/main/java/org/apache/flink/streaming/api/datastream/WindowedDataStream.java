@@ -436,7 +436,7 @@ public class WindowedDataStream<OUT> {
 				.with(clean(reduceFunction));
 
 		// We get the windowbuffer and set it to emit empty windows with
-		// sequential IDs. This logic is necessarry to merge windows created in
+		// sequential IDs. This logic is necessary to merge windows created in
 		// parallel.
 		WindowBuffer<OUT> windowBuffer = getWindowBuffer(transformation).emitEmpty().sequentialID();
 

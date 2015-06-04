@@ -145,7 +145,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @param keyPosition2
 	 *            The field used to compute the hashcode of the elements in the
 	 *            second input stream.
-	 * @return @return The transformed {@link ConnectedDataStream}
+	 * @return The grouped {@link ConnectedDataStream}
 	 */
 	public ConnectedDataStream<IN1, IN2> groupBy(int keyPosition1, int keyPosition2) {
 		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(keyPosition1),
@@ -162,7 +162,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            The fields used to group the first input stream.
 	 * @param keyPositions2
 	 *            The fields used to group the second input stream.
-	 * @return @return The transformed {@link ConnectedDataStream}
+	 * @return The grouped {@link ConnectedDataStream}
 	 */
 	public ConnectedDataStream<IN1, IN2> groupBy(int[] keyPositions1, int[] keyPositions2) {
 		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(keyPositions1),
@@ -175,7 +175,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * expression is either the name of a public field or a getter method with
 	 * parentheses of the {@link DataStream}S underlying type. A dot can be used
 	 * to drill down into objects, as in {@code "field1.getInnerField2()" }.
-	 * 
+	 *
 	 * @param field1
 	 *            The grouping expression for the first input
 	 * @param field2
@@ -216,12 +216,96 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            The {@link KeySelector} used for grouping the first input
 	 * @param keySelector2
 	 *            The {@link KeySelector} used for grouping the second input
-	 * @return @return The transformed {@link ConnectedDataStream}
+	 * @return The partitioned {@link ConnectedDataStream}
 	 */
 	public ConnectedDataStream<IN1, IN2> groupBy(KeySelector<IN1, ?> keySelector1,
 			KeySelector<IN2, ?> keySelector2) {
 		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(keySelector1),
 				dataStream2.groupBy(keySelector2));
+	}
+
+	/**
+	 * PartitionBy operation for connected data stream. Partitions the elements of
+	 * input1 and input2 according to keyPosition1 and keyPosition2.
+	 *
+	 * @param keyPosition1
+	 *            The field used to compute the hashcode of the elements in the
+	 *            first input stream.
+	 * @param keyPosition2
+	 *            The field used to compute the hashcode of the elements in the
+	 *            second input stream.
+	 * @return The partitioned {@link ConnectedDataStream}
+	 */
+	public ConnectedDataStream<IN1, IN2> partitionByHash(int keyPosition1, int keyPosition2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(keyPosition1),
+				dataStream2.partitionByHash(keyPosition2));
+	}
+
+	/**
+	 * PartitionBy operation for connected data stream. Partitions the elements of
+	 * input1 and input2 according to keyPositions1 and keyPositions2.
+	 *
+	 * @param keyPositions1
+	 *            The fields used to group the first input stream.
+	 * @param keyPositions2
+	 *            The fields used to group the second input stream.
+	 * @return The partitioned {@link ConnectedDataStream}
+	 */
+	public ConnectedDataStream<IN1, IN2> partitionByHash(int[] keyPositions1, int[] keyPositions2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(keyPositions1),
+				dataStream2.partitionByHash(keyPositions2));
+	}
+
+	/**
+	 * PartitionBy operation for connected data stream using key expressions. Partitions
+	 * the elements of input1 and input2 according to field1 and field2. A
+	 * field expression is either the name of a public field or a getter method
+	 * with parentheses of the {@link DataStream}s underlying type. A dot can be
+	 * used to drill down into objects, as in {@code "field1.getInnerField2()" }
+	 *
+	 * @param field1
+	 *            The partitioning expressions for the first input
+	 * @param field2
+	 *            The partitioning expressions for the second input
+	 * @return The partitioned {@link ConnectedDataStream}
+	 */
+	public ConnectedDataStream<IN1, IN2> partitionByHash(String field1, String field2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(field1),
+				dataStream2.partitionByHash(field2));
+	}
+
+	/**
+	 * PartitionBy operation for connected data stream using key expressions. Partitions
+	 * the elements of input1 and input2 according to fields1 and fields2. A
+	 * field expression is either the name of a public field or a getter method
+	 * with parentheses of the {@link DataStream}s underlying type. A dot can be
+	 * used to drill down into objects, as in {@code "field1.getInnerField2()" }
+	 *
+	 * @param fields1
+	 *            The partitioning expressions for the first input
+	 * @param fields2
+	 *            The partitioning expressions for the second input
+	 * @return The partitioned {@link ConnectedDataStream}
+	 */
+	public ConnectedDataStream<IN1, IN2> partitionByHash(String[] fields1, String[] fields2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(fields1),
+				dataStream2.partitionByHash(fields2));
+	}
+
+	/**
+	 * PartitionBy operation for connected data stream. Partitions the elements of
+	 * input1 and input2 using keySelector1 and keySelector2.
+	 *
+	 * @param keySelector1
+	 *            The {@link KeySelector} used for partitioning the first input
+	 * @param keySelector2
+	 *            The {@link KeySelector} used for partitioning the second input
+	 * @return @return The partitioned {@link ConnectedDataStream}
+	 */
+	public ConnectedDataStream<IN1, IN2> partitionByHash(KeySelector<IN1, ?> keySelector1,
+														KeySelector<IN2, ?> keySelector2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(keySelector1),
+				dataStream2.partitionByHash(keySelector2));
 	}
 
 	/**

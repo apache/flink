@@ -27,13 +27,13 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * @param <T>
  *            Type of the Tuple
  */
-public class DistributePartitioner<T> extends StreamPartitioner<T> {
+public class RebalancePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
 	private int[] returnArray = new int[] {-1};
 	private boolean forward;
 
-	public DistributePartitioner(boolean forward) {
+	public RebalancePartitioner(boolean forward) {
 		super(forward ? PartitioningStrategy.FORWARD : PartitioningStrategy.DISTRIBUTE);
 		this.forward = forward;
 	}
@@ -47,6 +47,6 @@ public class DistributePartitioner<T> extends StreamPartitioner<T> {
 	}
 	
 	public StreamPartitioner<T> copy() {
-		return new DistributePartitioner<T>(forward);
+		return new RebalancePartitioner<T>(forward);
 	}
 }

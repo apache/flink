@@ -233,7 +233,7 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The function used for grouping the first input
    * @param fun2
    * The function used for grouping the second input
-   * @return @return The transformed { @link ConnectedDataStream}
+   * @return The grouped { @link ConnectedDataStream}
    */
   def groupBy[K: TypeInformation, L: TypeInformation](fun1: IN1 => K, fun2: IN2 => L):
   ConnectedDataStream[IN1, IN2] = {
@@ -246,6 +246,92 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     }
 
     javaStream.groupBy(keyExtractor1, keyExtractor2)
+  }
+
+  /**
+   * PartitionBy operation for connected data stream. Partitions the elements of
+   * input1 and input2 according to keyPosition1 and keyPosition2.
+   *
+   * @param keyPosition1
+   * The field used to compute the hashcode of the elements in the
+   * first input stream.
+   * @param keyPosition2
+   * The field used to compute the hashcode of the elements in the
+   * second input stream.
+   * @return The transformed { @link ConnectedDataStream}
+   */
+  def partitionByHash(keyPosition1: Int, keyPosition2: Int): ConnectedDataStream[IN1, IN2] = {
+    javaStream.partitionByHash(keyPosition1, keyPosition2)
+  }
+
+  /**
+   * PartitionBy operation for connected data stream. Partitions the elements of
+   * input1 and input2 according to keyPositions1 and keyPositions2.
+   *
+   * @param keyPositions1
+   * The fields used to partition the first input stream.
+   * @param keyPositions2
+   * The fields used to partition the second input stream.
+   * @return The transformed { @link ConnectedDataStream}
+   */
+  def partitionByHash(keyPositions1: Array[Int], keyPositions2: Array[Int]):
+  ConnectedDataStream[IN1, IN2] = {
+    javaStream.partitionByHash(keyPositions1, keyPositions2)
+  }
+
+  /**
+   * PartitionBy operation for connected data stream using key expressions. Partitions
+   * the elements of input1 and input2 according to field1 and field2. A field
+   * expression is either the name of a public field or a getter method with
+   * parentheses of the {@link DataStream}S underlying type. A dot can be used
+   * to drill down into objects, as in {@code "field1.getInnerField2()" }.
+   *
+   * @param field1
+   * The partitioning expression for the first input
+   * @param field2
+   * The partitioning expression for the second input
+   * @return The grouped { @link ConnectedDataStream}
+   */
+  def partitionByHash(field1: String, field2: String): ConnectedDataStream[IN1, IN2] = {
+    javaStream.partitionByHash(field1, field2)
+  }
+
+  /**
+   * PartitionBy operation for connected data stream using key expressions. Partitions
+   * the elements of input1 and input2 according to fields1 and fields2.
+   *
+   * @param fields1
+   * The partitioning expressions for the first input
+   * @param fields2
+   * The partitioning expressions for the second input
+   * @return The partitioned { @link ConnectedDataStream}
+   */
+  def partitionByHash(fields1: Array[String], fields2: Array[String]):
+  ConnectedDataStream[IN1, IN2] = {
+    javaStream.partitionByHash(fields1, fields2)
+  }
+
+  /**
+   * PartitionBy operation for connected data stream. Partitions the elements of
+   * input1 and input2 using fun1 and fun2.
+   *
+   * @param fun1
+   * The function used for partitioning the first input
+   * @param fun2
+   * The function used for partitioning the second input
+   * @return The partitioned { @link ConnectedDataStream}
+   */
+  def partitionByHash[K: TypeInformation, L: TypeInformation](fun1: IN1 => K, fun2: IN2 => L):
+  ConnectedDataStream[IN1, IN2] = {
+
+    val keyExtractor1 = new KeySelector[IN1, K] {
+      def getKey(in: IN1) = clean(fun1)(in)
+    }
+    val keyExtractor2 = new KeySelector[IN2, L] {
+      def getKey(in: IN2) = clean(fun2)(in)
+    }
+
+    javaStream.partitionByHash(keyExtractor1, keyExtractor2)
   }
 
   /**
@@ -281,14 +367,9 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * the same key. This type of reduce is much faster than reduceGroup since
    * the reduce function can be applied incrementally.
    *
-   * @param reducer1
-   * @param reducer2
-   * @param mapper1
-   * @param mapper2
-   *
    * @return The transformed { @link DataStream}.
    */
-  def reduce[R: TypeInformation: ClassTag](reducer1: (IN1, IN1) => IN1, 
+  def reduce[R: TypeInformation: ClassTag](reducer1: (IN1, IN1) => IN1,
       reducer2: (IN2, IN2) => IN2,mapper1: IN1 => R, mapper2: IN2 => R): DataStream[R] = {
     if (mapper1 == null || mapper2 == null) {
       throw new NullPointerException("Map functions must not be null.")

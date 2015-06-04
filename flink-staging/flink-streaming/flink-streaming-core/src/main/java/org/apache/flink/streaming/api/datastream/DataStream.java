@@ -78,7 +78,7 @@ import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.DistributePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.FieldsPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
@@ -112,7 +112,7 @@ public class DataStream<OUT> {
 	protected StreamPartitioner<OUT> partitioner;
 	@SuppressWarnings("rawtypes")
 	protected TypeInformation typeInfo;
-	protected List<DataStream<OUT>> mergedStreams;
+	protected List<DataStream<OUT>> unionizedStreams;
 	
 	protected Integer iterationID = null;
 	protected Long iterationWaitTime = null;
@@ -143,10 +143,10 @@ public class DataStream<OUT> {
 		this.parallelism = environment.getParallelism();
 		this.streamGraph = environment.getStreamGraph();
 		this.userDefinedNames = new ArrayList<String>();
-		this.partitioner = new DistributePartitioner<OUT>(true);
+		this.partitioner = new RebalancePartitioner<OUT>(true);
 		this.typeInfo = typeInfo;
-		this.mergedStreams = new ArrayList<DataStream<OUT>>();
-		this.mergedStreams.add(this);
+		this.unionizedStreams = new ArrayList<DataStream<OUT>>();
+		this.unionizedStreams.add(this);
 	}
 
 	/**
@@ -165,11 +165,11 @@ public class DataStream<OUT> {
 		this.typeInfo = dataStream.typeInfo;
 		this.iterationID = dataStream.iterationID;
 		this.iterationWaitTime = dataStream.iterationWaitTime;
-		this.mergedStreams = new ArrayList<DataStream<OUT>>();
-		this.mergedStreams.add(this);
-		if (dataStream.mergedStreams.size() > 1) {
-			for (int i = 1; i < dataStream.mergedStreams.size(); i++) {
-				this.mergedStreams.add(new DataStream<OUT>(dataStream.mergedStreams.get(i)));
+		this.unionizedStreams = new ArrayList<DataStream<OUT>>();
+		this.unionizedStreams.add(this);
+		if (dataStream.unionizedStreams.size() > 1) {
+			for (int i = 1; i < dataStream.unionizedStreams.size(); i++) {
+				this.unionizedStreams.add(new DataStream<OUT>(dataStream.unionizedStreams.get(i)));
 			}
 		}
 
@@ -261,16 +261,16 @@ public class DataStream<OUT> {
 	 * will be transformed simultaneously.
 	 * 
 	 * @param streams
-	 *            The DataStreams to merge output with.
+	 *            The DataStreams to union output with.
 	 * @return The {@link DataStream}.
 	 */
-	public DataStream<OUT> merge(DataStream<OUT>... streams) {
+	public DataStream<OUT> union(DataStream<OUT>... streams) {
 		DataStream<OUT> returnStream = this.copy();
 
 		for (DataStream<OUT> stream : streams) {
-			for (DataStream<OUT> ds : stream.mergedStreams) {
-				validateMerge(ds.getId());
-				returnStream.mergedStreams.add(ds.copy());
+			for (DataStream<OUT> ds : stream.unionizedStreams) {
+				validateUnion(ds.getId());
+				returnStream.unionizedStreams.add(ds.copy());
 			}
 		}
 		return returnStream;
@@ -288,7 +288,7 @@ public class DataStream<OUT> {
 	 * @return The {@link SplitDataStream}
 	 */
 	public SplitDataStream<OUT> split(OutputSelector<OUT> outputSelector) {
-		for (DataStream<OUT> ds : this.mergedStreams) {
+		for (DataStream<OUT> ds : this.unionizedStreams) {
 			streamGraph.addOutputSelector(ds.getId(), clean(outputSelector));
 		}
 
@@ -344,9 +344,7 @@ public class DataStream<OUT> {
 	 * @return The grouped {@link DataStream}
 	 **/
 	public GroupedDataStream<OUT> groupBy(String... fields) {
-
 		return groupBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
-
 	}
 
 	/**
@@ -373,15 +371,57 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output is
+	 * partitioned hashing on the given fields. This setting only
+	 * effects the how the outputs will be distributed between the parallel
+	 * instances of the next processing operator.
+	 *
+	 * @param fields The tuple fields that should be used for partitioning
+	 * @return The partitioned DataStream
+	 * Specifies how elements will be distributed to parallel instances of downstream operations.
+	 *
+	 */
+	public DataStream<OUT> partitionByHash(int... fields) {
+		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
+			return partitionByHash(new KeySelectorUtil.ArrayKeySelector<OUT>(fields));
+		} else {
+			return partitionByHash(new Keys.ExpressionKeys<OUT>(fields, getType()));
+		}
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output is
+	 * partitioned hashing on the given fields. This setting only
+	 * effects the how the outputs will be distributed between the parallel
+	 * instances of the next processing operator.
+	 *
+	 * @param fields The tuple fields that should be used for partitioning
+	 * @return The partitioned DataStream
+	 * Specifies how elements will be distributed to parallel instances of downstream operations.
+	 *
+	 */
+	public DataStream<OUT> partitionByHash(String... fields) {
+		return partitionByHash(new Keys.ExpressionKeys<OUT>(fields, getType()));
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output is
 	 * partitioned using the given {@link KeySelector}. This setting only
 	 * effects the how the outputs will be distributed between the parallel
 	 * instances of the next processing operator.
-	 * 
+	 *
 	 * @param keySelector
 	 * @return The partitioned DataStream
+	 * Specifies how elements will be distributed to parallel instances of downstream operations.
 	 */
-	protected DataStream<OUT> partitionBy(KeySelector<OUT, ?> keySelector) {
+	public DataStream<OUT> partitionByHash(KeySelector<OUT, ?> keySelector) {
 		return setConnectionType(new FieldsPartitioner<OUT>(clean(keySelector)));
+	}
+
+	//private helper method for partitioning
+	private DataStream<OUT> partitionByHash(Keys<OUT> keys) {
+		return setConnectionType(
+				new FieldsPartitioner<OUT>(
+						clean(KeySelectorUtil.getSelectorForKeys(keys, getType(), getExecutionConfig()))));
 	}
 
 	/**
@@ -418,7 +458,7 @@ public class DataStream<OUT> {
 	 * @return The DataStream with shuffle partitioning set.
 	 */
 	public DataStream<OUT> forward() {
-		return setConnectionType(new DistributePartitioner<OUT>(true));
+		return setConnectionType(new RebalancePartitioner<OUT>(true));
 	}
 
 	/**
@@ -429,8 +469,8 @@ public class DataStream<OUT> {
 	 * 
 	 * @return The DataStream with shuffle partitioning set.
 	 */
-	public DataStream<OUT> distribute() {
-		return setConnectionType(new DistributePartitioner<OUT>(false));
+	public DataStream<OUT> rebalance() {
+		return setConnectionType(new RebalancePartitioner<OUT>(false));
 	}
 
 	/**
@@ -595,7 +635,7 @@ public class DataStream<OUT> {
 	 * 
 	 * @param filter
 	 *            The FilterFunction that is called for each element of the
-	 *            DataSet.
+	 *            DataStream.
 	 * @return The filtered DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
@@ -1190,7 +1230,16 @@ public class DataStream<OUT> {
 		return returnStream;
 	}
 
-	private DataStreamSink<OUT> writeToFile(OutputFormat<OUT> format, long millis) {
+	/**
+	 * Writes a DataStream using the given {@link OutputFormat}. The
+	 * writing is performed periodically, in every millis milliseconds.
+	 *
+	 * @param format The output format that should be used for writing.
+	 * @param millis the file update frequency
+	 *
+	 * @return the closed DataStream
+	 */
+	public DataStreamSink<OUT> writeToFile(OutputFormat<OUT> format, long millis) {
 		DataStreamSink<OUT> returnStream = addSink(new FileSinkFunctionByMillis<OUT>(format, millis));
 		return returnStream;
 	}
@@ -1255,7 +1304,7 @@ public class DataStream<OUT> {
 	protected DataStream<OUT> setConnectionType(StreamPartitioner<OUT> partitioner) {
 		DataStream<OUT> returnStream = this.copy();
 
-		for (DataStream<OUT> stream : returnStream.mergedStreams) {
+		for (DataStream<OUT> stream : returnStream.unionizedStreams) {
 			stream.partitioner = partitioner;
 		}
 
@@ -1276,7 +1325,7 @@ public class DataStream<OUT> {
 	 *            Number of the type (used at co-functions)
 	 */
 	protected <X> void connectGraph(DataStream<X> inputStream, Integer outputID, int typeNumber) {
-		for (DataStream<X> stream : inputStream.mergedStreams) {
+		for (DataStream<X> stream : inputStream.unionizedStreams) {
 			streamGraph.addEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
 					inputStream.userDefinedNames);
 		}
@@ -1367,8 +1416,8 @@ public class DataStream<OUT> {
 		}
 	}
 
-	private void validateMerge(Integer id) {
-		for (DataStream<OUT> ds : this.mergedStreams) {
+	private void validateUnion(Integer id) {
+		for (DataStream<OUT> ds : this.unionizedStreams) {
 			if (ds.getId().equals(id)) {
 				throw new RuntimeException("A DataStream cannot be merged with itself");
 			}
