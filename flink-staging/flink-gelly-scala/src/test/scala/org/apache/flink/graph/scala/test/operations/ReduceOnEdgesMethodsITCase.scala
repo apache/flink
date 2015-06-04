@@ -19,11 +19,9 @@
 package org.apache.flink.graph.scala.test.operations
 
 import org.apache.flink.api.scala._
-import org.apache.flink.graph.scala.EdgesFunction
-import org.apache.flink.graph.scala.EdgesFunctionWithVertexValue
-import org.apache.flink.graph.scala.Graph
-import org.apache.flink.graph.scala.test.TestGraphUtils
 import org.apache.flink.graph._
+import org.apache.flink.graph.scala.test.TestGraphUtils
+import org.apache.flink.graph.scala.{EdgesFunction, EdgesFunctionWithVertexValue, Graph}
 import org.apache.flink.test.util.{AbstractMultipleProgramsTestBase, MultipleProgramsTestBase}
 import org.apache.flink.util.Collector
 import org.junit.rules.TemporaryFolder
@@ -157,4 +155,5 @@ class ReduceOnEdgesMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestExec
             Math.max(firstEdgeValue, secondEdgeValue)
         }
     }
+
 }
