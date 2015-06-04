@@ -143,42 +143,45 @@ public final class UdfAnalyzerUtils {
 		return (TaggedValue) value;
 	}
 
-	public static boolean hasInputDependencies(List<? extends BasicValue> values, boolean skipFirst) {
+	/**
+	 *
+	 * @return returns whether a value of the list of values is or contains
+	 * important dependencies (inputs or collectors) that require special analysis
+	 * (e.g. to dig into a nested method). The first argument can be skipped e.g.
+	 * in order to skip the "this" of non-static method arguments.
+	 */
+	public static boolean hasImportantDependencies(List<? extends BasicValue> values, boolean skipFirst) {
 		for (BasicValue value : values) {
 			if (skipFirst) {
 				skipFirst = false;
 				continue;
 			}
-			if (hasInputDependencies(value)) {
+			if (hasImportantDependencies(value)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	public static boolean hasInputDependencies(BasicValue bv) {
+	/**
+	 *
+	 * @return returns whether a value is or contains important dependencies (inputs or collectors)
+	 * that require special analysis (e.g. to dig into a nested method)
+	 */
+	public static boolean hasImportantDependencies(BasicValue bv) {
 		if (!isTagged(bv)) {
 			return false;
 		}
 		final TaggedValue value = tagged(bv);
 
-		if (value.isInput()) {
+		if (value.isInput() || value.isCollector()) {
 			return true;
 		}
 		else if (value.canContainFields() && value.getContainerMapping() != null) {
 			for (TaggedValue tv : value.getContainerMapping().values()) {
-				if (hasInputDependencies(tv)) {
+				if (hasImportantDependencies(tv)) {
 					return true;
 				}
-			}
-		}
-		return false;
-	}
-
-	public static boolean hasInputDependencies(Map<String, TaggedValue> values) {
-		for (TaggedValue value : values.values()) {
-			if (hasInputDependencies(value)) {
-				return true;
 			}
 		}
 		return false;

@@ -27,6 +27,12 @@ import org.objectweb.asm.tree.analysis.Interpreter;
 
 import java.lang.reflect.Field;
 
+/**
+ * Modified version of ASMs Analyzer. It defines a custom ASM Frame
+ * and allows jump modification which is necessary for UDFs with
+ * one iterable input e.g. GroupReduce.
+ * (see also UdfAnalyzer's field "iteratorTrueAssumptionApplied")
+ */
 public class ModifiedASMAnalyzer extends Analyzer {
 
 	private NestedMethodAnalyzer interpreter;
@@ -60,7 +66,7 @@ public class ModifiedASMAnalyzer extends Analyzer {
 
 	public void requestIFEQLoopModification() {
 		if (jumpModificationState != DO_NOTHING) {
-			throw new UdfAnalyzerException("Unable to do jump modifications (unsupported nested jumping).");
+			throw new CodeAnalyzerException("Unable to do jump modifications (unsupported nested jumping).");
 		}
 		jumpModification = IFEQ_MOD;
 		jumpModificationState = PRE_STATE;
@@ -68,7 +74,7 @@ public class ModifiedASMAnalyzer extends Analyzer {
 
 	public void requestIFNELoopModification() {
 		if (jumpModificationState != DO_NOTHING) {
-			throw new UdfAnalyzerException("Unable to do jump modifications (unsupported nested jumping).");
+			throw new CodeAnalyzerException("Unable to do jump modifications (unsupported nested jumping).");
 		}
 		jumpModification = IFNE_MOD;
 		jumpModificationState = PRE_STATE;
@@ -147,7 +153,7 @@ public class ModifiedASMAnalyzer extends Analyzer {
 			}
 		}
 		catch (Exception e) {
-			throw new UdfAnalyzerException("Unable to do jump modifications.", e);
+			throw new CodeAnalyzerException("Unable to do jump modifications.", e);
 		}
 	}
 

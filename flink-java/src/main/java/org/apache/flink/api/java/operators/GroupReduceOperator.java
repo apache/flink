@@ -88,7 +88,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 
 		checkCombinability();
 
-		UdfOperatorUtils.analyzeSingleInputUdf(this, GroupReduceFunction.class, function, grouper.keys);
+		UdfOperatorUtils.analyzeSingleInputUdf(this, GroupReduceFunction.class, defaultName, function, grouper.keys);
 	}
 
 	private void checkCombinability() {

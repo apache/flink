@@ -37,6 +37,7 @@ import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.sca.TaggedValue.Input;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.MethodNode;
+import org.slf4j.Logger;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -47,11 +48,24 @@ import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.findMethodNode;
 import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.mergeReturnValues;
 import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.removeUngroupedInputsFromContainer;
 
+/**
+ * Implements a Static Code Analyzer (SCA) that uses the ASM framework
+ * for interpreting Java bytecode of Flink UDFs. The analyzer is build on
+ * top of ASM's BasicInterpreter. Instead of ASM's BasicValues, it introduces
+ * TaggedValues which extend BasicValue and allows for appending interesting
+ * information to values. Interesting values such as inputs, collectors, or
+ * constants are tagged such that a tracking of atomic input fields through the
+ * entire UDF (until the function returns or calls collect()) is possible.
+ *
+ * The implementation is as conservative as possible meaning that for cases
+ * or bytecode instructions that haven't been considered the analyzer
+ * will fallback to the ASM library (which removes TaggedValues).
+ */
 public class UdfAnalyzer {
-	// exclusion to suppress hints for API operators
-	private static final String EXCLUDED_CLASSPATH = "org/apache/flinkx";
+	// necessary to prevent endless loops and stack overflows
 	private static final int MAX_NESTING = 20;
 
+	// general information about the UDF that is available before analysis takes place
 	private final Method baseClassMethod;
 	private final boolean hasCollector;
 	private final boolean isBinary;
@@ -59,16 +73,25 @@ public class UdfAnalyzer {
 	private final boolean isReduceFunction;
 	private final boolean isFilterFunction;
 	private final Class<?> udfClass;
+	private final String externalUdfName;
 	private final String internalUdfClassName;
 	private final TypeInformation<?> in1Type;
 	private final TypeInformation<?> in2Type;
 	private final TypeInformation<?> outType;
 	private final Keys<?> keys1;
 	private final Keys<?> keys2;
-	private final boolean throwErrorExceptions;
-	private final List<TaggedValue> collectorValues;
-	private final List<String> hints;
 
+	// flag if code errors should throw an CodeErrorException
+	private final boolean throwErrorExceptions;
+
+	// list of all values added with a "collect()" call
+	private final List<TaggedValue> collectorValues;
+
+	// list of all hints that can be returned after analysis
+	private final List<String> hints;
+	private boolean warning = false;
+
+	// stages for capturing and tagging the initial BasicValues
 	private int state = STATE_CAPTURE_RETURN;
 
 	static final int STATE_CAPTURE_RETURN = 0;
@@ -79,17 +102,26 @@ public class UdfAnalyzer {
 	static final int STATE_END_OF_CAPTURING = 5;
 	static final int STATE_END_OF_ANALYZING = 6;
 
+	// flag that indicates if the "hasNext()" call of an input iterator has returned "TRUE"
+	// and can now return "FALSE" if assumption has already been used
 	private boolean iteratorTrueAssumptionApplied;
+
+	// merged return value of all return statements in the UDF
 	private TaggedValue returnValue;
+
+	// statistics for object creation hinting
 	private int newOperationCounterOverall;
 	private int newOperationCounterTopLevel;
+
+	// stored FilterFunction input for later modification checking
 	private TaggedValue filterInputCopy;
 	private TaggedValue filterInputRef;
 
-	public UdfAnalyzer(Class<?> baseClass, Class<?> udfClass, TypeInformation<?> in1Type, TypeInformation<?> in2Type,
+	public UdfAnalyzer(Class<?> baseClass, Class<?> udfClass, String externalUdfName, TypeInformation<?> in1Type, TypeInformation<?> in2Type,
 			TypeInformation<?> outType, Keys<?> keys1, Keys<?> keys2, boolean throwErrorExceptions) {
 		baseClassMethod = baseClass.getDeclaredMethods()[0];
 		this.udfClass = udfClass;
+		this.externalUdfName = externalUdfName;
 		this.internalUdfClassName = Type.getInternalName(udfClass);
 		this.in1Type = in1Type;
 		this.in2Type = in2Type;
@@ -230,11 +262,7 @@ public class UdfAnalyzer {
 		return collectorValues;
 	}
 
-	public boolean analyze() throws UdfAnalyzerException {
-		if (internalUdfClassName.startsWith(EXCLUDED_CLASSPATH)
-				&& !internalUdfClassName.startsWith("org/apache/flink/api/java/sca")) {
-			return false;
-		}
+	public boolean analyze() throws CodeAnalyzerException {
 		if (state == STATE_END_OF_ANALYZING) {
 			throw new IllegalStateException("Analyzing is already done.");
 		}
@@ -293,13 +321,17 @@ public class UdfAnalyzer {
 		}
 		catch (Exception e) {
 			Throwable cause = e.getCause();
-			while (cause != null && !(cause instanceof UdfErrorException)) {
+			while (cause != null && !(cause instanceof CodeErrorException)) {
 				cause = cause.getCause();
 			}
-			if ((cause != null && cause instanceof UdfErrorException) || e instanceof UdfErrorException) {
-				throw new UdfErrorException("UDF contains obvious errors.", cause);
+			if ((cause != null && cause instanceof CodeErrorException) || e instanceof CodeErrorException) {
+				throw new CodeErrorException("Function code contains obvious errors. " +
+						"If you think the code analysis is wrong at this point you can " +
+						"disable the entire code analyzer in ExecutionConfig or add" +
+						" @SkipCodeAnalysis to your function to disable the analysis.",
+						(cause != null)? cause : e);
 			}
-			throw new UdfAnalyzerException("Exception occurred during analysis.", e);
+			throw new CodeAnalyzerException("Exception occurred during code analysis.", e);
 		}
 		return true;
 	}
@@ -345,39 +377,46 @@ public class UdfAnalyzer {
 				final String ff1 = returnValue.toForwardedFieldsExpression(Input.INPUT_1);
 				if (ff1 != null && ff1.length() > 0) {
 					added = true;
-					hints.add("You could use the following annotation: "
-							+ "@ForwardedFieldsFirst(\"" + ff1 + "\")\n");
+					hints.add("Possible annotation: "
+							+ "@ForwardedFieldsFirst(\"" + ff1 + "\")");
 				}
 				final String ff2 = returnValue.toForwardedFieldsExpression(Input.INPUT_2);
 				if (ff2 != null && ff2.length() > 0) {
 					added = true;
-					hints.add("You could use the following annotation: "
-							+ "@ForwardedFieldsSecond(\"" + ff2 + "\")\n");
+					hints.add("Possible annotation: "
+							+ "@ForwardedFieldsSecond(\"" + ff2 + "\")");
 				}
 			} else {
 				final String ff = returnValue.toForwardedFieldsExpression(Input.INPUT_1);
 				if (ff != null && ff.length() > 0) {
 					added = true;
-					hints.add("You could use the following annotation: "
-							+ "@ForwardedFields(\"" + ff + "\")\n");
+					hints.add("Possible annotation: "
+							+ "@ForwardedFields(\"" + ff + "\")");
 				}
 			}
 		}
 		if (!added) {
-			hints.add("A need for forwarded fields annotations could not be found.\n");
+			hints.add("Possible annotations: none.");
 		}
 	}
 
-	public String getHintsString() {
+	public void printToLogger(Logger log) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("Function '" + udfClass.getName() + "' has been analyzed with the following result:\n");
-		sb.append("Number of object creations (should be kept to a minimum): "
-				+ newOperationCounterTopLevel + " in method / " + newOperationCounterOverall + " transitively\n");
+		sb.append("Code analysis result for '" + externalUdfName + " (" + udfClass.getName() + ")':");
+		sb.append("\nNumber of object creations: "
+				+ newOperationCounterTopLevel + " in method / " + newOperationCounterOverall + " transitively");
 
 		for (String hint : hints) {
+			sb.append('\n');
 			sb.append(hint);
 		}
-		return sb.toString();
+
+		if (warning) {
+			log.warn(sb.toString());
+		}
+		else {
+			log.info(sb.toString());
+		}
 	}
 
 	public TaggedValue getInput1AsTaggedValue() {
@@ -410,9 +449,10 @@ public class UdfAnalyzer {
 
 	private void addHintOrThrowException(String msg) {
 		if (throwErrorExceptions) {
-			throw new UdfErrorException(msg);
+			throw new CodeErrorException(msg);
 		}
 		else {
+			warning = true;
 			hints.add(msg);
 		}
 	}

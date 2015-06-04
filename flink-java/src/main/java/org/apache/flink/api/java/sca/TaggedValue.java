@@ -26,6 +26,10 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
+/**
+ * Extension of ASM's BasicValue that allows to assign "tags"
+ * to values and add additional information depending on the tag to the Value.
+ */
 public class TaggedValue extends BasicValue {
 
 	public static enum Tag {

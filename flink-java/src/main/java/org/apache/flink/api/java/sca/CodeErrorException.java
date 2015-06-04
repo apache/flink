@@ -17,22 +17,25 @@
  */
 package org.apache.flink.api.java.sca;
 
-public class UdfAnalyzerException extends RuntimeException {
+/**
+ * Exception that is thrown if code errors could be found during analysis.
+ */
+public class CodeErrorException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
 
-	public UdfAnalyzerException() {
+	public CodeErrorException() {
 		super();
 	}
 
-	public UdfAnalyzerException(String message, Throwable cause) {
+	public CodeErrorException(String message, Throwable cause) {
 		super(message, cause);
 	}
 
-	public UdfAnalyzerException(String message) {
+	public CodeErrorException(String message) {
 		super(message);
 	}
 
-	public UdfAnalyzerException(Throwable cause) {
+	public CodeErrorException(Throwable cause) {
 		super(cause);
 	}
 

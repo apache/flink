@@ -27,6 +27,10 @@ import org.objectweb.asm.tree.analysis.Value;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 
+/**
+ * Modified version of ASMs Frame. It allows to perform different merge
+ * priorities and passes frame information to the Interpreter.
+ */
 public class ModifiedASMFrame extends Frame {
 
 	public boolean mergePriority;

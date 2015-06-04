@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.sca;
 
 import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.findMethodNode;
-import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.hasInputDependencies;
+import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.hasImportantDependencies;
 import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.isTagged;
 import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.mergeReturnValues;
 import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.removeUngroupedInputs;
@@ -42,28 +42,42 @@ import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.BasicInterpreter;
 import org.objectweb.asm.tree.analysis.BasicValue;
 
+/**
+ * Extends ASM's BasicInterpreter. Instead of ASM's BasicValues, it introduces
+ * TaggedValues which extend BasicValue and allows for appending interesting
+ * information to values. The NestedMethodAnalyzer follows interesting values
+ * and analyzes nested methods (control/method flow) if necessary.
+ */
 public class NestedMethodAnalyzer extends BasicInterpreter {
-	
+
+	// reference to current UDF analysis context
 	private final UdfAnalyzer analyzer;
+
+	// flag that indicates if current method is still the Function's SAM method
 	private final boolean topLevelMethod;
+
+	// method description and arguments
 	private final String owner;
 	private final MethodNode methodNode;
 	private final List<BasicValue> argumentValues;
-	private final int maxNesting;
 
+	// remaining nesting level
+	private final int remainingNesting;
+
+	// ASM analyzer which analyzes this methodNode
 	private ModifiedASMAnalyzer modifiedAsmAnalyzer;
 
 	public NestedMethodAnalyzer(UdfAnalyzer analyzer, String owner, MethodNode methodNode,
-			List<BasicValue> argumentValues, int maxNesting, boolean topLevelMethod) {
+			List<BasicValue> argumentValues, int remainingNesting, boolean topLevelMethod) {
 		this.analyzer = analyzer;
 		this.topLevelMethod = topLevelMethod;
 		this.owner = owner;
 		this.methodNode = methodNode;
 		this.argumentValues = argumentValues;
 		
-		this.maxNesting = maxNesting;
-		if (maxNesting < 0) {
-			throw new UdfAnalyzerException("Maximum nesting level reached.");
+		this.remainingNesting = remainingNesting;
+		if (remainingNesting < 0) {
+			throw new CodeAnalyzerException("Maximum nesting level reached.");
 		}
 	}
 
@@ -101,7 +115,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 		}
 		final NestedMethodAnalyzer nma = new NestedMethodAnalyzer(analyzer, (String) mn[1],
 				(MethodNode) mn[0],
-				(List<BasicValue>) values, maxNesting-1,
+				(List<BasicValue>) values, remainingNesting -1,
 				topLevelMethod && isBridgeMethod());
 		return nma.analyze();
 	}
@@ -193,9 +207,11 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 	// Interpreter
 	// --------------------------------------------------------------------------------------------
 
+	// variable that maps the method's arguments to ASM values
 	private int curArgIndex = -1;
 	private List<TaggedValue> returnValues = new ArrayList<TaggedValue>();
 
+	// see ModifiedASMFrame
 	ModifiedASMFrame currentFrame;
 	boolean rightMergePriority;
 
@@ -381,6 +397,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 					return super.unaryOperation(insn, value);
 				}
 				// access of input container field
+				// or access of a KNOWN UDF instance variable
 				else if (taggedValue.canContainFields()
 						&& taggedValue.containerContains(field.name)) {
 					final TaggedValue tv = taggedValue.getContainerMapping().get(field.name);
@@ -388,14 +405,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 						return tv;
 					}
 				}
-				// access of a known UDF instance variable
-				else if (taggedValue.isThis() && taggedValue.containerContains(field.name)) {
-					final TaggedValue tv =  taggedValue.getContainerMapping().get(field.name);
-					if (tv != null) {
-						return tv;
-					}
-				}
-				// access of a yet unknown UDF instance variable
+				// access of a yet UNKNOWN UDF instance variable
 				else if (taggedValue.isThis()
 						&& !taggedValue.containerContains(field.name)) {
 					final TaggedValue tv = new TaggedValue(Type.getType(field.desc));
@@ -443,9 +453,9 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 
 				final TaggedValue taggedValue = (TaggedValue) value1;
 				final FieldInsnNode field = (FieldInsnNode) insn;
-				final boolean value2HasInputDependency = hasInputDependencies(value2);
+				final boolean value2HasInputDependency = hasImportantDependencies(value2);
 
-				// if value1 is input/input container, make value2 a container and add value1 to it
+				// if value1 is not an input, make value1 a container and add value2 to it
 				// PUTFIELD on inputs is not allowed
 				if (!taggedValue.isInput() && value2HasInputDependency) {
 					if (!taggedValue.canContainFields()) {
@@ -509,12 +519,14 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 					if (isTagged(values.get(1)) && tagged(values.get(1)).isNull()) {
 						analyzer.handleNullReturn();
 					}
-					else if (hasInputDependencies(values.get(1))){
+					// valid return value with input dependencies
+					else if (hasImportantDependencies(values.get(1))){
 						// add a copy and a reference
 						// to capture the current state and future changes in alternative paths
 						analyzer.getCollectorValues().add(tagged(values.get(1)));
 						analyzer.getCollectorValues().add(tagged(values.get(1)).copy());
 					}
+					// valid return value without input dependencies
 					else {
 						analyzer.getCollectorValues().add(null);
 					}
@@ -541,6 +553,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 						&& methodOwner.equals("java/util/Iterator")
 						&& isTagged(values.get(0))
 						&& tagged(values.get(0)).isInputIterator()) {
+					// after this call it is not possible to assume "TRUE" of "hasNext()" again
 					analyzer.applyIteratorTrueAssumption();
 					if (tagged(values.get(0)).isInput1Iterator()) {
 						return analyzer.getInput1AsTaggedValue();
@@ -555,7 +568,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 				else if (!isStatic
 						&& isTagged(values.get(0))
 						&& tagged(values.get(0)).isThis()
-						&& hasInputDependencies(values.get(0))
+						&& hasImportantDependencies(values.get(0))
 						&& !isGetRuntimeContext(method)) {
 					TaggedValue tv = invokeNestedMethod(values, method);
 					if (tv != null) {
@@ -564,15 +577,9 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 				}
 				// the arguments have input dependencies ("THIS" does not count to the arguments)
 				// we can assume that method has at least one argument
-				else if ((!isStatic
-							&& isTagged(values.get(0))
-							&& tagged(values.get(0)).isThis()
-							&& hasInputDependencies(values, true))
-						||
-						(!isStatic && (!isTagged(values.get(0)) || !tagged(values.get(0)).isThis())
-							&& hasInputDependencies(values, false))
-						||
-						isStatic && hasInputDependencies(values, false)) {
+				else if ((!isStatic && isTagged(values.get(0)) && tagged(values.get(0)).isThis() && hasImportantDependencies(values, true))
+						|| (!isStatic && (!isTagged(values.get(0)) || !tagged(values.get(0)).isThis()) && hasImportantDependencies(values, false))
+						|| (isStatic && hasImportantDependencies(values, false))) {
 					// special case: Java unboxing/boxing methods on input
 					Type newType;
 					if (isTagged(values.get(0))
@@ -661,7 +668,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 		if (isTagged(value) && tagged(value).isNull() && topLevelMethod) {
 			analyzer.handleNullReturn();
 		}
-		else if (hasInputDependencies(value)){
+		else if (hasImportantDependencies(value)){
 			// add a copy and a reference
 			// to capture the current state and future changes in alternative paths
 			returnValues.add(tagged(value));
@@ -685,7 +692,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 			else if ((!isTagged(v) || tagged(v).canNotContainInput())
 					&& isTagged(w) && tagged(w).canContainInput()) {
 				final TaggedValue taggedW = tagged(w);
-				if (hasInputDependencies(taggedW)
+				if (hasImportantDependencies(taggedW)
 						&& rightMergePriority) {
 						 // w has a merge priority, its grouped inputs will be returned
 					final TaggedValue returnValue = removeUngroupedInputs(taggedW.copy());

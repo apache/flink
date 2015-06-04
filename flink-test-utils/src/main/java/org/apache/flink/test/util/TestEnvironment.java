@@ -20,7 +20,7 @@ package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.UdfAnalysisMode;
+import org.apache.flink.api.common.CodeAnalysisMode;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.optimizer.DataStatistics;
@@ -40,7 +40,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 		this.executor = executor;
 		setParallelism(parallelism);
 		// disabled to improve build time
-		getConfig().setUdfAnalysisMode(UdfAnalysisMode.DISABLED);
+		getConfig().setCodeAnalysisMode(CodeAnalysisMode.DISABLE);
 	}
 
 	@Override

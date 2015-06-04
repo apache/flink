@@ -44,8 +44,8 @@ import java.util.Map;
  *         handling <i>generic types</i> and <i>POJOs</i>. This is usually only needed
  *         when the functions return not only the types declared in their signature, but
  *         also subclasses of those types.</li>
- *     <li>The {@link UdfAnalysisMode} of the program: Enable hinting/optimizing or disable
- *         the "UDF analyzer". The UDF analyzer pre-interprets user-defined functions in order to
+ *     <li>The {@link CodeAnalysisMode} of the program: Enable hinting/optimizing or disable
+ *         the "static code analyzer". The static code analyzer pre-interprets user-defined functions in order to
  *         get implementation insights for program improvements that can be printed to the log or
  *         automatically applied.</li>
  * </ul>
@@ -82,7 +82,7 @@ public class ExecutionConfig implements Serializable {
 
 	private boolean forceAvro = false;
 
-	private UdfAnalysisMode udfAnalysisMode = UdfAnalysisMode.HINTING_ENABLED;
+	private CodeAnalysisMode codeAnalysisMode = CodeAnalysisMode.DISABLE;
 
 	/** If set to true, progress updates are printed to System.out during execution */
 	private boolean printProgressDuringExecution = true;
@@ -324,23 +324,23 @@ public class ExecutionConfig implements Serializable {
 	}
 	
 	/**
-	 * Sets the {@link UdfAnalysisMode} of the program. Specifies to which extent user-defined
+	 * Sets the {@link CodeAnalysisMode} of the program. Specifies to which extent user-defined
 	 * functions are analyzed in order to give the Flink optimizer an insight of UDF internals
-	 * and inform the user about common implementation mistakes. The UDF analyzer pre-interprets
+	 * and inform the user about common implementation mistakes. The static code analyzer pre-interprets
 	 * user-defined functions in order to get implementation insights for program improvements
 	 * that can be printed to the log, automatically applied, or disabled.
 	 * 
-	 * @param udfAnalysisMode see {@link UdfAnalysisMode}
+	 * @param codeAnalysisMode see {@link CodeAnalysisMode}
 	 */
-	public void setUdfAnalysisMode(UdfAnalysisMode udfAnalysisMode) {
-		this.udfAnalysisMode = udfAnalysisMode;
+	public void setCodeAnalysisMode(CodeAnalysisMode codeAnalysisMode) {
+		this.codeAnalysisMode = codeAnalysisMode;
 	}
 	
 	/**
-	 * Returns the {@link UdfAnalysisMode} of the program.
+	 * Returns the {@link CodeAnalysisMode} of the program.
 	 */
-	public UdfAnalysisMode getUdfAnalysisMode() {
-		return udfAnalysisMode;
+	public CodeAnalysisMode getCodeAnalysisMode() {
+		return codeAnalysisMode;
 	}
 
 	/**

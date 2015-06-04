@@ -818,6 +818,24 @@ public class UdfAnalyzerTest {
 				"Tuple2<Long, Long>");
 	}
 
+	public static class FlatMap3 implements FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+		@Override
+		public void flatMap(Tuple1<Integer> value, Collector<Tuple1<Integer>> out) throws Exception {
+			addToCollector(out);
+			out.collect(value);
+		}
+
+		private void addToCollector(Collector<Tuple1<Integer>> out) {
+			out.collect(new Tuple1<Integer>());
+		}
+	}
+
+	@Test
+	public void testForwardWithCollectorPassing() {
+		compareAnalyzerResultWithAnnotationsSingleInput(FlatMapFunction.class, FlatMap3.class, "Tuple1<Integer>",
+				"Tuple1<Integer>");
+	}
+
 	@ForwardedFieldsFirst("f1->f1")
 	@ForwardedFieldsSecond("f1->f0")
 	public static class Join1 implements JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
@@ -1130,33 +1148,34 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testNullReturnException() {
 		try {
-			final UdfAnalyzer ua = new UdfAnalyzer(MapFunction.class, NullReturnMapper1.class,
+			final UdfAnalyzer ua = new UdfAnalyzer(MapFunction.class, NullReturnMapper1.class, "operator",
 					BasicTypeInfo.STRING_TYPE_INFO, null, BasicTypeInfo.STRING_TYPE_INFO, null, null, true);
 			ua.analyze();
 			Assert.fail();
 		}
-		catch (UdfErrorException e) {
+		catch (CodeErrorException e) {
 			// ok
 		}
 		try {
-			final UdfAnalyzer ua = new UdfAnalyzer(MapFunction.class, NullReturnMapper2.class,
+			final UdfAnalyzer ua = new UdfAnalyzer(MapFunction.class, NullReturnMapper2.class, "operator",
 					BasicTypeInfo.STRING_TYPE_INFO, null, BasicTypeInfo.STRING_TYPE_INFO, null, null, true);
 			ua.analyze();
 			Assert.fail();
 		}
-		catch (UdfErrorException e) {
+		catch (CodeErrorException e) {
 			// ok
 		}
 		try {
-			final UdfAnalyzer ua = new UdfAnalyzer(FlatMapFunction.class, NullReturnFlatMapper.class,
+			final UdfAnalyzer ua = new UdfAnalyzer(FlatMapFunction.class, NullReturnFlatMapper.class, "operator",
 					BasicTypeInfo.STRING_TYPE_INFO, null, BasicTypeInfo.STRING_TYPE_INFO, null, null, true);
 			ua.analyze();
 			Assert.fail();
 		}
-		catch (UdfErrorException e) {
+		catch (CodeErrorException e) {
 			// ok
 		}
 	}
+
 
 	public static class PutStaticMapper implements MapFunction<String, String> {
 		public static String test = "";
@@ -1171,12 +1190,12 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testPutStaticException() {
 		try {
-			final UdfAnalyzer ua = new UdfAnalyzer(MapFunction.class, PutStaticMapper.class,
+			final UdfAnalyzer ua = new UdfAnalyzer(MapFunction.class, PutStaticMapper.class, "operator",
 					BasicTypeInfo.STRING_TYPE_INFO, null, BasicTypeInfo.STRING_TYPE_INFO, null, null, true);
 			ua.analyze();
 			Assert.fail();
 		}
-		catch (UdfErrorException e) {
+		catch (CodeErrorException e) {
 			// ok
 		}
 	}
@@ -1193,12 +1212,12 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testFilterModificationException1() {
 		try {
-			final UdfAnalyzer ua = new UdfAnalyzer(FilterFunction.class, FilterMod1.class,
+			final UdfAnalyzer ua = new UdfAnalyzer(FilterFunction.class, FilterMod1.class, "operator",
 					TypeInfoParser.parse("Tuple2<String, String>"), null, null, null, null, true);
 			ua.analyze();
 			Assert.fail();
 		}
-		catch (UdfErrorException e) {
+		catch (CodeErrorException e) {
 			// ok
 		}
 	}
@@ -1215,12 +1234,12 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testFilterModificationException2() {
 		try {
-			final UdfAnalyzer ua = new UdfAnalyzer(FilterFunction.class, FilterMod2.class,
+			final UdfAnalyzer ua = new UdfAnalyzer(FilterFunction.class, FilterMod2.class, "operator",
 					TypeInfoParser.parse("Tuple2<String, String>"), null, null, null, null, true);
 			ua.analyze();
 			Assert.fail();
 		}
-		catch (UdfErrorException e) {
+		catch (CodeErrorException e) {
 			// ok
 		}
 	}
@@ -1296,7 +1315,7 @@ public class UdfAnalyzerTest {
 		}
 
 		// actual
-		final UdfAnalyzer ua = new UdfAnalyzer(baseClass, clazz, inType, null, outType, (keys == null) ? null
+		final UdfAnalyzer ua = new UdfAnalyzer(baseClass, clazz, "operator", inType, null, outType, (keys == null) ? null
 				: new Keys.ExpressionKeys(keys, inType), null, true);
 		ua.analyze();
 		final SingleInputSemanticProperties actual = (SingleInputSemanticProperties) ua.getSemanticProperties();
@@ -1322,7 +1341,7 @@ public class UdfAnalyzerTest {
 				in2Type, outType);
 
 		// actual
-		final UdfAnalyzer ua = new UdfAnalyzer(baseClass, clazz, in1Type, in2Type, outType, (keys1 == null) ? null
+		final UdfAnalyzer ua = new UdfAnalyzer(baseClass, clazz, "operator", in1Type, in2Type, outType, (keys1 == null) ? null
 				: new Keys.ExpressionKeys(keys1, in1Type), (keys2 == null) ? null : new Keys.ExpressionKeys(
 						keys2, in2Type), true);
 		ua.analyze();

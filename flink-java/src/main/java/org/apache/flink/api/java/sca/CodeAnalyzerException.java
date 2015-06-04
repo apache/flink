@@ -15,31 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.flink.api.common;
+package org.apache.flink.api.java.sca;
 
 /**
- * Specifies to which extent user-defined functions are analyzed in order
- * to give the Flink optimizer an insight of UDF internals and inform
- * the user about common implementation mistakes.
- *
+ * Exception that is thrown if code analysis could not run properly.
  */
-public enum UdfAnalysisMode {
+public class CodeAnalyzerException extends RuntimeException {
+	private static final long serialVersionUID = 1L;
 
-	/**
-	 * UDF analysis does not take place.
-	 */
-	DISABLED,
+	public CodeAnalyzerException() {
+		super();
+	}
 
-	/**
-	 * Hints for improvement of the program are printed to the log.
-	 */
-	HINTING_ENABLED,
+	public CodeAnalyzerException(String message, Throwable cause) {
+		super(message, cause);
+	}
 
-	/**
-	 * The program will be automatically optimized with knowledge from UDF
-	 * analysis.
-	 */
-	OPTIMIZING_ENABLED;
+	public CodeAnalyzerException(String message) {
+		super(message);
+	}
+
+	public CodeAnalyzerException(Throwable cause) {
+		super(cause);
+	}
 
 }

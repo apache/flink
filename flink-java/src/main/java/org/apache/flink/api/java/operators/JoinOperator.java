@@ -203,7 +203,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			this.function = function;
 			this.joinLocationName = joinLocationName;
 
-			UdfOperatorUtils.analyzeDualInputUdf(this, FlatJoinFunction.class, function, keys1, keys2);
+			UdfOperatorUtils.analyzeDualInputUdf(this, FlatJoinFunction.class, joinLocationName, function, keys1, keys2);
 		}
 
 		public EquiJoin(DataSet<I1> input1, DataSet<I2> input2,
@@ -220,7 +220,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 			this.function = generatedFunction;
 
-			UdfOperatorUtils.analyzeDualInputUdf(this, JoinFunction.class, function, keys1, keys2);
+			UdfOperatorUtils.analyzeDualInputUdf(this, JoinFunction.class, joinLocationName, function, keys1, keys2);
 		}
 		
 		@Override

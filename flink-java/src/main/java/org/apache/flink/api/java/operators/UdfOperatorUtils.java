@@ -18,13 +18,14 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.common.UdfAnalysisMode;
+import org.apache.flink.api.common.CodeAnalysisMode;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
+import org.apache.flink.api.java.functions.FunctionAnnotation;
+import org.apache.flink.api.java.sca.CodeAnalyzerException;
 import org.apache.flink.api.java.sca.UdfAnalyzer;
-import org.apache.flink.api.java.sca.UdfAnalyzerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,61 +34,69 @@ public abstract class UdfOperatorUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(UdfOperatorUtils.class);
 
 	public static void analyzeSingleInputUdf(SingleInputUdfOperator<?, ?, ?> operator, Class<?> udfBaseClass,
-			Function udf, Keys<?> key) {
-		final UdfAnalysisMode mode = operator.getExecutionEnvironment().getConfig().getUdfAnalysisMode();
-		if (mode != UdfAnalysisMode.DISABLED) {
+			String defaultName, Function udf, Keys<?> key) {
+		final CodeAnalysisMode mode = operator.getExecutionEnvironment().getConfig().getCodeAnalysisMode();
+		if (mode != CodeAnalysisMode.DISABLE
+				&& !udf.getClass().isAnnotationPresent(FunctionAnnotation.SkipCodeAnalysis.class)) {
+			final String operatorName = operator.getName() != null ? operator.getName()
+					: udfBaseClass.getSimpleName() + " at "+defaultName;
 			try {
-				final UdfAnalyzer analyzer = new UdfAnalyzer(udfBaseClass, udf.getClass(), operator.getInputType(), null,
-						operator.getResultType(), key, null, mode == UdfAnalysisMode.OPTIMIZING_ENABLED);
+				final UdfAnalyzer analyzer = new UdfAnalyzer(udfBaseClass, udf.getClass(), operatorName, operator.getInputType(), null,
+						operator.getResultType(), key, null, mode == CodeAnalysisMode.OPTIMIZE);
 				final boolean success = analyzer.analyze();
 				if (success) {
-					if (mode == UdfAnalysisMode.OPTIMIZING_ENABLED
+					if (mode == CodeAnalysisMode.OPTIMIZE
 							&& !operator.udfWithForwardedFieldsAnnotation(udf.getClass())) {
+						analyzer.addSemanticPropertiesHints();
 						operator.setSemanticProperties((SingleInputSemanticProperties) analyzer.getSemanticProperties());
 						operator.setAnalyzedUdfSemanticsFlag();
 					}
-					else if (mode == UdfAnalysisMode.HINTING_ENABLED) {
+					else if (mode == CodeAnalysisMode.HINT) {
 						analyzer.addSemanticPropertiesHints();
 					}
-					LOG.info(analyzer.getHintsString());
+					analyzer.printToLogger(LOG);
 				}
 			}
 			catch (InvalidTypesException e) {
-				LOG.debug("Unable to do UDF analysis due to missing type information.", e);
+				LOG.debug("Unable to do code analysis due to missing type information.", e);
 			}
-			catch (UdfAnalyzerException e) {
-				LOG.debug("UDF analysis failed.", e);
+			catch (CodeAnalyzerException e) {
+				LOG.debug("Code analysis failed.", e);
 			}
 		}
 	}
 
 	public static void analyzeDualInputUdf(TwoInputUdfOperator<?, ?, ?, ?> operator, Class<?> udfBaseClass,
-			Function udf, Keys<?> key1, Keys<?> key2) {
-		final UdfAnalysisMode mode = operator.getExecutionEnvironment().getConfig().getUdfAnalysisMode();
-		if (mode != UdfAnalysisMode.DISABLED) {
+			String defaultName, Function udf, Keys<?> key1, Keys<?> key2) {
+		final CodeAnalysisMode mode = operator.getExecutionEnvironment().getConfig().getCodeAnalysisMode();
+		if (mode != CodeAnalysisMode.DISABLE
+				&& !udf.getClass().isAnnotationPresent(FunctionAnnotation.SkipCodeAnalysis.class)) {
+			final String operatorName = operator.getName() != null ? operator.getName()
+					: udfBaseClass.getSimpleName() + " at " + defaultName;
 			try {
-				final UdfAnalyzer analyzer = new UdfAnalyzer(udfBaseClass, udf.getClass(), operator.getInput1Type(),
+				final UdfAnalyzer analyzer = new UdfAnalyzer(udfBaseClass, udf.getClass(), operatorName, operator.getInput1Type(),
 						operator.getInput2Type(), operator.getResultType(), key1, key2,
-						mode == UdfAnalysisMode.OPTIMIZING_ENABLED);
+						mode == CodeAnalysisMode.OPTIMIZE);
 				final boolean success = analyzer.analyze();
 				if (success) {
-					if (mode == UdfAnalysisMode.OPTIMIZING_ENABLED
+					if (mode == CodeAnalysisMode.OPTIMIZE
 							&& !(operator.udfWithForwardedFieldsFirstAnnotation(udf.getClass())
 							|| operator.udfWithForwardedFieldsSecondAnnotation(udf.getClass()))) {
+						analyzer.addSemanticPropertiesHints();
 						operator.setSemanticProperties((DualInputSemanticProperties) analyzer.getSemanticProperties());
 						operator.setAnalyzedUdfSemanticsFlag();
 					}
-					else if (mode == UdfAnalysisMode.HINTING_ENABLED) {
+					else if (mode == CodeAnalysisMode.HINT) {
 						analyzer.addSemanticPropertiesHints();
 					}
-					LOG.info(analyzer.getHintsString());
+					analyzer.printToLogger(LOG);
 				}
 			}
 			catch (InvalidTypesException e) {
-				LOG.debug("Unable to do UDF analysis due to missing type information.", e);
+				LOG.debug("Unable to do code analysis due to missing type information.", e);
 			}
-			catch (UdfAnalyzerException e) {
-				LOG.debug("UDF analysis failed.", e);
+			catch (CodeAnalyzerException e) {
+				LOG.debug("Code analysis failed.", e);
 			}
 		}
 	}

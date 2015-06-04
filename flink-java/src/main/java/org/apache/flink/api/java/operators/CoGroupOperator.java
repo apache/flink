@@ -125,7 +125,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		this.keys1 = keys1;
 		this.keys2 = keys2;
 
-		UdfOperatorUtils.analyzeDualInputUdf(this, CoGroupFunction.class, function, keys1, keys2);
+		UdfOperatorUtils.analyzeDualInputUdf(this, CoGroupFunction.class, defaultName, function, keys1, keys2);
 	}
 	
 	@Override
