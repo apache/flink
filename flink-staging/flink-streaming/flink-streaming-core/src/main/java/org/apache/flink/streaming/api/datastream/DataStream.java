@@ -131,8 +131,7 @@ public class DataStream<OUT> {
 	 * @param typeInfo
 	 *            Type of the datastream
 	 */
-	public DataStream(StreamExecutionEnvironment environment, String operatorType,
-			TypeInformation<OUT> typeInfo) {
+	public DataStream(StreamExecutionEnvironment environment, String operatorType, TypeInformation<OUT> typeInfo) {
 		if (environment == null) {
 			throw new NullPointerException("context is null");
 		}
@@ -1025,9 +1024,7 @@ public class DataStream<OUT> {
 	 */
 	public DataStreamSink<OUT> print() {
 		PrintSinkFunction<OUT> printFunction = new PrintSinkFunction<OUT>();
-		DataStreamSink<OUT> returnStream = addSink(printFunction);
-
-		return returnStream;
+		return addSink(printFunction);
 	}
 
 	/**
@@ -1039,9 +1036,7 @@ public class DataStream<OUT> {
 	 */
 	public DataStreamSink<OUT> printToErr() {
 		PrintSinkFunction<OUT> printFunction = new PrintSinkFunction<OUT>(true);
-		DataStreamSink<OUT> returnStream = addSink(printFunction);
-
-		return returnStream;
+		return addSink(printFunction);
 	}
 
 	/**
@@ -1055,7 +1050,7 @@ public class DataStream<OUT> {
 	 * @return the closed DataStream.
 	 */
 	public DataStreamSink<OUT> writeAsText(String path) {
-		return writeToFile(new TextOutputFormat<OUT>(new Path(path)), 0L);
+		return write(new TextOutputFormat<OUT>(new Path(path)), 0L);
 	}
 
 	/**
@@ -1073,7 +1068,7 @@ public class DataStream<OUT> {
 	 */
 	public DataStreamSink<OUT> writeAsText(String path, long millis) {
 		TextOutputFormat<OUT> tof = new TextOutputFormat<OUT>(new Path(path));
-		return writeToFile(tof, millis);
+		return write(tof, millis);
 	}
 
 	/**
@@ -1092,7 +1087,7 @@ public class DataStream<OUT> {
 	public DataStreamSink<OUT> writeAsText(String path, WriteMode writeMode) {
 		TextOutputFormat<OUT> tof = new TextOutputFormat<OUT>(new Path(path));
 		tof.setWriteMode(writeMode);
-		return writeToFile(tof, 0L);
+		return write(tof, 0L);
 	}
 
 	/**
@@ -1113,7 +1108,7 @@ public class DataStream<OUT> {
 	public DataStreamSink<OUT> writeAsText(String path, WriteMode writeMode, long millis) {
 		TextOutputFormat<OUT> tof = new TextOutputFormat<OUT>(new Path(path));
 		tof.setWriteMode(writeMode);
-		return writeToFile(tof, millis);
+		return write(tof, millis);
 	}
 
 	/**
@@ -1132,7 +1127,7 @@ public class DataStream<OUT> {
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-		return writeToFile((FileOutputFormat<OUT>) of, 0L);
+		return write((OutputFormat<OUT>) of, 0L);
 	}
 
 	/**
@@ -1154,7 +1149,7 @@ public class DataStream<OUT> {
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
 				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-		return writeToFile((FileOutputFormat<OUT>) of, millis);
+		return write((OutputFormat<OUT>) of, millis);
 	}
 
 	/**
@@ -1179,7 +1174,7 @@ public class DataStream<OUT> {
 		if (writeMode != null) {
 			of.setWriteMode(writeMode);
 		}
-		return writeToFile((FileOutputFormat<OUT>) of, 0L);
+		return write((OutputFormat<OUT>) of, 0L);
 	}
 
 	/**
@@ -1208,7 +1203,7 @@ public class DataStream<OUT> {
 		if (writeMode != null) {
 			of.setWriteMode(writeMode);
 		}
-		return writeToFile((FileOutputFormat<OUT>) of, millis);
+		return write((OutputFormat<OUT>) of, millis);
 	}
 
 	/**
@@ -1223,35 +1218,26 @@ public class DataStream<OUT> {
 	 *            schema for serialization
 	 * @return the closed DataStream
 	 */
-	public DataStreamSink<OUT> writeToSocket(String hostName, int port,
-			SerializationSchema<OUT, byte[]> schema) {
+	public DataStreamSink<OUT> writeToSocket(String hostName, int port, SerializationSchema<OUT, byte[]> schema) {
 		DataStreamSink<OUT> returnStream = addSink(new SocketClientSink<OUT>(hostName, port, schema));
 		returnStream.setParallelism(1); // It would not work if multiple instances would connect to the same port
 		return returnStream;
 	}
-
-	public DataStreamSink<OUT> writeToFile(FileOutputFormat<OUT> format, long millis) {
-		return addSink(new FileSinkFunctionByMillis<OUT>(format, millis));
-	}
 	
 	/**
-	 * Writes the dataStream into an output.
+	 * Writes the dataStream into an output, described by an OutputFormat.
+	 * 
 	 * @param format The output format
 	 * @param millis the write frequency
-	 * @return the closed DataStream
+	 * @return The closed DataStream
 	 */
 	public DataStreamSink<OUT> write(OutputFormat<OUT> format, long millis) {
 		return addSink(new FileSinkFunctionByMillis<OUT>(format, millis));
 	}
 
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
-
 		StreamReduce<OUT> operator = new StreamReduce<OUT>(aggregate);
-
-		SingleOutputStreamOperator<OUT, ?> returnStream = transform("Aggregation", getType(),
-				operator);
-
-		return returnStream;
+		return transform("Aggregation", getType(), operator);
 	}
 
 	/**
