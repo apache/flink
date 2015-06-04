@@ -30,7 +30,8 @@ import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
 
 @RunWith(classOf[Parameterized])
-class ReduceOnNeighborMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class ReduceOnNeighborMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode)
+    extends MultipleProgramsTestBase(mode) {
 
     private var resultPath: String = null
     private var expectedResult: String = null
@@ -58,7 +59,8 @@ class ReduceOnNeighborMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestE
     @throws(classOf[Exception])
     def testSumOfAllNeighborsNoValue {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.reduceOnNeighbors(new SumNeighbors, EdgeDirection.ALL).writeAsCsv(resultPath)
         env.execute
         expectedResult = "1,10\n" + "2,4\n" + "3,12\n" + "4,8\n" + "5,8\n"
@@ -68,7 +70,8 @@ class ReduceOnNeighborMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestE
     @throws(classOf[Exception])
     def testSumOfOutNeighborsNoValue {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.reduceOnNeighbors(new SumNeighbors, EdgeDirection.OUT).writeAsCsv(resultPath)
         env.execute
         expectedResult = "1,5\n" + "2,3\n" + "3,9\n" + "4,5\n" + "5,1\n"
@@ -78,7 +81,8 @@ class ReduceOnNeighborMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestE
     @throws(classOf[Exception])
     def testSumOfAllNeighbors {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         val result = graph.groupReduceOnNeighbors(new SumAllNeighbors, EdgeDirection.IN)
         result.writeAsCsv(resultPath)
         env.execute
@@ -89,8 +93,10 @@ class ReduceOnNeighborMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestE
     @throws(classOf[Exception])
     def testSumOfInNeighborsNoValueMultipliedByTwoIdGreaterThanTwo = {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-        val result = graph.groupReduceOnNeighbors(new SumInNeighborsNoValueMultipliedByTwoIdGreaterThanTwo, EdgeDirection.IN)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val result = graph.groupReduceOnNeighbors(new
+                SumInNeighborsNoValueMultipliedByTwoIdGreaterThanTwo, EdgeDirection.IN)
         result.writeAsCsv(resultPath)
         env.execute
         expectedResult = "3,59\n" + "3,118\n" + "4,204\n" + "4,102\n" + "5,570\n" + "5,285"
@@ -102,9 +108,11 @@ class ReduceOnNeighborMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestE
         }
     }
 
-    final class SumAllNeighbors extends NeighborsFunctionWithVertexValue[Long, Long, Long, (Long, Long)] {
+    final class SumAllNeighbors extends NeighborsFunctionWithVertexValue[Long, Long, Long, (Long,
+        Long)] {
         @throws(classOf[Exception])
-        def iterateNeighbors(vertex: Vertex[Long, Long], neighbors: Iterable[(Edge[Long, Long], Vertex[Long, Long])], out: Collector[(Long, Long)]) {
+        def iterateNeighbors(vertex: Vertex[Long, Long], neighbors: Iterable[(Edge[Long, Long],
+            Vertex[Long, Long])], out: Collector[(Long, Long)]) {
             var sum: Long = 0
             for (neighbor <- neighbors) {
                 sum += neighbor._2.getValue
@@ -113,12 +121,15 @@ class ReduceOnNeighborMethodsITCase(mode: AbstractMultipleProgramsTestBase.TestE
         }
     }
 
-    final class SumInNeighborsNoValueMultipliedByTwoIdGreaterThanTwo extends NeighborsFunction[Long, Long, Long, (Long, Long)] {
+    final class SumInNeighborsNoValueMultipliedByTwoIdGreaterThanTwo extends
+    NeighborsFunction[Long, Long, Long, (Long, Long)] {
         @throws(classOf[Exception])
-        def iterateNeighbors(neighbors: Iterable[(Long, Edge[Long, Long], Vertex[Long, Long])], out: Collector[(Long, Long)]) {
+        def iterateNeighbors(neighbors: Iterable[(Long, Edge[Long, Long], Vertex[Long, Long])],
+                             out: Collector[(Long, Long)]) {
             var sum: Long = 0
             var next: (Long, Edge[Long, Long], Vertex[Long, Long]) = null
-            val neighborsIterator: Iterator[(Long, Edge[Long, Long], Vertex[Long, Long])] = neighbors.iterator
+            val neighborsIterator: Iterator[(Long, Edge[Long, Long], Vertex[Long, Long])] =
+                neighbors.iterator
             while (neighborsIterator.hasNext) {
                 next = neighborsIterator.next
                 sum += next._3.getValue * next._2.getValue

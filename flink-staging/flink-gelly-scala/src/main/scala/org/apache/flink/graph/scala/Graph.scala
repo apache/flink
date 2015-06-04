@@ -259,6 +259,10 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
         wrap(jgraph.groupReduceOnEdges(edgesFunction, direction, createTypeInformation[T]))
     }
 
+    def groupReduceOnEdges[T: TypeInformation : ClassTag](edgesFunction: EdgesFunction[K, EV, T], direction: EdgeDirection): DataSet[T] = {
+        wrap(jgraph.groupReduceOnEdges(edgesFunction, direction, createTypeInformation[T]))
+    }
+
     def groupReduceOnNeighbors[T: TypeInformation : ClassTag](neighborsFunction: NeighborsFunctionWithVertexValue[K, VV, EV, T], direction: EdgeDirection): DataSet[T] = {
         wrap(jgraph.groupReduceOnNeighbors(neighborsFunction, direction, createTypeInformation[T]))
     }
