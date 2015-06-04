@@ -461,8 +461,10 @@ trait ApplicationMasterActor extends ActorLogMessages {
       runningContainers = 0
       failedContainers = 0
 
+      val hs = ApplicationMaster.hasStreamingMode(env)
       containerLaunchContext = Some(createContainerLaunchContext(heapLimit, hasLogback, hasLog4j,
-        yarnClientUsername, conf, taskManagerLocalResources))
+        yarnClientUsername, conf, taskManagerLocalResources, hs))
+
 
       context.system.scheduler.scheduleOnce(FAST_YARN_HEARTBEAT_DELAY, self, HeartbeatWithYarn)
     } recover {
@@ -499,7 +501,8 @@ trait ApplicationMasterActor extends ActorLogMessages {
 
   private def createContainerLaunchContext(heapLimit: Int, hasLogback: Boolean, hasLog4j: Boolean,
                                    yarnClientUsername: String, yarnConf: Configuration,
-                                   taskManagerLocalResources: Map[String, LocalResource]):
+                                   taskManagerLocalResources: Map[String, LocalResource],
+                                   streamingMode: Boolean):
   ContainerLaunchContext = {
     log.info("Create container launch context.")
     val ctx = Records.newRecord(classOf[ContainerLaunchContext])
@@ -524,6 +527,13 @@ trait ApplicationMasterActor extends ActorLogMessages {
     tmCommand ++= s" ${classOf[YarnTaskManagerRunner].getName} --configDir . 1> " +
       s"${ApplicationConstants.LOG_DIR_EXPANSION_VAR}/taskmanager-stdout.log 2> " +
       s"${ApplicationConstants.LOG_DIR_EXPANSION_VAR}/taskmanager-stderr.log"
+
+    tmCommand ++= " --streamingMode"
+    if(streamingMode) {
+      tmCommand ++= " streaming"
+    } else {
+      tmCommand ++= " batch"
+    }
 
     ctx.setCommands(Collections.singletonList(tmCommand.toString()))
 
