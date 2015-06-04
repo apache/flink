@@ -155,3 +155,30 @@ public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<S
 		// .. do more ..
 {% endhighlight %}
 
+
+## Naming large TupleX types
+
+It is recommended to use POJOs (Plain old Java objects) instead of `TupleX` for data types with many fields.
+Also, POJOs can be used to give large `Tuple`-types a name.
+
+**Example**
+
+Instead of using:
+
+
+~~~java
+Tuple11<String, String, ..., String> var = new ...;
+~~~
+
+
+It is much easier to create a custom type extending from the large Tuple type.
+
+~~~java
+CustomType var = new ...;
+
+public static class CustomType extends Tuple11<String, String, ..., String> {
+    // constructor matching super
+}
+~~~
+
+
