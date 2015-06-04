@@ -309,6 +309,16 @@ under the License.
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<finalName>${project.artifactId}-${project.version}</finalName>
+							<filters>
+								<!-- Globally exclude log4j.properties from our JAR files. -->
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>log4j.properties</exclude>
+										<exclude>log4j-test.properties</exclude>
+									</excludes>
+								</filter>
+							</filters>
 							<artifactSet>
 								<excludes>
 									<exclude>org.apache.flink:flink-java-examples</exclude>
