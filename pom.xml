@@ -735,6 +735,7 @@ under the License.
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
 						<exclude>CHANGELOG</exclude>
+						<exclude>CONTRIBUTING.md</exclude>
 						<exclude>CONTRIBUTORS</exclude>
 						<exclude>DEPENDENCIES</exclude>
 						<!-- Build files -->
