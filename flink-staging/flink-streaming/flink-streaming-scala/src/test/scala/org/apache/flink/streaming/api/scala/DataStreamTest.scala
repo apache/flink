@@ -18,12 +18,18 @@
 
 package org.apache.flink.streaming.api.scala
 
+import java.lang
+
+import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
+import org.apache.flink.streaming.api.collector.selector.OutputSelector
+import org.apache.flink.streaming.api.functions.co.CoMapFunction
+import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph, StreamNode}
+import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator}
 import org.apache.flink.streaming.api.windowing.helper.Count
-import org.apache.flink.streaming.runtime.partitioner.FieldsPartitioner
+import org.apache.flink.streaming.runtime.partitioner._
 import org.apache.flink.util.Collector
-import org.junit.Assert._
+import org.junit.Assert.fail
 import org.junit.Test
 
 class DataStreamTest {
@@ -53,11 +59,11 @@ class DataStreamTest {
     ).name("testCoFlatMap")
     assert("testCoFlatMap" == connected.getName)
 
-    val fu: ((Long, Long) => Long) =
+    val func: ((Long, Long) => Long) =
       (x: Long, y: Long) => 0L
 
     val windowed = connected.window(Count.of(10))
-      .foldWindow(0L, fu)
+      .foldWindow(0L, func)
 
     windowed.name("testWindowFold")
     assert("testWindowFold" == windowed.getName)
@@ -93,10 +99,10 @@ class DataStreamTest {
     val group3 = src1.groupBy("_1")
     val group4 = src1.groupBy(x => x._1)
 
-    assert(isPartitioned(graph.getStreamEdge(group1.getId, createDownStreamId(group1))));
-    assert(isPartitioned(graph.getStreamEdge(group2.getId, createDownStreamId(group2))));
-    assert(isPartitioned(graph.getStreamEdge(group3.getId, createDownStreamId(group3))));
-    assert(isPartitioned(graph.getStreamEdge(group4.getId, createDownStreamId(group4))));
+    assert(isPartitioned(graph.getStreamEdge(group1.getId, createDownStreamId(group1))))
+    assert(isPartitioned(graph.getStreamEdge(group2.getId, createDownStreamId(group2))))
+    assert(isPartitioned(graph.getStreamEdge(group3.getId, createDownStreamId(group3))))
+    assert(isPartitioned(graph.getStreamEdge(group4.getId, createDownStreamId(group4))))
 
     //Testing ConnectedDataStream grouping
     val connectedGroup1: ConnectedDataStream[_, _] = connected.groupBy(0, 0)
@@ -238,32 +244,192 @@ class DataStreamTest {
 
   @Test
   def testTypeInfo {
-    val env: StreamExecutionEnvironment = StreamExecutionEnvironment
-      .createLocalEnvironment(parallelism)
+    val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism)
 
     val src1: DataStream[Long] = env.generateSequence(0, 0)
-    assertEquals(TypeExtractor.getForClass(classOf[Long]), src1.getType)
+    assert(TypeExtractor.getForClass(classOf[Long]) == src1.getType)
 
     val map: DataStream[(Integer, String)] = src1.map(x => null)
-    assertEquals(classOf[scala.Tuple2[Integer, String]], map.getType.getTypeClass)
+    assert(classOf[scala.Tuple2[Integer, String]] == map.getType.getTypeClass)
 
     val window: WindowedDataStream[String] = map
       .window(Count.of(5))
       .mapWindow((x: Iterable[(Integer, String)], y: Collector[String]) => {})
-    assertEquals(TypeExtractor.getForClass(classOf[String]), window.getType)
+    assert(TypeExtractor.getForClass(classOf[String]) == window.getType)
 
     val flatten: DataStream[Int] = window
       .foldWindow(0,
         (accumulator: Int, value: String) => 0
       ).flatten
-    assertEquals(TypeExtractor.getForClass(classOf[Int]), flatten.getType)
+    assert(TypeExtractor.getForClass(classOf[Int]) == flatten.getType)
 
     // TODO check for custom case class
+  }
+
+  @Test def operatorTest {
+    val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism)
+
+    val streamGraph = env.getStreamGraph
+
+    val src = env.generateSequence(0, 0)
+
+    val mapFunction = new MapFunction[Long, Int] {
+      override def map(value: Long): Int = 0
+    };
+    val map = src.map(mapFunction)
+    assert(mapFunction == getFunctionForDataStream(map))
+    assert(getFunctionForDataStream(map.map(x => 0)).isInstanceOf[MapFunction[Int, Int]])
+
+
+    val flatMapFunction = new FlatMapFunction[Long, Int] {
+      override def flatMap(value: Long, out: Collector[Int]): Unit = {}
+    }
+    val flatMap = src.flatMap(flatMapFunction)
+    assert(flatMapFunction == getFunctionForDataStream(flatMap))
+    assert(
+      getFunctionForDataStream(flatMap
+        .flatMap((x: Int, out: Collector[Int]) => {}))
+        .isInstanceOf[FlatMapFunction[Int, Int]])
+
+    val filterFunction = new FilterFunction[Int] {
+      override def filter(value: Int): Boolean = false
+    }
+
+    val unionFilter = map.union(flatMap).filter(filterFunction)
+    assert(filterFunction == getFunctionForDataStream(unionFilter))
+    assert(
+      getFunctionForDataStream(map
+        .filter((x: Int) => true))
+        .isInstanceOf[FilterFunction[Int]])
+
+    try {
+      streamGraph.getStreamEdge(map.getId, unionFilter.getId)
+    }
+    catch {
+      case e => {
+        fail(e.getMessage)
+      }
+    }
+
+    try {
+      streamGraph.getStreamEdge(flatMap.getId, unionFilter.getId)
+    }
+    catch {
+      case e => {
+        fail(e.getMessage)
+      }
+    }
+
+    val outputSelector = new OutputSelector[Int] {
+      override def select(value: Int): lang.Iterable[String] = null
+    }
+
+    val split = unionFilter.split(outputSelector)
+    val outputSelectors = streamGraph.getStreamNode(split.getId).getOutputSelectors
+    assert(1 == outputSelectors.size)
+    assert(outputSelector == outputSelectors.get(0))
+
+    unionFilter.split(x => List("a"))
+    val moreOutputSelectors = streamGraph.getStreamNode(split.getId).getOutputSelectors
+    assert(2 == moreOutputSelectors.size)
+
+    val select = split.select("a")
+    val sink = select.print
+    val splitEdge = streamGraph.getStreamEdge(select.getId, sink.getId)
+    assert("a" == splitEdge.getSelectedNames.get(0))
+
+    val foldFunction = new FoldFunction[Int, String] {
+      override def fold(accumulator: String, value: Int): String = ""
+    }
+    val fold = map.fold("", foldFunction)
+    assert(foldFunction == getFunctionForDataStream(fold))
+    assert(
+      getFunctionForDataStream(map
+        .fold("", (x: String, y: Int) => ""))
+        .isInstanceOf[FoldFunction[Int, String]])
+
+    val connect = fold.connect(flatMap)
+
+    val coMapFunction =
+      new CoMapFunction[String, Int, String] {
+        override def map1(value: String): String = ""
+
+        override def map2(value: Int): String = ""
+      }
+    val coMap = connect.map(coMapFunction)
+    assert(coMapFunction == getFunctionForDataStream(coMap))
+
+    try {
+      streamGraph.getStreamEdge(fold.getId, coMap.getId)
+    }
+    catch {
+      case e => {
+        fail(e.getMessage)
+      }
+    }
+    try {
+      streamGraph.getStreamEdge(flatMap.getId, coMap.getId)
+    }
+    catch {
+      case e => {
+        fail(e.getMessage)
+      }
+    }
+  }
+
+  @Test
+  def testChannelSelectors {
+    val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism)
+
+    val streamGraph = env.getStreamGraph
+    val src = env.generateSequence(0, 0)
+
+    val broadcast = src.broadcast
+    val broadcastSink = broadcast.print
+    val broadcastPartitioner = streamGraph
+      .getStreamEdge(broadcast.getId, broadcastSink.getId).getPartitioner
+    assert(broadcastPartitioner.isInstanceOf[BroadcastPartitioner[_]])
+
+    val shuffle: DataStream[Long] = src.shuffle
+    val shuffleSink = shuffle.print
+    val shufflePartitioner = streamGraph
+      .getStreamEdge(shuffle.getId, shuffleSink.getId).getPartitioner
+    assert(shufflePartitioner.isInstanceOf[ShufflePartitioner[_]])
+
+    val forward: DataStream[Long] = src.forward
+    val forwardSink = forward.print
+    val forwardPartitioner = streamGraph
+      .getStreamEdge(forward.getId, forwardSink.getId).getPartitioner
+    assert(forwardPartitioner.isInstanceOf[RebalancePartitioner[_]])
+
+    val rebalance: DataStream[Long] = src.rebalance
+    val rebalanceSink = rebalance.print
+    val rebalancePartitioner = streamGraph
+      .getStreamEdge(rebalance.getId, rebalanceSink.getId).getPartitioner
+    assert(rebalancePartitioner.isInstanceOf[RebalancePartitioner[_]])
+
+    val global: DataStream[Long] = src.global
+    val globalSink = global.print
+    val globalPartitioner = streamGraph
+      .getStreamEdge(global.getId, globalSink.getId).getPartitioner
+    assert(globalPartitioner.isInstanceOf[GlobalPartitioner[_]])
   }
 
   /////////////////////////////////////////////////////////////
   // Utilities
   /////////////////////////////////////////////////////////////
+
+  private def getFunctionForDataStream(dataStream: DataStream[_]): Function = {
+    val operator = getOperatorForDataStream(dataStream)
+      .asInstanceOf[AbstractUdfStreamOperator[_, _]]
+    return operator.getUserFunction.asInstanceOf[Function]
+  }
+
+  private def getOperatorForDataStream(dataStream: DataStream[_]): StreamOperator[_] = {
+    val env = dataStream.getJavaStream.getExecutionEnvironment
+    val streamGraph: StreamGraph = env.getStreamGraph
+    streamGraph.getStreamNode(dataStream.getId).getOperator
+  }
 
   private def isPartitioned(edge: StreamEdge): Boolean = {
     return edge.getPartitioner.isInstanceOf[FieldsPartitioner[_]]

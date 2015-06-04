@@ -78,8 +78,8 @@ public class OutputHandler<OUT> {
 		for (StreamEdge outEdge : outEdgesInOrder) {
 			StreamOutput<?> streamOutput = createStreamOutput(
 					outEdge,
-					outEdge.getTargetID(),
-					chainedConfigs.get(outEdge.getSourceID()),
+					outEdge.getTargetId(),
+					chainedConfigs.get(outEdge.getSourceId()),
 					outEdgesInOrder.indexOf(outEdge));
 			outputMap.put(outEdge, streamOutput);
 		}
@@ -134,7 +134,7 @@ public class OutputHandler<OUT> {
 
 		// Create collectors for the chained outputs
 		for (StreamEdge outputEdge : chainedTaskConfig.getChainedOutputs(cl)) {
-			Integer output = outputEdge.getTargetID();
+			Integer output = outputEdge.getTargetId();
 
 			Collector<?> outCollector = createChainedCollector(chainedConfigs.get(output));
 

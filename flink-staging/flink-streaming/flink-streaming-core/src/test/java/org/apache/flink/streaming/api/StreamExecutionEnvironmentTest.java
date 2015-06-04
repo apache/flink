@@ -100,14 +100,13 @@ public class StreamExecutionEnvironmentTest {
 		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
 
 		SourceFunction<Integer> srcFun = new SourceFunction<Integer>() {
+
 			@Override
-			public boolean reachedEnd() throws Exception {
-				return false;
+			public void run(SourceContext<Integer> ctx) throws Exception {
 			}
 
 			@Override
-			public Integer next() throws Exception {
-				return null;
+			public void cancel() {
 			}
 		};
 		DataStreamSource<Integer> src1 = env.addSource(srcFun);
@@ -117,7 +116,6 @@ public class StreamExecutionEnvironmentTest {
 
 		DataStreamSource<Long> src2 = env.generateSequence(0, 2);
 		assertTrue(getFunctionForDataSource(src2) instanceof FromIteratorFunction);
-		checkIfSameElements(list, getFunctionForDataSource(src2));
 
 		DataStreamSource<Long> src3 = env.fromElements(0L, 1L, 2L);
 		assertTrue(getFunctionForDataSource(src3) instanceof FromElementsFunction);
@@ -133,23 +131,6 @@ public class StreamExecutionEnvironmentTest {
 	// Utilities
 	/////////////////////////////////////////////////////////////
 
-	private static <T> void checkIfSameElements(Collection<T> collection, SourceFunction<T> sourceFunction) {
-		for (T elem : collection) {
-			try {
-				assertEquals(elem, sourceFunction.next());
-			} catch (Exception e) {
-				e.printStackTrace();
-				fail(e.getMessage());
-			}
-		}
-
-		try {
-			assertTrue(sourceFunction.reachedEnd());
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
 
 	private static StreamOperator<?> getOperatorForDataStream(DataStream<?> dataStream) {
 		StreamExecutionEnvironment env = dataStream.getExecutionEnvironment();
