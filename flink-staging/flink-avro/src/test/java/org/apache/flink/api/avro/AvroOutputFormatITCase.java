@@ -37,7 +37,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 @SuppressWarnings("serial")
-public class AvroOutputFormatTest extends JavaProgramTestBase {
+public class AvroOutputFormatITCase extends JavaProgramTestBase {
 
 	public static String outputPath1;
 
