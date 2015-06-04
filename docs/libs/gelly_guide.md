@@ -459,7 +459,6 @@ The number of vertices can then be accessed in the vertex update function and in
 The in/out degrees can then be accessed in the vertex update function and in the messaging function, per vertex using the `getInDegree()` and `getOutDegree()` methods.
 If the degrees option is not set in the configuration, these methods will return -1.
 
-
 * <strong>Messaging Direction</strong>: By default, a vertex sends messages to its out-neighbors and updates its value based on messages received from its in-neighbors. This configuration option allows users to change the messaging direction to either `EdgeDirection.IN`, `EdgeDirection.OUT`, `EdgeDirection.ALL`. The messaging direction also dictates the update direction which would be `EdgeDirection.OUT`, `EdgeDirection.IN` and `EdgeDirection.ALL`, respectively. This property can be set using the `setDirection()` method.
 
 {% highlight java %}
@@ -683,6 +682,50 @@ Currently, the following parameters can be specified:
 * <strong>Aggregators</strong>: Iteration aggregators can be registered using the `registerAggregator()` method. An iteration aggregator combines all aggregates globally once per superstep and makes them available in the next superstep. Registered aggregators can be accessed inside the user-defined `GatherFunction`, `SumFunction` and `ApplyFunction`.
 
 * <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({{site.baseurl}}/apis/programming_guide.html#broadcast-variables) to the `GatherFunction`, `SumFunction` and `ApplyFunction`, using the methods `addBroadcastSetForGatherFunction()`, `addBroadcastSetForSumFunction()` and `addBroadcastSetForApplyFunction` methods, respectively.
+
+* <strong>Number of Vertices</strong>: Accessing the total number of vertices within the iteration. This property can be set using the `setOptNumVertices()` method.
+The number of vertices can then be accessed in the gather, sum and/or apply functions by using the `getNumberOfVertices()` method. If the option is not set in the configuration, this method will return -1.
+
+The following example illustrates the usage of the number of vertices option.
+
+{% highlight java %}
+
+Graph<Long, Double, Double> graph = ...
+
+// configure the iteration
+GSAConfiguration parameters = new GSAConfiguration();
+
+// set the number of vertices option to true
+parameters.setOptNumVertices(true);
+
+// run the gather-sum-apply iteration, also passing the configuration parameters
+Graph<Long, Long, Long> result = graph.runGatherSumApplyIteration(
+				new Gather(), new Sum(), new Apply(),
+			    maxIterations, parameters);
+
+// user-defined functions
+public static final class Gather {
+	...
+	// get the number of vertices
+	long numVertices = getNumberOfVertices();
+	...
+}
+
+public static final class Sum {
+	...
+    // get the number of vertices
+    long numVertices = getNumberOfVertices();
+    ...
+}
+
+public static final class Apply {
+	...
+    // get the number of vertices
+    long numVertices = getNumberOfVertices();
+    ...
+}
+
+{% endhighlight %}
 
 [Back to top](#top)
 

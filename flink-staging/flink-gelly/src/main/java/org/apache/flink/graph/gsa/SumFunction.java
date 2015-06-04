@@ -28,6 +28,27 @@ import java.util.Collection;
 @SuppressWarnings("serial")
 public abstract class SumFunction<VV, EV, M> implements Serializable {
 
+	// --------------------------------------------------------------------------------------------
+	//  Attribute that allows access to the total number of vertices inside an iteration.
+	// --------------------------------------------------------------------------------------------
+
+	private long numberOfVertices = -1L;
+
+	/**
+	 * Retrieves the number of vertices in the graph.
+	 * @return the number of vertices if the {@link IterationConfigurationion#setOptNumVertices(boolean)}
+	 * option has been set; -1 otherwise.
+	 */
+	public long getNumberOfVertices() {
+		return numberOfVertices;
+	}
+
+	void setNumberOfVertices(long numberOfVertices) {
+		this.numberOfVertices = numberOfVertices;
+	}
+
+	//---------------------------------------------------------------------------------------------
+
 	public abstract M sum(M arg0, M arg1);
 
 	/**

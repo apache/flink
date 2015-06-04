@@ -40,6 +40,9 @@ public abstract class IterationConfiguration {
 
 	/** flag that defines whether the solution set is kept in managed memory **/
 	private boolean unmanagedSolutionSet = false;
+
+	/** flag that defines whether the number of vertices option is set **/
+	private boolean optNumVertices = false;
 	
 	public IterationConfiguration() {}
 
@@ -106,6 +109,26 @@ public abstract class IterationConfiguration {
 	 */
 	public boolean isSolutionSetUnmanagedMemory() {
 		return this.unmanagedSolutionSet;
+	}
+
+	/**
+	 * Gets whether the number of vertices option is set.
+	 * By default, the number of vertices option is not set.
+	 *
+	 * @return True, if the number of vertices option is set, false otherwise.
+	 */
+	public boolean isOptNumVertices() {
+		return optNumVertices;
+	}
+
+	/**
+	 * Sets the number of vertices option.
+	 * By default, the number of vertices option is not set.
+	 *
+	 * @param optNumVertices True, to set this option, false otherwise.
+	 */
+	public void setOptNumVertices(boolean optNumVertices) {
+		this.optNumVertices = optNumVertices;
 	}
 
 	/**
