@@ -93,4 +93,25 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
     env.execute()
     expected = "1\n" + "5\n" + "15\n" + "34\n" + "65\n" + "111\n"
   }
+
+  @Test
+  def testSQLStyleAggregations(): Unit = {
+
+    // the grouping key needs to be forwarded to the intermediate DataSet, even
+    // if we don't want the key in the output
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+      .select(
+        """Sum( a) as a1, a.sum as a2,
+          |Min (a) as b1, a.min as b2,
+          |Max (a ) as c1, a.max as c2,
+          |Avg ( a ) as d1, a.avg as d2,
+          |Count(a) as e1, a.count as e2
+        """.stripMargin)
+
+    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "231,231,1,1,21,21,11,11,21,21"
+  }
 }
