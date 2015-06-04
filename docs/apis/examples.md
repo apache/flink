@@ -25,10 +25,36 @@ from simple word counting to graph algorithms. The code samples illustrate the
 use of [Flink's API](programming_guide.html). 
 
 The full source code of the following and more examples can be found in the __flink-java-examples__
-or __flink-scala-examples__ module.
+or __flink-scala-examples__ module of the Flink source repository.
 
 * This will be replaced by the TOC
 {:toc}
+
+
+## Running an example
+
+In order to run a Flink example, we assume you have a running Flink instance available. The "Setup" tab in the navigation describes various ways of starting Flink.
+
+The easiest way is running the `./bin/start-local.sh` script, which will start a JobManager locally.
+
+Each binary release of Flink contains an `examples` directory with jar files for each of the examples on this page.
+
+To run the WordCount example, issue the following command:
+
+~~~bash
+./bin/flink run ./examples/flink-java-examples-{{site.version}}-WordCount.jar
+~~~
+
+The other examples can be started in a similar way.
+
+Note that many examples run without passing any arguments for them, by using build-in data. To run WordCount with real data, you have to pass the path to the data:
+
+~~~bash
+./bin/flink run ./examples/flink-java-examples-{{site.version}}-WordCount.jar /path/to/some/text/data /path/to/result
+~~~
+
+Note that non-local file systems require a schema prefix, such as `hdfs://`.
+
 
 ## Word Count
 WordCount is the "Hello World" of Big Data processing systems. It computes the frequency of words in a text collection. The algorithm works in two steps: First, the texts are splits the text to individual words. Second, the words are grouped and counted.
