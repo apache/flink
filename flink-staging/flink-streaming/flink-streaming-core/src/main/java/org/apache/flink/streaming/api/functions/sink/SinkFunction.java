@@ -34,5 +34,5 @@ public interface SinkFunction<IN> extends Function, Serializable {
 	 * @param value The input record.
 	 * @throws Exception
 	 */
-	public void invoke(IN value) throws Exception;
+	void invoke(IN value) throws Exception;
 }
