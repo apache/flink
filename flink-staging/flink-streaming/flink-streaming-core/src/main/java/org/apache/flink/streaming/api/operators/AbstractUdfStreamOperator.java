@@ -91,6 +91,10 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 		}
 	}
 
+	public F getUserFunction() {
+		return userFunction;
+	}
+
 	private static <T extends Serializable> void setStateOnFunction(Serializable state, Function function) {
 		@SuppressWarnings("unchecked")
 		T typedState = (T) state;

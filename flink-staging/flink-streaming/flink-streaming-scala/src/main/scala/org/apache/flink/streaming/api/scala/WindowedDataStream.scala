@@ -298,7 +298,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     
   private def aggregate(aggregationType: AggregationType, field: String): 
   WindowedDataStream[T] = {
-    val position = fieldNames2Indices(javaStream.getType(), Array(field))(0)
+    val position = fieldNames2Indices(getType(), Array(field))(0)
     aggregate(aggregationType, position)
   }  
 
@@ -321,5 +321,12 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     new WindowedDataStream[Product](
             jStream.reduceWindow(reducer)).asInstanceOf[WindowedDataStream[T]]
   }
+
+  /**
+   * Gets the output type.
+   *
+   * @return The output type.
+   */
+  def getType(): TypeInformation[T] = javaStream.getType
 
 }
