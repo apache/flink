@@ -52,6 +52,7 @@ import org.junit.runners.Parameterized;
 import scala.math.BigInt;
 
 import java.util.Collection;
+import java.util.Date;
 import java.util.Iterator;
 
 @SuppressWarnings("serial")
@@ -1100,6 +1101,37 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 		expected = "(1)\n";
 	}
+
+	/**
+	 * Fix for FLINK-2158.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testDateNullException() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple2<Integer, Date>> in = env.fromElements(new Tuple2<Integer, Date>(0, new Date(1230000000)),
+				new Tuple2<Integer, Date>(1, null),
+				new Tuple2<Integer, Date>(2, new Date(1230000000))
+		);
+
+		DataSet<String> r = in.groupBy(0).reduceGroup(new GroupReduceFunction<Tuple2<Integer, Date>, String>() {
+			@Override
+			public void reduce(Iterable<Tuple2<Integer, Date>> values, Collector<String> out) throws Exception {
+				for (Tuple2<Integer, Date> e : values) {
+					out.collect(Integer.toString(e.f0));
+				}
+			}
+		});
+
+		r.writeAsText(resultPath);
+		env.execute();
+
+		expected = "0\n1\n2\n";
+	}
+
+
 
 	public static class GroupReducer8 implements GroupReduceFunction<CollectionDataSets.PojoWithCollection, String> {
 		@Override

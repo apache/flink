@@ -182,7 +182,8 @@ public abstract class SerializerTestBase<T> {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
-	
+
+
 	@Test
 	public void testSerializeIndividuallyReusingValues() {
 		try {
