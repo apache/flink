@@ -38,7 +38,6 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointCommitter;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.flink.util.Collector;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,10 +168,12 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 	}
 
 	@Override
-	public void run(Object checkpointLock, Collector<OUT> collector) throws Exception {
+	public void run(SourceContext<OUT> ctx) throws Exception {
 		if (iteratorToRead == null) {
 			throw new IllegalStateException("Kafka iterator not initialized properly.");
 		}
+
+		final Object checkpointLock = ctx.getCheckpointLock();
 		
 		while (running && iteratorToRead.hasNext()) {
 			MessageAndMetadata<byte[], byte[]> message = iteratorToRead.next();
@@ -190,7 +191,7 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 			// make the state update and the element emission atomic
 			synchronized (checkpointLock) {
 				lastOffsets[message.partition()] = message.offset();
-				collector.collect(next);
+				ctx.collect(next);
 			}
 
 			if (LOG.isTraceEnabled()) {

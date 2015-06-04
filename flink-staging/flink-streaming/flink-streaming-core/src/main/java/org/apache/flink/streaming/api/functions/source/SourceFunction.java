@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
@@ -84,10 +83,9 @@ public interface SourceFunction<T> extends Function, Serializable {
 	 * elements. Also, the update of state and emission of elements must happen in the same
 	 * synchronized block.
 	 *
-	 * @param checkpointLock The object to synchronize on when updating state and emitting elements.
-	 * @param out The collector to use for emitting elements
+	 * @param ctx The context for interaction with the outside world.
 	 */
-	void run(final Object checkpointLock, Collector<T> out) throws Exception;
+	void run(SourceContext<T> ctx) throws Exception;
 
 	/**
 	 * Cancels the source. Most sources will have a while loop inside the
@@ -96,4 +94,27 @@ public interface SourceFunction<T> extends Function, Serializable {
 	 * is set to false in this method.
 	 */
 	void cancel();
+
+	/**
+	 * Interface that source functions use to communicate with the outside world. Normally
+	 * sources would just emit elements in a loop using {@link #collect}. If the source is a
+	 * {@link org.apache.flink.streaming.api.checkpoint.Checkpointed} source it must retrieve
+	 * the checkpoint lock object and use it to protect state updates and element emission as
+	 * described in {@link org.apache.flink.streaming.api.functions.source.SourceFunction}.
+	 *
+	 * @param <T> The type of the elements produced by the source.
+	 */
+	public static interface SourceContext<T> {
+
+		/**
+		 * Emits one element from the source.
+		 */
+		public void collect(T element);
+
+		/**
+		 * Returns the checkpoint lock. Please refer to the explanation about checkpointed sources
+		 * in {@link org.apache.flink.streaming.api.functions.source.SourceFunction}.
+		 */
+		public Object getCheckpointLock();
+	}
 }

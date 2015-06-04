@@ -26,7 +26,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -209,7 +208,7 @@ public class TwitterSource extends RichSourceFunction<String> {
 	}
 
 	@Override
-	public void run(Object checkpointLock, Collector<String> out) throws Exception {
+	public void run(SourceContext<String> ctx) throws Exception {
 		while (isRunning) {
 			if (client.isDone()) {
 				if (LOG.isErrorEnabled()) {
@@ -219,7 +218,7 @@ public class TwitterSource extends RichSourceFunction<String> {
 				break;
 			}
 
-			out.collect(queue.take());
+			ctx.collect(queue.take());
 
 			if (maxNumberOfTweets != -1 && currentNumberOfTweets >= maxNumberOfTweets) {
 				break;

@@ -35,7 +35,6 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.util.Collector;
 import org.apache.flink.util.StringUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -169,7 +168,8 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 		}
 
 		@Override
-		public void run(final Object lockObject, Collector<Tuple2<Long, Integer>> out) {
+		public void run(SourceContext<Tuple2<Long, Integer>> ctx) {
+			final Object lockObject = ctx.getCheckpointLock();
 			while (isRunning && count < maxElements) {
 				// simulate some work
 				try {
@@ -179,7 +179,7 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 				}
 
 				synchronized (lockObject) {
-					out.collect(new Tuple2<Long, Integer>(lastCheckpointId, count));
+					ctx.collect(new Tuple2<Long, Integer>(lastCheckpointId, count));
 					count++;
 				}
 			}

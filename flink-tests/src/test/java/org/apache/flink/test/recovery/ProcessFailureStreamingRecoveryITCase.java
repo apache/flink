@@ -38,7 +38,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-import org.apache.flink.util.Collector;
 import org.junit.Assert;
 
 /**
@@ -124,12 +123,13 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		}
 
 		@Override
-		public void run(Object checkpointLock, Collector<Long> collector) throws Exception {
+		public void run(SourceContext<Long> sourceCtx) throws Exception {
+			final Object checkpointLock = sourceCtx.getCheckpointLock();
 
-			StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
+			StreamingRuntimeContext runtimeCtx = (StreamingRuntimeContext) getRuntimeContext();
 
-			final long stepSize = context.getNumberOfParallelSubtasks();
-			final long congruence = context.getIndexOfThisSubtask();
+			final long stepSize = runtimeCtx.getNumberOfParallelSubtasks();
+			final long congruence = runtimeCtx.getIndexOfThisSubtask();
 			final long toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
 
 			final File proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
@@ -148,7 +148,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 				}
 
 				synchronized (checkpointLock) {
-					collector.collect(collected * stepSize + congruence);
+					sourceCtx.collect(collected * stepSize + congruence);
 					collected++;
 				}
 			}

@@ -118,7 +118,7 @@ public class TypeFillTest {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void run(Object checkpointLock, Collector<T> out) throws Exception {
+		public void run(SourceContext<T> ctx) throws Exception {
 
 		}
 

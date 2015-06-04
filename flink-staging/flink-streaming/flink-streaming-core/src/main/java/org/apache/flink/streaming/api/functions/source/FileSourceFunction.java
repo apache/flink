@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-import org.apache.flink.util.Collector;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -116,7 +115,7 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	}
 
 	@Override
-	public void run(Object checkpointLock, Collector<OUT> out) throws Exception {
+	public void run(SourceContext<OUT> ctx) throws Exception {
 		while (isRunning) {
 			OUT nextElement = serializer.createInstance();
 			nextElement =  format.nextRecord(nextElement);
@@ -126,7 +125,7 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 			} else if (nextElement == null) {
 				break;
 			}
-			out.collect(nextElement);
+			ctx.collect(nextElement);
 		}
 	}
 

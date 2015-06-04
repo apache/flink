@@ -28,7 +28,6 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +62,7 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 	}
 
 	@Override
-	public void run(Object checkpointLock, Collector<Tuple3<String, Long, Long>> collector) throws Exception {
+	public void run(SourceContext<Tuple3<String, Long, Long>> ctx) throws Exception {
 		FileSystem fileSystem = FileSystem.get(new URI(path));
 
 		while (isRunning) {
@@ -71,7 +70,7 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 			for (String filePath : files) {
 				if (watchType == WatchType.ONLY_NEW_FILES
 						|| watchType == WatchType.REPROCESS_WITH_APPENDED) {
-					collector.collect(new Tuple3<String, Long, Long>(filePath, 0L, -1L));
+					ctx.collect(new Tuple3<String, Long, Long>(filePath, 0L, -1L));
 					offsetOfFiles.put(filePath, -1L);
 				} else if (watchType == WatchType.PROCESS_ONLY_APPENDED) {
 					long offset = 0;
@@ -80,7 +79,7 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 						offset = offsetOfFiles.get(filePath);
 					}
 
-					collector.collect(new Tuple3<String, Long, Long>(filePath, offset, fileSize));
+					ctx.collect(new Tuple3<String, Long, Long>(filePath, offset, fileSize));
 					offsetOfFiles.put(filePath, fileSize);
 
 					LOG.info("File processed: {}, {}, {}", filePath, offset, fileSize);

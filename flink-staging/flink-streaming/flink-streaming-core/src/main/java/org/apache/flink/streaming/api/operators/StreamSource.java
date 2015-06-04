@@ -33,8 +33,20 @@ public class StreamSource<OUT> extends AbstractUdfStreamOperator<OUT, SourceFunc
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
-	public void run(Object lockingObject, Collector<OUT> collector) throws Exception {
-		userFunction.run(lockingObject, collector);
+	public void run(final Object lockingObject, final Collector<OUT> collector) throws Exception {
+		SourceFunction.SourceContext<OUT> ctx = new SourceFunction.SourceContext<OUT>() {
+			@Override
+			public void collect(OUT element) {
+				collector.collect(element);
+			}
+
+			@Override
+			public Object getCheckpointLock() {
+				return lockingObject;
+			}
+		};
+
+		userFunction.run(ctx);
 	}
 
 	public void cancel() {

@@ -26,7 +26,6 @@ import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -114,13 +113,13 @@ public class IterateExample {
 		private volatile boolean isRunning = true;
 
 		@Override
-		public void run(Object checkpointLock, Collector<Tuple2<Integer, Integer>> collector) throws Exception {
+		public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
 
 			while (isRunning) {
 				int first = rnd.nextInt(BOUND / 2 - 1) + 1;
 				int second = rnd.nextInt(BOUND / 2 - 1) + 1;
 
-				collector.collect(new Tuple2<Integer, Integer>(first, second));
+				ctx.collect(new Tuple2<Integer, Integer>(first, second));
 				Thread.sleep(500L);
 			}
 		}

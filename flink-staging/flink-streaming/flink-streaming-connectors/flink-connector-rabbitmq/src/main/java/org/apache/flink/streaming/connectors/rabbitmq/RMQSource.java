@@ -27,7 +27,6 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
-import org.apache.flink.util.Collector;
 
 public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	private static final long serialVersionUID = 1L;
@@ -86,7 +85,7 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	}
 
 	@Override
-	public void run(Object checkpointLock, Collector<OUT> out) throws Exception {
+	public void run(SourceContext<OUT> ctx) throws Exception {
 		while (running) {
 			delivery = consumer.nextDelivery();
 
@@ -95,7 +94,7 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 				break;
 			}
 
-			out.collect(result);
+			ctx.collect(result);
 		}
 	}
 
