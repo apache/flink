@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.GroupedDataStream;
+import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.datastream.WindowedDataStream;
@@ -49,6 +50,8 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamGraph.StreamLoop;
+import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.windowing.helper.Count;
@@ -486,6 +489,41 @@ public class DataStreamTest {
 		StreamPartitioner<?> globalPartitioner =
 				streamGraph.getStreamEdge(global.getId(), globalSink.getId()).getPartitioner();
 		assertTrue(globalPartitioner instanceof GlobalPartitioner);
+	}
+
+	@Test
+	public void iterationTest() {
+		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+
+		DataStream<Long> src = env.generateSequence(0, 0);
+
+		IterativeDataStream<Long> iterate = src.iterate();
+		DataStream<Long> iterationMap = iterate.map(new MapFunction<Long, Long>() {
+			@Override
+			public Long map(Long value) throws Exception {
+				return null;
+			}
+		});
+
+		iterate.closeWith(iterationMap);
+
+		assertEquals(1, streamGraph.getStreamLoops().size());
+		StreamLoop streamLoop = streamGraph.getStreamLoops().iterator().next();
+
+		StreamNode iterationHead = streamLoop.getSource();
+		StreamNode iterationTail = streamLoop.getSink();
+
+		assertEquals(new Integer(0), streamLoop.getID());
+
+		try {
+			streamGraph.getStreamEdge(src.getId(), iterationMap.getId());
+			streamGraph.getStreamEdge(iterationHead.getId(), iterationMap.getId());
+			streamGraph.getStreamEdge(iterationMap.getId(), iterationTail.getId());
+		} catch (RuntimeException e) {
+			fail(e.getMessage());
+		}
 	}
 
 	/////////////////////////////////////////////////////////////

@@ -42,7 +42,7 @@ public class StreamNode implements Serializable {
 
 	transient private StreamExecutionEnvironment env;
 
-	private Integer ID;
+	private Integer id;
 	private Integer parallelism = null;
 	private Long bufferTimeout = null;
 	private String operatorName;
@@ -62,11 +62,11 @@ public class StreamNode implements Serializable {
 
 	private InputFormat<?, ?> inputFormat;
 
-	public StreamNode(StreamExecutionEnvironment env, Integer ID, StreamOperator<?> operator,
+	public StreamNode(StreamExecutionEnvironment env, Integer id, StreamOperator<?> operator,
 			String operatorName, List<OutputSelector<?>> outputSelector,
 			Class<? extends AbstractInvokable> jobVertexClass) {
 		this.env = env;
-		this.ID = ID;
+		this.id = id;
 		this.operatorName = operatorName;
 		this.operator = operator;
 		this.outputSelectors = outputSelector;
@@ -75,16 +75,16 @@ public class StreamNode implements Serializable {
 	}
 
 	public void addInEdge(StreamEdge inEdge) {
-		if (inEdge.getTargetID() != getID()) {
-			throw new IllegalArgumentException("Destination ID doesn't match the StreamNode ID");
+		if (inEdge.getTargetId() != getId()) {
+			throw new IllegalArgumentException("Destination id doesn't match the StreamNode id");
 		} else {
 			inEdges.add(inEdge);
 		}
 	}
 
 	public void addOutEdge(StreamEdge outEdge) {
-		if (outEdge.getSourceID() != getID()) {
-			throw new IllegalArgumentException("Source ID doesn't match the StreamNode ID");
+		if (outEdge.getSourceId() != getId()) {
+			throw new IllegalArgumentException("Source id doesn't match the StreamNode id");
 		} else {
 			outEdges.add(outEdge);
 		}
@@ -102,7 +102,7 @@ public class StreamNode implements Serializable {
 		List<Integer> outEdgeIndices = new ArrayList<Integer>();
 
 		for (StreamEdge edge : outEdges) {
-			outEdgeIndices.add(edge.getTargetID());
+			outEdgeIndices.add(edge.getTargetId());
 		}
 
 		return outEdgeIndices;
@@ -112,14 +112,14 @@ public class StreamNode implements Serializable {
 		List<Integer> inEdgeIndices = new ArrayList<Integer>();
 
 		for (StreamEdge edge : inEdges) {
-			inEdgeIndices.add(edge.getSourceID());
+			inEdgeIndices.add(edge.getSourceId());
 		}
 
 		return inEdgeIndices;
 	}
 
-	public Integer getID() {
-		return ID;
+	public Integer getId() {
+		return id;
 	}
 
 	public int getParallelism() {
@@ -216,7 +216,7 @@ public class StreamNode implements Serializable {
 	
 	@Override
 	public String toString() {
-		return operatorName + ID;
+		return operatorName + id;
 	}
 
 }

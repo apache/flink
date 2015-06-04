@@ -422,7 +422,7 @@ public class StreamConfig implements Serializable {
 		builder.append("\nOutput names: " + getNonChainedOutputs(cl));
 		builder.append("\nPartitioning:");
 		for (StreamEdge output : getNonChainedOutputs(cl)) {
-			int outputname = output.getTargetID();
+			int outputname = output.getTargetId();
 			builder.append("\n\t" + outputname + ": " + output.getPartitioner());
 		}
 

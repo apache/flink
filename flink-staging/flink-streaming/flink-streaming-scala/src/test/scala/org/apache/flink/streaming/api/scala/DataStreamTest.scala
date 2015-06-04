@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
-import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
+import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph, StreamNode}
 import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator}
 import org.apache.flink.streaming.api.windowing.helper.Count
 import org.apache.flink.streaming.runtime.partitioner._
@@ -352,9 +352,10 @@ class DataStreamTest {
 
     val coMapFunction =
       new CoMapFunction[String, Int, String] {
-      override def map1(value: String): String = ""
-      override def map2(value: Int): String = ""
-    }
+        override def map1(value: String): String = ""
+
+        override def map2(value: Int): String = ""
+      }
     val coMap = connect.map(coMapFunction)
     assert(coMapFunction == getFunctionForDataStream(coMap))
 
@@ -375,7 +376,7 @@ class DataStreamTest {
       }
     }
   }
-  
+
   @Test
   def testChannelSelectors {
     val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism)
@@ -412,6 +413,35 @@ class DataStreamTest {
     val globalPartitioner = streamGraph
       .getStreamEdge(global.getId, globalSink.getId).getPartitioner
     assert(globalPartitioner.isInstanceOf[GlobalPartitioner[_]])
+  }
+
+  @Test
+  def iterationTest {
+    val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism)
+    val streamGraph = env.getStreamGraph
+    val src: DataStream[Long] = env.generateSequence(0, 0)
+
+    val iterateMap: DataStream[Long] = src.iterate((ds: DataStream[Long]) => {
+      val mapInside = ds.map((x: Long) => x)
+      (mapInside, mapInside)
+    })
+
+    assert(1 == streamGraph.getStreamLoops.size)
+    val streamLoop: StreamGraph.StreamLoop = streamGraph.getStreamLoops.iterator.next
+    val iterationHead: StreamNode = streamLoop.getSource
+    val iterationTail: StreamNode = streamLoop.getSink
+    assert(0 == streamLoop.getID)
+
+    try {
+      streamGraph.getStreamEdge(src.getId, iterateMap.getId)
+      streamGraph.getStreamEdge(iterationHead.getId, iterateMap.getId)
+      streamGraph.getStreamEdge(iterateMap.getId, iterationTail.getId)
+    }
+    catch {
+      case e: RuntimeException => {
+        fail(e.getMessage)
+      }
+    }
   }
 
   /////////////////////////////////////////////////////////////
