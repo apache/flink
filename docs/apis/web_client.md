@@ -59,7 +59,7 @@ If the *“Show optimizer plan”* option is enabled (default), the *plan view* 
 In case the jar's manifest file does not specify the program class, you can specify it before the argument list as:
 
 ```
-assembler <assemblerClass> <programArgs...>
+-c <assemblerClass> <programArgs...>
 ```
 
 ### Plan View

@@ -18,10 +18,10 @@ highlighting.
 
 # Build
 
-The `docs/_build_docs.sh` script calls Jekyll and generates the documentation in `docs/target`. You
+The `docs/build_docs.sh` script calls Jekyll and generates the documentation in `docs/target`. You
 can then point your browser to `docs/target/index.html` and start reading.
 
-If you call the script with the preview flag `_build_docs.sh -p`, Jekyll will start a web server at
+If you call the script with the preview flag `build_docs.sh -p`, Jekyll will start a web server at
 `localhost:4000` and watch the docs directory for updates. Use this mode to preview changes locally.
 
 # Contribute
