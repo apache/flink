@@ -85,6 +85,8 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 			if(LOG.isErrorEnabled()){
 				LOG.error("Cannot send message to socket server at " + hostName + ":" + port, e);
 			}
+			throw new RuntimeException("Cannot send message \"" + value.toString() +
+					"\" to socket server at " + hostName + ":" + port, e);
 		}
 	}
 
