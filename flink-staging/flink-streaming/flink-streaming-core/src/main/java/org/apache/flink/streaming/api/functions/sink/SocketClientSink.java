@@ -24,8 +24,6 @@ import java.net.Socket;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Socket client that acts as a streaming sink. The data is sent to a Socket as a byte array.
@@ -34,8 +32,6 @@ import org.slf4j.LoggerFactory;
  */
 public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
-
-	private static final Logger LOG = LoggerFactory.getLogger(SocketClientSink.class);
 
 	private final String hostName;
 	private final int port;
@@ -65,7 +61,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 			client = new Socket(hostName, port);
 			outputStream = client.getOutputStream();
 		} catch (IOException e) {
-			throw new RuntimeException(e);
+			throw new RuntimeException("Cannot initialize connection to socket server at " + hostName + ":" + port, e);
 		}
 		dataOutputStream = new DataOutputStream(outputStream);
 	}
@@ -82,11 +78,8 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 		try {
 			dataOutputStream.write(msg);
 		} catch (IOException e) {
-			if(LOG.isErrorEnabled()){
-				LOG.error("Cannot send message to socket server at " + hostName + ":" + port, e);
-			}
-			throw new RuntimeException("Cannot send message \"" + value.toString() +
-					"\" to socket server at " + hostName + ":" + port, e);
+			throw new RuntimeException("Cannot send message " + value.toString() +
+					" to socket server at " + hostName + ":" + port, e);
 		}
 	}
 
@@ -105,7 +98,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 				try {
 					client.close();
 				} catch (IOException e) {
-					LOG.error("Cannot close connection with socket server at "
+					throw new RuntimeException("Cannot close connection with socket server at "
 							+ hostName + ":" + port, e);
 				}
 			}
