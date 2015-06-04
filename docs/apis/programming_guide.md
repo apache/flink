@@ -193,11 +193,11 @@ that creates the type information for Flink operations.
 
 If you are using Flink together with Hadoop, the version of the dependency may vary depending on the
 version of Hadoop (or more specifically, HDFS) that you want to use Flink with. Please refer to the
-[downloads page]({{site.baseurl}}/downloads.html) for a list of available versions, and instructions
+[downloads page](http://flink.apache.org/downloads.html) for a list of available versions, and instructions
 on how to link with custom versions of Hadoop.
 
 In order to link against the latest SNAPSHOT versions of the code, please follow
-[this guide]({{site.baseurl}}/downloads.html#nightly).
+[this guide](http://flink.apache.org/how-to-contribute.html#snapshots-nightly-builds).
 
 The *flink-clients* dependency is only necessary to invoke the Flink program locally (for example to
 run it standalone for testing and debugging).  If you intend to only export the program as a JAR
@@ -284,8 +284,8 @@ This will create a new DataSet by converting every String in the original
 set to an Integer. For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
-Once you have a DataSet that needs to be processed further you can call one
-of these methods on DataSet:
+Once you have a DataSet containing your final results, you can either write the result
+to a file system (HDFS or local) or print it.
 
 {% highlight java %}
 writeAsText(String path)
@@ -293,6 +293,7 @@ writeAsCsv(String path)
 write(FileOutputFormat<T> outputFormat, String filePath)
 
 print()
+printOnTaskManager()
 
 collect()
 {% endhighlight %}
@@ -367,8 +368,8 @@ This will create a new DataSet by converting every String in the original
 set to an Integer. For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
-Once you have a DataSet that needs to be processed further you can call one
-of these methods on DataSet:
+Once you have a DataSet containing your final results, you can either write the result
+to a file system (HDFS or local) or print it.
 
 {% highlight scala %}
 def writeAsText(path: String, writeMode: WriteMode = WriteMode.NO_OVERWRITE)
@@ -380,6 +381,8 @@ def writeAsCsv(
 def write(outputFormat: FileOutputFormat[T],
     path: String,
     writeMode: WriteMode = WriteMode.NO_OVERWRITE)
+
+def printOnTaskManager()
 
 def print()
 
@@ -399,16 +402,19 @@ to standard output (on the JVM starting the Flink execution). **NOTE** The behav
 method changed with Flink 0.9.x. Before it was printing to the log file of the workers, now its 
 sending the DataSet results to the client and printing the results there.
 
-`collect()` allows to retrieve the DataSet from the cluster to the local JVM. The `collect()` method 
+`collect()` retrieve the DataSet from the cluster to the local JVM. The `collect()` method 
 will return a `List` containing the elements.
 
-Both `print()` and `collect()` will trigger the execution of the program.
+Both `print()` and `collect()` will trigger the execution of the program. You don't need to further call `execute()`.
 
 
 **NOTE** `print()` and `collect()` retrieve the data from the cluster to the client. Currently,
 the data sizes you can retrieve with `collect()` are limited due to our RPC system. It is not advised
 to collect DataSets larger than 10MBs.
 
+There is also a `printOnTaskManager()` method which will print the DataSet contents on the TaskManager 
+(so you have to get them from the log file). The `printOnTaskManager()` method will not trigger a
+program execution.
 
 Once you specified the complete program you need to **trigger the program execution**. You can call
 `execute()` directly on the `ExecutionEnviroment` or you implicitly trigger the execution with
@@ -435,9 +441,9 @@ an abstract representation of a set of data that can contain duplicates.
 Also note that Flink is not always physically creating (materializing) each DataSet at runtime. This 
 depends on the used runtime, the configuration and optimizer decisions.
 
-The Flink runtime is usually not materializing the DataSets because it is using a streaming runtime model.
-DataSets are only materialized to avoid distributed deadlocks (usually at points where the data flow 
-graph branches out to join again later) or if the execution mode has explicitly been set to a batched execution.
+The Flink runtime does not need to always materialize the DataSets because it is using a streaming runtime model.
+
+DataSets are only materialized to avoid distributed deadlocks (at points where the data flow graph branches out and joins again later) or if the execution mode has explicitly been set to a batched execution.
 
 When using Flink on Tez, all DataSets are materialized.
 
@@ -989,7 +995,7 @@ The [parallelism](#parallel-execution) of a transformation can be defined by `se
 `name(String)` assigns a custom name to a transformation which is helpful for debugging. The same is
 possible for [Data Sources](#data-sources) and [Data Sinks](#data-sinks).
 
-`withParameters(Configuration)` allows to pass Configuration objects, which can be accessed from the `open()` method inside the user function.
+`withParameters(Configuration)` passes Configuration objects, which can be accessed from the `open()` method inside the user function.
 
 [Back to Top](#top)
 
