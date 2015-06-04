@@ -30,7 +30,8 @@ import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
 
 @RunWith(classOf[Parameterized])
-class MapVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class MapVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) extends
+MultipleProgramsTestBase(mode) {
 
     private var resultPath: String = null
     private var expectedResult: String = null
@@ -58,7 +59,8 @@ class MapVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode
     @throws(classOf[Exception])
     def testWithSameValue {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.mapVertices(new AddOneMapper)
             .getVerticesAsTuple2().writeAsCsv(resultPath)
         env.execute
@@ -74,7 +76,8 @@ class MapVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode
     @throws(classOf[Exception])
     def testWithSameValueSugar {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.mapVertices(vertex => vertex.getValue + 1)
             .getVerticesAsTuple2().writeAsCsv(resultPath)
         env.execute

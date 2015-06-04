@@ -30,7 +30,8 @@ import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
 
 @RunWith(classOf[Parameterized])
-class JoinWithVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class JoinWithVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) extends
+MultipleProgramsTestBase(mode) {
 
     private var resultPath: String = null
     private var expectedResult: String = null
@@ -58,8 +59,10 @@ class JoinWithVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutio
     @throws(classOf[Exception])
     def testJoinWithVertexSet {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-        val result: Graph[Long, Long, Long] = graph.joinWithVertices(graph.getVertices.map(new VertexToTuple2Map[Long, Long]), new AddValuesMapper)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val result: Graph[Long, Long, Long] = graph.joinWithVertices(graph.getVertices.map(new
+                VertexToTuple2Map[Long, Long]), new AddValuesMapper)
         result.getVerticesAsTuple2().writeAsCsv(resultPath)
         env.execute
         expectedResult = "1,2\n" + "2,4\n" + "3,6\n" + "4,8\n" + "5,10\n"
@@ -69,9 +72,11 @@ class JoinWithVerticesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutio
     @throws(classOf[Exception])
     def testJoinWithVertexSetSugar {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         val tupleSet = graph.getVertices.map(new VertexToTuple2Map[Long, Long])
-        val result: Graph[Long, Long, Long] = graph.joinWithVertices[Long](tupleSet, (originalvalue: Long, tuplevalue: Long) => originalvalue + tuplevalue)
+        val result: Graph[Long, Long, Long] = graph.joinWithVertices[Long](tupleSet,
+            (originalvalue: Long, tuplevalue: Long) => originalvalue + tuplevalue)
         result.getVerticesAsTuple2().writeAsCsv(resultPath)
         env.execute
         expectedResult = "1,2\n" + "2,4\n" + "3,6\n" + "4,8\n" + "5,10\n"

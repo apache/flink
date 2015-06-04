@@ -29,7 +29,8 @@ import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
 
 @RunWith(classOf[Parameterized])
-class GraphMutationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class GraphMutationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) extends
+MultipleProgramsTestBase(mode) {
 
     private var resultPath: String = null
     private var expectedResult: String = null
@@ -57,35 +58,40 @@ class GraphMutationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionM
     @throws(classOf[Exception])
     def testAddVertex {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         val edges: List[Edge[Long, Long]] = List[Edge[Long, Long]](
             new Edge[Long, Long](6L, 1L, 61L)
         )
         val newgraph = graph.addVertex(new Vertex[Long, Long](6L, 6L), edges)
         newgraph.getEdgesAsTuple3.writeAsCsv(resultPath)
         env.execute
-        expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5,45\n" + "5,1,51\n" + "6,1,61\n"
+        expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5," +
+            "45\n" + "5,1,51\n" + "6,1,61\n"
     }
 
     @Test
     @throws(classOf[Exception])
     def testAddVertexExisting {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         val edges: List[Edge[Long, Long]] = List[Edge[Long, Long]](
             new Edge[Long, Long](1L, 5L, 15L)
         )
         val newgraph = graph.addVertex(new Vertex[Long, Long](1L, 1L), edges)
         newgraph.getEdgesAsTuple3.writeAsCsv(resultPath)
         env.execute
-        expectedResult = "1,2,12\n" + "1,3,13\n" + "1,5,15\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5,45\n" + "5,1,51\n"
+        expectedResult = "1,2,12\n" + "1,3,13\n" + "1,5,15\n" + "2,3,23\n" + "3,4,34\n" + "3,5," +
+            "35\n" + "4,5,45\n" + "5,1,51\n"
     }
 
     @Test
     @throws(classOf[Exception])
     def testAddVertexNoEdges {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         val edges: List[Edge[Long, Long]] = List[Edge[Long, Long]]()
         val newgraph = graph.addVertex(new Vertex[Long, Long](6L, 6L), edges)
         newgraph.getVerticesAsTuple2.writeAsCsv(resultPath)
@@ -97,7 +103,8 @@ class GraphMutationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionM
     @throws(classOf[Exception])
     def testRemoveVertex {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         val newgraph = graph.removeVertex(new Vertex[Long, Long](5L, 5L))
         newgraph.getEdgesAsTuple3.writeAsCsv(resultPath)
         env.execute
@@ -108,40 +115,49 @@ class GraphMutationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionM
     @throws(classOf[Exception])
     def testRemoveInvalidVertex {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         val newgraph = graph.removeVertex(new Vertex[Long, Long](6L, 6L))
         newgraph.getEdgesAsTuple3.writeAsCsv(resultPath)
         env.execute
-        expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5,45\n" + "5,1,51\n"
+        expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5," +
+            "45\n" + "5,1,51\n"
     }
 
     @Test
     @throws(classOf[Exception])
     def testAddEdge {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-        val newgraph = graph.addEdge(new Vertex[Long, Long](6L, 6L), new Vertex[Long, Long](1L, 1L), 61L)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val newgraph = graph.addEdge(new Vertex[Long, Long](6L, 6L), new Vertex[Long, Long](1L,
+            1L), 61L)
         newgraph.getEdgesAsTuple3.writeAsCsv(resultPath)
         env.execute
-        expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5,45\n" + "5,1,51\n" + "6,1,61\n"
+        expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5," +
+            "45\n" + "5,1,51\n" + "6,1,61\n"
     }
 
     @Test
     @throws(classOf[Exception])
     def testAddExistingEdge {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-        val newgraph = graph.addEdge(new Vertex[Long, Long](1L, 1L), new Vertex[Long, Long](2L, 2L), 12L)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val newgraph = graph.addEdge(new Vertex[Long, Long](1L, 1L), new Vertex[Long, Long](2L,
+            2L), 12L)
         newgraph.getEdgesAsTuple3.writeAsCsv(resultPath)
         env.execute
-        expectedResult = "1,2,12\n" + "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5,45\n" + "5,1,51\n"
+        expectedResult = "1,2,12\n" + "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5," +
+            "35\n" + "4,5,45\n" + "5,1,51\n"
     }
 
     @Test
     @throws(classOf[Exception])
     def testRemoveEdge {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         val newgraph = graph.removeEdge(new Edge[Long, Long](5L, 1L, 51L))
         newgraph.getEdgesAsTuple3.writeAsCsv(resultPath)
         env.execute
@@ -152,10 +168,12 @@ class GraphMutationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionM
     @throws(classOf[Exception])
     def testRemoveInvalidEdge {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         val newgraph = graph.removeEdge(new Edge[Long, Long](6L, 1L, 61L))
         newgraph.getEdgesAsTuple3.writeAsCsv(resultPath)
         env.execute
-        expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5,45\n" + "5,1,51\n"
+        expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5," +
+            "45\n" + "5,1,51\n"
     }
 }

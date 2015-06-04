@@ -28,7 +28,8 @@ import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
 
 @RunWith(classOf[Parameterized])
-class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) extends
+MultipleProgramsTestBase(mode) {
 
     private var resultPath: String = null
     private var expectedResult: String = null
@@ -56,27 +57,33 @@ class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecution
     @throws(classOf[Exception])
     def testUndirected {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.getUndirected().getEdgesAsTuple3().writeAsCsv(resultPath)
         env.execute
-        expectedResult = "1,2,12\n" + "2,1,12\n" + "1,3,13\n" + "3,1,13\n" + "2,3,23\n" + "3,2,23\n" + "3,4,34\n" + "4,3,34\n" + "3,5,35\n" + "5,3,35\n" + "4,5,45\n" + "5,4,45\n" + "5,1,51\n" + "1,5,51\n"
+        expectedResult = "1,2,12\n" + "2,1,12\n" + "1,3,13\n" + "3,1,13\n" + "2,3,23\n" + "3,2," +
+            "23\n" + "3,4,34\n" + "4,3,34\n" + "3,5,35\n" + "5,3,35\n" + "4,5,45\n" + "5,4,45\n"
+        + "5,1,51\n" + "1,5,51\n"
     }
 
     @Test
     @throws(classOf[Exception])
     def testReverse {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.reverse().getEdgesAsTuple3().writeAsCsv(resultPath)
         env.execute
-        expectedResult = "2,1,12\n" + "3,1,13\n" + "3,2,23\n" + "4,3,34\n" + "5,3,35\n" + "5,4,45\n" + "1,5,51\n"
+        expectedResult = "2,1,12\n" + "3,1,13\n" + "3,2,23\n" + "4,3,34\n" + "5,3,35\n" + "5,4," +
+            "45\n" + "1,5,51\n"
     }
 
     @Test
     @throws(classOf[Exception])
     def testSubGraph {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.subgraph(new FilterFunction[Vertex[Long, Long]] {
             @throws(classOf[Exception])
             def filter(vertex: Vertex[Long, Long]): Boolean = {
@@ -97,7 +104,8 @@ class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecution
     @throws(classOf[Exception])
     def testSubGraphSugar {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.subgraph(
             vertex => vertex.getValue > 2,
             edge => edge.getValue > 34
@@ -110,7 +118,8 @@ class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecution
     @throws(classOf[Exception])
     def testFilterOnVertices {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.filterOnVertices(new FilterFunction[Vertex[Long, Long]] {
             @throws(classOf[Exception])
             def filter(vertex: Vertex[Long, Long]): Boolean = {
@@ -125,7 +134,8 @@ class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecution
     @throws(classOf[Exception])
     def testFilterOnVerticesSugar {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.filterOnVertices(
             vertex => vertex.getValue > 2
         ).getEdgesAsTuple3().writeAsCsv(resultPath)
@@ -137,7 +147,8 @@ class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecution
     @throws(classOf[Exception])
     def testFilterOnEdges {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.filterOnEdges(new FilterFunction[Edge[Long, Long]] {
             @throws(classOf[Exception])
             def filter(edge: Edge[Long, Long]): Boolean = {
@@ -152,7 +163,8 @@ class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecution
     @throws(classOf[Exception])
     def testFilterOnEdgesSugar {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.filterOnEdges(
             edge => edge.getValue > 34
         ).getEdgesAsTuple3().writeAsCsv(resultPath)
@@ -164,7 +176,8 @@ class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecution
     @throws(classOf[Exception])
     def testNumberOfVertices {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         env.fromElements(graph.numberOfVertices).writeAsText(resultPath)
         env.execute
         expectedResult = "5"
@@ -174,7 +187,8 @@ class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecution
     @throws(classOf[Exception])
     def testNumberOfEdges {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         env.fromElements(graph.numberOfEdges).writeAsText(resultPath)
         env.execute
         expectedResult = "7"
@@ -184,7 +198,8 @@ class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecution
     @throws(classOf[Exception])
     def testVertexIds {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.getVertexIds.writeAsText(resultPath)
         env.execute
         expectedResult = "1\n2\n3\n4\n5\n"
@@ -194,7 +209,8 @@ class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecution
     @throws(classOf[Exception])
     def testEdgesIds {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         graph.getEdgeIds.writeAsCsv(resultPath)
         env.execute
         expectedResult = "1,2\n" + "1,3\n" + "2,3\n" + "3,4\n" + "3,5\n" + "4,5\n" + "5,1\n"
@@ -204,7 +220,8 @@ class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecution
     @throws(classOf[Exception])
     def testUnion {
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+        val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+            .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
         val vertices: List[Vertex[Long, Long]] = List[Vertex[Long, Long]](
             new Vertex[Long, Long](6L, 6L)
         )
@@ -215,6 +232,7 @@ class GraphOperationsITCase(mode: AbstractMultipleProgramsTestBase.TestExecution
         val newgraph = graph.union(Graph.fromCollection(vertices, edges, env))
         newgraph.getEdgesAsTuple3.writeAsCsv(resultPath)
         env.execute
-        expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5,45\n" + "5,1,51\n" + "6,1,61\n"
+        expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5," +
+            "45\n" + "5,1,51\n" + "6,1,61\n"
     }
 }

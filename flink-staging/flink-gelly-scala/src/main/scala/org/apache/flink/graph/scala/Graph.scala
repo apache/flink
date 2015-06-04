@@ -24,7 +24,8 @@ import org.apache.flink.api.java.{tuple => jtuple}
 import org.apache.flink.api.scala._
 import org.apache.flink.graph._
 import org.apache.flink.graph.gsa.{ApplyFunction, GSAConfiguration, GatherFunction, SumFunction}
-import org.apache.flink.graph.spargel.{MessagingFunction, VertexCentricConfiguration, VertexUpdateFunction}
+import org.apache.flink.graph.spargel.{MessagingFunction, VertexCentricConfiguration,
+VertexUpdateFunction}
 import org.apache.flink.{graph => jg}
 
 import _root_.scala.collection.JavaConversions._
@@ -32,16 +33,22 @@ import _root_.scala.collection.JavaConverters._
 import _root_.scala.reflect.ClassTag
 
 object Graph {
-    def fromDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV: TypeInformation : ClassTag](vertices: DataSet[Vertex[K, VV]], edges: DataSet[Edge[K, EV]], env: ExecutionEnvironment): Graph[K, VV, EV] = {
+    def fromDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
+    TypeInformation : ClassTag](vertices: DataSet[Vertex[K, VV]], edges: DataSet[Edge[K, EV]],
+                                env: ExecutionEnvironment): Graph[K, VV, EV] = {
         wrapGraph(jg.Graph.fromDataSet[K, VV, EV](vertices.javaSet, edges.javaSet, env.javaEnv))
     }
 
-    def fromCollection[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV: TypeInformation : ClassTag](vertices: Seq[Vertex[K, VV]], edges: Seq[Edge[K, EV]], env: ExecutionEnvironment): Graph[K, VV, EV] = {
-        wrapGraph(jg.Graph.fromCollection[K, VV, EV](vertices.asJavaCollection, edges.asJavaCollection, env.javaEnv))
+    def fromCollection[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
+    TypeInformation : ClassTag](vertices: Seq[Vertex[K, VV]], edges: Seq[Edge[K, EV]], env:
+    ExecutionEnvironment): Graph[K, VV, EV] = {
+        wrapGraph(jg.Graph.fromCollection[K, VV, EV](vertices.asJavaCollection, edges
+            .asJavaCollection, env.javaEnv))
     }
 }
 
-final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV: TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
+final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
+TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
 
     private[flink] def getWrappedGraph = jgraph
 
@@ -66,7 +73,8 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
         wrap(jgraph.getEdgesAsTuple3).map(jtuple => (jtuple.f0, jtuple.f1, jtuple.f2))
     }
 
-    def mapVertices[NV: TypeInformation : ClassTag](mapper: MapFunction[Vertex[K, VV], NV]): Graph[K, NV, EV] = {
+    def mapVertices[NV: TypeInformation : ClassTag](mapper: MapFunction[Vertex[K, VV], NV]):
+    Graph[K, NV, EV] = {
         new Graph[K, NV, EV](jgraph.mapVertices[NV](
             mapper,
             createTypeInformation[Vertex[K, NV]]
@@ -82,7 +90,8 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
         new Graph[K, NV, EV](jgraph.mapVertices[NV](mapper, createTypeInformation[Vertex[K, NV]]))
     }
 
-    def mapEdges[NV: TypeInformation : ClassTag](mapper: MapFunction[Edge[K, EV], NV]): Graph[K, VV, NV] = {
+    def mapEdges[NV: TypeInformation : ClassTag](mapper: MapFunction[Edge[K, EV], NV]): Graph[K,
+        VV, NV] = {
         new Graph[K, VV, NV](jgraph.mapEdges[NV](
             mapper,
             createTypeInformation[Edge[K, NV]]
@@ -98,17 +107,20 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
         new Graph[K, VV, NV](jgraph.mapEdges[NV](mapper, createTypeInformation[Edge[K, NV]]))
     }
 
-    def joinWithVertices[T: TypeInformation](inputDataset: DataSet[(K, T)], mapper: MapFunction[(VV, T), VV]): Graph[K, VV, EV] = {
+    def joinWithVertices[T: TypeInformation](inputDataset: DataSet[(K, T)], mapper: MapFunction[
+        (VV, T), VV]): Graph[K, VV, EV] = {
         val newmapper = new MapFunction[jtuple.Tuple2[VV, T], VV]() {
             override def map(value: jtuple.Tuple2[VV, T]): VV = {
                 mapper.map((value.f0, value.f1))
             }
         }
-        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1,
+            scalatuple._2)).javaSet
         wrapGraph(jgraph.joinWithVertices[T](javaTupleSet, newmapper))
     }
 
-    def joinWithVertices[T: TypeInformation](inputDataset: DataSet[(K, T)], fun: (VV, T) => VV): Graph[K, VV, EV] = {
+    def joinWithVertices[T: TypeInformation](inputDataset: DataSet[(K, T)], fun: (VV, T) => VV):
+    Graph[K, VV, EV] = {
         val newmapper = new MapFunction[jtuple.Tuple2[VV, T], VV]() {
             val cleanFun = clean(fun)
 
@@ -116,21 +128,25 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
                 cleanFun(value.f0, value.f1)
             }
         }
-        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1,
+            scalatuple._2)).javaSet
         wrapGraph(jgraph.joinWithVertices[T](javaTupleSet, newmapper))
     }
 
-    def joinWithEdges[T: TypeInformation](inputDataset: DataSet[(K, K, T)], mapper: MapFunction[(EV, T), EV]): Graph[K, VV, EV] = {
+    def joinWithEdges[T: TypeInformation](inputDataset: DataSet[(K, K, T)], mapper: MapFunction[
+        (EV, T), EV]): Graph[K, VV, EV] = {
         val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
             override def map(value: jtuple.Tuple2[EV, T]): EV = {
                 mapper.map((value.f0, value.f1))
             }
         }
-        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple3(scalatuple._1, scalatuple._2, scalatuple._3)).javaSet
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple3(scalatuple._1,
+            scalatuple._2, scalatuple._3)).javaSet
         wrapGraph(jgraph.joinWithEdges[T](javaTupleSet, newmapper))
     }
 
-    def joinWithEdges[T: TypeInformation](inputDataset: DataSet[(K, K, T)], fun: (EV, T) => EV): Graph[K, VV, EV] = {
+    def joinWithEdges[T: TypeInformation](inputDataset: DataSet[(K, K, T)], fun: (EV, T) => EV):
+    Graph[K, VV, EV] = {
         val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
             val cleanFun = clean(fun)
 
@@ -138,21 +154,25 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
                 cleanFun(value.f0, value.f1)
             }
         }
-        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple3(scalatuple._1, scalatuple._2, scalatuple._3)).javaSet
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple3(scalatuple._1,
+            scalatuple._2, scalatuple._3)).javaSet
         wrapGraph(jgraph.joinWithEdges[T](javaTupleSet, newmapper))
     }
 
-    def joinWithEdgesOnSource[T: TypeInformation](inputDataset: DataSet[(K, T)], mapper: MapFunction[(EV, T), EV]): Graph[K, VV, EV] = {
+    def joinWithEdgesOnSource[T: TypeInformation](inputDataset: DataSet[(K, T)], mapper:
+    MapFunction[(EV, T), EV]): Graph[K, VV, EV] = {
         val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
             override def map(value: jtuple.Tuple2[EV, T]): EV = {
                 mapper.map((value.f0, value.f1))
             }
         }
-        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1,
+            scalatuple._2)).javaSet
         wrapGraph(jgraph.joinWithEdgesOnSource[T](javaTupleSet, newmapper))
     }
 
-    def joinWithEdgesOnSource[T: TypeInformation](inputDataset: DataSet[(K, T)], fun: (EV, T) => EV): Graph[K, VV, EV] = {
+    def joinWithEdgesOnSource[T: TypeInformation](inputDataset: DataSet[(K, T)], fun: (EV, T) =>
+        EV): Graph[K, VV, EV] = {
         val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
             val cleanFun = clean(fun)
 
@@ -160,21 +180,25 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
                 cleanFun(value.f0, value.f1)
             }
         }
-        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1,
+            scalatuple._2)).javaSet
         wrapGraph(jgraph.joinWithEdgesOnSource[T](javaTupleSet, newmapper))
     }
 
-    def joinWithEdgesOnTarget[T: TypeInformation](inputDataset: DataSet[(K, T)], mapper: MapFunction[(EV, T), EV]): Graph[K, VV, EV] = {
+    def joinWithEdgesOnTarget[T: TypeInformation](inputDataset: DataSet[(K, T)], mapper:
+    MapFunction[(EV, T), EV]): Graph[K, VV, EV] = {
         val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
             override def map(value: jtuple.Tuple2[EV, T]): EV = {
                 mapper.map((value.f0, value.f1))
             }
         }
-        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1,
+            scalatuple._2)).javaSet
         wrapGraph(jgraph.joinWithEdgesOnTarget[T](javaTupleSet, newmapper))
     }
 
-    def joinWithEdgesOnTarget[T: TypeInformation](inputDataset: DataSet[(K, T)], fun: (EV, T) => EV): Graph[K, VV, EV] = {
+    def joinWithEdgesOnTarget[T: TypeInformation](inputDataset: DataSet[(K, T)], fun: (EV, T) =>
+        EV): Graph[K, VV, EV] = {
         val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
             val cleanFun = clean(fun)
 
@@ -182,15 +206,18 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
                 cleanFun(value.f0, value.f1)
             }
         }
-        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1, scalatuple._2)).javaSet
+        val javaTupleSet = inputDataset.map(scalatuple => new jtuple.Tuple2(scalatuple._1,
+            scalatuple._2)).javaSet
         wrapGraph(jgraph.joinWithEdgesOnTarget[T](javaTupleSet, newmapper))
     }
 
-    def subgraph(vertexFilter: FilterFunction[Vertex[K, VV]], edgeFilter: FilterFunction[Edge[K, EV]]) = {
+    def subgraph(vertexFilter: FilterFunction[Vertex[K, VV]], edgeFilter: FilterFunction[Edge[K,
+        EV]]) = {
         wrapGraph(jgraph.subgraph(vertexFilter, edgeFilter))
     }
 
-    def subgraph(vertexFilterFun: Vertex[K, VV] => Boolean, edgeFilterFun: Edge[K, EV] => Boolean) = {
+    def subgraph(vertexFilterFun: Vertex[K, VV] => Boolean, edgeFilterFun: Edge[K, EV] =>
+        Boolean) = {
         val vertexFilter = new FilterFunction[Vertex[K, VV]] {
             val cleanVertexFun = clean(vertexFilterFun)
 
@@ -255,19 +282,29 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
         new Graph(jgraph.reverse())
     }
 
-    def groupReduceOnEdges[T: TypeInformation : ClassTag](edgesFunction: EdgesFunctionWithVertexValue[K, VV, EV, T], direction: EdgeDirection): DataSet[T] = {
+    def groupReduceOnEdges[T: TypeInformation : ClassTag](edgesFunction:
+                                                          EdgesFunctionWithVertexValue[K, VV, EV,
+                                                              T], direction: EdgeDirection):
+    DataSet[T] = {
         wrap(jgraph.groupReduceOnEdges(edgesFunction, direction, createTypeInformation[T]))
     }
 
-    def groupReduceOnEdges[T: TypeInformation : ClassTag](edgesFunction: EdgesFunction[K, EV, T], direction: EdgeDirection): DataSet[T] = {
+    def groupReduceOnEdges[T: TypeInformation : ClassTag](edgesFunction: EdgesFunction[K, EV, T],
+                                                          direction: EdgeDirection): DataSet[T] = {
         wrap(jgraph.groupReduceOnEdges(edgesFunction, direction, createTypeInformation[T]))
     }
 
-    def groupReduceOnNeighbors[T: TypeInformation : ClassTag](neighborsFunction: NeighborsFunctionWithVertexValue[K, VV, EV, T], direction: EdgeDirection): DataSet[T] = {
+    def groupReduceOnNeighbors[T: TypeInformation : ClassTag](neighborsFunction:
+                                                              NeighborsFunctionWithVertexValue[K,
+                                                                  VV, EV, T], direction:
+    EdgeDirection): DataSet[T] = {
         wrap(jgraph.groupReduceOnNeighbors(neighborsFunction, direction, createTypeInformation[T]))
     }
 
-    def groupReduceOnNeighbors[T: TypeInformation : ClassTag](neighborsFunction: NeighborsFunction[K, VV, EV, T], direction: EdgeDirection): DataSet[T] = {
+    def groupReduceOnNeighbors[T: TypeInformation : ClassTag](neighborsFunction:
+                                                              NeighborsFunction[K, VV, EV, T],
+                                                              direction: EdgeDirection):
+    DataSet[T] = {
         wrap(jgraph.groupReduceOnNeighbors(neighborsFunction, direction, createTypeInformation[T]))
     }
 
@@ -307,31 +344,48 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
         wrapGraph(jgraph.union(graph.getWrappedGraph))
     }
 
-    def reduceOnNeighbors(reduceNeighborsFunction: ReduceNeighborsFunction[VV], direction: EdgeDirection): DataSet[(K, VV)] = {
-        wrap(jgraph.reduceOnNeighbors(reduceNeighborsFunction, direction)).map(jtuple => (jtuple.f0, jtuple.f1))
+    def reduceOnNeighbors(reduceNeighborsFunction: ReduceNeighborsFunction[VV], direction:
+    EdgeDirection): DataSet[(K, VV)] = {
+        wrap(jgraph.reduceOnNeighbors(reduceNeighborsFunction, direction)).map(jtuple => (jtuple
+            .f0, jtuple.f1))
     }
 
-    def reduceOnEdges(reduceEdgesFunction: ReduceEdgesFunction[EV], direction: EdgeDirection): DataSet[(K, EV)] = {
-        wrap(jgraph.reduceOnEdges(reduceEdgesFunction, direction)).map(jtuple => (jtuple.f0, jtuple.f1))
+    def reduceOnEdges(reduceEdgesFunction: ReduceEdgesFunction[EV], direction: EdgeDirection):
+    DataSet[(K, EV)] = {
+        wrap(jgraph.reduceOnEdges(reduceEdgesFunction, direction)).map(jtuple => (jtuple.f0,
+            jtuple.f1))
     }
 
     def run(algorithm: GraphAlgorithm[K, VV, EV]) = {
         wrapGraph(jgraph.run(algorithm))
     }
 
-    def runVertexCentricIteration[M](vertexUpdateFunction: VertexUpdateFunction[K, VV, M], messagingFunction: MessagingFunction[K, VV, M, EV], maxIterations: Int): Graph[K, VV, EV] = {
-        wrapGraph(jgraph.runVertexCentricIteration(vertexUpdateFunction, messagingFunction, maxIterations))
+    def runVertexCentricIteration[M](vertexUpdateFunction: VertexUpdateFunction[K, VV, M],
+                                     messagingFunction: MessagingFunction[K, VV, M, EV],
+                                     maxIterations: Int): Graph[K, VV, EV] = {
+        wrapGraph(jgraph.runVertexCentricIteration(vertexUpdateFunction, messagingFunction,
+            maxIterations))
     }
 
-    def runVertexCentricIteration[M](vertexUpdateFunction: VertexUpdateFunction[K, VV, M], messagingFunction: MessagingFunction[K, VV, M, EV], maxIterations: Int, parameters: VertexCentricConfiguration): Graph[K, VV, EV] = {
-        wrapGraph(jgraph.runVertexCentricIteration(vertexUpdateFunction, messagingFunction, maxIterations, parameters))
+    def runVertexCentricIteration[M](vertexUpdateFunction: VertexUpdateFunction[K, VV, M],
+                                     messagingFunction: MessagingFunction[K, VV, M, EV],
+                                     maxIterations: Int, parameters: VertexCentricConfiguration):
+    Graph[K, VV, EV] = {
+        wrapGraph(jgraph.runVertexCentricIteration(vertexUpdateFunction, messagingFunction,
+            maxIterations, parameters))
     }
 
-    def runGatherSumApplyIteration[M](gatherFunction: GatherFunction[VV, EV, M], sumFunction: SumFunction[VV, EV, M], applyFunction: ApplyFunction[K, VV, M], maxIterations: Int): Graph[K, VV, EV] = {
-        wrapGraph(jgraph.runGatherSumApplyIteration(gatherFunction, sumFunction, applyFunction, maxIterations))
+    def runGatherSumApplyIteration[M](gatherFunction: GatherFunction[VV, EV, M], sumFunction:
+    SumFunction[VV, EV, M], applyFunction: ApplyFunction[K, VV, M], maxIterations: Int): Graph[K,
+        VV, EV] = {
+        wrapGraph(jgraph.runGatherSumApplyIteration(gatherFunction, sumFunction, applyFunction,
+            maxIterations))
     }
 
-    def runGatherSumApplyIteration[M](gatherFunction: GatherFunction[VV, EV, M], sumFunction: SumFunction[VV, EV, M], applyFunction: ApplyFunction[K, VV, M], maxIterations: Int, parameters: GSAConfiguration): Graph[K, VV, EV] = {
-        wrapGraph(jgraph.runGatherSumApplyIteration(gatherFunction, sumFunction, applyFunction, maxIterations, parameters))
+    def runGatherSumApplyIteration[M](gatherFunction: GatherFunction[VV, EV, M], sumFunction:
+    SumFunction[VV, EV, M], applyFunction: ApplyFunction[K, VV, M], maxIterations: Int,
+                                      parameters: GSAConfiguration): Graph[K, VV, EV] = {
+        wrapGraph(jgraph.runGatherSumApplyIteration(gatherFunction, sumFunction, applyFunction,
+            maxIterations, parameters))
     }
 }

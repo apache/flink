@@ -35,7 +35,8 @@ import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.{NumberSequenceIterator, SplittableIterator}
 import org.apache.hadoop.fs.{Path => HadoopPath}
-import org.apache.hadoop.mapred.{FileInputFormat => MapredFileInputFormat, InputFormat => MapredInputFormat, JobConf}
+import org.apache.hadoop.mapred.{FileInputFormat => MapredFileInputFormat, InputFormat =>
+MapredInputFormat, JobConf}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => MapreduceFileInputFormat}
 import org.apache.hadoop.mapreduce.{InputFormat => MapreduceInputFormat, Job}
 
@@ -227,7 +228,8 @@ class ExecutionEnvironment(javaEnvironment: JavaEnv) {
         val format = new TextValueInputFormat(new Path(filePath))
         format.setCharsetName(charsetName)
         val source = new DataSource[StringValue](
-            javaEnvironment, format, new ValueTypeInfo[StringValue](classOf[StringValue]), getCallLocationName())
+            javaEnvironment, format, new ValueTypeInfo[StringValue](classOf[StringValue]),
+            getCallLocationName())
         wrap(source)
     }
 
@@ -243,7 +245,8 @@ class ExecutionEnvironment(javaEnvironment: JavaEnv) {
      * @param fieldDelimiter The string that separates individual fields, defaults to ",".
      * @param quoteCharacter The character to use for quoted String parsing, disabled by default.
      * @param ignoreFirstLine Whether the first line in the file should be ignored.
-     * @param ignoreComments Lines that start with the given String are ignored, disabled by default.
+     * @param ignoreComments Lines that start with the given String are ignored, disabled by
+     *                       default.
      * @param lenient Whether the parser should silently ignore malformed lines.
      * @param includedFields The fields in the file that should be read. Per default all fields
      *                       are read.
@@ -258,7 +261,8 @@ class ExecutionEnvironment(javaEnvironment: JavaEnv) {
                                                       ignoreComments: String = null,
                                                       lenient: Boolean = false,
                                                       includedFields: Array[Int] = null,
-                                                      pojoFields: Array[String] = null): DataSet[T] = {
+                                                      pojoFields: Array[String] = null):
+    DataSet[T] = {
 
         val typeInfo = implicitly[TypeInformation[T]]
 
@@ -324,7 +328,8 @@ class ExecutionEnvironment(javaEnvironment: JavaEnv) {
      */
     def readFileOfPrimitives[T: ClassTag : TypeInformation](
                                                                filePath: String,
-                                                               delimiter: String = "\n"): DataSet[T] = {
+                                                               delimiter: String = "\n"):
+    DataSet[T] = {
         require(filePath != null, "File path must not be null.")
         val typeInfo = implicitly[TypeInformation[T]]
         val datasource = new DataSource[T](
@@ -411,12 +416,14 @@ class ExecutionEnvironment(javaEnvironment: JavaEnv) {
                                    value: Class[V],
                                    job: JobConf)
                                (implicit tpe: TypeInformation[(K, V)]): DataSet[(K, V)] = {
-        val hadoopInputFormat = new mapred.HadoopInputFormat[K, V](mapredInputFormat, key, value, job)
+        val hadoopInputFormat = new mapred.HadoopInputFormat[K, V](mapredInputFormat, key, value,
+            job)
         createInput(hadoopInputFormat)
     }
 
     /**
-     * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]].
+     * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapreduce.lib.input
+     * .FileInputFormat]].
      * The given inputName is set on the given job.
      */
     def readHadoopFile[K, V](
@@ -474,7 +481,8 @@ class ExecutionEnvironment(javaEnvironment: JavaEnv) {
         CollectionInputFormat.checkCollection(data.asJavaCollection, typeInfo.getTypeClass)
         val dataSource = new DataSource[T](
             javaEnvironment,
-            new CollectionInputFormat[T](data.asJavaCollection, typeInfo.createSerializer(getConfig)),
+            new CollectionInputFormat[T](data.asJavaCollection, typeInfo.createSerializer
+                (getConfig)),
             typeInfo,
             getCallLocationName())
         wrap(dataSource)
@@ -520,7 +528,8 @@ class ExecutionEnvironment(javaEnvironment: JavaEnv) {
      * elements into the cluster.
      */
     def fromParallelCollection[T: ClassTag : TypeInformation](
-                                                                 iterator: SplittableIterator[T]): DataSet[T] = {
+                                                                 iterator: SplittableIterator[T])
+    : DataSet[T] = {
         val typeInfo = implicitly[TypeInformation[T]]
         wrap(new DataSource[T](javaEnvironment,
             new ParallelIteratorInputFormat[T](iterator),
@@ -572,7 +581,8 @@ class ExecutionEnvironment(javaEnvironment: JavaEnv) {
     }
 
     /**
-     * Triggers the program execution. The environment will execute all parts of the program that have
+     * Triggers the program execution. The environment will execute all parts of the program that
+     * have
      * resulted in a "sink" operation. Sink operations are for example printing results
      * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
      * generic data sinks created with [[DataSet.output]].
@@ -586,7 +596,8 @@ class ExecutionEnvironment(javaEnvironment: JavaEnv) {
     }
 
     /**
-     * Triggers the program execution. The environment will execute all parts of the program that have
+     * Triggers the program execution. The environment will execute all parts of the program that
+     * have
      * resulted in a "sink" operation. Sink operations are for example printing results
      * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
      * generic data sinks created with [[DataSet.output]].
@@ -637,8 +648,10 @@ object ExecutionEnvironment {
     }
 
     /**
-     * Creates a local execution environment. The local execution environment will run the program in
-     * a multi-threaded fashion in the same JVM as the environment was created in. The parallelism of
+     * Creates a local execution environment. The local execution environment will run the
+     * program in
+     * a multi-threaded fashion in the same JVM as the environment was created in. The
+     * parallelism of
      * the local environment is the number of hardware contexts (CPU cores/threads).
      */
     def createLocalEnvironment(
@@ -650,7 +663,8 @@ object ExecutionEnvironment {
     }
 
     /**
-     * Creates a local execution environment. The local execution environment will run the program in
+     * Creates a local execution environment. The local execution environment will run the
+     * program in
      * a multi-threaded fashion in the same JVM as the environment was created in.
      * This method allows to pass a custom Configuration to the local environment.
      */
@@ -660,7 +674,8 @@ object ExecutionEnvironment {
     }
 
     /**
-     * Creates an execution environment that uses Java Collections underneath. This will execute in a
+     * Creates an execution environment that uses Java Collections underneath. This will execute
+     * in a
      * single thread in the current JVM. It is very fast but will fail if the data does not fit into
      * memory. This is useful during implementation and for debugging.
      * @return
@@ -670,7 +685,8 @@ object ExecutionEnvironment {
     }
 
     /**
-     * Creates a remote execution environment. The remote environment sends (parts of) the program to
+     * Creates a remote execution environment. The remote environment sends (parts of) the
+     * program to
      * a cluster for execution. Note that all file paths used in the program must be accessible from
      * the cluster. The execution will use the cluster's default parallelism, unless the
      * parallelism is set explicitly via [[ExecutionEnvironment.setParallelism()]].
@@ -684,7 +700,8 @@ object ExecutionEnvironment {
      *                 those must be
      *                 provided in the JAR files.
      */
-    def createRemoteEnvironment(host: String, port: Int, jarFiles: String*): ExecutionEnvironment = {
+    def createRemoteEnvironment(host: String, port: Int, jarFiles: String*): ExecutionEnvironment
+    = {
         new ExecutionEnvironment(JavaEnv.createRemoteEnvironment(host, port, jarFiles: _*))
     }
 
