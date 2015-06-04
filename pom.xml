@@ -878,8 +878,9 @@ under the License.
 							<createDependencyReducedPom>true</createDependencyReducedPom>
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 							<filters>
+								<!-- Globally exclude log4j.properties from our JAR files. -->
 								<filter>
-									<artifact>org.apache.flink:*</artifact>
+									<artifact>*</artifact>
 									<excludes>
 										<exclude>log4j.properties</exclude>
 										<exclude>log4j-test.properties</exclude>
