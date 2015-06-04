@@ -132,4 +132,10 @@ public abstract class AbstractFlinkYarnClient {
 	 * directory in HDFS that contains the jar files and configuration which is shipped to all the containers.
 	 */
 	public abstract String getSessionFilesDir();
+
+	/**
+	 * Instruct Flink to start in streaming mode
+	 * @param streamingMode
+	 */
+	public abstract  void setStreamingMode(boolean streamingMode);
 }

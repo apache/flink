@@ -93,6 +93,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	public static final String ENV_CLIENT_USERNAME = "_CLIENT_USERNAME";
 	public static final String ENV_SLOTS = "_SLOTS";
 	public static final String ENV_DETACHED = "_DETACHED";
+	public static final String ENV_STREAMING_MODE = "_STREAMING_MODE";
 	public static final String ENV_DYNAMIC_PROPERTIES = "_DYNAMIC_PROPERTIES";
 
 
@@ -140,6 +141,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	private org.apache.flink.configuration.Configuration flinkConfiguration;
 
 	private boolean detached;
+	private boolean streamingMode;
 
 
 	public FlinkYarnClient() {
@@ -576,6 +578,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		appMasterEnv.put(FlinkYarnClient.ENV_CLIENT_USERNAME, UserGroupInformation.getCurrentUser().getShortUserName());
 		appMasterEnv.put(FlinkYarnClient.ENV_SLOTS, String.valueOf(slots));
 		appMasterEnv.put(FlinkYarnClient.ENV_DETACHED, String.valueOf(detached));
+		appMasterEnv.put(FlinkYarnClient.ENV_STREAMING_MODE, String.valueOf(streamingMode));
 
 		if(dynamicPropertiesEncoded != null) {
 			appMasterEnv.put(FlinkYarnClient.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
@@ -724,6 +727,11 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 	public String getSessionFilesDir() {
 		return sessionFilesDir.toString();
+	}
+
+	@Override
+	public void setStreamingMode(boolean streamingMode) {
+		this.streamingMode = streamingMode;
 	}
 
 	public static class YarnDeploymentException extends RuntimeException {

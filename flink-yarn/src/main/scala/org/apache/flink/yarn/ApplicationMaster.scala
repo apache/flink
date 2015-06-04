@@ -56,7 +56,7 @@ object ApplicationMaster {
     EnvironmentInformation.checkJavaVersion()
     org.apache.flink.runtime.util.SignalHandler.register(LOG.logger)
     
-    val streamingMode = StreamingMode.BATCH_ONLY
+    var streamingMode = StreamingMode.BATCH_ONLY
 
     val ugi = UserGroupInformation.createRemoteUser(yarnClientUsername)
 
@@ -83,6 +83,11 @@ object ApplicationMaster {
           require(currDir != null, "Current directory unknown.")
 
           val logDirs = env.get(Environment.LOG_DIRS.key())
+
+          if(hasStreamingMode(env)) {
+            LOG.info("Starting ApplicationMaster/JobManager in streaming mode")
+            streamingMode = StreamingMode.STREAMING
+          }
 
           // Note that we use the "ownHostname" given by YARN here, to make sure
           // we use the hostnames given by YARN consistently throughout akka.
@@ -245,5 +250,14 @@ object ApplicationMaster {
     val jobManager = JobManager.startActor(jobManagerProps, jobManagerSystem)
 
     (configuration, jobManagerSystem, jobManager, archiver)
+  }
+
+
+  def hasStreamingMode(env: java.util.Map[String, String]): Boolean = {
+    val sModeString = env.get(FlinkYarnClient.ENV_STREAMING_MODE)
+    if(sModeString != null) {
+      return sModeString.toBoolean
+    }
+    false
   }
 }
