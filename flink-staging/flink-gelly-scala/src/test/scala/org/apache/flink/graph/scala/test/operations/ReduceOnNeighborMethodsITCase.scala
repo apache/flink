@@ -1,5 +1,3 @@
-package org.apache.flink.graph.scala.test.operations
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,9 +16,11 @@ package org.apache.flink.graph.scala.test.operations
  * limitations under the License.
  */
 
+package org.apache.flink.graph.scala.test.operations
+
 import org.apache.flink.api.scala._
-import org.apache.flink.graph.scala.{NeighborsFunctionWithVertexValue, _}
 import org.apache.flink.graph.scala.test.TestGraphUtils
+import org.apache.flink.graph.scala.{NeighborsFunctionWithVertexValue, _}
 import org.apache.flink.graph.{Edge, EdgeDirection, ReduceNeighborsFunction, Vertex}
 import org.apache.flink.test.util.{AbstractMultipleProgramsTestBase, MultipleProgramsTestBase}
 import org.apache.flink.util.Collector
