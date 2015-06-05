@@ -139,8 +139,8 @@ public abstract class AbstractProcessFailureRecoveryTest {
 			new PipeForwarder(taskManagerProcess2.getErrorStream(), processOutput2);
 
 			// we wait for the JobManager to have the two TaskManagers available
-			// wait for at most 20 seconds
-			waitUntilNumTaskManagersAreRegistered(jmActor, 2, 30000);
+			// since some of the CI environments are very hostile, we need to give this a lot of time (2 minutes)
+			waitUntilNumTaskManagersAreRegistered(jmActor, 2, 120000);
 
 			// the program will set a marker file in each of its parallel tasks once they are ready, so that
 			// this coordinating code is aware of this.
@@ -174,8 +174,9 @@ public abstract class AbstractProcessFailureRecoveryTest {
 			taskManagerProcess3 = new ProcessBuilder(command).start();
 			new PipeForwarder(taskManagerProcess3.getErrorStream(), processOutput3);
 
-			// we wait for the third TaskManager to register (20 seconds max)
-			waitUntilNumTaskManagersAreRegistered(jmActor, 3, 30000);
+			// we wait for the third TaskManager to register
+			// since some of the CI environments are very hostile, we need to give this a lot of time (2 minutes)
+			waitUntilNumTaskManagersAreRegistered(jmActor, 3, 120000);
 
 			// kill one of the previous TaskManagers, triggering a failure and recovery
 			taskManagerProcess1.destroy();
@@ -184,8 +185,8 @@ public abstract class AbstractProcessFailureRecoveryTest {
 			// we create the marker file which signals the program functions tasks that they can complete
 			touchFile(new File(coordinateTempDir, PROCEED_MARKER_FILE));
 
-			// wait for at most 2 minutes for the program to complete
-			programTrigger.join(120000);
+			// wait for at most 5 minutes for the program to complete
+			programTrigger.join(300000);
 
 			// check that the program really finished
 			assertFalse("The program did not finish in time", programTrigger.isAlive());
