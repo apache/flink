@@ -284,7 +284,7 @@ public class Execution implements Serializable {
 			return true;
 		}
 		else {
-			// call race, already deployed
+			// call race, already deployed, or already done
 			return false;
 		}
 	}

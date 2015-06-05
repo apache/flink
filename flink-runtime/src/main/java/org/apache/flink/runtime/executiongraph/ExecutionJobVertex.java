@@ -474,7 +474,7 @@ public class ExecutionJobVertex implements Serializable {
 		for (InputSplit split : splits) {
 			// check that split has exactly one local host
 			if(!(split instanceof LocatableInputSplit)) {
-				new JobException("Invalid InputSplit type " + split.getClass().getCanonicalName() + ". " +
+				throw new JobException("Invalid InputSplit type " + split.getClass().getCanonicalName() + ". " +
 						"Strictly local assignment requires LocatableInputSplit");
 			}
 			LocatableInputSplit lis = (LocatableInputSplit) split;

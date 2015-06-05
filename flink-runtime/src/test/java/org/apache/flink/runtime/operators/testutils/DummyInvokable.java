@@ -21,7 +21,6 @@ package org.apache.flink.runtime.operators.testutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.util.InstantiationUtil;
 
 /**
  * An invokable that does nothing.
@@ -34,6 +33,7 @@ public class DummyInvokable extends AbstractInvokable {
 	@Override
 	public void invoke() {}
 
+	@Override
 	public ClassLoader getUserCodeClassLoader() {
 		return getClass().getClassLoader();
 	}
