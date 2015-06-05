@@ -62,7 +62,7 @@ variable for a regression problem.
 As an example, we can use the Breast Cancer Wisconsin (Diagnostic) Data Set, which you can
 [download from the UCI ML repository](http://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/breast-cancer-wisconsin.data).
 
-We can open up a Flink shell and load the data as a `DataSet[String]` at first:
+We can load the data as a `DataSet[String]` first:
 
 {% highlight scala %}
 
@@ -79,9 +79,14 @@ dataset with the FlinkML classification algorithms.
 val cancerLV = cancer
   .map(_.productIterator.toList)
   .filter(!_.contains("?"))
-  .map(_.foreach())//???
+  .map{list =>
+    val numList = list.map(_.asInstanceOf[String].toDouble)
+    LabeledVector(numList(11), DenseVector(numList.take(10).toArray))
+    }
 
 {% endhighlight %}
+
+We can then use this data to train a learner.
 
 A common format for ML datasets is the LibSVM format and a number of datasets using that format can be
 found [in the LibSVM datasets website](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/). FlinkML provides utilities for loading
