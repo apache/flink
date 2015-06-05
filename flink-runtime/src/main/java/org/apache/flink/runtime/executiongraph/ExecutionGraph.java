@@ -179,10 +179,8 @@ public class ExecutionGraph implements Serializable {
 	 * that was not recoverable and triggered job failure */
 	private volatile Throwable failureCause;
 
-	/** The position of the vertex that is next expected to finish.
-	 * This is an index into the "verticesInCreationOrder" collection.
-	 * Once this value has reached the number of vertices, the job is done. */
-	private volatile int nextVertexToFinish;
+	/** The number of job vertices that have reached a terminal state */
+	private volatile int numFinishedJobVertices;
 	
 	
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
@@ -200,7 +198,7 @@ public class ExecutionGraph implements Serializable {
 	private CheckpointCoordinator checkpointCoordinator;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
-	private ExecutionConfig executionConfig = null;
+	private ExecutionConfig executionConfig;
 
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
@@ -598,7 +596,7 @@ public class ExecutionGraph implements Serializable {
 				for (int i = 0; i < stateTimestamps.length; i++) {
 					stateTimestamps[i] = 0;
 				}
-				nextVertexToFinish = 0;
+				numFinishedJobVertices = 0;
 				transitionState(JobStatus.RESTARTING, JobStatus.CREATED);
 				
 				// if we have checkpointed state, reload it into the executions
@@ -653,7 +651,7 @@ public class ExecutionGraph implements Serializable {
 	 */
 	public void waitUntilFinished() throws InterruptedException {
 		synchronized (progressLock) {
-			while (nextVertexToFinish < verticesInCreationOrder.size()) {
+			while (!state.isTerminalState()) {
 				progressLock.wait();
 			}
 		}
@@ -680,76 +678,62 @@ public class ExecutionGraph implements Serializable {
 
 	void jobVertexInFinalState(ExecutionJobVertex ev) {
 		synchronized (progressLock) {
-			int nextPos = nextVertexToFinish;
-			if (nextPos >= verticesInCreationOrder.size()) {
-				// already done, and we still get a report?
-				// this can happen when:
-				// - two job vertices finish almost simultaneously
-				// - The first one advances the position for the second as well (second is in final state)
-				// - the second (after it could grab the lock) tries to advance the position again
-				return;
+			if (numFinishedJobVertices >= verticesInCreationOrder.size()) {
+				throw new IllegalStateException("All vertices are already finished, cannot transition vertex to finished.");
 			}
+
+			numFinishedJobVertices++;
 			
-			// see if we are the next to finish and then progress until the next unfinished one
-			if (verticesInCreationOrder.get(nextPos) == ev) {
-				do {
-					nextPos++;
-				}
-				while (nextPos < verticesInCreationOrder.size() && verticesInCreationOrder.get(nextPos).isInFinalState());
+			if (numFinishedJobVertices == verticesInCreationOrder.size()) {
 				
-				nextVertexToFinish = nextPos;
-				
-				if (nextPos == verticesInCreationOrder.size()) {
+				// we are done, transition to the final state
+				JobStatus current;
+				while (true) {
+					current = this.state;
 					
-					// we are done, transition to the final state
-					JobStatus current;
-					while (true) {
-						current = this.state;
-						
-						if (current == JobStatus.RUNNING) {
-							if (transitionState(current, JobStatus.FINISHED)) {
-								postRunCleanup();
-								break;
-							}
-						}
-						else if (current == JobStatus.CANCELLING) {
-							if (transitionState(current, JobStatus.CANCELED)) {
-								postRunCleanup();
-								break;
-							}
-						}
-						else if (current == JobStatus.FAILING) {
-							if (numberOfRetriesLeft > 0 && transitionState(current, JobStatus.RESTARTING)) {
-								numberOfRetriesLeft--;
-								future(new Callable<Object>() {
-									@Override
-									public Object call() throws Exception {
-										try {
-											Thread.sleep(delayBeforeRetrying);
-										}
-										catch(InterruptedException e){
-											// should only happen on shutdown
-										}
-										restart();
-										return null;
-									}
-								}, AkkaUtils.globalExecutionContext());
-								break;
-							}
-							else if (numberOfRetriesLeft <= 0 && transitionState(current, JobStatus.FAILED, failureCause)) {
-								postRunCleanup();
-								break;
-							}
-						}
-						else {
-							fail(new Exception("ExecutionGraph went into final state from state " + current));
+					if (current == JobStatus.RUNNING) {
+						if (transitionState(current, JobStatus.FINISHED)) {
+							postRunCleanup();
+							break;
 						}
 					}
-					// done transitioning the state
-
-					// also, notify waiters
-					progressLock.notifyAll();
+					else if (current == JobStatus.CANCELLING) {
+						if (transitionState(current, JobStatus.CANCELED)) {
+							postRunCleanup();
+							break;
+						}
+					}
+					else if (current == JobStatus.FAILING) {
+						if (numberOfRetriesLeft > 0 && transitionState(current, JobStatus.RESTARTING)) {
+							numberOfRetriesLeft--;
+							future(new Callable<Object>() {
+								@Override
+								public Object call() throws Exception {
+									try {
+										Thread.sleep(delayBeforeRetrying);
+									}
+									catch(InterruptedException e){
+										// should only happen on shutdown
+									}
+									restart();
+									return null;
+								}
+							}, AkkaUtils.globalExecutionContext());
+							break;
+						}
+						else if (numberOfRetriesLeft <= 0 && transitionState(current, JobStatus.FAILED, failureCause)) {
+							postRunCleanup();
+							break;
+						}
+					}
+					else {
+						fail(new Exception("ExecutionGraph went into final state from state " + current));
+					}
 				}
+				// done transitioning the state
+
+				// also, notify waiters
+				progressLock.notifyAll();
 			}
 		}
 	}
