@@ -21,9 +21,9 @@ under the License.
 -->
 
 FlinkML is the Machine Learning (ML) library for Flink. It is a new effort in the Flink community,
-with a growing list of algorithms and contributors. With FlinkML we aim to provide 
-scalable ML algorithms, an intuitive API, and tools that help minimize glue code in end-to-end ML 
-systems. You can see more details about our goals and where the library is headed in our [vision 
+with a growing list of algorithms and contributors. With FlinkML we aim to provide
+scalable ML algorithms, an intuitive API, and tools that help minimize glue code in end-to-end ML
+systems. You can see more details about our goals and where the library is headed in our [vision
 and roadmap here](vision_roadmap.html).
 
 * This will be replaced by the TOC
@@ -55,10 +55,13 @@ FlinkML currently supports the following algorithms:
 
 ## Getting Started
 
-First, you have to [set up a Flink program](http://ci.apache.org/projects/flink/flink-docs-master/apis/programming_guide.html#linking-with-flink).
-Next, you have to add the FlinkML dependency to the `pom.xml` of your project.  
+You can check out our [quickstart guide](quickstart.html) for a comprehensive getting started
+example.
 
-{% highlight bash %}
+If you want to jump right in, you have to [set up a Flink program](http://ci.apache.org/projects/flink/flink-docs-master/apis/programming_guide.html#linking-with-flink).
+Next, you have to add the FlinkML dependency to the `pom.xml` of your project.
+
+{% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-ml</artifactId>
@@ -85,12 +88,11 @@ mlr.fit(trainingData, parameters)
 val predictions: DataSet[LabeledVector] = mlr.predict(testingData)
 {% endhighlight %}
 
-For a more comprehensive guide, please check out our [quickstart guide](quickstart.html)
-
 ## Pipelines
 
 A key concept of FlinkML is its [scikit-learn](http://scikit-learn.org) inspired pipelining mechanism.
 It allows you to quickly build complex data analysis pipelines how they appear in every data scientist's daily work.
+An in-depth description of FlinkML's pipelines and their internal workings can be found [here](pipelines.html).
 
 The following example code shows how easy it is to set up an analysis pipeline with FlinkML.
 
@@ -110,13 +112,14 @@ pipeline.fit(trainingData)
 
 // Calculate predictions
 val predictions: DataSet[LabeledVector] = pipeline.predict(testingData)
-{% endhighlight %} 
+{% endhighlight %}
 
 One can chain a `Transformer` to another `Transformer` or a set of chained `Transformers` by calling the method `chainTransformer`.
-If one wants to chain a `Predictor` to a `Transformer` or a set of chained `Transformers`, one has to call the method `chainPredictor`. 
-An in-depth description of FlinkML's pipelines and their internal workings can be found [here](pipelines.html).
+If one wants to chain a `Predictor` to a `Transformer` or a set of chained `Transformers`, one has to call the method `chainPredictor`.
+
 
 ## How to contribute
 
 The Flink community welcomes all contributors who want to get involved in the development of Flink and its libraries.
-In order to get quickly started with contributing to FlinkML, please read first the official [contribution guide]({{site.baseurl}}/libs/ml/contribution_guide.html).
+In order to get quickly started with contributing to FlinkML, please read our official
+[contribution guide]({{site.baseurl}}/libs/ml/contribution_guide.html).
