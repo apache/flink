@@ -29,8 +29,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+import static org.apache.flink.api.java.functions.FunctionAnnotation.SkipCodeAnalysis;
 
 
 public class Utils {
@@ -70,6 +72,7 @@ public class Utils {
 		}
 	}
 
+	@SkipCodeAnalysis
 	public static class CountHelper<T> extends RichFlatMapFunction<T, Long> {
 
 		private static final long serialVersionUID = 1L;
@@ -93,6 +96,7 @@ public class Utils {
 		}
 	}
 
+	@SkipCodeAnalysis
 	public static class CollectHelper<T> extends RichFlatMapFunction<T, T> {
 
 		private static final long serialVersionUID = 1L;
