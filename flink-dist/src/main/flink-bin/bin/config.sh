@@ -219,12 +219,9 @@ INTERNAL_HADOOP_CLASSPATHS="$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR"
 # Auxilliary function which extracts the name of host from a line which
 # also potentialy includes topology information and the taskManager type
 extractHostName() {
-    # extract first part of string (before any whitespace characters)
-    SLAVE=$1
-    # Remove types and possible comments
-    if [[ "$SLAVE" =~ ^([0-9a-zA-Z/.-]+).*$ ]]; then
-            SLAVE=${BASH_REMATCH[1]}
-    fi
+    # handle comments: extract first part of string (before first # character)
+    SLAVE=`echo $1 | cut -d'#' -f 1`
+
     # Extract the hostname from the network hierarchy
     if [[ "$SLAVE" =~ ^.*/([0-9a-zA-Z.-]+)$ ]]; then
             SLAVE=${BASH_REMATCH[1]}
