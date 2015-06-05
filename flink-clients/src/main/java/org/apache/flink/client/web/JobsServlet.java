@@ -41,6 +41,7 @@ import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.ProgramInvocationException;
 
 /**
  * A servlet that accepts uploads of pact programs, returns a listing of the
@@ -144,6 +145,8 @@ public class JobsServlet extends HttpServlet {
 				JarFile jar = new JarFile(files[i]);
 				Manifest manifest = jar.getManifest();
 				String assemblerClass = null;
+				String descriptions = "";
+
 				if (manifest != null) {
 					assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS);
 					if (assemblerClass == null) {
@@ -153,6 +156,20 @@ public class JobsServlet extends HttpServlet {
 				if (assemblerClass == null) {
 					assemblerClass = "";
 				} else {
+					String[] classes = assemblerClass.split(",");
+					for (String c : classes) {
+						try {
+							String d = new PackagedProgram(files[i], c, new String[0]).getDescription();
+							if (d == null) {
+								d = "No description provided.";
+							}
+							descriptions += "#_#" + d;
+						} catch (ProgramInvocationException e) {
+							descriptions += "#_#No description provided.";
+							continue;
+						}
+					}
+
 					assemblerClass = '\t' + assemblerClass;
 				}
 
@@ -160,7 +177,7 @@ public class JobsServlet extends HttpServlet {
 				writer.println(files[i].getName() + '\t' + (cal.get(GregorianCalendar.MONTH) + 1) + '/'
 					+ cal.get(GregorianCalendar.DAY_OF_MONTH) + '/' + cal.get(GregorianCalendar.YEAR) + ' '
 					+ cal.get(GregorianCalendar.HOUR_OF_DAY) + ':' + cal.get(GregorianCalendar.MINUTE) + ':'
-					+ cal.get(GregorianCalendar.SECOND) + assemblerClass);
+					+ cal.get(GregorianCalendar.SECOND) + assemblerClass + descriptions);
 			}
 		} else if (action.equals(ACTION_DELETE_VALUE)) {
 			String filename = req.getParameter(FILENAME_PARAM_NAME);
