@@ -17,7 +17,17 @@
 
 package org.apache.flink.streaming.connectors.kafka.api.persistent;
 
-import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
 import kafka.common.TopicAndPartition;
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
@@ -27,33 +37,27 @@ import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.MessageAndMetadata;
 import kafka.utils.ZKGroupTopicDirs;
 import kafka.utils.ZkUtils;
+
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkMarshallingError;
 import org.I0Itec.zkclient.serialize.ZkSerializer;
-import org.apache.commons.collections.map.LinkedMap;
+import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.checkpoint.CheckpointCommitter;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.Option;
 import scala.collection.JavaConversions;
 import scala.collection.Seq;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.UnsupportedEncodingException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import com.google.common.base.Preconditions;
 
 /**
  * Source for reading from Kafka using Flink Streaming Fault Tolerance.
@@ -63,8 +67,7 @@ import java.util.Properties;
  */
 public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> implements
 		ResultTypeQueryable<OUT>,
-		CheckpointCommitter,
-		CheckpointedAsynchronously<long[]> {
+		CheckpointCommitter {
 
 	private static final long serialVersionUID = 287845877188312621L;
 	
@@ -73,17 +76,14 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 	
 	private final String topicName;
 	private final DeserializationSchema<OUT> deserializationSchema;
-
-	private final LinkedMap pendingCheckpoints = new LinkedMap();
 	
 	private transient ConsumerConfig consumerConfig;
 	private transient ConsumerIterator<byte[], byte[]> iteratorToRead;
 	private transient ConsumerConnector consumer;
 	
 	private transient ZkClient zkClient;
-	private transient long[] lastOffsets;
+	private transient OperatorState<long[]> lastOffsets;
 	private transient long[] commitedOffsets; // maintain committed offsets, to avoid committing the same over and over again.
-	private transient long[] restoreState;
 	
 	private volatile boolean running;
 	
@@ -145,25 +145,23 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 		// most likely the number of offsets we're going to store here will be lower than the number of partitions.
 		int numPartitions = getNumberOfPartitions();
 		LOG.debug("The topic {} has {} partitions", topicName, numPartitions);
-		this.lastOffsets = new long[numPartitions];
+		this.lastOffsets = getRuntimeContext().getOperatorState("offset", new long[numPartitions]);
 		this.commitedOffsets = new long[numPartitions];
 		// check if there are offsets to restore
-		if (restoreState != null) {
-			if (restoreState.length != numPartitions) {
-				throw new IllegalStateException("There are "+restoreState.length+" offsets to restore for topic "+topicName+" but " +
+		if (Arrays.equals(lastOffsets.getState(), new long[numPartitions])) {
+			if (lastOffsets.getState().length != numPartitions) {
+				throw new IllegalStateException("There are "+lastOffsets.getState().length+" offsets to restore for topic "+topicName+" but " +
 						"there are only "+numPartitions+" in the topic");
 			}
 
-			LOG.info("Setting restored offsets {} in ZooKeeper", Arrays.toString(restoreState));
-			setOffsetsInZooKeeper(restoreState);
-			this.lastOffsets = restoreState;
+			LOG.info("Setting restored offsets {} in ZooKeeper", Arrays.toString(lastOffsets.getState()));
+			setOffsetsInZooKeeper(lastOffsets.getState());
 		} else {
 			// initialize empty offsets
-			Arrays.fill(this.lastOffsets, -1);
+			Arrays.fill(this.lastOffsets.getState(), -1);
 		}
 		Arrays.fill(this.commitedOffsets, 0); // just to make it clear
 		
-		pendingCheckpoints.clear();
 		running = true;
 	}
 
@@ -177,7 +175,7 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 		
 		while (running && iteratorToRead.hasNext()) {
 			MessageAndMetadata<byte[], byte[]> message = iteratorToRead.next();
-			if(lastOffsets[message.partition()] >= message.offset()) {
+			if(lastOffsets.getState()[message.partition()] >= message.offset()) {
 				LOG.info("Skipping message with offset {} from partition {}", message.offset(), message.partition());
 				continue;
 			}
@@ -190,7 +188,7 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 
 			// make the state update and the element emission atomic
 			synchronized (checkpointLock) {
-				lastOffsets[message.partition()] = message.offset();
+				lastOffsets.getState()[message.partition()] = message.offset();
 				ctx.collect(next);
 			}
 
@@ -212,64 +210,19 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 		zkClient.close();
 	}
 
-
-	// ---------------------- State / Checkpoint handling  -----------------
-	// this source is keeping the partition offsets in Zookeeper
-
-	@Override
-	public long[] snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-		if (lastOffsets == null) {
-			LOG.warn("State snapshot requested on not yet opened source. Returning null");
-			return null;
-		}
-		
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Snapshotting state. Offsets: {}, checkpoint id {}, timestamp {}",
-					Arrays.toString(lastOffsets), checkpointId, checkpointTimestamp);
-		}
-
-		long[] currentOffsets = Arrays.copyOf(lastOffsets, lastOffsets.length);
-		
-		// the map may be asynchronously updates when committing to Kafka, so we synchronize
-		synchronized (pendingCheckpoints) {
-			pendingCheckpoints.put(checkpointId, currentOffsets);
-		}
-		
-		return currentOffsets;
-	}
-
-	@Override
-	public void restoreState(long[] state) {
-		LOG.info("The state will be restored to {} in the open() method", Arrays.toString(state));
-		this.restoreState = Arrays.copyOf(state, state.length);
-	}
 	
 	/**
 	 * Notification on completed checkpoints
 	 * @param checkpointId The ID of the checkpoint that has been completed.
+	 * @throws Exception 
 	 */
 	@Override
-	public void commitCheckpoint(long checkpointId) {
+	public void commitCheckpoint(long checkpointId, StateHandle<Serializable> state) throws Exception {
 		LOG.info("Commit checkpoint {}", checkpointId);
 
 		long[] checkpointOffsets;
-		
-		// the map may be asynchronously updates when snapshotting state, so we synchronize
-		synchronized (pendingCheckpoints) {
-			final int posInMap = pendingCheckpoints.indexOf(checkpointId);
-			if (posInMap == -1) {
-				LOG.warn("Unable to find pending checkpoint for id {}", checkpointId);
-				return;
-			}
-	
-			checkpointOffsets = (long[]) pendingCheckpoints.remove(posInMap);
-			// remove older checkpoints in map:
-			if (!pendingCheckpoints.isEmpty()) {
-				for(int i = 0; i < posInMap; i++) {
-					pendingCheckpoints.remove(0);
-				}
-			} 
-		}
+
+		checkpointOffsets = (long[]) state.getState();
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Committing offsets {} to ZooKeeper", Arrays.toString(checkpointOffsets));
