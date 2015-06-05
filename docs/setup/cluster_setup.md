@@ -344,3 +344,19 @@ bin/start-cluster.sh
 ~~~
 
 To stop Flink, there is also a `stop-cluster.sh` script.
+
+
+### Starting Flink in the streaming mode
+
+~~~bash
+bin/start-cluster-streaming.sh
+~~~
+
+The streaming mode changes the startup behavior of Flink: The system is not 
+bringing up the managed memory services with preallocated memory at the beginning.
+Flink streaming is not using the managed memory employed by the batch operators.
+By not starting these services with preallocated memory, streaming jobs can benefit
+from more heap space being available.
+
+Note that you can still start batch jobs in the streaming mode. The memory manager
+will then allocate memory segments from the Java heap as needed.
