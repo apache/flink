@@ -114,8 +114,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		//i == 18
 		expected2 += "(20,(a,1))";
 
-		//We create a separate environment for this test because of the slot-related to iteration issues.
-		StreamExecutionEnvironment env = new TestStreamEnvironment(4, 32); //StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Tuple2<Long, Tuple2<String, Long>>> sourceStream1 = env.addSource(new TupleSource()).setParallelism(1);
 
 		IterativeDataStream<Tuple2<Long, Tuple2<String, Long>>> it = sourceStream1.sum(0).setParallelism(1).filter(new FilterFunction
