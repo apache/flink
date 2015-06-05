@@ -62,7 +62,7 @@ public class SessionWindowing {
 							// We sleep three seconds between every output so we
 							// can see whether we properly detect sessions
 							// before the next start for a specific id
-							ctx.emit(value);
+							ctx.collect(value);
 							if (!fileOutput) {
 								System.out.println("Collected: " + value);
 								Thread.sleep(3000);

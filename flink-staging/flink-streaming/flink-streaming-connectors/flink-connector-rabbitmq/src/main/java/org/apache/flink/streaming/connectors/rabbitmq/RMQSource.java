@@ -94,7 +94,7 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 				break;
 			}
 
-			ctx.emit(result);
+			ctx.collect(result);
 		}
 	}
 

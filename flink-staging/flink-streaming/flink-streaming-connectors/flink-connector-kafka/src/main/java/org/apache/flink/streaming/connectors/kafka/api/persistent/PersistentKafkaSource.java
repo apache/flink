@@ -191,7 +191,7 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 			// make the state update and the element emission atomic
 			synchronized (checkpointLock) {
 				lastOffsets[message.partition()] = message.offset();
-				ctx.emit(next);
+				ctx.collect(next);
 			}
 
 			if (LOG.isTraceEnabled()) {

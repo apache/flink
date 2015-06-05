@@ -97,9 +97,9 @@ public interface SourceFunction<T> extends Function, Serializable {
 
 	/**
 	 * Interface that source functions use to communicate with the outside world. Normally
-	 * sources would just emit elements in a loop using {@link #emit}. If the source is a
+	 * sources would just emit elements in a loop using {@link #collect}. If the source is a
 	 * {@link org.apache.flink.streaming.api.checkpoint.Checkpointed} source it must retrieve
-	 * to checkpoint lock object and use it to protect state updates and element emission as
+	 * the checkpoint lock object and use it to protect state updates and element emission as
 	 * described in {@link org.apache.flink.streaming.api.functions.source.SourceFunction}.
 	 *
 	 * @param <T> The type of the elements produced by the source.
@@ -109,7 +109,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 		/**
 		 * Emits one element from the source.
 		 */
-		public void emit(T element);
+		public void collect(T element);
 
 		/**
 		 * Returns the checkpoint lock. Please refer to the explanation about checkpointed sources

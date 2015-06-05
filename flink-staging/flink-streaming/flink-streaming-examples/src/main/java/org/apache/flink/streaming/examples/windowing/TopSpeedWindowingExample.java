@@ -120,7 +120,7 @@ public class TopSpeedWindowingExample {
 					distances[carId] += speeds[carId] / 3.6d;
 					Tuple4<Integer, Integer, Double, Long> record = new Tuple4<Integer, Integer, Double, Long>(carId,
 							speeds[carId], distances[carId], System.currentTimeMillis());
-					ctx.emit(record);
+					ctx.collect(record);
 				}
 			}
 		}

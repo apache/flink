@@ -46,7 +46,7 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 		Iterator<T> it = iterable.iterator();
 
 		while (isRunning && it.hasNext()) {
-			ctx.emit(it.next());
+			ctx.collect(it.next());
 		}
 	}
 

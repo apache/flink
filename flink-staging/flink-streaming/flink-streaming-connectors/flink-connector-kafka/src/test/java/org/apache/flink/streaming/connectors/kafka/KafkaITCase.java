@@ -405,7 +405,7 @@ public class KafkaITCase {
 				int partition = getRuntimeContext().getIndexOfThisSubtask();
 				while (running) {
 					LOG.info("Writing " + cnt + " to partition " + partition);
-					ctx.emit(new Tuple2<Integer, Integer>(getRuntimeContext().getIndexOfThisSubtask(),
+					ctx.collect(new Tuple2<Integer, Integer>(getRuntimeContext().getIndexOfThisSubtask(),
 							cnt));
 					if (cnt == to) {
 						LOG.info("Writer reached end.");
@@ -497,7 +497,7 @@ public class KafkaITCase {
 				LOG.info("Starting source.");
 				int cnt = 0;
 				while (running) {
-					ctx.emit(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
+					ctx.collect(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
 					try {
 						Thread.sleep(100);
 					} catch (InterruptedException ignored) {
@@ -581,7 +581,7 @@ public class KafkaITCase {
 				LOG.info("Starting source.");
 				int cnt = 0;
 				while (running) {
-					ctx.emit(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
+					ctx.collect(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
 					LOG.info("Produced " + cnt);
 
 					try {
@@ -676,7 +676,7 @@ public class KafkaITCase {
 				while (running) {
 					//
 					byte[] wl = new byte[Math.abs(rnd.nextInt(1024 * 1024 * 30))];
-					ctx.emit(new Tuple2<Long, byte[]>(cnt++, wl));
+					ctx.collect(new Tuple2<Long, byte[]>(cnt++, wl));
 					LOG.info("Emitted cnt=" + (cnt - 1) + " with byte.length = " + wl.length);
 
 					try {
@@ -686,7 +686,7 @@ public class KafkaITCase {
 					if(cnt == 10) {
 						LOG.info("Send end signal");
 						// signal end
-						ctx.emit(new Tuple2<Long, byte[]>(-1L, new byte[]{1}));
+						ctx.collect(new Tuple2<Long, byte[]>(-1L, new byte[]{1}));
 						running = false;
 					}
 				}
@@ -781,7 +781,7 @@ public class KafkaITCase {
 				LOG.info("Starting source.");
 				int cnt = 0;
 				while (running) {
-					ctx.emit(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
+					ctx.collect(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
 					try {
 						Thread.sleep(100);
 					} catch (InterruptedException ignored) {
@@ -874,7 +874,7 @@ public class KafkaITCase {
 				LOG.info("Starting source.");
 				int cnt = 0;
 				while (running) {
-					ctx.emit("kafka-" + cnt++);
+					ctx.collect("kafka-" + cnt++);
 					try {
 						Thread.sleep(100);
 					} catch (InterruptedException ignored) {
@@ -917,7 +917,7 @@ public class KafkaITCase {
 				int cnt = 0;
 				while (running) {
 					String msg = "kafka-" + cnt++;
-					ctx.emit(msg);
+					ctx.collect(msg);
 					LOG.info("sending message = "+msg);
 
 					if ((cnt - 1) % 20 == 0) {

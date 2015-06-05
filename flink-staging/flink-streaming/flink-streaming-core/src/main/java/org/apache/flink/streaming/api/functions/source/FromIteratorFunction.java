@@ -34,7 +34,7 @@ public class FromIteratorFunction<T> implements SourceFunction<T> {
 	@Override
 	public void run(SourceContext<T> ctx) throws Exception {
 		while (isRunning && iterator.hasNext()) {
-			ctx.emit(iterator.next());
+			ctx.collect(iterator.next());
 		}
 	}
 

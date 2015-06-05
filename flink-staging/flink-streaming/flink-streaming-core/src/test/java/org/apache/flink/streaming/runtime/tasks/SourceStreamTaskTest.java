@@ -179,7 +179,7 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 				}
 
 				synchronized (lockObject) {
-					ctx.emit(new Tuple2<Long, Integer>(lastCheckpointId, count));
+					ctx.collect(new Tuple2<Long, Integer>(lastCheckpointId, count));
 					count++;
 				}
 			}

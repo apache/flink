@@ -218,7 +218,7 @@ public class TwitterSource extends RichSourceFunction<String> {
 				break;
 			}
 
-			ctx.emit(queue.take());
+			ctx.collect(queue.take());
 
 			if (maxNumberOfTweets != -1 && currentNumberOfTweets >= maxNumberOfTweets) {
 				break;

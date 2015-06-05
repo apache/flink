@@ -231,7 +231,7 @@ public class StreamCheckpointingITCase {
 
 				synchronized (lockingObject) {
 					index += step;
-					ctx.emit(result);
+					ctx.collect(result);
 				}
 			}
 		}

@@ -148,7 +148,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 				}
 
 				synchronized (checkpointLock) {
-					sourceCtx.emit(collected * stepSize + congruence);
+					sourceCtx.collect(collected * stepSize + congruence);
 					collected++;
 				}
 			}

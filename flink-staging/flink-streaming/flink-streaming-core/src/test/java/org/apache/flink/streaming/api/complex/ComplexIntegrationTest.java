@@ -487,7 +487,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		public void run(SourceContext<OuterPojo> ctx) throws Exception {
 			for (int i = 0; i < 20; i++) {
 				OuterPojo result = new OuterPojo(new InnerPojo(cnt / 2, "water_melon-b"), 2L);
-				ctx.emit(result);
+				ctx.collect(result);
 			}
 		}
 
@@ -504,7 +504,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		public void run(SourceContext<Tuple2<Long, Tuple2<String, Long>>> ctx) throws Exception {
 			for (int i = 0; i < 20; i++) {
 				Tuple2<Long, Tuple2<String, Long>> result = new Tuple2<Long, Tuple2<String, Long>>(1L, new Tuple2<String, Long>("a", 1L));
-				ctx.emit(result);
+				ctx.collect(result);
 			}
 		}
 
@@ -622,7 +622,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		@Override
 		public void run(SourceContext<Rectangle> ctx) throws Exception {
 			for (int i = 0; i < 100; i++) {
-				ctx.emit(rectangle);
+				ctx.collect(rectangle);
 				rectangle = rectangle.next();
 			}
 		}

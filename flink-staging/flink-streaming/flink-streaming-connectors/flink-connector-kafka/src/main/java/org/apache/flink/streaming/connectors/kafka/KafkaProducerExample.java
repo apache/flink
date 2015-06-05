@@ -45,11 +45,11 @@ public class KafkaProducerExample {
 			@Override
 			public void run(SourceContext<String> ctx) throws Exception {
 				for (int i = 0; i < 20 && running; i++) {
-					ctx.emit("message #" + i);
+					ctx.collect("message #" + i);
 					Thread.sleep(100L);
 				}
 
-				ctx.emit("q");
+				ctx.collect("q");
 			}
 
 			@Override

@@ -99,7 +99,7 @@ public class IncrementalLearningSkeleton {
 		@Override
 		public void run(SourceContext<Integer> ctx) throws Exception {
 			while (isRunning) {
-				ctx.emit(getNewData());
+				ctx.collect(getNewData());
 			}
 		}
 
@@ -126,7 +126,7 @@ public class IncrementalLearningSkeleton {
 		public void run(SourceContext<Integer> ctx) throws Exception {
 			Thread.sleep(15);
 			while (counter < 50) {
-				ctx.emit(getNewData());
+				ctx.collect(getNewData());
 			}
 		}
 
@@ -155,7 +155,7 @@ public class IncrementalLearningSkeleton {
 		@Override
 		public void run(SourceContext<Integer> collector) throws Exception {
 			while (isRunning) {
-				collector.emit(getTrainingData());
+				collector.collect(getTrainingData());
 			}
 
 		}
@@ -183,7 +183,7 @@ public class IncrementalLearningSkeleton {
 		@Override
 		public void run(SourceContext<Integer> collector) throws Exception {
 			while (counter < 8200) {
-				collector.emit(getTrainingData());
+				collector.collect(getTrainingData());
 			}
 		}
 

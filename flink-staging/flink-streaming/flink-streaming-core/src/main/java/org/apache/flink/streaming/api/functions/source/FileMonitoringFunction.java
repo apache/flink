@@ -70,7 +70,7 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 			for (String filePath : files) {
 				if (watchType == WatchType.ONLY_NEW_FILES
 						|| watchType == WatchType.REPROCESS_WITH_APPENDED) {
-					ctx.emit(new Tuple3<String, Long, Long>(filePath, 0L, -1L));
+					ctx.collect(new Tuple3<String, Long, Long>(filePath, 0L, -1L));
 					offsetOfFiles.put(filePath, -1L);
 				} else if (watchType == WatchType.PROCESS_ONLY_APPENDED) {
 					long offset = 0;
@@ -79,7 +79,7 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 						offset = offsetOfFiles.get(filePath);
 					}
 
-					ctx.emit(new Tuple3<String, Long, Long>(filePath, offset, fileSize));
+					ctx.collect(new Tuple3<String, Long, Long>(filePath, offset, fileSize));
 					offsetOfFiles.put(filePath, fileSize);
 
 					LOG.info("File processed: {}, {}, {}", filePath, offset, fileSize);

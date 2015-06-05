@@ -116,7 +116,7 @@ public class WindowJoin {
 				outTuple.f0 = names[rand.nextInt(names.length)];
 				outTuple.f1 = rand.nextInt(GRADE_COUNT) + 1;
 				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
-				ctx.emit(outTuple);
+				ctx.collect(outTuple);
 			}
 		}
 
@@ -150,7 +150,7 @@ public class WindowJoin {
 				outTuple.f0 = names[rand.nextInt(names.length)];
 				outTuple.f1 = rand.nextInt(SALARY_MAX) + 1;
 				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
-				ctx.emit(outTuple);
+				ctx.collect(outTuple);
 			}
 		}
 

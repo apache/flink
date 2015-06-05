@@ -53,7 +53,7 @@ public class HBaseWriteStreamExample {
 			private volatile boolean isRunning = true;
 
 			@Override
-			public void run(Object checkpointLock, Collector<String> out) throws Exception {
+			public void run(SourceContext<String> out) throws Exception {
 				while (isRunning) {
 					out.collect(String.valueOf(Math.floor(Math.random() * 100)));
 				}

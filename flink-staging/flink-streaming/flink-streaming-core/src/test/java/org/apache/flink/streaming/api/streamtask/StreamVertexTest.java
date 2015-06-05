@@ -54,7 +54,7 @@ public class StreamVertexTest {
 		public void run(SourceContext<Tuple1<Integer>> ctx) throws Exception {
 			for (int i = 0; i < 10; i++) {
 				tuple.f0 = i;
-				ctx.emit(tuple);
+				ctx.collect(tuple);
 			}
 		}
 

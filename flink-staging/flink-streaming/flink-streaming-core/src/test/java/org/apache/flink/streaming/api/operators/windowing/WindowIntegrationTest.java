@@ -164,7 +164,7 @@ public class WindowIntegrationTest implements Serializable {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
 				for (int i = 1; i <= 10; i++) {
-					ctx.emit(i);
+					ctx.collect(i);
 				}
 			}
 
@@ -191,7 +191,7 @@ public class WindowIntegrationTest implements Serializable {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
 				for (;i < 11; i += 2) {
-					ctx.emit(i);
+					ctx.collect(i);
 				}
 
 			}

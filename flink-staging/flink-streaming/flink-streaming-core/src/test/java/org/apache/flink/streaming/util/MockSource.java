@@ -37,7 +37,7 @@ public class MockSource<T> {
 			final Object lockObject = new Object();
 			SourceFunction.SourceContext<T> ctx = new SourceFunction.SourceContext<T>() {
 				@Override
-				public void emit(T element) {
+				public void collect(T element) {
 					collector.collect(element);
 				}
 

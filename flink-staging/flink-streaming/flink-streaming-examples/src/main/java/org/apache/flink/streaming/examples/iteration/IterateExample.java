@@ -119,7 +119,7 @@ public class IterateExample {
 				int first = rnd.nextInt(BOUND / 2 - 1) + 1;
 				int second = rnd.nextInt(BOUND / 2 - 1) + 1;
 
-				ctx.emit(new Tuple2<Integer, Integer>(first, second));
+				ctx.collect(new Tuple2<Integer, Integer>(first, second));
 				Thread.sleep(500L);
 			}
 		}

@@ -47,7 +47,7 @@ public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunctio
 	@Override
 	public void run(SourceContext<T> ctx) throws Exception {
 		while (isRunning && iterator.hasNext()) {
-			ctx.emit(iterator.next());
+			ctx.collect(iterator.next());
 		}
 	}
 

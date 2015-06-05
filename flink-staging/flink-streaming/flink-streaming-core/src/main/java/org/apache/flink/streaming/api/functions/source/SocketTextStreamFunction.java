@@ -116,7 +116,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 				}
 
 				if (data == delimiter) {
-					ctx.emit(buffer.toString());
+					ctx.collect(buffer.toString());
 					buffer = new StringBuffer();
 				} else if (data != '\r') { // ignore carriage return
 					buffer.append((char) data);
@@ -124,7 +124,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 			}
 
 			if (buffer.length() > 0) {
-				ctx.emit(buffer.toString());
+				ctx.collect(buffer.toString());
 			}
 		} finally {
 			socket.close();

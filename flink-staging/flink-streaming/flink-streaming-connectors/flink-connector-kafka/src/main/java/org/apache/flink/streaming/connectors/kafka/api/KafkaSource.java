@@ -195,7 +195,7 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 				if (schema.isEndOfStream(out)) {
 					break;
 				}
-				ctx.emit(out);
+				ctx.collect(out);
 			}
 		} finally {
 			consumer.shutdown();

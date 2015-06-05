@@ -36,7 +36,7 @@ public class StreamSource<OUT> extends AbstractUdfStreamOperator<OUT, SourceFunc
 	public void run(final Object lockingObject, final Collector<OUT> collector) throws Exception {
 		SourceFunction.SourceContext<OUT> ctx = new SourceFunction.SourceContext<OUT>() {
 			@Override
-			public void emit(OUT element) {
+			public void collect(OUT element) {
 				collector.collect(element);
 			}
 

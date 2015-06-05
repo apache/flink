@@ -125,7 +125,7 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 			} else if (nextElement == null) {
 				break;
 			}
-			ctx.emit(nextElement);
+			ctx.collect(nextElement);
 		}
 	}
 
