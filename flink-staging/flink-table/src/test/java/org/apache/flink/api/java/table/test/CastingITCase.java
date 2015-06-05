@@ -25,7 +25,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple7;
-import org.apache.flink.api.java.table.JavaBatchTranslator;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
@@ -70,12 +69,12 @@ public class CastingITCase extends MultipleProgramsTestBase {
 						(byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"));
 
 		Table table =
-				tableEnv.toTable(input);
+				tableEnv.fromDataSet(input);
 
 		Table result = table.select(
 				"f0 + 'b', f1 + 's', f2 + 'i', f3 + 'L', f4 + 'f', f5 + \"d\"");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -93,12 +92,12 @@ public class CastingITCase extends MultipleProgramsTestBase {
 						(byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"));
 
 		Table table =
-				tableEnv.toTable(input);
+				tableEnv.fromDataSet(input);
 
 		Table result = table.select("f0 + 1, f1 +" +
 				" 1, f2 + 1L, f3 + 1.0f, f4 + 1.0d, f5 + 1");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -117,12 +116,12 @@ public class CastingITCase extends MultipleProgramsTestBase {
 						new Tuple7<Byte, Short, Integer, Long, Float, Double, String>((byte) 2, (short) 2, 2, 2L, 2.0f, 2.0d, "Hello"));
 
 		Table table =
-				tableEnv.toTable(input, "a,b,c,d,e,f,g");
+				tableEnv.fromDataSet(input, "a,b,c,d,e,f,g");
 
 		Table result = table
 				.filter("a > 1 && b > 1 && c > 1L && d > 1.0f && e > 1.0d && f > 1");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();

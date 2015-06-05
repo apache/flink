@@ -24,7 +24,6 @@ import org.apache.flink.api.table.Row;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
-import org.apache.flink.api.java.table.JavaBatchTranslator;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -66,9 +65,9 @@ public class AsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		Table table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a, b, c");
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c");
 
-		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -87,9 +86,9 @@ public class AsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		Table table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a, b");
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b");
 
-		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -103,9 +102,9 @@ public class AsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		Table table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
 
-		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -119,9 +118,9 @@ public class AsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		Table table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
 
-		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -135,9 +134,9 @@ public class AsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		Table table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
 
-		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -151,10 +150,10 @@ public class AsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		Table table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a as foo, b," +
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a as foo, b," +
 						" c");
 
-		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
