@@ -25,7 +25,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.table.JavaBatchTranslator;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
@@ -69,12 +68,12 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				new Tuple2<String, Integer>("AAAA", 2),
 				new Tuple2<String, Integer>("BBBB", 1));
 
-		Table in = tableEnv.toTable(ds, "a, b");
+		Table in = tableEnv.fromDataSet(ds, "a, b");
 
 		Table result = in
 				.select("a.substring(0, b)");
 
-		DataSet<Row> resultSet = tableEnv.toSet(result, Row.class);
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -91,12 +90,12 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				new Tuple2<String, Integer>("ABCD", 2),
 				new Tuple2<String, Integer>("ABCD", 1));
 
-		Table in = tableEnv.toTable(ds, "a, b");
+		Table in = tableEnv.fromDataSet(ds, "a, b");
 
 		Table result = in
 				.select("a.substring(b)");
 
-		DataSet<Row> resultSet = tableEnv.toSet(result, Row.class);
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -113,12 +112,12 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				new Tuple2<String, Float>("ABCD", 2.0f),
 				new Tuple2<String, Float>("ABCD", 1.0f));
 
-		Table in = tableEnv.toTable(ds, "a, b");
+		Table in = tableEnv.fromDataSet(ds, "a, b");
 
 		Table result = in
 				.select("a.substring(0, b)");
 
-		DataSet<Row> resultSet = tableEnv.toSet(result, Row.class);
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -135,12 +134,12 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				new Tuple2<String, String>("ABCD", "a"),
 				new Tuple2<String, String>("ABCD", "b"));
 
-		Table in = tableEnv.toTable(ds, "a, b");
+		Table in = tableEnv.fromDataSet(ds, "a, b");
 
 		Table result = in
 				.select("a.substring(b, 15)");
 
-		DataSet<Row> resultSet = tableEnv.toSet(result, Row.class);
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
