@@ -151,7 +151,6 @@ object MinMaxScaler {
     }.reduce {
       (minMax1, minMax2) => {
 
-
         val tempMinimum = linalg.Vector.zeros[Double](minMax1._1.length)
 
         for (i <- 0 until minMax1._1.length) {
@@ -233,7 +232,7 @@ object MinMaxScaler {
           case Some(metrics) => {
             input.mapWithBcVariable(metrics) {
               (labeledVector, metrics) => {
-                val (broadcastMax, broadcastMin) = metrics
+                val (broadcastMin, broadcastMax) = metrics
                 val LabeledVector(label, vector) = labeledVector
                 var breezeVector = vector.asBreeze
 
@@ -241,6 +240,7 @@ object MinMaxScaler {
                 breezeVector :/= (broadcastMax - broadcastMin)
                 breezeVector = (breezeVector :* (max - min)) + min
                 LabeledVector(label, breezeVector.fromBreeze)
+
               }
             }
           }
@@ -252,5 +252,4 @@ object MinMaxScaler {
       }
     }
   }
-
 }
