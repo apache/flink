@@ -25,7 +25,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.table.JavaBatchTranslator;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -68,12 +67,12 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table in = tableEnv.toTable(ds, "a,b,c");
+		Table in = tableEnv.fromDataSet(ds, "a,b,c");
 
 		Table result = in
 				.select("a, b, c");
 
-		DataSet<Row> resultSet = tableEnv.toSet(result, Row.class);
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -94,13 +93,13 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table in = tableEnv.toTable(ds);
+		Table in = tableEnv.fromDataSet(ds);
 
 		Table result = in
 				.select("f0 as a, f1 as b")
 				.select("a, b");
 
-		DataSet<Row> resultSet = tableEnv.toSet(result, Row.class);
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -117,9 +116,9 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table in = tableEnv.toTable(ds, "a, b");
+		Table in = tableEnv.fromDataSet(ds, "a, b");
 
-		DataSet<Row> resultSet = tableEnv.toSet(in, Row.class);
+		DataSet<Row> resultSet = tableEnv.toDataSet(in, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -134,9 +133,9 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table in = tableEnv.toTable(ds, "a, b, c, d");
+		Table in = tableEnv.fromDataSet(ds, "a, b, c, d");
 
-		DataSet<Row> resultSet = tableEnv.toSet(in, Row.class);
+		DataSet<Row> resultSet = tableEnv.toDataSet(in, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -151,9 +150,9 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table in = tableEnv.toTable(ds, "a, b, c, b");
+		Table in = tableEnv.fromDataSet(ds, "a, b, c, b");
 
-		DataSet<Row> resultSet = tableEnv.toSet(in, Row.class);
+		DataSet<Row> resultSet = tableEnv.toDataSet(in, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -168,9 +167,9 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table in = tableEnv.toTable(ds, "a, b as c, d");
+		Table in = tableEnv.fromDataSet(ds, "a, b as c, d");
 
-		DataSet<Row> resultSet = tableEnv.toSet(in, Row.class);
+		DataSet<Row> resultSet = tableEnv.toDataSet(in, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();

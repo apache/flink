@@ -24,7 +24,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.table.JavaBatchTranslator;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -68,12 +67,12 @@ public class FilterITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
 		Table table =
-				tableEnv.toTable(input, "a, b, c");
+				tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 				.filter("false");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -89,12 +88,12 @@ public class FilterITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
 		Table table =
-				tableEnv.toTable(input, "a, b, c");
+				tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 				.filter("true");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -115,12 +114,12 @@ public class FilterITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
 		Table table =
-				tableEnv.toTable(input, "a, b, c");
+				tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 				.filter(" a % 2 = 0 ");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -138,12 +137,12 @@ public class FilterITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
 		Table table =
-				tableEnv.toTable(input, "a, b, c");
+				tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 				.filter("!( a % 2 <> 0 ) ");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -160,11 +159,11 @@ public class FilterITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = env.fromElements(new Tuple3<Integer, Long, String>(300, 1L, "Hello"));
 
-		Table table = tableEnv.toTable(input, "a, b, c");
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table.filter("a = 300 ");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();

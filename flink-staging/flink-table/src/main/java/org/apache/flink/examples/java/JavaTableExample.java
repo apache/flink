@@ -57,14 +57,14 @@ public class JavaTableExample {
 				new WC("Ciao", 1),
 				new WC("Hello", 1));
 
-		Table table = tableEnv.toTable(input);
+		Table table = tableEnv.fromDataSet(input);
 
 		Table filtered = table
 				.groupBy("word")
 				.select("word.count as count, word")
 				.filter("count = 2");
 
-		DataSet<WC> result = tableEnv.toSet(filtered, WC.class);
+		DataSet<WC> result = tableEnv.toDataSet(filtered, WC.class);
 
 		result.print();
 	}
