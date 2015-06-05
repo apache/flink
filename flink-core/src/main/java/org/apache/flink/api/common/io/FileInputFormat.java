@@ -120,7 +120,11 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * The length of the split that this parallel instance must consume.
 	 */
 	protected transient long splitLength;
-	
+
+	/**
+	 * The current split that this parallel instance must consume.
+	 */
+	protected transient FileInputSplit currentSplit;
 	
 	// --------------------------------------------------------------------------------------------
 	//  The configuration parameters. Configured on the instance and serialized to be shipped.
@@ -588,7 +592,8 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 */
 	@Override
 	public void open(FileInputSplit fileSplit) throws IOException {
-		
+
+		this.currentSplit = fileSplit;
 		this.splitStart = fileSplit.getStart();
 		this.splitLength = fileSplit.getLength();
 
