@@ -164,10 +164,6 @@ under the License.
 									<exclude>com.twitter:chill-bijection_*</exclude>
 									<exclude>com.twitter:bijection-core_*</exclude>
 									<exclude>com.twitter:bijection-avro_*</exclude>
-									<exclude>com.twitter:chill-protobuf</exclude>
-									<exclude>com.google.protobuf:protobuf-java</exclude>
-									<exclude>com.twitter:chill-thrift</exclude>
-									<exclude>org.apache.thrift:libthrift</exclude>
 									<exclude>commons-lang:commons-lang</exclude>
 									<exclude>junit:junit</exclude>
 									<exclude>de.javakaffee:kryo-serializers</exclude>
