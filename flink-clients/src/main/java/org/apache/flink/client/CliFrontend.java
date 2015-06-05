@@ -378,6 +378,16 @@ public class CliFrontend {
 			else {
 				System.out.println("JSON plan could not be generated.");
 			}
+
+			String description = program.getDescription();
+			if (description != null) {
+				System.out.println();
+				System.out.println(description);
+			}
+			else {
+				System.out.println();
+				System.out.println("No description provided.");
+			}
 			return 0;
 		}
 		catch (Throwable t) {
