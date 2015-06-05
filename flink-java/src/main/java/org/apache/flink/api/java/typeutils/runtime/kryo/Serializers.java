@@ -22,9 +22,6 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.CollectionSerializer;
-import com.google.protobuf.Message;
-import com.twitter.chill.protobuf.ProtobufSerializer;
-import com.twitter.chill.thrift.TBaseSerializer;
 import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import de.javakaffee.kryoserializers.jodatime.JodaIntervalSerializer;
 import org.apache.avro.Schema;
@@ -32,7 +29,6 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.thrift.protocol.TMessage;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -99,12 +95,6 @@ public class Serializers {
 	}
 
 	public static void addSerializerForType(ExecutionConfig reg, Class<?> type) {
-		if(Message.class.isAssignableFrom(type)) {
-			registerProtoBuf(reg);
-		}
-		if(TMessage.class.isAssignableFrom(type)) {
-			registerThrift(reg);
-		}
 		if(GenericData.Record.class.isAssignableFrom(type)) {
 			registerGenericAvro(reg);
 		}
@@ -114,24 +104,6 @@ public class Serializers {
 		if(DateTime.class.isAssignableFrom(type) || Interval.class.isAssignableFrom(type)) {
 			registerJodaTime(reg);
 		}
-	}
-
-	/**
-	 * Register serializers required for Google Protocol Buffers
-	 * with Flink runtime.
-	 */
-	public static void registerProtoBuf(ExecutionConfig reg) {
-		// Google Protobuf (FLINK-1392)
-		reg.registerTypeWithKryoSerializer(Message.class, ProtobufSerializer.class);
-	}
-
-	/**
-	 * Register Apache Thrift messages
-	 */
-	public static void registerThrift(ExecutionConfig reg) {
-		// TBaseSerializer states it should be initalized as a default Kryo serializer
-		reg.addDefaultKryoSerializer(TMessage.class, TBaseSerializer.class);
-		reg.registerKryoType(TMessage.class);
 	}
 
 	/**
