@@ -146,6 +146,11 @@ under the License.
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-hdfs</artifactId>
 				</exclusion>
+				<!-- Bug in hbase annotations, can be removed when fixed. See FLINK-2153. -->
+				<exclusion>
+					<groupId>org.apache.hbase</groupId>
+					<artifactId>hbase-annotations</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 	</dependencies>
