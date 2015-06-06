@@ -872,7 +872,14 @@ public class Graph<K, VV, EV> {
 
 		public void coGroup(Iterable<Vertex<K, VV>> vertex,
 				Iterable<Edge<K, EV>> edges, Collector<T> out) throws Exception {
-			function.iterateEdges(vertex.iterator().next(), edges, out);
+
+			Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
+
+			if(vertexIterator.hasNext()) {
+				function.iterateEdges(vertexIterator.next(), edges, out);
+			} else {
+				throw new NoSuchElementException("The edge src/trg id could not be found within the vertexIds");
+			}
 		}
 
 		@Override
@@ -920,7 +927,13 @@ public class Graph<K, VV, EV> {
 				}
 			};
 
-			function.iterateEdges(vertex.iterator().next(),	edgesIterable, out);
+			Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
+
+			if(vertexIterator.hasNext()) {
+				function.iterateEdges(vertexIterator.next(), edgesIterable, out);
+			} else {
+				throw new NoSuchElementException("The edge src/trg id could not be found within the vertexIds");
+			}
 		}
 
 		@Override
@@ -1554,7 +1567,13 @@ public class Graph<K, VV, EV> {
 				}
 			};
 
-			function.iterateNeighbors(vertex.iterator().next(), neighborsIterable, out);
+			Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
+
+			if (vertexIterator.hasNext()) {
+				function.iterateNeighbors(vertexIterator.next(), neighborsIterable, out);
+			} else {
+				throw new NoSuchElementException("The edge src/trg id could not be found within the vertexIds");
+			}
 		}
 
 		@Override
