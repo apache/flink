@@ -109,7 +109,7 @@ public class StreamingJobGraphGenerator {
 		Map<Integer, List<StreamEdge>> physicalInEdgesInOrder = new HashMap<Integer, List<StreamEdge>>();
 
 		for (StreamEdge edge : physicalEdgesInOrder) {
-			int target = edge.getTargetID();
+			int target = edge.getTargetId();
 
 			List<StreamEdge> inEdges = physicalInEdgesInOrder.get(target);
 
@@ -154,12 +154,12 @@ public class StreamingJobGraphGenerator {
 			}
 
 			for (StreamEdge chainable : chainableOutputs) {
-				transitiveOutEdges.addAll(createChain(startNode, chainable.getTargetID()));
+				transitiveOutEdges.addAll(createChain(startNode, chainable.getTargetId()));
 			}
 
 			for (StreamEdge nonChainable : nonChainableOutputs) {
 				transitiveOutEdges.add(nonChainable);
-				createChain(nonChainable.getTargetID(), nonChainable.getTargetID());
+				createChain(nonChainable.getTargetId(), nonChainable.getTargetId());
 			}
 
 			chainedNames.put(current, createChainedName(current, chainableOutputs));
@@ -203,14 +203,14 @@ public class StreamingJobGraphGenerator {
 		if (chainedOutputs.size() > 1) {
 			List<String> outputChainedNames = new ArrayList<String>();
 			for (StreamEdge chainable : chainedOutputs) {
-				outputChainedNames.add(chainedNames.get(chainable.getTargetID()));
+				outputChainedNames.add(chainedNames.get(chainable.getTargetId()));
 			}
 			String returnOperatorName = operatorName + " -> ("
 					+ StringUtils.join(outputChainedNames, ", ") + ")";
 			return returnOperatorName;
 		} else if (chainedOutputs.size() == 1) {
 			String returnOperatorName = operatorName + " -> "
-					+ chainedNames.get(chainedOutputs.get(0).getTargetID());
+					+ chainedNames.get(chainedOutputs.get(0).getTargetId());
 			return returnOperatorName;
 		} else {
 			return operatorName;
@@ -281,8 +281,8 @@ public class StreamingJobGraphGenerator {
 		allOutputs.addAll(nonChainableOutputs);
 
 		for (StreamEdge output : allOutputs) {
-			config.setSelectedNames(output.getTargetID(),
-					streamGraph.getStreamEdge(vertexID, output.getTargetID()).getSelectedNames());
+			config.setSelectedNames(output.getTargetId(),
+					streamGraph.getStreamEdge(vertexID, output.getTargetId()).getSelectedNames());
 		}
 
 		vertexConfigs.put(vertexID, config);
@@ -292,7 +292,7 @@ public class StreamingJobGraphGenerator {
 
 		physicalEdgesInOrder.add(edge);
 
-		Integer downStreamvertexID = edge.getTargetID();
+		Integer downStreamvertexID = edge.getTargetId();
 
 		AbstractJobVertex headVertex = jobVertices.get(headOfChain);
 		AbstractJobVertex downStreamVertex = jobVertices.get(downStreamvertexID);
@@ -358,8 +358,8 @@ public class StreamingJobGraphGenerator {
 
 		for (StreamLoop loop : streamGraph.getStreamLoops()) {
 			CoLocationGroup ccg = new CoLocationGroup();
-			AbstractJobVertex tail = jobVertices.get(loop.getSink().getID());
-			AbstractJobVertex head = jobVertices.get(loop.getSource().getID());
+			AbstractJobVertex tail = jobVertices.get(loop.getSink().getId());
+			AbstractJobVertex head = jobVertices.get(loop.getSource().getId());
 			ccg.addVertex(head);
 			ccg.addVertex(tail);
 			tail.updateCoLocationGroup(ccg);

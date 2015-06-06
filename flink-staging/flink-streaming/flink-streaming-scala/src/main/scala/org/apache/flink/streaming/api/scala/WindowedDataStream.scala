@@ -45,7 +45,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * @return Name of the stream.
    */
   def getName : String = javaStream match {
-    case stream : DiscretizedStream[_] => javaStream.getName
+    case stream : DiscretizedStream[_] => stream.getName
     case _ => throw new
         UnsupportedOperationException("Only supported for windowing operators.")
   }
@@ -57,7 +57,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * @return The named operator
    */
   def name(name: String) : WindowedDataStream[T] = javaStream match {
-    case stream : DiscretizedStream[_] => javaStream.name(name)
+    case stream : DiscretizedStream[T] => stream.name(name)
     case _ => throw new
         UnsupportedOperationException("Only supported for windowing operators.")
     this
@@ -176,7 +176,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * the current window at every trigger.
    *
    */
-  def foldWindow[R: TypeInformation: ClassTag](initialValue: R)(fun: (R, T) => R): 
+  def foldWindow[R: TypeInformation: ClassTag](initialValue: R, fun: (R, T) => R):
   WindowedDataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Fold function must not be null.")
@@ -298,7 +298,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     
   private def aggregate(aggregationType: AggregationType, field: String): 
   WindowedDataStream[T] = {
-    val position = fieldNames2Indices(javaStream.getType(), Array(field))(0)
+    val position = fieldNames2Indices(getType(), Array(field))(0)
     aggregate(aggregationType, position)
   }  
 
@@ -321,5 +321,12 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     new WindowedDataStream[Product](
             jStream.reduceWindow(reducer)).asInstanceOf[WindowedDataStream[T]]
   }
+
+  /**
+   * Gets the output type.
+   *
+   * @return The output type.
+   */
+  def getType(): TypeInformation[T] = javaStream.getType
 
 }

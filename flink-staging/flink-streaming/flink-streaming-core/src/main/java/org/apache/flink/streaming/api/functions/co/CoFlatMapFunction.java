@@ -36,7 +36,7 @@ import org.apache.flink.util.Collector;
  */
 public interface CoFlatMapFunction<IN1, IN2, OUT> extends Function, Serializable {
 
-	public void flatMap1(IN1 value, Collector<OUT> out) throws Exception;
+	void flatMap1(IN1 value, Collector<OUT> out) throws Exception;
 
-	public void flatMap2(IN2 value, Collector<OUT> out) throws Exception;
+	void flatMap2(IN2 value, Collector<OUT> out) throws Exception;
 }

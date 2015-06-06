@@ -232,7 +232,7 @@ public class StreamGraph extends StreamingPlan {
 		getStreamNode(sinkID).setOperatorName("IterationTail-" + iterationTail);
 
 		iteration.getSource().setParallelism(iteration.getSink().getParallelism());
-		setBufferTimeout(iteration.getSource().getID(), getStreamNode(iterationTail)
+		setBufferTimeout(iteration.getSource().getId(), getStreamNode(iterationTail)
 				.getBufferTimeout());
 
 		if (LOG.isDebugEnabled()) {
@@ -257,8 +257,8 @@ public class StreamGraph extends StreamingPlan {
 
 		StreamEdge edge = new StreamEdge(getStreamNode(upStreamVertexID),
 				getStreamNode(downStreamVertexID), typeNumber, outputNames, partitionerObject);
-		getStreamNode(edge.getSourceID()).addOutEdge(edge);
-		getStreamNode(edge.getTargetID()).addInEdge(edge);
+		getStreamNode(edge.getSourceId()).addOutEdge(edge);
+		getStreamNode(edge.getTargetId()).addInEdge(edge);
 	}
 
 	public <T> void addOutputSelector(Integer vertexID, OutputSelector<T> outputSelector) {
@@ -335,7 +335,7 @@ public class StreamGraph extends StreamingPlan {
 		while (outIterator.hasNext()) {
 			StreamEdge edge = outIterator.next();
 
-			if (edge.getTargetID() == targetId) {
+			if (edge.getTargetId() == targetId) {
 				return edge;
 			}
 		}
@@ -354,7 +354,7 @@ public class StreamGraph extends StreamingPlan {
 	public Set<Tuple2<Integer, StreamOperator<?>>> getOperators() {
 		Set<Tuple2<Integer, StreamOperator<?>>> operatorSet = new HashSet<Tuple2<Integer, StreamOperator<?>>>();
 		for (StreamNode vertex : streamNodes.values()) {
-			operatorSet.add(new Tuple2<Integer, StreamOperator<?>>(vertex.getID(), vertex
+			operatorSet.add(new Tuple2<Integer, StreamOperator<?>>(vertex.getId(), vertex
 					.getOperator()));
 		}
 		return operatorSet;
@@ -389,7 +389,7 @@ public class StreamGraph extends StreamingPlan {
 		for (StreamEdge edge : edgesToRemove) {
 			removeEdge(edge);
 		}
-		streamNodes.remove(toRemove.getID());
+		streamNodes.remove(toRemove.getId());
 	}
 
 	/**
@@ -462,7 +462,7 @@ public class StreamGraph extends StreamingPlan {
 	 * Object for representing loops in streaming programs.
 	 * 
 	 */
-	protected static class StreamLoop {
+	public static class StreamLoop {
 
 		private Integer loopID;
 
