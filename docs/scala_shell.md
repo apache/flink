@@ -33,7 +33,7 @@ To use the shell with an integrated Flink cluster just execute:
 bin/start-scala-shell.sh 
 ~~~
 
-in your link directory.
+in the root directory of your binary Flink directory.
 
 To use it with a running cluster you can supply the host and port of the JobManager with:
 
