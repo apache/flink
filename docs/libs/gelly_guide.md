@@ -613,6 +613,7 @@ Let us consider computing Single-Source-Shortest-Paths with GSA on the following
 
 Notice that, if a vertex does not change its value during a superstep, it will not calculate candidate distance during the next superstep. The algorithm converges when no vertex changes value.
 The resulting graph after the algorithm converges is shown below.
+
 <p class="text-center">
     <img alt="GSA SSSP result" width="70%" src="fig/gelly-gsa-sssp-result.png"/>
 </p>
