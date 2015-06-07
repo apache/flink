@@ -69,6 +69,9 @@ $ bin/start-local.sh    # Start Flink
 Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make
 sure everything is up and running.
 
+Instead of starting Flink with `bin/start-local.sh` you can also start Flink in an streaming optimized
+mode, using `bin/start-local-streaming.sh`.
+
 ## Run Example
 
 Run the __Word Count example__ to see Flink at work.
@@ -103,7 +106,8 @@ on each node of your setup.
 3. Add the IPs or hostnames (one per line) of all __worker nodes__ (TaskManager) to the slaves files
 in `conf/slaves`.
 
-You can now __start the cluster__ at your master node with `bin/start-cluster.sh`.
+You can now __start the cluster__ at your master node with `bin/start-cluster.sh`. If you are planning
+to run only streaming jobs with Flink, you can also an optimized streaming mode: `start-cluster-streaming.sh`.
 
 
 The following __example__ illustrates the setup with three nodes (with IP addresses from _10.0.0.1_
