@@ -142,6 +142,22 @@ public class PartitionRequestClientHandlerTest {
 		verify(inputChannel, times(1)).onFailedPartitionRequest();
 	}
 
+	@Test
+	public void testCancelBeforeActive() throws Exception {
+
+		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
+		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
+
+		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
+		client.addInputChannel(inputChannel);
+
+		// Don't throw NPE
+		client.cancelRequestFor(null);
+
+		// Don't throw NPE, because channel is not active yet
+		client.cancelRequestFor(inputChannel.getInputChannelId());
+	}
+
 	// ---------------------------------------------------------------------------------------------
 
 	/**
