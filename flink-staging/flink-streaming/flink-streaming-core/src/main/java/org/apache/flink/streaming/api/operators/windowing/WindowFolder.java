@@ -39,6 +39,7 @@ public class WindowFolder<IN, OUT> extends StreamMap<StreamWindow<IN>, StreamWin
 	public WindowFolder(FoldFunction<IN, OUT> folder, OUT initialValue) {
 		super(new WindowFoldFunction<IN, OUT>(folder, initialValue));
 		this.folder = folder;
+		disableInputCopy();
 	}
 
 	private static class WindowFoldFunction<IN, OUT> extends AbstractRichFunction implements

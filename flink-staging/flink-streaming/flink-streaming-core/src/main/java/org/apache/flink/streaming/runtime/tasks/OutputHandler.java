@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -157,7 +158,13 @@ public class OutputHandler<OUT> {
 			chainableOperator.setup(wrapper, chainedContext);
 
 			chainedOperators.add(chainableOperator);
-			return new OperatorCollector<X>(chainableOperator);
+			if (vertex.getExecutionConfig().isObjectReuseEnabled() || chainableOperator.isInputCopyingDisabled()) {
+				return new OperatorCollector<X>(chainableOperator);
+			} else {
+				return new CopyingOperatorCollector<X>(
+						chainableOperator,
+						(TypeSerializer<X>) chainedTaskConfig.getTypeSerializerIn1(vertex.getUserCodeClassLoader()).getObjectSerializer());
+			}
 		}
 
 	}
@@ -219,7 +226,7 @@ public class OutputHandler<OUT> {
 	}
 
 	private static class OperatorCollector<T> implements Output<T> {
-		private OneInputStreamOperator operator;
+		protected OneInputStreamOperator operator;
 
 		public OperatorCollector(OneInputStreamOperator<?, T> operator) {
 			this.operator = operator;
@@ -239,13 +246,35 @@ public class OutputHandler<OUT> {
 		}
 
 		@Override
-		public void close() {
+		public final void close() {
 			try {
 				operator.close();
 			} catch (Exception e) {
 				if (LOG.isErrorEnabled()) {
 					LOG.error("Could not forward close call to operator.", e);
 				}
+			}
+		}
+	}
+
+	private static class CopyingOperatorCollector<T> extends OperatorCollector<T> {
+		private final TypeSerializer<T> serializer;
+
+		public CopyingOperatorCollector(OneInputStreamOperator<?, T> operator, TypeSerializer<T> serializer) {
+			super(operator);
+			this.serializer = serializer;
+		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public void collect(T record) {
+			try {
+				operator.processElement(serializer.copy(record));
+			} catch (Exception e) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Could not forward element to operator.", e);
+				}
+				throw new RuntimeException(e);
 			}
 		}
 	}

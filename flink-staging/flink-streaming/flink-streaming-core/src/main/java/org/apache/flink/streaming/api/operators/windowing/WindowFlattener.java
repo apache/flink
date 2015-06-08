@@ -32,6 +32,7 @@ public class WindowFlattener<T> extends AbstractStreamOperator<T>
 
 	public WindowFlattener() {
 		chainingStrategy = ChainingStrategy.FORCE_ALWAYS;
+		disableInputCopy();
 	}
 
 	@Override
