@@ -23,7 +23,7 @@ under the License.
 
 <a href="#top"></a>
 
-Flink Streaming is a system for high-throughput, low-latency data stream processing. The system can connect to and process data streams from different data sources like file sources, web sockets, message queues(Apache Kafka, RabbitMQ, Twitter Streaming API …) and also from any user defined data source using a very simple interface. Data streams can be transformed and modified to create new data streams using high-level functions similar to the ones provided by the batch processing API. Flink Streaming natively supports flexible, data-driven windowing semantics and iterative stream processing. The processed data can be pushed to different output types.
+Flink Streaming is a system for high-throughput, low-latency data stream processing. The system can connect to and process data streams from different data sources like file sources, web sockets, message queues (Apache Kafka, RabbitMQ, Twitter Streaming API …), and also from any user defined data source using a very simple interface. Data streams can be transformed and modified to create new data streams using high-level functions similar to the ones provided by the batch processing API. Flink Streaming natively supports flexible, data-driven windowing semantics and iterative stream processing. The processed data can be pushed to different output types.
 
 * This will be replaced by the TOC
 {:toc}
@@ -66,13 +66,13 @@ Add the following dependency to your `pom.xml` to use the Flink Streaming.
 </div>
 </div>
 
-In order to create your own Flink Streaming program we encourage you to start with the [skeleton](#program-skeleton) and gradually add your own [transformations](#transformations). The remaining sections act as references for additional transformations and advanced features.
+In order to create your own Flink Streaming program, we encourage you to start with the [skeleton](#program-skeleton) and gradually add your own [transformations](#transformations). The remaining sections act as references for additional transformations and advanced features.
 
 
 Example Program
 ---------------
 
-The following program is a complete, working example of streaming WordCount that incrementally counts the words coming from a web socket. You can copy &amp; paste the code to run it locally.
+The following program is a complete, working example of streaming WordCount, that incrementally counts the words coming from a web socket. You can copy &amp; paste the code to run it locally.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -133,7 +133,7 @@ object WordCount {
 
 </div>
 
-To run the example program start the input stream with netcat first from a terminal:
+To run the example program, start the input stream with netcat first from a terminal:
 
 ~~~bash
 nc -lk 9999
@@ -149,7 +149,7 @@ Program Skeleton
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-As presented in the [example](#example-program) a Flink Streaming program looks almost identical to a regular Flink program. Each stream processing program consists of the following parts:
+As presented in the [example](#example-program), a Flink Streaming program looks almost identical to a regular Flink program. Each stream processing program consists of the following parts:
 
 1. Obtaining a `StreamExecutionEnvironment`,
 2. Connecting to data stream sources,
@@ -157,8 +157,8 @@ As presented in the [example](#example-program) a Flink Streaming program looks 
 4. Specifying output for the processed data,
 5. Executing the program.
 
-As these steps are basically the same as in the batch API we will only note the important differences.
-For stream processing jobs, the user needs to obtain a `StreamExecutionEnvironment` in contrast with the [batch API](programming_guide.html#program-skeleton) where one would need an `ExecutionEnvironment`. The process otherwise is essentially the same:
+As these steps are basically the same as in the batch API, we will only note the important differences.
+For stream processing jobs, the user needs to obtain a `StreamExecutionEnvironment` in contrast with the [batch API](programming_guide.html#program-skeleton) where one would need an `ExecutionEnvironment`. Otherwise, the process is essentially the same:
 
 {% highlight java %}
 StreamExecutionEnvironment.getExecutionEnvironment();
@@ -266,7 +266,7 @@ Basics
 
 ### DataStream
 
-The `DataStream` is the basic data abstraction provided by the Flink Streaming. It represents a continuous, parallel, immutable stream of data of a certain type. By applying transformations the user can create new data streams or output the results of the computations. For instance the map transformation creates a new `DataStream` by applying a user defined function on each element of a given `DataStream`
+The `DataStream` is the basic data abstraction provided by Flink Streaming. It represents a continuous, parallel, immutable stream of data of a certain type. By applying transformations the user can create new data streams or output the results of the computations. For instance the map transformation creates a new `DataStream` by applying a user defined function on each element of a given `DataStream`
 
 The transformations may return different data stream types allowing more elaborate transformations, for example the `groupBy(…)` method returns a `GroupedDataStream` which can be used for grouped transformations such as aggregating by key. We will discover more elaborate data stream types in the upcoming sections.
 
@@ -296,9 +296,9 @@ Partitioning controls how individual data points of a stream are distributed amo
 
 There are several partitioning types supported in Flink Streaming:
 
- * *Forward(default)*: Forward partitioning directs the output data to the next operator on the same machine (if possible) avoiding expensive network I/O. If there are more processing nodes than inputs or vice verse the load is distributed among the extra nodes in a round-robin fashion. This is the default partitioner.
+ * *Forward (default)*: Forward partitioning directs the output data to the next operator on the same machine (if possible) avoiding expensive network I/O. If there are more processing nodes than inputs or vice versa the load is distributed among the extra nodes in a round-robin fashion. This is the default partitioner.
 Usage: `dataStream.forward()`
- * *Shuffle*: Shuffle partitioning randomly partitions the output data stream to the next operator using uniform distribution. Use this only when it is important that the partitioning is randomised. If you only care about an even load use *Rebalance*
+ * *Shuffle*: Shuffle partitioning randomly partitions the output data stream to the next operator using uniform distribution. Use this only when it is important that the partitioning is randomised. If you only care about an even load use *Rebalance*.
 Usage: `dataStream.shuffle()`
  * *Rebalance*: Rebalance partitioning directs the output data stream to the next operator in a round-robin fashion, achieving a balanced distribution.
 Usage: `dataStream.rebalance()`
@@ -324,7 +324,7 @@ The user is expected to connect to the outside world through the source and the 
 Sources can by created by using `StreamExecutionEnvironment.addSource(sourceFunction)`. 
 Either use one of the source functions that come with Flink or write a custom source
 by implementing the `SourceFunction` interface. By default, sources run with
-parallelism of 1. To create parallel sources the users source function needs to implement
+parallelism of 1. To create parallel sources the user's source function needs to implement
 `ParallelSourceFunction` or extend `RichParallelSourceFunction` in which cases the source will have
 the parallelism of the environment. The parallelism for ParallelSourceFunctions can be changed
 after creation by using `source.setParallelism(parallelism)`.
@@ -599,21 +599,19 @@ dataStream.union(otherStream1, otherStream2, …)
 ### Grouped operators
 
 Some transformations require that the elements of a `DataStream` are grouped on some key. The user can create a `GroupedDataStream` by calling the `groupBy(key)` method of a non-grouped `DataStream`. 
-Keys can be of three types: fields positions (applicable for tuple/array types), field expressions (applicable for pojo types), KeySelector instances. 
+Keys can be of three types: field positions (applicable for tuple/array types), field expressions (applicable for pojo types), KeySelector instances.
 
 Aggregation or reduce operators called on `GroupedDataStream`s produce elements on a per group basis.
 
 ### Aggregations
 
-The Flink Streaming API supports different types of pre-defined aggregations `DataStreams`. The common property of these operators, just like reduce on streams, they produce the stream of intermediate aggregate values.
+The Flink Streaming API supports different types of pre-defined aggregations of `DataStreams`. A common property of these operators, is that they produce the stream of intermediate aggregate values (just like reduce on streams).
 
 Types of aggregations: `sum(field)`, `min(field)`, `max(field)`, `minBy(field, first)`, `maxBy(field, first)`.
 
 With `sum`, `min`, and `max` for every incoming tuple the selected field is replaced with the current aggregated value. Fields can be selected using either field positions or field expressions (similarly to grouping).
 
 With `minBy` and `maxBy` the output of the operator is the element with the current minimal or maximal value at the given field. If more components share the minimum or maximum value, the user can decide if the operator should return the first or last element. This can be set by the `first` boolean parameter.
-
-There is also an option to apply user defined aggregations with the usage of the `aggregate(…)` function of the data stream.
 
 ### Window operators
 
@@ -633,10 +631,10 @@ Please note at this point that the `.every(…)` call belongs together with the 
 
 The result of a window transformation is again a `WindowedDataStream` which can also be used to further apply other windowed computations. In this sense, window transformations define mapping from stream windows to stream windows.
 
-The user has different ways of using the a result of a window operation:
+The user has different ways of using the result of a window operation:
 
  * `windowedDataStream.flatten()` - streams the results element wise and returns a `DataStream<T>` where T is the type of the underlying windowed stream
- * `windowedDataStream.getDiscretizedStream()` - returns a `DataStream<StreamWindow<T>>` for applying some advanced logic on the stream windows itself, be careful here as at this point we need to materialise the full windows
+ * `windowedDataStream.getDiscretizedStream()` - returns a `DataStream<StreamWindow<T>>` for applying some advanced logic on the stream windows itself. Be careful here, as at this point, we need to materialise the full windows
  * Calling any window transformation further transforms the windows, while preserving the windowing logic
 
 The next example would create windows that hold elements of the last 5 seconds, and the user defined transformation would be executed on the windows every second (sliding the window by 1 second):
@@ -691,7 +689,7 @@ Trigger and eviction policies work totally independently of each other. The evic
 
 Several predefined policies are provided in the API, including delta-based, punctuation based, count-based and time-based policies. Policies are in general UDFs and can implement any custom behaviour.
 
-In addition to the `dataStream.window(…).every(…)` style users can specifically pass the trigger and eviction policies during the window call:
+In addition to the `dataStream.window(…).every(…)` style, users can specifically pass the trigger and eviction policies during the window call:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -708,7 +706,7 @@ dataStream.window(triggerPolicy, evictionPolicy)
 
 </div>
 
-By default triggers can only trigger when a new element arrives. This might not be suitable for all the use-cases with low data rates . To also provide triggering between elements so called active policies (the two interfaces controlling this special behaviour is `ActiveTriggerPolicy` and `CentralActiveTrigger`) can be used. The predefined time-based policies are already implemented in such a way and can hold as an example for user defined active policy implementations. 
+By default triggers can only trigger when a new element arrives. This might not be suitable for all the use-cases with low data rates. To also provide triggering between elements, so called active policies can be used (the two interfaces controlling this special behaviour is `ActiveTriggerPolicy` and `CentralActiveTrigger`). The predefined time-based policies are already implemented in such a way and can hold as an example for user defined active policy implementations.
 
 Time-based trigger and eviction policies can work with user defined `TimeStamp` implementations, these policies already cover most use cases.
  
@@ -734,7 +732,7 @@ dataStream.window(Time.of(1, TimeUnit.MINUTES)).every(Time.of(10,TimeUnit.SECOND
 
 
 #### Map on windowed data streams
-The `WindowedDataStream<T>.mapWindow(WindowMapFunction<T,O>)` transformation calls  `mapWindow(…)` for each `StreamWindow` in the discretised stream providing access to all elements in the window through the iterable interface. At each function call the output `StreamWindow<O>` will consist of all the elements collected to the collector. This allows a straightforward way of mapping one stream window to another.
+The `WindowedDataStream<T>.mapWindow(WindowMapFunction<T,O>)` transformation calls  `mapWindow(…)` for each `StreamWindow` in the discretised stream, providing access to all elements in the window through the iterable interface. At each function call the output `StreamWindow<O>` will consist of all the elements collected to the collector. This allows a straightforward way of mapping one stream window to another.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -775,7 +773,7 @@ dataStream.window(Count.of(100)).every(…).groupBy(groupingField).max(field)
 
 </div>
 
-Using this approach we took the last 100 elements, divided it into groups by key then applied the aggregation. To create fixed size windows for every key we need to reverse the order of the groupBy call. So to take the max for the last 100 elements in Each group:
+Using this approach we took the last 100 elements, divided it into groups by key, and then applied the aggregation. To create fixed size windows for every key, we need to bring the groupBy call before the window call. So to take the max for the last 100 elements in each group:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -813,9 +811,9 @@ dataStream.window(Count.of(1000)).groupBy(firstKey).mapWindow(…)
 </div>
 </div>
 
-The above call would create global windows of 1000 elements group it by the first key and then apply a mapWindow transformation. The resulting windowed stream will then be grouped by the second key and further reduced. The results of the reduce transformation are then flattened.
+The above call would create global windows of 1000 elements, group them by the first key, and then apply a mapWindow transformation. The resulting windowed stream will then be grouped by the second key and further reduced. The results of the reduce transformation are then flattened.
 
-Notice that here we only defined the window size once at the beginning of the transformation. This means that anything that happens afterwards (`groupBy(firstKey).mapWindow(…).groupBy(secondKey).reduceWindow(…)`) happens inside the 1000 element windows. Of course the mapWindow might reduce the number of elements but the key idea is that each transformation still corresponds to the same 1000 elements in the original stream.
+Notice that here we only defined the window size once at the beginning of the transformation. This means that anything that happens afterwards (`groupBy(firstKey).mapWindow(…).groupBy(secondKey).reduceWindow(…)`) happens inside the 1000 element windows. Of course the mapWindow might reduce the number of elements, but the key idea is that each transformation still corresponds to the same 1000 elements in the original stream.
 
 #### Periodic aggregations on the full stream history
 Sometimes it is necessary to aggregate over all the previously seen data in the stream. For this purpose either use the `dataStream.window(FullStream.window()).every(trigger)` or equivalently `dataStream.every(trigger)`. 
@@ -825,14 +823,14 @@ By default all window discretisation calls (`dataStream.window(…)`) define glo
 
 Sometimes it is sufficient to create local discretisations, which allows the discretiser to run in parallel and apply the given discretisation logic at every discretiser instance. To allow local discretisation use the `local()` method of the windowed data stream.
 
-For example `dataStream.window(Count.of(100)).maxBy(field)` would create global windows of 100 elements (Count discretises with parallelism of 1) and return the record with the max value by the selected field, alternatively the `dataStream.window(Count.of(100)).local().maxBy(field)` would create several count discretisers (as defined by the environment parallelism) and compute the max values accordingly.
+For example, `dataStream.window(Count.of(100)).maxBy(field)` would create global windows of 100 elements (Count discretises with parallelism of 1) and return the record with the max value by the selected field; alternatively the `dataStream.window(Count.of(100)).local().maxBy(field)` would create several count discretisers (as defined by the environment parallelism) and compute the max values accordingly.
 
 
 ### Temporal database style operators
 
 While database style operators like joins (on key) and crosses are hard to define properly on data streams, a straightforward interpretation is to apply these operators on windows of the data streams. 
 
-Currently join and cross operators are supported only on time windows. We are working on alleviating this limitations in the next release.
+Currently join and cross operators are supported only on time windows. We are working on alleviating this limitation in the next release.
 
 Temporal operators take the current windows of both streams and apply the join/cross logic on these window pairs.
 
@@ -877,7 +875,7 @@ dataStream1 cross dataStream2 onWindow (windowing_params)
 
 ### Co operators
 
-Co operators allow the users to jointly transform two `DataStream`s of different types providing a simple way to jointly manipulate streams with a shared state. It is designed to support joint stream transformations where union is not appropriate due to different data types or in case the user needs explicit tracking of the origin of individual elements.
+Co operators allow the users to jointly transform two `DataStream`s of different types, providing a simple way to jointly manipulate streams with a shared state. It is designed to support joint stream transformations where union is not appropriate due to different data types, or in case the user needs explicit tracking of the origin of individual elements.
 Co operators can be applied to `ConnectedDataStream`s which represent two `DataStream`s of possibly different types. A `ConnectedDataStream` can be created by calling the `connect(otherDataStream)` method of a `DataStream`.
 
 #### Map on ConnectedDataStream
@@ -976,7 +974,7 @@ SplitDataStream<Integer> split = someDataStream.split(outputSelector);
 DataStream<Integer> even = split.select("even");
 DataStream<Integer> odd = split.select("odd");
 {% endhighlight %}
-In the above example the data stream named “even” will only contain elements that are directed to the output named “even”. The user can of course further transform these new stream by for example squaring only the even elements.
+In the above example the data stream named “even” will only contain elements that are directed to the output named “even”. The user can of course further transform these new streams by for example squaring only the even elements.
 
 Data streams only receive the elements directed to selected output names. The user can also select multiple output names by `splitStream.select(“output1”, “output2”, …)`. It is common that a stream listens to all the outputs, so `split.selectAll()` provides this functionality without having to select all names.
 
@@ -1069,9 +1067,9 @@ DataStream<Integer> output = tail.filter(isOutput);
 output.map(…).project(…);
 {% endhighlight %}
 
-In this case all values passing the `isFeedback` filter will be fed back to the iteration head, and the values passing the `isOutput` filter will produce the output of the iteration that can be transformed further (here with a `map` and a `projection`) outside the iteration.
+In this case, all values passing the `isFeedback` filter will be fed back to the iteration head, and the values passing the `isOutput` filter will produce the output of the iteration that can be transformed further (here with a `map` and a `projection`) outside the iteration.
 
-Because iterative streaming programs do not have a set number of iterations for each data element, the streaming program has no information on the end of its input. As a consequence iterative streaming programs run until the user manually stops the program. While this is acceptable under normal circumstances a method is provided to allow iterative programs to shut down automatically if no input received by the iteration head for a predefined number of milliseconds.
+Because iterative streaming programs do not have a set number of iterations for each data element, the streaming program has no information on the end of its input. As a consequence iterative streaming programs run until the user manually stops the program. While this is acceptable under normal circumstances, a method is provided to allow iterative programs to shut down automatically if no input is received by the iteration head for a predefined number of milliseconds.
 To use this functionality the user needs to add the maxWaitTimeMillis parameter to the `dataStream.iterate(…)` call to control the max wait time. 
 </div>
 <div data-lang="scala" markdown="1">
@@ -1133,7 +1131,7 @@ Rich functions provide, in addition to the user-defined function (`map()`, `redu
 Lambda expressions with Java 8
 ------------
 
-For a more consise code one can rely on one of the main feature of Java 8, lambda expressions. The following program has similar functionality to the one provided in the [example](#example-program) section, while showcasing the usage of lambda expressions.
+For a more concise code one can rely on one of the main features of Java 8: lambda expressions. The following program has similar functionality to the one provided in the [example](#example-program) section, while showcasing the usage of lambda expressions.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java8" markdown="1">
@@ -1189,8 +1187,8 @@ Setting parallelism for operators works exactly the same way as in the batch Fli
 
 ### Buffer timeout
 
-By default data points are not transferred on the network one-by-one, which would cause unnecessary network traffic, but are buffered in the output buffers. The size of the output buffers can be set in the Flink config files. While this method is good for optimizing throughput, it can cause latency issues when the incoming stream is not fast enough.
-To tackle this issue the user can call `env.setBufferTimeout(timeoutMillis)` on the execution environment (or on individual operators) to set a maximum wait time for the buffers to fill up. After this time the buffers are flushed automatically even if they are not full. The default value for this timeout is 100 ms which should be appropriate for most use-cases. 
+By default, data points are not transferred on the network one-by-one, which would cause unnecessary network traffic, but are buffered in the output buffers. The size of the output buffers can be set in the Flink config files. While this method is good for optimizing throughput, it can cause latency issues when the incoming stream is not fast enough.
+To tackle this issue the user can call `env.setBufferTimeout(timeoutMillis)` on the execution environment (or on individual operators) to set a maximum wait time for the buffers to fill up. After this time, the buffers are flushed automatically even if they are not full. The default value for this timeout is 100 ms, which should be appropriate for most use-cases.
 
 Usage:
 
@@ -1214,7 +1212,7 @@ env.genereateSequence(1,10).map(myMap).setBufferTimeout(timeoutMillis)
 </div>
 
 To maximise the throughput the user can call `setBufferTimeout(-1)` which will remove the timeout and buffers will only be flushed when they are full.
-To minimise latency, set the timeout to a value close to 0 (for example 5 or 10 ms). Theoretically a buffer timeout of 0 will cause all outputs to be flushed when produced, but this setting should be avoided because it can cause severe performance degradation.
+To minimise latency, set the timeout to a value close to 0 (for example 5 or 10 ms). Theoretically, a buffer timeout of 0 will cause all output to be flushed when produced, but this setting should be avoided, because it can cause severe performance degradation.
 
 
 [Back to top](#top)
@@ -1227,11 +1225,11 @@ Connectors provide an interface for accessing data from various third party sour
 
 Typically the connector packages consist of a source and sink class (with the exception of Twitter where only a source is provided). To use these sources the user needs to pass Serialization/Deserialization schemas for the connectors for the desired types. (Or use some predefined ones)
 
-To run an application using one of these connectors usually additional third party components are required to be installed and launched, e.g. the servers for the message queues. Further instructions for these can be found in the corresponding subsections. [Docker containers](#docker-containers-for-connectors) are also provided encapsulating these services to aid users getting started with connectors.
+To run an application using one of these connectors, additional third party components are usually required to be installed and launched, e.g. the servers for the message queues. Further instructions for these can be found in the corresponding subsections. [Docker containers](#docker-containers-for-connectors) are also provided encapsulating these services to aid users getting started with connectors.
 
 ### Apache Kafka
 
-This connector provides access to data streams from [Apache Kafka](https://kafka.apache.org/). For using this connector add the following dependency to your project:
+This connector provides access to data streams from [Apache Kafka](https://kafka.apache.org/). To use this connector, add the following dependency to your project:
 
 {% highlight xml %}
 <dependency>
@@ -1294,7 +1292,7 @@ env.enableMonitoring(5000);
 </div>
 
 Also note that Flink can only restart the topology if enough processing slots are available to restart the topology.
-So if the topology fails due to loss of a TaskManager, there must be still enough slots available afterwards.
+So if the topology fails due to loss of a TaskManager, there must still be enough slots available afterwards.
 Flink on YARN supports automatic restart of lost YARN containers.
 
 The following arguments have to be provided for the `PersistentKafkaSource(...)` constructor:
@@ -1367,7 +1365,7 @@ More about Kafka can be found [here](https://kafka.apache.org/documentation.html
 
 ### RabbitMQ
 
-This connector provides access to data streams from [RabbitMQ](http://www.rabbitmq.com/).For using this connector add the following dependency to your project:
+This connector provides access to data streams from [RabbitMQ](http://www.rabbitmq.com/). To use this connector, add the following dependency to your project:
 
 {% highlight xml %}
 <dependency>
@@ -1377,8 +1375,8 @@ This connector provides access to data streams from [RabbitMQ](http://www.rabbit
 </dependency>
 {% endhighlight %}
 
-##### Installing RabbitMQ
-Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.com/download.html). After the installation the server automatically starts and the application connecting to RabbitMQ can be launched.
+#### Installing RabbitMQ
+Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.com/download.html). After the installation the server automatically starts, and the application connecting to RabbitMQ can be launched.
 
 #### RabbitMQ Source
 
@@ -1416,7 +1414,7 @@ The followings have to be provided for the `RMQSink(…)` constructor in order:
 
 1. The hostname
 2. The queue name
-3. Serialisation schema
+3. Serialization schema
 
 Example: 
 
@@ -1439,7 +1437,7 @@ More about RabbitMQ can be found [here](http://www.rabbitmq.com/).
 
 ### Twitter Streaming API
 
-Twitter Streaming API provides opportunity to connect to the stream of tweets made available by Twitter. Flink Streaming comes with a built-in `TwitterSource` class for establishing a connection to this stream.For using this connector add the following dependency to your project:
+Twitter Streaming API provides opportunity to connect to the stream of tweets made available by Twitter. Flink Streaming comes with a built-in `TwitterSource` class for establishing a connection to this stream. To use this connector, add the following dependency to your project:
 
 {% highlight xml %}
 <dependency>
@@ -1454,11 +1452,11 @@ In order to connect to Twitter stream the user has to register their program and
 
 #### Acquiring the authentication information
 First of all, a Twitter account is needed. Sign up for free at [twitter.com/signup](https://twitter.com/signup) or sign in at Twitter's [Application Management](https://apps.twitter.com/) and register the application by clicking on the "Create New App" button. Fill out a form about your program and accept the Terms and Conditions. 
-After selecting the application you the API key and API secret (called `consumerKey` and `sonsumerSecret` in `TwitterSource` respectively) is located on the "API Keys" tab. The necessary access token data (`token` and `secret`) can be acquired here. 
+After selecting the application, the API key and API secret (called `consumerKey` and `sonsumerSecret` in `TwitterSource` respectively) is located on the "API Keys" tab. The necessary access token data (`token` and `secret`) can be acquired here.
 Remember to keep these pieces of information a secret and do not push them to public repositories.
 
 #### Accessing the authentication information
-Create a properties file and pass its path in the constructor of `TwitterSource`. The content of the file should be similar to this:
+Create a properties file, and pass its path in the constructor of `TwitterSource`. The content of the file should be similar to this:
 
 ~~~bash
 #properties file for my app
@@ -1479,7 +1477,7 @@ for streaming
 Both constructors expect a `String authPath` argument determining the location of the properties file containing the authentication information. In the first case, `numberOfTweets` determine how many tweet the source emits. 
 
 #### Usage
-In constract to other connecters the `TwitterSource` depends on no additional services. For example the following code should run gracefully:
+In contrast to other connectors, the `TwitterSource` depends on no additional services. For example the following code should run gracefully:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1495,7 +1493,7 @@ streamSource = env.addSource(new TwitterSource("/PATH/TO/myFile.properties"))
 </div>
 
 The `TwitterSource` emits strings containing a JSON code. 
-To retrieve information from the JSON code you can add a FlatMap or a Map function handling JSON code. For example use an implementation `JSONParseFlatMap` abstract class among the examples. `JSONParseFlatMap` is an extension of the `FlatMapFunction` and has a
+To retrieve information from the JSON code you can add a FlatMap or a Map function handling JSON code. For example, there is an implementation `JSONParseFlatMap` abstract class among the examples. `JSONParseFlatMap` is an extension of the `FlatMapFunction` and has a
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1528,7 +1526,7 @@ The official Docker installation guide can be found [here](https://docs.docker.c
 After installing Docker an image can be pulled for each connector. Containers can be started from these images where all the required configurations are set.
 
 #### Creating a jar with all the dependencies
-For the easiest set up create a jar with all the dependencies of the *flink-streaming-connectors* project.
+For the easiest setup, create a jar with all the dependencies of the *flink-streaming-connectors* project.
 
 ~~~bash
 cd /PATH/TO/GIT/flink/flink-staging/flink-streaming-connectors
@@ -1544,13 +1542,13 @@ Pull the docker image:
 sudo docker pull flinkstreaming/flink-connectors-rabbitmq 
 ~~~
 
-To run the container type:
+To run the container, type:
 
 ~~~bash
 sudo docker run -p 127.0.0.1:5672:5672 -t -i flinkstreaming/flink-connectors-rabbitmq
 ~~~
 
-Now a terminal started running from the image with all the necessary configurations to test run the RabbitMQ connector. The -p flag binds the localhost's and the Docker container's ports so RabbitMQ can communicate with the application through these.
+Now a terminal has started running from the image with all the necessary configurations to test run the RabbitMQ connector. The -p flag binds the localhost's and the Docker container's ports so RabbitMQ can communicate with the application through these.
 
 To start the RabbitMQ server:
 
@@ -1558,14 +1556,14 @@ To start the RabbitMQ server:
 sudo /etc/init.d/rabbitmq-server start
 ~~~
 
-To launch the example on the host computer execute:
+To launch the example on the host computer, execute:
 
 ~~~bash
 java -cp /PATH/TO/JAR-WITH-DEPENDENCIES org.apache.flink.streaming.connectors.rabbitmq.RMQTopology \
 > log.txt 2> errorlog.txt
 ~~~
 
-In the example there are two connectors. One that sends messages to RabbitMQ and one that receives messages from the same queue. In the logger messages the arriving messages can be observed in the following format:
+There are two connectors in the example. One that sends messages to RabbitMQ, and one that receives messages from the same queue. In the logger messages, the arriving messages can be observed in the following format:
 
 ~~~
 <DATE> INFO rabbitmq.RMQTopology: String: <one> arrived from RMQ 
@@ -1590,7 +1588,7 @@ sudo docker run -p 127.0.0.1:2181:2181 -p 127.0.0.1:9092:9092 -t -i \
 flinkstreaming/flink-connectors-kafka
 ~~~
 
-Now a terminal started running from the image with all the necessary configurations to test run the Kafka connector. The -p flag binds the localhost's and the Docker container's ports so Kafka can communicate with the application through these.
+Now a terminal has started running from the image with all the necessary configurations to test run the Kafka connector. The -p flag binds the localhost's and the Docker container's ports so Kafka can communicate with the application through these.
 First start a zookeeper in the background:
 
 ~~~bash
@@ -1613,7 +1611,7 @@ java -cp /PATH/TO/JAR-WITH-DEPENDENCIES org.apache.flink.streaming.connectors.ka
 ~~~
 
 
-In the example there are two connectors. One that sends messages to Kafka and one that receives messages from the same queue. In the logger messages the arriving messages can be observed in the following format:
+In the example there are two connectors. One that sends messages to Kafka, and one that receives messages from the same queue. In the logger messages, the arriving messages can be observed in the following format:
 
 ~~~
 <DATE> INFO kafka.KafkaTopology: String: (0) arrived from Kafka
