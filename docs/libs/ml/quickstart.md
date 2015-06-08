@@ -66,6 +66,10 @@ We can load the data as a `DataSet[String]` first:
 
 {% highlight scala %}
 
+import org.apache.flink.api.scala.ExecutionEnvironment
+
+val env = ExecutionEnvironment.createLocalEnvironment(2)
+
 val survival = env.readCsvFile[(String, String, String, String)]("/path/to/haberman.data")
 
 {% endhighlight %}
@@ -75,6 +79,9 @@ dataset with the FlinkML classification algorithms. We know that the 4th element
 is the class label, and the rest are features, wo we can build `LabeledVector` elements like this:
 
 {% highlight scala %}
+
+import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.math.DenseVector
 
 val survivalLV = survival
   .map{tuple =>
@@ -102,6 +109,8 @@ We can simply import the dataset then using:
 
 {% highlight scala %}
 
+import org.apache.flink.ml.MLUtils
+
 val astroTrain = MLUtils.readLibSVM("path/to/svmguide1")
 val astroTest = MLUtils.readLibSVM("path/to/svmguide1.t")
 
@@ -120,6 +129,8 @@ to avoid overfitting. The step size determines the contribution of the weight ve
 the next weight vector value. The parameter sets the initial step size.
 
 {% highlight scala %}
+
+import org.apache.flink.ml.classification.SVM
 
 val svm = SVM()
   .setBlocks(env.getParallelism)
