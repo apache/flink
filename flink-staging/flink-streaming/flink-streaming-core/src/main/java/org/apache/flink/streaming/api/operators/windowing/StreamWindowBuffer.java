@@ -37,6 +37,7 @@ public class StreamWindowBuffer<T>
 	public StreamWindowBuffer(WindowBuffer<T> buffer) {
 		this.buffer = buffer;
 		setChainingStrategy(ChainingStrategy.FORCE_ALWAYS);
+		disableInputCopy();
 	}
 
 	@Override
