@@ -19,11 +19,16 @@ package org.apache.flink.api.java;
  * limitations under the License.
  */
 
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 
 import org.apache.flink.api.scala.FlinkILoop;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Special version of {@link org.apache.flink.api.java.RemoteEnvironment} that has a reference
@@ -61,8 +66,19 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 
 		String jarFile = flinkILoop.writeFilesToDisk().getAbsolutePath();
 
-		// call "traditional" execution methods
-		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFile);
+		// get "external jars, and add the shell command jar, pass to executor
+		List<String> alljars = new ArrayList<String>();
+		// get external (library) jars
+		String[] extJars = this.flinkILoop.getExternalJars();
+		
+		if(!ArrayUtils.isEmpty(extJars)) {
+			alljars.addAll(Arrays.asList(extJars));
+		}
+		// add shell commands
+		alljars.add(jarFile);
+		String[] alljarsArr = new String[alljars.size()];
+		alljarsArr = alljars.toArray(alljarsArr);
+		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, alljarsArr);
 
 		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
 		return executor.executePlan(p);

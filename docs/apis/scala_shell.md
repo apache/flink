@@ -68,3 +68,13 @@ Scala-Flink> env.execute("MyProgram")
 
 The Flink Shell comes with command history and autocompletion.
 
+## Adding external dependencies
+
+It is possible to add external classpaths to the Scala-shell. These will be sent to the Jobmanager automatically alongside your shell program, when calling execute.
+
+Use the parameter `-a <path/to/jar.jar>` or `--addclasspath <path/to/jar.jar>` to load additional classes.
+
+~~~bash
+bin/start-scala-shell --addclasspath <path/to/jar.jar>
+~~~
+
