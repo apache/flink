@@ -29,6 +29,7 @@ import java.util.UUID;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FileStateHandle;
@@ -126,7 +127,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		public void run(SourceContext<Long> sourceCtx) throws Exception {
 			final Object checkpointLock = sourceCtx.getCheckpointLock();
 
-			StreamingRuntimeContext runtimeCtx = (StreamingRuntimeContext) getRuntimeContext();
+			RuntimeContext runtimeCtx = getRuntimeContext();
 
 			final long stepSize = runtimeCtx.getNumberOfParallelSubtasks();
 			final long congruence = runtimeCtx.getIndexOfThisSubtask();

@@ -228,7 +228,7 @@ class DataStreamTest {
     assert(7 == graph.getStreamNode(windowed.getId).getParallelism)
     assert(7 == graph.getStreamNode(sink.getId).getParallelism)
 
-    val parallelSource = env.generateParallelSequence(0, 0)
+    val parallelSource = env.generateSequence(0, 0)
 
     assert(7 == graph.getStreamNode(parallelSource.getId).getParallelism)
 
