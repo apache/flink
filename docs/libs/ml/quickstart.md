@@ -185,7 +185,7 @@ make predictions.
 
 scaledSVM.fit(astroTrain)
 
-val predictionPairsScaled= scaledSVM.predict(predictionsScaled)
+val predictionPairsScaled= scaledSVM.predict(astroTest)
 
 {% endhighlight %}
 
