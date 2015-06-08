@@ -1,4 +1,5 @@
 ---
+mathjax: include
 htmlTitle: FlinkML - Quickstart Guide
 title: <a href="../ml">FlinkML</a> - Quickstart Guide
 ---
@@ -30,22 +31,22 @@ FlinkML is designed to make learning from your data a straight-forward process, 
 the complexities that usually come with having to deal with big data learning tasks. In this
 quick-start guide we will show just how easy it is to solve a simple supervised learning problem
 using FlinkML. But first some basics, feel free to skip the next few lines if you're already
-familiar with Machine Learning (ML)
+familiar with Machine Learning (ML).
 
-As defined by Murphy [cite ML-APP] ML deals with detecting patterns in data, and using those
+As defined by Murphy [1] ML deals with detecting patterns in data, and using those
 learned patterns to make predictions about the future. We can categorize most ML algorithms into
 two major categories: Supervised and Unsupervised Learning.
 
 * Supervised Learning deals with learning a function (mapping) from a set of inputs
-(predictors) to a set of outputs. The learning is done using a __training set__ of (input,
+(features) to a set of outputs. The learning is done using a __training set__ of (input,
 output) pairs that we use to approximate the mapping function. Supervised learning problems are
 further divided into classification and regression problems. In classification problems we try to
 predict the __class__ that an example belongs to, for example whether a user is going to click on
-an ad or not. Regression problems are about predicting (real) numerical values,  often called the dependent
-variable, for example what the temperature will be tomorrow.
+an ad or not. Regression problems one the other hand, are about predicting (real) numerical 
+values, often called the dependent variable, for example what the temperature will be tomorrow.
 
 * Unsupervised learning deals with discovering patterns and regularities in the data. An example
-of this would be __clustering__, where we try to discover groupings of the data from the
+of this would be *clustering*, where we try to discover groupings of the data from the
 descriptive features. Unsupervised learning can also be used for feature selection, for example
 through [principal components analysis](https://en.wikipedia.org/wiki/Principal_component_analysis).
 
@@ -58,72 +59,65 @@ object will have a FlinkML `Vector` member representing the features of the exam
 member which represents the label, which could be the class in a classification problem, or the dependent
 variable for a regression problem.
 
-# TODO: Get dataset that has separate train and test sets
-As an example, we can use the Breast Cancer Wisconsin (Diagnostic) Data Set, which you can
-[download from the UCI ML repository](http://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/breast-cancer-wisconsin.data).
+As an example, we can use Haberman's Survival Data Set , which you can
+[download from the UCI ML repository](http://archive.ics.uci.edu/ml/machine-learning-databases/haberman/haberman.data.
 
 We can load the data as a `DataSet[String]` first:
 
 {% highlight scala %}
 
-val cancer = env.readCsvFile[(String, String, String, String, String, String, String, String, String, String, String)]("/path/to/breast-cancer-wisconsin.data")
+val survival = env.readCsvFile[(String, String, String, String)]("/path/to/haberman.data")
 
 {% endhighlight %}
 
-The dataset has some missing values indicated by `?`. We can filter those rows out and
-then transform the data into a `DataSet[LabeledVector]`. This will allow us to use the
-dataset with the FlinkML classification algorithms.
+We can now transform the data into a `DataSet[LabeledVector]`. This will allow us to use the
+dataset with the FlinkML classification algorithms. We know that the 4th element of the dataset
+is the class label, and the rest are features, wo we can build `LabeledVector` elements like this:
 
 {% highlight scala %}
 
-val cancerLV = cancer
-  .map(_.productIterator.toList)
-  .filter(!_.contains("?"))
-  .map{list =>
+val survivalLV = survival
+  .map{tuple =>
+    val list = tuple.productIterator.toList
     val numList = list.map(_.asInstanceOf[String].toDouble)
-    LabeledVector(numList(11), DenseVector(numList.take(10).toArray))
-    }
+    LabeledVector(numList(3), DenseVector(numList.take(3).toArray))
+  }
 
 {% endhighlight %}
 
-We can then use this data to train a learner.
+We can then use this data to train a learner. We will use another dataset to exemplify building a
+learner, that will allow us to show how we can import other dataset formats.
+
+**LibSVM files**
 
 A common format for ML datasets is the LibSVM format and a number of datasets using that format can be
 found [in the LibSVM datasets website](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/). FlinkML provides utilities for loading
 datasets using the LibSVM format through the `readLibSVM` function available through the MLUtils object.
 You can also save datasets in the LibSVM format using the `writeLibSVM` function.
-Let's import the Adult (a9a) dataset. You can download the 
-[training set here](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/a8a)
-and the [test set here](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/a8a.t).
+Let's import the svmguide1 dataset. You can download the 
+[training set here](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/svmguide1)
+and the [test set here](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/svmguide1.t).
 
 We can simply import the dataset then using:
 
 {% highlight scala %}
 
-val adultTrain = MLUtils.readLibSVM("path/to/a8a")
-val adultTest = MLUtils.readLibSVM("path/to/a8a.t")
+val astroTrain = MLUtils.readLibSVM("path/to/svmguide1")
+val astroTest = MLUtils.readLibSVM("path/to/svmguide1.t")
 
 {% endhighlight %}
 
-This gives us a `DataSet[LabeledVector]` that we will use in the following section to create a classifier.
-
-Due to an error in the test dataset we have to adjust the test data using the following code, to 
-ensure that the dimensionality of all test examples is 123, as with the training set:
-
-{% highlight scala %}
-
-val adjustedTest = adultTest.map{lv =>
-      val vec = lv.vector.asBreeze
-      val padded = vec.padTo(123, 0.0).toDenseVector
-      val fvec = padded.fromBreeze
-      LabeledVector(lv.label, fvec)
-    }
-
-{% endhighlight %}
+This gives us two `DataSet[LabeledVector]` that we will use in the following section to create a 
+classifier.
 
 ## Classification
 
 Once we have imported the dataset we can train a `Predictor` such as a linear SVM classifier.
+We can set a number of parameters for the classifier. Here we set the `Blocks` parameter,
+which is used to split the input by the underlying CoCoA algorithm [2] uses. The regularization
+parameter determines the amount of $\lambda_2$ regularization applied, which is used
+to avoid overfitting. The step size determines the contribution of the weight vector updates to 
+the next weight vector value. The parameter sets the initial step size.
 
 {% highlight scala %}
 
@@ -134,33 +128,15 @@ val svm = SVM()
   .setStepsize(0.1)
   .setSeed(42)
 
-svm.fit(adultTrain)
+svm.fit(astroTrain)
 
 {% endhighlight %}
 
-Let's now make predictions on the test set and see how well we do in terms of absolute error
-We will also create a function that thresholds the predictions to the {-1, 1} scale that the
-dataset uses.
+We can now make predictions on the test set.
 
 {% highlight scala %}
 
-def thresholdPredictions(predictions: DataSet[(Double, Double)])
-: DataSet[(Double, Double)] = {
-  predictions.map {
-    truthPrediction =>
-      val truth = truthPrediction._1
-      val prediction = truthPrediction._2
-      val thresholdedPrediction = if (prediction > 0.0) 1.0 else -1.0
-      (truth, thresholdedPrediction)
-  }
-}
-
-val predictionPairs = thresholdPredictions(svm.predict(adjustedTest))
-
-val absoluteErrorSum = predictionPairs.collect().map{
-  case (truth, prediction) => Math.abs(truth - prediction)}.sum
-
-println(s"Absolute error: $absoluteErrorSum")
+val predictionPairs = svm.predict(astroTest)
 
 {% endhighlight %}
 
@@ -170,19 +146,20 @@ Next we will see if we can improve the performance by pre-processing our data.
 
 A pre-processing step that is often encouraged when using SVM classification is scaling
 the input features to the [0, 1] range, in order to avoid features with extreme values dominating the rest.
-FlinkML has a number of `Transformers` such as `StandardScaler` that are used to pre-process data, and a key feature is the ability to
-chain `Transformers` and `Predictors` together. This allows us to run the same pipeline of transformations and make predictions
-on the train and test data in a straight-forward and type-safe manner. You can read more on the pipeline system of FlinkML,
-[here](pipelines.html).
+FlinkML has a number of `Transformers` such as `MinMaxScaler` that are used to pre-process data, 
+and a key feature is the ability to chain `Transformers` and `Predictors` together. This allows 
+us to run the same pipeline of transformations and make predictions on the train and test data in
+a straight-forward and type-safe manner. You can read more on the pipeline system of FlinkML
+[in the pipelines documentation](pipelines.html).
 
-Let first create a scaling transformer for the features in our dataset, and chain it to a new SVM classifier.
+Let us first create a normalizing transformer for the features in our dataset, and chain it to a 
+new SVM classifier.
 
 {% highlight scala %}
 
-import org.apache.flink.ml.preprocessing.StandardScaler
+import org.apache.flink.ml.preprocessing.MinMaxScaler
 
-val scaler = StandardScaler()
-scaler.fit(adultTrain)
+val scaler = MinMaxScaler()
 
 val scaledSVM = scaler.chainPredictor(svm)
 
@@ -195,27 +172,31 @@ make predictions.
 
 {% highlight scala %}
 
-scaledSVM.fit(adultTrain)
+scaledSVM.fit(astroTrain)
 
-val predictionPairsScaled= thresholdPredictions(scaledSVM.predict(predictionsScaled))
-
-val absoluteErrorSumScaled = predictionPairs.collect().map{
-  case (truth, prediction) => Math.abs(truth - prediction)}.sum
-
-println(s"Absolute error with scaled features: $absoluteErrorSumScaled")
+val predictionPairsScaled= scaledSVM.predict(predictionsScaled)
 
 {% endhighlight %}
 
-The effect that the transformation has on the rror for this dataset is a bit unpredictable.
-In reality the scaling transformation does
-not fit the dataset we are using, since the features are translated categorical features and as
-such, operations like normalization and standard scaling do not make much sense.
+The scaled inputs should give us better prediction performance.
 
 ## Where to go from here
 
-This quickstart guide can act as an introduction to the basic concepts of FlinkML, but there's a lot more you can do.
-We recommend going through the [FlinkML documentation](index.html), and trying out the different algorithms.
-A very good way to get started is to play around with interesting datasets from the UCI ML repository and the LibSVM datasets.
-Tackling an interesting problem from a website like [Kaggle](https://www.kaggle.com) or [DrivenData](http://www.drivendata.org/)
-is also a great way to learn by competing with other data scientists.
-If you would like to contribute some new algorithms take a look at our [contribution guide](contribution_guide.html).
+This quickstart guide can act as an introduction to the basic concepts of FlinkML, but there's a lot
+more you can do.
+We recommend going through the [FlinkML documentation](index.html), and trying out the different
+algorithms.
+A very good way to get started is to play around with interesting datasets from the UCI ML 
+repository and the LibSVM datasets.
+Tackling an interesting problem from a website like [Kaggle](https://www.kaggle.com) or 
+[DrivenData](http://www.drivendata.org/) is also a great way to learn by competing with other 
+data scientists.
+If you would like to contribute some new algorithms take a look at our 
+[contribution guide](contribution_guide.html).
+
+**References**
+
+[1] Murphy, Kevin P. *Machine learning: a probabilistic perspective.* MIT press, 2012.
+
+[2] Jaggi, Martin, et al. *Communication-efficient distributed dual coordinate ascent.* 
+Advances in Neural Information Processing Systems. 2014.
