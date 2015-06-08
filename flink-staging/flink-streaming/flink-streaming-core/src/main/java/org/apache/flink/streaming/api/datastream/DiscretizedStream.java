@@ -198,16 +198,18 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	}
 
 	private DiscretizedStream<OUT> filterEmpty(DiscretizedStream<OUT> input) {
-		return wrap(input.discretizedStream.transform("Filter", input.discretizedStream.getType(),
-				new StreamFilter<StreamWindow<OUT>>(new EmptyWindowFilter<OUT>())), input.isPartitioned);
+		StreamFilter<StreamWindow<OUT>> emptyFilter = new StreamFilter<StreamWindow<OUT>>(new EmptyWindowFilter<OUT>());
+		emptyFilter.disableInputCopy();
+		return wrap(input.discretizedStream.transform("Filter", input.discretizedStream.getType(), emptyFilter), input.isPartitioned);
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private DataStream<Tuple2<Integer, Integer>> extractPartsByID(DiscretizedStream<OUT> input) {
+		StreamFlatMap<StreamWindow<OUT>, Tuple2<Integer, Integer>> partExtractor = new StreamFlatMap<StreamWindow<OUT>, Tuple2<Integer, Integer>>(
+				new WindowPartExtractor<OUT>());
+		partExtractor.disableInputCopy();
 		return input.discretizedStream.transform("ExtractParts", new TupleTypeInfo(Tuple2.class,
-				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-				new StreamFlatMap<StreamWindow<OUT>, Tuple2<Integer, Integer>>(
-						new WindowPartExtractor<OUT>()));
+				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO), partExtractor);
 	}
 
 	private DiscretizedStream<OUT> partition(WindowTransformation transformation) {

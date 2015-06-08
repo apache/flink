@@ -270,6 +270,26 @@ The `DataStream` is the basic data abstraction provided by the Flink Streaming. 
 
 The transformations may return different data stream types allowing more elaborate transformations, for example the `groupBy(…)` method returns a `GroupedDataStream` which can be used for grouped transformations such as aggregating by key. We will discover more elaborate data stream types in the upcoming sections.
 
+### Object Reuse Behavior
+
+Apache Flink is trying to reduce the number of object allocations for better performance.
+
+By default, user defined functions (like `map()` or `reduce()`) are getting new objects on each call
+(or through an iterator). So it is possible to keep references to the objects inside the function
+(for example in a List).
+
+There is a switch at the `ExectionConfig` which allows users to enable the object reuse mode:
+
+```
+env.getExecutionConfig().enableObjectReuse()
+```
+
+For mutable types, Flink will reuse object
+instances. In practice that means that a `map()` function will always receive the same object
+instance (with its fields set to new values). The object reuse mode will lead to better performance
+because fewer objects are created, but the user has to manually take care of what they are doing
+with the object references.
+
 ### Partitioning
 
 Partitioning controls how individual data points of a stream are distributed among the parallel instances of the transformation operators. This also controls the ordering of the records in the `DataStream`. There is partial ordering guarantee for the outputs with respect to the partitioning scheme (outputs produced from each partition are guaranteed to arrive in the order they were produced).
