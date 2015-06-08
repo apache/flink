@@ -478,6 +478,39 @@ public class DataStreamTest {
 		assertTrue(globalPartitioner instanceof GlobalPartitioner);
 	}
 
+	@Test
+	public void iterationTest() {
+		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+
+		DataStream<Long> src = env.generateSequence(0, 0);
+
+		IterativeDataStream<Long> iterate = src.iterate();
+		DataStream<Long> iterationMap = iterate.map(new MapFunction<Long, Long>() {
+			@Override
+			public Long map(Long value) throws Exception {
+				return null;
+			}
+		});
+
+		iterate.closeWith(iterationMap);
+
+		assertEquals(1, streamGraph.getStreamLoops().size());
+		StreamLoop streamLoop = streamGraph.getStreamLoops().iterator().next();
+
+		StreamNode iterationHead = streamLoop.getSource();
+		StreamNode iterationTail = streamLoop.getSink();
+
+		try {
+			streamGraph.getStreamEdge(src.getId(), iterationMap.getId());
+			streamGraph.getStreamEdge(iterationHead.getId(), iterationMap.getId());
+			streamGraph.getStreamEdge(iterationMap.getId(), iterationTail.getId());
+		} catch (RuntimeException e) {
+			fail(e.getMessage());
+		}
+	}
+
 	/////////////////////////////////////////////////////////////
 	// Utilities
 	/////////////////////////////////////////////////////////////

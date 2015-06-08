@@ -379,6 +379,34 @@ class DataStreamTest {
   }
 
   @Test
+  def iterationTest {
+    val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism)
+    val streamGraph = env.getStreamGraph
+    val src: DataStream[Long] = env.generateSequence(0, 0)
+
+    val iterateMap: DataStream[Long] = src.iterate((ds: DataStream[Long]) => {
+      val mapInside = ds.map((x: Long) => x)
+      (mapInside, mapInside)
+    })
+
+    assert(1 == streamGraph.getStreamLoops.size)
+    val streamLoop: StreamGraph.StreamLoop = streamGraph.getStreamLoops.iterator.next
+    val iterationHead: StreamNode = streamLoop.getSource
+    val iterationTail: StreamNode = streamLoop.getSink
+
+    try {
+      streamGraph.getStreamEdge(src.getId, iterateMap.getId)
+      streamGraph.getStreamEdge(iterationHead.getId, iterateMap.getId)
+      streamGraph.getStreamEdge(iterateMap.getId, iterationTail.getId)
+    }
+    catch {
+      case e: RuntimeException => {
+        fail(e.getMessage)
+      }
+    }
+  }
+
+  @Test
   def testChannelSelectors {
     val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism)
 
