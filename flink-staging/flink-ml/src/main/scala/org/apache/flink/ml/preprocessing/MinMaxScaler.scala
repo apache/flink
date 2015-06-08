@@ -18,6 +18,7 @@
 package org.apache.flink.ml.preprocessing
 
 import breeze.linalg
+import breeze.linalg.{max, min}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.ml._
@@ -30,7 +31,7 @@ import org.apache.flink.ml.preprocessing.MinMaxScaler.{Max, Min}
 import scala.reflect.ClassTag
 
 /** Scales observations, so that all features are in a user-specified range.
-  * By default for [[MinMaxScaler]] transformer range = (0,1).
+  * By default for [[MinMaxScaler]] transformer range = [0,1].
   *
   * This transformer takes a subtype of  [[Vector]] of values and maps it to a
   * scaled subtype of [[Vector]] such that each feature lies between a user-specified range.
@@ -42,7 +43,7 @@ import scala.reflect.ClassTag
   * @example
   * {{{
   *               val trainingDS: DataSet[Vector] = env.fromCollection(data)
-  *               val transformer = MinMaxScaler().setMin(-1.0).setMax(1.0)
+  *               val transformer = MinMaxScaler().setMin(-1.0)
   *
   *               transformer.fit(trainingDS)
   *               val transformedDS = transformer.transform(trainingDS)
@@ -137,7 +138,6 @@ object MinMaxScaler {
 
   /** Calculates in one pass over the data the features' minimum and maximum values.
     *
-    *
     * @param dataSet The data set for which we want to calculate the minimum and maximum values.
     * @return  DataSet containing a single tuple of two vectors (minVector, maxVector).
     *          The first vector represents the minimum values vector and the second is the maximum
@@ -151,25 +151,9 @@ object MinMaxScaler {
     }.reduce {
       (minMax1, minMax2) => {
 
-        val tempMinimum = linalg.Vector.zeros[Double](minMax1._1.length)
+        val tempMinimum = min(minMax1._1, minMax2._1)
+        val tempMaximum = max(minMax1._2, minMax2._2)
 
-        for (i <- 0 until minMax1._1.length) {
-          tempMinimum(i) = if (minMax1._1(i) < minMax2._1(i)) {
-            minMax1._1(i)
-          } else {
-            minMax2._1(i)
-          }
-        }
-
-        val tempMaximum = linalg.Vector.zeros[Double](minMax1._2.length)
-
-        for (i <- 0 until minMax1._2.length) {
-          tempMaximum(i) = if (minMax1._2(i) > minMax2._2(i)) {
-            minMax1._2(i)
-          } else {
-            minMax2._2(i)
-          }
-        }
         (tempMinimum, tempMaximum)
       }
     }
@@ -203,8 +187,16 @@ object MinMaxScaler {
                 val (broadcastMin, broadcastMax) = metrics
                 var myVector = vector.asBreeze
 
+                //handle the case where a feature takes only one value
+                val rangePerFeature = (broadcastMax - broadcastMin)
+                for (i <- 0 until rangePerFeature.size) {
+                  if (rangePerFeature(i) == 0.0) {
+                    rangePerFeature(i)= 1.0
+                  }
+                }
+
                 myVector -= broadcastMin
-                myVector :/= (broadcastMax - broadcastMin)
+                myVector :/= rangePerFeature
                 myVector = (myVector :* (max - min)) + min
                 myVector.fromBreeze
               }
@@ -236,11 +228,18 @@ object MinMaxScaler {
                 val LabeledVector(label, vector) = labeledVector
                 var breezeVector = vector.asBreeze
 
+                //handle the case where a feature takes only one value
+                val rangePerFeature = (broadcastMax - broadcastMin)
+                for (i <- 0 until rangePerFeature.size) {
+                  if (rangePerFeature(i) == 0.0) {
+                    rangePerFeature(i)= 1.0
+                  }
+                }
+
                 breezeVector -= broadcastMin
-                breezeVector :/= (broadcastMax - broadcastMin)
+                breezeVector :/= rangePerFeature
                 breezeVector = (breezeVector :* (max - min)) + min
                 LabeledVector(label, breezeVector.fromBreeze)
-
               }
             }
           }

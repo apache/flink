@@ -84,7 +84,7 @@ The MinMax scaler implementation can be controlled by the following two paramete
       </td>
     </tr>
     <tr>
-      <td><strong>Std</strong></td>
+      <td><strong>Max</strong></td>
       <td>
         <p>
           The maximum value of the range for the scaled data set. (Default value: <strong>1.0</strong>)
@@ -100,7 +100,6 @@ The MinMax scaler implementation can be controlled by the following two paramete
 // Create MinMax scaler transformer
 val minMaxscaler = MinMaxScaler()
 .setMin(-1.0)
-.setMax(1.0)
 
 // Obtain data set to be scaled
 val dataSet: DataSet[Vector] = ...
