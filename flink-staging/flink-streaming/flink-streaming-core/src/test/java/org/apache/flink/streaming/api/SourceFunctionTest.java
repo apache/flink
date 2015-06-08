@@ -24,7 +24,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
-import org.apache.flink.streaming.util.MockSource;
+import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
+import org.apache.flink.streaming.util.SourceFunctionUtil;
 import org.junit.Test;
 
 public class SourceFunctionTest {
@@ -32,16 +33,26 @@ public class SourceFunctionTest {
 	@Test
 	public void fromElementsTest() throws Exception {
 		List<Integer> expectedList = Arrays.asList(1, 2, 3);
-		List<Integer> actualList = MockSource.createAndExecute(new FromElementsFunction<Integer>(1,
-				2, 3));
+		List<Integer> actualList = SourceFunctionUtil.runSourceFunction(new FromElementsFunction<Integer>(
+				1,
+				2,
+				3));
 		assertEquals(expectedList, actualList);
 	}
 
 	@Test
 	public void fromCollectionTest() throws Exception {
 		List<Integer> expectedList = Arrays.asList(1, 2, 3);
-		List<Integer> actualList = MockSource.createAndExecute(new FromElementsFunction<Integer>(
+		List<Integer> actualList = SourceFunctionUtil.runSourceFunction(new FromElementsFunction<Integer>(
 				Arrays.asList(1, 2, 3)));
+		assertEquals(expectedList, actualList);
+	}
+
+	@Test
+	public void generateSequenceTest() throws Exception {
+		List<Long> expectedList = Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L);
+		List<Long> actualList = SourceFunctionUtil.runSourceFunction(new StatefulSequenceSource(1,
+				7));
 		assertEquals(expectedList, actualList);
 	}
 

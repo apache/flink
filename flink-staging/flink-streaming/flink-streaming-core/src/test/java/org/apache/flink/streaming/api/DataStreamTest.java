@@ -295,7 +295,7 @@ public class DataStreamTest {
 		} catch (IllegalArgumentException success) {
 		}
 
-		DataStreamSource<Long> parallelSource = env.generateParallelSequence(0, 0);
+		DataStreamSource<Long> parallelSource = env.generateSequence(0, 0);
 		assertEquals(7, graph.getStreamNode(parallelSource.getId()).getParallelism());
 
 		parallelSource.setParallelism(3);

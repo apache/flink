@@ -57,11 +57,11 @@ import org.apache.flink.streaming.api.functions.source.FromSplittableIteratorFun
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.SplittableIterator;
 
 import java.io.File;
@@ -399,8 +399,10 @@ public abstract class StreamExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Creates a new data stream that contains a sequence of numbers. The data stream will be created with parallelism
-	 * one, so the order of the elements is guaranteed.
+	 * Creates a new data stream that contains a sequence of numbers. This is a parallel source,
+	 * if you manually set the parallelism to {@code 1}
+	 * (using {@link org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.setParallelism()})
+	 * the generated sequence of elements is in order.
 	 *
 	 * @param from
 	 * 		The number to start at (inclusive)
@@ -412,22 +414,7 @@ public abstract class StreamExecutionEnvironment {
 		if (from > to) {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
 		}
-		return fromCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO, "Sequence Source");
-	}
-
-	/**
-	 * Creates a new data stream that contains a sequence of numbers. The data stream will be created in parallel, so
-	 * there is no guarantee about the oder of the elements.
-	 *
-	 * @param from
-	 * 		The number to start at (inclusive)
-	 * @param to
-	 * 		The number to stop at (inclusive)
-	 * @return A data stream, containing all number in the [from, to] interval
-	 */
-	public DataStreamSource<Long> generateParallelSequence(long from, long to) {
-		return fromParallelCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO, "Parallel " +
-				"Sequence Source");
+		return addSource(new StatefulSequenceSource(from, to), "Sequence Source");
 	}
 
 	/**
