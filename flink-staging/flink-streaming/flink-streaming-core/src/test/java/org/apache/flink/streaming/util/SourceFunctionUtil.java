@@ -20,17 +20,27 @@ package org.apache.flink.streaming.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.apache.flink.util.Collector;
 
-public class MockSource<T> {
+public class SourceFunctionUtil<T> {
 
-	public static <T> List<T> createAndExecute(SourceFunction<T> sourceFunction) throws Exception {
+	public static <T> List<T> runSourceFunction(SourceFunction<T> sourceFunction) throws Exception {
 		List<T> outputs = new ArrayList<T>();
-		if (sourceFunction instanceof RichSourceFunction) {
-			((RichSourceFunction<T>) sourceFunction).open(new Configuration());
+		if (sourceFunction instanceof RichFunction) {
+			RuntimeContext runtimeContext =  new StreamingRuntimeContext("MockTask", new MockEnvironment(3 * 1024 * 1024, new MockInputSplitProvider(), 1024), null,
+					new ExecutionConfig());
+			((RichFunction) sourceFunction).setRuntimeContext(runtimeContext);
+
+			((RichFunction) sourceFunction).open(new Configuration());
 		}
 		try {
 			final Collector<T> collector = new MockOutput<T>(outputs);

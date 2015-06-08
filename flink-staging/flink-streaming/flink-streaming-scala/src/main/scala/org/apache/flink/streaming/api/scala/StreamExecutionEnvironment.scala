@@ -232,22 +232,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   // --------------------------------------------------------------------------------------------
 
   /**
-   * Creates a new DataStream that contains a sequence of numbers.
-   *
-   * Note that this operation will result in a non-parallel data source, i.e. a data source with
-   * a parallelism of one.
+   * Creates a new DataStream that contains a sequence of numbers. This source is a parallel source.
+   * If you manually set the parallelism to `1` the emitted elements are in order.
    */
   def generateSequence(from: Long, to: Long): DataStream[Long] = {
-    new DataStream[java.lang.Long](javaEnv.generateSequence(from, to)).
-      asInstanceOf[DataStream[Long]]
-  }
-
-  /**
-   * Creates a new DataStream that contains a sequence of numbers in a parallel fashion.
-   */
-  def generateParallelSequence(from: Long, to: Long): DataStream[Long] = {
-    new DataStream[java.lang.Long](javaEnv.generateParallelSequence(from, to)).
-      asInstanceOf[DataStream[Long]]
+    new DataStream[java.lang.Long](javaEnv.generateSequence(from, to))
+      .asInstanceOf[DataStream[Long]]
   }
 
   /**
