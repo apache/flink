@@ -266,6 +266,47 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 					"6,1,61\n";
 	}
 
+    @Test
+    public void testDifference() throws Exception {
+		/*
+		 * Test difference()
+		 */
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+        Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+                TestGraphUtils.getLongLongEdgeData(env), env);
+
+        List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
+        List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
+
+        vertices.remove(1);
+        vertices.remove(3);
+        vertices.remove(4);
+
+        vertices.add(new Vertex<Long,Long>(6L,6L));
+
+        edges.remove(0);
+        edges.remove(2);
+        edges.remove(3);
+        edges.remove(4);
+        edges.remove(5);
+        edges.remove(6);
+
+        edges.add(new Edge<Long, Long>(6L,1L,61L));
+        edges.add(new Edge<Long, Long>(6L,3L,63L));
+
+        graph = graph.difference(Graph.fromCollection(vertices, edges, env));
+
+        graph.getEdges().writeAsCsv(resultPath);
+        graph.getVertices().writeAsCsv(resultPath);
+        env.execute();
+
+        expectedResult = "2,5,25\n"+
+                          "4,5,45";
+
+    }
+
+
 	@Test
 	public void testTriplets() throws Exception {
 		/*
