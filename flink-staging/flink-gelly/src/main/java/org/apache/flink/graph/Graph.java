@@ -1233,6 +1233,34 @@ public class Graph<K, VV, EV> {
 		return new Graph<K, VV, EV>(unionedVertices, unionedEdges, this.context);
 	}
 
+    /**
+     * Performs Difference on the vertices and edges sets of the inputgraphs
+     * removes both vertices and edges with the vertex as a source/target
+     * @param graph the graph to perform differennce with
+     * @return a new graph
+     */
+    public Graph<K,VV,EV> difference(Graph<K,VV,EV> graph) throws java.lang.Exception{
+        DataSet<Vertex<K,VV>> removeVerticesData = graph.getVertices();
+        final List<Vertex<K,VV>> removeVerticesList = removeVerticesData.collect();
+        Graph<K,VV,EV> G2= this.filterOnEdges(new FilterFunction<Edge<K, EV>>() {
+            @Override
+            public boolean filter(Edge<K, EV> value) throws Exception {
+                for(Vertex<K,VV> rem:removeVerticesList)
+                {
+                    if(value.getSource()==rem.getId() || value.getTarget()==rem.getId())
+                    {
+                        return false;
+                    }
+
+                }
+                return true;
+            }
+        });
+
+        Graph<K,VV,EV> G3= G2.removeVertices(removeVerticesList);
+        return G3;
+    }
+
 	/**
 	 * Runs a Vertex-Centric iteration on the graph.
 	 * No configuration options are provided.

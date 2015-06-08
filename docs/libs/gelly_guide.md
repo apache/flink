@@ -236,6 +236,8 @@ Graph<Long, Double, Double> networkWithWeights = network.joinWithEdgesOnSource(v
 
 * <strong>Union</strong>: Gelly's `union()` method performs a union on the vertex and edges sets of the input graphs. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exists, these will be maintained.
 
+* <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edges sets of the input graphs. Common vertices are removed from the resulting `Graph`, along with the edges which which have these vertices as source/target.
+
 <p class="text-center">
     <img alt="Union Transformation" width="50%" src="fig/gelly-union.png"/>
 </p>
