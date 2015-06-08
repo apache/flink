@@ -19,14 +19,12 @@
 package org.apache.flink.api.scala
 
 import java.io._
-import java.net.URLClassLoader
 import java.util.concurrent.TimeUnit
 
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.test.util.{TestEnvironment, TestBaseUtils, ForkableFlinkMiniCluster, FlinkTestBase}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, FunSuite, Matchers}
 
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.FiniteDuration
 import scala.tools.nsc.Settings
 
@@ -122,15 +120,47 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
     output should include("WC(hello,1)")
     output should include("WC(world,10)")
   }
+  
+  
+  test("Submit external library") {
+    
+    val input : String =
+      """
+        import org.apache.flink.ml.math._
+        val denseVectors = env.fromElements(DenseVector(1.0, 2.0, 3.0))
+        denseVectors.print()
+      """.stripMargin
 
+    // find jar file that contains the ml code
+    var externalJar : String = ""
+    var folder : File = new File("../flink-ml/target/");
+    var listOfFiles : Array[File] = folder.listFiles();
+    for(i <- 0 to listOfFiles.length - 1){
+      var filename : String = listOfFiles(i).getName();
+      if(!filename.contains("test") && !filename.contains("original") && filename.contains(".jar")){
+        println("ive found file:" + listOfFiles(i).getAbsolutePath)
+        externalJar = listOfFiles(i).getAbsolutePath
+      }
+    }
+
+    assert(externalJar != "")
+
+    val output : String = processInShell(input,Option(externalJar))
+
+    output should not include "failed"
+    output should not include "error"
+    output should not include "Exception"
+
+    output should include( "\nDenseVector(1.0, 2.0, 3.0)")
+  }
 
   /**
    * Run the input using a Scala Shell and return the output of the shell.
    * @param input commands to be processed in the shell
    * @return output of shell
    */
-  def processInShell(input : String): String ={
-
+  def processInShell(input : String, externalJars : Option[String] = None): String ={
+    
     val in = new BufferedReader(new StringReader(input + "\n"))
     val out = new StringWriter()
     val baos = new ByteArrayOutputStream()
@@ -142,32 +172,31 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
     val host = "localhost"
     val port = cluster match {
       case Some(c) => c.getLeaderRPCPort
-
       case _ => throw new RuntimeException("Test cluster not initialized.")
     }
-
-    val cl = getClass.getClassLoader
-    var paths = new ArrayBuffer[String]
-    cl match {
-      case urlCl: URLClassLoader =>
-        for (url <- urlCl.getURLs) {
-          if (url.getProtocol == "file") {
-            paths += url.getFile
-          }
-        }
-      case _ =>
+    
+    var repl : FlinkILoop= null 
+    
+    externalJars match {
+      case Some(ej) => repl = new FlinkILoop(
+        host, port,  
+        Option(Array(ej)), 
+        in, new PrintWriter(out))
+        
+      case None => repl = new FlinkILoop(
+        host,port,
+        in,new PrintWriter(out))
     }
-
-    val classpath = paths.mkString(File.pathSeparator)
-
-    val repl = new FlinkILoop(host, port, in, new PrintWriter(out)) //new MyILoop();
-
+    
     repl.settings = new Settings()
 
     // enable this line to use scala in intellij
     repl.settings.usejavacp.value = true
-
-    repl.addedClasspath = classpath
+    
+    externalJars match {
+      case Some(ej) => repl.settings.classpath.value = ej
+      case None => 
+    }
 
     repl.process(repl.settings)
 
@@ -175,10 +204,9 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
 
     System.setOut(oldOut)
 
+    baos.flush()
+    
     val stdout = baos.toString
-
-    // reprint because ScalaTest fails if we don't
-    print(stdout)
 
     out.toString + stdout
   }
