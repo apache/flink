@@ -66,7 +66,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	 */
 	private final ConcurrentMap<InputChannelID, InputChannelID> cancelled = Maps.newConcurrentMap();
 
-	private ChannelHandlerContext ctx;
+	private volatile ChannelHandlerContext ctx;
 
 	// ------------------------------------------------------------------------
 	// Input channel/receiver registration
@@ -85,6 +85,10 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	}
 
 	void cancelRequestFor(InputChannelID inputChannelId) {
+		if (inputChannelId == null || ctx == null) {
+			return;
+		}
+
 		if (cancelled.putIfAbsent(inputChannelId, inputChannelId) == null) {
 			ctx.writeAndFlush(new NettyMessage.CancelPartitionRequest(inputChannelId));
 		}
