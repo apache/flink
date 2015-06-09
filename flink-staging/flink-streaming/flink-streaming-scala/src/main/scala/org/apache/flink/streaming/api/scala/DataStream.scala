@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.common.io.OutputFormat
+import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
 import org.apache.flink.core.fs.{FileSystem, Path}
 
@@ -34,9 +35,8 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, GroupedDataStream, SingleOutputStreamOperator}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.SumFunction
-import org.apache.flink.streaming.api.functions.sink.{FileSinkFunctionByMillis, SinkFunction}
+import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.operators.{StreamGroupedReduce, StreamReduce}
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.streaming.api.windowing.policy.{EvictionPolicy, TriggerPolicy}
 import org.apache.flink.streaming.util.serialization.SerializationSchema
@@ -225,8 +225,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
    */
   def groupBy[K: TypeInformation](fun: T => K): DataStream[T] = {
 
+    val cleanFun = clean(fun)
     val keyExtractor = new KeySelector[T, K] {
-      val cleanFun = clean(fun)
       def getKey(in: T) = cleanFun(in)
     }
     javaStream.groupBy(keyExtractor)
@@ -251,8 +251,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
    */
   def partitionByHash[K: TypeInformation](fun: T => K): DataStream[T] = {
 
+    val cleanFun = clean(fun)
     val keyExtractor = new KeySelector[T, K] {
-      val cleanFun = clean(fun)
       def getKey(in: T) = cleanFun(in)
     }
     javaStream.partitionByHash(keyExtractor)
@@ -467,8 +467,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("Map function must not be null.")
     }
+    val cleanFun = clean(fun)
     val mapper = new MapFunction[T, R] {
-      val cleanFun = clean(fun)
       def map(in: T): R = cleanFun(in)
     }
     
@@ -508,8 +508,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
+    val cleanFun = clean(fun)
     val flatMapper = new FlatMapFunction[T, R] {
-      val cleanFun = clean(fun)
       def flatMap(in: T, out: Collector[R]) { cleanFun(in, out) }
     }
     flatMap(flatMapper)
@@ -523,8 +523,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
+    val cleanFun = clean(fun)
     val flatMapper = new FlatMapFunction[T, R] {
-      val cleanFun = clean(fun)
       def flatMap(in: T, out: Collector[R]) { cleanFun(in) foreach out.collect }
     }
     flatMap(flatMapper)
@@ -550,8 +550,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("Reduce function must not be null.")
     }
+    val cleanFun = clean(fun)
     val reducer = new ReduceFunction[T] {
-      val cleanFun = clean(fun)
       def reduce(v1: T, v2: T) = { cleanFun(v1, v2) }
     }
     reduce(reducer)
@@ -579,9 +579,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
+    val cleanFun = clean(fun)
     val folder = new FoldFunction[T,R] {
-      val cleanFun = clean(fun)
-
       def fold(acc: R, v: T) = {
         cleanFun(acc, v)
       }
@@ -606,8 +605,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("Filter function must not be null.")
     }
+    val cleanFun = clean(fun)
     val filter = new FilterFunction[T] {
-      val cleanFun = clean(fun)
       def filter(in: T) = cleanFun(in)
     }
     this.filter(filter)
@@ -660,8 +659,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("OutputSelector must not be null.")
     }
+    val cleanFun = clean(fun)
     val selector = new OutputSelector[T] {
-      val cleanFun = clean(fun)
       def select(in: T): java.lang.Iterable[String] = {
         cleanFun(in).toIterable.asJava
       }
@@ -781,11 +780,19 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("Sink function must not be null.")
     }
+    val cleanFun = clean(fun)
     val sinkFunction = new SinkFunction[T] {
-      val cleanFun = clean(fun)
       def invoke(in: T) = cleanFun(in)
     }
     this.addSink(sinkFunction)
+  }
+
+  /**
+   * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
+   * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
+   */
+  private[flink] def clean[F <: AnyRef](f: F): F = {
+    new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaClean(f)
   }
 
 }

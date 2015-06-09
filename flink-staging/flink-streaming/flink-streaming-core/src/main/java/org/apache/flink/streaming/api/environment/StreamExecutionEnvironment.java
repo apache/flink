@@ -957,7 +957,7 @@ public abstract class StreamExecutionEnvironment {
 
 		boolean isParallel = function instanceof ParallelSourceFunction;
 
-		ClosureCleaner.clean(function, true);
+		clean(function);
 		StreamOperator<OUT> sourceOperator = new StreamSource<OUT>(function);
 
 		return new DataStreamSource<OUT>(this, sourceName, typeInfo, sourceOperator,
@@ -1149,6 +1149,18 @@ public abstract class StreamExecutionEnvironment {
 						viewedAs.getCanonicalName());
 			}
 		}
+	}
+
+	/**
+	 * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
+	 * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
+	 */
+	public <F> F clean(F f) {
+		if (getConfig().isClosureCleanerEnabled()) {
+			ClosureCleaner.clean(f, true);
+		}
+		ClosureCleaner.ensureSerializable(f);
+		return f;
 	}
 
 }
