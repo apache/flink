@@ -68,7 +68,7 @@ class ExecutionEnvironment(javaEnvironment: JavaEnv) {
     /**
      * Gets the Java execution environment
      */
-    def javaEnv: JavaEnv = javaEnvironment
+    def getJavaEnv: JavaEnv = javaEnvironment
 
     /**
      * Gets the config object.
