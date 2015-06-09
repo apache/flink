@@ -16,30 +16,25 @@ software distributed under the License is distributed on an
 KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
-
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-parent</artifactId>
+		<artifactId>flink-contrib-parent</artifactId>
 		<version>0.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<modules>
-		<module>flink-storm-compatibility</module>
-		<module>flink-streaming-contrib</module>
-		<module>flink-tweet-inputformat</module>
-	</modules>
-
-	<artifactId>flink-contrib-parent</artifactId>
-	<name>flink-contrib</name>
-
+	<artifactId>flink-storm-compatibility-parent</artifactId>
+	<name>flink-storm-compatibility</name>
 	<packaging>pom</packaging>
 
+	<modules>
+		<module>flink-storm-compatibility-core</module>
+		<module>flink-storm-compatibility-examples</module>
+	</modules>
 </project>

@@ -24,13 +24,13 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-streaming-parent</artifactId>
+		<artifactId>flink-storm-compatibility-parent</artifactId>
 		<version>0.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-storm-compatibility</artifactId>
-	<name>flink-storm-compatibility</name>
+	<artifactId>flink-storm-compatibility-core</artifactId>
+	<name>flink-storm-compatibility-core</name>
 
 	<packaging>jar</packaging>
 
@@ -52,7 +52,7 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-		
+
 	</dependencies>
 
 	<build>
@@ -69,7 +69,7 @@ under the License.
 				</executions>
 			</plugin>
 		</plugins>
-		
+
 		<pluginManagement>
 			<plugins>
 				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
