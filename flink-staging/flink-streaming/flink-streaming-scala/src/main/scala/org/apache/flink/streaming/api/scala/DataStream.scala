@@ -317,12 +317,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * By default a DataStream with iteration will never terminate, but the user
    * can use the maxWaitTime parameter to set a max waiting time for the iteration head.
    * If no data received in the set time the stream terminates.
-   *
+   * <p>
+   * By default the feedback partitioning is set to match the input, to override this set 
+   * the keepPartitioning flag to true
    *
    */
-  def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R])): DataStream[R] = {
+  def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R])): DataStream[R] =
     iterate(0)(stepFunction)
-  }
+  
 
   /**
    * Initiates an iterative part of the program that creates a loop by feeding
@@ -339,15 +341,18 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * By default a DataStream with iteration will never terminate, but the user
    * can use the maxWaitTime parameter to set a max waiting time for the iteration head.
    * If no data received in the set time the stream terminates.
-   *
+   * <p>
+   * By default the feedback partitioning is set to match the input, to override this set 
+   * the keepPartitioning flag to true
    *
    */
   def iterate[R](maxWaitTimeMillis:Long = 0)
-                (stepFunction: DataStream[T] => (DataStream[T], DataStream[R])) : DataStream[R] = {
+                (stepFunction: DataStream[T] => (DataStream[T], DataStream[R]), 
+                    keepPartitioning: Boolean = false) : DataStream[R] = {
     val iterativeStream = javaStream.iterate(maxWaitTimeMillis)
 
     val (feedback, output) = stepFunction(new DataStream[T](iterativeStream))
-    iterativeStream.closeWith(feedback.getJavaStream)
+    iterativeStream.closeWith(feedback.getJavaStream, keepPartitioning)
     output
   }
 

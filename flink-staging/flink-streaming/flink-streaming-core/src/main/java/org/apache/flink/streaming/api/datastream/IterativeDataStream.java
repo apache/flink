@@ -46,13 +46,18 @@ public class IterativeDataStream<IN> extends
 	 * for more information.
 	 * 
 	 * 
+	 * 
+	 * 
 	 * @param iterationTail
 	 *            The data stream that is fed back to the next iteration head.
+	 * @param keepPartitioning
+	 *            If true the feedback partitioning will be kept as it is (not
+	 *            changed to match the input of the iteration head)
 	 * @return Returns the stream that was fed back to the iteration. In most
 	 *         cases no further transformation are applied on this stream.
 	 * 
 	 */
-	public DataStream<IN> closeWith(DataStream<IN> iterationTail) {
+	public DataStream<IN> closeWith(DataStream<IN> iterationTail, boolean keepPartitioning) {
 		DataStream<IN> iterationSink = new DataStreamSink<IN>(environment, "Iteration Sink", null,
 				null);
 
@@ -61,7 +66,30 @@ public class IterativeDataStream<IN> extends
 		streamGraph.addIterationTail(iterationSink.getId(), iterationTail.getId(), iterationID,
 				iterationWaitTime);
 
-		connectGraph(iterationTail.forward(), iterationSink.getId(), 0);
+		if (keepPartitioning) {
+			connectGraph(iterationTail, iterationSink.getId(), 0);
+		} else {
+			connectGraph(iterationTail.forward(), iterationSink.getId(), 0);
+		}
 		return iterationTail;
+	}
+	
+	/**
+	 * Closes the iteration. This method defines the end of the iterative
+	 * program part that will be fed back to the start of the iteration. </br>
+	 * </br>A common usage pattern for streaming iterations is to use output
+	 * splitting to send a part of the closing data stream to the head. Refer to
+	 * {@link DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)}
+	 * for more information.
+	 * 
+	 * 
+	 * @param iterationTail
+	 *            The data stream that is fed back to the next iteration head.
+	 * @return Returns the stream that was fed back to the iteration. In most
+	 *         cases no further transformation are applied on this stream.
+	 * 
+	 */
+	public DataStream<IN> closeWith(DataStream<IN> iterationTail) {
+		return closeWith(iterationTail,false);
 	}
 }
