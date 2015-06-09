@@ -19,16 +19,16 @@ package org.apache.flink.stormcompatibility.wrappers;
 
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.topology.IRichSpout;
+
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-import org.apache.flink.util.Collector;
 
 /**
  * A {@link AbstractStormSpoutWrapper} wraps an {@link IRichSpout} in order to execute the Storm bolt within a Flink
  * Streaming program. It takes the spout's output tuples and transforms them into Flink tuples of type {@code OUT} (see
- * {@link StormCollector} for supported types).<br />
+ * {@link StormSpoutCollector} for supported types).<br />
  * <br />
  * <strong>CAUTION: currently, only simple spouts are supported! (ie, spouts that do not use the Storm configuration
  * <code>Map</code> or <code>TopologyContext</code> that is provided by the spouts's <code>prepare(..)</code> method.
@@ -37,13 +37,19 @@ import org.apache.flink.util.Collector;
 public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 	private static final long serialVersionUID = 4993283609095408765L;
 
-	// The wrapped Storm {@link IRichSpout spout}
-	protected final IRichSpout spout;
-	// Number of attributes of the bolt's output tuples
+	// Number of attributes of the bolt's output tuples.
 	private final int numberOfAttributes;
-	// The wrapper of the given Flink collector
-	protected StormCollector<OUT> collector;
-	// Indicates, if the source is still running or was canceled
+	/**
+	 * The wrapped Storm {@link IRichSpout spout}.
+	 */
+	protected final IRichSpout spout;
+	/**
+	 * The wrapper of the given Flink collector.
+	 */
+	protected StormSpoutCollector<OUT> collector;
+	/**
+	 * Indicates, if the source is still running or was canceled.
+	 */
 	protected boolean isRunning = true;
 
 	/**
@@ -56,7 +62,6 @@ public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceF
 	 * @throws IllegalArgumentException
 	 * 		If the number of declared output attributes is not with range [1;25].
 	 */
-	@SuppressWarnings("unused")
 	public AbstractStormSpoutWrapper(final IRichSpout spout) throws IllegalArgumentException {
 		this(spout, false);
 	}
@@ -84,8 +89,8 @@ public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceF
 	}
 
 	@Override
-	public final void run(final Collector<OUT> collector) throws Exception {
-		this.collector = new StormCollector<OUT>(this.numberOfAttributes, collector);
+	public final void run(final SourceContext<OUT> ctx) throws Exception {
+		this.collector = new StormSpoutCollector<OUT>(this.numberOfAttributes, ctx);
 		this.spout.open(null,
 				StormWrapperSetupHelper
 						.convertToTopologyContext((StreamingRuntimeContext) super.getRuntimeContext(), true),

@@ -65,11 +65,11 @@ public class StormWordCountLocal {
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
 		cluster.submitTopology(topologyId, null, builder.createTopology());
 
-		Utils.sleep(100 * 1000);
+		Utils.sleep(5 * 1000);
 
 		// TODO kill does no do anything so far
-		//cluster.killTopology(topologyId);
-		//cluster.shutdown();
+		cluster.killTopology(topologyId);
+		cluster.shutdown();
 	}
 
 }

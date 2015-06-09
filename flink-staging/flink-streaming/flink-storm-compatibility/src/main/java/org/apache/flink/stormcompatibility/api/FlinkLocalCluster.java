@@ -65,27 +65,22 @@ public class FlinkLocalCluster {
 		ClusterUtil.stopOnMiniCluster();
 	}
 
-	@SuppressWarnings("unused")
 	public String getTopologyConf(final String id) {
 		return null;
 	}
 
-	@SuppressWarnings("unused")
 	public StormTopology getTopology(final String id) {
 		return null;
 	}
 
-	@SuppressWarnings("unused")
 	public ClusterSummary getClusterInfo() {
 		return null;
 	}
 
-	@SuppressWarnings("unused")
 	public TopologyInfo getTopologyInfo(final String id) {
 		return null;
 	}
 
-	@SuppressWarnings("unused")
 	public Map<?, ?> getState() {
 		return null;
 	}

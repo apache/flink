@@ -15,13 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.stormcompatibility.wrappers;
+
+/*
+ * We do neither import
+ * 		backtype.storm.tuple.Tuple;
+ * nor
+ * 		org.apache.flink.api.java.tuple.Tuple
+ * to avoid confusion
+ */
 
 import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.MessageId;
-import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 
 import java.util.List;
@@ -29,7 +35,7 @@ import java.util.List;
 /**
  * {@link StormTuple} converts a Flink tuple of type {@code IN} into a Storm tuple.
  */
-class StormTuple<IN> implements Tuple {
+class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 
 	// The storm representation of the original Flink tuple
 	private final Values stormTuple;

@@ -42,7 +42,7 @@ public class StormOutputFieldsDeclarerTest extends AbstractTest {
 		Assert.assertEquals(numberOfAttributes, declarer.getNumberOfAttributes());
 	}
 
-	@SuppressWarnings("unused")
+	@Test
 	public void testDeclareDirect() {
 		new StormOutputFieldsDeclarer().declare(false, null);
 	}
@@ -52,7 +52,7 @@ public class StormOutputFieldsDeclarerTest extends AbstractTest {
 		new StormOutputFieldsDeclarer().declare(true, null);
 	}
 
-	@SuppressWarnings("unused")
+	@Test
 	public void testDeclareStream() {
 		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, null);
 	}
@@ -62,7 +62,7 @@ public class StormOutputFieldsDeclarerTest extends AbstractTest {
 		new StormOutputFieldsDeclarer().declareStream(null, null);
 	}
 
-	@SuppressWarnings("unused")
+	@Test
 	public void testDeclareFullStream() {
 		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, false, null);
 	}

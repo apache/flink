@@ -21,14 +21,13 @@ import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.tuple.Fields;
+
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskContext;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-import org.apache.flink.util.Collector;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
@@ -41,7 +40,6 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +47,7 @@ import static org.mockito.Mockito.when;
 @PrepareForTest({StreamRecordSerializer.class, StormWrapperSetupHelper.class})
 public class StormBoltWrapperTest {
 
+	@SuppressWarnings("unused")
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrapperRawType() throws Exception {
 		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
@@ -58,6 +57,7 @@ public class StormBoltWrapperTest {
 		new StormBoltWrapper<Object, Object>(mock(IRichBolt.class), true);
 	}
 
+	@SuppressWarnings("unused")
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrapperToManyAttributes1() throws Exception {
 		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
@@ -71,6 +71,7 @@ public class StormBoltWrapperTest {
 		new StormBoltWrapper<Object, Object>(mock(IRichBolt.class));
 	}
 
+	@SuppressWarnings("unused")
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrapperToManyAttributes2() throws Exception {
 		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
@@ -94,7 +95,6 @@ public class StormBoltWrapperTest {
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	private void testWrapper(final int numberOfAttributes) throws Exception {
 		assert ((0 <= numberOfAttributes) && (numberOfAttributes <= 25));
-
 		Tuple flinkTuple = null;
 		String rawTuple = null;
 
@@ -119,15 +119,7 @@ public class StormBoltWrapperTest {
 			when(record.getObject()).thenReturn(flinkTuple);
 		}
 
-		final StreamRecordSerializer serializer = mock(StreamRecordSerializer.class);
-		when(serializer.createInstance()).thenReturn(record);
-
-		final IndexedReaderIterator reader = mock(IndexedReaderIterator.class);
-		when(reader.next(record)).thenReturn(record).thenReturn(null);
-
-		final StreamTaskContext taskContext = mock(StreamTaskContext.class);
-		when(taskContext.getInputSerializer(0)).thenReturn(serializer);
-		when(taskContext.getIndexedInput(0)).thenReturn(reader);
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 
 		final IRichBolt bolt = mock(IRichBolt.class);
 
@@ -136,23 +128,17 @@ public class StormBoltWrapperTest {
 		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
 		final StormBoltWrapper wrapper = new StormBoltWrapper(bolt);
-		wrapper.setup(taskContext);
+		wrapper.setup(mock(Output.class), taskContext);
 
-		wrapper.callUserFunction();
+		wrapper.processElement(record.getObject());
 		if (numberOfAttributes == 0) {
 			verify(bolt).execute(eq(new StormTuple<String>(rawTuple)));
 		} else {
 			verify(bolt).execute(eq(new StormTuple<Tuple>(flinkTuple)));
 		}
-
-		wrapper.run();
-		if (numberOfAttributes == 0) {
-			verify(bolt, times(2)).execute(eq(new StormTuple<String>(rawTuple)));
-		} else {
-			verify(bolt, times(2)).execute(eq(new StormTuple<Tuple>(flinkTuple)));
-		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testOpen() throws Exception {
 		final IRichBolt bolt = mock(IRichBolt.class);
@@ -162,18 +148,19 @@ public class StormBoltWrapperTest {
 		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
 		final StormBoltWrapper<Object, Object> wrapper = new StormBoltWrapper<Object, Object>(bolt);
-		wrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
+		wrapper.setup(mock(Output.class), mock(StreamingRuntimeContext.class));
 
 		wrapper.open(mock(Configuration.class));
 
 		verify(bolt).prepare(any(Map.class), any(TopologyContext.class), any(OutputCollector.class));
 	}
 
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testOpenSink() throws Exception {
 		final IRichBolt bolt = mock(IRichBolt.class);
 		final StormBoltWrapper<Object, Object> wrapper = new StormBoltWrapper<Object, Object>(bolt);
-		wrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
+		wrapper.setup(mock(Output.class), mock(StreamingRuntimeContext.class));
 
 		wrapper.open(mock(Configuration.class));
 
@@ -191,9 +178,9 @@ public class StormBoltWrapperTest {
 
 		final StormBoltWrapper<Object, Object> wrapper = new StormBoltWrapper<Object, Object>(bolt);
 
-		final StreamTaskContext<Object> taskContext = mock(StreamTaskContext.class);
-		when(taskContext.getOutputCollector()).thenReturn(mock(Collector.class));
-		wrapper.setup(taskContext);
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		// when(taskContext.getOutputCollector()).thenReturn(mock(Collector.class));
+		wrapper.setup(mock(Output.class), taskContext);
 
 		wrapper.close();
 		verify(bolt).cleanup();

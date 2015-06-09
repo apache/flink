@@ -34,9 +34,9 @@ public abstract class AbstractStormBoltSink implements IRichBolt {
 
 	private StringBuilder lineBuilder;
 	private String prefix = "";
-	private OutputFormatter formatter;
+	private final OutputFormatter formatter;
 
-	public AbstractStormBoltSink(OutputFormatter formatter) {
+	public AbstractStormBoltSink(final OutputFormatter formatter) {
 		this.formatter = formatter;
 	}
 
@@ -56,14 +56,7 @@ public abstract class AbstractStormBoltSink implements IRichBolt {
 	public final void execute(final Tuple input) {
 		this.lineBuilder = new StringBuilder();
 		this.lineBuilder.append(this.prefix);
-		lineBuilder.append(formatter.format(input));
-//		this.lineBuilder.append("(");
-//		for (final Object attribute : input.getValues()) {
-//			this.lineBuilder.append(attribute);
-//			this.lineBuilder.append(",");
-//		}
-//		this.lineBuilder.replace(this.lineBuilder.length() - 1, this.lineBuilder.length(), ")");
-
+		this.lineBuilder.append(this.formatter.format(input));
 		this.writeExternal(this.lineBuilder.toString());
 	}
 

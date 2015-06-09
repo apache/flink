@@ -23,6 +23,7 @@ import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.InvalidTopologyException;
 import backtype.storm.generated.SubmitOptions;
 import backtype.storm.utils.Utils;
+
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
@@ -39,7 +40,7 @@ import java.util.Map;
  * {@link FlinkSubmitter} mimics a {@link StormSubmitter} to submit Storm topologies to a Flink cluster.
  */
 public class FlinkSubmitter {
-	public static Logger logger = LoggerFactory.getLogger(FlinkSubmitter.class);
+	public final static Logger logger = LoggerFactory.getLogger(FlinkSubmitter.class);
 
 	/**
 	 * Submits a topology to run on the cluster. A topology runs forever or until explicitly killed.
@@ -57,7 +58,6 @@ public class FlinkSubmitter {
 	 * @throws InvalidTopologyException
 	 * 		if an invalid topology was submitted
 	 */
-	@SuppressWarnings("unused")
 	public static void submitTopology(final String name, final Map<?, ?> stormConf, final FlinkTopology topology,
 			final SubmitOptions opts)
 			throws AlreadyAliveException, InvalidTopologyException {
@@ -97,7 +97,8 @@ public class FlinkSubmitter {
 		}
 		if (!stormConf.containsKey(Config.NIMBUS_THRIFT_PORT)) {
 			stormConf.put(Config.NIMBUS_THRIFT_PORT,
-					flinkConfig.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 6123));
+					new Integer(flinkConfig.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+							6123)));
 		}
 
 		final String serConf = JSONValue.toJSONString(stormConf);
@@ -151,7 +152,6 @@ public class FlinkSubmitter {
 	 * @throws InvalidTopologyException
 	 * 		if an invalid topology was submitted
 	 */
-	@SuppressWarnings("unused")
 	public static void submitTopologyWithProgressBar(final String name, final Map<?, ?> stormConf,
 			final FlinkTopology topology)
 			throws AlreadyAliveException, InvalidTopologyException {
@@ -169,7 +169,7 @@ public class FlinkSubmitter {
 	 * 		file path of the jar file to submit
 	 * @return the value of parameter localJar
 	 */
-	@SuppressWarnings({"rawtypes", "unused"})
+	@SuppressWarnings("rawtypes")
 	public static String submitJar(final Map conf, final String localJar) {
 		return submitJar(localJar);
 	}
@@ -187,7 +187,6 @@ public class FlinkSubmitter {
 	 * 		progress listener to track the jar file upload
 	 * @return the value of parameter localJar
 	 */
-	@SuppressWarnings("rawtypes")
 	public static String submitJar(final String localJar) {
 		if (localJar == null) {
 			throw new RuntimeException(

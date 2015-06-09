@@ -19,8 +19,10 @@ package org.apache.flink.stormcompatibility.wrappers;
 
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
+
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.stormcompatibility.util.AbstractTest;
+import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.junit.Assert;
 import org.junit.Test;
@@ -39,6 +41,7 @@ import static org.mockito.Mockito.verify;
 @PrepareForTest(StormWrapperSetupHelper.class)
 public class StormFiniteSpoutWrapperTest extends AbstractTest {
 
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testRunExecuteFixedNumber() throws Exception {
 		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
@@ -50,7 +53,7 @@ public class StormFiniteSpoutWrapperTest extends AbstractTest {
 		final StormFiniteSpoutWrapper<?> spoutWrapper = new StormFiniteSpoutWrapper<Object>(spout, numberOfCalls);
 		spoutWrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
 
-		spoutWrapper.run(null);
+		spoutWrapper.run(mock(SourceContext.class));
 		verify(spout, times(numberOfCalls)).nextTuple();
 	}
 
@@ -60,7 +63,7 @@ public class StormFiniteSpoutWrapperTest extends AbstractTest {
 
 		final LinkedList<Tuple1<Integer>> expectedResult = new LinkedList<Tuple1<Integer>>();
 		for (int i = numberOfCalls - 1; i >= 0; --i) {
-			expectedResult.add(new Tuple1<Integer>(i));
+			expectedResult.add(new Tuple1<Integer>(new Integer(i)));
 		}
 
 		final IRichSpout spout = new FiniteTestSpout(numberOfCalls);
@@ -68,7 +71,7 @@ public class StormFiniteSpoutWrapperTest extends AbstractTest {
 				spout);
 		spoutWrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
 
-		final TestCollector collector = new TestCollector();
+		final TestContext collector = new TestContext();
 		spoutWrapper.run(collector);
 
 		Assert.assertEquals(expectedResult, collector.result);
@@ -79,7 +82,7 @@ public class StormFiniteSpoutWrapperTest extends AbstractTest {
 		final int numberOfCalls = 5 + this.r.nextInt(5);
 
 		final LinkedList<Tuple1<Integer>> expectedResult = new LinkedList<Tuple1<Integer>>();
-		expectedResult.add(new Tuple1<Integer>(numberOfCalls - 1));
+		expectedResult.add(new Tuple1<Integer>(new Integer(numberOfCalls - 1)));
 
 		final IRichSpout spout = new FiniteTestSpout(numberOfCalls);
 		final StormFiniteSpoutWrapper<Tuple1<Integer>> spoutWrapper = new StormFiniteSpoutWrapper<Tuple1<Integer>>(
@@ -87,7 +90,7 @@ public class StormFiniteSpoutWrapperTest extends AbstractTest {
 		spoutWrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
 
 		spoutWrapper.cancel();
-		final TestCollector collector = new TestCollector();
+		final TestContext collector = new TestContext();
 		spoutWrapper.run(collector);
 
 		Assert.assertEquals(expectedResult, collector.result);
