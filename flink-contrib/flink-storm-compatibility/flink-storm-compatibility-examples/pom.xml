@@ -24,23 +24,23 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-streaming-parent</artifactId>
+		<artifactId>flink-storm-compatibility-parent</artifactId>
 		<version>0.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-storm-examples</artifactId>
-	<name>flink-storm-examples</name>
+	<artifactId>flink-storm-compatibility-examples</artifactId>
+	<name>flink-storm-compatibility-examples</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-storm-compatibility</artifactId>
+			<artifactId>flink-storm-compatibility-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java-examples</artifactId>
@@ -52,7 +52,7 @@ under the License.
 			<artifactId>flink-streaming-core</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
-			<classifier>tests</classifier>
+			<type>test-jar</type>
 		</dependency>
 
 		<dependency>
@@ -90,7 +90,7 @@ under the License.
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-storm-compatibility</artifactId>
+									<artifactId>flink-storm-compatibility-core</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>
@@ -131,7 +131,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				
+
 				<executions>
 
 					<!-- WordCount Spout source-->

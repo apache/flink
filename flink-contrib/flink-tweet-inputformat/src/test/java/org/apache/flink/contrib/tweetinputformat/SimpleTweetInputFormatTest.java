@@ -53,7 +53,7 @@ public class SimpleTweetInputFormatTest {
 
 		simpleTweetInputFormat = new SimpleTweetInputFormat();
 
-		File jsonFile = new File("../flink-contrib/src/main/resources/HashTagTweetSample.json");
+		File jsonFile = new File("src/main/resources/HashTagTweetSample.json");
 
 		fileInputSplit = new FileInputSplit(0, new Path(jsonFile.getPath()), 0, jsonFile.length(), new String[]{"localhost"});
 	}
