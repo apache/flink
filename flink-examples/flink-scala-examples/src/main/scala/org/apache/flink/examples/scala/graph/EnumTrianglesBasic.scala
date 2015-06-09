@@ -42,7 +42,7 @@ import scala.collection.mutable
  *
  *  - Edges are represented as pairs for vertex IDs which are separated by space
  *   characters. Edges are separated by new-line characters.
- *   For example `"1 2\n2 12\n1 12\n42 63\n"` gives four (undirected) edges (1)-(2), (2)-(12),
+ *   For example `"1 2\n2 12\n1 12\n42 63"` gives four (undirected) edges (1)-(2), (2)-(12),
  *   (1)-(12), and (42)-(63) that include a triangle
  *
  * <pre>
