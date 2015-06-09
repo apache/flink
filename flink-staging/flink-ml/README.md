@@ -7,10 +7,9 @@ Theses implementations allow to scale to data sizes which vastly exceed the memo
 Flink-ML currently comprises the following algorithms:
 
 * Classification
+** Soft-margin SVM
 * Regression
-** Logistic regression
-* Clustering
-** k-Means
+** Multiple linear regression
 * Recommendation
 ** Alternating least squares (ALS)
 
