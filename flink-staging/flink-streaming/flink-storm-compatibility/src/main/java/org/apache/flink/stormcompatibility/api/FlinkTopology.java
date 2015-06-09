@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  */
 class FlinkTopology extends StreamExecutionEnvironment {
 
-	// The corresponding {@link StormTopology} that is mimiced by this {@link FlinkTopology}
+	// The corresponding {@link StormTopology} that is mimicked by this {@link FlinkTopology}
 	private final StormTopology stormTopology;
 	// The number of declared tasks for the whole program (ie, sum over all dops)
 	private int numberOfTasks = 0;
@@ -70,7 +70,6 @@ class FlinkTopology extends StreamExecutionEnvironment {
 	}
 
 	//TODO
-	@SuppressWarnings("unused")
 	public String getStormTopologyAsString() {
 		return this.stormTopology.toString();
 	}

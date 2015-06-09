@@ -122,7 +122,7 @@ public class FlinkClient {
 	@SuppressWarnings("rawtypes")
 	public static FlinkClient getConfiguredClient(final Map conf) {
 		final String nimbusHost = (String) conf.get(Config.NIMBUS_HOST);
-		final int nimbusPort = Utils.getInt(conf.get(Config.NIMBUS_THRIFT_PORT));
+		final int nimbusPort = Utils.getInt(conf.get(Config.NIMBUS_THRIFT_PORT)).intValue();
 		return new FlinkClient(nimbusHost, nimbusPort);
 	}
 
@@ -133,7 +133,6 @@ public class FlinkClient {
 	 *
 	 * @return A reference to itself.
 	 */
-	@SuppressWarnings("unused")
 	public FlinkClient getClient() {
 		return this;
 	}

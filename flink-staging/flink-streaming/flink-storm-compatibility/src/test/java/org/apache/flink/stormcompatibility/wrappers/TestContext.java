@@ -17,22 +17,24 @@
 
 package org.apache.flink.stormcompatibility.wrappers;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.junit.Assert;
-import org.junit.Test;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
+import java.util.LinkedList;
 
-import static org.mockito.Mockito.mock;
+class TestContext implements SourceContext<Tuple1<Integer>> {
+	public LinkedList<Tuple1<Integer>> result = new LinkedList<Tuple1<Integer>>();
 
-public class FlinkDummyRichFunctionTest {
+	public TestContext() {
+	}
 
-	@Test
-	public void testRuntimeContext() {
-		final FlinkDummyRichFunction dummy = new FlinkDummyRichFunction();
+	@Override
+	public void collect(final Tuple1<Integer> record) {
+		this.result.add(record.copy());
+	}
 
-		final RuntimeContext context = mock(RuntimeContext.class);
-		dummy.setRuntimeContext(context);
-
-		Assert.assertSame(context, dummy.getRuntimeContext());
+	@Override
+	public Object getCheckpointLock() {
+		return null;
 	}
 
 }

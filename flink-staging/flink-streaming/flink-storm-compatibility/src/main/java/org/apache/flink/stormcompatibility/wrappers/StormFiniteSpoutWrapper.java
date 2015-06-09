@@ -22,10 +22,12 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
 
 /**
- * A {@link StormFiniteSpoutWrapper} is an {@link AbstractStormSpoutWrapper} that calles {@link IRichSpout#nextTuple()
- * nextTuple()} for finite number of times before {@link #run(org.apache.flink.util.Collector)} returns. The number of
- * {@code nextTuple()} calls can be specified as a certain number of invocations or can be undefined. In the undefined
- * case, the {@code run(...)} method return if no record was emitted to the output collector for the first time.
+ * A {@link StormFiniteSpoutWrapper} is an {@link AbstractStormSpoutWrapper} that calls
+ * {@link IRichSpout#nextTuple() nextTuple()} for finite number of times before
+ * {@link #run(org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext)}
+ * returns. The number of {@code nextTuple()} calls can be specified as a certain number of
+ * invocations or can be undefined. In the undefined case, the {@code run(...)} method return if no
+ * record was emitted to the output collector for the first time.
  */
 public class StormFiniteSpoutWrapper<OUT> extends AbstractStormSpoutWrapper<OUT> {
 	private static final long serialVersionUID = 3883246587044801286L;

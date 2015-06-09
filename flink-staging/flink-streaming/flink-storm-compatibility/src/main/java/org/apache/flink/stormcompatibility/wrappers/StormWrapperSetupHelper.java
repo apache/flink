@@ -25,8 +25,6 @@ import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.IRichSpout;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.stormcompatibility.api.FlinkTopologyContext;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
@@ -40,22 +38,22 @@ import java.util.Map;
 class StormWrapperSetupHelper {
 
 	/**
-	 * Computes the number of output attributes used by a {@link AbstractStormSpoutWrapper} or {@link
-	 * StormBoltWrapper}.
-	 * Returns zero for raw output type or a value within range [1;25] for output type {@link Tuple1} to {@link
-	 * Tuple25}
-	 * . In case of a data sink, {@code -1} is returned. .
-	 *
+	 * Computes the number of output attributes used by a {@link AbstractStormSpoutWrapper} or
+	 * {@link StormBoltWrapper}. Returns zero for raw output type or a value within range [1;25] for
+	 * output type {@link org.apache.flink.api.java.tuple.Tuple1 Tuple1} to
+	 * {@link org.apache.flink.api.java.tuple.Tuple25 Tuple25} . In case of a data sink, {@code -1}
+	 * is returned. .
+	 * 
 	 * @param spoutOrBolt
 	 * 		The Storm {@link IRichSpout spout} or {@link IRichBolt bolt} to be used.
 	 * @param rawOutput
-	 * 		Set to {@code true} if a single attribute output stream, should not be of type {@link Tuple1} but be
-	 * 		of a raw type.
+	 * 		Set to {@code true} if a single attribute output stream, should not be of type
+	 * 		{@link org.apache.flink.api.java.tuple.Tuple1 Tuple1} but be of a raw type.
 	 * @return The number of attributes to be used.
 	 * @throws IllegalArgumentException
-	 * 		If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 * 		{@code rawOuput} is {@code false} and the number of declared output attributes is not with range
-	 * 		[1;25].
+	 * 		If {@code rawOuput} is {@code true} and the number of declared output
+	 * 		attributes is not 1 or if {@code rawOuput} is {@code false} and the number
+	 * 		of declared output attributes is not with range [1;25].
 	 */
 	public static int getNumberOfAttributes(final IComponent spoutOrBolt, final boolean rawOutput)
 			throws IllegalArgumentException {
@@ -79,7 +77,7 @@ class StormWrapperSetupHelper {
 			if (declaredNumberOfAttributes > 1) {
 				throw new IllegalArgumentException(
 						"Ouput type is requested to be raw type, but provided bolt declares more then one output " +
-								"attribute.");
+						"attribute.");
 
 			}
 			return 0;
@@ -91,7 +89,7 @@ class StormWrapperSetupHelper {
 	// TODO
 	public static TopologyContext convertToTopologyContext(final StreamingRuntimeContext context,
 			final boolean spoutOrBolt) {
-		final Integer taskId = 1 + context.getIndexOfThisSubtask();
+		final Integer taskId = new Integer(1 + context.getIndexOfThisSubtask());
 
 		final Map<Integer, String> taskToComponents = new HashMap<Integer, String>();
 		taskToComponents.put(taskId, context.getTaskName());

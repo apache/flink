@@ -17,8 +17,6 @@
 
 package org.apache.flink.stormcompatibility.api;
 
-import backtype.storm.topology.IRichBolt;
-import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
@@ -29,11 +27,16 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import java.util.List;
 
 /**
- * {@link FlinkOutputFieldsDeclarer} is used to get the declared output schema of a {@link IRichSpout spout} or {@link
- * IRichBolt bolt}.<br /> <br /> <strong>CAUTION: Currently, Flink does only support the default output stream.
- * Furthermore, direct emit is not supported.</strong>
+ * {@link FlinkOutputFieldsDeclarer} is used to get the declared output schema of a
+ * {@link backtype.storm.topology.IRichSpout spout} or {@link backtype.storm.topology.IRichBolt
+ * bolt}.<br />
+ * <br />
+ * <strong>CAUTION: Currently, Flink does only support the default output stream. Furthermore,
+ * direct emit is not supported.</strong>
  */
 final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
+
+	// the declared output schema
 	private Fields outputSchema;
 
 	@Override
@@ -57,7 +60,7 @@ final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 	/**
 	 * {@inheritDoc}
 	 * <p/>
-	 * Currently, Flink only supports the default output stream. Thus, pareamter {@code streamId} must be equals to
+	 * Currently, Flink only supports the default output stream. Thus, parameter {@code streamId} must be equals to
 	 * {@link Utils#DEFAULT_STREAM_ID}.
 	 *
 	 * @throws UnsupportedOperationException
@@ -71,7 +74,7 @@ final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 	/**
 	 * {@inheritDoc}
 	 * <p/>
-	 * Currently, Flink only supports the default output stream. Thus, pareamter {@code streamId} must be equals to
+	 * Currently, Flink only supports the default output stream. Thus, parameter {@code streamId} must be equals to
 	 * {@link Utils#DEFAULT_STREAM_ID}. Furthermore, direct emit is no supported by Flink and parameter {@code direct}
 	 * must be {@code false}.
 	 *
@@ -132,15 +135,12 @@ final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 	 * {@link DefaultComparable} is a {@link Comparable} helper class that is used to get the correct {@link
 	 * TypeInformation} from {@link TypeExtractor} within {@link #getOutputType()}. If key fields are not comparable,
 	 * Flink cannot use them and will throw an exception.
-	 *
-	 * @author mjsax
 	 */
 	private static class DefaultComparable implements Comparable<DefaultComparable> {
 
 		public DefaultComparable() {
 		}
 
-		@SuppressWarnings("NullableProblems")
 		@Override
 		public int compareTo(final DefaultComparable o) {
 			return 0;

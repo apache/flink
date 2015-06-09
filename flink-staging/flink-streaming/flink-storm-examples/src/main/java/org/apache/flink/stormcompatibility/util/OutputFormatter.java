@@ -18,8 +18,12 @@
 
 package org.apache.flink.stormcompatibility.util;
 
-public interface OutputFormatter {
+import java.io.Serializable;
 
-	public String format(Object input);
+import backtype.storm.tuple.Tuple;
+
+public interface OutputFormatter extends Serializable {
+
+	public String format(Tuple input);
 
 }
