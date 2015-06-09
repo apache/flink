@@ -31,7 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
  * DataSet transformations are executed on Java collections.
  * 
  * See the "Local Execution" section in the documentation for more details: 
- * 	http://flink.apache.org/docs/latest/local_execution.html
+ * 	http://flink.apache.org/docs/latest/apis/local_execution.html
  * 
  */
 public class CollectionExecutionExample {
