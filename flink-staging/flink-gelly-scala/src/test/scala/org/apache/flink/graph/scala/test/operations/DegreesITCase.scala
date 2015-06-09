@@ -21,14 +21,14 @@ package org.apache.flink.graph.scala.test.operations
 import org.apache.flink.api.scala._
 import org.apache.flink.graph.scala._
 import org.apache.flink.graph.scala.test.TestGraphUtils
-import org.apache.flink.test.util.{AbstractMultipleProgramsTestBase, MultipleProgramsTestBase}
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
 
 @RunWith(classOf[Parameterized])
-class DegreesITCase(mode: AbstractMultipleProgramsTestBase.TestExecutionMode) extends
+class DegreesITCase(mode: MultipleProgramsTestBase.TestExecutionMode) extends
 MultipleProgramsTestBase(mode) {
 
     private var resultPath: String = null
@@ -50,7 +50,7 @@ MultipleProgramsTestBase(mode) {
     @After
     @throws(classOf[Exception])
     def after {
-        compareResultsByLinesInMemory(expectedResult, resultPath)
+        TestBaseUtils.compareResultsByLinesInMemory(expectedResult, resultPath)
     }
 
     @Test

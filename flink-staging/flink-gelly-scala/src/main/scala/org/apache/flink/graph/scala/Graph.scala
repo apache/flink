@@ -33,11 +33,11 @@ import _root_.scala.reflect.ClassTag
 
 object Graph {
     def fromDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV: TypeInformation : ClassTag](vertices: DataSet[Vertex[K, VV]], edges: DataSet[Edge[K, EV]], env: ExecutionEnvironment): Graph[K, VV, EV] = {
-        wrapGraph(jg.Graph.fromDataSet[K, VV, EV](vertices.javaSet, edges.javaSet, env.javaEnv))
+        wrapGraph(jg.Graph.fromDataSet[K, VV, EV](vertices.javaSet, edges.javaSet, env.getJavaEnv))
     }
 
     def fromCollection[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV: TypeInformation : ClassTag](vertices: Seq[Vertex[K, VV]], edges: Seq[Edge[K, EV]], env: ExecutionEnvironment): Graph[K, VV, EV] = {
-        wrapGraph(jg.Graph.fromCollection[K, VV, EV](vertices.asJavaCollection, edges.asJavaCollection, env.javaEnv))
+        wrapGraph(jg.Graph.fromCollection[K, VV, EV](vertices.asJavaCollection, edges.asJavaCollection, env.getJavaEnv))
     }
 }
 
@@ -287,8 +287,8 @@ final class Graph[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
         wrap(jgraph.getEdgeIds).map(jtuple => (jtuple.f0, jtuple.f1))
     }
 
-    def addVertex(vertex: Vertex[K, VV], edges: List[Edge[K, EV]]) = {
-        wrapGraph(jgraph.addVertex(vertex, edges))
+    def addVertex(vertex: Vertex[K, VV]) = {
+        wrapGraph(jgraph.addVertex(vertex))
     }
 
     def addEdge(source: Vertex[K, VV], target: Vertex[K, VV], edgeValue: EV) = {
