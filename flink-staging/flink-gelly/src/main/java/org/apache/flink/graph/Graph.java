@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -56,6 +57,7 @@ import org.apache.flink.graph.validation.GraphValidator;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -355,7 +357,8 @@ public class Graph<K, VV, EV> {
 			FlatJoinFunction<Tuple4<K, K, VV, EV>, Vertex<K, VV>, Triplet<K, VV, EV>> {
 
 		@Override
-		public void join(Tuple4<K, K, VV, EV> tripletWithSrcValSet, Vertex<K, VV> vertex, Collector<Triplet<K, VV, EV>> collector) throws Exception {
+		public void join(Tuple4<K, K, VV, EV> tripletWithSrcValSet,
+						Vertex<K, VV> vertex, Collector<Triplet<K, VV, EV>> collector) throws Exception {
 
 			collector.collect(new Triplet<K, VV, EV>(tripletWithSrcValSet.f0, tripletWithSrcValSet.f1,
 					tripletWithSrcValSet.f2, vertex.getValue(), tripletWithSrcValSet.f3));
@@ -1055,30 +1058,33 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Adds the input vertex and edges to the graph. If the vertex already
-	 * exists in the graph, it will not be added again, but the given edges
-	 * will.
+	 * Adds the input vertex to the graph. If the vertex already
+	 * exists in the graph, it will not be added again.
 	 *
-	 * @param vertex the vertex to add to the graph
-	 * @param edges  a list of edges to add to the grap
-	 * @return the new graph containing the existing and newly added vertices
-	 * and edges
+	 * @param vertex the vertex to be added
+	 * @return the new graph containing the existing vertices as well as the one just added
 	 */
 	@SuppressWarnings("unchecked")
-	public Graph<K, VV, EV> addVertex(final Vertex<K, VV> vertex, List<Edge<K, EV>> edges) {
-		DataSet<Vertex<K, VV>> newVertex = this.context.fromElements(vertex);
+	public Graph<K, VV, EV> gi(final Vertex<K, VV> vertex) {
+		List<Vertex<K, VV>> newVertex = new ArrayList<Vertex<K, VV>>();
+		newVertex.add(vertex);
 
-		// Take care of empty edge set
-		if (edges.isEmpty()) {
-			return new Graph<K, VV, EV>(this.vertices.union(newVertex)
-					.distinct(), this.edges, this.context);
-		}
+		return addVertices(newVertex);
+	}
 
-		// Add the vertex and its edges
-		DataSet<Vertex<K, VV>> newVertices = this.vertices.union(newVertex).distinct();
-		DataSet<Edge<K, EV>> newEdges = this.edges.union(context.fromCollection(edges));
+	/**
+	 * Adds the list of vertices, passed as input, to the graph.
+	 * If the vertices already exist in the graph, they will not be added once more.
+	 *
+	 * @param verticesToAdd the list of vertices to add
+	 * @return the new graph containing the existing and newly added vertices
+	 */
+	@SuppressWarnings("unchecked")
+	public Graph<K, VV, EV> addVertices(List<Vertex<K, VV>> verticesToAdd) {
+		// Add the vertices
+		DataSet<Vertex<K, VV>> newVertices = this.vertices.union(this.context.fromCollection(verticesToAdd)).distinct();
 
-		return new Graph<K, VV, EV>(newVertices, newEdges, this.context);
+		return new Graph<K, VV, EV>(newVertices, this.edges, this.context);
 	}
 
 	/**
@@ -1100,6 +1106,48 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
+	 * Adds the given list edges to the graph.
+	 * <p/>
+	 * When adding an edge for a non-existing set of vertices, the edge is considered invalid and ignored.
+	 *
+	 * @param newEdges the data set of edges to be added
+	 * @return a new graph containing the existing edges plus the newly added edges.
+	 */
+	@SuppressWarnings("unchecked")
+	public Graph<K, VV, EV> addEdges(List<Edge<K, EV>> newEdges) {
+
+		DataSet<Edge<K, EV>> newEdgesDataSet = this.context.fromCollection(newEdges);
+
+		DataSet<Edge<K, EV>> validNewEdges = this.getVertices().join(newEdgesDataSet)
+				.where(0).equalTo(0)
+				.with(new JoinVerticesWithEdgesOnSrc<K, VV, EV>())
+				.join(this.getVertices()).where(1).equalTo(0)
+				.with(new JoinWithVerticesOnTrg<K, VV, EV>());
+
+		return Graph.fromDataSet(this.vertices, this.edges.union(validNewEdges), this.context);
+	}
+
+	@ForwardedFieldsSecond("f0; f1; f2")
+	private static final class JoinVerticesWithEdgesOnSrc<K, VV, EV> implements
+			JoinFunction<Vertex<K, VV>, Edge<K, EV>, Edge<K, EV>> {
+
+		@Override
+		public Edge<K, EV> join(Vertex<K, VV> vertex, Edge<K, EV> edge) throws Exception {
+			return edge;
+		}
+	}
+
+	@ForwardedFieldsFirst("f0; f1; f2")
+	private static final class JoinWithVerticesOnTrg<K, VV, EV> implements
+			JoinFunction<Edge<K, EV>, Vertex<K, VV>, Edge<K, EV>> {
+
+		@Override
+		public Edge<K, EV> join(Edge<K, EV> edge, Vertex<K, VV> vertex) throws Exception {
+			return edge;
+		}
+	}
+
+	/**
 	 * Removes the given vertex and its edges from the graph.
 	 *
 	 * @param vertex the vertex to remove
@@ -1108,45 +1156,58 @@ public class Graph<K, VV, EV> {
 	 */
 	public Graph<K, VV, EV> removeVertex(Vertex<K, VV> vertex) {
 
-		DataSet<Vertex<K, VV>> newVertices = getVertices().filter(new RemoveVertexFilter<K, VV>(vertex));
-		DataSet<Edge<K, EV>> newEdges = getEdges().filter(new VertexRemovalEdgeFilter<K, VV, EV>(vertex));
-		return new Graph<K, VV, EV>(newVertices, newEdges, this.context);
+		List<Vertex<K, VV>> vertexToBeRemoved = new ArrayList<Vertex<K, VV>>();
+		vertexToBeRemoved.add(vertex);
+
+		return removeVertices(vertexToBeRemoved);
 	}
 
-	private static final class RemoveVertexFilter<K, VV>
-			implements FilterFunction<Vertex<K, VV>> {
+	/**
+	 * Removes the given list of vertices and its edges from the graph.
+	 *
+	 * @param verticesToBeRemoved the list of vertices to be removed
+	 * @return the resulted graph containing the initial vertices and edges minus the vertices
+	 * and edges removed.
+	 */
+	public Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved) {
 
-		private Vertex<K, VV> vertexToRemove;
+		DataSet<Vertex<K, VV>> newVertices = getVertices().coGroup(this.context.fromCollection(verticesToBeRemoved)).where(0).equalTo(0)
+				.with(new VerticesRemovalCoGroup<K, VV>());
 
-		public RemoveVertexFilter(Vertex<K, VV> vertex) {
-			vertexToRemove = vertex;
-		}
+		DataSet<Edge<K, EV>> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
+				// if the edge source was removed, the edge will also be removed
+				.with(new ProjectEdgeToBeRemoved<K, VV, EV>())
+						// if the edge target was removed, the edge will also be removed
+				.join(newVertices).where(1).equalTo(0)
+				.with(new ProjectEdge<K, VV, EV>());
+
+		return new Graph<K, VV, EV>(newVertices, newEdges, context);
+	}
+
+	private static final class VerticesRemovalCoGroup<K, VV> implements CoGroupFunction<Vertex<K, VV>, Vertex<K, VV>, Vertex<K, VV>> {
 
 		@Override
-		public boolean filter(Vertex<K, VV> vertex) throws Exception {
-			return !vertex.f0.equals(vertexToRemove.f0);
+		public void coGroup(Iterable<Vertex<K, VV>> vertex, Iterable<Vertex<K, VV>> vertexToBeRemoved,
+							Collector<Vertex<K, VV>> out) throws Exception {
+
+			final Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
+			final Iterator<Vertex<K, VV>> vertexToBeRemovedIterator = vertexToBeRemoved.iterator();
+			Vertex<K, VV> next;
+
+			if (vertexIterator.hasNext()) {
+				if (!vertexToBeRemovedIterator.hasNext()) {
+					next = vertexIterator.next();
+					out.collect(next);
+				}
+			}
 		}
 	}
 
-	private static final class VertexRemovalEdgeFilter<K, VV, EV>
-			implements FilterFunction<Edge<K, EV>> {
-
-		private Vertex<K, VV> vertexToRemove;
-
-		public VertexRemovalEdgeFilter(Vertex<K, VV> vertex) {
-			vertexToRemove = vertex;
-		}
-
+	@ForwardedFieldsSecond("f0; f1; f2")
+	private static final class ProjectEdgeToBeRemoved<K, VV, EV> implements JoinFunction<Vertex<K, VV>, Edge<K, EV>, Edge<K, EV>> {
 		@Override
-		public boolean filter(Edge<K, EV> edge) throws Exception {
-
-			if (edge.f0.equals(vertexToRemove.f0)) {
-				return false;
-			}
-			if (edge.f1.equals(vertexToRemove.f0)) {
-				return false;
-			}
-			return true;
+		public Edge<K, EV> join(Vertex<K, VV> vertex, Edge<K, EV> edge) throws Exception {
+			return edge;
 		}
 	}
 
@@ -1174,6 +1235,39 @@ public class Graph<K, VV, EV> {
 		public boolean filter(Edge<K, EV> edge) {
 			return (!(edge.f0.equals(edgeToRemove.f0) && edge.f1
 					.equals(edgeToRemove.f1)));
+		}
+	}
+
+	/**
+	 * Removes all the edges that match the edges in the given data set from the graph.
+	 *
+	 * @param edgesToBeRemoved the list of edges to be removed
+	 * @return a new graph where the edges have been removed and in which the vertices remained intact
+	 */
+	public Graph<K, VV, EV> removeEdges(List<Edge<K, EV>> edgesToBeRemoved) {
+
+		DataSet<Edge<K, EV>> newEdges = getEdges().coGroup(this.context.fromCollection(edgesToBeRemoved))
+				.where(0, 1).equalTo(0, 1).with(new EdgeRemovalCoGroup<K, EV>());
+
+		return new Graph<K, VV, EV>(this.vertices, newEdges, context);
+	}
+
+	private static final class EdgeRemovalCoGroup<K, EV> implements CoGroupFunction<Edge<K, EV>, Edge<K, EV>, Edge<K, EV>> {
+
+		@Override
+		public void coGroup(Iterable<Edge<K, EV>> edge, Iterable<Edge<K, EV>> edgeToBeRemoved,
+							Collector<Edge<K, EV>> out) throws Exception {
+
+			final Iterator<Edge<K, EV>> edgeIterator = edge.iterator();
+			final Iterator<Edge<K, EV>> edgeToBeRemovedIterator = edgeToBeRemoved.iterator();
+			Edge<K, EV> next;
+
+			if (edgeIterator.hasNext()) {
+				if (!edgeToBeRemovedIterator.hasNext()) {
+					next = edgeIterator.next();
+					out.collect(next);
+				}
+			}
 		}
 	}
 
