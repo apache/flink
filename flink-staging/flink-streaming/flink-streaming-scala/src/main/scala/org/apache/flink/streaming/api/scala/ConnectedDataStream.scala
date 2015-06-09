@@ -21,15 +21,12 @@ package org.apache.flink.streaming.api.scala
 import java.util
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
+import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.streaming.api.datastream.{ConnectedDataStream => JavaCStream, DataStream => JavaStream}
 import org.apache.flink.streaming.api.functions.co.{CoFlatMapFunction, CoMapFunction, CoReduceFunction, CoWindowFunction}
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.util.Collector
-import scala.collection.JavaConversions.asScalaBuffer
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
-import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap
-import org.apache.flink.streaming.api.operators.co.CoStreamMap
-import org.apache.flink.streaming.api.operators.co.CoStreamReduce
 
 class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
 
@@ -49,9 +46,11 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     if (fun1 == null || fun2 == null) {
       throw new NullPointerException("Map function must not be null.")
     }
+    val cleanFun1 = clean(fun1)
+    val cleanFun2 = clean(fun2)
     val comapper = new CoMapFunction[IN1, IN2, R] {
-      def map1(in1: IN1): R = clean(fun1)(in1)
-      def map2(in2: IN2): R = clean(fun2)(in2)
+      def map1(in1: IN1): R = cleanFun1(in1)
+      def map2(in2: IN2): R = cleanFun2(in2)
     }
 
     map(comapper)
@@ -121,9 +120,11 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     if (fun1 == null || fun2 == null) {
       throw new NullPointerException("FlatMap functions must not be null.")
     }
+    val cleanFun1 = clean(fun1)
+    val cleanFun2 = clean(fun2)
     val flatMapper = new CoFlatMapFunction[IN1, IN2, R] {
-      def flatMap1(value: IN1, out: Collector[R]): Unit = clean(fun1)(value, out)
-      def flatMap2(value: IN2, out: Collector[R]): Unit = clean(fun2)(value, out)
+      def flatMap1(value: IN1, out: Collector[R]): Unit = cleanFun1(value, out)
+      def flatMap2(value: IN2, out: Collector[R]): Unit = cleanFun2(value, out)
     }
     flatMap(flatMapper)
   }
@@ -143,9 +144,9 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     if (fun1 == null || fun2 == null) {
       throw new NullPointerException("FlatMap functions must not be null.")
     }
+    val cleanFun1 = clean(fun1)
+    val cleanFun2 = clean(fun2)
     val flatMapper = new CoFlatMapFunction[IN1, IN2, R] {
-      val cleanFun1 = clean(fun1)
-      val cleanFun2 = clean(fun2)
       def flatMap1(value: IN1, out: Collector[R]) = { cleanFun1(value) foreach out.collect }
       def flatMap2(value: IN2, out: Collector[R]) = { cleanFun2(value) foreach out.collect }
     }
@@ -238,11 +239,13 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   def groupBy[K: TypeInformation, L: TypeInformation](fun1: IN1 => K, fun2: IN2 => L):
   ConnectedDataStream[IN1, IN2] = {
 
+    val cleanFun1 = clean(fun1)
+    val cleanFun2 = clean(fun2)
     val keyExtractor1 = new KeySelector[IN1, K] {
-      def getKey(in: IN1) = clean(fun1)(in)
+      def getKey(in: IN1) = cleanFun1(in)
     }
     val keyExtractor2 = new KeySelector[IN2, L] {
-      def getKey(in: IN2) = clean(fun2)(in)
+      def getKey(in: IN2) = cleanFun2(in)
     }
 
     javaStream.groupBy(keyExtractor1, keyExtractor2)
@@ -324,11 +327,14 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   def partitionByHash[K: TypeInformation, L: TypeInformation](fun1: IN1 => K, fun2: IN2 => L):
   ConnectedDataStream[IN1, IN2] = {
 
+    val cleanFun1 = clean(fun1)
+    val cleanFun2 = clean(fun2)
+
     val keyExtractor1 = new KeySelector[IN1, K] {
-      def getKey(in: IN1) = clean(fun1)(in)
+      def getKey(in: IN1) = cleanFun1(in)
     }
     val keyExtractor2 = new KeySelector[IN2, L] {
-      def getKey(in: IN2) = clean(fun2)(in)
+      def getKey(in: IN2) = cleanFun2(in)
     }
 
     javaStream.partitionByHash(keyExtractor1, keyExtractor2)
@@ -378,11 +384,16 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
       throw new NullPointerException("Reduce functions must not be null.")
     }
 
+    val cleanReducer1 = clean(reducer1)
+    val cleanReducer2 = clean(reducer2)
+    val cleanMapper1 = clean(mapper1)
+    val cleanMapper2 = clean(mapper2)
+
     val reducer = new CoReduceFunction[IN1, IN2, R] {
-      def reduce1(value1: IN1, value2: IN1): IN1 = clean(reducer1)(value1, value2)
-      def map2(value: IN2): R = clean(mapper2)(value)
-      def reduce2(value1: IN2, value2: IN2): IN2 = clean(reducer2)(value1, value2)
-      def map1(value: IN1): R = clean(mapper1)(value)
+      def reduce1(value1: IN1, value2: IN1): IN1 = cleanReducer1(value1, value2)
+      def reduce2(value1: IN2, value2: IN2): IN2 = cleanReducer2(value1, value2)
+      def map1(value: IN1): R = cleanMapper1(value)
+      def map2(value: IN2): R = cleanMapper2(value)
     }
     reduce(reducer)
   }
@@ -442,9 +453,11 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
       throw new NullPointerException("CoWindow function must no be null")
     }
 
+    val cleanCoWindower = clean(coWindower)
+
     val coWindowFun = new CoWindowFunction[IN1, IN2, R] {
       def coWindow(first: util.List[IN1], second: util.List[IN2], 
-          out: Collector[R]): Unit = clean(coWindower)(first, second, out)
+          out: Collector[R]): Unit = cleanCoWindower(first.asScala, second.asScala, out)
     }
 
     windowReduce(coWindowFun, windowSize, slideInterval)
@@ -484,6 +497,14 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    */
   def getInputType2(): TypeInformation[IN2] = {
     javaStream.getType2
+  }
+
+  /**
+   * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
+   * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
+   */
+  private[flink] def clean[F <: AnyRef](f: F): F = {
+    new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaClean(f)
   }
 
 }

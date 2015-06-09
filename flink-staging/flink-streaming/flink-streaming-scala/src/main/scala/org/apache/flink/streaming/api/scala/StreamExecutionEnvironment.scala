@@ -29,10 +29,12 @@ import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.Wa
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.functions.source.{FromElementsFunction, SourceFunction}
 import org.apache.flink.types.StringValue
-import org.apache.flink.util.{Collector, SplittableIterator}
+import org.apache.flink.util.SplittableIterator
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
+
+import _root_.scala.language.implicitConversions
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
@@ -405,7 +407,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def addSource[T: ClassTag: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
     require(function != null, "Function must not be null.")
-    val cleanFun = StreamExecutionEnvironment.clean(function)
+    val cleanFun = scalaClean(function)
     val typeInfo = implicitly[TypeInformation[T]]
     javaEnv.addSource(cleanFun).returns(typeInfo)
   }
@@ -418,7 +420,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def addSource[T: ClassTag: TypeInformation](function: SourceContext[T] => Unit): DataStream[T] = {
     require(function != null, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {
-      val cleanFun = StreamExecutionEnvironment.clean(function)
+      val cleanFun = scalaClean(function)
       override def run(ctx: SourceContext[T]) {
         cleanFun(ctx)
       }
@@ -464,14 +466,21 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def getStreamGraph = javaEnv.getStreamGraph
 
+  /**
+   * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
+   * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
+   */
+  private[flink] def scalaClean[F <: AnyRef](f: F): F = {
+    if (getConfig.isClosureCleanerEnabled) {
+      ClosureCleaner.clean(f, true)
+    } else {
+      ClosureCleaner.ensureSerializable(f)
+    }
+    f
+  }
 }
 
 object StreamExecutionEnvironment {
-  
-  private[flink] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
-    ClosureCleaner.clean(f, checkSerializable)
-    f
-  }
 
   /**
    * Sets the default parallelism that will be used for the local execution
