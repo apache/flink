@@ -443,13 +443,12 @@ public class Graph<K, VV, EV> {
 
 		return new Graph<K, VV, NV>(this.vertices, mappedEdges, this.context);
 	}
-
 	/**
 	 * Joins the vertex DataSet of this graph with an input DataSet and applies
 	 * a UDF on the resulted values.
 	 *
 	 * @param inputDataSet the DataSet to join with.
-	 * @param mapper       the UDF map function to apply.
+	 * @param mapper the UDF map function to apply.
 	 * @return a new graph where the vertex values have been updated.
 	 */
 	public <T> Graph<K, VV, EV> joinWithVertices(DataSet<Tuple2<K, T>> inputDataSet,
@@ -497,8 +496,8 @@ public class Graph<K, VV, EV> {
 	 * source and target and applies a UDF on the resulted values.
 	 *
 	 * @param inputDataSet the DataSet to join with.
-	 * @param mapper       the UDF map function to apply.
-	 * @param <T>          the return type
+	 * @param mapper the UDF map function to apply.
+	 * @param <T> the return type
 	 * @return a new graph where the edge values have been updated.
 	 */
 	public <T> Graph<K, VV, EV> joinWithEdges(DataSet<Tuple3<K, K, T>> inputDataSet,
@@ -547,8 +546,8 @@ public class Graph<K, VV, EV> {
 	 * than once, only the first value will be considered.
 	 *
 	 * @param inputDataSet the DataSet to join with.
-	 * @param mapper       the UDF map function to apply.
-	 * @param <T>          the return type
+	 * @param mapper the UDF map function to apply.
+	 * @param <T> the return type
 	 * @return a new graph where the edge values have been updated.
 	 */
 	public <T> Graph<K, VV, EV> joinWithEdgesOnSource(DataSet<Tuple2<K, T>> inputDataSet,
@@ -604,8 +603,8 @@ public class Graph<K, VV, EV> {
 	 * than once, only the first value will be considered.
 	 *
 	 * @param inputDataSet the DataSet to join with.
-	 * @param mapper       the UDF map function to apply.
-	 * @param <T>          the return type
+	 * @param mapper the UDF map function to apply.
+	 * @param <T> the return type
 	 * @return a new graph where the edge values have been updated.
 	 */
 	public <T> Graph<K, VV, EV> joinWithEdgesOnTarget(DataSet<Tuple2<K, T>> inputDataSet,
@@ -623,7 +622,7 @@ public class Graph<K, VV, EV> {
 	 * satisfies the predicates for both vertices and edges.
 	 *
 	 * @param vertexFilter the filter function for vertices.
-	 * @param edgeFilter   the filter function for edges.
+	 * @param edgeFilter the filter function for edges.
 	 * @return the resulting sub-graph.
 	 */
 	public Graph<K, VV, EV> subgraph(FilterFunction<Vertex<K, VV>> vertexFilter, FilterFunction<Edge<K, EV>> edgeFilter) {
@@ -694,7 +693,7 @@ public class Graph<K, VV, EV> {
 	private static final class CountNeighborsCoGroup<K, VV, EV>
 			implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, Long>> {
 		@SuppressWarnings("unused")
-		public void coGroup(Iterable<Vertex<K, VV>> vertex, Iterable<Edge<K, EV>> outEdges,
+		public void coGroup(Iterable<Vertex<K, VV>> vertex,	Iterable<Edge<K, EV>> outEdges,
 							Collector<Tuple2<K, Long>> out) {
 			long count = 0;
 			for (Edge<K, EV> edge : outEdges) {
@@ -703,7 +702,7 @@ public class Graph<K, VV, EV> {
 
 			Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
 
-			if (vertexIterator.hasNext()) {
+			if(vertexIterator.hasNext()) {
 				out.collect(new Tuple2<K, Long>(vertexIterator.next().f0, count));
 			} else {
 				throw new NoSuchElementException("The edge src/trg id could not be found within the vertexIds");
@@ -848,11 +847,11 @@ public class Graph<K, VV, EV> {
 
 		@SuppressWarnings("unchecked")
 		public Tuple2<K, Edge<K, EV>> map(Edge<K, EV> edge) {
-			return new Tuple2<K, Edge<K, EV>>((K) edge.getField(fieldPosition), edge);
+			return new Tuple2<K, Edge<K, EV>>((K) edge.getField(fieldPosition),	edge);
 		}
 	}
 
-	private static final class ProjectVertexWithEdgeValueMap<K, EV> implements MapFunction<
+	private static final class ProjectVertexWithEdgeValueMap<K, EV>	implements MapFunction<
 			Edge<K, EV>, Tuple2<K, EV>> {
 
 		private int fieldPosition;
@@ -863,12 +862,12 @@ public class Graph<K, VV, EV> {
 
 		@SuppressWarnings("unchecked")
 		public Tuple2<K, EV> map(Edge<K, EV> edge) {
-			return new Tuple2<K, EV>((K) edge.getField(fieldPosition), edge.getValue());
+			return new Tuple2<K, EV>((K) edge.getField(fieldPosition),	edge.getValue());
 		}
 	}
 
 	private static final class ApplyGroupReduceFunction<K, EV, T> implements GroupReduceFunction<
-			Tuple2<K, Edge<K, EV>>, T>, ResultTypeQueryable<T> {
+			Tuple2<K, Edge<K, EV>>, T>,	ResultTypeQueryable<T> {
 
 		private EdgesFunction<K, EV, T> function;
 
@@ -895,7 +894,7 @@ public class Graph<K, VV, EV> {
 		}
 	}
 
-	private static final class EmitOneVertexWithEdgeValuePerNode<K, EV> implements FlatMapFunction<
+	private static final class EmitOneVertexWithEdgeValuePerNode<K, EV>	implements FlatMapFunction<
 			Edge<K, EV>, Tuple2<K, EV>> {
 
 		public void flatMap(Edge<K, EV> edge, Collector<Tuple2<K, EV>> out) {
@@ -935,7 +934,7 @@ public class Graph<K, VV, EV> {
 	}
 
 	private static final class ApplyCoGroupFunctionOnAllEdges<K, VV, EV, T>
-			implements CoGroupFunction<Vertex<K, VV>, Tuple2<K, Edge<K, EV>>, T>, ResultTypeQueryable<T> {
+			implements	CoGroupFunction<Vertex<K, VV>, Tuple2<K, Edge<K, EV>>, T>, ResultTypeQueryable<T> {
 
 		private EdgesFunctionWithVertexValue<K, VV, EV, T> function;
 
@@ -943,7 +942,7 @@ public class Graph<K, VV, EV> {
 			this.function = fun;
 		}
 
-		public void coGroup(Iterable<Vertex<K, VV>> vertex, final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges,
+		public void coGroup(Iterable<Vertex<K, VV>> vertex,	final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges,
 							Collector<T> out) throws Exception {
 
 			final Iterator<Edge<K, EV>> edgesIterator = new Iterator<Edge<K, EV>>() {
@@ -972,7 +971,7 @@ public class Graph<K, VV, EV> {
 				}
 			};
 
-			function.iterateEdges(vertex.iterator().next(), edgesIterable, out);
+			function.iterateEdges(vertex.iterator().next(),	edgesIterable, out);
 		}
 
 		@Override
@@ -1065,7 +1064,7 @@ public class Graph<K, VV, EV> {
 	 * @return the new graph containing the existing vertices as well as the one just added
 	 */
 	@SuppressWarnings("unchecked")
-	public Graph<K, VV, EV> gi(final Vertex<K, VV> vertex) {
+	public Graph<K, VV, EV> addVertex(final Vertex<K, VV> vertex) {
 		List<Vertex<K, VV>> newVertex = new ArrayList<Vertex<K, VV>>();
 		newVertex.add(vertex);
 
@@ -1091,11 +1090,11 @@ public class Graph<K, VV, EV> {
 	 * Adds the given edge to the graph. If the source and target vertices do
 	 * not exist in the graph, they will also be added.
 	 *
-	 * @param source    the source vertex of the edge
-	 * @param target    the target vertex of the edge
+	 * @param source the source vertex of the edge
+	 * @param target the target vertex of the edge
 	 * @param edgeValue the edge value
 	 * @return the new graph containing the existing vertices and edges plus the
-	 * newly added edge
+	 *         newly added edge
 	 */
 	@SuppressWarnings("unchecked")
 	public Graph<K, VV, EV> addEdge(Vertex<K, VV> source, Vertex<K, VV> target, EV edgeValue) {
@@ -1107,7 +1106,7 @@ public class Graph<K, VV, EV> {
 
 	/**
 	 * Adds the given list edges to the graph.
-	 * <p/>
+	 *
 	 * When adding an edge for a non-existing set of vertices, the edge is considered invalid and ignored.
 	 *
 	 * @param newEdges the data set of edges to be added
@@ -1116,9 +1115,9 @@ public class Graph<K, VV, EV> {
 	@SuppressWarnings("unchecked")
 	public Graph<K, VV, EV> addEdges(List<Edge<K, EV>> newEdges) {
 
-		DataSet<Edge<K, EV>> newEdgesDataSet = this.context.fromCollection(newEdges);
+		DataSet<Edge<K,EV>> newEdgesDataSet = this.context.fromCollection(newEdges);
 
-		DataSet<Edge<K, EV>> validNewEdges = this.getVertices().join(newEdgesDataSet)
+		DataSet<Edge<K,EV>> validNewEdges = this.getVertices().join(newEdgesDataSet)
 				.where(0).equalTo(0)
 				.with(new JoinVerticesWithEdgesOnSrc<K, VV, EV>())
 				.join(this.getVertices()).where(1).equalTo(0)
@@ -1152,7 +1151,7 @@ public class Graph<K, VV, EV> {
 	 *
 	 * @param vertex the vertex to remove
 	 * @return the new graph containing the existing vertices and edges without
-	 * the removed vertex and its edges
+	 *         the removed vertex and its edges
 	 */
 	public Graph<K, VV, EV> removeVertex(Vertex<K, VV> vertex) {
 
@@ -1167,14 +1166,14 @@ public class Graph<K, VV, EV> {
 	 *
 	 * @param verticesToBeRemoved the list of vertices to be removed
 	 * @return the resulted graph containing the initial vertices and edges minus the vertices
-	 * and edges removed.
+	 * 		   and edges removed.
 	 */
 	public Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved) {
 
 		DataSet<Vertex<K, VV>> newVertices = getVertices().coGroup(this.context.fromCollection(verticesToBeRemoved)).where(0).equalTo(0)
 				.with(new VerticesRemovalCoGroup<K, VV>());
 
-		DataSet<Edge<K, EV>> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
+		DataSet < Edge < K, EV >> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
 				// if the edge source was removed, the edge will also be removed
 				.with(new ProjectEdgeToBeRemoved<K, VV, EV>())
 						// if the edge target was removed, the edge will also be removed
@@ -1204,7 +1203,7 @@ public class Graph<K, VV, EV> {
 	}
 
 	@ForwardedFieldsSecond("f0; f1; f2")
-	private static final class ProjectEdgeToBeRemoved<K, VV, EV> implements JoinFunction<Vertex<K, VV>, Edge<K, EV>, Edge<K, EV>> {
+	private static final class ProjectEdgeToBeRemoved<K,VV,EV> implements JoinFunction<Vertex<K, VV>, Edge<K, EV>, Edge<K, EV>> {
 		@Override
 		public Edge<K, EV> join(Vertex<K, VV> vertex, Edge<K, EV> edge) throws Exception {
 			return edge;
@@ -1216,7 +1215,7 @@ public class Graph<K, VV, EV> {
 	 *
 	 * @param edge the edge to remove
 	 * @return the new graph containing the existing vertices and edges without
-	 * the removed edges
+	 *         the removed edges
 	 */
 	public Graph<K, VV, EV> removeEdge(Edge<K, EV> edge) {
 		DataSet<Edge<K, EV>> newEdges = getEdges().filter(new EdgeRemovalEdgeFilter<K, EV>(edge));
@@ -1247,12 +1246,12 @@ public class Graph<K, VV, EV> {
 	public Graph<K, VV, EV> removeEdges(List<Edge<K, EV>> edgesToBeRemoved) {
 
 		DataSet<Edge<K, EV>> newEdges = getEdges().coGroup(this.context.fromCollection(edgesToBeRemoved))
-				.where(0, 1).equalTo(0, 1).with(new EdgeRemovalCoGroup<K, EV>());
+				.where(0,1).equalTo(0,1).with(new EdgeRemovalCoGroup<K, EV>());
 
 		return new Graph<K, VV, EV>(this.vertices, newEdges, context);
 	}
 
-	private static final class EdgeRemovalCoGroup<K, EV> implements CoGroupFunction<Edge<K, EV>, Edge<K, EV>, Edge<K, EV>> {
+	private static final class EdgeRemovalCoGroup<K,EV> implements CoGroupFunction<Edge<K, EV>, Edge<K, EV>, Edge<K, EV>> {
 
 		@Override
 		public void coGroup(Iterable<Edge<K, EV>> edge, Iterable<Edge<K, EV>> edgeToBeRemoved,
@@ -1289,9 +1288,10 @@ public class Graph<K, VV, EV> {
 	 * Runs a Vertex-Centric iteration on the graph.
 	 * No configuration options are provided.
 	 *
-	 * @param vertexUpdateFunction      the vertex update function
-	 * @param messagingFunction         the messaging function
+	 * @param vertexUpdateFunction the vertex update function
+	 * @param messagingFunction the messaging function
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
+	 *
 	 * @return the updated Graph after the vertex-centric iteration has converged or
 	 * after maximumNumberOfIterations.
 	 */
@@ -1307,10 +1307,11 @@ public class Graph<K, VV, EV> {
 	/**
 	 * Runs a Vertex-Centric iteration on the graph with configuration options.
 	 *
-	 * @param vertexUpdateFunction      the vertex update function
-	 * @param messagingFunction         the messaging function
+	 * @param vertexUpdateFunction the vertex update function
+	 * @param messagingFunction the messaging function
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
-	 * @param parameters                the iteration configuration parameters
+	 * @param parameters the iteration configuration parameters
+	 *
 	 * @return the updated Graph after the vertex-centric iteration has converged or
 	 * after maximumNumberOfIterations.
 	 */
@@ -1333,11 +1334,12 @@ public class Graph<K, VV, EV> {
 	 * Runs a Gather-Sum-Apply iteration on the graph.
 	 * No configuration options are provided.
 	 *
-	 * @param gatherFunction            the gather function collects information about adjacent vertices and edges
-	 * @param sumFunction               the sum function aggregates the gathered information
-	 * @param applyFunction             the apply function updates the vertex values with the aggregates
+	 * @param gatherFunction the gather function collects information about adjacent vertices and edges
+	 * @param sumFunction the sum function aggregates the gathered information
+	 * @param applyFunction the apply function updates the vertex values with the aggregates
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
-	 * @param <M>                       the intermediate type used between gather, sum and apply
+	 * @param <M> the intermediate type used between gather, sum and apply
+	 *
 	 * @return the updated Graph after the gather-sum-apply iteration has converged or
 	 * after maximumNumberOfIterations.
 	 */
@@ -1352,12 +1354,13 @@ public class Graph<K, VV, EV> {
 	/**
 	 * Runs a Gather-Sum-Apply iteration on the graph with configuration options.
 	 *
-	 * @param gatherFunction            the gather function collects information about adjacent vertices and edges
-	 * @param sumFunction               the sum function aggregates the gathered information
-	 * @param applyFunction             the apply function updates the vertex values with the aggregates
+	 * @param gatherFunction the gather function collects information about adjacent vertices and edges
+	 * @param sumFunction the sum function aggregates the gathered information
+	 * @param applyFunction the apply function updates the vertex values with the aggregates
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
-	 * @param parameters                the iteration configuration parameters
-	 * @param <M>                       the intermediate type used between gather, sum and apply
+	 * @param parameters the iteration configuration parameters
+	 * @param <M> the intermediate type used between gather, sum and apply
+	 *
 	 * @return the updated Graph after the gather-sum-apply iteration has converged or
 	 * after maximumNumberOfIterations.
 	 */
