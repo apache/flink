@@ -21,10 +21,8 @@ package org.apache.flink.ml.preprocessing
 import breeze.linalg
 import breeze.numerics.sqrt
 import breeze.numerics.sqrt._
-import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml._
 import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
 import org.apache.flink.ml.math.Breeze._
@@ -62,7 +60,9 @@ import scala.reflect.ClassTag
   */
 class StandardScaler extends Transformer[StandardScaler] {
 
-  var metricsOption: Option[DataSet[(linalg.Vector[Double], linalg.Vector[Double])]] = None
+  private[preprocessing] var metricsOption: Option[
+      DataSet[(linalg.Vector[Double], linalg.Vector[Double])]
+    ] = None
 
   /** Sets the target mean of the transformed data
     *
@@ -213,12 +213,7 @@ object StandardScaler {
             input.mapWithBcVariable(metrics){
               (vector, metrics) => {
                 val (broadcastMean, broadcastStd) = metrics
-                var myVector = vector.asBreeze
-
-                myVector -= broadcastMean
-                myVector :/= broadcastStd
-                myVector = (myVector :* std) + mean
-                myVector.fromBreeze
+                scaleVector(vector, broadcastMean, broadcastStd, mean, std)
               }
             }
           }
@@ -245,12 +240,8 @@ object StandardScaler {
               (labeledVector, metrics) => {
                 val (broadcastMean, broadcastStd) = metrics
                 val LabeledVector(label, vector) = labeledVector
-                var breezeVector = vector.asBreeze
 
-                breezeVector -= broadcastMean
-                breezeVector :/= broadcastStd
-                breezeVector = (breezeVector :* std) + mean
-                LabeledVector(label, breezeVector.fromBreeze)
+                LabeledVector(label, scaleVector(vector, broadcastMean, broadcastStd, mean, std))
               }
             }
           }
@@ -261,5 +252,30 @@ object StandardScaler {
         }
       }
     }
+  }
+
+  /** Scales the given vector such that it has the given mean and std
+    *
+    * @param vector Vector to be scaled
+    * @param dataMean Mean of the training data
+    * @param dataStd Standard deviation of the training data
+    * @param mean Mean of the scaled data
+    * @param std Standard deviation of the scaled data
+    * @tparam T Type of [[Vector]]
+    * @return Scaled vector
+    */
+  private def scaleVector[T <: Vector: BreezeVectorConverter](
+      vector: T,
+      dataMean: linalg.Vector[Double],
+      dataStd: linalg.Vector[Double],
+      mean: Double,
+      std: Double)
+    : T = {
+    var myVector = vector.asBreeze
+
+    myVector -= dataMean
+    myVector :/= dataStd
+    myVector = (myVector :* std) + mean
+    myVector.fromBreeze
   }
 }
