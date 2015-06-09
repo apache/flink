@@ -372,7 +372,8 @@ public class Graph<K, VV, EV> {
 
     /**
      * Apply a function to the attribute of each vertex in the graph.
-     * @param mapper the map function to apply.
+     *
+     * @param mapper     the map function to apply.
      * @param returnType the explicit TypeInformation for the return type.
      * @return a new graph
      */
