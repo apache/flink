@@ -44,6 +44,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
@@ -189,23 +190,22 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
+	@SuppressWarnings("rawtypes")
 	public void addIterationHead(Integer sourceID, Integer iterationHead, Integer iterationID,
 			long timeOut) {
 
-		addNode(sourceID, StreamIterationHead.class, null, null);
+		StreamNode itSource = addNode(sourceID, StreamIterationHead.class, null, null);
 
 		StreamLoop iteration = new StreamLoop(iterationID, getStreamNode(sourceID), timeOut);
 		streamLoops.put(iterationID, iteration);
 		vertexIDtoLoop.put(sourceID, iteration);
 
 		setSerializersFrom(iterationHead, sourceID);
-		getStreamNode(sourceID).setOperatorName("IterationHead-" + iterationHead);
+		itSource.setOperatorName("IterationSource-" + sourceID);
+		itSource.setParallelism(getStreamNode(iterationHead).getParallelism());
+		
 
-		int outpartitionerIndex = getStreamNode(iterationHead).getInEdgeIndices().get(0);
-		StreamPartitioner<?> outputPartitioner = getStreamNode(outpartitionerIndex).getOutEdges()
-				.get(0).getPartitioner();
-
-		addEdge(sourceID, iterationHead, outputPartitioner, 0, new ArrayList<String>());
+		addEdge(sourceID, iterationHead, new RebalancePartitioner(true), 0, new ArrayList<String>());
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("ITERATION SOURCE: {}", sourceID);
@@ -221,19 +221,18 @@ public class StreamGraph extends StreamingPlan {
 			throw new RuntimeException("Buffer timeout 0 at iteration tail is not supported.");
 		}
 
-		addNode(sinkID, StreamIterationTail.class, null, null).setParallelism(
-				getStreamNode(iterationTail).getParallelism());
+		StreamNode itSink = addNode(sinkID, StreamIterationTail.class, null, null);
 
 		StreamLoop iteration = streamLoops.get(iterationID);
 		iteration.setSink(getStreamNode(sinkID));
 		vertexIDtoLoop.put(sinkID, iteration);
+		
+		itSink.setParallelism(iteration.getSource().getParallelism());
 
 		setSerializersFrom(iterationTail, sinkID);
-		getStreamNode(sinkID).setOperatorName("IterationTail-" + iterationTail);
+		getStreamNode(sinkID).setOperatorName("IterationSink-" + sinkID);
 
-		iteration.getSource().setParallelism(iteration.getSink().getParallelism());
-		setBufferTimeout(iteration.getSource().getId(), getStreamNode(iterationTail)
-				.getBufferTimeout());
+		setBufferTimeout(iteration.getSource().getId(), getStreamNode(iterationTail).getBufferTimeout());
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("ITERATION SINK: {}", sinkID);
