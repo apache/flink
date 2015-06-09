@@ -1065,7 +1065,7 @@ public class Graph<K, VV, EV> {
 	 * @return the new graph containing the existing vertices as well as the one just added
 	 */
 	@SuppressWarnings("unchecked")
-	public Graph<K, VV, EV> addVertex(final Vertex<K, VV> vertex) {
+	public Graph<K, VV, EV> gi(final Vertex<K, VV> vertex) {
 		List<Vertex<K, VV>> newVertex = new ArrayList<Vertex<K, VV>>();
 		newVertex.add(vertex);
 
