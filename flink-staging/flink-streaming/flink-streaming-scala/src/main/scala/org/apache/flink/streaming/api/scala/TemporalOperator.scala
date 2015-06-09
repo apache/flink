@@ -18,11 +18,11 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.streaming.api.datastream.temporal.{ TemporalOperator => JTempOp }
 import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
 import org.apache.flink.streaming.api.datastream.temporal.TemporalWindow
 import org.apache.flink.streaming.api.windowing.helper.Timestamp
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment._
 
 abstract class TemporalOperator[I1, I2, OP <: TemporalWindow[OP]](
   i1: JavaStream[I1], i2: JavaStream[I2]) extends JTempOp[I1, I2, OP](i1, i2) {
@@ -34,10 +34,18 @@ abstract class TemporalOperator[I1, I2, OP <: TemporalWindow[OP]](
   }
 
   def getTS[R](ts: R => Long): Timestamp[R] = {
+    val cleanFun = clean(ts)
     new Timestamp[R] {
-      val cleanFun = clean(ts, true)
       def getTimestamp(in: R) = cleanFun(in)
     }
+  }
+
+  /**
+   * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
+   * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
+   */
+  private[flink] def clean[F <: AnyRef](f: F): F = {
+    new StreamExecutionEnvironment(i1.getExecutionEnvironment).scalaClean(f)
   }
 
 }
