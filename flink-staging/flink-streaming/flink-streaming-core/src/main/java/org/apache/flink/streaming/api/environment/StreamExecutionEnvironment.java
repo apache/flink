@@ -925,20 +925,58 @@ public abstract class StreamExecutionEnvironment {
 	 * 		type of the returned stream
 	 * @return the data stream constructed
 	 */
-	@SuppressWarnings("unchecked")
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName) {
+		return addSource(function, sourceName, null);
+	}
 
-		TypeInformation<OUT> typeInfo;
+	/**
+	 * Ads a data source with a custom type information thus opening a
+	 * {@link DataStream}. Only in very special cases does the user need to
+	 * support type information. Otherwise use
+	 * {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+	 *
+	 * @param function
+	 * 		the user defined function
+	 * @param <OUT>
+	 * 		type of the returned stream
+	 * @param typeInfo
+	 * 		the user defined type information for the stream
+	 * @return the data stream constructed
+	 */
+	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, TypeInformation<OUT> typeInfo) {
+		return addSource(function, "Custom Source", typeInfo);
+	}
 
-		if (function instanceof ResultTypeQueryable) {
-			typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
-		} else {
-			try {
-				typeInfo = TypeExtractor.createTypeInfo(
-						SourceFunction.class,
-						function.getClass(), 0, null, null);
-			} catch (InvalidTypesException e) {
-				typeInfo = (TypeInformation<OUT>) new MissingTypeInfo("Custom source", e);
+	/**
+	 * Ads a data source with a custom type information thus opening a
+	 * {@link DataStream}. Only in very special cases does the user need to
+	 * support type information. Otherwise use
+	 * {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+	 *
+	 * @param function
+	 * 		the user defined function
+	 * @param sourceName
+	 * 		Name of the data source
+	 * @param <OUT>
+	 * 		type of the returned stream
+	 * @param typeInfo
+	 * 		the user defined type information for the stream
+	 * @return the data stream constructed
+	 */
+	@SuppressWarnings("unchecked")
+	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
+
+		if(typeInfo == null) {
+			if (function instanceof ResultTypeQueryable) {
+				typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
+			} else {
+				try {
+					typeInfo = TypeExtractor.createTypeInfo(
+							SourceFunction.class,
+							function.getClass(), 0, null, null);
+				} catch (final InvalidTypesException e) {
+					typeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
+				}
 			}
 		}
 

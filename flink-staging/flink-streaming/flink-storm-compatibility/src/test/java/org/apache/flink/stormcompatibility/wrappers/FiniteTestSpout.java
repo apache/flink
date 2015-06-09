@@ -39,7 +39,7 @@ class FiniteTestSpout implements IRichSpout {
 	@SuppressWarnings("rawtypes")
 	@Override
 	public void open(final Map conf, final TopologyContext context,
-			final SpoutOutputCollector collector) {
+			@SuppressWarnings("hiding") final SpoutOutputCollector collector) {
 		this.collector = collector;
 	}
 
@@ -55,7 +55,7 @@ class FiniteTestSpout implements IRichSpout {
 	@Override
 	public void nextTuple() {
 		if (--this.numberOfOutputTuples >= 0) {
-			this.collector.emit(new Values(this.numberOfOutputTuples));
+			this.collector.emit(new Values(new Integer(this.numberOfOutputTuples)));
 		}
 	}
 

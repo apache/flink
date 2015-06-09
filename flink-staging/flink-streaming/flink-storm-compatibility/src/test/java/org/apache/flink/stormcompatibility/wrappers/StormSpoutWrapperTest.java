@@ -45,7 +45,7 @@ public class StormSpoutWrapperTest extends AbstractTest {
 		spoutWrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
 
 		spoutWrapper.cancel();
-		final TestCollector collector = new TestCollector();
+		final TestContext collector = new TestContext();
 		spoutWrapper.run(collector);
 
 		Assert.assertEquals(new LinkedList<Tuple1<Integer>>(), collector.result);

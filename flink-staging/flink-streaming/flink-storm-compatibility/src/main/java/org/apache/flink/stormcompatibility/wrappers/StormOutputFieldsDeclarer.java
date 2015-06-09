@@ -22,8 +22,8 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 
 /**
- * {@link StormOutputFieldsDeclarer} is used by {@link StormBoltWrapper} to determine the number of attributes declared
- * by the wrapped bolt's {@code declare(...)} method.
+ * {@link StormOutputFieldsDeclarer} is used by {@link StormWrapperSetupHelper} to determine the
+ * number of attributes declared by the wrapped spout's or bolt's {@code declare(...)} method.
  */
 class StormOutputFieldsDeclarer implements OutputFieldsDeclarer {
 

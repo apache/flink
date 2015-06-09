@@ -142,7 +142,7 @@ public class FlinkTopologyBuilder {
 						final Grouping grouping = inputStream.getValue();
 						if (grouping.is_set_shuffle()) {
 							// Storm uses a round-robin shuffle strategy
-							inputDataStream = inputDataStream.distribute();
+							inputDataStream = inputDataStream.rebalance();
 						} else if (grouping.is_set_fields()) {
 							// global grouping is emulated in Storm via an empty fields grouping list
 							final List<String> fields = grouping.get_fields();
@@ -234,7 +234,6 @@ public class FlinkTopologyBuilder {
 	 * 		the basic bolt
 	 * @return use the returned object to declare the inputs to this component
 	 */
-	@SuppressWarnings("unused")
 	public BoltDeclarer setBolt(final String id, final IBasicBolt bolt) {
 		return this.setBolt(id, bolt, null);
 	}

@@ -18,10 +18,14 @@
 
 package org.apache.flink.stormcompatibility.util;
 
+import backtype.storm.tuple.Tuple;
+
 public class SimpleOutputFormatter implements OutputFormatter {
+	private static final long serialVersionUID = 6349573860144270338L;
 
 	@Override
-	public String format(Object input) {
-		return input.toString();
+	public String format(final Tuple input) {
+		return input.getValue(0).toString();
 	}
+
 }

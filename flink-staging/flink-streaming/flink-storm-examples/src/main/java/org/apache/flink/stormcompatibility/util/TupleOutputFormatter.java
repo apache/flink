@@ -20,16 +20,14 @@ package org.apache.flink.stormcompatibility.util;
 
 import backtype.storm.tuple.Tuple;
 
-import java.io.Serializable;
-
-public class TupleOutputFormatter implements OutputFormatter, Serializable {
+public class TupleOutputFormatter implements OutputFormatter {
+	private static final long serialVersionUID = -599665757723851761L;
 
 	@Override
-	public String format(Object input) {
-		Tuple inputTuple = (Tuple) input;
-		StringBuilder stringBuilder = new StringBuilder();
+	public String format(final Tuple input) {
+		final StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.append("(");
-		for (final Object attribute : inputTuple.getValues()) {
+		for (final Object attribute : input.getValues()) {
 			stringBuilder.append(attribute);
 			stringBuilder.append(",");
 		}

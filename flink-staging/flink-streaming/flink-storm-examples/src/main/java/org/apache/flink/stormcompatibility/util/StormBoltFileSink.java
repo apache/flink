@@ -34,7 +34,7 @@ public final class StormBoltFileSink extends AbstractStormBoltSink {
 	private final String path;
 	private BufferedWriter writer;
 
-	public StormBoltFileSink(final String path, OutputFormatter formatter) {
+	public StormBoltFileSink(final String path, final OutputFormatter formatter) {
 		super(formatter);
 		this.path = path;
 	}
