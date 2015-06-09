@@ -29,7 +29,7 @@ package org.apache.flink.streaming.api.windowing.extractor;
  *            The output type of the second extractor and the output type of the
  *            over all extraction.
  */
-public class ConcatinatedExtract<FROM, OVER, TO> implements Extractor<FROM, TO> {
+public class ConcatenatedExtract<FROM, OVER, TO> implements Extractor<FROM, TO> {
 
 	/**
 	 * auto-generated id
@@ -51,7 +51,7 @@ public class ConcatinatedExtract<FROM, OVER, TO> implements Extractor<FROM, TO> 
 	 *            extractor as input. Its output is then the result of the over
 	 *            all extraction.
 	 */
-	public ConcatinatedExtract(Extractor<FROM, OVER> e1, Extractor<OVER, TO> e2) {
+	public ConcatenatedExtract(Extractor<FROM, OVER> e1, Extractor<OVER, TO> e2) {
 		this.e1 = e1;
 		this.e2 = e2;
 	}
@@ -61,8 +61,8 @@ public class ConcatinatedExtract<FROM, OVER, TO> implements Extractor<FROM, TO> 
 		return e2.extract(e1.extract(in));
 	}
 
-	public <OUT> ConcatinatedExtract<FROM, TO, OUT> add(Extractor<TO, OUT> e3) {
-		return new ConcatinatedExtract<FROM, TO, OUT>(this, e3);
+	public <OUT> ConcatenatedExtract<FROM, TO, OUT> add(Extractor<TO, OUT> e3) {
+		return new ConcatenatedExtract<FROM, TO, OUT>(this, e3);
 	}
 
 }
