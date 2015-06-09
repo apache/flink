@@ -31,6 +31,12 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamGraph.StreamLoop;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
@@ -41,7 +47,7 @@ public class IterateTest {
 	private static boolean iterated[];
 	private static int PARALLELISM = 2;
 
-	public static final class IterationHead extends RichFlatMapFunction<Boolean,Boolean> {
+	public static final class IterationHead extends RichFlatMapFunction<Boolean, Boolean> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -58,7 +64,7 @@ public class IterateTest {
 
 	}
 
-	public static final class IterationTail extends RichFlatMapFunction<Boolean,Boolean> {
+	public static final class IterationTail extends RichFlatMapFunction<Boolean, Boolean> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -78,8 +84,8 @@ public class IterateTest {
 		public void invoke(Boolean tuple) {
 		}
 	}
-	
-	public static final class NoOpMap implements MapFunction<Boolean, Boolean>{
+
+	public static final class NoOpMap implements MapFunction<Boolean, Boolean> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -87,10 +93,10 @@ public class IterateTest {
 		public Boolean map(Boolean value) throws Exception {
 			return value;
 		}
-		
+
 	}
 
-	public StreamExecutionEnvironment constructIterativeJob(StreamExecutionEnvironment env){
+	public StreamExecutionEnvironment constructIterativeJob(StreamExecutionEnvironment env) {
 		env.setBufferTimeout(10);
 
 		DataStream<Boolean> source = env.fromCollection(Collections.nCopies(PARALLELISM, false));
@@ -103,7 +109,7 @@ public class IterateTest {
 		iteration.closeWith(increment).addSink(new MySink());
 		return env;
 	}
-	
+
 	@Test
 	public void testColocation() throws Exception {
 		StreamExecutionEnvironment env = new TestStreamEnvironment(4, MEMORYSIZE);
@@ -123,9 +129,9 @@ public class IterateTest {
 		AbstractJobVertex tailOp = null;
 
 		for (AbstractJobVertex vertex : graph.getVertices()) {
-			if (vertex.getName().contains("IterationHead")) {
+			if (vertex.getName().contains("IterationSource")) {
 				itSource = vertex;
-			} else if (vertex.getName().contains("IterationTail")) {
+			} else if (vertex.getName().contains("IterationSink")) {
 				itSink = vertex;
 			} else if (vertex.getName().contains("HeadOperator")) {
 				headOp = vertex;
@@ -139,6 +145,36 @@ public class IterateTest {
 		assertEquals(headOp.getParallelism(), 2);
 		assertEquals(tailOp.getParallelism(), 3);
 		assertEquals(itSource.getParallelism(), itSink.getParallelism());
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testPartitioning() throws Exception {
+		StreamExecutionEnvironment env = new TestStreamEnvironment(4, MEMORYSIZE);
+
+		IterativeDataStream<Boolean> it = env.fromElements(true).iterate();
+
+		IterativeDataStream<Boolean> it2 = env.fromElements(true).iterate();
+
+		DataStream<Boolean> head = it.map(new NoOpMap()).name("Head1").broadcast();
+		DataStream<Boolean> head2 = it2.map(new NoOpMap()).name("Head2").broadcast();
+
+		it.closeWith(head.union(head.map(new NoOpMap()).shuffle()), true);
+		it2.closeWith(head2, false);
+
+		System.out.println(env.getExecutionPlan());
+		StreamGraph graph = env.getStreamGraph();
+
+		for (StreamLoop loop : graph.getStreamLoops()) {
+			StreamEdge tailToSink = loop.getSink().getInEdges().get(0);
+			if (tailToSink.getSourceVertex().getOperatorName().contains("Head1")) {
+				assertTrue(tailToSink.getPartitioner() instanceof BroadcastPartitioner);
+				assertTrue(loop.getSink().getInEdges().get(1).getPartitioner() instanceof ShufflePartitioner);
+			} else {
+				assertTrue(tailToSink.getPartitioner() instanceof RebalancePartitioner);
+			}
+		}
+
 	}
 
 	@Test
