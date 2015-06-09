@@ -76,7 +76,7 @@ val survival = env.readCsvFile[(String, String, String, String)]("/path/to/haber
 
 We can now transform the data into a `DataSet[LabeledVector]`. This will allow us to use the
 dataset with the FlinkML classification algorithms. We know that the 4th element of the dataset
-is the class label, and the rest are features, wo we can build `LabeledVector` elements like this:
+is the class label, and the rest are features, so we can build `LabeledVector` elements like this:
 
 {% highlight scala %}
 
