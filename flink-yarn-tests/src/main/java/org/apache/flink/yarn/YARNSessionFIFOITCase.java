@@ -71,7 +71,7 @@ import static org.apache.flink.yarn.UtilsTest.checkForLogString;
 
 
 /**
- * This test starts a MiniYARNCluster with a FIFO scheudler.
+ * This test starts a MiniYARNCluster with a FIFO scheduler.
  * There are no queues for that scheduler.
  */
 public class YARNSessionFIFOITCase extends YarnTestBase {
@@ -206,12 +206,12 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			String hostname = null;
 			String port = null;
 			while(matches.find()) {
-				hostname = matches.group(1);
+				hostname = matches.group(1).toLowerCase();
 				port = matches.group(2);
 			}
 			LOG.info("Extracted hostname:port: {} {}", hostname, port);
 
-			Assert.assertEquals("unable to find hostname in " + parsed, hostname, parsed.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY));
+			Assert.assertEquals("unable to find hostname in " + parsed, hostname, parsed.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY).toLowerCase());
 			Assert.assertEquals("unable to find port in " + parsed, port, parsed.getString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY));
 
 			// test logfile access
