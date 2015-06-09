@@ -1152,7 +1152,7 @@ public class TypeExtractor {
 		}
 		
 		// check for writable types
-		if(Writable.class.isAssignableFrom(clazz)) {
+		if(Writable.class.isAssignableFrom(clazz) && !Writable.class.equals(clazz)) {
 			return (TypeInformation<OUT>) WritableTypeInfo.getWritableTypeInfo((Class<? extends Writable>) clazz);
 		}
 		
