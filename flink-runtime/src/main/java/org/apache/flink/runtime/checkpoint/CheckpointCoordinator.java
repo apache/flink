@@ -60,7 +60,6 @@ public class CheckpointCoordinator {
 	/** The number of recent checkpoints whose IDs are remembered */
 	private static final int NUM_GHOST_CHECKPOINT_IDS = 16;
 	
-	
 	/** Coordinator-wide lock to safeguard the checkpoint updates */
 	private final Object lock = new Object();
 	
