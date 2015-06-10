@@ -104,6 +104,7 @@ public class WindowJoin {
 		private Random rand;
 		private Tuple2<String, Integer> outTuple;
 		private volatile boolean isRunning = true;
+		private int counter;
 
 		public GradeSource() {
 			rand = new Random();
@@ -112,10 +113,11 @@ public class WindowJoin {
 
 		@Override
 		public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
-			while (isRunning) {
+			while (isRunning && counter < 100) {
 				outTuple.f0 = names[rand.nextInt(names.length)];
 				outTuple.f1 = rand.nextInt(GRADE_COUNT) + 1;
 				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
+				counter++;
 				ctx.collect(outTuple);
 			}
 		}
@@ -135,6 +137,7 @@ public class WindowJoin {
 		private transient Random rand;
 		private transient Tuple2<String, Integer> outTuple;
 		private volatile boolean isRunning;
+		private int counter;
 
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
@@ -146,10 +149,11 @@ public class WindowJoin {
 
 		@Override
 		public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
-			while (isRunning) {
+			while (isRunning && counter < 100) {
 				outTuple.f0 = names[rand.nextInt(names.length)];
 				outTuple.f1 = rand.nextInt(SALARY_MAX) + 1;
 				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
+				counter++;
 				ctx.collect(outTuple);
 			}
 		}

@@ -37,7 +37,9 @@ import java.util.Random;
  * and a timestamp. The streaming example triggers the top speed of each car
  * every x meters elapsed for the last y seconds.
  */
-public class TopSpeedWindowingExample {
+public class TopSpeedWindowing {
+
+	private static final int NUM_CAR_EVENTS = 100;
 
 	// *************************************************************************
 	// PROGRAM
@@ -94,6 +96,7 @@ public class TopSpeedWindowingExample {
 		private Random rand = new Random();
 
 		private volatile boolean isRunning = true;
+		private int counter;
 
 		private CarSource(int numOfCars) {
 			speeds = new Integer[numOfCars];
@@ -109,8 +112,8 @@ public class TopSpeedWindowingExample {
 		@Override
 		public void run(SourceContext<Tuple4<Integer, Integer, Double, Long>> ctx) throws Exception {
 
-			while (isRunning) {
-				Thread.sleep(1000);
+			while (isRunning && counter < NUM_CAR_EVENTS) {
+				Thread.sleep(100);
 				for (int carId = 0; carId < speeds.length; carId++) {
 					if (rand.nextBoolean()) {
 						speeds[carId] = Math.min(100, speeds[carId] + 5);
@@ -121,6 +124,7 @@ public class TopSpeedWindowingExample {
 					Tuple4<Integer, Integer, Double, Long> record = new Tuple4<Integer, Integer, Double, Long>(carId,
 							speeds[carId], distances[carId], System.currentTimeMillis());
 					ctx.collect(record);
+					counter++;
 				}
 			}
 		}

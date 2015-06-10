@@ -98,6 +98,7 @@ under the License.
 						</goals>
 						<configuration>
 							<artifactItems>
+								<!-- For WordCount example data -->
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-java-examples</artifactId>
@@ -106,6 +107,16 @@ under the License.
 									<overWrite>false</overWrite>
 									<outputDirectory>${project.build.directory}/classes</outputDirectory>
 									<includes>org/apache/flink/examples/java/wordcount/util/WordCountData.class</includes>
+								</artifactItem>
+								<!-- For JSON utilities -->
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-connector-twitter</artifactId>
+									<version>${project.version}</version>
+									<type>jar</type>
+									<overWrite>false</overWrite>
+									<outputDirectory>${project.build.directory}/classes</outputDirectory>
+									<includes>org/apache/flink/streaming/connectors/json/*</includes>
 								</artifactItem>
 							</artifactItems>
 						</configuration>
@@ -190,7 +201,8 @@ under the License.
 
 							<includes>
 								<include>org/apache/flink/streaming/examples/twitter/*.class</include>
-								<include>org/apache/flink/streaming/examples/twitter/util/*.class</include>						
+								<include>org/apache/flink/streaming/examples/twitter/util/*.class</include>
+								<include>org/apache/flink/streaming/connectors/json/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
