@@ -1235,15 +1235,14 @@ public class Graph<K, VV, EV> {
 
 	/**
 	 * Performs Difference on the vertex and edge sets of the input graphs
-	 * removes both vertices and edges with the vertex as a source/target
+	 * removes common vertices and edges. If a source/target vertex is removed, its corresponding edge will also be removed
 	 * @param graph the graph to perform difference with
 	 * @return a new graph where the common vertices and edges have been removed
 	 */
 	public Graph<K,VV,EV> difference(Graph<K,VV,EV> graph) throws java.lang.Exception{
 		DataSet<Vertex<K,VV>> removeVerticesData = graph.getVertices();
 		final List<Vertex<K,VV>> removeVerticesList = removeVerticesData.collect();
-		Graph<K,VV,EV> G3= this.removeVertices(removeVerticesList);
-		return G3;
+		return this.removeVertices(removeVerticesList);
 	}
 
 	/**
