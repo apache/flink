@@ -21,9 +21,6 @@ import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{Matchers, FlatSpec}
 
-/**
- * Created by shakirullah on 6/4/15.
- */
 class GMMSuite extends FlatSpec with Matchers with FlinkTestBase{
   behavior of "The GMM implementation"
 
@@ -73,7 +70,4 @@ class GMMSuite extends FlatSpec with Matchers with FlinkTestBase{
 
     }*/
   }
-}
-object GMMSuite{
-
 }
