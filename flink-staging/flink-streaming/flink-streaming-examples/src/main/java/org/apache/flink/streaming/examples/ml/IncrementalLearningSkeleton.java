@@ -61,8 +61,8 @@ public class IncrementalLearningSkeleton {
 		}
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		// env.setDegreeOfParallelism(1);
-		createSourceStreams(env);
+		trainingData = env.addSource(new FiniteTrainingDataSource());
+		newData = env.addSource(new FiniteNewDataSource());
 
 		// build new model on every second of new data
 		DataStream<Double[]> model = trainingData.window(Time.of(5000, new LinearTimestamp()))
@@ -90,34 +90,6 @@ public class IncrementalLearningSkeleton {
 	 * Feeds new data for newData. By default it is implemented as constantly
 	 * emitting the Integer 1 in a loop.
 	 */
-	public static class NewDataSource implements SourceFunction<Integer> {
-		private static final long serialVersionUID = 1L;
-		private static final int NEW_DATA_SLEEP_TIME = 1000;
-
-		private volatile boolean isRunning = true;
-
-		@Override
-		public void run(SourceContext<Integer> ctx) throws Exception {
-			while (isRunning) {
-				ctx.collect(getNewData());
-			}
-		}
-
-		private Integer getNewData() throws InterruptedException {
-			Thread.sleep(NEW_DATA_SLEEP_TIME);
-			return 1;
-		}
-		
-		@Override
-		public void cancel() {
-			isRunning = true;
-		}
-	}
-
-	/**
-	 * Feeds new data for newData. By default it is implemented as constantly
-	 * emitting the Integer 1 in a loop.
-	 */
 	public static class FiniteNewDataSource implements SourceFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 		private int counter;
@@ -139,36 +111,6 @@ public class IncrementalLearningSkeleton {
 			Thread.sleep(5);
 			counter++;
 			return 1;
-		}
-	}
-
-	/**
-	 * Feeds new training data for the partial model builder. By default it is
-	 * implemented as constantly emitting the Integer 1 in a loop.
-	 */
-	public static class TrainingDataSource implements SourceFunction<Integer> {
-		private static final long serialVersionUID = 1L;
-		private static final int TRAINING_DATA_SLEEP_TIME = 10;
-
-		private volatile boolean isRunning = true;
-
-		@Override
-		public void run(SourceContext<Integer> collector) throws Exception {
-			while (isRunning) {
-				collector.collect(getTrainingData());
-			}
-
-		}
-
-		private Integer getTrainingData() throws InterruptedException {
-			Thread.sleep(TRAINING_DATA_SLEEP_TIME);
-			return 1;
-
-		}
-		
-		@Override
-		public void cancel() {
-			isRunning = false;
 		}
 	}
 
@@ -292,13 +234,4 @@ public class IncrementalLearningSkeleton {
 		return true;
 	}
 
-	public static void createSourceStreams(StreamExecutionEnvironment env) {
-		if (fileOutput) {
-			trainingData = env.addSource(new FiniteTrainingDataSource());
-			newData = env.addSource(new FiniteNewDataSource());
-		} else {
-			trainingData = env.addSource(new TrainingDataSource());
-			newData = env.addSource(new NewDataSource());
-		}
-	}
 }
