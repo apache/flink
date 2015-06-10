@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java;
+package org.apache.flink.api.java.operators;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.operators.Operator;
@@ -26,8 +26,7 @@ import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.SortPartitionOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.api.java.operators.Keys;
-import org.apache.flink.api.java.operators.SingleInputOperator;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 
 import java.util.Arrays;
