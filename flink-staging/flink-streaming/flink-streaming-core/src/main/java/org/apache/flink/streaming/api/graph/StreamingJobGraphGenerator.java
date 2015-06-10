@@ -398,7 +398,6 @@ public class StreamingJobGraphGenerator {
 
 			JobSnapshottingSettings settings = new JobSnapshottingSettings(
 					triggerVertices, ackVertices, commitVertices, interval);
-			
 			jobGraph.setSnapshotSettings(settings);
 
 			int executionRetries = streamGraph.getExecutionConfig().getNumberOfExecutionRetries();

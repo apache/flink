@@ -118,7 +118,26 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Method for enabling fault-tolerance. Activates monitoring and backup of streaming
    * operator states. Time interval between state checkpoints is specified in in millis.
+   * 
+   * If the force flag is set to true, checkpointing will be enabled for iterative jobs as
+   * well.Please note that the checkpoint/restore guarantees for iterative jobs are
+   * only best-effort at the moment. Records inside the loops may be lost during failure.
    *
+   * Setting this option assumes that the job is used in production and thus if not stated
+   * explicitly otherwise with calling with the
+   * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method in case of
+   * failure the job will be resubmitted to the cluster indefinitely.
+   */
+  @deprecated
+  def enableCheckpointing(interval : Long, force: Boolean) : StreamExecutionEnvironment = {
+    javaEnv.enableCheckpointing(interval, force)
+    this
+  }
+  
+   /**
+   * Method for enabling fault-tolerance. Activates monitoring and backup of streaming
+   * operator states. Time interval between state checkpoints is specified in in millis.
+   * 
    * Setting this option assumes that the job is used in production and thus if not stated
    * explicitly otherwise with calling with the
    * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method in case of

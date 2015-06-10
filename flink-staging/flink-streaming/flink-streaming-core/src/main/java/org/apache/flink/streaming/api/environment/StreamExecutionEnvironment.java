@@ -241,6 +241,37 @@ public abstract class StreamExecutionEnvironment {
 		streamGraph.setCheckpointingInterval(interval);
 		return this;
 	}
+	
+	/**
+	 * Method for force-enabling fault-tolerance. Activates monitoring and
+	 * backup of streaming operator states even for jobs containing iterations.
+	 * 
+	 * Please note that the checkpoint/restore guarantees for iterative jobs are
+	 * only best-effort at the moment. Records inside the loops may be lost
+	 * during failure.
+	 * <p/>
+	 * <p/>
+	 * Setting this option assumes that the job is used in production and thus
+	 * if not stated explicitly otherwise with calling with the
+	 * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method
+	 * in case of failure the job will be resubmitted to the cluster
+	 * indefinitely.
+	 * 
+	 * @param interval
+	 *            Time interval between state checkpoints in millis
+	 * @param force
+	 *            If true checkpointing will be enabled for iterative jobs as
+	 *            well
+	 */
+	@Deprecated
+	public StreamExecutionEnvironment enableCheckpointing(long interval, boolean force) {
+		streamGraph.setCheckpointingEnabled(true);
+		streamGraph.setCheckpointingInterval(interval);
+		if (force) {
+			streamGraph.forceCheckpoint();
+		}
+		return this;
+	}
 
 	/**
 	 * Method for enabling fault-tolerance. Activates monitoring and backup of
