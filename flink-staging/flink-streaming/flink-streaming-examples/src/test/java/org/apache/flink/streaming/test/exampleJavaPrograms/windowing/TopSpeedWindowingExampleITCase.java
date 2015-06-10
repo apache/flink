@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.test.exampleJavaPrograms.windowing;
 
-import org.apache.flink.streaming.examples.windowing.TopSpeedWindowingExample;
+import org.apache.flink.streaming.examples.windowing.TopSpeedWindowing;
 import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
@@ -39,7 +39,7 @@ public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		TopSpeedWindowingExample.main(new String[]{textPath, resultPath});
+		TopSpeedWindowing.main(new String[]{textPath, resultPath});
 
 	}
 }

@@ -103,7 +103,7 @@ public class IterateExample {
 	// *************************************************************************
 
 	/**
-	 * Generate random integer pairs from the range from 0 to BOUND/2
+	 * Generate BOUND number of random integer pairs from the range from 0 to BOUND/2
 	 */
 	private static class RandomFibonacciSource implements SourceFunction<Tuple2<Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
@@ -111,16 +111,18 @@ public class IterateExample {
 		private Random rnd = new Random();
 
 		private volatile boolean isRunning = true;
+		private int counter = 0;
 
 		@Override
 		public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
 
-			while (isRunning) {
+			while (isRunning && counter < BOUND) {
 				int first = rnd.nextInt(BOUND / 2 - 1) + 1;
 				int second = rnd.nextInt(BOUND / 2 - 1) + 1;
 
 				ctx.collect(new Tuple2<Integer, Integer>(first, second));
-				Thread.sleep(500L);
+				counter++;
+				Thread.sleep(50L);
 			}
 		}
 
