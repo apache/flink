@@ -710,6 +710,7 @@ public class ExecutionGraph implements Serializable {
 								@Override
 								public Object call() throws Exception {
 									try {
+										LOG.info("Delaying retry of job execution for {} ms ...", delayBeforeRetrying);
 										Thread.sleep(delayBeforeRetrying);
 									}
 									catch(InterruptedException e){
