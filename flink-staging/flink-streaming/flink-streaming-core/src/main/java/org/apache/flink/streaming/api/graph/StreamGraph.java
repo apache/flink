@@ -79,6 +79,7 @@ public class StreamGraph extends StreamingPlan {
 	private Map<Integer, StreamLoop> streamLoops;
 	protected Map<Integer, StreamLoop> vertexIDtoLoop;
 	private StateHandleProvider<?> stateHandleProvider;
+	private boolean forceCheckpoint = false;
 
 	public StreamGraph(StreamExecutionEnvironment environment) {
 
@@ -117,6 +118,10 @@ public class StreamGraph extends StreamingPlan {
 
 	public void setCheckpointingInterval(long checkpointingInterval) {
 		this.checkpointingInterval = checkpointingInterval;
+	}
+	
+	public void forceCheckpoint() {
+		this.forceCheckpoint = true;	
 	}
 
 	public void setStateHandleProvider(StateHandleProvider<?> provider) {
@@ -408,9 +413,11 @@ public class StreamGraph extends StreamingPlan {
 	public JobGraph getJobGraph(String jobGraphName) {
 
 		// temporarily forbid checkpointing for iterative jobs
-		if (isIterative() && isCheckpointingEnabled()) {
+		if (isIterative() && isCheckpointingEnabled() && !forceCheckpoint) {
 			throw new UnsupportedOperationException(
-					"Checkpointing is currently not supported for iterative jobs!");
+					"Checkpointing is currently not supported by default for iterative jobs, as we cannot guarantee exactly once semantics. "
+					+ "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
+					+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
 		}
 
 		setJobName(jobGraphName);

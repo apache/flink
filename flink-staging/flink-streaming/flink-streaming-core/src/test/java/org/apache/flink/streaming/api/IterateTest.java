@@ -207,6 +207,22 @@ public class IterateTest {
 		} catch (UnsupportedOperationException e) {
 			// expected behaviour
 		}
+		
+		
+		// Test force checkpointing
+
+		try {
+			env.enableCheckpointing(1, false);
+			env.execute();
+
+			// this statement should never be reached
+			fail();
+		} catch (UnsupportedOperationException e) {
+			// expected behaviour
+		}
+		
+		env.enableCheckpointing(1, true);
+		env.getStreamGraph().getJobGraph();
 
 	}
 

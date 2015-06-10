@@ -57,6 +57,8 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 	@Override
 	public void invoke() throws Exception {
+		isRunning = true;
+		
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Iteration sink {} invoked", getName());
 		}
@@ -74,6 +76,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 		}
 		finally {
 			// Cleanup
+			isRunning = false;
 			clearBuffers();
 		}
 	}
