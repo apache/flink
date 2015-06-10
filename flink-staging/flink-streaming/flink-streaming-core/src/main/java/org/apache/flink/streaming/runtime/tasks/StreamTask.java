@@ -229,7 +229,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	@Override
 	public void triggerCheckpoint(long checkpointId, long timestamp) throws Exception {
-
+		
 		synchronized (checkpointLock) {
 			if (isRunning) {
 				try {
