@@ -81,6 +81,22 @@ function poll(jobId) {
 })();
 
 /*
+ * Polls the job execution counts on page load and every 2 seconds
+ */
+(function pollJobCounts() {
+	$.ajax({ url : "jobsInfo?get=jobcounts", cache: false, type : "GET",
+	    success : function(json) {
+
+		$("#jobs-finished").html(json.finished);
+		$("#jobs-canceled").html(json.canceled);
+		$("#jobs-failed").html(json.failed);
+
+	    }, dataType : "json",
+	});
+	setTimeout(pollJobCounts, 2000);
+})();
+
+/*
  * Polls the number of taskmanagers on page load
  */
 (function pollTaskmanagers() {
@@ -418,20 +434,12 @@ function updateTable(json) {
 	}
 }
 
-var archive_finished = 0;
-var archive_failed = 0;
-var archive_canceled = 0;
-
 /*
  * Creates job history table
  */
 function fillTableArchive(table, json) {
 	$(table).html("");
-	
-	$("#jobs-finished").html(archive_finished);
-	$("#jobs-failed").html(archive_failed);
-	$("#jobs-canceled").html(archive_canceled);
-	
+
 	$.each(json, function(i, job) {
 		_fillTableArchive(table, job, false)
 	});
@@ -459,14 +467,4 @@ function _fillTableArchive(table, job, prepend) {
 						+ job.jobname + " ("
 						+ formattedTimeFromTimestamp(parseInt(job.time))
 						+ ")</a></li>");
-	if (job.status == "FINISHED")
-		archive_finished++;
-	if (job.status == "FAILED")
-		archive_failed++;
-	if (job.status == "CANCELED")
-		archive_canceled++;
-	
-	$("#jobs-finished").html(archive_finished);
-	$("#jobs-failed").html(archive_failed);
-	$("#jobs-canceled").html(archive_canceled);
 }
