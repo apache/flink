@@ -218,13 +218,9 @@ conditions of their respective licenses.
 The Apache Flink project bundles the following files under the MIT License:
 
  - jQuery v2.1.0. (http://jquery.com) - Copyright 2014 jQuery Foundation and other contributors
- - jQuery resize event v1.1 (http://benalman.com/projects/jquery-resize-plugin/) - Copyright (c) 2010 "Cowboy" Ben Alman
  - Sizzle.js (http://sizzlejs.com) - Copyright 2010, The Dojo Foundation
  - jCanvas 13.11.21 (http://calebevans.me/projects/jcanvas/) - Copyright 2014 Caleb Evans
- - Flot 0.8.1 (http://www.flotcharts.org) - Copyright (c) 2007-2013 IOLA and Ole Laursen
- - query.flot.tooltip (https://github.com/krzysu/flot.tooltip) - Copyright (c) Krzysztof Urbas
  - Bootstrap 3.1.0 (http://getbootstrap.com) - Copyright (c) 2011-2014 Twitter, Inc
- - Bootswatch Lumen Theme v3.1.1+1 (http://bootswatch.com) - Copyright (c) 2012-2014 Thomas Park
  - normalize.css v3.0.0 (http://git.io/normalize) - Copyright (c) Nicolas Gallagher and Jonathan Neal
  - Font Awesome - Code (http://fortawesome.github.io/Font-Awesome/) - Copyright (c) 2014 Dave Gandy
  - D3 dagre renderer (https://github.com/cpettitt/dagre-d3) - Copyright (c) 2012-2013 Chris Pettitt
@@ -293,7 +289,7 @@ POSSIBILITY OF SUCH DAMAGE.
 -----------------------------------------------------------------------
 
 The Apache Flink project bundles the following fonts under the
-Open Font License (OFT) - http://scripts.sil.org/OFL/
+Open Font License (OFT) - http://scripts.sil.org/OFL
 
  - Font Awesome (http://fortawesome.github.io/Font-Awesome/) - Created by Dave Gandy
    -> fonts in "flink-runtime/src/main/resources/web-docs-infoserver/font-awesome/fonts"
