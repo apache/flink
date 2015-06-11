@@ -28,12 +28,12 @@ under the License.
 ## Introduction
 
 FlinkML is designed to make learning from your data a straight-forward process, abstracting away
-the complexities that usually come with having to deal with big data learning tasks. In this
+the complexities that usually come with big data learning tasks. In this
 quick-start guide we will show just how easy it is to solve a simple supervised learning problem
 using FlinkML. But first some basics, feel free to skip the next few lines if you're already
 familiar with Machine Learning (ML).
 
-As defined by Murphy [1] ML deals with detecting patterns in data, and using those
+As defined by Murphy [[1]](#murphy) ML deals with detecting patterns in data, and using those
 learned patterns to make predictions about the future. We can categorize most ML algorithms into
 two major categories: Supervised and Unsupervised Learning.
 
@@ -52,7 +52,7 @@ through [principal components analysis](https://en.wikipedia.org/wiki/Principal_
 
 ## Linking with FlinkML
 
-In order to use FlinkML in you project, first you have to
+In order to use FlinkML in your project, first you have to
 [set up a Flink program](http://ci.apache.org/projects/flink/flink-docs-master/apis/programming_guide.html#linking-with-flink).
 Next, you have to add the FlinkML dependency to the `pom.xml` of your project:
 
@@ -68,14 +68,14 @@ Next, you have to add the FlinkML dependency to the `pom.xml` of your project:
 
 To load data to be used with FlinkML we can use the ETL capabilities of Flink, or specialized
 functions for formatted data, such as the LibSVM format. For supervised learning problems it is
-common to use the `LabeledVector` class to represent the `(features, label)` examples. A `LabeledVector`
+common to use the `LabeledVector` class to represent the `(label, features)` examples. A `LabeledVector`
 object will have a FlinkML `Vector` member representing the features of the example and a `Double`
 member which represents the label, which could be the class in a classification problem, or the dependent
 variable for a regression problem.
 
 As an example, we can use Haberman's Survival Data Set , which you can
-[download from the UCI ML repository](http://archive.ics.uci.edu/ml/machine-learning-databases/haberman/haberman.data.
-This dataset *"contains cases from study conducted on the survival of patients who had undergone
+[download from the UCI ML repository](http://archive.ics.uci.edu/ml/machine-learning-databases/haberman/haberman.data).
+This dataset *"contains cases from a study conducted on the survival of patients who had undergone
 surgery for breast cancer"*. The data comes in a comma-separated file, where the first 3 columns
 are the features and last column is the class, and the 4th column indicates whether the patient
 survived 5 years or longer (label 1), or died within 5 years (label 2). You can check the [UCI
@@ -87,7 +87,7 @@ We can load the data as a `DataSet[String]` first:
 
 import org.apache.flink.api.scala.ExecutionEnvironment
 
-val env = ExecutionEnvironment.createLocalEnvironment(2)
+val env = ExecutionEnvironment.getExecutionEnvironment
 
 val survival = env.readCsvFile[(String, String, String, String)]("/path/to/haberman.data")
 
@@ -118,13 +118,14 @@ building a learner; that will allow us to show how we can import other dataset f
 
 A common format for ML datasets is the LibSVM format and a number of datasets using that format can be
 found [in the LibSVM datasets website](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/). FlinkML provides utilities for loading
-datasets using the LibSVM format through the `readLibSVM` function available through the MLUtils object.
+datasets using the LibSVM format through the `readLibSVM` function available through the `MLUtils`
+object.
 You can also save datasets in the LibSVM format using the `writeLibSVM` function.
 Let's import the svmguide1 dataset. You can download the
 [training set here](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/svmguide1)
 and the [test set here](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/svmguide1.t).
-This is an astroparticle binary classification dataset, used by Hsu et al. [3] in their practical
-Support Vector Machine (SVM) guide. It contains 4 numerical features, and the class label.
+This is an astroparticle binary classification dataset, used by Hsu et al. [[3]](#hsu) in their 
+practical Support Vector Machine (SVM) guide. It contains 4 numerical features, and the class label.
 
 We can simply import the dataset then using:
 
@@ -144,8 +145,8 @@ create a classifier.
 
 Once we have imported the dataset we can train a `Predictor` such as a linear SVM classifier.
 We can set a number of parameters for the classifier. Here we set the `Blocks` parameter,
-which is used to split the input by the underlying CoCoA algorithm [2] uses. The regularization
-parameter determines the amount of $l_2$ regularization applied, which is used
+which is used to split the input by the underlying CoCoA algorithm [[2]](#jaggi) uses. The 
+regularization parameter determines the amount of $l_2$ regularization applied, which is used
 to avoid overfitting. The step size determines the contribution of the weight vector updates to
 the next weight vector value. This parameter sets the initial step size.
 
@@ -176,7 +177,7 @@ Next we will see how we can pre-process our data, and use the ML pipelines capab
 
 ## Data pre-processing and pipelines
 
-A pre-processing step that is often encouraged [3] when using SVM classification is scaling
+A pre-processing step that is often encouraged [[3]](#hsu) when using SVM classification is scaling
 the input features to the [0, 1] range, in order to avoid features with extreme values
 dominating the rest.
 FlinkML has a number of `Transformers` such as `MinMaxScaler` that are used to pre-process data,
@@ -229,10 +230,11 @@ If you would like to contribute some new algorithms take a look at our
 
 **References**
 
-[1] Murphy, Kevin P. *Machine learning: a probabilistic perspective.* MIT press, 2012.
+<a name="murphy">[1]</a> Murphy, Kevin P. *Machine learning: a probabilistic perspective.* MIT 
+press, 2012.
 
-[2] Jaggi, Martin, et al. *Communication-efficient distributed dual coordinate ascent.*
-Advances in Neural Information Processing Systems. 2014.
+<a name="jaggi">[2]</a> Jaggi, Martin, et al. *Communication-efficient distributed dual 
+coordinate ascent.* Advances in Neural Information Processing Systems. 2014.
 
-[3] Hsu, Chih-Wei, Chih-Chung Chang, and Chih-Jen Lin.
- *A practical guide to support vector classification.* (2003).
+<a name="hsu">[3]</a> Hsu, Chih-Wei, Chih-Chung Chang, and Chih-Jen Lin.
+ *A practical guide to support vector classification.* 2003.
