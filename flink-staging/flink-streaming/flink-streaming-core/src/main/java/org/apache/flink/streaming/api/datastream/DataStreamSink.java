@@ -31,7 +31,7 @@ public class DataStreamSink<IN> extends SingleOutputStreamOperator<IN, DataStrea
 
 	protected DataStreamSink(StreamExecutionEnvironment environment, String operatorType,
 			TypeInformation<IN> outTypeInfo, OneInputStreamOperator<IN, ?> operator) {
-		super(environment, operatorType, outTypeInfo, operator);
+		super(environment, outTypeInfo, operator);
 	}
 
 	protected DataStreamSink(DataStream<IN> dataStream) {
