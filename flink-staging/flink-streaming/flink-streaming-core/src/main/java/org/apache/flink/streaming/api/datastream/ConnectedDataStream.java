@@ -482,7 +482,7 @@ public class ConnectedDataStream<IN1, IN2> {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(
-				environment, functionName, outTypeInfo, operator);
+				environment, outTypeInfo, operator);
 
 		dataStream1.streamGraph.addCoOperator(returnStream.getId(), operator, getType1(),
 				getType2(), outTypeInfo, functionName);
