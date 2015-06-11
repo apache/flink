@@ -66,6 +66,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.StringUtils;
 import org.eclipse.jetty.io.EofException;
 
+import scala.Tuple3;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -115,6 +116,20 @@ public class JobManagerInfoServlet extends HttpServlet {
 							((ArchivedJobs) result).asJavaCollection());
 
 					writeJsonForArchive(resp.getWriter(), archivedJobs);
+				}
+			}
+			else if("jobcounts".equals(req.getParameter("get"))) {
+				response = Patterns.ask(archive, ArchiveMessages.getRequestJobCounts(),
+						new Timeout(timeout));
+
+				result = Await.result(response, timeout);
+
+				if(!(result instanceof Tuple3)) {
+					throw new RuntimeException("RequestJobCounts requires a response of type " +
+							"Tuple3. Instead the response is of type " + result.getClass() +
+							".");
+				} else {
+					writeJsonForJobCounts(resp.getWriter(), (Tuple3)result);
 				}
 			}
 			else if("job".equals(req.getParameter("get"))) {
@@ -337,6 +352,22 @@ public class JobManagerInfoServlet extends HttpServlet {
 			}
 		}
 		wrt.write("]");
+
+	}
+
+	/**
+	 * Writes Json with the job counts
+	 *
+	 * @param wrt
+	 * @param counts
+	 */
+	private void writeJsonForJobCounts(PrintWriter wrt, Tuple3<Integer, Integer, Integer> jobCounts) {
+
+		wrt.write("{");
+		wrt.write("\"finished\": " + jobCounts._1() + ",");
+		wrt.write("\"canceled\": " + jobCounts._2() + ",");
+		wrt.write("\"failed\": "   + jobCounts._3());
+		wrt.write("}");
 
 	}
 
