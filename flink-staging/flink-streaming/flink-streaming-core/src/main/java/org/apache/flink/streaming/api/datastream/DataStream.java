@@ -125,12 +125,10 @@ public class DataStream<OUT> {
 	 * 
 	 * @param environment
 	 *            StreamExecutionEnvironment
-	 * @param operatorType
-	 *            The type of the operator in the component
 	 * @param typeInfo
 	 *            Type of the datastream
 	 */
-	public DataStream(StreamExecutionEnvironment environment, String operatorType, TypeInformation<OUT> typeInfo) {
+	public DataStream(StreamExecutionEnvironment environment, TypeInformation<OUT> typeInfo) {
 		if (environment == null) {
 			throw new NullPointerException("context is null");
 		}
@@ -174,7 +172,7 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Returns the ID of the {@link DataStream}.
+	 * Returns the ID of the {@link DataStream} in the current {@link StreamExecutionEnvironment}.
 	 * 
 	 * @return ID of the DataStream
 	 */
@@ -420,9 +418,11 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are broadcasted to every parallel instance of the next component. This
-	 * setting only effects the how the outputs will be distributed between the
-	 * parallel instances of the next processing operator.
+	 * are broadcasted to every parallel instance of the next component.
+	 *
+	 * <p>
+	 * This setting only effects the how the outputs will be distributed between
+	 * the parallel instances of the next processing operator.
 	 * 
 	 * @return The DataStream with broadcast partitioning set.
 	 */
@@ -432,9 +432,11 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are shuffled to the next component. This setting only effects the how the
-	 * outputs will be distributed between the parallel instances of the next
-	 * processing operator.
+	 * are shuffled uniformly randomly to the next component.
+	 *
+	 * <p>
+	 * This setting only effects the how the outputs will be distributed between
+	 * the parallel instances of the next processing operator.
 	 * 
 	 * @return The DataStream with shuffle partitioning set.
 	 */
@@ -445,11 +447,13 @@ public class DataStream<OUT> {
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
 	 * are forwarded to the local subtask of the next component (whenever
-	 * possible). This is the default partitioner setting. This setting only
-	 * effects the how the outputs will be distributed between the parallel
-	 * instances of the next processing operator.
+	 * possible).
+	 *
+	 * <p>
+	 * This setting only effects the how the outputs will be distributed between
+	 * the parallel instances of the next processing operator.
 	 * 
-	 * @return The DataStream with shuffle partitioning set.
+	 * @return The DataStream with forward partitioning set.
 	 */
 	public DataStream<OUT> forward() {
 		return setConnectionType(new RebalancePartitioner<OUT>(true));
@@ -457,11 +461,14 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are distributed evenly to the next component.This setting only effects
-	 * the how the outputs will be distributed between the parallel instances of
-	 * the next processing operator.
+	 * are distributed evenly to instances of the next component in a Round-robin
+	 * fashion.
+	 *
+	 * <p>
+	 * This setting only effects the how the outputs will be distributed between
+	 * the parallel instances of the next processing operator.
 	 * 
-	 * @return The DataStream with shuffle partitioning set.
+	 * @return The DataStream with rebalance partitioning set.
 	 */
 	public DataStream<OUT> rebalance() {
 		return setConnectionType(new RebalancePartitioner<OUT>(false));
@@ -1237,7 +1244,7 @@ public class DataStream<OUT> {
 
 	/**
 	 * Method for passing user defined operators along with the type
-	 * informations that will transform the DataStream.
+	 * information that will transform the DataStream.
 	 * 
 	 * @param operatorName
 	 *            name of the operator, for logging purposes
@@ -1254,7 +1261,7 @@ public class DataStream<OUT> {
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
-				operatorName, outTypeInfo, operator);
+				outTypeInfo, operator);
 
 		streamGraph.addOperator(returnStream.getId(), operator, getType(), outTypeInfo,
 				operatorName);
@@ -1337,7 +1344,7 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Gets the class of the field at the given position
+	 * Gets the class of the field at the given position.
 	 * 
 	 * @param pos
 	 *            Position of the field
