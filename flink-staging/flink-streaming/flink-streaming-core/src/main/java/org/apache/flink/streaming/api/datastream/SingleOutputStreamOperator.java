@@ -64,8 +64,8 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	}
 
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment,
-			String operatorType, TypeInformation<OUT> outTypeInfo, StreamOperator<?> operator) {
-		super(environment, operatorType, outTypeInfo);
+			TypeInformation<OUT> outTypeInfo, StreamOperator<?> operator) {
+		super(environment, outTypeInfo);
 		this.isSplit = false;
 		this.operator = operator;
 	}
