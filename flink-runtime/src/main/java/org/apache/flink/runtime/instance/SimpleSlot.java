@@ -142,11 +142,9 @@ public class SimpleSlot extends Slot {
 
 	@Override
 	public void releaseSlot() {
-		
-		// try to transition to the CANCELED state. That state marks
-		// that the releasing is in progress
-		if (markCancelled()) {
-			
+
+		if (!isCanceled()) {
+
 			// kill all tasks currently running in this slot
 			Execution exec = this.executedTask;
 			if (exec != null && !exec.isFinished()) {
@@ -159,9 +157,10 @@ public class SimpleSlot extends Slot {
 			// otherwise release through the parent shared slot
 			if (getParent() == null) {
 				// we have to give back the slot to the owning instance
-				getInstance().returnAllocatedSlot(this);
-			}
-			else {
+				if (markCancelled()) {
+					getInstance().returnAllocatedSlot(this);
+				}
+			} else {
 				// we have to ask our parent to dispose us
 				getParent().releaseChild(this);
 			}
