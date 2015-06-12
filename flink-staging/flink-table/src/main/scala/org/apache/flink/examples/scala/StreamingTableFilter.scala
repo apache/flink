@@ -42,7 +42,7 @@ object StreamingTableFilter {
     val cars = genCarStream().toTable
       .filter('carId === 0)
       .select('carId, 'speed, 'distance + 1000 as 'distance, 'time % 5 as 'time)
-      .toStream[CarEvent]
+      .toDataStream[CarEvent]
 
     cars.print()
 
