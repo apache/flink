@@ -23,6 +23,8 @@ under the License.
 This document gives a deep-dive into the available transformations on DataSets. For a general introduction to the
 Flink Java API, please refer to the [Programming Guide](programming_guide.html).
 
+For zipping elements in a data set with a dense index, please refer to the [Zip Elements Guide](zip_elements_guide.html).
+
 * This will be replaced by the TOC
 {:toc}
 
