@@ -101,7 +101,7 @@ object PageRankTable {
         val newRanks = currentRanks.toTable
           // distribute ranks to target pages
           .join(adjacencyLists).where('pageId === 'sourceId)
-          .select('rank, 'targetIds).toSet[RankOutput]
+          .select('rank, 'targetIds).toDataSet[RankOutput]
           .flatMap {
             (in, out: Collector[(Long, Double)]) =>
               val targets = in.targetIds
