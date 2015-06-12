@@ -29,7 +29,8 @@ import org.junit.Test
 
 class RowSerializerTest {
 
-  private val rowInfo: TypeInformation[Row] = new RowTypeInfo(Seq(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO), Seq("id", "name"))
+  private val rowInfo: TypeInformation[Row] = new RowTypeInfo(
+    Seq(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO), Seq("id", "name"))
 
   private val row1 = new Row(2)
   row1.setField(0, 1)
@@ -234,7 +235,7 @@ class RowSerializerTest {
   @Test
   def testSerializabilityAndEquals() {
     val ser2 = SerializationUtils.clone(rowSerializer)
-    assertEquals("The copy of the serializer is not equal to the original one.", rowSerializer, ser2)
+    assertEquals("Copy of the serializer is not equal to the original one.", rowSerializer, ser2)
   }
 
 
