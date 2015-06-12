@@ -28,7 +28,8 @@ under the License.
 Start a YARN session with 4 Task Managers (each with 4 GB of Heapspace):
 
 ~~~bash
-wget {{ site.download_url_hadoop2 }}
+# get the hadoop2 package from the Flink download page at
+# {{ site.download_url }}
 tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{ site.version }}/
 ./bin/yarn-session.sh -n 4 -jm 1024 -tm 4096
@@ -41,7 +42,8 @@ Once the session has been started, you can submit jobs to the cluster using the 
 ## Quickstart: Run a Flink job on YARN
 
 ~~~bash
-wget {{ site.download_url_hadoop2 }}
+# get the hadoop2 package from the Flink download page at
+# {{ site.download_url }}
 tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{ site.version }}/
 ./bin/flink -m yarn-cluster -yn 4 -yjm 1024 -ytm 4096 ./examples/flink-java-examples-{{ site.version }}-WordCount.jar
