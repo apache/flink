@@ -79,16 +79,17 @@ class RowSerializer(fieldSerializers: Array[TypeSerializer[Any]])
 
   override def serialize(value: Row, target: DataOutputView) {
     val len = fieldSerializers.length
-    (0 to len - 1).foreach {
-      index =>
-        val o: AnyRef = value.productElement(index).asInstanceOf[AnyRef]
-        if (o == null) {
-          target.writeBoolean(true)
-        } else {
-          target.writeBoolean(false)
-          val serializer = fieldSerializers(index)
-          serializer.serialize(value.productElement(index), target)
-        }
+    var index = 0
+    while (index < len) {
+      val o: AnyRef = value.productElement(index).asInstanceOf[AnyRef]
+      if (o == null) {
+        target.writeBoolean(true)
+      } else {
+        target.writeBoolean(false)
+        val serializer = fieldSerializers(index)
+        serializer.serialize(value.productElement(index), target)
+      }
+      index += 1
     }
   }
 
@@ -99,16 +100,17 @@ class RowSerializer(fieldSerializers: Array[TypeSerializer[Any]])
       throw new RuntimeException("Row arity of reuse and fields do not match.")
     }
 
-    (0 to len - 1).foreach {
-      index =>
-        val isNull: Boolean = source.readBoolean
-        if (isNull) {
-          reuse.setField(index, null)
-        } else {
-          val field = reuse.productElement(index).asInstanceOf[AnyRef]
-          val serializer: TypeSerializer[Any] = fieldSerializers(index)
-          reuse.setField(index, serializer.deserialize(field, source))
-        }
+    var index = 0
+    while (index < len) {
+      val isNull: Boolean = source.readBoolean
+      if (isNull) {
+        reuse.setField(index, null)
+      } else {
+        val field = reuse.productElement(index).asInstanceOf[AnyRef]
+        val serializer: TypeSerializer[Any] = fieldSerializers(index)
+        reuse.setField(index, serializer.deserialize(field, source))
+      }
+      index += 1
     }
     reuse
   }
@@ -118,15 +120,16 @@ class RowSerializer(fieldSerializers: Array[TypeSerializer[Any]])
 
     val result = new Row(len)
 
-    (0 to len - 1).foreach {
-      index =>
-        val isNull: Boolean = source.readBoolean()
-        if (isNull) {
-          result.setField(index, null)
-        } else {
-          val serializer: TypeSerializer[Any] = fieldSerializers(index)
-          result.setField(index, serializer.deserialize(source))
-        }
+    var index = 0
+    while (index < len) {
+      val isNull: Boolean = source.readBoolean()
+      if (isNull) {
+        result.setField(index, null)
+      } else {
+        val serializer: TypeSerializer[Any] = fieldSerializers(index)
+        result.setField(index, serializer.deserialize(source))
+      }
+      index += 1
     }
     result
   }
