@@ -56,7 +56,7 @@ class RowSerializerTest {
 
     val row2 = new Row(2)
     row2.setField(0, 2)
-    row2.setField(1, "hello")
+    row2.setField(1, null)
 
     val testData: Array[Row] = Array(row1, row2)
 

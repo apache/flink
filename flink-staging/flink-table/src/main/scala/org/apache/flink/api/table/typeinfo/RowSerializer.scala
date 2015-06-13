@@ -134,14 +134,15 @@ class RowSerializer(fieldSerializers: Array[TypeSerializer[Any]])
     result
   }
 
-  private final val booleanSerializer = new BooleanSerializer()
-
   override def copy(source: DataInputView, target: DataOutputView): Unit = {
     val len = fieldSerializers.length
     var i = 0
     while (i < len) {
-      booleanSerializer.copy(source, target)
-      fieldSerializers(i).copy(source, target)
+      val isNull = source.readBoolean()
+      target.writeBoolean(isNull)
+      if (!isNull) {
+        fieldSerializers(i).copy(source, target)
+      }
       i += 1
     }
   }
