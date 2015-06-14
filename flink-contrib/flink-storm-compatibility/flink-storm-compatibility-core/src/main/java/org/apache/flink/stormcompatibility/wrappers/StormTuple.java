@@ -37,7 +37,7 @@ import java.util.List;
  */
 class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 
-	// The storm representation of the original Flink tuple
+	/** The storm representation of the original Flink tuple */
 	private final Values stormTuple;
 
 	/**

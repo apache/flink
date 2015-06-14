@@ -33,7 +33,7 @@ import org.apache.flink.stormcompatibility.util.StormInMemorySpout;
 public class ExclamationTopology {
 
 	public final static String spoutId = "source";
-	public final static String firstBoltId = "exlamation1";
+	public final static String firstBoltId = "exclamation1";
 	public final static String secondBoltId = "exclamation2";
 	public final static String sinkId = "sink";
 	private final static OutputFormatter formatter = new SimpleOutputFormatter();

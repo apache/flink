@@ -42,7 +42,7 @@ class StormWrapperSetupHelper {
 	 * {@link StormBoltWrapper}. Returns zero for raw output type or a value within range [1;25] for
 	 * output type {@link org.apache.flink.api.java.tuple.Tuple1 Tuple1} to
 	 * {@link org.apache.flink.api.java.tuple.Tuple25 Tuple25} . In case of a data sink, {@code -1}
-	 * is returned. .
+	 * is returned.
 	 * 
 	 * @param spoutOrBolt
 	 * 		The Storm {@link IRichSpout spout} or {@link IRichBolt bolt} to be used.

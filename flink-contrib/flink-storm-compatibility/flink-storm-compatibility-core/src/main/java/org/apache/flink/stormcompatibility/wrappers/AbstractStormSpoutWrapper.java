@@ -37,7 +37,9 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 	private static final long serialVersionUID = 4993283609095408765L;
 
-	// Number of attributes of the bolt's output tuples.
+	/**
+	 * Number of attributes of the bolt's output tuples.
+	 */
 	private final int numberOfAttributes;
 	/**
 	 * The wrapped Storm {@link IRichSpout spout}.

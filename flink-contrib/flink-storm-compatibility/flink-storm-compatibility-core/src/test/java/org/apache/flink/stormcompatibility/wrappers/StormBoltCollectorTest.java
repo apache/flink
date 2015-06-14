@@ -83,7 +83,7 @@ public class StormBoltCollectorTest extends AbstractTest {
 	@Test(expected = UnsupportedOperationException.class)
 	public void testEmitDirect() {
 		new StormBoltCollector<Object>(1, mock(Output.class)).emitDirect(0, null,
-				(Collection) null, null);
+				null, null);
 	}
 
 	@SuppressWarnings("unchecked")

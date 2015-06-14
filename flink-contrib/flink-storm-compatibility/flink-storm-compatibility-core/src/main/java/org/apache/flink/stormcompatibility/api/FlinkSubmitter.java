@@ -74,10 +74,6 @@ public class FlinkSubmitter {
 	 * 		the topology-specific configuration. See {@link Config}.
 	 * @param topology
 	 * 		the processing to execute.
-	 * @param opts
-	 * 		to manipulate the starting of the topology
-	 * @param progressListener
-	 * 		to track the progress of the jar upload process
 	 * @throws AlreadyAliveException
 	 * 		if a topology with this name is already running
 	 * @throws InvalidTopologyException
@@ -145,8 +141,6 @@ public class FlinkSubmitter {
 	 * 		the topology-specific configuration. See {@link Config}.
 	 * @param topology
 	 * 		the processing to execute.
-	 * @param opts
-	 * 		to manipulate the starting of the topology
 	 * @throws AlreadyAliveException
 	 * 		if a topology with this name is already running
 	 * @throws InvalidTopologyException
@@ -179,12 +173,8 @@ public class FlinkSubmitter {
 	 * returned value is parameter localJar, because this give the best integration of Storm behavior within a Flink
 	 * environment.
 	 *
-	 * @param conf
-	 * 		the topology-specific configuration. See {@link Config}.
 	 * @param localJar
 	 * 		file path of the jar file to submit
-	 * @param listener
-	 * 		progress listener to track the jar file upload
 	 * @return the value of parameter localJar
 	 */
 	public static String submitJar(final String localJar) {

@@ -30,9 +30,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  */
 class FlinkTopology extends StreamExecutionEnvironment {
 
-	// The corresponding {@link StormTopology} that is mimicked by this {@link FlinkTopology}
+	/** The corresponding {@link StormTopology} that is mimicked by this {@link FlinkTopology} */
 	private final StormTopology stormTopology;
-	// The number of declared tasks for the whole program (ie, sum over all dops)
+	/** The number of declared tasks for the whole program (ie, sum over all dops) */
 	private int numberOfTasks = 0;
 
 	public FlinkTopology(final StormTopology stormTopology) {

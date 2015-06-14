@@ -54,11 +54,11 @@ import java.util.Set;
  */
 public class FlinkTopologyBuilder {
 
-	// A Storm {@link TopologyBuilder} to build a real Storm topology
+	/** A Storm {@link TopologyBuilder} to build a real Storm topology */
 	private final TopologyBuilder stormBuilder = new TopologyBuilder();
-	// All user spouts by their ID
+	/** All user spouts by their ID */
 	private final HashMap<String, IRichSpout> spouts = new HashMap<String, IRichSpout>();
-	// All user bolts by their ID
+	/** All user bolts by their ID */
 	private final HashMap<String, IRichBolt> bolts = new HashMap<String, IRichBolt>();
 
 	/**

@@ -32,7 +32,7 @@ import org.apache.flink.api.java.tuple.Tuple25;
 public class StormFiniteSpoutWrapper<OUT> extends AbstractStormSpoutWrapper<OUT> {
 	private static final long serialVersionUID = 3883246587044801286L;
 
-	// The number of {@link IRichSpout#nextTuple()} calls
+	/** The number of {@link IRichSpout#nextTuple()} calls */
 	private int numberOfInvocations;
 
 	/**
