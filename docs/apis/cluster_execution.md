@@ -144,3 +144,75 @@ public static void main(String[] args) throws Exception {
 Note that the program contains custom UDFs and hence requires a JAR file with
 the classes of the code attached. The constructor of the remote executor takes
 the path(s) to the JAR file(s).
+
+## Linking with modules not contained in the binary distribution
+
+The binary distribution contains jar packages in the `lib` folder that are automatically
+provided to the classpath of your distrbuted programs. Almost all of Flink classes are
+located there with a few exceptions, for example the streaming connectors and some freshly
+added modules. To run code depending on these modules you need to make them accessible
+during runtime, for which we suggest two options:
+
+1. Either copy the required jar files to the `lib` folder onto all of your TaskManagers.
+Note that you have to restar your TaskManagers after this.
+2. Or package them with your usercode.
+
+The latter version is recommended as it respects the classloader management in Flink.
+
+### Packaging dependencies with your usercode with Maven
+
+To provide these dependencies not included by Flink we suggest two options with Maven.
+
+1. The maven assembly plugin builds a so called fat jar cointaining all your dependencies.
+Assembly configuration is straight-forward, but the resulting jar might become bulky. See 
+[usage](http://maven.apache.org/plugins/maven-assembly-plugin/usage.html).
+2. The maven unpack plugin, for unpacking the relevant parts of the dependencies and
+then package it with your code.
+
+Using the latter approach in order to bundle the Kafka connector, `flink-connector-kafka`
+you would need to add the classes from both the connector and the Kafka API itself. Add
+the following to your plugins section.
+
+~~~xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-dependency-plugin</artifactId>
+    <version>2.9</version>
+    <executions>
+        <execution>
+            <id>unpack</id>
+            <!-- executed just before the package phase -->
+            <phase>prepare-package</phase>
+            <goals>
+                <goal>unpack</goal>
+            </goals>
+            <configuration>
+                <artifactItems>
+                    <!-- For Flink connector classes -->
+                    <artifactItem>
+                        <groupId>org.apache.flink</groupId>
+                        <artifactId>flink-connector-kafka</artifactId>
+                        <version>{{ site.version }}</version>
+                        <type>jar</type>
+                        <overWrite>false</overWrite>
+                        <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                        <includes>org/apache/flink/**</includes>
+                    </artifactItem>
+                    <!-- For Kafka API classes -->
+                    <artifactItem>
+                        <groupId>org.apache.kafka</groupId>
+                        <artifactId>kafka_<YOUR_SCALA_VERSION></artifactId>
+                        <version><YOUR_KAFKA_VERSION></version>
+                        <type>jar</type>
+                        <overWrite>false</overWrite>
+                        <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                        <includes>kafka/**</includes>
+                    </artifactItem>
+                </artifactItems>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+~~~
+
+Now when running `mvn clean package` the produced jar includes the required dependencies.
