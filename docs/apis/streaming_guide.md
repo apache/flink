@@ -1377,10 +1377,12 @@ This connector provides access to data streams from [Apache Kafka](https://kafka
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-kafka-connector</artifactId>
+  <artifactId>flink-connector-kafka</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}
+
+Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here](cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
 #### Installing Apache Kafka
 * Follow the instructions from [Kafka's quickstart](https://kafka.apache.org/documentation.html#quickstart) to download the code and launch a server (launching a Zookeeper and a Kafka server is required every time before starting the application).
@@ -1513,10 +1515,12 @@ This connector provides access to data streams from [RabbitMQ](http://www.rabbit
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-rabbitmq-connector</artifactId>
+  <artifactId>flink-connector-rabbitmq</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}
+
+Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here](cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
 #### Installing RabbitMQ
 Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.com/download.html). After the installation the server automatically starts, and the application connecting to RabbitMQ can be launched.
@@ -1585,10 +1589,12 @@ Twitter Streaming API provides opportunity to connect to the stream of tweets ma
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-twitter-connector</artifactId>
+  <artifactId>flink-connector-twitter</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}
+
+Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here](cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
 #### Authentication
 In order to connect to Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.
