@@ -27,7 +27,7 @@ import backtype.storm.utils.Utils;
  */
 class StormOutputFieldsDeclarer implements OutputFieldsDeclarer {
 
-	// The output schema declared by the wrapped bolt.
+	/** The output schema declared by the wrapped bolt. */
 	private Fields outputSchema = null;
 
 	@Override

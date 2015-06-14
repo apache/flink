@@ -28,6 +28,8 @@ import java.util.LinkedList;
 
 public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 
+
+
 	@Test
 	public void testDeclare() {
 		for (int i = 0; i < 4; ++i) {
@@ -58,7 +60,7 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 	}
 
 	private void runDeclareTest(final int testCase, final int numberOfAttributes) {
-		final FlinkOutputFieldsDeclarer declarere = new FlinkOutputFieldsDeclarer();
+		final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
 
 		final String[] attributes = new String[numberOfAttributes];
 		for (int i = 0; i < numberOfAttributes; ++i) {
@@ -67,19 +69,19 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 
 		switch (testCase) {
 			case 0:
-				this.declareSimple(declarere, attributes);
+				this.declareSimple(declarer, attributes);
 				break;
 			case 1:
-				this.declareNonDirect(declarere, attributes);
+				this.declareNonDirect(declarer, attributes);
 				break;
 			case 2:
-				this.declareDefaultStream(declarere, attributes);
+				this.declareDefaultStream(declarer, attributes);
 				break;
 			default:
-				this.declareFull(declarere, attributes);
+				this.declareFull(declarer, attributes);
 		}
 
-		final TypeInformation<?> type = declarere.getOutputType();
+		final TypeInformation<?> type = declarer.getOutputType();
 
 		if (numberOfAttributes == 0) {
 			Assert.assertNull(type);
@@ -93,20 +95,20 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 		}
 	}
 
-	private void declareSimple(final FlinkOutputFieldsDeclarer declarere, final String[] attributes) {
-		declarere.declare(new Fields(attributes));
+	private void declareSimple(final FlinkOutputFieldsDeclarer declarer, final String[] attributes) {
+		declarer.declare(new Fields(attributes));
 	}
 
-	private void declareNonDirect(final FlinkOutputFieldsDeclarer declarere, final String[] attributes) {
-		declarere.declare(false, new Fields(attributes));
+	private void declareNonDirect(final FlinkOutputFieldsDeclarer declarer, final String[] attributes) {
+		declarer.declare(false, new Fields(attributes));
 	}
 
-	private void declareDefaultStream(final FlinkOutputFieldsDeclarer declarere, final String[] attributes) {
-		declarere.declareStream(Utils.DEFAULT_STREAM_ID, new Fields(attributes));
+	private void declareDefaultStream(final FlinkOutputFieldsDeclarer declarer, final String[] attributes) {
+		declarer.declareStream(Utils.DEFAULT_STREAM_ID, new Fields(attributes));
 	}
 
-	private void declareFull(final FlinkOutputFieldsDeclarer declarere, final String[] attributes) {
-		declarere.declareStream(Utils.DEFAULT_STREAM_ID, false, new Fields(attributes));
+	private void declareFull(final FlinkOutputFieldsDeclarer declarer, final String[] attributes) {
+		declarer.declareStream(Utils.DEFAULT_STREAM_ID, false, new Fields(attributes));
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
@@ -137,8 +139,8 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 			attributes[i] = "a" + i;
 		}
 
-		final FlinkOutputFieldsDeclarer declarere = new FlinkOutputFieldsDeclarer();
-		declarere.declare(new Fields(attributes));
+		final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
+		declarer.declare(new Fields(attributes));
 
 		final int numberOfKeys = 1 + this.r.nextInt(25);
 		final LinkedList<String> groupingFields = new LinkedList<String>();
@@ -161,7 +163,7 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 			}
 		}
 
-		final int[] result = declarere.getGroupingFieldIndexes(groupingFields);
+		final int[] result = declarer.getGroupingFieldIndexes(groupingFields);
 
 		Assert.assertEquals(expectedResult.length, result.length);
 		for (int i = 0; i < expectedResult.length; ++i) {

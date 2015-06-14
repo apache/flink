@@ -34,7 +34,7 @@ import java.util.List;
  */
 class StormBoltCollector<OUT> extends AbstractStormCollector<OUT> implements IOutputCollector {
 
-	// The Flink output object
+	/** The Flink output object */
 	private final Output<OUT> flinkOutput;
 
 	/**

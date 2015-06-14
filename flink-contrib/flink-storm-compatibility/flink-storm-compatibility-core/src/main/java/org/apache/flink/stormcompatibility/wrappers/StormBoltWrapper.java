@@ -46,9 +46,9 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements OneInputStreamOperator<IN, OUT> {
 	private static final long serialVersionUID = -4788589118464155835L;
 
-	// The wrapped Storm {@link IRichBolt bolt}
+	/** The wrapped Storm {@link IRichBolt bolt} */
 	private final IRichBolt bolt;
-	// Number of attributes of the bolt's output tuples
+	/** Number of attributes of the bolt's output tuples */
 	private final int numberOfAttributes;
 
 	/**

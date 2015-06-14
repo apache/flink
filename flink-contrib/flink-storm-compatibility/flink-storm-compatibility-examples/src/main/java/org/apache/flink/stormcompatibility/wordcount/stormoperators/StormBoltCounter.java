@@ -78,8 +78,6 @@ public class StormBoltCounter implements IRichBolt {
 	/**
 	 * A counter helper to emit immutable tuples to the given stormCollector and avoid unnecessary object
 	 * creating/deletion.
-	 *
-	 * @author mjsax
 	 */
 	private static final class Count {
 		public int count;

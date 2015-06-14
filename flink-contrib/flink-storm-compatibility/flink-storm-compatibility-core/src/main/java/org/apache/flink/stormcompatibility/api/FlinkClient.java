@@ -64,11 +64,11 @@ import java.util.Map;
  */
 public class FlinkClient {
 
-	//The jobmanager's host name
+	/** The jobmanager's host name */
 	private final String jobManagerHost;
-	//The jobmanager's rpc port
+	/** The jobmanager's rpc port */
 	private final int jobManagerPort;
-	//The user specified timeout in milliseconds
+	/** The user specified timeout in milliseconds */
 	private final String timeout;
 
 	// The following methods are derived from "backtype.storm.utils.NimbusClient"
@@ -77,8 +77,6 @@ public class FlinkClient {
 	 * Instantiates a new {@link FlinkClient} for the given configuration, host name, and port. If values for {@link
 	 * Config#NIMBUS_HOST} and {@link Config#NIMBUS_THRIFT_PORT} of the given configuration are ignored.
 	 *
-	 * @param conf
-	 * 		A configuration.
 	 * @param host
 	 * 		The jobmanager's host name.
 	 * @param port
@@ -92,8 +90,6 @@ public class FlinkClient {
 	 * Instantiates a new {@link FlinkClient} for the given configuration, host name, and port. If values for {@link
 	 * Config#NIMBUS_HOST} and {@link Config#NIMBUS_THRIFT_PORT} of the given configuration are ignored.
 	 *
-	 * @param conf
-	 * 		A configuration.
 	 * @param host
 	 * 		The jobmanager's host name.
 	 * @param port
@@ -138,8 +134,6 @@ public class FlinkClient {
 	}
 
 	public void close() {/* nothing to do */}
-
-	// The following methods are derived from "backtype.storm.generated.Nimubs.Client"
 
 	/**
 	 * Parameter {@code uploadedJarLocation} is actually used to point to the local jar, because Flink does not support

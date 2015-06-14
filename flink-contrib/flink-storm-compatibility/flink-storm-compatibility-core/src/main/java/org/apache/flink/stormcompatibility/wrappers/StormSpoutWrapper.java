@@ -45,8 +45,7 @@ public class StormSpoutWrapper<OUT> extends AbstractStormSpoutWrapper<OUT> {
 
 	/**
 	 * Instantiates a new {@link StormSpoutWrapper} that wraps the given Storm {@link IRichSpout spout} such that it
-	 * can
-	 * be used within a Flink streaming program. The output type can be any type if parameter {@code rawOutput} is
+	 * can be used within a Flink streaming program. The output type can be any type if parameter {@code rawOutput} is
 	 * {@code true} and the spout's number of declared output tuples is 1. If {@code rawOutput} is {@code false} the
 	 * output type will be one of {@link Tuple1} to {@link Tuple25} depending on the spout's declared number of
 	 * attributes.

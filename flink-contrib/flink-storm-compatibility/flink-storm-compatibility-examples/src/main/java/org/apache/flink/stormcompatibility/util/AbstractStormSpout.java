@@ -27,7 +27,7 @@ import java.util.Map;
 
 /**
  * Base class for Storm Spout that reads data line by line from an arbitrary source. The declared output schema has a
- * single attribute calle {@code line} and should be of type {@link String}.
+ * single attribute called {@code line} and should be of type {@link String}.
  */
 public abstract class AbstractStormSpout implements IRichSpout {
 	private static final long serialVersionUID = 8876828403487806771L;
