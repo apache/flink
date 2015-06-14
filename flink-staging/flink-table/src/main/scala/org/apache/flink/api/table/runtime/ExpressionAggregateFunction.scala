@@ -53,7 +53,10 @@ class ExpressionAggregateFunction(
       var i = 0
       val len = functions.length
       while (i < len) {
-        functions(i).aggregate(current.productElement(fieldPositions(i)))
+        val element: Any = current.productElement(fieldPositions(i))
+        if (element != null){
+          functions(i).aggregate(element)
+        }
         i += 1
       }
     }
