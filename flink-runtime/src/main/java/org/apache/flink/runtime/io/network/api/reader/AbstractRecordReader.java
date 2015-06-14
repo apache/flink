@@ -83,7 +83,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 				// sanity check for leftover data in deserializers. events should only come between
 				// records, not in the middle of a fragment
 				if (recordDeserializers[bufferOrEvent.getChannelIndex()].hasUnfinishedData()) {
-					throw new IllegalStateException(
+					throw new IOException(
 							"Received an event in channel " + bufferOrEvent.getChannelIndex() + " while still having "
 							+ "data from a record. This indicates broken serialization logic. "
 							+ "If you are using custom serialization code (Writable or Value types), check their "
