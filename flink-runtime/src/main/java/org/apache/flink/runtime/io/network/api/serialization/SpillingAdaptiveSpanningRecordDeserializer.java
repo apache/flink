@@ -46,7 +46,14 @@ import java.util.Random;
  */
 public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> implements RecordDeserializer<T> {
 	
+	private static final String BROKEN_SERIALIZATION_ERROR_MESSAGE =
+					"Serializer consumed more bytes than the record had. " +
+					"This indicates broken serialization. If you are using custom serialization types " +
+					"(Value or Writable), check their serialization methods. If you are using a " +
+					"Kryo-serialized type, check the corresponding Kryo serializer.";
+	
 	private static final int THRESHOLD_FOR_SPILLING = 5 * 1024 * 1024; // 5 MiBytes
+	
 	
 	private final NonSpanningWrapper nonSpanningWrapper;
 	
@@ -107,12 +114,25 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 
 			if (len <= nonSpanningRemaining - 4) {
 				// we can get a full record from here
-				target.read(this.nonSpanningWrapper);
-				
-				return (this.nonSpanningWrapper.remaining() == 0) ?
-					DeserializationResult.LAST_RECORD_FROM_BUFFER :
-					DeserializationResult.INTERMEDIATE_RECORD_FROM_BUFFER;
-			} else {
+				try {
+					target.read(this.nonSpanningWrapper);
+
+					int remaining = this.nonSpanningWrapper.remaining();
+					if (remaining > 0) {
+						return DeserializationResult.INTERMEDIATE_RECORD_FROM_BUFFER;
+					}
+					else if (remaining == 0) {
+						return DeserializationResult.LAST_RECORD_FROM_BUFFER;
+					}
+					else {
+						throw new IndexOutOfBoundsException("Remaining = " + remaining);
+					}
+				}
+				catch (IndexOutOfBoundsException e) {
+					throw new IOException(BROKEN_SERIALIZATION_ERROR_MESSAGE, e);
+				}
+			}
+			else {
 				// we got the length, but we need the rest from the spanning deserializer
 				// and need to wait for more buffers
 				this.spanningWrapper.initializeWithPartialRecord(this.nonSpanningWrapper, len);
