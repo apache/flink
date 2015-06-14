@@ -37,6 +37,8 @@ The following dependency must be added to your project when using the Table API:
 </dependency>
 {% endhighlight %}
 
+Note that the Table API is currently not part of the binary distribution. See linking with it for cluster execution [here](../apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+
 ## Scala Table API
  
 The Table API can be enabled by importing `org.apache.flink.api.scala.table._`.  This enables
