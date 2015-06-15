@@ -240,7 +240,7 @@ Graph<Long, Double, Double> networkWithWeights = network.joinWithEdgesOnSource(v
     <img alt="Union Transformation" width="50%" src="fig/gelly-union.png"/>
 </p>
 
-* <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the input graphs. The resultant graph is formed by removing the vertices and edges from the graph that are common with the second graph.
+* <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the input graphs. The resultant graph is formed by removing the common vertices and edges from the graph.
 [Back to top](#top)
 
 Graph Mutations

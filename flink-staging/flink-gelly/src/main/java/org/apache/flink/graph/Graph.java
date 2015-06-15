@@ -1151,6 +1151,23 @@ public class Graph<K, VV, EV> {
 		}
 	}
 
+
+	public Graph<K, VV, EV> removeVertices(DataSet<Vertex<K, VV>> verticesToBeRemoved){
+		DataSet<Vertex<K,VV>> newVertices = getVertices().coGroup(verticesToBeRemoved).where(0).equalTo(0).with(new VerticesRemovalCoGroup<K, VV>());
+		DataSet < Edge < K, EV >> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
+				// if the edge source was removed, the edge will also be removed
+				.with(new ProjectEdgeToBeRemoved<K, VV, EV>())
+						// if the edge target was removed, the edge will also be removed
+				.join(newVertices).where(1).equalTo(0)
+				.with(new ProjectEdge<K, VV, EV>());
+
+		return new Graph<K, VV, EV>(newVertices, newEdges, context);
+	}
+
+
+
+
+
 	@ForwardedFieldsSecond("f0; f1; f2")
 	private static final class ProjectEdgeToBeRemoved<K,VV,EV> implements JoinFunction<Vertex<K, VV>, Edge<K, EV>, Edge<K, EV>> {
 		@Override
@@ -1241,8 +1258,7 @@ public class Graph<K, VV, EV> {
 	 */
 	public Graph<K,VV,EV> difference(Graph<K,VV,EV> graph) throws java.lang.Exception{
 		DataSet<Vertex<K,VV>> removeVerticesData = graph.getVertices();
-		final List<Vertex<K,VV>> removeVerticesList = removeVerticesData.collect();
-		return this.removeVertices(removeVerticesList);
+		return this.removeVertices(removeVerticesData);
 	}
 
 	/**
