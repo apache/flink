@@ -242,6 +242,8 @@ Graph<Long, Double, Double> networkWithWeights = network.joinWithEdgesOnSource(v
 
 * <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the current graph and specified graph.
 
+-[Back to top](#top)
+
 Graph Mutations
 -----------
 
