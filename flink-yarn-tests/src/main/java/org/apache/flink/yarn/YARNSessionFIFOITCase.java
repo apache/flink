@@ -647,7 +647,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		LOG.info("Shutting down cluster. All tests passed");
 		// shutdown cluster
-		yarnCluster.shutdown();
+		yarnCluster.shutdown(false);
 		LOG.info("Finished testJavaAPI()");
 	}
 }

@@ -137,7 +137,7 @@ class ApplicationClient(flinkConfig: Configuration)
     case LocalGetYarnClusterStatus =>
       sender() ! latestClusterStatus
 
-      // Forward message to Application Master
+    // Forward message to Application Master
     case msg: StopAMAfterJob =>
       yarnJobManager foreach {
         _ forward msg

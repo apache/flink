@@ -265,6 +265,7 @@ public class CliFrontend {
 			return handleError(t);
 		}
 
+		int exitCode = 1;
 		try {
 			int userParallelism = options.getParallelism();
 			LOG.debug("User parallelism is set to {}", userParallelism);
@@ -276,15 +277,14 @@ public class CliFrontend {
 						"To use another parallelism, set it at the ./bin/flink client.");
 				userParallelism = client.getMaxSlots();
 			}
-			int exitCode = 0;
 
 			// check if detached per job yarn cluster is used to start flink
 			if(yarnCluster != null && yarnCluster.isDetached()) {
 				logAndSysout("The Flink YARN client has been started in detached mode. In order to stop " +
 						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-						"yarn application -kill "+yarnCluster.getApplicationId()+"\n" +
+						"yarn application -kill " + yarnCluster.getApplicationId() + "\n" +
 						"Please also note that the temporary files of the YARN session in the home directoy will not be removed.");
-				executeProgram(program, client, userParallelism, false);
+				exitCode = executeProgram(program, client, userParallelism, false);
 			} else {
 				// regular (blocking) execution.
 				exitCode = executeProgram(program, client, userParallelism, true);
@@ -314,7 +314,7 @@ public class CliFrontend {
 		finally {
 			if (yarnCluster != null && !yarnCluster.isDetached()) {
 				logAndSysout("Shutting down YARN cluster");
-				yarnCluster.shutdown();
+				yarnCluster.shutdown(exitCode != 0);
 			}
 			if (program != null) {
 				program.deleteExtractedLibraries();
