@@ -29,7 +29,7 @@ import java.util.Map.Entry;
 import org.apache.commons.lang.StringUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -55,7 +55,7 @@ public class StreamingJobGraphGenerator {
 
 	private StreamGraph streamGraph;
 
-	private Map<Integer, AbstractJobVertex> jobVertices;
+	private Map<Integer, JobVertex> jobVertices;
 	private JobGraph jobGraph;
 	private Collection<Integer> builtVertices;
 
@@ -71,7 +71,7 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private void init() {
-		this.jobVertices = new HashMap<Integer, AbstractJobVertex>();
+		this.jobVertices = new HashMap<Integer, JobVertex>();
 		this.builtVertices = new HashSet<Integer>();
 		this.chainedConfigs = new HashMap<Integer, Map<Integer, StreamConfig>>();
 		this.vertexConfigs = new HashMap<Integer, StreamConfig>();
@@ -220,7 +220,7 @@ public class StreamingJobGraphGenerator {
 
 	private StreamConfig createProcessingVertex(Integer vertexID) {
 
-		AbstractJobVertex jobVertex = new AbstractJobVertex(chainedNames.get(vertexID));
+		JobVertex jobVertex = new JobVertex(chainedNames.get(vertexID));
 		StreamNode vertex = streamGraph.getStreamNode(vertexID);
 
 		jobVertex.setInvokableClass(vertex.getJobVertexClass());
@@ -294,8 +294,8 @@ public class StreamingJobGraphGenerator {
 
 		Integer downStreamvertexID = edge.getTargetId();
 
-		AbstractJobVertex headVertex = jobVertices.get(headOfChain);
-		AbstractJobVertex downStreamVertex = jobVertices.get(downStreamvertexID);
+		JobVertex headVertex = jobVertices.get(headOfChain);
+		JobVertex downStreamVertex = jobVertices.get(downStreamvertexID);
 
 		StreamConfig downStreamConfig = new StreamConfig(downStreamVertex.getConfiguration());
 
@@ -342,7 +342,7 @@ public class StreamingJobGraphGenerator {
 
 		Map<Integer, SlotSharingGroup> slotSharingGroups = new HashMap<Integer, SlotSharingGroup>();
 
-		for (Entry<Integer, AbstractJobVertex> entry : jobVertices.entrySet()) {
+		for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
 
 			int slotSharingID = streamGraph.getStreamNode(entry.getKey()).getSlotSharingID();
 
@@ -358,8 +358,8 @@ public class StreamingJobGraphGenerator {
 
 		for (StreamLoop loop : streamGraph.getStreamLoops()) {
 			CoLocationGroup ccg = new CoLocationGroup();
-			AbstractJobVertex tail = jobVertices.get(loop.getSink().getId());
-			AbstractJobVertex head = jobVertices.get(loop.getSource().getId());
+			JobVertex tail = jobVertices.get(loop.getSink().getId());
+			JobVertex head = jobVertices.get(loop.getSource().getId());
 			ccg.addVertex(head);
 			ccg.addVertex(tail);
 			tail.updateCoLocationGroup(ccg);
@@ -388,7 +388,7 @@ public class StreamingJobGraphGenerator {
 			List<JobVertexID> commitVertices = new ArrayList<JobVertexID>();
 			
 			
-			for (AbstractJobVertex vertex : jobVertices.values()) {
+			for (JobVertex vertex : jobVertices.values()) {
 				if (vertex.isInputVertex()) {
 					triggerVertices.add(vertex.getID());
 					commitVertices.add(vertex.getID());

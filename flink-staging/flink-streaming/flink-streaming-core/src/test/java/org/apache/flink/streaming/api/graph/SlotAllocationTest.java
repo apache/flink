@@ -22,7 +22,7 @@ import static org.junit.Assert.*;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.Test;
@@ -49,7 +49,7 @@ public class SlotAllocationTest {
 
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-		List<AbstractJobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+		List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
 
 		assertEquals(vertices.get(0).getSlotSharingGroup(), vertices.get(2).getSlotSharingGroup());
 		assertNotEquals(vertices.get(0).getSlotSharingGroup(), vertices.get(1)

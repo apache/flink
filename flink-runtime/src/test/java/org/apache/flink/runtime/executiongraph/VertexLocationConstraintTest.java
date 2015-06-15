@@ -31,7 +31,7 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -97,7 +97,7 @@ public class VertexLocationConstraintTest {
 			scheduler.newInstanceAvailable(instance3);
 			
 			// prepare the execution graph
-			AbstractJobVertex jobVertex = new AbstractJobVertex("test vertex", new JobVertexID());
+			JobVertex jobVertex = new JobVertex("test vertex", new JobVertexID());
 			jobVertex.setInvokableClass(DummyInvokable.class);
 			jobVertex.setParallelism(2);
 			JobGraph jg = new JobGraph("test job", jobVertex);
@@ -163,7 +163,7 @@ public class VertexLocationConstraintTest {
 			scheduler.newInstanceAvailable(instance3);
 			
 			// prepare the execution graph
-			AbstractJobVertex jobVertex = new AbstractJobVertex("test vertex", new JobVertexID());
+			JobVertex jobVertex = new JobVertex("test vertex", new JobVertexID());
 			jobVertex.setInvokableClass(DummyInvokable.class);
 			jobVertex.setParallelism(2);
 			JobGraph jg = new JobGraph("test job", jobVertex);
@@ -225,8 +225,8 @@ public class VertexLocationConstraintTest {
 			scheduler.newInstanceAvailable(instance3);
 			
 			// prepare the execution graph
-			AbstractJobVertex jobVertex1 = new AbstractJobVertex("v1", new JobVertexID());
-			AbstractJobVertex jobVertex2 = new AbstractJobVertex("v2", new JobVertexID());
+			JobVertex jobVertex1 = new JobVertex("v1", new JobVertexID());
+			JobVertex jobVertex2 = new JobVertex("v2", new JobVertexID());
 			jobVertex1.setInvokableClass(DummyInvokable.class);
 			jobVertex2.setInvokableClass(DummyInvokable.class);
 			jobVertex1.setParallelism(2);
@@ -294,7 +294,7 @@ public class VertexLocationConstraintTest {
 			scheduler.newInstanceAvailable(instance1);
 			
 			// prepare the execution graph
-			AbstractJobVertex jobVertex = new AbstractJobVertex("test vertex", new JobVertexID());
+			JobVertex jobVertex = new JobVertex("test vertex", new JobVertexID());
 			jobVertex.setInvokableClass(DummyInvokable.class);
 			jobVertex.setParallelism(1);
 			JobGraph jg = new JobGraph("test job", jobVertex);
@@ -347,8 +347,8 @@ public class VertexLocationConstraintTest {
 			scheduler.newInstanceAvailable(instance1);
 			
 			// prepare the execution graph
-			AbstractJobVertex jobVertex1 = new AbstractJobVertex("v1", new JobVertexID());
-			AbstractJobVertex jobVertex2 = new AbstractJobVertex("v2", new JobVertexID());
+			JobVertex jobVertex1 = new JobVertex("v1", new JobVertexID());
+			JobVertex jobVertex2 = new JobVertex("v2", new JobVertexID());
 			
 			jobVertex1.setInvokableClass(DummyInvokable.class);
 			jobVertex2.setInvokableClass(DummyInvokable.class);
@@ -392,7 +392,7 @@ public class VertexLocationConstraintTest {
 	@Test
 	public void testArchivingClearsFields() {
 		try {
-			AbstractJobVertex vertex = new AbstractJobVertex("test vertex", new JobVertexID());
+			JobVertex vertex = new JobVertex("test vertex", new JobVertexID());
 			JobGraph jg = new JobGraph("test job", vertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(jg.getJobID(), jg.getName(), jg.getJobConfiguration(), timeout);
