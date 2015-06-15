@@ -1194,7 +1194,7 @@ For example when implementing a rolling count over the stream Flink gives you th
 
 Checkpointing can be enabled from the `StreamExecutionEnvironment` using the `enableCheckpointing(…)` where additional parameters can be passed to modify the default 5 second checkpoint interval.
 
-By default state checkpoints will be stored in-memory at the JobManager. Flink also supports storing the checkpoints on any flink-supported file system (such as HDFS or Tachyon) which can be set in the flink-conf.yaml. 
+By default state checkpoints will be stored in-memory at the JobManager. Flink also supports storing the checkpoints on any flink-supported file system (such as HDFS or Tachyon) which can be set in the flink-conf.yaml. Note that the state backend must be accessible from the JobManager, use `file://` only for local setups.
 
 For example let us write a reduce function that besides summing the data it also counts have many elements it has seen.
 
@@ -1210,7 +1210,7 @@ public class CounterSum implements ReduceFunction<Long>, CheckpointedAsynchronou
         return value1 + value2;
     }
 
-    // regurarly persists state during normal operation 
+    // regularly persists state during normal operation
     @Override
     public Serializable snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
         return new Long(counter);
