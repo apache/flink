@@ -34,7 +34,7 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -283,7 +283,7 @@ public class LocalInputSplitsTest {
 		};
 		
 		try {
-			AbstractJobVertex vertex = new AbstractJobVertex("test vertex");
+			JobVertex vertex = new JobVertex("test vertex");
 			vertex.setParallelism(6);
 			vertex.setInvokableClass(DummyInvokable.class);
 			vertex.setInputSplitSource(new TestInputSplitSource(splits));
@@ -342,7 +342,7 @@ public class LocalInputSplitsTest {
 			TestLocatableInputSplit[] splits)
 		throws Exception
 	{
-		AbstractJobVertex vertex = new AbstractJobVertex("test vertex");
+		JobVertex vertex = new JobVertex("test vertex");
 		vertex.setParallelism(parallelism);
 		vertex.setInvokableClass(DummyInvokable.class);
 		vertex.setInputSplitSource(new TestInputSplitSource(splits));

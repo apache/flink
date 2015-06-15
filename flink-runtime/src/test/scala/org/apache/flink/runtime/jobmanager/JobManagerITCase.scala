@@ -25,7 +25,7 @@ import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import org.apache.flink.runtime.client.JobExecutionException
-import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph, ScheduleMode}
+import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph, ScheduleMode}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.testingUtils.TestingUtils
@@ -54,7 +54,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
   "The JobManager actor" must {
 
     "handle jobs when not enough slots" in {
-      val vertex = new AbstractJobVertex("Test Vertex")
+      val vertex = new JobVertex("Test Vertex")
       vertex.setParallelism(2)
       vertex.setInvokableClass(classOf[BlockingNoOpInvokable])
 
@@ -99,7 +99,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "support immediate scheduling of a single vertex" in {
       val num_tasks = 133
-      val vertex = new AbstractJobVertex("Test Vertex")
+      val vertex = new JobVertex("Test Vertex")
       vertex.setParallelism(num_tasks)
       vertex.setInvokableClass(classOf[NoOpInvokable])
 
@@ -134,7 +134,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
     "support queued scheduling of a single vertex" in {
       val num_tasks = 111
 
-      val vertex = new AbstractJobVertex("Test Vertex")
+      val vertex = new JobVertex("Test Vertex")
       vertex.setParallelism(num_tasks)
       vertex.setInvokableClass(classOf[NoOpInvokable])
 
@@ -163,8 +163,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "support forward jobs" in {
       val num_tasks = 31
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Sender])
       receiver.setInvokableClass(classOf[Receiver])
@@ -198,8 +198,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "support bipartite job" in {
       val num_tasks = 31
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Sender])
       receiver.setInvokableClass(classOf[AgnosticReceiver])
@@ -231,9 +231,9 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "support two input job failing edge mismatch" in {
       val num_tasks = 1
-      val sender1 = new AbstractJobVertex("Sender1")
-      val sender2 = new AbstractJobVertex("Sender2")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender1 = new JobVertex("Sender1")
+      val sender2 = new JobVertex("Sender2")
+      val receiver = new JobVertex("Receiver")
 
       sender1.setInvokableClass(classOf[Sender])
       sender2.setInvokableClass(classOf[Sender])
@@ -275,9 +275,9 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "support two input job" in {
       val num_tasks = 11
-      val sender1 = new AbstractJobVertex("Sender1")
-      val sender2 = new AbstractJobVertex("Sender2")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender1 = new JobVertex("Sender1")
+      val sender2 = new JobVertex("Sender2")
+      val receiver = new JobVertex("Receiver")
 
       sender1.setInvokableClass(classOf[Sender])
       sender2.setInvokableClass(classOf[Sender])
@@ -312,9 +312,9 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "support scheduling all at once" in {
       val num_tasks = 16
-      val sender = new AbstractJobVertex("Sender")
-      val forwarder = new AbstractJobVertex("Forwarder")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val forwarder = new JobVertex("Forwarder")
+      val receiver = new JobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Sender])
       forwarder.setInvokableClass(classOf[Forwarder])
@@ -357,8 +357,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "handle job with a failing sender vertex" in {
       val num_tasks = 100
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
 
       sender.setInvokableClass(classOf[ExceptionSender])
       receiver.setInvokableClass(classOf[Receiver])
@@ -402,8 +402,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "handle job with an occasionally failing sender vertex" in {
       val num_tasks = 100
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
 
       sender.setInvokableClass(classOf[SometimesExceptionSender])
       receiver.setInvokableClass(classOf[Receiver])
@@ -449,8 +449,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "handle job with a failing receiver vertex" in {
       val num_tasks = 200
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Sender])
       receiver.setInvokableClass(classOf[ExceptionReceiver])
@@ -488,8 +488,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "handle job with all vertices failing during instantiation" in {
       val num_tasks = 200
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
 
       sender.setInvokableClass(classOf[InstantiationErrorSender])
       receiver.setInvokableClass(classOf[Receiver])
@@ -531,8 +531,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "handle job with some vertices failing during instantiation" in {
       val num_tasks = 200
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
 
       sender.setInvokableClass(classOf[SometimesInstantiationErrorSender])
       receiver.setInvokableClass(classOf[Receiver])
@@ -579,7 +579,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       "completes" in {
       val num_tasks = 31
 
-      val source = new AbstractJobVertex("Source")
+      val source = new JobVertex("Source")
       val sink = new WaitingOnFinalizeJobVertex("Sink", 500)
 
       source.setInvokableClass(classOf[WaitingNoOpInvokable])
@@ -611,8 +611,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
     }
   }
 
-  class WaitingOnFinalizeJobVertex(name: String, val waitingTime: Long) extends
-  AbstractJobVertex(name){
+  class WaitingOnFinalizeJobVertex(name: String, val waitingTime: Long) extends JobVertex(name){
     var finished = false
 
     override def finalizeOnMaster(loader: ClassLoader): Unit = {

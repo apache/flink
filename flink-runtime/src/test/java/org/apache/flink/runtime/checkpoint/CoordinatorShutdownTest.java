@@ -24,7 +24,7 @@ import akka.pattern.Patterns;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
@@ -55,7 +55,7 @@ public class CoordinatorShutdownTest {
 			cluster = new LocalFlinkMiniCluster(noTaskManagerConfig, true);
 			
 			// build a test graph with snapshotting enabled
-			AbstractJobVertex vertex = new AbstractJobVertex("Test Vertex");
+			JobVertex vertex = new JobVertex("Test Vertex");
 			vertex.setInvokableClass(Tasks.NoOpInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 			
@@ -102,7 +102,7 @@ public class CoordinatorShutdownTest {
 			cluster = new LocalFlinkMiniCluster(new Configuration(), true);
 			
 			// build a test graph with snapshotting enabled
-			AbstractJobVertex vertex = new AbstractJobVertex("Test Vertex");
+			JobVertex vertex = new JobVertex("Test Vertex");
 			vertex.setInvokableClass(Tasks.NoOpInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 

@@ -23,7 +23,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -68,14 +68,14 @@ public class JobGraphUtils {
 //		new TaskConfig(source.getConfiguration()).addOutputShipStrategy(shipStrategy);
 //	}
 	
-	public static void connect(AbstractJobVertex source, AbstractJobVertex target, DistributionPattern distributionPattern) {
+	public static void connect(JobVertex source, JobVertex target, DistributionPattern distributionPattern) {
 		target.connectNewDataSetAsInput(source, distributionPattern);
 	}
 
 	@SuppressWarnings("rawtypes") 
-	public static AbstractJobVertex createTask(Class<? extends RegularPactTask> task, String name, JobGraph graph, int parallelism)
+	public static JobVertex createTask(Class<? extends RegularPactTask> task, String name, JobGraph graph, int parallelism)
 	{
-		AbstractJobVertex taskVertex = new AbstractJobVertex(name);
+		JobVertex taskVertex = new JobVertex(name);
 		graph.addVertex(taskVertex);
 		
 		taskVertex.setInvokableClass(task);
@@ -83,8 +83,8 @@ public class JobGraphUtils {
 		return taskVertex;
 	}
 
-	public static AbstractJobVertex createSync(JobGraph jobGraph, int parallelism) {
-		AbstractJobVertex sync = new AbstractJobVertex("BulkIterationSync");
+	public static JobVertex createSync(JobGraph jobGraph, int parallelism) {
+		JobVertex sync = new JobVertex("BulkIterationSync");
 		jobGraph.addVertex(sync);
 		
 		sync.setInvokableClass(IterationSynchronizationSinkTask.class);

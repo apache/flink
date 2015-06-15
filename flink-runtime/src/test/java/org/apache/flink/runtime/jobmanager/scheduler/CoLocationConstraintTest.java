@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SharedSlot;
 import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.AbstractID;
 import org.junit.Test;
@@ -40,10 +40,10 @@ public class CoLocationConstraintTest {
 			JobVertexID id1 = new JobVertexID();
 			JobVertexID id2 = new JobVertexID();
 
-			AbstractJobVertex vertex1 = new AbstractJobVertex("vertex1", id1);
+			JobVertex vertex1 = new JobVertex("vertex1", id1);
 			vertex1.setParallelism(2);
 			
-			AbstractJobVertex vertex2 = new AbstractJobVertex("vertex2", id2);
+			JobVertex vertex2 = new JobVertex("vertex2", id2);
 			vertex2.setParallelism(3);
 			
 			CoLocationGroup group = new CoLocationGroup(vertex1, vertex2);
@@ -74,7 +74,7 @@ public class CoLocationConstraintTest {
 		try {
 			JobID jid = new JobID();
 					
-			AbstractJobVertex vertex = new AbstractJobVertex("vertex");
+			JobVertex vertex = new JobVertex("vertex");
 			vertex.setParallelism(1);
 
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(vertex.getID());
