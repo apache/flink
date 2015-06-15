@@ -229,11 +229,11 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	@Override
 	public void triggerCheckpoint(long checkpointId, long timestamp) throws Exception {
-
+		
 		synchronized (checkpointLock) {
 			if (isRunning) {
 				try {
-					LOG.info("Starting checkpoint {} on task {}", checkpointId, getName());
+					LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
 					
 					// first draw the state that should go into checkpoint
 					StateHandle<Serializable> state;

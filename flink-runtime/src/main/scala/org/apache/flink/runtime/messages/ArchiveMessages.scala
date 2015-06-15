@@ -34,6 +34,11 @@ object ArchiveMessages {
   case object RequestArchivedJobs
 
   /**
+   * Requests the number of finished, canceled, and failed jobs
+   */
+  case object RequestJobCounts
+
+  /**
    * Reqeuest a specific ExecutionGraph by JobID. The response is [[RequestArchivedJob]]
    * @param jobID
    */
@@ -56,12 +61,16 @@ object ArchiveMessages {
       jobs.asJavaCollection
     }
   }
-  
+
   // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
   
   def getRequestArchivedJobs : AnyRef = {
     RequestArchivedJobs
+  }
+
+  def getRequestJobCounts : AnyRef = {
+    RequestJobCounts
   }
 }

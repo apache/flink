@@ -241,6 +241,37 @@ public abstract class StreamExecutionEnvironment {
 		streamGraph.setCheckpointingInterval(interval);
 		return this;
 	}
+	
+	/**
+	 * Method for force-enabling fault-tolerance. Activates monitoring and
+	 * backup of streaming operator states even for jobs containing iterations.
+	 * 
+	 * Please note that the checkpoint/restore guarantees for iterative jobs are
+	 * only best-effort at the moment. Records inside the loops may be lost
+	 * during failure.
+	 * <p/>
+	 * <p/>
+	 * Setting this option assumes that the job is used in production and thus
+	 * if not stated explicitly otherwise with calling with the
+	 * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method
+	 * in case of failure the job will be resubmitted to the cluster
+	 * indefinitely.
+	 * 
+	 * @param interval
+	 *            Time interval between state checkpoints in millis
+	 * @param force
+	 *            If true checkpointing will be enabled for iterative jobs as
+	 *            well
+	 */
+	@Deprecated
+	public StreamExecutionEnvironment enableCheckpointing(long interval, boolean force) {
+		streamGraph.setCheckpointingEnabled(true);
+		streamGraph.setCheckpointingInterval(interval);
+		if (force) {
+			streamGraph.forceCheckpoint();
+		}
+		return this;
+	}
 
 	/**
 	 * Method for enabling fault-tolerance. Activates monitoring and backup of
@@ -925,26 +956,64 @@ public abstract class StreamExecutionEnvironment {
 	 * 		type of the returned stream
 	 * @return the data stream constructed
 	 */
-	@SuppressWarnings("unchecked")
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName) {
+		return addSource(function, sourceName, null);
+	}
 
-		TypeInformation<OUT> typeInfo;
+	/**
+	 * Ads a data source with a custom type information thus opening a
+	 * {@link DataStream}. Only in very special cases does the user need to
+	 * support type information. Otherwise use
+	 * {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+	 *
+	 * @param function
+	 * 		the user defined function
+	 * @param <OUT>
+	 * 		type of the returned stream
+	 * @param typeInfo
+	 * 		the user defined type information for the stream
+	 * @return the data stream constructed
+	 */
+	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, TypeInformation<OUT> typeInfo) {
+		return addSource(function, "Custom Source", typeInfo);
+	}
 
-		if (function instanceof ResultTypeQueryable) {
-			typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
-		} else {
-			try {
-				typeInfo = TypeExtractor.createTypeInfo(
-						SourceFunction.class,
-						function.getClass(), 0, null, null);
-			} catch (InvalidTypesException e) {
-				typeInfo = (TypeInformation<OUT>) new MissingTypeInfo("Custom source", e);
+	/**
+	 * Ads a data source with a custom type information thus opening a
+	 * {@link DataStream}. Only in very special cases does the user need to
+	 * support type information. Otherwise use
+	 * {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+	 *
+	 * @param function
+	 * 		the user defined function
+	 * @param sourceName
+	 * 		Name of the data source
+	 * @param <OUT>
+	 * 		type of the returned stream
+	 * @param typeInfo
+	 * 		the user defined type information for the stream
+	 * @return the data stream constructed
+	 */
+	@SuppressWarnings("unchecked")
+	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
+
+		if(typeInfo == null) {
+			if (function instanceof ResultTypeQueryable) {
+				typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
+			} else {
+				try {
+					typeInfo = TypeExtractor.createTypeInfo(
+							SourceFunction.class,
+							function.getClass(), 0, null, null);
+				} catch (final InvalidTypesException e) {
+					typeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
+				}
 			}
 		}
 
 		boolean isParallel = function instanceof ParallelSourceFunction;
 
-		ClosureCleaner.clean(function, true);
+		clean(function);
 		StreamOperator<OUT> sourceOperator = new StreamSource<OUT>(function);
 
 		return new DataStreamSource<OUT>(this, sourceName, typeInfo, sourceOperator,
@@ -1136,6 +1205,18 @@ public abstract class StreamExecutionEnvironment {
 						viewedAs.getCanonicalName());
 			}
 		}
+	}
+
+	/**
+	 * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
+	 * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
+	 */
+	public <F> F clean(F f) {
+		if (getConfig().isClosureCleanerEnabled()) {
+			ClosureCleaner.clean(f, true);
+		}
+		ClosureCleaner.ensureSerializable(f);
+		return f;
 	}
 
 }

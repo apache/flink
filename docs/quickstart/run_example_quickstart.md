@@ -36,15 +36,15 @@ Flink contains a data generator for K-Means.
 mkdir kmeans
 cd kmeans
 # Run data generator
-java -cp ../examples/flink-java-examples-*-KMeans.jar org.apache.flink.examples.java.clustering.util.KMeansDataGenerator 500 10 0.08
-cp /tmp/points .
-cp /tmp/centers .
+java -cp ../examples/flink-java-examples-{{ site.version }}-KMeans.jar:../lib/flink-dist-{{ site.version }}.jar \
+  org.apache.flink.examples.java.clustering.util.KMeansDataGenerator \
+  -points 500 -k 10 -stddev 0.08 -output `pwd`
 ~~~
 
-The generator has the following arguments:
+The generator has the following arguments (arguments in `[]` are optional):
 
 ~~~bash
-KMeansDataGenerator <numberOfDataPoints> <numberOfClusterCenters> [<relative stddev>] [<centroid range>] [<seed>]
+-points <num> -k <num clusters> [-output <output-path>] [-stddev <relative stddev>] [-range <centroid range>] [-seed <seed>]
 ~~~
 
 The _relative standard deviation_ is an interesting tuning parameter. It determines the closeness of the points to randomly generated centers.

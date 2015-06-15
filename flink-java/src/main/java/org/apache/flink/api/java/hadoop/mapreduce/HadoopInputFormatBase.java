@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.hadoop.mapreduce;
 
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
@@ -30,6 +29,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
@@ -45,6 +45,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, HadoopInputSplit> {
 
@@ -63,10 +65,10 @@ public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, H
 
 	public HadoopInputFormatBase(org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
 		super();
-		this.mapreduceInputFormat = mapreduceInputFormat;
-		this.keyClass = key;
-		this.valueClass = value;
-		this.configuration = job.getConfiguration();
+		this.mapreduceInputFormat = checkNotNull(mapreduceInputFormat);
+		this.keyClass = checkNotNull(key);
+		this.valueClass = checkNotNull(value);
+		this.configuration = checkNotNull(job).getConfiguration();
 		HadoopUtils.mergeHadoopConf(configuration);
 	}
 
@@ -80,7 +82,9 @@ public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, H
 
 	@Override
 	public void configure(Configuration parameters) {
-		// nothing to do
+		if (mapreduceInputFormat instanceof Configurable) {
+			((Configurable) mapreduceInputFormat).setConf(configuration);
+		}
 	}
 
 	@Override

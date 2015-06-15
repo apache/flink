@@ -65,6 +65,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public void invoke() throws Exception {
+		isRunning = true;
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Iteration source {} invoked", getName());
 		}
@@ -96,6 +97,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 		}
 		finally {
 			// Cleanup
+			isRunning = false;
 			outputHandler.flushOutputs();
 			clearBuffers();
 		}

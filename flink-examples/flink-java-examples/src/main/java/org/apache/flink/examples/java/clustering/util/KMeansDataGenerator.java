@@ -27,6 +27,7 @@ import java.text.DecimalFormat;
 import java.util.Locale;
 import java.util.Random;
 
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.clustering.KMeans;
 
 /**
@@ -70,17 +71,20 @@ public class KMeansDataGenerator {
 
 		// check parameter count
 		if (args.length < 2) {
-			System.out.println("KMeansDataGenerator <numberOfDataPoints> <numberOfClusterCenters> [<output-path>] [<relative stddev>] [<centroid range>] [<seed>]");
+			System.out.println("KMeansDataGenerator -points <num> -k <num clusters> [-output <output-path>] [-stddev <relative stddev>] [-range <centroid range>] [-seed <seed>]");
 			System.exit(1);
 		}
 
 		// parse parameters
-		final int numDataPoints = Integer.parseInt(args[0]);
-		final int k = Integer.parseInt(args[1]);
-		final String outDir = args.length > 2 ? args[2] : System.getProperty("java.io.tmpdir");
-		final double stddev = args.length > 3 ? Double.parseDouble(args[3]) : RELATIVE_STDDEV;
-		final double range = args.length > 4 ? Double.parseDouble(args[4]) : DEFAULT_VALUE_RANGE;
-		final long firstSeed = args.length > 5 ? Long.parseLong(args[5]) : DEFAULT_SEED;
+
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		final int numDataPoints = params.getInt("points");
+		final int k = params.getInt("k");
+		final String outDir = params.get("output", System.getProperty("java.io.tmpdir"));
+		final double stddev = params.getDouble("stddev", RELATIVE_STDDEV);
+		final double range = params.getDouble("range", DEFAULT_VALUE_RANGE);
+		final long firstSeed = params.getLong("seed", DEFAULT_SEED);
+
 		
 		final double absoluteStdDev = stddev * range;
 		final Random random = new Random(firstSeed);

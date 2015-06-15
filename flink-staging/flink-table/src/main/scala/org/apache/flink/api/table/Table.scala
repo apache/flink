@@ -39,7 +39,7 @@ import org.apache.flink.api.table.plan._
  *   val table = set.toTable('a, 'b)
  *   ...
  *   val table2 = ...
- *   val set = table2.toSet[MyType]
+ *   val set = table2.toDataSet[MyType]
  * }}}
  */
 case class Table(private[flink] val operation: PlanNode) {

@@ -29,10 +29,12 @@ import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.Wa
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.functions.source.{FromElementsFunction, SourceFunction}
 import org.apache.flink.types.StringValue
-import org.apache.flink.util.{Collector, SplittableIterator}
+import org.apache.flink.util.SplittableIterator
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
+
+import _root_.scala.language.implicitConversions
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
@@ -118,7 +120,26 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Method for enabling fault-tolerance. Activates monitoring and backup of streaming
    * operator states. Time interval between state checkpoints is specified in in millis.
+   * 
+   * If the force flag is set to true, checkpointing will be enabled for iterative jobs as
+   * well.Please note that the checkpoint/restore guarantees for iterative jobs are
+   * only best-effort at the moment. Records inside the loops may be lost during failure.
    *
+   * Setting this option assumes that the job is used in production and thus if not stated
+   * explicitly otherwise with calling with the
+   * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method in case of
+   * failure the job will be resubmitted to the cluster indefinitely.
+   */
+  @deprecated
+  def enableCheckpointing(interval : Long, force: Boolean) : StreamExecutionEnvironment = {
+    javaEnv.enableCheckpointing(interval, force)
+    this
+  }
+  
+   /**
+   * Method for enabling fault-tolerance. Activates monitoring and backup of streaming
+   * operator states. Time interval between state checkpoints is specified in in millis.
+   * 
    * Setting this option assumes that the job is used in production and thus if not stated
    * explicitly otherwise with calling with the
    * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method in case of
@@ -386,7 +407,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def addSource[T: ClassTag: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
     require(function != null, "Function must not be null.")
-    val cleanFun = StreamExecutionEnvironment.clean(function)
+    val cleanFun = scalaClean(function)
     val typeInfo = implicitly[TypeInformation[T]]
     javaEnv.addSource(cleanFun).returns(typeInfo)
   }
@@ -399,7 +420,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def addSource[T: ClassTag: TypeInformation](function: SourceContext[T] => Unit): DataStream[T] = {
     require(function != null, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {
-      val cleanFun = StreamExecutionEnvironment.clean(function)
+      val cleanFun = scalaClean(function)
       override def run(ctx: SourceContext[T]) {
         cleanFun(ctx)
       }
@@ -445,14 +466,21 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def getStreamGraph = javaEnv.getStreamGraph
 
+  /**
+   * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
+   * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
+   */
+  private[flink] def scalaClean[F <: AnyRef](f: F): F = {
+    if (getConfig.isClosureCleanerEnabled) {
+      ClosureCleaner.clean(f, true)
+    } else {
+      ClosureCleaner.ensureSerializable(f)
+    }
+    f
+  }
 }
 
 object StreamExecutionEnvironment {
-  
-  private[flink] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
-    ClosureCleaner.clean(f, checkSerializable)
-    f
-  }
 
   /**
    * Sets the default parallelism that will be used for the local execution
