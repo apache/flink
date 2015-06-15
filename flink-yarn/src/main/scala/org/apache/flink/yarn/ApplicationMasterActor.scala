@@ -26,6 +26,7 @@ import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.messages.JobManagerMessages.{CurrentJobStatus, JobNotFound, RequestJobStatus}
 import org.apache.flink.runtime.messages.Messages.Acknowledge
@@ -171,8 +172,13 @@ trait ApplicationMasterActor extends ActorLogMessages {
           if(jobStatus.status.isTerminalState) {
             log.info(s"Job with ID ${jobStatus.jobID} is in terminal state ${jobStatus.status}. " +
               s"Shutting down YARN session")
-            self ! StopYarnSession(FinalApplicationStatus.SUCCEEDED,
-              s"The monitored job with ID ${jobStatus.jobID} has finished.")
+            if (jobStatus.status == JobStatus.FINISHED) {
+              self ! StopYarnSession(FinalApplicationStatus.SUCCEEDED,
+                s"The monitored job with ID ${jobStatus.jobID} has finished.")
+            } else {
+              self ! StopYarnSession(FinalApplicationStatus.FAILED,
+                s"The monitored job with ID ${jobStatus.jobID} has failed to complete.")
+            }
           } else {
             log.debug(s"Monitored job with ID ${jobStatus.jobID} is in state ${jobStatus.status}")
           }

@@ -435,11 +435,11 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 					+ "There are currently only " + freeClusterMem.totalFreeMemory + "MB available." + NOTE_RSC);
 
 		}
-		if( taskManagerMemoryMb > freeClusterMem.containerLimit) {
+		if(taskManagerMemoryMb > freeClusterMem.containerLimit) {
 			LOG.warn("The requested amount of memory for the TaskManagers ("+taskManagerMemoryMb+"MB) is more than "
 					+ "the largest possible YARN container: "+freeClusterMem.containerLimit + NOTE_RSC);
 		}
-		if( jobManagerMemoryMb > freeClusterMem.containerLimit) {
+		if(jobManagerMemoryMb > freeClusterMem.containerLimit) {
 			LOG.warn("The requested amount of memory for the JobManager (" + jobManagerMemoryMb + "MB) is more than "
 					+ "the largest possible YARN container: " + freeClusterMem.containerLimit + NOTE_RSC);
 		}

@@ -302,7 +302,7 @@ public class FlinkYarnSessionCli {
 
 				if (yarnCluster.hasFailed()) {
 					System.err.println("The YARN cluster has failed");
-					yarnCluster.shutdown();
+					yarnCluster.shutdown(true);
 				}
 
 				// wait until CLIENT_POLLING_INTERVALL is over or the user entered something.
@@ -439,7 +439,7 @@ public class FlinkYarnSessionCli {
 
 				if (!yarnCluster.hasBeenStopped()) {
 					LOG.info("Command Line Interface requested session shutdown");
-					yarnCluster.shutdown();
+					yarnCluster.shutdown(false);
 				}
 
 				try {
@@ -458,7 +458,7 @@ public class FlinkYarnSessionCli {
 	public void stop() {
 		if (yarnCluster != null) {
 			LOG.info("Command line interface is shutting down the yarnCluster");
-			yarnCluster.shutdown();
+			yarnCluster.shutdown(false);
 		}
 	}
 }
