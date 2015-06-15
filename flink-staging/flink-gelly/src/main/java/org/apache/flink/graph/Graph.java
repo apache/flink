@@ -1109,7 +1109,6 @@ public class Graph<K, VV, EV> {
 
 		return removeVertices(vertexToBeRemoved);
 	}
-
 	/**
 	 * Removes the given list of vertices and its edges from the graph.
 	 *
@@ -1117,9 +1116,22 @@ public class Graph<K, VV, EV> {
 	 * @return the resulted graph containing the initial vertices and edges minus the vertices
 	 * 		   and edges removed.
 	 */
-	public Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved) {
 
-		DataSet<Vertex<K, VV>> newVertices = getVertices().coGroup(this.context.fromCollection(verticesToBeRemoved)).where(0).equalTo(0)
+	public Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved)
+	{
+		return removeVertices(this.context.fromCollection(verticesToBeRemoved));
+	}
+
+	/**
+	 * Removes the given list of vertices and its edges from the graph.
+	 *
+	 * @param verticesToBeRemoved the DataSet of vertices to be removed
+	 * @return the resulted graph containing the initial vertices and edges minus the vertices
+	 * 		   and edges removed.
+	 */
+	public Graph<K, VV, EV> removeVertices(DataSet<Vertex<K, VV>> verticesToBeRemoved) {
+
+		DataSet<Vertex<K, VV>> newVertices = getVertices().coGroup(verticesToBeRemoved).where(0).equalTo(0)
 				.with(new VerticesRemovalCoGroup<K, VV>());
 
 		DataSet < Edge < K, EV >> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
@@ -1150,21 +1162,6 @@ public class Graph<K, VV, EV> {
 			}
 		}
 	}
-
-
-	public Graph<K, VV, EV> removeVertices(DataSet<Vertex<K, VV>> verticesToBeRemoved){
-		DataSet<Vertex<K,VV>> newVertices = getVertices().coGroup(verticesToBeRemoved).where(0).equalTo(0).with(new VerticesRemovalCoGroup<K, VV>());
-		DataSet < Edge < K, EV >> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
-				// if the edge source was removed, the edge will also be removed
-				.with(new ProjectEdgeToBeRemoved<K, VV, EV>())
-						// if the edge target was removed, the edge will also be removed
-				.join(newVertices).where(1).equalTo(0)
-				.with(new ProjectEdge<K, VV, EV>());
-
-		return new Graph<K, VV, EV>(newVertices, newEdges, context);
-	}
-
-
 
 
 
