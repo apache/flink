@@ -22,7 +22,7 @@ import akka.actor.Status.{Failure, Success}
 import akka.actor.{Kill, ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.client.JobExecutionException
-import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
+import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob
@@ -46,8 +46,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     "handle gracefully failing task manager with slot sharing" in {
       val num_tasks = 100
 
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Sender])
       receiver.setInvokableClass(classOf[BlockingReceiver])
@@ -95,8 +95,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     "handle hard failing task manager with slot sharing" in {
       val num_tasks = 20
 
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Sender])
       receiver.setInvokableClass(classOf[BlockingReceiver])

@@ -25,7 +25,7 @@ import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
@@ -57,7 +57,7 @@ public class ExecutionJobVertex implements Serializable {
 	
 	private final ExecutionGraph graph;
 	
-	private final AbstractJobVertex jobVertex;
+	private final JobVertex jobVertex;
 	
 	private final ExecutionVertex[] taskVertices;
 
@@ -81,12 +81,12 @@ public class ExecutionJobVertex implements Serializable {
 	
 	private InputSplitAssigner splitAssigner;
 	
-	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex,
+	public ExecutionJobVertex(ExecutionGraph graph, JobVertex jobVertex,
 							int defaultParallelism, FiniteDuration timeout) throws JobException {
 		this(graph, jobVertex, defaultParallelism, timeout, System.currentTimeMillis());
 	}
 	
-	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex,
+	public ExecutionJobVertex(ExecutionGraph graph, JobVertex jobVertex,
 							int defaultParallelism, FiniteDuration timeout, long createTimestamp)
 			throws JobException
 	{
@@ -169,7 +169,7 @@ public class ExecutionJobVertex implements Serializable {
 		return graph;
 	}
 	
-	public AbstractJobVertex getJobVertex() {
+	public JobVertex getJobVertex() {
 		return jobVertex;
 	}
 

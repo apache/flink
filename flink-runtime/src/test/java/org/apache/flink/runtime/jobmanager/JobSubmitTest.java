@@ -27,7 +27,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.junit.AfterClass;
@@ -76,7 +76,7 @@ public class JobSubmitTest {
 	public void testFailureWhenJarBlobsMissing() {
 		try {
 			// create a simple job graph
-			AbstractJobVertex jobVertex = new AbstractJobVertex("Test Vertex");
+			JobVertex jobVertex = new JobVertex("Test Vertex");
 			jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
 			JobGraph jg = new JobGraph("test job", jobVertex);
 
@@ -130,7 +130,7 @@ public class JobSubmitTest {
 		try {
 			// create a simple job graph
 
-			AbstractJobVertex jobVertex = new AbstractJobVertex("Vertex that fails in initializeOnMaster") {
+			JobVertex jobVertex = new JobVertex("Vertex that fails in initializeOnMaster") {
 
 				@Override
 				public void initializeOnMaster(ClassLoader loader) throws Exception {

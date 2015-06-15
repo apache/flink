@@ -31,9 +31,9 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import com.google.common.base.Preconditions;
 
 /**
- * An abstract base class for a job vertex.
+ * The base class for job vertexes.
  */
-public class AbstractJobVertex implements java.io.Serializable {
+public class JobVertex implements java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -81,7 +81,7 @@ public class AbstractJobVertex implements java.io.Serializable {
 	 * 
 	 * @param name The name of the new job vertex.
 	 */
-	public AbstractJobVertex(String name) {
+	public JobVertex(String name) {
 		this(name, null);
 	}
 	
@@ -91,7 +91,7 @@ public class AbstractJobVertex implements java.io.Serializable {
 	 * @param name The name of the new job vertex.
 	 * @param id The id of the job vertex.
 	 */
-	public AbstractJobVertex(String name, JobVertexID id) {
+	public JobVertex(String name, JobVertexID id) {
 		this.name = name == null ? DEFAULT_NAME : name;
 		this.id = id == null ? new JobVertexID() : id;
 	}
@@ -276,7 +276,7 @@ public class AbstractJobVertex implements java.io.Serializable {
 	 * 
 	 * @see #setSlotSharingGroup(SlotSharingGroup)
 	 */
-	public void setStrictlyCoLocatedWith(AbstractJobVertex strictlyCoLocatedWith) {
+	public void setStrictlyCoLocatedWith(JobVertex strictlyCoLocatedWith) {
 		if (this.slotSharingGroup == null || this.slotSharingGroup != strictlyCoLocatedWith.slotSharingGroup) {
 			throw new IllegalArgumentException("Strict co-location requires that both vertices are in the same slot sharing group.");
 		}
@@ -336,12 +336,12 @@ public class AbstractJobVertex implements java.io.Serializable {
 		dataSet.addConsumer(edge);
 	}
 
-	public void connectNewDataSetAsInput(AbstractJobVertex input, DistributionPattern distPattern) {
+	public void connectNewDataSetAsInput(JobVertex input, DistributionPattern distPattern) {
 		connectNewDataSetAsInput(input, distPattern, ResultPartitionType.PIPELINED);
 	}
 
 	public void connectNewDataSetAsInput(
-			AbstractJobVertex input,
+			JobVertex input,
 			DistributionPattern distPattern,
 			ResultPartitionType partitionType) {
 

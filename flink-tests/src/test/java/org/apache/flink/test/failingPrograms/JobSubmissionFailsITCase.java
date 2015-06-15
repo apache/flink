@@ -24,7 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -61,7 +61,7 @@ public class JobSubmissionFailsITCase {
 			
 			cluser = new ForkableFlinkMiniCluster(config);
 			
-			final AbstractJobVertex jobVertex = new AbstractJobVertex("Working job vertex.");
+			final JobVertex jobVertex = new JobVertex("Working job vertex.");
 			jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
 			workingJobGraph = new JobGraph("Working testing job", jobVertex);
 		}
@@ -113,7 +113,7 @@ public class JobSubmissionFailsITCase {
 	@Test
 	public void testExceptionInInitializeOnMaster() {
 		try {
-			final AbstractJobVertex failingJobVertex = new FailingJobVertex("Failing job vertex");
+			final JobVertex failingJobVertex = new FailingJobVertex("Failing job vertex");
 			failingJobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
 
 			final JobGraph failingJobGraph = new JobGraph("Failing testing job", failingJobVertex);
@@ -188,7 +188,7 @@ public class JobSubmissionFailsITCase {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public static class FailingJobVertex extends AbstractJobVertex {
+	public static class FailingJobVertex extends JobVertex {
 		private static final long serialVersionUID = -6365291240199412135L;
 
 		public FailingJobVertex(final String msg) {

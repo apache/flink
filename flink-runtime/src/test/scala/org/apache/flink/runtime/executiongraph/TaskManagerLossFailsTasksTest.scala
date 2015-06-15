@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils
 .SimpleAcknowledgingTaskManager
-import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, AbstractJobVertex}
+import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.testingUtils.TestingUtils
@@ -53,7 +53,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         scheduler.newInstanceAvailable(instance1)
         scheduler.newInstanceAvailable(instance2)
 
-        val sender = new AbstractJobVertex("Task")
+        val sender = new JobVertex("Task")
         sender.setInvokableClass(classOf[Tasks.NoOpInvokable])
         sender.setParallelism(20)
 

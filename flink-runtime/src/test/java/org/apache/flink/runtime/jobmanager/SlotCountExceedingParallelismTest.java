@@ -22,7 +22,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -86,12 +86,12 @@ public class SlotCountExceedingParallelismTest {
 			int receiverParallelism) {
 
 		// The sender and receiver invokable logic ensure that each subtask gets the expected data
-		final AbstractJobVertex sender = new AbstractJobVertex("Sender");
+		final JobVertex sender = new JobVertex("Sender");
 		sender.setInvokableClass(RoundRobinSubtaskIndexSender.class);
 		sender.getConfiguration().setInteger(RoundRobinSubtaskIndexSender.CONFIG_KEY, receiverParallelism);
 		sender.setParallelism(senderParallelism);
 
-		final AbstractJobVertex receiver = new AbstractJobVertex("Receiver");
+		final JobVertex receiver = new JobVertex("Receiver");
 		receiver.setInvokableClass(SubtaskIndexReceiver.class);
 		receiver.getConfiguration().setInteger(SubtaskIndexReceiver.CONFIG_KEY, senderParallelism);
 		receiver.setParallelism(receiverParallelism);

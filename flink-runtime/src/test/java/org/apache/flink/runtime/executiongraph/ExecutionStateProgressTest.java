@@ -31,7 +31,7 @@ import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -61,7 +61,7 @@ public class ExecutionStateProgressTest {
 			final JobID jid = new JobID();
 			final JobVertexID vid = new JobVertexID();
 
-			AbstractJobVertex ajv = new AbstractJobVertex("TestVertex", vid);
+			JobVertex ajv = new JobVertex("TestVertex", vid);
 			ajv.setParallelism(3);
 			ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 

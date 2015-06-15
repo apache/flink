@@ -29,7 +29,7 @@ import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -77,12 +77,12 @@ public class TaskCancelTest {
 			// Setup
 			final JobGraph jobGraph = new JobGraph("Cancel Big Union");
 
-			AbstractJobVertex[] sources = new AbstractJobVertex[numberOfSources];
+			JobVertex[] sources = new JobVertex[numberOfSources];
 			SlotSharingGroup group = new SlotSharingGroup();
 
 			// Create multiple sources
 			for (int i = 0; i < sources.length; i++) {
-				sources[i] = new AbstractJobVertex("Source " + i);
+				sources[i] = new JobVertex("Source " + i);
 				sources[i].setInvokableClass(InfiniteSource.class);
 				sources[i].setParallelism(sourceParallelism);
 				sources[i].setSlotSharingGroup(group);
@@ -92,14 +92,14 @@ public class TaskCancelTest {
 			}
 
 			// Union all sources
-			AbstractJobVertex union = new AbstractJobVertex("Union");
+			JobVertex union = new JobVertex("Union");
 			union.setInvokableClass(AgnosticUnion.class);
 			union.setParallelism(sourceParallelism);
 
 			jobGraph.addVertex(union);
 
 			// Each source creates a separate result
-			for (AbstractJobVertex source : sources) {
+			for (JobVertex source : sources) {
 				union.connectNewDataSetAsInput(
 						source,
 						DistributionPattern.POINTWISE,

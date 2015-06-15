@@ -35,7 +35,7 @@ import org.apache.flink.api.java.record.io.CsvInputFormat;
 import org.apache.flink.api.java.record.io.CsvOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -262,8 +262,8 @@ public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 		return modelsInput;
 	}
 
-	private static AbstractJobVertex createMapper(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> serializer) {
-		AbstractJobVertex pointsInput = JobGraphUtils.createTask(RegularPactTask.class, "Map[DotProducts]", jobGraph, numSubTasks);
+	private static JobVertex createMapper(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> serializer) {
+		JobVertex pointsInput = JobGraphUtils.createTask(RegularPactTask.class, "Map[DotProducts]", jobGraph, numSubTasks);
 
 		{
 			TaskConfig taskConfig = new TaskConfig(pointsInput.getConfiguration());
@@ -318,7 +318,7 @@ public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 		// -- vertices ---------------------------------------------------------------------------------------------
 		InputFormatVertex points = createPointsInput(jobGraph, pointsPath, numSubTasks, serializer);
 		InputFormatVertex models = createModelsInput(jobGraph, centersPath, numSubTasks, serializer);
-		AbstractJobVertex mapper = createMapper(jobGraph, numSubTasks, serializer);
+		JobVertex mapper = createMapper(jobGraph, numSubTasks, serializer);
 		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
 
 		// -- edges ------------------------------------------------------------------------------------------------
