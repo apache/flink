@@ -30,7 +30,7 @@ public abstract class AbstractFlinkYarnCluster {
 
 	public abstract String getWebInterfaceURL();
 
-	public abstract void shutdown();
+	public abstract void shutdown(boolean failApplication);
 
 	public abstract boolean hasBeenStopped();
 

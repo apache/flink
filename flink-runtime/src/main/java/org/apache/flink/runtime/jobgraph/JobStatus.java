@@ -51,7 +51,7 @@ public enum JobStatus {
 	
 	private final boolean terminalState;
 	
-	private JobStatus(boolean terminalState) {
+	JobStatus(boolean terminalState) {
 		this.terminalState = terminalState;
 	}
 	

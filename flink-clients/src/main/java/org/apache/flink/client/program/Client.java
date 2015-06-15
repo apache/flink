@@ -318,6 +318,7 @@ public class Client {
 				ContextEnvironment.enableLocalExecution(true);
 			}
 
+			// Job id has been set in the Client passed to the ContextEnvironment
 			return new JobSubmissionResult(lastJobId);
 		}
 		else {
