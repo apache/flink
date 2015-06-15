@@ -17,35 +17,37 @@
 
 package org.apache.flink.streaming.api.windowing.windowbuffer;
 
-import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunctionWithInverse;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
+import java.util.ArrayDeque;
+import java.util.Queue;
+
 /**
- * Non-grouped pre-reducer for tumbling eviction policy (the slide size is the
- * same as the window size).
+ * Non-grouped pre-reducer for the situation when we know the inverse of the reduce function (see the javadoc of
+ * reduceWindow). This works for any eviction and trigger policy.
  */
-public class TumblingPreReducer<T> extends WindowBuffer<T> implements PreAggregator {
+public class InversePreReducer<T> extends GenericGroupablePreReducer<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private ReduceFunction<T> reducer;
+	private ReduceFunctionWithInverse<T> reducer;
+
+	private Queue<T> currentElements = new ArrayDeque<T>();
 
 	private T reduced;
 	private TypeSerializer<T> serializer;
 
-	private boolean evict = true;
-
-	public TumblingPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer) {
-		this(reducer, serializer, true);
+	@Override
+	public T getAggregate() {
+		return reduced;
 	}
 
-	private TumblingPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer,
-			boolean evict) {
+	public InversePreReducer(ReduceFunctionWithInverse<T> reducer, TypeSerializer<T> serializer) {
 		this.reducer = reducer;
 		this.serializer = serializer;
-		this.evict = evict;
 	}
 
 	public void emitWindow(Collector<StreamWindow<T>> collector) {
@@ -56,36 +58,40 @@ public class TumblingPreReducer<T> extends WindowBuffer<T> implements PreAggrega
 		} else if (emitEmpty) {
 			collector.collect(createEmptyWindow());
 		}
+	}
 
-		if (evict) {
+	public void store(T elem) throws Exception {
+		currentElements.add(serializer.copy(elem));
+		if (reduced == null) {
+			reduced = serializer.copy(elem);
+		} else {
+			reduced = reducer.reduce(reduced, serializer.copy(elem));
+		}
+	}
+
+	public void evict(int n) throws Exception {
+		for(int i = 0; i < n; i++) {
+			T elem = currentElements.poll();
+			if(elem == null) {
+				break;
+			}
+			if (reduced != null) {
+				reduced = reducer.invReduce(reduced, elem);
+			}
+		}
+		if(currentElements.size() == 0) {
 			reduced = null;
 		}
 	}
 
-	public void store(T element) throws Exception {
-		if (reduced == null) {
-			reduced = element;
-		} else {
-			reduced = reducer.reduce(serializer.copy(reduced), element);
-		}
-	}
-
-	public void evict(int n) {
-	}
-
 	@Override
-	public TumblingPreReducer<T> clone() {
-		return new TumblingPreReducer<T>(reducer, serializer, evict);
+	public InversePreReducer<T> clone() {
+		return new InversePreReducer<T>(reducer, serializer);
 	}
 
 	@Override
 	public String toString() {
 		return reduced.toString();
-	}
-
-	public TumblingPreReducer<T> noEvict() {
-		this.evict = false;
-		return this;
 	}
 
 }

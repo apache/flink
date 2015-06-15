@@ -24,6 +24,7 @@ public abstract class SumFunction implements Serializable{
 	private static final long serialVersionUID = 1L;
 
 	public abstract Object add(Object o1, Object o2);
+	public abstract Object subtract(Object o1, Object o2);
 
 	public static SumFunction getForClass(Class<?> clazz) {
 
@@ -52,6 +53,11 @@ public abstract class SumFunction implements Serializable{
 		public Object add(Object value1, Object value2) {
 			return (Integer) value1 + (Integer) value2;
 		}
+
+		@Override
+		public Object subtract(Object value1, Object value2) {
+			return (Integer) value1 - (Integer) value2;
+		}
 	}
 
 	public static class LongSum extends SumFunction {
@@ -60,6 +66,11 @@ public abstract class SumFunction implements Serializable{
 		@Override
 		public Object add(Object value1, Object value2) {
 			return (Long) value1 + (Long) value2;
+		}
+
+		@Override
+		public Object subtract(Object value1, Object value2) {
+			return (Long) value1 - (Long) value2;
 		}
 	}
 
@@ -71,6 +82,11 @@ public abstract class SumFunction implements Serializable{
 		public Object add(Object value1, Object value2) {
 			return (Double) value1 + (Double) value2;
 		}
+
+		@Override
+		public Object subtract(Object value1, Object value2) {
+			return (Double) value1 - (Double) value2;
+		}
 	}
 
 	public static class ShortSum extends SumFunction {
@@ -79,6 +95,11 @@ public abstract class SumFunction implements Serializable{
 		@Override
 		public Object add(Object value1, Object value2) {
 			return (short) ((Short) value1 + (Short) value2);
+		}
+
+		@Override
+		public Object subtract(Object value1, Object value2) {
+			return (short) ((Short) value1 - (Short) value2);
 		}
 	}
 
@@ -89,6 +110,11 @@ public abstract class SumFunction implements Serializable{
 		public Object add(Object value1, Object value2) {
 			return (Float) value1 + (Float) value2;
 		}
+
+		@Override
+		public Object subtract(Object value1, Object value2) {
+			return (Float) value1 - (Float) value2;
+		}
 	}
 
 	public static class ByteSum extends SumFunction {
@@ -97,6 +123,11 @@ public abstract class SumFunction implements Serializable{
 		@Override
 		public Object add(Object value1, Object value2) {
 			return (byte) ((Byte) value1 + (Byte) value2);
+		}
+
+		@Override
+		public Object subtract(Object value1, Object value2) {
+			return (byte) ((Byte) value1 - (Byte) value2);
 		}
 	}
 }

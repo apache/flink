@@ -22,6 +22,8 @@ import org.apache.flink.streaming.api.datastream.DiscretizedStream;
 import org.apache.flink.streaming.api.datastream.WindowedDataStream;
 import org.apache.flink.streaming.api.windowing.WindowUtils;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.GenericGroupedPreReducer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.GenericGroupablePreReducer;
 
 /**
  * An extension for {@link WindowedDataStream} with additional statistics
@@ -50,11 +52,9 @@ public class WindowedDataStreamStatistics<OUT> extends WindowedDataStream<OUT> {
 	 */
 	@SuppressWarnings("unchecked")
 	public DiscretizedStream<OUT> median(int pos) {
-		WindowBuffer<OUT> windowBuffer;
-		if (groupByKey == null) {
-			windowBuffer = new MedianPreReducer<OUT>(pos, getType(), getExecutionConfig());
-		} else {
-			windowBuffer = new MedianGroupedPreReducer<OUT>(pos, getType(), getExecutionConfig(), groupByKey);
+		WindowBuffer<OUT> windowBuffer = new MedianPreReducer<OUT>(pos, getType(), getExecutionConfig());
+		if (groupByKey != null) {
+			windowBuffer = new GenericGroupedPreReducer((GenericGroupablePreReducer<OUT>)windowBuffer, groupByKey);
 		}
 		return discretize(WindowUtils.WindowTransformation.OTHER, windowBuffer);
 	}
@@ -77,11 +77,9 @@ public class WindowedDataStreamStatistics<OUT> extends WindowedDataStream<OUT> {
 	 */
 	@SuppressWarnings("unchecked")
 	public DiscretizedStream<OUT> median(String field) {
-		WindowBuffer<OUT> windowBuffer;
-		if (groupByKey == null) {
-			windowBuffer = new MedianPreReducer<OUT>(field, getType(), getExecutionConfig());
-		} else {
-			windowBuffer = new MedianGroupedPreReducer<OUT>(field, getType(), getExecutionConfig(), groupByKey);
+		WindowBuffer<OUT> windowBuffer = new MedianPreReducer<OUT>(field, getType(), getExecutionConfig());
+		if (groupByKey != null) {
+			windowBuffer = new GenericGroupedPreReducer((GenericGroupablePreReducer<OUT>)windowBuffer, groupByKey);
 		}
 		return discretize(WindowUtils.WindowTransformation.OTHER, windowBuffer);
 	}

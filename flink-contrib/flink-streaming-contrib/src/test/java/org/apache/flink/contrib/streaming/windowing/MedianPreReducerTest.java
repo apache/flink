@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestCollector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.api.windowing.windowbuffer.GenericGroupedPreReducer;
 import org.junit.Test;
 import java.util.ArrayDeque;
 import java.util.List;
@@ -35,7 +36,7 @@ import java.util.Map.Entry;
 import static org.junit.Assert.assertEquals;
 
 // As the MedianGroupedPreReducer uses the non-grouped MedianPreReducer, this also tests that class.
-public class MedianGroupedPreReducerTest {
+public class MedianPreReducerTest {
 
 	TypeInformation<Tuple2<Integer, Double>> typeInfo = TypeExtractor.getForObject(new Tuple2<Integer, Double>(1, 1.0));
 
@@ -46,14 +47,15 @@ public class MedianGroupedPreReducerTest {
 
 		ArrayDeque<Tuple2<Integer, Double> > inputs = new ArrayDeque<Tuple2<Integer, Double> >();
 
+		MedianPreReducer<Tuple2<Integer,Double>> protoPreReducer = new MedianPreReducer<Tuple2<Integer,Double>>(1, typeInfo, null);
 		KeySelector<Tuple2<Integer,Double>, Integer> keySelector = new KeySelector<Tuple2<Integer,Double>, Integer>() {
 			@Override
 			public Integer getKey(Tuple2<Integer, Double> value) throws Exception {
 				return value.f0;
 			}
 		};
-		MedianGroupedPreReducer<Tuple2<Integer, Double>> preReducer =
-				new MedianGroupedPreReducer<Tuple2<Integer, Double>>(1, typeInfo, null, keySelector);
+		GenericGroupedPreReducer<Tuple2<Integer, Double>, MedianPreReducer<Tuple2<Integer, Double>>> preReducer =
+				new GenericGroupedPreReducer<Tuple2<Integer, Double>, MedianPreReducer<Tuple2<Integer, Double>>>(protoPreReducer, keySelector);
 
 		TestCollector<StreamWindow<Tuple2<Integer, Double>>> collector =
 				new TestCollector<StreamWindow<Tuple2<Integer, Double>>>();

@@ -21,7 +21,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
-import org.apache.flink.streaming.api.windowing.windowbuffer.PreAggregator;
+import org.apache.flink.streaming.api.windowing.windowbuffer.GenericGroupablePreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 import org.apache.flink.util.Collector;
 import org.apache.flink.streaming.util.FieldAccessor;
@@ -36,7 +36,7 @@ import java.io.Serializable;
 /**
  * Non-grouped pre-reducer for calculating median with any eviction policy.
  */
-public class MedianPreReducer<T> extends WindowBuffer<T> implements PreAggregator, Serializable {
+public class MedianPreReducer<T> extends GenericGroupablePreReducer<T> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -56,7 +56,7 @@ public class MedianPreReducer<T> extends WindowBuffer<T> implements PreAggregato
 
 	T median;
 
-	public T getMedian() {
+	public T getAggregate() {
 		return median;
 	}
 
