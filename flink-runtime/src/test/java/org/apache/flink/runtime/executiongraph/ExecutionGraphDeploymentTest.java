@@ -44,7 +44,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -81,10 +81,10 @@ public class ExecutionGraphDeploymentTest {
 			final JobVertexID jid3 = new JobVertexID();
 			final JobVertexID jid4 = new JobVertexID();
 
-			AbstractJobVertex v1 = new AbstractJobVertex("v1", jid1);
-			AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
-			AbstractJobVertex v3 = new AbstractJobVertex("v3", jid3);
-			AbstractJobVertex v4 = new AbstractJobVertex("v4", jid4);
+			JobVertex v1 = new JobVertex("v1", jid1);
+			JobVertex v2 = new JobVertex("v2", jid2);
+			JobVertex v3 = new JobVertex("v3", jid3);
+			JobVertex v4 = new JobVertex("v4", jid4);
 
 			v1.setParallelism(10);
 			v2.setParallelism(10);
@@ -103,7 +103,7 @@ public class ExecutionGraphDeploymentTest {
 			ExecutionGraph eg = new ExecutionGraph(jobId, "some job", new Configuration(),
 					AkkaUtils.getDefaultTimeout());
 
-			List<AbstractJobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
+			List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 
 			eg.attachJobGraph(ordered);
 
@@ -163,8 +163,8 @@ public class ExecutionGraphDeploymentTest {
 			final JobVertexID jid1 = new JobVertexID();
 			final JobVertexID jid2 = new JobVertexID();
 
-			AbstractJobVertex v1 = new AbstractJobVertex("v1", jid1);
-			AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
+			JobVertex v1 = new JobVertex("v1", jid1);
+			JobVertex v2 = new JobVertex("v2", jid2);
 
 			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7650, v2, 2350);
 
@@ -187,8 +187,8 @@ public class ExecutionGraphDeploymentTest {
 			final JobVertexID jid1 = new JobVertexID();
 			final JobVertexID jid2 = new JobVertexID();
 
-			AbstractJobVertex v1 = new AbstractJobVertex("v1", jid1);
-			AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
+			JobVertex v1 = new JobVertex("v1", jid1);
+			JobVertex v2 = new JobVertex("v2", jid2);
 
 			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7, v2, 6);
 
@@ -211,8 +211,8 @@ public class ExecutionGraphDeploymentTest {
 			final JobVertexID jid1 = new JobVertexID();
 			final JobVertexID jid2 = new JobVertexID();
 
-			AbstractJobVertex v1 = new AbstractJobVertex("v1", jid1);
-			AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
+			JobVertex v1 = new JobVertex("v1", jid1);
+			JobVertex v2 = new JobVertex("v2", jid2);
 
 			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7, v2, 6);
 
@@ -235,8 +235,8 @@ public class ExecutionGraphDeploymentTest {
 			final JobVertexID jid1 = new JobVertexID();
 			final JobVertexID jid2 = new JobVertexID();
 
-			AbstractJobVertex v1 = new AbstractJobVertex("v1", jid1);
-			AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
+			JobVertex v1 = new JobVertex("v1", jid1);
+			JobVertex v2 = new JobVertex("v2", jid2);
 
 			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 19, v2, 37);
 
@@ -260,8 +260,8 @@ public class ExecutionGraphDeploymentTest {
 			final JobVertexID jid1 = new JobVertexID();
 			final JobVertexID jid2 = new JobVertexID();
 
-			AbstractJobVertex v1 = new FailingFinalizeJobVertex("v1", jid1);
-			AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
+			JobVertex v1 = new FailingFinalizeJobVertex("v1", jid1);
+			JobVertex v2 = new JobVertex("v2", jid2);
 
 			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 6, v2, 4);
 
@@ -297,7 +297,7 @@ public class ExecutionGraphDeploymentTest {
 		}
 	}
 
-	private Map<ExecutionAttemptID, Execution> setupExecution(AbstractJobVertex v1, int dop1, AbstractJobVertex v2, int dop2) throws Exception {
+	private Map<ExecutionAttemptID, Execution> setupExecution(JobVertex v1, int dop1, JobVertex v2, int dop2) throws Exception {
 		final JobID jobId = new JobID();
 
 		v1.setParallelism(dop1);
@@ -311,7 +311,7 @@ public class ExecutionGraphDeploymentTest {
 				AkkaUtils.getDefaultTimeout());
 		eg.setQueuedSchedulingAllowed(false);
 
-		List<AbstractJobVertex> ordered = Arrays.asList(v1, v2);
+		List<JobVertex> ordered = Arrays.asList(v1, v2);
 		eg.attachJobGraph(ordered);
 
 		// create a mock taskmanager that accepts deployment calls
@@ -333,7 +333,7 @@ public class ExecutionGraphDeploymentTest {
 	}
 
 	@SuppressWarnings("serial")
-	public static class FailingFinalizeJobVertex extends AbstractJobVertex {
+	public static class FailingFinalizeJobVertex extends JobVertex {
 
 		public FailingFinalizeJobVertex(String name) {
 			super(name);

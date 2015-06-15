@@ -44,7 +44,7 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -79,11 +79,11 @@ public class ExecutionGraphConstructionTest {
 		final String jobName = "Test Job Sample Name";
 		final Configuration cfg = new Configuration();
 		
-		AbstractJobVertex v1 = new AbstractJobVertex("vertex1");
-		AbstractJobVertex v2 = new AbstractJobVertex("vertex2");
-		AbstractJobVertex v3 = new AbstractJobVertex("vertex3");
-		AbstractJobVertex v4 = new AbstractJobVertex("vertex4");
-		AbstractJobVertex v5 = new AbstractJobVertex("vertex5");
+		JobVertex v1 = new JobVertex("vertex1");
+		JobVertex v2 = new JobVertex("vertex2");
+		JobVertex v3 = new JobVertex("vertex3");
+		JobVertex v4 = new JobVertex("vertex4");
+		JobVertex v5 = new JobVertex("vertex5");
 		
 		v1.setParallelism(5);
 		v2.setParallelism(7);
@@ -97,7 +97,7 @@ public class ExecutionGraphConstructionTest {
 		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
 		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
 		
-		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
+		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
 		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.getDefaultTimeout());
 		try {
@@ -118,9 +118,9 @@ public class ExecutionGraphConstructionTest {
 		final Configuration cfg = new Configuration();
 		
 		// construct part one of the execution graph
-		AbstractJobVertex v1 = new AbstractJobVertex("vertex1");
-		AbstractJobVertex v2 = new AbstractJobVertex("vertex2");
-		AbstractJobVertex v3 = new AbstractJobVertex("vertex3");
+		JobVertex v1 = new JobVertex("vertex1");
+		JobVertex v2 = new JobVertex("vertex2");
+		JobVertex v3 = new JobVertex("vertex3");
 		
 		v1.setParallelism(5);
 		v2.setParallelism(7);
@@ -135,7 +135,7 @@ public class ExecutionGraphConstructionTest {
 		IntermediateDataSet v3result_2 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
 		
 		
-		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3));
+		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
 		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.getDefaultTimeout());
 		try {
@@ -148,8 +148,8 @@ public class ExecutionGraphConstructionTest {
 		
 		// attach the second part of the graph
 		
-		AbstractJobVertex v4 = new AbstractJobVertex("vertex4");
-		AbstractJobVertex v5 = new AbstractJobVertex("vertex5");
+		JobVertex v4 = new JobVertex("vertex4");
+		JobVertex v5 = new JobVertex("vertex5");
 		v4.setParallelism(11);
 		v5.setParallelism(4);
 		
@@ -158,7 +158,7 @@ public class ExecutionGraphConstructionTest {
 		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
 		v5.connectDataSetAsInput(v3result_2, DistributionPattern.ALL_TO_ALL);
 		
-		List<AbstractJobVertex> ordered2 = new ArrayList<AbstractJobVertex>(Arrays.asList(v4, v5));
+		List<JobVertex> ordered2 = new ArrayList<JobVertex>(Arrays.asList(v4, v5));
 		
 		try {
 			eg.attachJobGraph(ordered2);
@@ -179,9 +179,9 @@ public class ExecutionGraphConstructionTest {
 		final Configuration cfg = new Configuration();
 		
 		// construct part one of the execution graph
-		AbstractJobVertex v1 = new AbstractJobVertex("vertex1");
-		AbstractJobVertex v2 = new AbstractJobVertex("vertex2");
-		AbstractJobVertex v3 = new AbstractJobVertex("vertex3");
+		JobVertex v1 = new JobVertex("vertex1");
+		JobVertex v2 = new JobVertex("vertex2");
+		JobVertex v3 = new JobVertex("vertex3");
 		
 		v1.setParallelism(5);
 		v2.setParallelism(7);
@@ -196,7 +196,7 @@ public class ExecutionGraphConstructionTest {
 		IntermediateDataSet v3result_2 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
 		
 		
-		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3));
+		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
 		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.getDefaultTimeout());
 		try {
@@ -209,8 +209,8 @@ public class ExecutionGraphConstructionTest {
 		
 		// attach the second part of the graph
 		
-		AbstractJobVertex v4 = new AbstractJobVertex("vertex4");
-		AbstractJobVertex v5 = new AbstractJobVertex("vertex5");
+		JobVertex v4 = new JobVertex("vertex4");
+		JobVertex v5 = new JobVertex("vertex5");
 		v4.setParallelism(11);
 		v5.setParallelism(4);
 		
@@ -219,7 +219,7 @@ public class ExecutionGraphConstructionTest {
 		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
 		v5.connectIdInput(v3result_2.getId(), DistributionPattern.ALL_TO_ALL);
 		
-		List<AbstractJobVertex> ordered2 = new ArrayList<AbstractJobVertex>(Arrays.asList(v4, v5));
+		List<JobVertex> ordered2 = new ArrayList<JobVertex>(Arrays.asList(v4, v5));
 		
 		try {
 			eg.attachJobGraph(ordered2);
@@ -234,8 +234,8 @@ public class ExecutionGraphConstructionTest {
 	}
 	
 	private void verifyTestGraph(ExecutionGraph eg, JobID jobId,
-				AbstractJobVertex v1, AbstractJobVertex v2, AbstractJobVertex v3,
-				AbstractJobVertex v4, AbstractJobVertex v5)
+				JobVertex v1, JobVertex v2, JobVertex v3,
+				JobVertex v4, JobVertex v5)
 	{
 		Map<JobVertexID, ExecutionJobVertex> vertices = eg.getAllVertices();
 		
@@ -441,10 +441,10 @@ public class ExecutionGraphConstructionTest {
 		final Configuration cfg = new Configuration();
 		
 		// construct part one of the execution graph
-		AbstractJobVertex v1 = new AbstractJobVertex("vertex1");
+		JobVertex v1 = new JobVertex("vertex1");
 		v1.setParallelism(7);
 		
-		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1));
+		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1));
 
 		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.getDefaultTimeout());
 		try {
@@ -456,10 +456,10 @@ public class ExecutionGraphConstructionTest {
 		}
 		
 		// attach the second part of the graph
-		AbstractJobVertex v2 = new AbstractJobVertex("vertex2");
+		JobVertex v2 = new JobVertex("vertex2");
 		v2.connectIdInput(new IntermediateDataSetID(), DistributionPattern.ALL_TO_ALL);
 		
-		List<AbstractJobVertex> ordered2 = new ArrayList<AbstractJobVertex>(Arrays.asList(v2));
+		List<JobVertex> ordered2 = new ArrayList<JobVertex>(Arrays.asList(v2));
 		
 		try {
 			eg.attachJobGraph(ordered2);
@@ -476,11 +476,11 @@ public class ExecutionGraphConstructionTest {
 		final String jobName = "Test Job Sample Name";
 		final Configuration cfg = new Configuration();
 		
-		AbstractJobVertex v1 = new AbstractJobVertex("vertex1");
-		AbstractJobVertex v2 = new AbstractJobVertex("vertex2");
-		AbstractJobVertex v3 = new AbstractJobVertex("vertex3");
-		AbstractJobVertex v4 = new AbstractJobVertex("vertex4");
-		AbstractJobVertex v5 = new AbstractJobVertex("vertex5");
+		JobVertex v1 = new JobVertex("vertex1");
+		JobVertex v2 = new JobVertex("vertex2");
+		JobVertex v3 = new JobVertex("vertex3");
+		JobVertex v4 = new JobVertex("vertex4");
+		JobVertex v5 = new JobVertex("vertex5");
 		
 		v1.setParallelism(5);
 		v2.setParallelism(7);
@@ -494,7 +494,7 @@ public class ExecutionGraphConstructionTest {
 		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
 		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
 		
-		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3, v5, v4));
+		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v5, v4));
 
 		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.getDefaultTimeout());
 		try {
@@ -528,11 +528,11 @@ public class ExecutionGraphConstructionTest {
 			final String jobName = "Test Job Sample Name";
 			final Configuration cfg = new Configuration();
 			
-			AbstractJobVertex v1 = new AbstractJobVertex("vertex1");
-			AbstractJobVertex v2 = new AbstractJobVertex("vertex2");
-			AbstractJobVertex v3 = new AbstractJobVertex("vertex3");
-			AbstractJobVertex v4 = new AbstractJobVertex("vertex4");
-			AbstractJobVertex v5 = new AbstractJobVertex("vertex5");
+			JobVertex v1 = new JobVertex("vertex1");
+			JobVertex v2 = new JobVertex("vertex2");
+			JobVertex v3 = new JobVertex("vertex3");
+			JobVertex v4 = new JobVertex("vertex4");
+			JobVertex v5 = new JobVertex("vertex5");
 			
 			v1.setParallelism(5);
 			v2.setParallelism(7);
@@ -549,7 +549,7 @@ public class ExecutionGraphConstructionTest {
 			v3.setInputSplitSource(source1);
 			v5.setInputSplitSource(source2);
 			
-			List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
+			List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
 			ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg,
 					AkkaUtils.getDefaultTimeout());
@@ -577,9 +577,9 @@ public class ExecutionGraphConstructionTest {
 			final String jobName = "Test Job Sample Name";
 			final Configuration cfg = new Configuration();
 			
-			AbstractJobVertex v1 = new AbstractJobVertex("vertex1");
-			AbstractJobVertex v2 = new AbstractJobVertex("vertex2");
-			AbstractJobVertex v3 = new AbstractJobVertex("vertex3");
+			JobVertex v1 = new JobVertex("vertex1");
+			JobVertex v2 = new JobVertex("vertex2");
+			JobVertex v3 = new JobVertex("vertex3");
 			
 			v1.setParallelism(5);
 			v2.setParallelism(7);
@@ -589,7 +589,7 @@ public class ExecutionGraphConstructionTest {
 			v2.connectDataSetAsInput(result, DistributionPattern.ALL_TO_ALL);
 			v3.connectDataSetAsInput(result, DistributionPattern.ALL_TO_ALL);
 			
-			List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3));
+			List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
 			ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg,
 					AkkaUtils.getDefaultTimeout());
@@ -616,8 +616,8 @@ public class ExecutionGraphConstructionTest {
 			final Configuration cfg = new Configuration();
 			
 			// simple group of two, cyclic
-			AbstractJobVertex v1 = new AbstractJobVertex("vertex1");
-			AbstractJobVertex v2 = new AbstractJobVertex("vertex2");
+			JobVertex v1 = new JobVertex("vertex1");
+			JobVertex v2 = new JobVertex("vertex2");
 			v1.setParallelism(6);
 			v2.setParallelism(4);
 			
@@ -628,11 +628,11 @@ public class ExecutionGraphConstructionTest {
 			v1.setStrictlyCoLocatedWith(v2);
 			
 			// complex forked dependency pattern
-			AbstractJobVertex v3 = new AbstractJobVertex("vertex3");
-			AbstractJobVertex v4 = new AbstractJobVertex("vertex4");
-			AbstractJobVertex v5 = new AbstractJobVertex("vertex5");
-			AbstractJobVertex v6 = new AbstractJobVertex("vertex6");
-			AbstractJobVertex v7 = new AbstractJobVertex("vertex7");
+			JobVertex v3 = new JobVertex("vertex3");
+			JobVertex v4 = new JobVertex("vertex4");
+			JobVertex v5 = new JobVertex("vertex5");
+			JobVertex v6 = new JobVertex("vertex6");
+			JobVertex v7 = new JobVertex("vertex7");
 			v3.setParallelism(3);
 			v4.setParallelism(3);
 			v5.setParallelism(3);
@@ -652,7 +652,7 @@ public class ExecutionGraphConstructionTest {
 			v3.setStrictlyCoLocatedWith(v7);
 			
 			// isolated vertex
-			AbstractJobVertex v8 = new AbstractJobVertex("vertex8");
+			JobVertex v8 = new JobVertex("vertex8");
 			v8.setParallelism(2);
 			
 			JobGraph jg = new JobGraph(jobId, jobName, v1, v2, v3, v4, v5, v6, v7, v8);

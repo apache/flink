@@ -25,7 +25,7 @@ import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -78,11 +78,11 @@ public class PartialConsumePipelinedResultTest {
 	 */
 	@Test
 	public void testPartialConsumePipelinedResultReceiver() throws Exception {
-		final AbstractJobVertex sender = new AbstractJobVertex("Sender");
+		final JobVertex sender = new JobVertex("Sender");
 		sender.setInvokableClass(SlowBufferSender.class);
 		sender.setParallelism(PARALLELISM);
 
-		final AbstractJobVertex receiver = new AbstractJobVertex("Receiver");
+		final JobVertex receiver = new JobVertex("Receiver");
 		receiver.setInvokableClass(SingleBufferReceiver.class);
 		receiver.setParallelism(PARALLELISM);
 

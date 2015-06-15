@@ -28,7 +28,7 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
  * A task vertex that run an initialization on the master, trying to deserialize an output format
  * and initializing it on master, if necessary.
  */
-public class OutputFormatVertex extends AbstractJobVertex {
+public class OutputFormatVertex extends JobVertex {
 	
 	private static final long serialVersionUID = 1L;
 	

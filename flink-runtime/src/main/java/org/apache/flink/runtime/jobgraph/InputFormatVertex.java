@@ -22,7 +22,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 
-public class InputFormatVertex extends AbstractJobVertex {
+public class InputFormatVertex extends JobVertex {
 
 	private static final long serialVersionUID = 1L;
 	

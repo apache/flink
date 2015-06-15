@@ -27,7 +27,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, JobGraph}
+import org.apache.flink.runtime.jobgraph.{JobVertex, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingNoOpInvokable, NoOpInvokable}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
@@ -82,12 +82,12 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     "go into a clean state in case of a JobManager failure" in {
       val num_slots = 36
 
-      val sender = new AbstractJobVertex("BlockingSender")
+      val sender = new JobVertex("BlockingSender")
       sender.setParallelism(num_slots)
       sender.setInvokableClass(classOf[BlockingNoOpInvokable])
       val jobGraph = new JobGraph("Blocking Testjob", sender)
 
-      val noOp = new AbstractJobVertex("NoOpInvokable")
+      val noOp = new JobVertex("NoOpInvokable")
       noOp.setParallelism(num_slots)
       noOp.setInvokableClass(classOf[NoOpInvokable])
       val jobGraph2 = new JobGraph("NoOp Testjob", noOp)

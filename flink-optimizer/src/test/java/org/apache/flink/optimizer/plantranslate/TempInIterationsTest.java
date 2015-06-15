@@ -28,7 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.testfunctions.DummyFlatJoinFunction;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.junit.Test;
@@ -65,7 +65,7 @@ public class TempInIterationsTest {
 		JobGraph jg = jgg.compileJobGraph(oPlan);
 
 		boolean solutionSetUpdateChecked = false;
-		for(AbstractJobVertex v : jg.getVertices()) {
+		for(JobVertex v : jg.getVertices()) {
 			if(v.getName().equals("SolutionSet Delta")) {
 
 				// check if input of solution set delta is temped

@@ -30,7 +30,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
 import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -155,8 +155,8 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		return output;
 	}
 	
-	private static AbstractJobVertex createIterationHead(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> serializer) {
-		AbstractJobVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks);
+	private static JobVertex createIterationHead(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> serializer) {
+		JobVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks);
 
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
 		headConfig.setIterationId(ITERATION_ID);
@@ -189,11 +189,11 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		return head;
 	}
 	
-	private static AbstractJobVertex createMapper(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> inputSerializer,
+	private static JobVertex createMapper(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> inputSerializer,
 			TypeSerializerFactory<?> broadcastVarSerializer, TypeSerializerFactory<?> outputSerializer,
 			TypeComparatorFactory<?> outputComparator)
 	{
-		AbstractJobVertex mapper = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
+		JobVertex mapper = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
 			"Map (Select nearest center)", jobGraph, numSubTasks);
 		
 		TaskConfig intermediateConfig = new TaskConfig(mapper.getConfiguration());
@@ -218,12 +218,12 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		return mapper;
 	}
 	
-	private static AbstractJobVertex createReducer(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> inputSerializer,
+	private static JobVertex createReducer(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> inputSerializer,
 			TypeComparatorFactory<?> inputComparator, TypeSerializerFactory<?> outputSerializer)
 	{
 		// ---------------- the tail (reduce) --------------------
 		
-		AbstractJobVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "Reduce / Iteration Tail", jobGraph,
+		JobVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "Reduce / Iteration Tail", jobGraph,
 			numSubTasks);
 		
 		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
@@ -252,8 +252,8 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		return tail;
 	}
 	
-	private static AbstractJobVertex createSync(JobGraph jobGraph, int numIterations, int parallelism) {
-		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, parallelism);
+	private static JobVertex createSync(JobGraph jobGraph, int numIterations, int parallelism) {
+		JobVertex sync = JobGraphUtils.createSync(jobGraph, parallelism);
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
 		syncConfig.setNumberOfIterations(numIterations);
 		syncConfig.setIterationId(ITERATION_ID);
@@ -277,12 +277,12 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		InputFormatVertex points = createPointsInput(jobGraph, pointsPath, numSubTasks, serializer);
 		InputFormatVertex centers = createCentersInput(jobGraph, centersPath, numSubTasks, serializer);
 		
-		AbstractJobVertex head = createIterationHead(jobGraph, numSubTasks, serializer);
-		AbstractJobVertex mapper = createMapper(jobGraph, numSubTasks, serializer, serializer, serializer, int0Comparator);
+		JobVertex head = createIterationHead(jobGraph, numSubTasks, serializer);
+		JobVertex mapper = createMapper(jobGraph, numSubTasks, serializer, serializer, serializer, int0Comparator);
 		
-		AbstractJobVertex reducer = createReducer(jobGraph, numSubTasks, serializer, int0Comparator, serializer);
+		JobVertex reducer = createReducer(jobGraph, numSubTasks, serializer, int0Comparator, serializer);
 		
-		AbstractJobVertex sync = createSync(jobGraph, numIterations, numSubTasks);
+		JobVertex sync = createSync(jobGraph, numIterations, numSubTasks);
 		
 		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
 
