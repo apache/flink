@@ -59,6 +59,8 @@ webclient.port: 8080
 state.backend: jobmanager
 
 # Directory for storing checkpoints in a flink supported filesystem
+# Note: State backend must be accessible from the JobManager, use file://
+# only for local setups. 
 #
 # state.backend.fs.checkpointdir: hdfs://checkpoints
 
