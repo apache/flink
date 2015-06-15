@@ -234,14 +234,13 @@ Graph<Long, Double, Double> networkWithWeights = network.joinWithEdgesOnSource(v
 
 * <strong>Undirected</strong>: In Gelly, a `Graph` is always directed. Undirected graphs can be represented by adding all opposite-direction edges to a graph. For this purpose, Gelly provides the `getUndirected()` method.
 
-* <strong>Union</strong>: Gelly's `union()` method performs a union on the vertex and edges sets of the input graphs. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exists, these will be maintained.
+* <strong>Union</strong>: Gelly's `union()` method performs a union operation on the vertex and edge sets of the specified graph and current graph. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exists, these will be maintained.
 
 <p class="text-center">
     <img alt="Union Transformation" width="50%" src="fig/gelly-union.png"/>
 </p>
 
-* <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the input graphs. The resultant graph is formed by removing the common vertices and edges from the graph.
-[Back to top](#top)
+* <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the current graph and specified graph.
 
 Graph Mutations
 -----------
@@ -267,11 +266,16 @@ Graph<K, VV, EV> removeVertex(Vertex<K, VV> vertex)
 // removes the given list of vertices and their edges from the Graph
 Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved)
 
+//removes the given DataSet of vertices and their edges from the Graph.
+Graph<K, VV, EV> removeVertices(DataSet<Vertex<K, EV>> verticesToBeRemoved)
+
 // removes *all* edges that match the given Edge from the Graph.
 Graph<K, VV, EV> removeEdge(Edge<K, EV> edge)
 
 // removes *all* edges that match the edges in the given list
 Graph<K, VV, EV> removeEdges(List<Edge<K, EV>> edgesToBeRemoved)
+
+
 {% endhighlight %}
 
 Neighborhood Methods
