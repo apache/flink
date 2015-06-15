@@ -297,12 +297,12 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		}
 		ApplicationReport lastReport = pollingRunner.getLastReport();
 		if(lastReport == null) {
-			LOG.warn("FlinkYarnCluster.hasFailed() has been called on a cluster. that didn't receive a status so far." +
+			LOG.warn("FlinkYarnCluster.hasFailed() has been called on a cluster that didn't receive a status so far." +
 					"The system might be in an erroneous state");
 			return false;
 		} else {
 			YarnApplicationState appState = lastReport.getYarnApplicationState();
-			boolean status= (appState == YarnApplicationState.FAILED ||
+			boolean status = (appState == YarnApplicationState.FAILED ||
 					appState == YarnApplicationState.KILLED);
 			if(status) {
 				LOG.warn("YARN reported application state {}", appState);
@@ -381,12 +381,13 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 	// -------------------------- Shutdown handling ------------------------
 
 	private AtomicBoolean hasBeenShutDown = new AtomicBoolean(false);
-	@Override
-	public void shutdown() {
-		shutdownInternal(true);
-	}
 
-	private void shutdownInternal(boolean removeShutdownHook) {
+	/**
+	 * Shutdown the YARN cluster.
+	 * @param failApplication whether we should fail the YARN application (in case of errors in Flink)
+	 */
+	@Override
+	public void shutdown(boolean failApplication) {
 		if(!isConnected) {
 			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
 		}
@@ -394,16 +395,25 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		if(hasBeenShutDown.getAndSet(true)) {
 			return;
 		}
-		// the session is being stopped explicitly.
-		if(removeShutdownHook) {
+
+		try {
 			Runtime.getRuntime().removeShutdownHook(clientShutdownHook);
+		} catch (IllegalStateException e) {
+			// we are already in the shutdown hook
 		}
+
 		if(actorSystem != null){
 			LOG.info("Sending shutdown request to the Application Master");
 			if(applicationClient != ActorRef.noSender()) {
 				try {
+					FinalApplicationStatus finalStatus;
+					if (failApplication) {
+						finalStatus = FinalApplicationStatus.FAILED;
+					} else {
+						finalStatus = FinalApplicationStatus.SUCCEEDED;
+					}
 					Future<Object> response = Patterns.ask(applicationClient,
-							new Messages.StopYarnSession(FinalApplicationStatus.SUCCEEDED,
+							new Messages.StopYarnSession(finalStatus,
 									"Flink YARN Client requested shutdown"),
 							new Timeout(akkaDuration));
 
@@ -457,7 +467,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		@Override
 		public void run() {
 			LOG.info("Shutting down FlinkYarnCluster from the client shutdown hook");
-			shutdownInternal(false);
+			shutdown(true);
 		}
 	}
 
