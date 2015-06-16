@@ -147,6 +147,7 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+
 			<plugin>
 				<!-- Override artifactSet configuration to build fat-jar with all dependencies packed. -->
 				<groupId>org.apache.maven.plugins</groupId>
@@ -162,6 +163,9 @@ under the License.
 									<include>org.apache.flume:*</include>
 								</includes>
 							</artifactSet>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
+							</transformers>
 						</configuration>
 					</execution>
 				</executions>
