@@ -52,7 +52,7 @@ public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceF
 	/**
 	 * Indicates, if the source is still running or was canceled.
 	 */
-	protected boolean isRunning = true;
+	protected volatile boolean isRunning = true;
 
 	/**
 	 * Instantiates a new {@link AbstractStormSpoutWrapper} that wraps the given Storm {@link IRichSpout spout} such
