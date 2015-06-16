@@ -35,6 +35,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -82,6 +84,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
  * </pre>
  */
 public class SlotSharingGroupAssignment {
+
+	private final static Logger LOG = LoggerFactory.getLogger(SlotSharingGroupAssignment.class);
 
 	/** The lock globally guards against concurrent modifications in the data structures */
 	private final Object lock = new Object();
@@ -485,6 +489,7 @@ public class SlotSharingGroupAssignment {
 
 				// check whether the slot is already released
 				if (simpleSlot.markReleased()) {
+					LOG.debug("Release simple slot {}.", simpleSlot);
 
 					AbstractID groupID = simpleSlot.getGroupID();
 					SharedSlot parent = simpleSlot.getParent();
@@ -581,6 +586,8 @@ public class SlotSharingGroupAssignment {
 			// we remove ourselves from our parent slot
 
 			if (sharedSlot.markReleased()) {
+				LOG.debug("Internally dispose empty shared slot {}.", sharedSlot);
+
 				int parentRemaining = parent.removeDisposedChildSlot(sharedSlot);
 				
 				if (parentRemaining > 0) {
