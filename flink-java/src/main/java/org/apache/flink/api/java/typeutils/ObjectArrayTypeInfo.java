@@ -127,6 +127,24 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 		return this.getClass().getSimpleName() + "<" + this.componentInfo + ">";
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		ObjectArrayTypeInfo<?, ?> that = (ObjectArrayTypeInfo<?, ?>) o;
+		return this.arrayType.equals(that.arrayType) && this.componentType.equals(that.componentType);
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * this.arrayType.hashCode() + this.componentType.hashCode();
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(Type type, TypeInformation<C> componentInfo) {
