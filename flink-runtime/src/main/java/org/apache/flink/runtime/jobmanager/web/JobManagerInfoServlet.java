@@ -156,7 +156,12 @@ public class JobManagerInfoServlet extends HttpServlet {
 			}
 			else if("groupvertex".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
-				String groupvertexId = req.getParameter("groupvertex");
+				String groupVertexId = req.getParameter("groupvertex");
+
+				// No group vertex specified
+				if (groupVertexId.equals("null")) {
+					return;
+				}
 
 				response = Patterns.ask(archive, new RequestJob(JobID.fromHexString(jobId)),
 						new Timeout(timeout));
@@ -169,11 +174,11 @@ public class JobManagerInfoServlet extends HttpServlet {
 				}else {
 					final JobResponse jobResponse = (JobResponse) result;
 
-					if(jobResponse instanceof JobFound && groupvertexId != null){
+					if(jobResponse instanceof JobFound && groupVertexId != null){
 						ExecutionGraph archivedJob = ((JobFound)jobResponse).executionGraph();
 
 						writeJsonForArchivedJobGroupvertex(resp.getWriter(), archivedJob,
-								JobVertexID.fromHexString(groupvertexId));
+								JobVertexID.fromHexString(groupVertexId));
 					} else {
 						LOG.warn("DoGet:groupvertex: Could not find job for job ID " + jobId);
 					}
@@ -359,7 +364,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 	 * Writes Json with the job counts
 	 *
 	 * @param wrt
-	 * @param counts
+	 * @param jobCounts
 	 */
 	private void writeJsonForJobCounts(PrintWriter wrt, Tuple3<Integer, Integer, Integer> jobCounts) {
 
@@ -454,11 +459,11 @@ public class JobManagerInfoServlet extends HttpServlet {
 						wrt.write(", \"userConfig\": " + ucString + "}");
 					}
 					else {
-						LOG.info("GlobalJobParameters.toMap() did not return anything");
+						LOG.debug("GlobalJobParameters.toMap() did not return anything");
 					}
 				}
 				else {
-					LOG.info("No GlobalJobParameters were set in the execution config");
+					LOG.debug("No GlobalJobParameters were set in the execution config");
 				}
 				wrt.write("},");
 			} else {
