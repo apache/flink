@@ -18,9 +18,12 @@
 
 package org.apache.flink.graph.test.operations;
 
+import com.google.common.base.Charsets;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomType;
@@ -32,6 +35,11 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 
 @RunWith(Parameterized.class)
 public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
@@ -129,6 +137,27 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 				"5,(F,4)\n";
 	}
 
+
+
+	@Test
+	public void testCsvWithConstantValueMapper() throws Exception	{
+		/*
+		*Test fromCsvReader with edge path and a mapper that assigns a Double constant as value
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final String fileContent =  "1,2,ot\n"+
+				"3,2,tt\n"+
+				"3,1,to\n";
+		final FileInputSplit split = createTempFile(fileContent);
+		Graph<Long, Double, String> graph = Graph.fromCsvReader(split.getPath().toString(),new AssignDoubleValueMapper(),env).types(Long.class,Double.class,String.class);
+		graph.getTriplets().writeAsCsv(resultPath);
+		env.execute();
+		expectedResult = "1,2,0.1,0.1,ot\n"+
+						"3,2,0.1,0.1,tt\n"+
+						"3,1,0.1,0.1,to\n";
+	}
+
+
 	@SuppressWarnings("serial")
 	private static final class AssignDoubleValueMapper implements MapFunction<Long, Double> {
 		public Double map(Long value) {
@@ -155,5 +184,18 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 		public DummyCustomType map(Long vertexId) {
 			return new DummyCustomType(vertexId.intValue()-1, false);
 		}
+	}
+
+	private FileInputSplit createTempFile(String content) throws IOException {
+		File tempFile = File.createTempFile("test_contents", "tmp");
+		tempFile.deleteOnExit();
+
+		OutputStreamWriter wrt = new OutputStreamWriter(
+				new FileOutputStream(tempFile), Charsets.UTF_8
+		);
+		wrt.write(content);
+		wrt.close();
+
+		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
 	}
 }

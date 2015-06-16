@@ -18,9 +18,12 @@
 
 package org.apache.flink.graph.test.operations;
 
+import com.google.common.base.Charsets;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
@@ -36,6 +39,10 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 
 @RunWith(Parameterized.class)
 public class GraphCreationITCase extends MultipleProgramsTestBase {
@@ -44,6 +51,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
+	private static final Path PATH = new Path("an/ignored/file/");
     private String resultPath;
     private String expectedResult;
 
@@ -114,6 +122,28 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
+	public void testCreateWithCsvFile() throws Exception {
+		/*
+		 * Test with two Csv files one with Vertex Data and one with Edges data
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final String fileContent =  "1,1\n"+
+									"2,2\n"+
+									"3,3\n";
+		final FileInputSplit split = createTempFile(fileContent);
+		final String fileContent2 =  "1,2,ot\n"+
+									"3,2,tt\n"+
+									"3,1,to\n";
+		final FileInputSplit split2 = createTempFile(fileContent2);
+		Graph<Long,Long,String> graph= Graph.fromCsvReader(split.getPath().toString(),split2.getPath().toString(),env).types(Long.class,Long.class,String.class);
+		graph.getTriplets().writeAsCsv(resultPath);
+		env.execute();
+		expectedResult = "1,2,1,2,ot\n" +
+				"3,2,3,2,tt\n" +
+				"3,1,3,1,to\n";
+	}
+
+	@Test
 	public void testValidate() throws Exception {
 		/*
 		 * Test validate():
@@ -167,5 +197,18 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 			dummyValue.setTField(vertexId*2.0);
 			return dummyValue;
 		}
+	}
+
+	private FileInputSplit createTempFile(String content) throws IOException {
+		File tempFile = File.createTempFile("test_contents", "tmp");
+		tempFile.deleteOnExit();
+
+		OutputStreamWriter wrt = new OutputStreamWriter(
+				new FileOutputStream(tempFile), Charsets.UTF_8
+		);
+		wrt.write(content);
+		wrt.close();
+
+		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
 	}
 }
