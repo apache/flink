@@ -139,14 +139,21 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val rowDataSet = dataSet.map {
       entry =>
         val row = new Row(2)
-        val amount = if (entry._1 < 200) null else entry._1
+        val amount = if (entry._1 > 200) entry._1 else null
         row.setField(0, amount)
         row.setField(1, entry._2)
         row
     }
 
-    val total = rowDataSet.toTable.select('id.sum).collect().head.productElement(0)
-    assertEquals(total, 579)
+    val entries = rowDataSet.toTable.select('id.avg, 'id.sum, 'id.count).collect().head
+    val mean = entries.productElement(0).toString.toInt
+    val sum = entries.productElement(1).toString.toInt
+    val count = entries.productElement(2).toString.toInt
+
+    assertEquals(4,count)
+
+    val computedMean = sum / 2
+    assertEquals(computedMean, mean)
   }
 
   @Test

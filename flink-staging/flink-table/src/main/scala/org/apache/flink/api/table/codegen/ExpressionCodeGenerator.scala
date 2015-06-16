@@ -489,6 +489,25 @@ abstract class ExpressionCodeGenerator[R](
             """.stripMargin
         }
 
+      case NumericIsNotNull(child) =>
+        val childCode = generateExpression(child)
+        if (nullCheck) {
+          childCode.code +
+            s"""
+               |boolean $nullTerm = ${childCode.nullTerm};
+               |if ($nullTerm) {
+               |  0;
+               |} else {
+               |  $resultTpe $resultTerm = Boolean.compare((${childCode.resultTerm} != null),false);
+               |}
+            """.stripMargin
+        } else {
+          childCode.code +
+            s"""
+               |$resultTpe $resultTerm = Boolean.compare((${childCode.resultTerm} != null),false);
+            """.stripMargin
+        }
+
       case _ => throw new ExpressionException("Could not generate code for expression " + expr)
     }
 
