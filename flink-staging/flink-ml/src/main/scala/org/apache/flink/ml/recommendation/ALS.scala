@@ -20,6 +20,7 @@ package org.apache.flink.ml.recommendation
 
 import java.{util, lang}
 
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
@@ -206,8 +207,9 @@ class ALS extends Predictor[ALS] {
 
     factorsOption match {
       case Some((userFactors, itemFactors)) => {
-        val predictions = data.join(userFactors).where(0).equalTo(0)
-          .join(itemFactors).where("_1._2").equalTo(0).map {
+        val predictions = data.join(userFactors, JoinHint.REPARTITION_HASH_SECOND).where(0)
+          .equalTo(0).join(itemFactors, JoinHint.REPARTITION_HASH_SECOND).where("_1._2")
+          .equalTo(0).map {
           triple => {
             val (((uID, iID), uFactors), iFactors) = triple
 
@@ -397,8 +399,8 @@ object ALS {
 
       instance.factorsOption match {
         case Some((userFactors, itemFactors)) => {
-          input.join(userFactors).where(0).equalTo(0)
-            .join(itemFactors).where("_1._2").equalTo(0).map {
+          input.join(userFactors, JoinHint.REPARTITION_HASH_SECOND).where(0).equalTo(0)
+            .join(itemFactors, JoinHint.REPARTITION_HASH_SECOND).where("_1._2").equalTo(0).map {
             triple => {
               val (((uID, iID), uFactors), iFactors) = triple
 
