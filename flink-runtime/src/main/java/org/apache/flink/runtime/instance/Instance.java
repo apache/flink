@@ -29,12 +29,16 @@ import akka.actor.ActorRef;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An instance represents a {@link org.apache.flink.runtime.taskmanager.TaskManager}
  * registered at a JobManager and ready to receive work.
  */
 public class Instance {
+
+	private final static Logger LOG = LoggerFactory.getLogger(Instance.class);
 
 	/** The lock on which to synchronize allocations and failure state changes */
 	private final Object instanceLock = new Object();
@@ -286,6 +290,7 @@ public class Instance {
 		}
 
 		if (slot.markReleased()) {
+			LOG.debug("Return allocated slot {}.", slot);
 			synchronized (instanceLock) {
 				if (isDead) {
 					return false;
