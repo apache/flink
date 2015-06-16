@@ -46,10 +46,8 @@ object WordCount {
       .groupBy(0)
       .sum(1)
 
-    // emit result
+    // execute and print result
     counts.print()
 
-    // execute program
-    env.execute("WordCount Example")
   }
 }
