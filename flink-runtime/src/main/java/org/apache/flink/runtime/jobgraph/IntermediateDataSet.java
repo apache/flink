@@ -39,7 +39,7 @@ public class IntermediateDataSet implements java.io.Serializable {
 	
 	private final IntermediateDataSetID id; 		// the identifier
 	
-	private final AbstractJobVertex producer;		// the operation that produced this data set
+	private final JobVertex producer;			// the operation that produced this data set
 	
 	private final List<JobEdge> consumers = new ArrayList<JobEdge>();
 
@@ -48,15 +48,15 @@ public class IntermediateDataSet implements java.io.Serializable {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public IntermediateDataSet(AbstractJobVertex producer) {
+	public IntermediateDataSet(JobVertex producer) {
 		this(new IntermediateDataSetID(), producer);
 	}
 	
-	public IntermediateDataSet(IntermediateDataSetID id, AbstractJobVertex producer) {
+	public IntermediateDataSet(IntermediateDataSetID id, JobVertex producer) {
 		this(id, ResultPartitionType.PIPELINED, producer);
 	}
 
-	public IntermediateDataSet(IntermediateDataSetID id, ResultPartitionType resultType, AbstractJobVertex producer) {
+	public IntermediateDataSet(IntermediateDataSetID id, ResultPartitionType resultType, JobVertex producer) {
 		this.id = checkNotNull(id);
 		this.producer = checkNotNull(producer);
 		this.resultType = checkNotNull(resultType);
@@ -68,7 +68,7 @@ public class IntermediateDataSet implements java.io.Serializable {
 		return id;
 	}
 
-	public AbstractJobVertex getProducer() {
+	public JobVertex getProducer() {
 		return producer;
 	}
 	

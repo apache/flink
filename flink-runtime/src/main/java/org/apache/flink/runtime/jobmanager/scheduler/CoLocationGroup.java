@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 
 import com.google.common.base.Preconditions;
 
@@ -43,7 +43,7 @@ public class CoLocationGroup implements java.io.Serializable {
 	private final AbstractID id = new AbstractID();
 	
 	/** The vertices participating in the co-location group */
-	private final List<AbstractJobVertex> vertices = new ArrayList<AbstractJobVertex>();
+	private final List<JobVertex> vertices = new ArrayList<JobVertex>();
 	
 	/** The constraints, which hold the shared slots for the co-located operators */
 	private transient ArrayList<CoLocationConstraint> constraints;
@@ -52,15 +52,15 @@ public class CoLocationGroup implements java.io.Serializable {
 	
 	public CoLocationGroup() {}
 	
-	public CoLocationGroup(AbstractJobVertex... vertices) {
-		for (AbstractJobVertex v : vertices) {
+	public CoLocationGroup(JobVertex... vertices) {
+		for (JobVertex v : vertices) {
 			this.vertices.add(v);
 		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public void addVertex(AbstractJobVertex vertex) {
+	public void addVertex(JobVertex vertex) {
 		Preconditions.checkNotNull(vertex);
 		this.vertices.add(vertex);
 	}
@@ -68,7 +68,7 @@ public class CoLocationGroup implements java.io.Serializable {
 	public void mergeInto(CoLocationGroup other) {
 		Preconditions.checkNotNull(other);
 		
-		for (AbstractJobVertex v : this.vertices) {
+		for (JobVertex v : this.vertices) {
 			v.updateCoLocationGroup(other);
 		}
 		

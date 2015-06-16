@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
@@ -409,8 +409,8 @@ public class SharedSlotsTest {
 			JobVertexID tailId = new JobVertexID();
 			JobVertexID sinkId = new JobVertexID();
 
-			AbstractJobVertex headVertex = new AbstractJobVertex("head", headId);
-			AbstractJobVertex tailVertex = new AbstractJobVertex("tail", tailId);
+			JobVertex headVertex = new JobVertex("head", headId);
+			JobVertex tailVertex = new JobVertex("tail", tailId);
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(sourceId, headId, tailId, sinkId);
 			SlotSharingGroupAssignment assignment = sharingGroup.getTaskAssignment();
@@ -545,8 +545,8 @@ public class SharedSlotsTest {
 			JobVertexID tailId = new JobVertexID();
 			JobVertexID sinkId = new JobVertexID();
 
-			AbstractJobVertex headVertex = new AbstractJobVertex("head", headId);
-			AbstractJobVertex tailVertex = new AbstractJobVertex("tail", tailId);
+			JobVertex headVertex = new JobVertex("head", headId);
+			JobVertex tailVertex = new JobVertex("tail", tailId);
 
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(sourceId, headId, tailId, sinkId);
 			SlotSharingGroupAssignment assignment = sharingGroup.getTaskAssignment();
@@ -633,7 +633,7 @@ public class SharedSlotsTest {
 		try {
 			JobID jobId = new JobID();
 			JobVertexID vid = new JobVertexID();
-			AbstractJobVertex vertex = new AbstractJobVertex("vertex", vid);
+			JobVertex vertex = new JobVertex("vertex", vid);
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(vid);
 			SlotSharingGroupAssignment assignment = sharingGroup.getTaskAssignment();

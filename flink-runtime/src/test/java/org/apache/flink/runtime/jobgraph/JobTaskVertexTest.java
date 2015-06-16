@@ -40,8 +40,8 @@ public class JobTaskVertexTest {
 
 	@Test
 	public void testConnectDirectly() {
-		AbstractJobVertex source = new AbstractJobVertex("source");
-		AbstractJobVertex target = new AbstractJobVertex("target");
+		JobVertex source = new JobVertex("source");
+		JobVertex target = new JobVertex("target");
 		target.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
 		
 		assertTrue(source.isInputVertex());
@@ -60,9 +60,9 @@ public class JobTaskVertexTest {
 	
 	@Test
 	public void testConnectMultipleTargets() {
-		AbstractJobVertex source = new AbstractJobVertex("source");
-		AbstractJobVertex target1= new AbstractJobVertex("target1");
-		AbstractJobVertex target2 = new AbstractJobVertex("target2");
+		JobVertex source = new JobVertex("source");
+		JobVertex target1= new JobVertex("target1");
+		JobVertex target2 = new JobVertex("target2");
 		target1.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
 		target2.connectDataSetAsInput(source.getProducedDataSets().get(0), DistributionPattern.ALL_TO_ALL);
 		

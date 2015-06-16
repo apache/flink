@@ -26,7 +26,7 @@ import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.JobExecutionException
-import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
+import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{NoOpInvokable, BlockingNoOpInvokable, BlockingReceiver, Sender}
 import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, RequestNumberRegisteredTaskManager, SubmitJob}
 import org.apache.flink.runtime.messages.TaskManagerMessages.{RegisteredAtJobManager, NotifyWhenRegisteredAtJobManager}
@@ -84,8 +84,8 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     "handle gracefully failing task manager" in {
 
       val num_tasks = 31
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
       sender.setInvokableClass(classOf[Sender])
       receiver.setInvokableClass(classOf[BlockingReceiver])
       sender.setParallelism(num_tasks)
@@ -130,8 +130,8 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "handle hard failing task manager" in {
       val num_tasks = 31
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
       sender.setInvokableClass(classOf[Sender])
       receiver.setInvokableClass(classOf[BlockingReceiver])
       sender.setParallelism(num_tasks)
@@ -174,12 +174,12 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     "go into a clean state in case of a TaskManager failure" in {
       val num_slots = 20      
 
-      val sender = new AbstractJobVertex("BlockingSender")
+      val sender = new JobVertex("BlockingSender")
       sender.setParallelism(num_slots)
       sender.setInvokableClass(classOf[BlockingNoOpInvokable])
       val jobGraph = new JobGraph("Blocking Testjob", sender)
 
-      val noOp = new AbstractJobVertex("NoOpInvokable")
+      val noOp = new JobVertex("NoOpInvokable")
       noOp.setParallelism(num_slots)
       noOp.setInvokableClass(classOf[NoOpInvokable])
       val jobGraph2 = new JobGraph("NoOp Testjob", noOp)

@@ -28,7 +28,7 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
@@ -105,10 +105,10 @@ public class TerminalStateDeadlockTest {
 			
 			final Configuration jobConfig = new Configuration();
 			
-			final List<AbstractJobVertex> vertices;
+			final List<JobVertex> vertices;
 			{
-				AbstractJobVertex v1 = new AbstractJobVertex("v1", vid1);
-				AbstractJobVertex v2 = new AbstractJobVertex("v2", vid2);
+				JobVertex v1 = new JobVertex("v1", vid1);
+				JobVertex v2 = new JobVertex("v2", vid2);
 				v1.setParallelism(1);
 				v2.setParallelism(1);
 				v1.setInvokableClass(DummyInvokable.class);

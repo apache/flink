@@ -21,8 +21,7 @@ package org.apache.flink.runtime.jobmanager
 import akka.actor.ActorSystem
 import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.runtime.jobgraph.{JobGraph, DistributionPattern,
-AbstractJobVertex}
+import org.apache.flink.runtime.jobgraph.{JobGraph, DistributionPattern, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{Receiver, Sender}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
 import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, SubmitJob}
@@ -45,8 +44,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with WrapA
     "support colocation constraints and slot sharing" in {
       val num_tasks = 31
 
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Sender])
       receiver.setInvokableClass(classOf[Receiver])

@@ -33,7 +33,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -105,7 +105,7 @@ public class JobManagerTest {
 				final IntermediateDataSetID rid = new IntermediateDataSetID();
 
 				// Create a task
-				final AbstractJobVertex sender = new AbstractJobVertex("Sender");
+				final JobVertex sender = new JobVertex("Sender");
 				sender.setParallelism(1);
 				sender.setInvokableClass(Tasks.BlockingNoOpInvokable.class); // just block
 				sender.createAndAddResultDataSet(rid, PIPELINED);

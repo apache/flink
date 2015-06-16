@@ -60,7 +60,7 @@ The following illustrates the use of the `RemoteEnvironment`:
 ~~~java
 public static void main(String[] args) throws Exception {
     ExecutionEnvironment env = ExecutionEnvironment
-        .createRemoteEnvironment("strato-master", "7661", "/home/user/udfs.jar");
+        .createRemoteEnvironment("flink-master", 6123, "/home/user/udfs.jar");
 
     DataSet<String> data = env.readTextFile("hdfs://path/to/file");
 
@@ -80,67 +80,74 @@ Note that the program contains custom user code and hence requires a JAR file wi
 the classes of the code attached. The constructor of the remote environment
 takes the path(s) to the JAR file(s).
 
-## Remote Executor
+## Linking with modules not contained in the binary distribution
 
-Similar to the RemoteEnvironment, the RemoteExecutor lets you execute
-Flink programs on a cluster directly. The remote executor accepts a
-*Plan* object, which describes the program as a single executable unit.
+The binary distribution contains jar packages in the `lib` folder that are automatically
+provided to the classpath of your distrbuted programs. Almost all of Flink classes are
+located there with a few exceptions, for example the streaming connectors and some freshly
+added modules. To run code depending on these modules you need to make them accessible
+during runtime, for which we suggest two options:
 
-### Maven Dependency
+1. Either copy the required jar files to the `lib` folder onto all of your TaskManagers.
+Note that you have to restar your TaskManagers after this.
+2. Or package them with your usercode.
 
-If you are developing your program in a Maven project, you have to add the
-`flink-clients` module using this dependency:
+The latter version is recommended as it respects the classloader management in Flink.
+
+### Packaging dependencies with your usercode with Maven
+
+To provide these dependencies not included by Flink we suggest two options with Maven.
+
+1. The maven assembly plugin builds a so called fat jar cointaining all your dependencies.
+Assembly configuration is straight-forward, but the resulting jar might become bulky. See 
+[usage](http://maven.apache.org/plugins/maven-assembly-plugin/usage.html).
+2. The maven unpack plugin, for unpacking the relevant parts of the dependencies and
+then package it with your code.
+
+Using the latter approach in order to bundle the Kafka connector, `flink-connector-kafka`
+you would need to add the classes from both the connector and the Kafka API itself. Add
+the following to your plugins section.
 
 ~~~xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-clients</artifactId>
-  <version>{{ site.version }}</version>
-</dependency>
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-dependency-plugin</artifactId>
+    <version>2.9</version>
+    <executions>
+        <execution>
+            <id>unpack</id>
+            <!-- executed just before the package phase -->
+            <phase>prepare-package</phase>
+            <goals>
+                <goal>unpack</goal>
+            </goals>
+            <configuration>
+                <artifactItems>
+                    <!-- For Flink connector classes -->
+                    <artifactItem>
+                        <groupId>org.apache.flink</groupId>
+                        <artifactId>flink-connector-kafka</artifactId>
+                        <version>{{ site.version }}</version>
+                        <type>jar</type>
+                        <overWrite>false</overWrite>
+                        <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                        <includes>org/apache/flink/**</includes>
+                    </artifactItem>
+                    <!-- For Kafka API classes -->
+                    <artifactItem>
+                        <groupId>org.apache.kafka</groupId>
+                        <artifactId>kafka_<YOUR_SCALA_VERSION></artifactId>
+                        <version><YOUR_KAFKA_VERSION></version>
+                        <type>jar</type>
+                        <overWrite>false</overWrite>
+                        <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                        <includes>kafka/**</includes>
+                    </artifactItem>
+                </artifactItems>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
 ~~~
 
-### Example
-
-The following illustrates the use of the `RemoteExecutor` with the Scala API:
-
-~~~scala
-def main(args: Array[String]) {
-    val input = TextFile("hdfs://path/to/file")
-
-    val words = input flatMap { _.toLowerCase().split("""\W+""") filter { _ != "" } }
-    val counts = words groupBy { x => x } count()
-
-    val output = counts.write(wordsOutput, CsvOutputFormat())
-  
-    val plan = new ScalaPlan(Seq(output), "Word Count")
-    val executor = new RemoteExecutor("strato-master", 7881, "/path/to/jarfile.jar")
-    executor.executePlan(p);
-}
-~~~
-
-The following illustrates the use of the `RemoteExecutor` with the Java API (as
-an alternative to the RemoteEnvironment):
-
-~~~java
-public static void main(String[] args) throws Exception {
-    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-    DataSet<String> data = env.readTextFile("hdfs://path/to/file");
-
-    data
-        .filter(new FilterFunction<String>() {
-            public boolean filter(String value) {
-                return value.startsWith("http://");
-            }
-        })
-        .writeAsText("hdfs://path/to/result");
-
-    Plan p = env.createProgramPlan();
-    RemoteExecutor e = new RemoteExecutor("strato-master", 7881, "/path/to/jarfile.jar");
-    e.executePlan(p);
-}
-~~~
-
-Note that the program contains custom UDFs and hence requires a JAR file with
-the classes of the code attached. The constructor of the remote executor takes
-the path(s) to the JAR file(s).
+Now when running `mvn clean package` the produced jar includes the required dependencies.

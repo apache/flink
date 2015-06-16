@@ -22,7 +22,7 @@ import com.google.common.collect.Lists;
 
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -79,12 +79,12 @@ public class ScheduleOrUpdateConsumersTest {
 	 */
 	@Test
 	public void testMixedPipelinedAndBlockingResults() throws Exception {
-		final AbstractJobVertex sender = new AbstractJobVertex("Sender");
+		final JobVertex sender = new JobVertex("Sender");
 		sender.setInvokableClass(BinaryRoundRobinSubtaskIndexSender.class);
 		sender.getConfiguration().setInteger(BinaryRoundRobinSubtaskIndexSender.CONFIG_KEY, PARALLELISM);
 		sender.setParallelism(PARALLELISM);
 
-		final AbstractJobVertex pipelinedReceiver = new AbstractJobVertex("Pipelined Receiver");
+		final JobVertex pipelinedReceiver = new JobVertex("Pipelined Receiver");
 		pipelinedReceiver.setInvokableClass(SlotCountExceedingParallelismTest.SubtaskIndexReceiver.class);
 		pipelinedReceiver.getConfiguration().setInteger(CONFIG_KEY, PARALLELISM);
 		pipelinedReceiver.setParallelism(PARALLELISM);
@@ -94,7 +94,7 @@ public class ScheduleOrUpdateConsumersTest {
 				DistributionPattern.ALL_TO_ALL,
 				ResultPartitionType.PIPELINED);
 
-		final AbstractJobVertex blockingReceiver = new AbstractJobVertex("Blocking Receiver");
+		final JobVertex blockingReceiver = new JobVertex("Blocking Receiver");
 		blockingReceiver.setInvokableClass(SlotCountExceedingParallelismTest.SubtaskIndexReceiver.class);
 		blockingReceiver.getConfiguration().setInteger(CONFIG_KEY, PARALLELISM);
 		blockingReceiver.setParallelism(PARALLELISM);

@@ -25,7 +25,7 @@ import java.util.Collections;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream;
@@ -123,12 +123,12 @@ public class IterateTest {
 
 		JobGraph graph = env.getStreamGraph().getJobGraph();
 
-		AbstractJobVertex itSource = null;
-		AbstractJobVertex itSink = null;
-		AbstractJobVertex headOp = null;
-		AbstractJobVertex tailOp = null;
+		JobVertex itSource = null;
+		JobVertex itSink = null;
+		JobVertex headOp = null;
+		JobVertex tailOp = null;
 
-		for (AbstractJobVertex vertex : graph.getVertices()) {
+		for (JobVertex vertex : graph.getVertices()) {
 			if (vertex.getName().contains("IterationSource")) {
 				itSource = vertex;
 			} else if (vertex.getName().contains("IterationSink")) {

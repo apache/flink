@@ -21,7 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import java.util.Arrays;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -32,10 +32,10 @@ public class AllVerticesIteratorTest {
 	public void testAllVertices() {
 		try {
 			
-			AbstractJobVertex v1 = new AbstractJobVertex("v1");
-			AbstractJobVertex v2 = new AbstractJobVertex("v2");
-			AbstractJobVertex v3 = new AbstractJobVertex("v3");
-			AbstractJobVertex v4 = new AbstractJobVertex("v4");
+			JobVertex v1 = new JobVertex("v1");
+			JobVertex v2 = new JobVertex("v2");
+			JobVertex v3 = new JobVertex("v3");
+			JobVertex v4 = new JobVertex("v4");
 			
 			v1.setParallelism(1);
 			v2.setParallelism(7);
