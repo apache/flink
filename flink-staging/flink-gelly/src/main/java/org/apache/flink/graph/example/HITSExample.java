@@ -63,10 +63,12 @@ public class HITSExample implements ProgramDescription {
 
         if (fileOutput) {
             HitsValue.writeAsCsv(outputPath, "\n", "\t");
+            env.execute("HITS algorithm");
         } else {
             HitsValue.print();
+//            env.execute("HITS algorithm");
         }
-//        env.execute("HITS algorithm");
+
     }
 
     @Override
@@ -88,7 +90,7 @@ public class HITSExample implements ProgramDescription {
 
         if(args.length > 0) {
             if(args.length != 3) {
-                System.err.println("Usage: PageRank <input edges path> <output path> <num iterations>");
+                System.err.println("Usage: HITS <input edges path> <output path> <num iterations>");
                 return false;
             }
 

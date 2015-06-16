@@ -17,7 +17,7 @@
  */
 
 package org.apache.flink.graph.library;
-import org.apache.flink.api.common.aggregators.LongSumAggregator;
+import org.apache.flink.api.common.aggregators.DoubleSumAggregator;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
@@ -25,6 +25,7 @@ import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
+import org.apache.flink.graph.spargel.VertexCentricConfiguration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.Hits;
 
@@ -34,8 +35,9 @@ import java.io.Serializable;
 /**
  *
  * This class implements the HITS algorithm by using flink Gelly API
- *Hyperlink-Induced Topic Search (HITS; also known as hubs and authorities) is a link analysis algorithm that rates Web pages,
- *developed by Jon Kleinberg.
+ * Hyperlink-Induced Topic Search (HITS; also known as hubs and authorities) is a link analysis algorithm that rates
+ * Web pages,
+ * developed by Jon Kleinberg.
  *
  * The algorithm performs a series of iterations, each consisting of two basic steps:
  *
@@ -51,10 +53,10 @@ import java.io.Serializable;
  *  *Run the Authority Update Rule
  *  *Run the Hub Update Rule
  *  *Normalize the values by dividing each Hub score by square root of the sum of the squares of all Hub scores, and
- *   dividing each Authority score by square root of the sum of the squares of all Authority scores.
+ *      dividing each Authority score by square root of the sum of the squares of all Authority scores.
  *  *Repeat from the second step as necessary.
  *
- * http://en.wikipedia.org/wiki/HITS_algorithm
+ * @see "http://en.wikipedia.org/wiki/HITS_algorithm "
  *
  */
 
@@ -103,7 +105,11 @@ public class HITS <K extends Comparable<K> & Serializable>implements GraphAlgori
                     }
                 }));
 
-            return HitsGraph.runVertexCentricIteration(new VertexHitsUpdater<K>(),new HitsMessenger<K>(),maxIterations);
+        VertexCentricConfiguration para=new VertexCentricConfiguration();
+        para.registerAggregator("sum",new DoubleSumAggregator());
+
+            return HitsGraph.runVertexCentricIteration(new VertexHitsUpdater<K>(),new HitsMessenger<K>(),
+                    maxIterations,para);
         }
                 /**
                  * Function that updates in odd superStep Iteration either the Hub or Authority values of a vertex by summing up
@@ -113,38 +119,47 @@ public class HITS <K extends Comparable<K> & Serializable>implements GraphAlgori
         @SuppressWarnings("serial")
     public static final class VertexHitsUpdater<K> extends VertexUpdateFunction<K, Double, Double> {
 
-        double sum;
-        LongSumAggregator aggregator=new LongSumAggregator();
+        DoubleSumAggregator aggregator=new DoubleSumAggregator();
         public void preSuperstep() {
         // retrieve the Aggregator
-            sum = getIterationAggregator("sum");
+            aggregator = getIterationAggregator("sum");
 
+            if(getSuperstepNumber()!=1 && getSuperstepNumber()%4==1)
+                aggregator.reset();
             if(getSuperstepNumber()%4==3)
-                sum=0.0;
+                aggregator.reset();
         }
         @Override
+//        for distinguishing Authority and Hub edges, need following parameter in Message.
+//        public void updateVertex(Vertex<K, Double> vertex, MessageIterator<Edge<Long,String>,Double>> inMessages)
+
         public void updateVertex(Vertex<K, Double> vertex, MessageIterator<Double> inMessages) {
+
 
             double num=0.0;
             switch (getSuperstepNumber()%4){
                 case 1:
-                    for(double m:inMessages)
-                        num+=m;
-                    sum+=Math.pow(num,2);
+                    for(double m:inMessages) {
+//                     if(m.f0.f1.equle("A"))
+                        num += m;
+                    }
+                    aggregator.aggregate(Math.pow(num,2));
                     break;
 
                 case 2:
-                    setNewVertexValue(vertex.f1/(Math.sqrt(sum)));
+                    setNewVertexValue(vertex.f1/(Math.sqrt(aggregator.getAggregate().getValue())));
                     break;
 
                 case 3:
-                    for(double m:inMessages)
-                        num+=m;
-                    sum+=Math.pow(num,2);
+                    for(double m:inMessages) {
+//                        if(m.f0.f1.equle("H"))
+                            num += m;
+                    }
+                    aggregator.aggregate(Math.pow(num,2));
                     break;
 
                 case 4:
-                    setNewVertexValue(vertex.f1/(Math.sqrt(sum)));
+                    setNewVertexValue(vertex.f1/(Math.sqrt(aggregator.getAggregate().getValue())));
                     break;
             }
         }
@@ -159,19 +174,13 @@ public class HITS <K extends Comparable<K> & Serializable>implements GraphAlgori
         @Override
         public void sendMessages(Vertex<K, Double> vertex) {
 
-            switch (getSuperstepNumber()%4) {
-                case 2:
-                    for(Edge<K,String> ed: getEdges()){
-                        if (ed.f1.equals("A"))
-                            sendMessageTo(ed.getTarget(),vertex.f1);
-                    }
+            switch (getSuperstepNumber()%2) {
+                case 0:
+                    sendMessageToAllNeighbors(vertex.f1);
                     break;
 
-                case 4:
-                    for(Edge<K,String> ed: getEdges()){
-                        if (ed.f1.equals("H"))
-                            sendMessageTo(ed.getTarget(),vertex.f1);
-                    }
+                case 1:
+                    sendMessageTo(vertex.f0,vertex.f1);
                     break;
             }
         }
