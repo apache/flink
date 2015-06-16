@@ -498,13 +498,13 @@ abstract class ExpressionCodeGenerator[R](
                |if ($nullTerm) {
                |  0;
                |} else {
-               |  $resultTpe $resultTerm = Boolean.compare((${childCode.resultTerm} != null),false);
+               |  $resultTpe $resultTerm = ${childCode.resultTerm} != null ? 1 : 0;
                |}
             """.stripMargin
         } else {
           childCode.code +
             s"""
-               |$resultTpe $resultTerm = Boolean.compare((${childCode.resultTerm} != null),false);
+               |$resultTpe $resultTerm = ${childCode.resultTerm} != null ? 1 : 0;
             """.stripMargin
         }
 
