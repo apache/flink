@@ -86,6 +86,9 @@ under the License.
 									<include>com.twitter:joauth</include>
 								</includes>
 							</artifactSet>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
+							</transformers>
 						</configuration>
 					</execution>
 				</executions>
