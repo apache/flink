@@ -527,8 +527,9 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			
 			if (this.currentIteration != null) {
 				AbstractJobVertex head = this.iterations.get(this.currentIteration).getHeadTask();
-				// the head may still be null if we descend into the static parts first
-				if (head != null) {
+				// Exclude static code paths from the co-location constraint, because otherwise
+				// their execution determines the deployment slots of the co-location group
+				if (node.isOnDynamicPath()) {
 					targetVertex.setStrictlyCoLocatedWith(head);
 				}
 			}

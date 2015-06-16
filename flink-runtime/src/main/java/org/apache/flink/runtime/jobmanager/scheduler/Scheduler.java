@@ -209,7 +209,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 							constraint.lockLocation();
 						}
 						
-						updateLocalityCounters(slotFromGroup.getLocality(), vertex, slotFromGroup.getInstance());
+						updateLocalityCounters(slotFromGroup, vertex);
 						return slotFromGroup;
 					}
 					
@@ -279,7 +279,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 						constraint.lockLocation();
 					}
 					
-					updateLocalityCounters(toUse.getLocality(), vertex, toUse.getInstance());
+					updateLocalityCounters(toUse, vertex);
 				}
 				catch (NoResourceAvailableException e) {
 					throw e;
@@ -303,7 +303,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				
 				SimpleSlot slot = getFreeSlotForTask(vertex, preferredLocations, forceExternalLocation);
 				if (slot != null) {
-					updateLocalityCounters(slot.getLocality(), vertex, slot.getInstance());
+					updateLocalityCounters(slot, vertex);
 					return slot;
 				}
 				else {
@@ -570,7 +570,9 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		}
 	}
 	
-	private void updateLocalityCounters(Locality locality, ExecutionVertex vertex, Instance location) {
+	private void updateLocalityCounters(SimpleSlot slot, ExecutionVertex vertex) {
+		Locality locality = slot.getLocality();
+
 		switch (locality) {
 		case UNCONSTRAINED:
 			this.unconstrainedAssignments++;
@@ -588,13 +590,13 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		if (LOG.isDebugEnabled()) {
 			switch (locality) {
 				case UNCONSTRAINED:
-					LOG.debug("Unconstrained assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + location);
+					LOG.debug("Unconstrained assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + slot);
 					break;
 				case LOCAL:
-					LOG.debug("Local assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + location);
+					LOG.debug("Local assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + slot);
 					break;
 				case NON_LOCAL:
-					LOG.debug("Non-local assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + location);
+					LOG.debug("Non-local assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + slot);
 					break;
 			}
 		}
