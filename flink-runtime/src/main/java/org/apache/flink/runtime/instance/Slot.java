@@ -244,11 +244,11 @@ public abstract class Slot {
 
 	@Override
 	public String toString() {
-		return hierarchy() + " - " + instance.getId() + " - " + getStateName(status);
+		return hierarchy() + " - " + instance + " - " + getStateName(status);
 	}
 
 	protected String hierarchy() {
-		return "(" + slotNumber + ")" + (getParent() != null ? getParent().hierarchy() : "");
+		return (getParent() != null ? getParent().hierarchy() : "") + "(" + slotNumber + ")";
 	}
 
 	private static String getStateName(int state) {
