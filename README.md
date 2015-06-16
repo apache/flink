@@ -16,7 +16,7 @@ val counts = text.flatMap { _.split("\\W+") }
 counts.writeAsCsv(outputPath)
 ```
 
-Flink is highlighted by some unique features:
+These are some of the unique features of Flink:
 
 * Hybrid batch/streaming runtime that supports batch processing and data streaming programs.
 * Custom memory management to guarantee efficient, adaptive, and highly robust switching between in-memory and data processing out-of-core algorithms.
@@ -29,6 +29,8 @@ Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
 
 
 ## Building Apache Flink from Source
+
+Prerequisites for building Flink:
 
 * Unix-like environment (We use Linux, Mac OS X, Cygwin)
 * git
