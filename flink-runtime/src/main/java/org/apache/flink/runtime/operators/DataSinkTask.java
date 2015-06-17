@@ -243,7 +243,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 				}
 				catch (Throwable t) {
 					if (LOG.isWarnEnabled()) {
-						LOG.warn(getLogString("Error closing the ouput format."), t);
+						LOG.warn(getLogString("Error closing the output format"), t);
 					}
 				}
 			}
