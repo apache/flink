@@ -19,7 +19,14 @@ package org.apache.flink.streaming.api.iteration;
 
 import java.io.Serializable;
 
-// TODO javadoc
+/**
+ * Predicate that defines the end of the iteration.
+ * If {@link EndOfIterationPredicate#isEndOfIteration(T)} returns true for a value
+ * at the iteration head, the instance of iteration will not wait for new values.
+ *
+ * @param <T>
+ *     Type of the iteration input.
+ */
 public interface EndOfIterationPredicate<T> extends Serializable {
 
 	boolean isEndOfIteration(T nextElement);

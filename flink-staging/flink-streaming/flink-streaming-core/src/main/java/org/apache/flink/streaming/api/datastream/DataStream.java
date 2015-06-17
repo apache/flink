@@ -589,7 +589,31 @@ public class DataStream<OUT> {
 		return new IterativeDataStream<OUT>(this, maxWaitTimeMillis);
 	}
 
-	// TODO javadocs
+	/**
+	 * Initiates an iterative part of the program that feeds back data streams.
+	 * The iterative part needs to be closed by calling
+	 * {@link IterativeDataStream#closeWith(DataStream)}. The transformation of
+	 * this IterativeDataStream will be the iteration head. The data stream
+	 * given to the {@link IterativeDataStream#closeWith(DataStream)} method is
+	 * the data stream that will be fed back and used as the input for the
+	 * iteration head. A common usage pattern for streaming iterations is to use
+	 * output splitting to send a part of the closing data stream to the head.
+	 * Refer to {@link #split(OutputSelector)} for more information.
+	 * <p>
+	 * The iteration edge will be partitioned the same way as the first input of
+	 * the iteration head.
+	 * <p>
+	 * By default a DataStream with iteration will never terminate, but the user
+	 * can use the endOfIterationPredicate parameter to define the end of the iteration.
+	 * If the endOfIterationPredicate returns true for a value at the iteration head
+	 * the instance of that iteration head will terminate. The last value that triggers
+	 * the end will not be fed to the iteration.
+	 *
+	 * @param endOfIterationPredicate
+	 *            Predicate that determines the end of the iteration.
+	 *
+	 * @return The iterative data stream created.
+	 */
 	public IterativeDataStream<OUT> iterate(EndOfIterationPredicate<OUT> endOfIterationPredicate) {
 		return new IterativeDataStream<OUT>(this, 0, endOfIterationPredicate);
 	}
