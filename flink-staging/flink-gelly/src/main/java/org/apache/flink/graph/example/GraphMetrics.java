@@ -24,7 +24,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.example.utils.ExampleUtils;
 import org.apache.flink.types.NullValue;
@@ -57,7 +56,7 @@ public class GraphMetrics implements ProgramDescription {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		/** create the graph **/
-		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(getEdgesDataSet(env), env);
+		Graph<Long, NullValue, NullValue> graph = GraphMetrics.getGraph(env);
 		
 		/** get the number of vertices **/
 		long numVertices = graph.numberOfVertices();
@@ -151,20 +150,15 @@ public class GraphMetrics implements ProgramDescription {
 	}
 
 	@SuppressWarnings("serial")
-	private static DataSet<Edge<Long, NullValue>> getEdgesDataSet(ExecutionEnvironment env) {
-		if (fileOutput) {
-			return env.readCsvFile(edgesInputPath)
-					.lineDelimiter("\n").fieldDelimiter("\t")
-					.types(Long.class, Long.class).map(
-							new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
+	private static Graph<Long, NullValue, NullValue> getGraph(ExecutionEnvironment env) {
+		if(fileOutput) {
+			return Graph.fromCsvReader(edgesInputPath, env).lineDelimiterEdges("\n").fieldDelimiterEdges("\t")
+										.types(Long.class);
 
-								public Edge<Long, NullValue> map(Tuple2<Long, Long> value) {
-									return new Edge<Long, NullValue>(value.f0, value.f1, 
-											NullValue.getInstance());
-								}
-					});
-		} else {
-			return ExampleUtils.getRandomEdges(env, NUM_VERTICES);
+		}
+		else
+		{
+			return Graph.fromDataSet(ExampleUtils.getRandomEdges(env, NUM_VERTICES), env);
 		}
 	}
 }
