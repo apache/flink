@@ -31,8 +31,6 @@ import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexCentricConfiguration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
-import org.apache.flink.graph.utils.Tuple2ToVertexMap;
-import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
  * This example illustrates the usage of vertex-centric iteration's
@@ -77,18 +75,12 @@ public class IncrementalSSSP implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Vertex<Long, Double>> vertices = getVerticesDataSet(env);
-
-		DataSet<Edge<Long, Double>> edges = getEdgesDataSet(env);
-
-		DataSet<Edge<Long, Double>> edgesInSSSP = getEdgesinSSSPDataSet(env);
-
 		Edge<Long, Double> edgeToBeRemoved = getEdgeToBeRemoved();
 
-		Graph<Long, Double, Double> graph = Graph.fromDataSet(vertices, edges, env);
+		Graph<Long, Double, Double> graph = IncrementalSSSP.getGraph(env);
 
 		// Assumption: all minimum weight paths are kept
-		Graph<Long, Double, Double> ssspGraph = Graph.fromDataSet(vertices, edgesInSSSP, env);
+		Graph<Long, Double, Double> ssspGraph = IncrementalSSSP.getSSSPGraph(env);
 
 		// remove the edge
 		graph.removeEdge(edgeToBeRemoved);
@@ -96,7 +88,7 @@ public class IncrementalSSSP implements ProgramDescription {
 		// configure the iteration
 		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
 
-		if(isInSSSP(edgeToBeRemoved, edgesInSSSP)) {
+		if(isInSSSP(edgeToBeRemoved, ssspGraph.getEdges())) {
 
 			parameters.setDirection(EdgeDirection.IN);
 			parameters.setOptDegrees(true);
@@ -110,24 +102,20 @@ public class IncrementalSSSP implements ProgramDescription {
 			// Emit results
 			if(fileOutput) {
 				resultedVertices.writeAsCsv(outputPath, "\n", ",");
-
-				// since file sinks are lazy, we trigger the execution explicitly
-				env.execute("Incremental SSSP Example");
 			} else {
 				resultedVertices.print();
 			}
 
+			env.execute("Incremental SSSP Example");
 		} else {
 			// print the vertices
 			if(fileOutput) {
-				vertices.writeAsCsv(outputPath, "\n", ",");
-
-				// since file sinks are lazy, we trigger the execution explicitly
-				env.execute("Incremental SSSP Example");
+				graph.getVertices().writeAsCsv(outputPath, "\n", ",");
 			} else {
-				vertices.print();
+				graph.getVertices().print();
 			}
 
+			env.execute("Incremental SSSP Example");
 		}
 	}
 
@@ -251,45 +239,31 @@ public class IncrementalSSSP implements ProgramDescription {
 		return true;
 	}
 
-	private static DataSet<Vertex<Long, Double>> getVerticesDataSet(ExecutionEnvironment env) {
-		if (fileOutput) {
-			return env.readCsvFile(verticesInputPath)
-					.lineDelimiter("\n")
-					.types(Long.class, Double.class)
-					.map(new Tuple2ToVertexMap<Long, Double>());
+	@SuppressWarnings("unchecked")
+	private static Graph<Long, Double, Double> getGraph(ExecutionEnvironment env) {
+		if(fileOutput) {
+			return Graph.fromCsvReader(verticesInputPath, edgesInputPath, env).lineDelimiterEdges("\n")
+					.typesEdges(Long.class, Double.class)
+					.typesVertices(Long.class, Double.class);
 		} else {
 			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
 					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
 					"<output path> <max iterations>");
-			return IncrementalSSSPData.getDefaultVertexDataSet(env);
+			return Graph.fromDataSet(IncrementalSSSPData.getDefaultVertexDataSet(env), IncrementalSSSPData.getDefaultEdgeDataSet(env), env);
 		}
 	}
 
-	private static DataSet<Edge<Long, Double>> getEdgesDataSet(ExecutionEnvironment env) {
-		if (fileOutput) {
-			return env.readCsvFile(edgesInputPath)
-					.lineDelimiter("\n")
-					.types(Long.class, Long.class, Double.class)
-					.map(new Tuple3ToEdgeMap<Long, Double>());
+	@SuppressWarnings("unchecked")
+	private static Graph<Long, Double, Double> getSSSPGraph(ExecutionEnvironment env) {
+		if(fileOutput) {
+			return Graph.fromCsvReader(verticesInputPath, edgesInSSSPInputPath, env).lineDelimiterEdges("\n")
+					.typesEdges(Long.class, Double.class)
+					.typesVertices(Long.class, Double.class);
 		} else {
 			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
 					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
 					"<output path> <max iterations>");
-			return IncrementalSSSPData.getDefaultEdgeDataSet(env);
-		}
-	}
-
-	private static DataSet<Edge<Long, Double>> getEdgesinSSSPDataSet(ExecutionEnvironment env) {
-		if (fileOutput) {
-			return env.readCsvFile(edgesInSSSPInputPath)
-					.lineDelimiter("\n")
-					.types(Long.class, Long.class, Double.class)
-					.map(new Tuple3ToEdgeMap<Long, Double>());
-		} else {
-			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
-					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
-					"<output path> <max iterations>");
-			return IncrementalSSSPData.getDefaultEdgesInSSSP(env);
+			return Graph.fromDataSet(IncrementalSSSPData.getDefaultVertexDataSet(env), IncrementalSSSPData.getDefaultEdgesInSSSP(env), env);
 		}
 	}
 

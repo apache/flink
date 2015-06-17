@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
@@ -30,7 +29,6 @@ import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.SumFunction;
 import org.apache.flink.graph.gsa.Neighbor;
-import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
  * This example shows how to use Gelly's Gather-Sum-Apply iterations.
@@ -61,9 +59,7 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Edge<Long, Double>> edges = getEdgeDataSet(env);
-
-		Graph<Long, Double, Double> graph = Graph.fromDataSet(edges, new InitVertices(srcVertexId), env);
+		Graph<Long, Double, Double> graph = GSASingleSourceShortestPaths.getGraph(env);
 
 		// Execute the GSA iteration
 		Graph<Long, Double, Double> result = graph.runGatherSumApplyIteration(
@@ -113,7 +109,7 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 		public Double gather(Neighbor<Double, Double> neighbor) {
 			return neighbor.getNeighborValue() + neighbor.getEdgeValue();
 		}
-	};
+	}
 
 	@SuppressWarnings("serial")
 	private static final class ChooseMinDistance extends SumFunction<Double, Double, Double> {
@@ -121,7 +117,7 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 		public Double sum(Double newValue, Double currentValue) {
 			return Math.min(newValue, currentValue);
 		}
-	};
+	}
 
 	@SuppressWarnings("serial")
 	private static final class UpdateDistance extends ApplyFunction<Long, Double, Double> {
@@ -172,15 +168,15 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 		return true;
 	}
 
-	private static DataSet<Edge<Long, Double>> getEdgeDataSet(ExecutionEnvironment env) {
+	@SuppressWarnings("unchecked")
+	private static Graph<Long, Double, Double> getGraph(ExecutionEnvironment env) {
 		if (fileOutput) {
-			return env.readCsvFile(edgesInputPath)
-					.fieldDelimiter("\t")
-					.lineDelimiter("\n")
-					.types(Long.class, Long.class, Double.class)
-					.map(new Tuple3ToEdgeMap<Long, Double>());
+			return Graph.fromCsvReader(edgesInputPath, new InitVertices(srcVertexId), env).fieldDelimiterEdges("\t")
+					.lineDelimiterEdges("\n")
+					.typesEdges(Long.class, Double.class)
+					.typesVertices(Long.class, Double.class);
 		} else {
-			return SingleSourceShortestPathsData.getDefaultEdgeDataSet(env);
+			return Graph.fromDataSet(SingleSourceShortestPathsData.getDefaultEdgeDataSet(env), new InitVertices(srcVertexId), env);
 		}
 	}
 
