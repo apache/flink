@@ -47,6 +47,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamProject;
@@ -698,7 +699,13 @@ public class DataStreamTest {
 
 		DataStream<Long> src = env.generateSequence(0, 0);
 
-		IterativeDataStream<Long> iterate = src.iterate();
+		EndOfIterationPredicate<Long> endOfIterationPredicate = new EndOfIterationPredicate<Long>() {
+			@Override
+			public boolean isEndOfIteration(Long nextElement) {
+				return false;
+			}
+		};
+		IterativeDataStream<Long> iterate = src.iterate(endOfIterationPredicate);
 		DataStream<Long> iterationMap = iterate.map(new MapFunction<Long, Long>() {
 			@Override
 			public Long map(Long value) throws Exception {
@@ -710,6 +717,8 @@ public class DataStreamTest {
 
 		assertEquals(1, streamGraph.getStreamLoops().size());
 		StreamGraph.StreamLoop streamLoop = streamGraph.getStreamLoops().iterator().next();
+
+		assertEquals(endOfIterationPredicate, streamLoop.getEndOfIterationPredicate());
 
 		StreamNode iterationHead = streamLoop.getSource();
 		StreamNode iterationTail = streamLoop.getSink();

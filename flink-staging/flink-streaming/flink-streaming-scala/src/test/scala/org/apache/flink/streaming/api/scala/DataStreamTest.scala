@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph, StreamNode}
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate
 import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamCounter, StreamOperator}
 import org.apache.flink.streaming.api.scala.windowing.Delta
 import org.apache.flink.streaming.api.windowing.helper.Count
@@ -391,15 +392,25 @@ class DataStreamTest {
     val streamGraph = env.getStreamGraph
     val src: DataStream[Long] = env.generateSequence(0, 0)
 
-    val iterateMap: DataStream[Long] = src.iterate((ds: DataStream[Long]) => {
+    def predicate = (x: Long) => x == 42
+    val iterateMap: DataStream[Long] = src.iterate(predicate)((ds: DataStream[Long]) => {
       val mapInside = ds.map((x: Long) => x)
       (mapInside, mapInside)
     })
 
     assert(1 == streamGraph.getStreamLoops.size)
     val streamLoop: StreamGraph.StreamLoop = streamGraph.getStreamLoops.iterator.next
+
+    val endOfIterationPredicate =
+      streamLoop.getEndOfIterationPredicate.asInstanceOf[EndOfIterationPredicate[Long]]
+
+    assert(endOfIterationPredicate.isEndOfIteration(42))
+    assert(!endOfIterationPredicate.isEndOfIteration(40))
+
+
     val iterationHead: StreamNode = streamLoop.getSource
     val iterationTail: StreamNode = streamLoop.getSink
+
 
     try {
       streamGraph.getStreamEdge(src.getId, iterateMap.getId)
