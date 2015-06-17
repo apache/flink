@@ -108,7 +108,7 @@ public class ShortValue implements NormalizableKey<ShortValue>, ResettableValue<
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj instanceof ShortValue) {
+		if (obj != null && obj.getClass() == ShortValue.class) {
 			return ((ShortValue) obj).value == this.value;
 		}
 		return false;
