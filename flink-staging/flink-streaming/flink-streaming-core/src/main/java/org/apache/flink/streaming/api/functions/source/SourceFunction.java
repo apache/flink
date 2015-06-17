@@ -48,11 +48,11 @@ import java.io.Serializable;
  *      private volatile boolean isRunning;
  *
  *      @Override
- *      public void run(Object checkpointLock, Collector<T> out) {
+ *      public void run(SourceContext<T> ctx) {
  *          isRunning = true;
  *          while (isRunning && count < 1000) {
- *              synchronized (checkpointLock) {
- *                  out.collect(count);
+ *              synchronized (ctx.getCheckpointLock()) {
+ *                  ctx.collect(count);
  *                  count++;
  *              }
  *          }
@@ -104,17 +104,17 @@ public interface SourceFunction<T> extends Function, Serializable {
 	 *
 	 * @param <T> The type of the elements produced by the source.
 	 */
-	public static interface SourceContext<T> {
+	interface SourceContext<T> {
 
 		/**
 		 * Emits one element from the source.
 		 */
-		public void collect(T element);
+		void collect(T element);
 
 		/**
 		 * Returns the checkpoint lock. Please refer to the explanation about checkpointed sources
 		 * in {@link org.apache.flink.streaming.api.functions.source.SourceFunction}.
 		 */
-		public Object getCheckpointLock();
+		Object getCheckpointLock();
 	}
 }
