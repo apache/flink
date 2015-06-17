@@ -473,7 +473,7 @@ public abstract class StreamExecutionEnvironment {
 
 		TypeInformation<OUT> typeInfo = TypeExtractor.getForObject(data[0]);
 
-		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
+		SourceFunction<OUT> function = new FromElementsFunction<OUT>(typeInfo.createSerializer(getConfig()), data);
 
 		return addSource(function, "Elements source").returns(typeInfo);
 	}
@@ -504,7 +504,7 @@ public abstract class StreamExecutionEnvironment {
 		}
 
 		TypeInformation<OUT> typeInfo = TypeExtractor.getForObject(data.iterator().next());
-		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
+		SourceFunction<OUT> function = new FromElementsFunction<OUT>(typeInfo.createSerializer(getConfig()), data);
 		checkCollection(data, typeInfo.getTypeClass());
 
 		return addSource(function, "Collection Source").returns(typeInfo);
@@ -529,7 +529,7 @@ public abstract class StreamExecutionEnvironment {
 			throw new IllegalArgumentException("Collection must not be empty");
 		}
 
-		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
+		SourceFunction<OUT> function = new FromElementsFunction<OUT>(typeInfo.createSerializer(getConfig()), data);
 		checkCollection(data, typeInfo.getTypeClass());
 
 		return addSource(function, "Collection Source").returns(typeInfo);
