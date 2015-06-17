@@ -291,7 +291,7 @@ public class Graph<K, VV, EV> {
 	* @param path1 path to a CSV file with the Vertices data.
 	* @param path2 path to a CSV file with the Edges data
 	* @param context the flink execution environment.
-	* @return An instance of {@link org.apache.flink.graph} , which on calling types method to specify types of the
+	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , which on calling types() method to specify types of the
 	*		 Vertex ID, Vertex Value and Edge value returns a Graph
 	*/
 
@@ -306,7 +306,7 @@ public class Graph<K, VV, EV> {
 	*
 	* @param path a path to a CSV file with the Edges data
 	* @param context the flink execution environment.
-	* @return An instance of {@link org.apache.flink.graph} , which on calling types method to specify types of the
+	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , which on calling types() method to specify types of the
 	* Vertex ID, Vertex Value and Edge value returns a Graph
 	*/
 
@@ -324,7 +324,7 @@ public class Graph<K, VV, EV> {
 	 * @param path a path to a CSV file with the Edges data
 	 * @param mapper the mapper function.
 	 * @param context the flink execution environment.
-	 * @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , which on calling types method to specify types of the
+	 * @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , which on calling types() method to specify types of the
 	 * Vertex ID, Vertex Value and Edge value returns a Graph
 	 */
 
