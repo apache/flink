@@ -108,7 +108,7 @@ public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntV
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj instanceof IntValue) {
+		if (obj != null && obj.getClass() == IntValue.class) {
 			return ((IntValue) obj).value == this.value;
 		}
 		return false;

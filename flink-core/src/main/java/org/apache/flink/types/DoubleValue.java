@@ -109,7 +109,7 @@ public class DoubleValue implements Key<DoubleValue>, ResettableValue<DoubleValu
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj.getClass() == DoubleValue.class) {
+		if (obj != null && obj.getClass() == DoubleValue.class) {
 			final DoubleValue other = (DoubleValue) obj;
 			return Double.doubleToLongBits(this.value) == Double.doubleToLongBits(other.value);
 		}
