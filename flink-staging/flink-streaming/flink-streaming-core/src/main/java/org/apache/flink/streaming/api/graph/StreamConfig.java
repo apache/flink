@@ -28,6 +28,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
@@ -65,6 +66,7 @@ public class StreamConfig implements Serializable {
 	// DEFAULT VALUES
 	private static final long DEFAULT_TIMEOUT = 100;
 	public static final String STATE_MONITORING = "STATE_MONITORING";
+	public static final String END_OF_ITERATION_PREDICATE = "end of iteration predicate";
 
 	// CONFIG METHODS
 
@@ -220,6 +222,24 @@ public class StreamConfig implements Serializable {
 
 	public long getIterationWaitTime() {
 		return config.getLong(ITERATON_WAIT, 0);
+	}
+
+	public void setEndOfIterationPredicate(EndOfIterationPredicate<?> endOfIterationPredicate) {
+		try {
+			InstantiationUtil.writeObjectToConfig(endOfIterationPredicate, this.config, END_OF_ITERATION_PREDICATE);
+		} catch (IOException e) {
+			throw new StreamTaskException("Cannot serialize EndOfIterationPredicate.", e);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public <T> EndOfIterationPredicate<T> getEndOfIterationPredicate(ClassLoader cl) {
+		try {
+			return (EndOfIterationPredicate<T>) InstantiationUtil.readObjectFromConfig(this.config,
+					END_OF_ITERATION_PREDICATE, cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Cannot deserialize and instantiate EndOfIterationPredicate.", e);
+		}
 	}
 
 	public void setSelectedNames(Integer output, List<String> selected) {
@@ -381,7 +401,7 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Could not instantiate configuration.", e);
 		}
 	}
-	
+
 	public void setStateHandleProvider(StateHandleProvider<?> provider) {
 		try {
 			InstantiationUtil.writeObjectToConfig(provider, this.config, STATEHANDLE_PROVIDER);

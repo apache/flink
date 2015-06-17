@@ -51,6 +51,7 @@ import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
@@ -99,9 +100,10 @@ public class DataStream<OUT> {
 	@SuppressWarnings("rawtypes")
 	protected TypeInformation typeInfo;
 	protected List<DataStream<OUT>> unionizedStreams;
-	
+
 	protected Integer iterationID = null;
 	protected Long iterationWaitTime = null;
+	protected EndOfIterationPredicate<OUT> endOfIterationPredicate = null;
 
 	protected final StreamGraph streamGraph;
 	private boolean typeUsed;
@@ -148,6 +150,7 @@ public class DataStream<OUT> {
 		this.typeInfo = dataStream.typeInfo;
 		this.iterationID = dataStream.iterationID;
 		this.iterationWaitTime = dataStream.iterationWaitTime;
+		this.endOfIterationPredicate = dataStream.endOfIterationPredicate;
 		this.unionizedStreams = new ArrayList<DataStream<OUT>>();
 		this.unionizedStreams.add(this);
 		if (dataStream.unionizedStreams.size() > 1) {
@@ -584,6 +587,11 @@ public class DataStream<OUT> {
 	 */
 	public IterativeDataStream<OUT> iterate(long maxWaitTimeMillis) {
 		return new IterativeDataStream<OUT>(this, maxWaitTimeMillis);
+	}
+
+	// TODO javadocs
+	public IterativeDataStream<OUT> iterate(EndOfIterationPredicate<OUT> endOfIterationPredicate) {
+		return new IterativeDataStream<OUT>(this, 0, endOfIterationPredicate);
 	}
 
 	/**
@@ -1043,7 +1051,7 @@ public class DataStream<OUT> {
 	
 	protected <X> void addIterationSource(DataStream<X> dataStream, TypeInformation<?> feedbackType) {
 		Integer id = ++counter;
-		streamGraph.addIterationHead(id, dataStream.getId(), iterationID, iterationWaitTime, feedbackType);
+		streamGraph.addIterationHead(id, dataStream.getId(), iterationID, iterationWaitTime, endOfIterationPredicate, feedbackType);
 		streamGraph.setParallelism(id, dataStream.getParallelism());
 	}
 

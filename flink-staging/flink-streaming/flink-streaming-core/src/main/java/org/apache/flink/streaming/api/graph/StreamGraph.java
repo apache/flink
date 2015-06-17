@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -198,11 +199,11 @@ public class StreamGraph extends StreamingPlan {
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public void addIterationHead(Integer sourceID, Integer iterationHead, Integer iterationID,
-			long timeOut, TypeInformation<?> feedbackType) {
+			long timeOut, EndOfIterationPredicate<?> endOfIterationPredicate, TypeInformation<?> feedbackType) {
 
 		StreamNode itSource = addNode(sourceID, StreamIterationHead.class, null, null);
 
-		StreamLoop iteration = new StreamLoop(iterationID, getStreamNode(sourceID), timeOut);
+		StreamLoop iteration = new StreamLoop(iterationID, getStreamNode(sourceID), timeOut, endOfIterationPredicate);
 		streamLoops.put(iterationID, iteration);
 		vertexIDtoLoop.put(sourceID, iteration);
 
@@ -386,6 +387,10 @@ public class StreamGraph extends StreamingPlan {
 		return vertexIDtoLoop.get(vertexID).getTimeout();
 	}
 
+	public EndOfIterationPredicate<?> getEndOfIterationPredicate(Integer vertexID) {
+		return vertexIDtoLoop.get(vertexID).getEndOfIterationPredicate();
+	}
+
 	protected void removeEdge(StreamEdge edge) {
 
 		edge.getSourceVertex().getOutEdges().remove(edge);
@@ -484,13 +489,15 @@ public class StreamGraph extends StreamingPlan {
 
 		private StreamNode source;
 		private StreamNode sink;
-		
+		private EndOfIterationPredicate<?> endOfIterationPredicate;
+
 		private Long timeout;
 
-		public StreamLoop(Integer loopID, StreamNode source, Long timeout) {
+		public StreamLoop(Integer loopID, StreamNode source, Long timeout, EndOfIterationPredicate<?> endOfIterationPredicate) {
 			this.loopID = loopID;
 			this.source = source;
 			this.timeout = timeout;
+			this.endOfIterationPredicate = endOfIterationPredicate;
 		}
 
 		public Integer getID() {
@@ -499,6 +506,10 @@ public class StreamGraph extends StreamingPlan {
 
 		public Long getTimeout() {
 			return timeout;
+		}
+
+		public EndOfIterationPredicate<?> getEndOfIterationPredicate() {
+			return endOfIterationPredicate;
 		}
 
 		public void setSink(StreamNode sink) {

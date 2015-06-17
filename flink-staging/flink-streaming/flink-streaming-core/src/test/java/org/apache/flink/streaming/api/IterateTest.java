@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraph.StreamLoop;
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
@@ -50,17 +51,20 @@ public class IterateTest {
 
 	private static final long MEMORYSIZE = 32;
 	private static boolean iterated[];
-	private static int PARALLELISM = 2;
+	private static final int PARALLELISM = 2;
 
-	public static final class IterationHead extends RichFlatMapFunction<Boolean, Boolean> {
+	public static final class IterationHead extends RichFlatMapFunction<Integer, Integer> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Boolean value, Collector<Boolean> out) throws Exception {
+		public void flatMap(Integer value, Collector<Integer> out) throws Exception {
 			int indx = getRuntimeContext().getIndexOfThisSubtask();
-			if (value) {
+			if (value == 1) {
 				iterated[indx] = true;
+
+				// finished
+				out.collect(-1);
 			} else {
 				out.collect(value);
 			}
@@ -69,46 +73,57 @@ public class IterateTest {
 
 	}
 
-	public static final class IterationTail extends RichFlatMapFunction<Boolean, Boolean> {
+	public static final class IterationTail extends RichFlatMapFunction<Integer, Integer> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Boolean value, Collector<Boolean> out) throws Exception {
-			out.collect(true);
-
+		public void flatMap(Integer value, Collector<Integer> out) throws Exception {
+			if (value == -1) {
+				out.collect(-1);
+			} else {
+				out.collect(1);
+			}
 		}
 
 	}
 
-	public static final class MySink implements SinkFunction<Boolean> {
+	public static final class MySink implements SinkFunction<Integer> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Boolean tuple) {
+		public void invoke(Integer tuple) {
 		}
 	}
 
-	public static final class NoOpMap implements MapFunction<Boolean, Boolean> {
+	public static final class NoOpMap implements MapFunction<Integer, Integer> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Boolean map(Boolean value) throws Exception {
+		public Integer map(Integer value) throws Exception {
 			return value;
 		}
 
 	}
 
+	public static final class EndAtMinusOne implements EndOfIterationPredicate<Integer> {
+
+		@Override
+		public boolean isEndOfIteration(Integer nextElement) {
+			return nextElement == -1;
+		}
+	}
+
 	public StreamExecutionEnvironment constructIterativeJob(StreamExecutionEnvironment env) {
 		env.setBufferTimeout(10);
 
-		DataStream<Boolean> source = env.fromCollection(Collections.nCopies(PARALLELISM, false));
+		DataStream<Integer> source = env.fromCollection(Collections.nCopies(PARALLELISM, 0));
 
-		IterativeDataStream<Boolean> iteration = source.iterate(3000);
+		IterativeDataStream<Integer> iteration = source.iterate(new EndAtMinusOne());
 
-		DataStream<Boolean> increment = iteration.flatMap(new IterationHead()).flatMap(
+		DataStream<Integer> increment = iteration.flatMap(new IterationHead()).flatMap(
 				new IterationTail());
 
 		iteration.closeWith(increment).addSink(new MySink());
@@ -119,10 +134,10 @@ public class IterateTest {
 	public void testColocation() throws Exception {
 		StreamExecutionEnvironment env = new TestStreamEnvironment(4, MEMORYSIZE);
 
-		IterativeDataStream<Boolean> it = env.fromElements(true).rebalance().map(new NoOpMap())
+		IterativeDataStream<Integer> it = env.fromElements(1).rebalance().map(new NoOpMap())
 				.iterate();
 
-		DataStream<Boolean> head = it.map(new NoOpMap()).setParallelism(2).name("HeadOperator");
+		DataStream<Integer> head = it.map(new NoOpMap()).setParallelism(2).name("HeadOperator");
 
 		it.closeWith(head.map(new NoOpMap()).setParallelism(3).name("TailOperator")).print();
 
@@ -157,12 +172,12 @@ public class IterateTest {
 	public void testPartitioning() throws Exception {
 		StreamExecutionEnvironment env = new TestStreamEnvironment(4, MEMORYSIZE);
 
-		IterativeDataStream<Boolean> it = env.fromElements(true).iterate();
+		IterativeDataStream<Integer> it = env.fromElements(1).iterate();
 
-		IterativeDataStream<Boolean> it2 = env.fromElements(true).iterate();
+		IterativeDataStream<Integer> it2 = env.fromElements(1).iterate();
 
-		DataStream<Boolean> head = it.map(new NoOpMap()).name("Head1").broadcast();
-		DataStream<Boolean> head2 = it2.map(new NoOpMap()).name("Head2").broadcast();
+		DataStream<Integer> head = it.map(new NoOpMap()).name("Head1").broadcast();
+		DataStream<Integer> head2 = it2.map(new NoOpMap()).name("Head2").broadcast();
 
 		it.closeWith(head.union(head.map(new NoOpMap()).shuffle()), true);
 		it2.closeWith(head2, false);
@@ -252,8 +267,8 @@ public class IterateTest {
 		} catch (UnsupportedOperationException e) {
 			// expected behaviour
 		}
-		
-		
+
+
 		// Test force checkpointing
 
 		try {
@@ -265,7 +280,7 @@ public class IterateTest {
 		} catch (UnsupportedOperationException e) {
 			// expected behaviour
 		}
-		
+
 		env.enableCheckpointing(1, true);
 		env.getStreamGraph().getJobGraph();
 
