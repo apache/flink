@@ -284,8 +284,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     require(data != null, "Data must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
 
-    val sourceFunction = new FromElementsFunction[T](scala.collection.JavaConversions
-      .asJavaCollection(data))
+    val sourceFunction = new FromElementsFunction[T](typeInfo.createSerializer(getConfig),
+      scala.collection.JavaConversions.asJavaCollection(data))
 
     javaEnv.addSource(sourceFunction).returns(typeInfo)
   }
