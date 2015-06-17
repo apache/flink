@@ -104,6 +104,15 @@ DataSet<Tuple3<String, String, Double>> edgeTuples = env.readCsvFile("path/to/ed
 Graph<String, Long, Double> graph = Graph.fromTupleDataSet(vertexTuples, edgeTuples, env);
 {% endhighlight %}
 
+* from a CSV file with three fields and an optional CSV file with 2 fields. In this case, Gelly will convert each row from the first CSV file to an `Edge`, where the first field will be the source ID, the second field will be the target ID and the third field will be the edge value. Equivalently, each row from the second CSV file will be converted to a `Vertex`, where the first field will be the vertex ID and the second field will be the vertex value. A types() method is called on the GraphCsvReader object returned by fromCsvReader() to inform the CsvReader of the types of the fields :
+
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+Graph<String, Long, Double> graph = Graph.fromCsvReader("path/to/vertex/input","path/to/edge/input",env).types(String.class, Long.class, Double.class);
+{% endhighlight %}
+
+
 * from a `Collection` of edges and an optional `Collection` of vertices:
 
 {% highlight java %}

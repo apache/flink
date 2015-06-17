@@ -18,12 +18,12 @@
 
 package org.apache.flink.graph.test.operations;
 
-import java.util.LinkedList;
-import java.util.List;
-
+import com.google.common.base.Charsets;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
@@ -32,9 +32,17 @@ import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
 import org.apache.flink.graph.validation.InvalidVertexIdsValidator;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 
 @RunWith(Parameterized.class)
 public class GraphCreationITCase extends MultipleProgramsTestBase {
@@ -43,8 +51,21 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
+	private String resultPath;
+	private String expectedResult;
 
-    private String expectedResult;
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		resultPath = tempFolder.newFile().toURI().toString();
+	}
+
+	@After
+	public void after() throws Exception{
+		compareResultsByLinesInMemory(expectedResult, resultPath);
+	}
 
 	@Test
 	public void testCreateWithoutVertexValues() throws Exception {
@@ -54,16 +75,13 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, NullValue, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env), env);
 
-        DataSet<Vertex<Long,NullValue>> data = graph.getVertices();
-        List<Vertex<Long,NullValue>> result= data.collect();
-        
+		graph.getVertices().writeAsCsv(resultPath);
+		env.execute();
 		expectedResult = "1,(null)\n" +
-					"2,(null)\n" +
-					"3,(null)\n" +
-					"4,(null)\n" +
-					"5,(null)\n";
-		
-		compareResultAsTuples(result, expectedResult);
+				"2,(null)\n" +
+				"3,(null)\n" +
+				"4,(null)\n" +
+				"5,(null)\n";
 	}
 
 	@Test
@@ -75,16 +93,13 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env),
 				new AssignIdAsValueMapper(), env);
 
-        DataSet<Vertex<Long,Long>> data = graph.getVertices();
-        List<Vertex<Long,Long>> result= data.collect();
-        
+		graph.getVertices().writeAsCsv(resultPath);
+		env.execute();
 		expectedResult = "1,1\n" +
-					"2,2\n" +
-					"3,3\n" +
-					"4,4\n" +
-					"5,5\n";
-		
-		compareResultAsTuples(result, expectedResult);
+				"2,2\n" +
+				"3,3\n" +
+				"4,4\n" +
+				"5,5\n";
 	}
 
 	@Test
@@ -96,16 +111,86 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		Graph<Long, DummyCustomParameterizedType<Double>, Long> graph = Graph.fromDataSet(
 				TestGraphUtils.getLongLongEdgeData(env), new AssignCustomVertexValueMapper(), env);
 
-        DataSet<Vertex<Long,DummyCustomParameterizedType<Double>>> data = graph.getVertices();
-        List<Vertex<Long,DummyCustomParameterizedType<Double>>> result= data.collect();
-        
+		graph.getVertices().writeAsCsv(resultPath);
+		env.execute();
 		expectedResult = "1,(2.0,0)\n" +
 				"2,(4.0,1)\n" +
 				"3,(6.0,2)\n" +
 				"4,(8.0,3)\n" +
 				"5,(10.0,4)\n";
-		
-		compareResultAsTuples(result, expectedResult);
+	}
+
+	@Test
+	public void testCreateWithCsvFile() throws Exception {
+		/*
+		 * Test with two Csv files one with Vertex Data and one with Edges data
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final String fileContent =  "1,1\n"+
+				"2,2\n"+
+				"3,3\n";
+		final FileInputSplit split = createTempFile(fileContent);
+		final String fileContent2 =  "1,2,ot\n"+
+				"3,2,tt\n"+
+				"3,1,to\n";
+		final FileInputSplit split2 = createTempFile(fileContent2);
+		Graph<Long,Long,String> graph= Graph.fromCsvReader(split.getPath().toString(),split2.getPath().toString(),env).
+				types(Long.class,Long.class,String.class);
+		graph.getTriplets().writeAsCsv(resultPath);
+		env.execute();
+		expectedResult = "1,2,1,2,ot\n" +
+				"3,2,3,2,tt\n" +
+				"3,1,3,1,to\n";
+	}
+
+	@Test
+	public void testCreateWithOnlyEdgesCsvFile() throws Exception {
+		/*
+		 * Test with one Csv file one with Edges data. Also tests the configuration method ignoreFistLineEdges()
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final String fileContent2 =  "header\n1,2,ot\n"+
+				"3,2,tt\n"+
+				"3,1,to\n";
+		final FileInputSplit split2 = createTempFile(fileContent2);
+		Graph<Long,NullValue,String> graph= Graph.fromCsvReader(split2.getPath().toString(), env).ignoreFirstLineEdges()
+				.ignoreCommentsVertices("hi").typesVertexValueNull(Long.class, String.class);
+		graph.getTriplets().writeAsCsv(resultPath);
+		env.execute();
+		expectedResult = "1,2,(null),(null),ot\n" +
+				"3,2,(null),(null),tt\n" +
+				"3,1,(null),(null),to\n";
+	}
+
+	@Test
+	public void testCreateCsvFileDelimiterConfiguration() throws Exception {
+		/*
+		 * Test with an Edge and Vertex csv file. Tests the configuration methods FieldDelimiterEdges and
+		 * FieldDelimiterVertices
+		 * Also tests the configuration methods LineDelimiterEdges and LineDelimiterVertices
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final String fileContent =  "header\n1;1\n"+
+				"2;2\n"+
+				"3;3\n";
+		final FileInputSplit split = createTempFile(fileContent);
+		final String fileContent2 =  "header|1:2:ot|"+
+				"3:2:tt|"+
+				"3:1:to|";
+		final FileInputSplit split2 = createTempFile(fileContent2);
+		Graph<Long,Long,String> graph= Graph.fromCsvReader(split.getPath().toString(),split2.getPath().toString(),env).
+				ignoreFirstLineEdges().ignoreFirstLineVertices().
+				fieldDelimiterEdges(":").fieldDelimiterVertices(";").
+				lineDelimiterEdges("|").
+				types(Long.class, Long.class, String.class);
+		graph.getTriplets().writeAsCsv(resultPath);
+		env.execute();
+		expectedResult = "1,2,1,2,ot\n" +
+				"3,2,3,2,tt\n" +
+				"3,1,3,1,to\n";
+
+
 	}
 
 	@Test
@@ -118,16 +203,12 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
-		Boolean valid = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
+		Boolean result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
 
-		//env.fromElements(result).writeAsText(resultPath);
-		
-		String res= valid.toString();//env.fromElements(valid);
-        List<String> result= new LinkedList<String>();
-        result.add(res);
-		expectedResult = "true";
-		
-		compareResultAsText(result, expectedResult);
+		env.fromElements(result).writeAsText(resultPath);
+		env.execute();
+
+		expectedResult = "true\n";
 	}
 
 	@Test
@@ -140,15 +221,11 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
-		Boolean valid = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
-		
-		String res= valid.toString();//env.fromElements(valid);
-        List<String> result= new LinkedList<String>();
-        result.add(res);
+		Boolean result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
+		env.fromElements(result).writeAsText(resultPath);
+		env.execute();
 
 		expectedResult = "false\n";
-		
-		compareResultAsText(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")
@@ -160,7 +237,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 
 	@SuppressWarnings("serial")
 	private static final class AssignCustomVertexValueMapper implements
-		MapFunction<Long, DummyCustomParameterizedType<Double>> {
+			MapFunction<Long, DummyCustomParameterizedType<Double>> {
 
 		DummyCustomParameterizedType<Double> dummyValue =
 				new DummyCustomParameterizedType<Double>();
@@ -170,5 +247,19 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 			dummyValue.setTField(vertexId*2.0);
 			return dummyValue;
 		}
+	}
+
+	private FileInputSplit createTempFile(String content) throws IOException {
+		File tempFile = File.createTempFile("test_contents", "tmp");
+		tempFile.deleteOnExit();
+
+		OutputStreamWriter wrt = new OutputStreamWriter(
+				new FileOutputStream(tempFile), Charsets.UTF_8
+		);
+		wrt.write(content);
+		wrt.close();
+
+		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(),
+				new String[] {"localhost"});
 	}
 }
