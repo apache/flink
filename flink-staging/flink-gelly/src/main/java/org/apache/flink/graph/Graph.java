@@ -282,6 +282,59 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
+	* Creates a graph from CSV files.
+	*
+	* Vertices with value are created from a CSV file with 2 fields
+	* Edges with value are created from a CSV file with 3 fields
+	* from Tuple3.
+	*
+	* @param path1 path to a CSV file with the Vertices data.
+	* @param path2 path to a CSV file with the Edges data
+	* @param context the flink execution environment.
+	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , which on calling types() method to specify types of the
+	*		 Vertex ID, Vertex Value and Edge value returns a Graph
+	*/
+
+	public static  GraphCsvReader fromCsvReader(String path1, String path2, ExecutionEnvironment context){
+		return (new GraphCsvReader(path1,path2,context));
+	}
+	/** Creates a graph from a CSV file for Edges., Vertices are
+	* induced from the edges.
+	*
+	* Edges with value are created from a CSV file with 3 fields. Vertices are created
+	* automatically and their values are set to NullValue.
+	*
+	* @param path a path to a CSV file with the Edges data
+	* @param context the flink execution environment.
+	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , which on calling types() method to specify types of the
+	* Vertex ID, Vertex Value and Edge value returns a Graph
+	*/
+
+	public static GraphCsvReader fromCsvReader(String path, ExecutionEnvironment context){
+		return (new GraphCsvReader(path,context));
+	}
+
+	/**
+	 *Creates a graph from a CSV file for Edges., Vertices are
+	 * induced from the edges and vertex values are calculated by a mapper
+	 * function.  Edges with value are created from a CSV file with 3 fields.
+	 * Vertices are created automatically and their values are set by applying the provided map
+	 * function to the vertex ids.
+	 *
+	 * @param path a path to a CSV file with the Edges data
+	 * @param mapper the mapper function.
+	 * @param context the flink execution environment.
+	 * @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , which on calling types() method to specify types of the
+	 * Vertex ID, Vertex Value and Edge value returns a Graph
+	 */
+
+	public static GraphCsvReader fromCsvReader(String path, final MapFunction mapper,ExecutionEnvironment context)
+	{
+		return (new GraphCsvReader(path,mapper,context));
+	}
+
+
+	/**
 	 * @return the flink execution environment.
 	 */
 	public ExecutionEnvironment getContext() {
@@ -1109,7 +1162,6 @@ public class Graph<K, VV, EV> {
 
 		return removeVertices(vertexToBeRemoved);
 	}
-
 	/**
 	 * Removes the given list of vertices and its edges from the graph.
 	 *
@@ -1117,9 +1169,22 @@ public class Graph<K, VV, EV> {
 	 * @return the resulted graph containing the initial vertices and edges minus the vertices
 	 * 		   and edges removed.
 	 */
-	public Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved) {
 
-		DataSet<Vertex<K, VV>> newVertices = getVertices().coGroup(this.context.fromCollection(verticesToBeRemoved)).where(0).equalTo(0)
+	public Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved)
+	{
+		return removeVertices(this.context.fromCollection(verticesToBeRemoved));
+	}
+
+	/**
+	 * Removes the given list of vertices and its edges from the graph.
+	 *
+	 * @param verticesToBeRemoved the DataSet of vertices to be removed
+	 * @return the resulted graph containing the initial vertices and edges minus the vertices
+	 * 		   and edges removed.
+	 */
+	public Graph<K, VV, EV> removeVertices(DataSet<Vertex<K, VV>> verticesToBeRemoved) {
+
+		DataSet<Vertex<K, VV>> newVertices = getVertices().coGroup(verticesToBeRemoved).where(0).equalTo(0)
 				.with(new VerticesRemovalCoGroup<K, VV>());
 
 		DataSet < Edge < K, EV >> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
@@ -1150,6 +1215,8 @@ public class Graph<K, VV, EV> {
 			}
 		}
 	}
+
+
 
 	@ForwardedFieldsSecond("f0; f1; f2")
 	private static final class ProjectEdgeToBeRemoved<K,VV,EV> implements JoinFunction<Vertex<K, VV>, Edge<K, EV>, Edge<K, EV>> {
@@ -1231,6 +1298,17 @@ public class Graph<K, VV, EV> {
 		DataSet<Vertex<K, VV>> unionedVertices = graph.getVertices().union(this.getVertices()).distinct();
 		DataSet<Edge<K, EV>> unionedEdges = graph.getEdges().union(this.getEdges());
 		return new Graph<K, VV, EV>(unionedVertices, unionedEdges, this.context);
+	}
+
+	/**
+	 * Performs Difference on the vertex and edge sets of the input graphs
+	 * removes common vertices and edges. If a source/target vertex is removed, its corresponding edge will also be removed
+	 * @param graph the graph to perform difference with
+	 * @return a new graph where the common vertices and edges have been removed
+	 */
+	public Graph<K,VV,EV> difference(Graph<K,VV,EV> graph) throws java.lang.Exception{
+		DataSet<Vertex<K,VV>> removeVerticesData = graph.getVertices();
+		return this.removeVertices(removeVerticesData);
 	}
 
 	/**

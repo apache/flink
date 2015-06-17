@@ -104,6 +104,14 @@ DataSet<Tuple3<String, String, Double>> edgeTuples = env.readCsvFile("path/to/ed
 Graph<String, Long, Double> graph = Graph.fromTupleDataSet(vertexTuples, edgeTuples, env);
 {% endhighlight %}
 
+* from a CSV file with three fields and an optional CSV file with 2 fields. In this case, Gelly will convert each row from the CSV file to an `Edge`, where the first field will be the source ID, the second field will be the target ID and the third field will be the edge value. Equivalently, each row from the second CSV file will be converted to a `Vertex`, where the first field will be the vertex ID and the second field will be the vertex value. A types() method is called on the GraphCsvReader object returned by fromCsvReader() to inform the CsvReader of the types of the fields :
+
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+Graph<String, Long, Double> graph = Graph.fromCsvReader("path/to/vertex/input","path/to/edge/input",env).types(String.class, Long.class, Double.class);
+{% endhighlight %}
+
 * from a `Collection` of edges and an optional `Collection` of vertices:
 
 {% highlight java %}
@@ -236,13 +244,15 @@ Graph<Long, Double, Double> networkWithWeights = network.joinWithEdgesOnSource(v
 
 * <strong>Undirected</strong>: In Gelly, a `Graph` is always directed. Undirected graphs can be represented by adding all opposite-direction edges to a graph. For this purpose, Gelly provides the `getUndirected()` method.
 
-* <strong>Union</strong>: Gelly's `union()` method performs a union on the vertex and edges sets of the input graphs. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exists, these will be maintained.
+* <strong>Union</strong>: Gelly's `union()` method performs a union operation on the vertex and edge sets of the specified graph and current graph. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exists, these will be maintained.
 
 <p class="text-center">
     <img alt="Union Transformation" width="50%" src="fig/gelly-union.png"/>
 </p>
 
-[Back to top](#top)
+* <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the current graph and specified graph.
+
+-[Back to top](#top)
 
 Graph Mutations
 -----------
@@ -268,11 +278,16 @@ Graph<K, VV, EV> removeVertex(Vertex<K, VV> vertex)
 // removes the given list of vertices and their edges from the Graph
 Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved)
 
+//removes the given DataSet of vertices and their edges from the Graph.
+Graph<K, VV, EV> removeVertices(DataSet<Vertex<K, EV>> verticesToBeRemoved)
+
 // removes *all* edges that match the given Edge from the Graph.
 Graph<K, VV, EV> removeEdge(Edge<K, EV> edge)
 
 // removes *all* edges that match the edges in the given list
 Graph<K, VV, EV> removeEdges(List<Edge<K, EV>> edgesToBeRemoved)
+
+
 {% endhighlight %}
 
 Neighborhood Methods
