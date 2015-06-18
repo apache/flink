@@ -54,6 +54,11 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 					public T next() {
 						return elements[index++];
 					}
+
+					@Override
+					public void remove() {
+						throw new UnsupportedOperationException();
+					}
 				};
 			}
 		});
