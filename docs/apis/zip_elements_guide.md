@@ -34,8 +34,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 env.setParallelism(1);
 DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F");
 
-DataSetUtils<String> dataSetUtils = new DataSetUtils<String>();
-DataSet<Tuple2<Long, String>> result = dataSetUtils.zipWithIndex(in);
+DataSet<Tuple2<Long, String>> result = DataSetUtils.zipWithIndex(in);
 
 result.writeAsCsv(resultPath, "\n", ",");
 env.execute();

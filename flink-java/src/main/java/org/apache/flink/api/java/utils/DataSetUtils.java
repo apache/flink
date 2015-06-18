@@ -30,25 +30,23 @@ import java.util.List;
 
 /**
  * This class provides simple utility methods for zipping elements in a file with an index.
- *
- * @param <T> The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
-public class DataSetUtils<T> {
+public class DataSetUtils {
 
 	/**
-	 * Method that goes over all the elements in each partition in order to retireve
+	 * Method that goes over all the elements in each partition in order to retrieve
 	 * the total number of elements.
 	 *
 	 * @param input the DataSet received as input
 	 * @return a data set containing tuples of subtask index, number of elements mappings.
 	 */
-	public DataSet<Tuple2<Integer, Long>> countElements(DataSet<T> input) {
+	private static <T> DataSet<Tuple2<Integer, Long>> countElements(DataSet<T> input) {
 		return input.mapPartition(new RichMapPartitionFunction<T, Tuple2<Integer,Long>>() {
 			@Override
 			public void mapPartition(Iterable<T> values, Collector<Tuple2<Integer, Long>> out) throws Exception {
 				long counter = 0;
 				for(T value: values) {
-					counter ++;
+					counter++;
 				}
 
 				out.collect(new Tuple2<Integer, Long>(getRuntimeContext().getIndexOfThisSubtask(), counter));
@@ -63,7 +61,7 @@ public class DataSetUtils<T> {
 	 * @param input the input data set
 	 * @return a data set of tuple 2 consisting of consecutive ids and initial values.
 	 */
-	public DataSet<Tuple2<Long, T>> zipWithIndex(DataSet<T> input) {
+	public static <T> DataSet<Tuple2<Long, T>> zipWithIndex(DataSet<T> input) {
 
 		DataSet<Tuple2<Integer, Long>> elementCount = countElements(input);
 
@@ -99,7 +97,7 @@ public class DataSetUtils<T> {
 		}).withBroadcastSet(elementCount, "counts");
 	}
 
-	private static int compareInts(long x, int y) {
+	private static int compareInts(int x, int y) {
 		return (x < y) ? -1 : ((x == y) ? 0 : 1);
 	}
 
