@@ -268,9 +268,6 @@ Graph<K, VV, EV> removeVertex(Vertex<K, VV> vertex)
 // removes the given list of vertices and their edges from the Graph
 Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved)
 
-//removes the given DataSet of vertices and their edges from the Graph.
-Graph<K, VV, EV> removeVertices(DataSet<Vertex<K, EV>> verticesToBeRemoved)
-
 // removes *all* edges that match the given Edge from the Graph.
 Graph<K, VV, EV> removeEdge(Edge<K, EV> edge)
 
