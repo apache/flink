@@ -194,6 +194,24 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
+	public void testCreateWithOnlyEdgesCsvFile() throws Exception {
+		/*
+		 * Test with one Csv file one with Edges data. Also tests the configuration method ignoreFistLineEdges()
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final String fileContent2 =  "header\n1,2,ot\n"+
+				"3,2,tt\n"+
+				"3,1,to\n";
+		final FileInputSplit split2 = createTempFile(fileContent2);
+		Graph<Long,NullValue,String> graph= Graph.fromCsvReader(split2.getPath().toString(), env).ignoreFirstLineEdges().ignoreCommentsVertices("hi").types(Long.class, String.class);
+		graph.getTriplets().writeAsCsv(resultPath);
+		env.execute();
+		expectedResult = "1,2,(null),(null),ot\n" +
+				"3,2,(null),(null),tt\n" +
+				"3,1,(null),(null),to\n";
+	}
+
+	@Test
 	public void testValidate() throws Exception {
 		/*
 		 * Test validate():
