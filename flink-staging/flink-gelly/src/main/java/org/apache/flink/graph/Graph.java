@@ -1129,7 +1129,7 @@ public class Graph<K, VV, EV> {
 	 * @return the resulted graph containing the initial vertices and edges minus the vertices
 	 * 		   and edges removed.
 	 */
-	public Graph<K, VV, EV> removeVertices(DataSet<Vertex<K, VV>> verticesToBeRemoved) {
+	private Graph<K, VV, EV> removeVertices(DataSet<Vertex<K, VV>> verticesToBeRemoved) {
 
 		DataSet<Vertex<K, VV>> newVertices = getVertices().coGroup(verticesToBeRemoved).where(0).equalTo(0)
 				.with(new VerticesRemovalCoGroup<K, VV>());
