@@ -22,7 +22,11 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.Iterator;
 
 public class FromElementsFunction<T> implements SourceFunction<T> {
@@ -60,8 +64,9 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 		OutputViewDataOutputStreamWrapper wrapper = new OutputViewDataOutputStreamWrapper(new DataOutputStream(baos));
 
 		try {
-			for (T element : elements)
+			for (T element : elements) {
 				serializer.serialize(element, wrapper);
+			}
 		} catch (IOException e) {
 			// ByteArrayOutputStream doesn't throw IOExceptions when written to
 		}
@@ -81,7 +86,7 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 			value = serializer.deserialize(value, input);
 			ctx.collect(value);
 		}
-		// closing the DataOutputStream would just close the ByteArrayInputStream, which doesn't do anything
+		// closing the DataInputStream would just close the ByteArrayInputStream, which doesn't do anything
 	}
 
 	@Override
