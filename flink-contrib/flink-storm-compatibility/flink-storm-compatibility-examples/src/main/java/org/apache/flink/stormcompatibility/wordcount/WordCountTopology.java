@@ -47,7 +47,7 @@ import org.apache.flink.stormcompatibility.wordcount.stormoperators.StormBoltTok
  * <p/>
  * This example shows how to:
  * <ul>
- * <li>how to construct a regular Storm topology as Flink program
+ * <li>how to construct a regular Storm topology as Flink program</li>
  * </ul>
  */
 public class WordCountTopology {

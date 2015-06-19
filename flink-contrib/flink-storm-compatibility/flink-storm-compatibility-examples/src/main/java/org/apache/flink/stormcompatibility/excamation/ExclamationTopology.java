@@ -20,15 +20,32 @@ package org.apache.flink.stormcompatibility.excamation;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.stormcompatibility.api.FlinkTopologyBuilder;
 import org.apache.flink.stormcompatibility.excamation.stormoperators.ExclamationBolt;
+import org.apache.flink.stormcompatibility.util.FiniteStormFileSpout;
+import org.apache.flink.stormcompatibility.util.FiniteStormInMemorySpout;
 import org.apache.flink.stormcompatibility.util.OutputFormatter;
-import org.apache.flink.stormcompatibility.util.RawOutputFormatter;
+import org.apache.flink.stormcompatibility.util.SimpleOutputFormatter;
 import org.apache.flink.stormcompatibility.util.StormBoltFileSink;
 import org.apache.flink.stormcompatibility.util.StormBoltPrintSink;
-import org.apache.flink.stormcompatibility.util.StormFileSpout;
-import org.apache.flink.stormcompatibility.util.StormInMemorySpout;
 
 /**
- * This is a basic example of a Storm topology.
+ * Implements the "Exclamation" program that attaches five exclamation mark to every line of a text
+ * files in a streaming fashion. The program is constructed as a regular {@link StormTopology}.
+ * <p/>
+ * <p/>
+ * The input is a plain text file with lines separated by newline characters.
+ * <p/>
+ * <p/>
+ * Usage: <code>StormExclamation[Local|RemoteByClient|RemoteBySubmitter] &lt;text path&gt;
+ * &lt;result path&gt;</code><br/>
+ * If no parameters are provided, the program is run with default data from
+ * {@link WordCountData}.
+ * <p/>
+ * <p/>
+ * This example shows how to:
+ * <ul>
+ * <li>construct a regular Storm topology as Flink program</li>
+ * <li>make use of the FiniteStormSpout interface</li>
+ * </ul>
  */
 public class ExclamationTopology {
 
@@ -36,7 +53,7 @@ public class ExclamationTopology {
 	public final static String firstBoltId = "exclamation1";
 	public final static String secondBoltId = "exclamation2";
 	public final static String sinkId = "sink";
-	private final static OutputFormatter formatter = new RawOutputFormatter();
+	private final static OutputFormatter formatter = new SimpleOutputFormatter();
 
 	public static FlinkTopologyBuilder buildTopology() {
 		final FlinkTopologyBuilder builder = new FlinkTopologyBuilder();
@@ -46,9 +63,9 @@ public class ExclamationTopology {
 			// read the text file from given input path
 			final String[] tokens = textPath.split(":");
 			final String inputFile = tokens[tokens.length - 1];
-			builder.setSpout(spoutId, new StormFileSpout(inputFile));
+			builder.setSpout(spoutId, new FiniteStormFileSpout(inputFile));
 		} else {
-			builder.setSpout(spoutId, new StormInMemorySpout(WordCountData.WORDS));
+			builder.setSpout(spoutId, new FiniteStormInMemorySpout(WordCountData.WORDS));
 		}
 
 		builder.setBolt(firstBoltId, new ExclamationBolt(), 3).shuffleGrouping(spoutId);
@@ -59,9 +76,11 @@ public class ExclamationTopology {
 			// read the text file from given input path
 			final String[] tokens = outputPath.split(":");
 			final String outputFile = tokens[tokens.length - 1];
-			builder.setBolt(sinkId, new StormBoltFileSink(outputFile, formatter)).shuffleGrouping(secondBoltId);
+			builder.setBolt(sinkId, new StormBoltFileSink(outputFile, formatter))
+					.shuffleGrouping(secondBoltId);
 		} else {
-			builder.setBolt(sinkId, new StormBoltPrintSink(formatter), 4).shuffleGrouping(secondBoltId);
+			builder.setBolt(sinkId, new StormBoltPrintSink(formatter), 4)
+					.shuffleGrouping(secondBoltId);
 		}
 
 		return builder;
@@ -84,13 +103,17 @@ public class ExclamationTopology {
 				textPath = args[0];
 				outputPath = args[1];
 			} else {
-				System.err.println("Usage: StormExclamation* <text path> <result path>");
+				System.err.println(
+						"Usage: StormExclamation[Local|RemoteByClient|RemoteBySubmitter] <text " +
+								"path> <result path>");
 				return false;
 			}
 		} else {
-			System.out.println("Executing StormExclamation* example with built-in default data");
+			System.out.println("Executing StormExclamation example with built-in default data");
 			System.out.println("  Provide parameters to read input data from a file");
-			System.out.println("  Usage: StormExclamation* <text path> <result path>");
+			System.out.println(
+					"  Usage: StormExclamation[Local|RemoteByClient|RemoteBySubmitter] <text path>" +
+							" <result path>");
 		}
 
 		return true;

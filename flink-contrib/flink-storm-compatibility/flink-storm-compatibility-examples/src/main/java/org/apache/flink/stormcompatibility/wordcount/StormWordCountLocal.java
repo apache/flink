@@ -42,7 +42,7 @@ import org.apache.flink.stormcompatibility.api.FlinkTopologyBuilder;
  * <p/>
  * This example shows how to:
  * <ul>
- * <li>run a regular Storm program locally on Flink
+ * <li>run a regular Storm program locally on Flink</li>
  * </ul>
  */
 public class StormWordCountLocal {

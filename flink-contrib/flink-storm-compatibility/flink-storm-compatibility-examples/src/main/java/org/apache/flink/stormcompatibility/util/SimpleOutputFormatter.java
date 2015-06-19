@@ -23,9 +23,20 @@ import backtype.storm.tuple.Tuple;
 public class SimpleOutputFormatter implements OutputFormatter {
 	private static final long serialVersionUID = 6349573860144270338L;
 
+	/**
+	 * Converts a Storm {@link Tuple} with 1 field to a string by retrieving the value of that
+	 * field. This method is used for formatting raw outputs wrapped in tuples, before writing them
+	 * out to a file or to the consol.
+	 *
+	 * @param input
+	 * 		The tuple to be formatted
+	 * @return The string result of the formatting
+	 */
 	@Override
 	public String format(final Tuple input) {
-		return input.getValues().toString();
+		if (input.getValues().size() != 1) {
+			throw new RuntimeException("The output is not raw");
+		}
+		return input.getValue(0).toString();
 	}
-
 }

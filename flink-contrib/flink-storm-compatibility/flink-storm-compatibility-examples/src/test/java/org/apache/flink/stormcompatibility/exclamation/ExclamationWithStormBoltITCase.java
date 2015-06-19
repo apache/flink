@@ -18,12 +18,12 @@
 
 package org.apache.flink.stormcompatibility.exclamation;
 
-import org.apache.flink.stormcompatibility.excamation.StormBoltExclamation;
+import org.apache.flink.stormcompatibility.excamation.ExclamationWithStormBolt;
 import org.apache.flink.stormcompatibility.exclamation.util.ExclamationData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
-public class StormBoltExclamationITCase extends StreamingProgramTestBase {
+public class ExclamationWithStormBoltITCase extends StreamingProgramTestBase {
 
 	protected String textPath;
 	protected String resultPath;
@@ -41,7 +41,7 @@ public class StormBoltExclamationITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		StormBoltExclamation.main(new String[]{this.textPath, this.resultPath});
+		ExclamationWithStormBolt.main(new String[]{this.textPath, this.resultPath});
 	}
 
 }

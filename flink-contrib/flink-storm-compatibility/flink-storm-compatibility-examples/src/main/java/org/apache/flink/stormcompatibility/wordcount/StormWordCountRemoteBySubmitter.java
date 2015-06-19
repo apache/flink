@@ -42,7 +42,7 @@ import org.apache.flink.stormcompatibility.api.FlinkTopologyBuilder;
  * <p/>
  * This example shows how to:
  * <ul>
- * <li>submit a regular Storm program to a local or remote Flink cluster.
+ * <li>submit a regular Storm program to a local or remote Flink cluster.</li>
  * </ul>
  */
 public class StormWordCountRemoteBySubmitter {

@@ -40,7 +40,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * <p/>
  * This example shows how to:
  * <ul>
- * <li>use a Storm bolt within a Flink Streaming program.
+ * <li>use a Storm bolt within a Flink Streaming program.</li>
  * </ul>
  */
 public class BoltTokenizerWordCount {

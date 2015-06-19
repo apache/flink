@@ -18,15 +18,31 @@
 
 package org.apache.flink.stormcompatibility.util;
 
-import backtype.storm.tuple.Tuple;
+import backtype.storm.tuple.Values;
+import org.apache.flink.stormcompatibility.wrappers.FiniteStormSpout;
 
-public class RawOutputFormatter implements OutputFormatter {
-	private static final long serialVersionUID = 8685668993521259832L;
+/**
+ * Implements a Storm Spout that reads String[] data stored in the memory. The spout stops
+ * automatically when it emitted all of the data.
+ */
+public class FiniteStormInMemorySpout extends AbstractStormSpout implements FiniteStormSpout {
+
+	private static final long serialVersionUID = -4008858647468647019L;
+
+	private String[] source;
+	private int counter = 0;
+
+	public FiniteStormInMemorySpout(String[] source) {
+		this.source = source;
+	}
 
 	@Override
-	public String format(final Tuple input) {
-		assert (input.size() == 1);
-		return input.getValue(0).toString();
+	public void nextTuple() {
+			this.collector.emit(new Values(source[this.counter++]));
+	}
+
+	public boolean reachedEnd() {
+		return counter >= source.length;
 	}
 
 }

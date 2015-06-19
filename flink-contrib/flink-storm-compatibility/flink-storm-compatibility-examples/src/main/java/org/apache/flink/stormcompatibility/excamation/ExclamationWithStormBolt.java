@@ -21,13 +21,30 @@ package org.apache.flink.stormcompatibility.excamation;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
-import org.apache.flink.stormcompatibility.util.StormFileSpout;
-import org.apache.flink.stormcompatibility.util.StormInMemorySpout;
-import org.apache.flink.stormcompatibility.wrappers.StormFiniteSpoutWrapper;
+import org.apache.flink.stormcompatibility.excamation.stormoperators.ExclamationBolt;
+import org.apache.flink.stormcompatibility.wrappers.StormBoltWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-public class StormSpoutExclamation {
+/**
+ * Implements the "Exclamation" program that attaches five exclamation mark to every line of a text
+ * files in a streaming fashion. The program is constructed as a regular {@link StormTopology}.
+ * <p/>
+ * <p/>
+ * The input is a plain text file with lines separated by newline characters.
+ * <p/>
+ * <p/>
+ * Usage: <code>StormExclamationWithStormBolt &lt;text path&gt; &lt;result path&gt;</code><br/>
+ * If no parameters are provided, the program is run with default data from
+ * {@link WordCountData}.
+ * <p/>
+ * <p/>
+ * This example shows how to:
+ * <ul>
+ * <li>use a Storm bolt within a Flink Streaming program</li>
+ * </ul>
+ */
+public class ExclamationWithStormBolt {
 
 	// *************************************************************************
 	// PROGRAM
@@ -46,7 +63,9 @@ public class StormSpoutExclamation {
 		final DataStream<String> text = getTextDataStream(env);
 
 		final DataStream<String> exclaimed = text
-				.map(new ExclamationMap())
+				.transform("StormBoltTokenizer",
+						TypeExtractor.getForObject(""),
+						new StormBoltWrapper<String, String>(new ExclamationBolt(), true))
 				.map(new ExclamationMap());
 
 		// emit result
@@ -57,7 +76,7 @@ public class StormSpoutExclamation {
 		}
 
 		// execute program
-		env.execute("Streaming Exclamation with Storm spout source");
+		env.execute("Streaming WordCount with Storm bolt tokenizer");
 	}
 
 	// *************************************************************************
@@ -89,13 +108,13 @@ public class StormSpoutExclamation {
 				textPath = args[0];
 				outputPath = args[1];
 			} else {
-				System.err.println("Usage: StormSpoutExclamation <text path> <result path>");
+				System.err.println("Usage: ExclamationWithStormBolt <text path> <result path>");
 				return false;
 			}
 		} else {
-			System.out.println("Executing StormSpoutExclamation example with built-in default data");
+			System.out.println("Executing ExclamationWithStormBolt example with built-in default data");
 			System.out.println("  Provide parameters to read input data from a file");
-			System.out.println("  Usage: StormSpoutExclamation <text path> <result path>");
+			System.out.println("  Usage: ExclamationWithStormBolt <text path> <result path>");
 		}
 		return true;
 	}
@@ -103,16 +122,10 @@ public class StormSpoutExclamation {
 	private static DataStream<String> getTextDataStream(final StreamExecutionEnvironment env) {
 		if (fileOutput) {
 			// read the text file from given input path
-			final String[] tokens = textPath.split(":");
-			final String localFile = tokens[tokens.length - 1];
-			return env.addSource(
-					new StormFiniteSpoutWrapper<String>(new StormFileSpout(localFile), true),
-					TypeExtractor.getForClass(String.class)).setParallelism(1);
+			return env.readTextFile(textPath);
 		}
 
-		return env.addSource(new StormFiniteSpoutWrapper<String>(new StormInMemorySpout(WordCountData.WORDS), true),
-				TypeExtractor.getForClass(String.class));
-
+		return env.fromElements(WordCountData.WORDS);
 	}
 
 }
