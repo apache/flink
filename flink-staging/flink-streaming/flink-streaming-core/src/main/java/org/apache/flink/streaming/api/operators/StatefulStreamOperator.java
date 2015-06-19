@@ -18,7 +18,9 @@
 package org.apache.flink.streaming.api.operators;
 
 import java.io.Serializable;
+import java.util.Map;
 
+import org.apache.flink.runtime.state.PartitionedStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 
 /**
@@ -29,9 +31,9 @@ import org.apache.flink.runtime.state.StateHandle;
  */
 public interface StatefulStreamOperator<OUT> extends StreamOperator<OUT> {
 
-	void restoreInitialState(Serializable state) throws Exception;
+	void restoreInitialState(Map<String, PartitionedStateHandle> state) throws Exception;
 
-	Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception;
+	Map<String, PartitionedStateHandle> getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception;
 
-	void confirmCheckpointCompleted(long checkpointId, StateHandle<Serializable> checkpointedState) throws Exception;
+	void confirmCheckpointCompleted(long checkpointId, String stateName, StateHandle<Serializable> checkpointedState) throws Exception;
 }

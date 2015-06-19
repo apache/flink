@@ -21,6 +21,11 @@ package org.apache.flink.runtime.state;
 import java.io.Serializable;
 import java.util.Map;
 
+/**
+ * Wrapper for storing the handles for each state in a partitioned form. It can
+ * be used to repartition the state before re-injecting to the tasks.
+ * 
+ */
 public class PartitionedStateHandle implements
 		StateHandle<Map<Serializable, StateHandle<Serializable>>> {
 

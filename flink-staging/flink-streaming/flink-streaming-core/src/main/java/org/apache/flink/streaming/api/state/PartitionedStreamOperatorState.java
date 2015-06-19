@@ -87,6 +87,9 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 
 	@Override
 	public void updateState(S state) {
+		if (state == null) {
+			throw new RuntimeException("Cannot set state to null.");
+		}
 		if (currentInput == null) {
 			throw new RuntimeException("Need a valid input for updating a state.");
 		} else {

@@ -148,7 +148,7 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 		this.lastOffsets = getRuntimeContext().getOperatorState("offset", new long[numPartitions]);
 		this.commitedOffsets = new long[numPartitions];
 		// check if there are offsets to restore
-		if (Arrays.equals(lastOffsets.getState(), new long[numPartitions])) {
+		if (!Arrays.equals(lastOffsets.getState(), new long[numPartitions])) {
 			if (lastOffsets.getState().length != numPartitions) {
 				throw new IllegalStateException("There are "+lastOffsets.getState().length+" offsets to restore for topic "+topicName+" but " +
 						"there are only "+numPartitions+" in the topic");
@@ -217,7 +217,7 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 	 * @throws Exception 
 	 */
 	@Override
-	public void commitCheckpoint(long checkpointId, StateHandle<Serializable> state) throws Exception {
+	public void commitCheckpoint(long checkpointId, String stateName, StateHandle<Serializable> state) throws Exception {
 		LOG.info("Commit checkpoint {}", checkpointId);
 
 		long[] checkpointOffsets;

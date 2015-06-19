@@ -80,13 +80,8 @@ public class SuccessfulCheckpoint {
 	 * @param jobVertexID
 	 * @return
 	 */
-	public StateForTask getState(JobVertexID jobVertexID)
-	{
-		if(vertexToState.containsKey(jobVertexID)) {
-			return vertexToState.get(jobVertexID);
-		}
-		
-		return null;
+	public StateForTask getState(JobVertexID jobVertexID) {
+		return vertexToState.get(jobVertexID);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -82,13 +82,10 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	@Override
 	public <S, C extends Serializable> OperatorState<S> getOperatorState(String name,
 			S defaultState, StateCheckpointer<S, C> checkpointer) {
-		StreamOperatorState state;
-		if (states.containsKey(name)) {
-			state = states.get(name);
-		} else {
-			state = createRawState();
-			states.put(name, state);
+		if (defaultState == null) {
+			throw new RuntimeException("Cannot set default state to null.");
 		}
+		StreamOperatorState<S, C> state = (StreamOperatorState<S, C>) getState(name);
 		state.setDefaultState(defaultState);
 		state.setCheckpointer(checkpointer);
 
@@ -98,16 +95,22 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	@SuppressWarnings("unchecked")
 	@Override
 	public <S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState) {
-		StreamOperatorState state;
-		if (states.containsKey(name)) {
-			state = states.get(name);
-		} else {
-			state = createRawState();
-			states.put(name, state);
+		if (defaultState == null) {
+			throw new RuntimeException("Cannot set default state to null.");
 		}
+		StreamOperatorState<S, S> state = (StreamOperatorState<S, S>) getState(name);
 		state.setDefaultState(defaultState);
 
 		return (OperatorState<S>) state;
+	}
+
+	private StreamOperatorState<?, ?> getState(String name) {
+		StreamOperatorState state = states.get(name);
+		if (state == null) {
+			state = createRawState();
+			states.put(name, state);
+		}
+		return state;
 	}
 
 	/**

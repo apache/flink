@@ -227,7 +227,6 @@ public class KafkaITCase {
 	 *
 	 */
 	@Test
-	@Ignore
 	public void testPersistentSourceWithOffsetUpdates() throws Exception {
 		LOG.info("Starting testPersistentSourceWithOffsetUpdates()");
 
@@ -314,7 +313,7 @@ public class KafkaITCase {
 
 				LOG.info("Reader " + getRuntimeContext().getIndexOfThisSubtask() + " got " + value + " count=" + count + "/" + finalCount);
 				// verify if we've seen everything
-
+				
 				if (count == finalCount) {
 					LOG.info("Received all values");
 					for (int i = 0; i < values.length; i++) {

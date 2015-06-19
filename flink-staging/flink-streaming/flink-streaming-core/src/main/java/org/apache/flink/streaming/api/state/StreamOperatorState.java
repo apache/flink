@@ -25,7 +25,8 @@ import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.StateCheckpointer;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
-import org.apache.flink.shaded.com.google.common.collect.ImmutableMap;
+
+import com.google.common.collect.ImmutableMap;
 
 /**
  * Implementation of the {@link OperatorState} interface for non-partitioned
@@ -63,11 +64,13 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 
 	@Override
 	public void updateState(S state) {
+		if (state == null) {
+			throw new RuntimeException("Cannot set state to null.");
+		}
 		this.state = state;
 	}
 	
 	public void setDefaultState(S defaultState) {
-		// reconsider this as it might cause issues when setting the state to null
 		if (getState() == null) {
 			updateState(defaultState);
 		}

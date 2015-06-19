@@ -234,7 +234,6 @@ public class OutputHandler<OUT> {
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public void collect(T record) {
 			try {
 				operator.getRuntimeContext().setNextInput(record);
@@ -262,13 +261,13 @@ public class OutputHandler<OUT> {
 	private static class CopyingOperatorCollector<T> extends OperatorCollector<T> {
 		private final TypeSerializer<T> serializer;
 
-		public CopyingOperatorCollector(OneInputStreamOperator<?, T> operator, TypeSerializer<T> serializer) {
+		@SuppressWarnings({ "rawtypes", "unchecked" })
+		public CopyingOperatorCollector(OneInputStreamOperator operator, TypeSerializer<T> serializer) {
 			super(operator);
 			this.serializer = serializer;
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public void collect(T record) {
 			try {
 				operator.processElement(serializer.copy(record));

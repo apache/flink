@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.functors.NotNullPredicate;
@@ -35,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.state.FileStateHandle;
 import org.apache.flink.runtime.state.LocalStateHandle;
+import org.apache.flink.runtime.state.PartitionedStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.runtime.util.SerializedValue;
@@ -43,6 +46,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StatefulStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.state.WrapperStateHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -199,40 +203,35 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	//  Checkpoint and Restore
 	// ------------------------------------------------------------------------
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void setInitialState(StateHandle<Serializable> stateHandle) throws Exception {
 		// here, we later resolve the state handle into the actual state by
 		// loading the state described by the handle from the backup store
 		Serializable state = stateHandle.getState();
 
-		if (hasChainedOperators) {
-			@SuppressWarnings("unchecked")
-			List<Serializable> chainedStates = (List<Serializable>) state;
+		List<Serializable> chainedStates = (List<Serializable>) state;
 
-			Serializable headState = chainedStates.get(0);
-			if (headState != null) {
-				if (streamOperator instanceof StatefulStreamOperator) {
-					((StatefulStreamOperator<?>) streamOperator).restoreInitialState(headState);
-				}
-			}
-
-			for (int i = 1; i < chainedStates.size(); i++) {
-				Serializable chainedState = chainedStates.get(i);
-				if (chainedState != null) {
-					StreamOperator<?> chainedOperator = outputHandler.getChainedOperators().get(i - 1);
-					if (chainedOperator instanceof StatefulStreamOperator) {
-						((StatefulStreamOperator<?>) chainedOperator).restoreInitialState(chainedState);
-					}
-
-				}
-			}
-
-		} else {
+		Serializable headState = chainedStates.get(0);
+		if (headState != null) {
 			if (streamOperator instanceof StatefulStreamOperator) {
-				((StatefulStreamOperator<?>) streamOperator).restoreInitialState(state);
+				((StatefulStreamOperator<?>) streamOperator)
+						.restoreInitialState((Map<String, PartitionedStateHandle>) headState);
 			}
-
 		}
+
+		for (int i = 1; i < chainedStates.size(); i++) {
+			Serializable chainedState = chainedStates.get(i);
+			if (chainedState != null) {
+				StreamOperator<?> chainedOperator = outputHandler.getChainedOperators().get(i - 1);
+				if (chainedOperator instanceof StatefulStreamOperator) {
+					((StatefulStreamOperator<?>) chainedOperator)
+							.restoreInitialState((Map<String, PartitionedStateHandle>) chainedState);
+				}
+
+			}
+		}
+
 	}
 
 	@Override
@@ -244,34 +243,26 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 					LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
 					
 					// first draw the state that should go into checkpoint
-					StateHandle<Serializable> state;
+					List<Map<String, PartitionedStateHandle>> chainedStates = new ArrayList<Map<String, PartitionedStateHandle>>();
+					StateHandle<Serializable> stateHandle;
 					try {
 
-						Serializable userState = null;
-
 						if (streamOperator instanceof StatefulStreamOperator) {
-							userState = ((StatefulStreamOperator<?>) streamOperator).getStateSnapshotFromFunction(checkpointId, timestamp);
+							chainedStates.add(((StatefulStreamOperator<?>) streamOperator).getStateSnapshotFromFunction(checkpointId, timestamp));
 						}
 
 
 						if (hasChainedOperators) {
 							// We construct a list of states for chained tasks
-							List<Serializable> chainedStates = new ArrayList<Serializable>();
-
-							chainedStates.add(userState);
-
 							for (OneInputStreamOperator<?, ?> chainedOperator : outputHandler.getChainedOperators()) {
 								if (chainedOperator instanceof StatefulStreamOperator) {
 									chainedStates.add(((StatefulStreamOperator<?>) chainedOperator).getStateSnapshotFromFunction(checkpointId, timestamp));
 								}
 							}
-
-							userState = CollectionUtils.exists(chainedStates,
-									NotNullPredicate.INSTANCE) ? (Serializable) chainedStates
-									: null;
 						}
 						
-						state = userState == null ? null : stateHandleProvider.createStateHandle(userState);
+						stateHandle = CollectionUtils.exists(chainedStates,
+								NotNullPredicate.INSTANCE) ? new WrapperStateHandle(chainedStates) : null;
 					}
 					catch (Exception e) {
 						throw new Exception("Error while drawing snapshot of the user state.", e);
@@ -281,10 +272,10 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 					outputHandler.broadcastBarrier(checkpointId, timestamp);
 					
 					// now confirm the checkpoint
-					if (state == null) {
+					if (stateHandle == null) {
 						getEnvironment().acknowledgeCheckpoint(checkpointId);
 					} else {
-						getEnvironment().acknowledgeCheckpoint(checkpointId, state);
+						getEnvironment().acknowledgeCheckpoint(checkpointId, stateHandle);
 					}
 				}
 				catch (Exception e) {
@@ -299,19 +290,37 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	public void confirmCheckpoint(long checkpointId, SerializedValue<StateHandle<?>> state) throws Exception {
+	public void confirmCheckpoint(long checkpointId, SerializedValue<StateHandle<?>> stateHandle) throws Exception {
 		// we do nothing here so far. this should call commit on the source function, for example
 		synchronized (checkpointLock) {
-			if (streamOperator instanceof StatefulStreamOperator) {
-				((StatefulStreamOperator) streamOperator).confirmCheckpointCompleted(checkpointId,
-						state.deserializeValue(getUserCodeClassLoader()));
+			
+			List<Map<String, PartitionedStateHandle>> chainedStates = (List<Map<String, PartitionedStateHandle>>) stateHandle.deserializeValue(getUserCodeClassLoader()).getState();
+
+			Map<String, PartitionedStateHandle> headState = chainedStates.get(0);
+			if (headState != null) {
+				if (streamOperator instanceof StatefulStreamOperator) {
+					for (Entry<String, PartitionedStateHandle> stateEntry : headState
+							.entrySet()) {
+						for (StateHandle<Serializable> handle : stateEntry.getValue().getState().values()) {
+							((StatefulStreamOperator) streamOperator).confirmCheckpointCompleted(
+									checkpointId, stateEntry.getKey(), handle);
+						}
+					}
+				}
 			}
 
-			if (hasChainedOperators) {
-				for (OneInputStreamOperator<?, ?> chainedOperator : outputHandler.getChainedOperators()) {
+			for (int i = 1; i < chainedStates.size(); i++) {
+				Map<String, PartitionedStateHandle> chainedState = chainedStates.get(i);
+				if (chainedState != null) {
+					StreamOperator<?> chainedOperator = outputHandler.getChainedOperators().get(i - 1);
 					if (chainedOperator instanceof StatefulStreamOperator) {
-						((StatefulStreamOperator) chainedOperator).confirmCheckpointCompleted(checkpointId,
-								state.deserializeValue(getUserCodeClassLoader()));
+						for (Entry<String, PartitionedStateHandle> stateEntry : chainedState
+								.entrySet()) {
+							for (StateHandle<Serializable> handle : stateEntry.getValue().getState().values()) {
+								((StatefulStreamOperator) chainedOperator).confirmCheckpointCompleted(
+										checkpointId, stateEntry.getKey(), handle);
+							}
+						}
 					}
 				}
 			}
