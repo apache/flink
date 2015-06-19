@@ -26,6 +26,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -35,7 +36,11 @@ import org.apache.flink.configuration.Configuration;
  * into an instance of {@link RemoteCollectorOutputFormat}. Further in the
  * client's VM parameters -Djava.rmi.server.hostname should be set to the own IP
  * address.
+ *
+ * @deprecated Results are retrieved through {@link org.apache.flink.api.common.accumulators.Accumulator}
+ * and the {@link DataSet#collect()} method respectively.
  */
+@Deprecated
 public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 
 	private static final long serialVersionUID = 1922744224032398102L;
