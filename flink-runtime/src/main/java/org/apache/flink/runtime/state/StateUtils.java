@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import java.util.List;
-
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 
 /**
@@ -51,11 +49,6 @@ public class StateUtils {
 		T typedHandle = (T) state;
 
 		typedOp.setInitialState(typedHandle);
-	}
-
-	public static List<PartitionedStateHandle> rePartitionHandles(
-			List<PartitionedStateHandle> handles, int numPartitions) {
-		return null;
 	}
 
 	// ------------------------------------------------------------------------

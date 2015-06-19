@@ -36,8 +36,9 @@ public interface CheckpointCommitter {
 	 * fail any more.
 	 * 
 	 * @param checkpointId The ID of the checkpoint that has been completed.
+	 * @param stateName The name of the committed state
 	 * @param checkPointedState Handle to the state that was checkpointed with this checkpoint id.
 	 * @throws Exception 
 	 */
-	void commitCheckpoint(long checkpointId, StateHandle<Serializable> checkPointedState) throws Exception;
+	void commitCheckpoint(long checkpointId, String stateName, StateHandle<Serializable> checkPointedState) throws Exception;
 }

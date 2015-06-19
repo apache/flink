@@ -19,11 +19,13 @@
 package org.apache.flink.streaming.api.state;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -33,12 +35,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.LocalStateHandle.LocalStateHandleProvider;
-import org.apache.flink.shaded.com.google.common.collect.ImmutableMap;
+import org.apache.flink.runtime.state.PartitionedStateHandle;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.Test;
+
+import com.google.common.collect.ImmutableMap;
 
 /**
  * Test the functionality supported by stateful user functions for both
@@ -120,6 +124,7 @@ public class StatefulOperatorTest {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private StreamMap<Integer, String> createOperatorWithContext(List<String> output,
 			KeySelector<Integer, Serializable> partitioner, byte[] serializedState) throws Exception {
 		final List<String> outputList = output;
@@ -143,7 +148,7 @@ public class StatefulOperatorTest {
 		}, context);
 
 		if (serializedState != null) {
-			op.restoreInitialState((Serializable) InstantiationUtil.deserializeObject(serializedState, Thread
+			op.restoreInitialState((Map<String, PartitionedStateHandle>) InstantiationUtil.deserializeObject(serializedState, Thread
 					.currentThread().getContextClassLoader()));
 		}
 
@@ -162,6 +167,11 @@ public class StatefulOperatorTest {
 		public String map(Integer value) throws Exception {
 			counter.updateState(counter.getState() + 1);
 			concat.updateState(concat.getState() + value.toString());
+			try {
+				counter.updateState(null);
+				fail();
+			} catch (RuntimeException e){
+			}
 			return value.toString();
 		}
 
@@ -169,6 +179,16 @@ public class StatefulOperatorTest {
 		public void open(Configuration conf) {
 			counter = getRuntimeContext().getOperatorState("counter", 0);
 			concat = getRuntimeContext().getOperatorState("concat", "");
+			try {
+				getRuntimeContext().getOperatorState("test", null);
+				fail();
+			} catch (RuntimeException e){
+			}
+			try {
+				getRuntimeContext().getOperatorState("test", null, null);
+				fail();
+			} catch (RuntimeException e){
+			}
 		}
 	}
 	

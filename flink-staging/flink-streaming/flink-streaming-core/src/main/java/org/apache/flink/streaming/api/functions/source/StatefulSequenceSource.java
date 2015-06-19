@@ -19,19 +19,20 @@ package org.apache.flink.streaming.api.functions.source;
 
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * A stateful streaming source that emits each number from a given interval exactly once,
  * possibly in parallel.
  */
-public class StatefulSequenceSource extends RichParallelSourceFunction<Long> implements Checkpointed<Long> {
+public class StatefulSequenceSource extends RichParallelSourceFunction<Long> {
 	private static final long serialVersionUID = 1L;
 
 	private final long start;
 	private final long end;
 
-	private long collected;
+	private OperatorState<Long> collected;
 
 	private volatile boolean isRunning = true;
 
@@ -44,7 +45,6 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 	public StatefulSequenceSource(long start, long end) {
 		this.start = start;
 		this.end = end;
-		this.collected = 0;
 	}
 
 	@Override
@@ -60,29 +60,25 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 				((end - start + 1) % stepSize > (congruence - start)) ?
 					((end - start + 1) / stepSize + 1) :
 					((end - start + 1) / stepSize);
+					
+		Long currentCollected = collected.getState();
 
-		while (isRunning && collected < toCollect) {
-
+		while (isRunning && currentCollected < toCollect) {
 			synchronized (checkpointLock) {
-				ctx.collect(collected * stepSize + congruence);
-				collected++;
+				ctx.collect(currentCollected * stepSize + congruence);
+				collected.updateState(currentCollected + 1);
 			}
+			currentCollected = collected.getState();
 		}
+	}
+	
+	@Override
+	public void open(Configuration conf){
+		collected = getRuntimeContext().getOperatorState("collected", 0L);
 	}
 
 	@Override
 	public void cancel() {
 		isRunning = false;
 	}
-
-	@Override
-	public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-		return collected;
-	}
-
-	@Override
-	public void restoreState(Long state) {
-		collected = state;
-	}
-
 }

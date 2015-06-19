@@ -26,6 +26,7 @@ import java.util.Map.Entry;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.PartitionedStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.checkpoint.CheckpointCommitter;
 import org.apache.flink.streaming.api.state.StreamOperatorState;
@@ -70,45 +71,43 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public void restoreInitialState(Serializable state) throws Exception {
-
-		Map<String, Map<Serializable, StateHandle<Serializable>>> snapshots = (Map<String, Map<Serializable, StateHandle<Serializable>>>) state;
+	public void restoreInitialState(Map<String, PartitionedStateHandle> snapshots) throws Exception {
 
 		Map<String, StreamOperatorState> operatorStates = runtimeContext.getOperatorStates();
 		
-		for (Entry<String, Map<Serializable, StateHandle<Serializable>>> snapshot : snapshots.entrySet()) {
+		for (Entry<String, PartitionedStateHandle> snapshot : snapshots.entrySet()) {
 			StreamOperatorState restoredState = runtimeContext.createRawState();
-			restoredState.restoreState(snapshot.getValue());
+			restoredState.restoreState(snapshot.getValue().getState());
 			operatorStates.put(snapshot.getKey(), restoredState);
 		}
 
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp)
+	public Map<String, PartitionedStateHandle> getStateSnapshotFromFunction(long checkpointId, long timestamp)
 			throws Exception {
 
 		Map<String, StreamOperatorState> operatorStates = runtimeContext.getOperatorStates();
 		if (operatorStates.isEmpty()) {
 			return null;
 		} else {
-			Map<String, Map<Serializable, StateHandle<Serializable>>> snapshots = new HashMap<String, Map<Serializable, StateHandle<Serializable>>>();
+			Map<String, PartitionedStateHandle> snapshots = new HashMap<String, PartitionedStateHandle>();
 
 			for (Entry<String, StreamOperatorState> state : operatorStates.entrySet()) {
 				snapshots.put(state.getKey(),
-						state.getValue().snapshotState(checkpointId, timestamp));
+						new PartitionedStateHandle(state.getValue().snapshotState(checkpointId, timestamp)));
 			}
 
-			return (Serializable) snapshots;
+			return snapshots;
 		}
 
 	}
 
-	public void confirmCheckpointCompleted(long checkpointId,
+	public void confirmCheckpointCompleted(long checkpointId, String stateName,
 			StateHandle<Serializable> checkpointedState) throws Exception {
 		if (userFunction instanceof CheckpointCommitter) {
 			try {
-				((CheckpointCommitter) userFunction).commitCheckpoint(checkpointId, checkpointedState);
+				((CheckpointCommitter) userFunction).commitCheckpoint(checkpointId, stateName, checkpointedState);
 			} catch (Exception e) {
 				throw new Exception("Error while confirming checkpoint " + checkpointId + " to the stream function", e);
 			}
