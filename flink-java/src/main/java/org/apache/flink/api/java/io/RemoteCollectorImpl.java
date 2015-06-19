@@ -44,8 +44,12 @@ import org.apache.flink.api.java.operators.DataSink;
 /**
  * This class provides a counterpart implementation for the
  * {@link RemoteCollectorOutputFormat}.
+ *
+ * @deprecated Results are retrieved through {@link org.apache.flink.api.common.accumulators.Accumulator}
+ * and the {@link DataSet#collect()} method respectively.
  */
 
+@Deprecated
 public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 		RemoteCollector<T> {
 
