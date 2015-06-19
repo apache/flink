@@ -33,6 +33,9 @@ import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.stormcompatibility.wrappers.AbstractStormSpoutWrapper;
+import org.apache.flink.stormcompatibility.wrappers.FiniteStormSpout;
+import org.apache.flink.stormcompatibility.wrappers.FiniteStormSpoutWrapper;
 import org.apache.flink.stormcompatibility.wrappers.StormBoltWrapper;
 import org.apache.flink.stormcompatibility.wrappers.StormSpoutWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -93,7 +96,15 @@ public class FlinkTopologyBuilder {
 			 * -> add an additional output attribute tagging the output stream, and use .split() and .select() to split
 			 * the streams
 			 */
-			final DataStreamSource source = env.addSource(new StormSpoutWrapper(userSpout), declarer.getOutputType());
+			AbstractStormSpoutWrapper spoutWrapper;
+
+			if (userSpout instanceof FiniteStormSpout) {
+				spoutWrapper = new FiniteStormSpoutWrapper((FiniteStormSpout) userSpout);
+			} else {
+				spoutWrapper = new StormSpoutWrapper(userSpout);
+			}
+
+			final DataStreamSource source = env.addSource(spoutWrapper, declarer.getOutputType());
 			availableOperators.put(spoutId, source);
 
 			int dop = 1;
