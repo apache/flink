@@ -26,9 +26,9 @@ import org.apache.flink.api.common.functions.MapFunction;
  * non-partitioned user states.
  * 
  * State can be accessed and manipulated using the {@link #getState()} and
- * {@link #updateState(T)} methods. These calls are only valid in the
+ * {@link #updateState(T)} methods. These calls are only safe in the
  * transformation call the operator represents, for instance inside
- * {@link MapFunction#map()} and invalid in
+ * {@link MapFunction#map()} and can lead tp unexpected behavior in the
  * {@link #open(org.apache.flink.configuration.Configuration)} or
  * {@link #close()} methods.
  * 
@@ -39,10 +39,10 @@ public interface OperatorState<T> {
 
 	/**
 	 * Gets the current state for the operator. When the state is not
-	 * partitioned the returned state is the same for all inputs. If state
-	 * partitioning is applied the state returned depends on the current
-	 * operator input, as the operator maintains an independent state for each
-	 * partition.
+	 * partitioned the returned state is the same for all inputs in a given
+	 * operator instance. If state partitioning is applied, the state returned
+	 * depends on the current operator input, as the operator maintains an
+	 * independent state for each partition.
 	 * 
 	 * @return The operator state corresponding to the current input.
 	 */
