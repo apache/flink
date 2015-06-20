@@ -37,7 +37,6 @@ import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
@@ -78,6 +77,8 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 	private MemoryManager memManager;
 
 	private Collector<OUT> output;
+
+	private long oversizedRecordCount = 0L;
 
 	private volatile boolean running = true;
 
@@ -142,7 +143,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("GroupReduceCombineDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+			LOG.debug("GroupReduceCombineDriver object reuse: {}.", (this.objectReuseEnabled ? "ENABLED" : "DISABLED"));
 		}
 	}
 
@@ -170,7 +171,10 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 
 			// write the value again
 			if (!this.sorter.write(value)) {
-				throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
+				++oversizedRecordCount;
+				LOG.debug("Cannot write record to fresh sort buffer. Record too large. Oversized record count: {}", oversizedRecordCount);
+				// simply forward the record
+				this.output.collect((OUT)value);
 			}
 		}
 
@@ -179,39 +183,28 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 	}
 
 	private void sortAndCombine() throws Exception {
+		if (sorter.isEmpty()) {
+			return;
+		}
+
 		final InMemorySorter<IN> sorter = this.sorter;
+		this.sortAlgo.sort(sorter);
+		final GroupCombineFunction<IN, OUT> combiner = this.combiner;
+		final Collector<OUT> output = this.output;
 
+		// iterate over key groups
 		if (objectReuseEnabled) {
-			if (!sorter.isEmpty()) {
-				this.sortAlgo.sort(sorter);
-
-				final ReusingKeyGroupedIterator<IN> keyIter = 
-						new ReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.serializer, this.groupingComparator);
-
-				final GroupCombineFunction<IN, OUT> combiner = this.combiner;
-				final Collector<OUT> output = this.output;
-
-				// iterate over key groups
-				while (this.running && keyIter.nextKey()) {
-					combiner.combine(keyIter.getValues(), output);
-				}
+			final ReusingKeyGroupedIterator<IN> keyIter =
+					new ReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.serializer, this.groupingComparator);
+			while (this.running && keyIter.nextKey()) {
+				combiner.combine(keyIter.getValues(), output);
 			}
 		} else {
-			if (!sorter.isEmpty()) {
-				this.sortAlgo.sort(sorter);
-
-				final NonReusingKeyGroupedIterator<IN> keyIter = 
-						new NonReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.groupingComparator);
-
-				final GroupCombineFunction<IN, OUT> combiner = this.combiner;
-				final Collector<OUT> output = this.output;
-
-				// iterate over key groups
-				while (this.running && keyIter.nextKey()) {
-					combiner.combine(keyIter.getValues(), output);
-				}
+			final NonReusingKeyGroupedIterator<IN> keyIter = 
+					new NonReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.groupingComparator);
+			while (this.running && keyIter.nextKey()) {
+				combiner.combine(keyIter.getValues(), output);
 			}
-
 		}
 	}
 
