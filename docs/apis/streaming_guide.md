@@ -1188,38 +1188,42 @@ Rich functions provide, in addition to the user-defined function (`map()`, `redu
 Stateful computation
 ------------
 
-Flink supports the checkpointing and persistence of user defined state, so in case of a failure this state can be restored to the latest checkpoint and the processing can continue from there. This gives exactly once semantics for anything that is stored in the state when the sources are stateful as well and checkpoint their current offset. The `PersistentKafkaSource` provides this stateful functionality for example. 
+Flink supports the checkpointing and persistence of user defined operator state, so in case of a failure this state can be restored to the latest checkpoint and the processing will continue from there. This gives exactly once processing semantics with respect to the operator states when the sources follow this stateful pattern as well. In practice this usually means that sources keep track of their current offset as their OperatorState. The `PersistentKafkaSource` provides this stateful functionality for reading streams from Kafka. 
 
-For example when implementing a rolling count over the stream Flink gives you the possibility to safely store the counter. Another common usecase is when reading from a Kafka source to save the latest committed offset to catch up from. To mark a function for checkpointing it has to implement the `flink.streaming.api.checkpoint.Checkpointed` interface or preferably its special case where the checkpointing can be done asynchronously, `CheckpointedAsynchronously`. 
+Flink supports two ways of accessing operator states: partitioned and non-partitioned state access.
+In case of non-partitioned state access, an operator state is maintained for each parallel instance of a given operator. When `OperatorState.getState()` is called a separate state is returned in each parallel instance. In practice this means if we keep a counter for the received inputs in a mapper, `getState()` will return number of inputs processed by each parallel mapper.
 
-Checkpointing can be enabled from the `StreamExecutionEnvironment` using the `enableCheckpointing(…)` where additional parameters can be passed to modify the default 5 second checkpoint interval.
+In case of partitioned state access the user needs to define a `KeyExtractor` which will assign a key to each input of the stateful operator:
+
+`stream.map(counter).setStatePartitioner(…)`
+
+A separate `OperatorState` is maintained for each received key which can be used for instance to count received inputs by different keys, or store and update summary statistics of different sub-streams.
+
+Checkpointing of the states needs to be enabled from the `StreamExecutionEnvironment` using the `enableCheckpointing(…)` where additional parameters can be passed to modify the default 5 second checkpoint interval.
+
+Operators can be accessed from the `RuntimeContext` using the `getOperatorState(“name”, defaultValue)` method so it is only accessible in `RichFunction`s. A recommended usage pattern is to retrieve the operator state in the `open(…)` method of the operator and set it as a field in the operator instance for runtime usage. Multiple `OperatorState`s can be used simultaneously by the same operator by using different names to identify them.
+
+By default operator states are checkpointed using default java serialization thus they need to be `Serializable`. The user can gain more control over the state checkpoint mechanism by passing a `StateCheckpointer` instance when retrieving the `OperatorState` from the `RuntimeContext`. The `StateCheckpointer` allows custom implementations for the checkpointing logic for increased efficiency and to store arbitrary non-serializable states.
 
 By default state checkpoints will be stored in-memory at the JobManager. Flink also supports storing the checkpoints on any flink-supported file system (such as HDFS or Tachyon) which can be set in the flink-conf.yaml. Note that the state backend must be accessible from the JobManager, use `file://` only for local setups.
 
 For example let us write a reduce function that besides summing the data it also counts have many elements it has seen.
 
 {% highlight java %}
-public class CounterSum implements ReduceFunction<Long>, CheckpointedAsynchronously<Long> {
+public class CounterSum implements RichReduceFunction<Long> {
     
     //persistent counter
-    private long counter = 0;
+    private OperatorState<Long> counter;
 
     @Override
     public Long reduce(Long value1, Long value2) throws Exception {
-        counter++;
+        counter.updateState(counter.getState() + 1);
         return value1 + value2;
     }
 
-    // regularly persists state during normal operation
     @Override
-    public Serializable snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-        return new Long(counter);
-    }
-
-    // restores state on recovery from failure
-    @Override
-    public void restoreState(Serializable state) {
-        counter = (Long) state;
+    public void open(Configuration config) {
+        counter = getRuntimeContext().getOperatorState(“counter”, 0L);
     }
 }
 {% endhighlight %} 
@@ -1227,12 +1231,13 @@ public class CounterSum implements ReduceFunction<Long>, CheckpointedAsynchronou
 Stateful sources require a bit more care as opposed to other operators they are not data driven, but their `run(SourceContext)` methods potentially run infinitely. In order to make the updates to the state and output collection atomic the user is required to get a lock from the source's context.
 
 {% highlight java %}
-public static class CounterSource implements SourceFunction<Long>, CheckpointedAsynchronously<Long> {
+public static class CounterSource implements RichParallelSourceFunction<Long> {
 
     // utility for job cancellation
     private volatile boolean isRunning = false;
     
-    private long counter;
+    // maintain the current offset for exactly once semantics
+    private OperatorState<Long> offset;
     
     @Override
     public void run(SourceContext<Long> ctx) throws Exception {
@@ -1242,25 +1247,20 @@ public static class CounterSource implements SourceFunction<Long>, CheckpointedA
         while (isRunning) {
             // output and state update are atomic
             synchronized (lock){
-                ctx.collect(counter);
-                counter++;
+                ctx.collect(offset);
+                offset.updateState(offset.getState() + 1);
             }
         }
     }
 
     @Override
+    public void open(Configuration config) {
+        offset = getRuntimeContext().getOperatorState(“offset”, 0L);
+    }
+
+    @Override
     public void cancel() {
         isRunning = false;
-    }
-
-    @Override
-    public Serializable snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-        return new Long(counter);
-    }
-
-    @Override
-    public void restoreState(Serializable state) {
-        counter = (Long) state;
     }
 }
 {% endhighlight %}

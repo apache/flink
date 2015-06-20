@@ -114,7 +114,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	}
 
 	/**
-	 * Creates an empty state depending on the partitioning state.
+	 * Creates an empty {@link OperatorState}.
 	 * 
 	 * @return An empty operator state.
 	 */
