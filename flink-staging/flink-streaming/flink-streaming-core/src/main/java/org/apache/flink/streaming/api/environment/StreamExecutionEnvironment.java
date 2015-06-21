@@ -828,7 +828,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The port number which a server socket binds. A port number of 0 means that the port number is automatically
 	 * 		allocated.
 	 * @param delimiter
-	 * 		A character which splits received strings into records
+	 * 		A string delimiter which splits received strings into records
 	 * @param maxRetry
 	 * 		The maximal retry interval in seconds while the program waits for a socket that is temporarily down.
 	 * 		Reconnection is initiated every second. A number of 0 means that the reader is immediately terminated,
@@ -836,7 +836,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		a	negative value ensures retrying forever.
 	 * @return A data stream containing the strings received from the socket
 	 */
-	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter, long maxRetry) {
+	public DataStreamSource<String> socketTextStream(String hostname, int port, String delimiter, long maxRetry) {
 		return addSource(new SocketTextStreamFunction(hostname, port, delimiter, maxRetry),
 				"Socket Stream");
 	}
@@ -851,10 +851,10 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The port number which a server socket binds. A port number of 0 means that the port number is automatically
 	 * 		allocated.
 	 * @param delimiter
-	 * 		A character which splits received strings into records
+	 * 		A string which splits received strings into records
 	 * @return A data stream containing the strings received from the socket
 	 */
-	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
+	public DataStreamSource<String> socketTextStream(String hostname, int port, String delimiter) {
 		return socketTextStream(hostname, port, delimiter, 0);
 	}
 
@@ -871,7 +871,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A data stream containing the strings received from the socket
 	 */
 	public DataStreamSource<String> socketTextStream(String hostname, int port) {
-		return socketTextStream(hostname, port, '\n');
+		return socketTextStream(hostname, port, "\n");
 	}
 
 	/**
