@@ -56,65 +56,33 @@ public class StatefulOperatorTest {
 
 		List<String> out = new ArrayList<String>();
 
-		StreamMap<Integer, String> map = createOperatorWithContext(out, null, null);
-		StreamingRuntimeContext context = map.getRuntimeContext();
-
-		processInputs(map, Arrays.asList(1, 2, 3, 4, 5));
-
-		assertEquals(Arrays.asList("1", "2", "3", "4", "5"), out);
-		assertEquals((Integer) 5, context.getOperatorState("counter", 0).getState());
-		assertEquals("12345", context.getOperatorState("concat", "").getState());
-
-		byte[] serializedState = InstantiationUtil.serializeObject(map.getStateSnapshotFromFunction(1, 1));
-
-		StreamMap<Integer, String> restoredMap = createOperatorWithContext(out, null, serializedState);
-		StreamingRuntimeContext restoredContext = restoredMap.getRuntimeContext();
-
-		assertEquals((Integer) 5, restoredContext.getOperatorState("counter", 0).getState());
-		assertEquals("12345", restoredContext.getOperatorState("concat", "").getState());
-		out.clear();
-
-		processInputs(restoredMap, Arrays.asList(7, 8));
-
-		assertEquals(Arrays.asList("7", "8"), out);
-		assertEquals((Integer) 7, restoredContext.getOperatorState("counter", 0).getState());
-		assertEquals("1234578", restoredContext.getOperatorState("concat", "").getState());
-
-	}
-
-	@Test
-	public void partitionedStateTest() throws Exception {
-		List<String> out = new ArrayList<String>();
-
 		StreamMap<Integer, String> map = createOperatorWithContext(out, new ModKey(2), null);
 		StreamingRuntimeContext context = map.getRuntimeContext();
 
 		processInputs(map, Arrays.asList(1, 2, 3, 4, 5));
 
 		assertEquals(Arrays.asList("1", "2", "3", "4", "5"), out);
-		assertEquals(ImmutableMap.of(0, 2, 1, 3), context.getOperatorStates().get("counter").getPartitionedState());
-		assertEquals(ImmutableMap.of(0, "24", 1, "135"), context.getOperatorStates().get("concat")
-				.getPartitionedState());
+		assertEquals((Integer) 5, context.getOperatorState("counter", 0, false).getState());
+		assertEquals(ImmutableMap.of(0, 2, 1, 3), context.getOperatorStates().get("groupCounter").getPartitionedState());
+		assertEquals("12345", context.getOperatorState("concat", "", false).getState());
 
 		byte[] serializedState = InstantiationUtil.serializeObject(map.getStateSnapshotFromFunction(1, 1));
 
 		StreamMap<Integer, String> restoredMap = createOperatorWithContext(out, new ModKey(2), serializedState);
 		StreamingRuntimeContext restoredContext = restoredMap.getRuntimeContext();
 
-		assertEquals(ImmutableMap.of(0, 2, 1, 3), restoredContext.getOperatorStates().get("counter")
-				.getPartitionedState());
-		assertEquals(ImmutableMap.of(0, "24", 1, "135"), restoredContext.getOperatorStates().get("concat")
-				.getPartitionedState());
+		assertEquals((Integer) 5, restoredContext.getOperatorState("counter", 0, false).getState());
+		assertEquals(ImmutableMap.of(0, 2, 1, 3), context.getOperatorStates().get("groupCounter").getPartitionedState());
+		assertEquals("12345", restoredContext.getOperatorState("concat", "", false).getState());
 		out.clear();
 
 		processInputs(restoredMap, Arrays.asList(7, 8));
 
 		assertEquals(Arrays.asList("7", "8"), out);
-		assertEquals(ImmutableMap.of(0, 3, 1, 4), restoredContext.getOperatorStates().get("counter")
+		assertEquals((Integer) 7, restoredContext.getOperatorState("counter", 0, false).getState());
+		assertEquals(ImmutableMap.of(0, 3, 1, 4), restoredContext.getOperatorStates().get("groupCounter")
 				.getPartitionedState());
-		assertEquals(ImmutableMap.of(0, "248", 1, "1357"), restoredContext.getOperatorStates().get("concat")
-				.getPartitionedState());
-
+		assertEquals("1234578", restoredContext.getOperatorState("concat", "", false).getState());
 	}
 
 	private void processInputs(StreamMap<Integer, ?> map, List<Integer> input) throws Exception {
@@ -161,11 +129,13 @@ public class StatefulOperatorTest {
 
 		private static final long serialVersionUID = -9007873655253339356L;
 		OperatorState<Integer> counter;
+		OperatorState<Integer> groupCounter;
 		OperatorState<String> concat;
 
 		@Override
 		public String map(Integer value) throws Exception {
 			counter.updateState(counter.getState() + 1);
+			groupCounter.updateState(groupCounter.getState() + 1);
 			concat.updateState(concat.getState() + value.toString());
 			try {
 				counter.updateState(null);
@@ -177,15 +147,16 @@ public class StatefulOperatorTest {
 
 		@Override
 		public void open(Configuration conf) {
-			counter = getRuntimeContext().getOperatorState("counter", 0);
-			concat = getRuntimeContext().getOperatorState("concat", "");
+			counter = getRuntimeContext().getOperatorState("counter", 0, false);
+			groupCounter = getRuntimeContext().getOperatorState("groupCounter", 0, true);
+			concat = getRuntimeContext().getOperatorState("concat", "", false);
 			try {
-				getRuntimeContext().getOperatorState("test", null);
+				getRuntimeContext().getOperatorState("test", null, true);
 				fail();
 			} catch (RuntimeException e){
 			}
 			try {
-				getRuntimeContext().getOperatorState("test", null, null);
+				getRuntimeContext().getOperatorState("test", null, true, null);
 				fail();
 			} catch (RuntimeException e){
 			}

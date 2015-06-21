@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterFactory;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -51,7 +52,7 @@ public class OutputHandler<OUT> {
 	private ClassLoader cl;
 	private Output<OUT> outerOutput;
 
-	public List<OneInputStreamOperator<?, ?>> chainedOperators;
+	public List<StreamOperator<?>> chainedOperators;
 
 	private Map<StreamEdge, StreamOutput<?>> outputMap;
 
@@ -63,7 +64,7 @@ public class OutputHandler<OUT> {
 		// Initialize some fields
 		this.vertex = vertex;
 		this.configuration = new StreamConfig(vertex.getTaskConfiguration());
-		this.chainedOperators = new ArrayList<OneInputStreamOperator<?, ?>>();
+		this.chainedOperators = new ArrayList<StreamOperator<?>>();
 		this.outputMap = new HashMap<StreamEdge, StreamOutput<?>>();
 		this.cl = vertex.getUserCodeClassLoader();
 
@@ -88,6 +89,9 @@ public class OutputHandler<OUT> {
 		// We create the outer output that will be passed to the first task
 		// in the chain
 		this.outerOutput = createChainedCollector(configuration);
+		
+		// Add the head operator to the end of the list
+		this.chainedOperators.add(vertex.streamOperator);
 	}
 
 	public void broadcastBarrier(long id, long timestamp) throws IOException, InterruptedException {
@@ -101,7 +105,7 @@ public class OutputHandler<OUT> {
 		return outputMap.values();
 	}
 	
-	public List<OneInputStreamOperator<?, ?>> getChainedOperators(){
+	public List<StreamOperator<?>> getChainedOperators(){
 		return chainedOperators;
 	}
 

@@ -37,7 +37,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.junit.Assert;
 
 /**
@@ -154,7 +153,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		
 		@Override
 		public void open(Configuration conf) {
-			collected = getRuntimeContext().getOperatorState("count", 0L);
+			collected = getRuntimeContext().getOperatorState("count", 0L, false);
 		}
 
 		@Override
@@ -199,7 +198,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 			stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
 			congruence = getRuntimeContext().getIndexOfThisSubtask();
 			toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
-			collected = getRuntimeContext().getOperatorState("count", 0L);
+			collected = getRuntimeContext().getOperatorState("count", 0L, false);
 		}
 
 		@Override

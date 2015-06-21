@@ -193,7 +193,7 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 		
 		@Override
 		public void open(Configuration conf){
-			state = getRuntimeContext().getOperatorState("state", 1, this);
+			state = getRuntimeContext().getOperatorState("state", 1, false, this);
 		}
 
 
