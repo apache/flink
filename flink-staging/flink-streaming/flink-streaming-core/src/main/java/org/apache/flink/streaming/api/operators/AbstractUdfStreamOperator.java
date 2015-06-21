@@ -32,6 +32,8 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointCommitter;
 import org.apache.flink.streaming.api.state.StreamOperatorState;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
+import com.google.common.collect.ImmutableMap;
+
 /**
  * This is used as the base class for operators that have a user-defined
  * function.
@@ -72,25 +74,25 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public void restoreInitialState(Map<String, PartitionedStateHandle> snapshots) throws Exception {
-
-		Map<String, StreamOperatorState> operatorStates = runtimeContext.getOperatorStates();
-		
+		// We iterate over the states registered for this operator, initialize and restore it
 		for (Entry<String, PartitionedStateHandle> snapshot : snapshots.entrySet()) {
-			StreamOperatorState restoredState = runtimeContext.createRawState();
+			Map<Serializable, StateHandle<Serializable>> handles = snapshot.getValue().getState();
+			StreamOperatorState restoredState = runtimeContext.getState(snapshot.getKey(),
+					!(handles instanceof ImmutableMap));
 			restoredState.restoreState(snapshot.getValue().getState());
-			operatorStates.put(snapshot.getKey(), restoredState);
 		}
-
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public Map<String, PartitionedStateHandle> getStateSnapshotFromFunction(long checkpointId, long timestamp)
 			throws Exception {
-
+		// Get all the states for the operator
 		Map<String, StreamOperatorState> operatorStates = runtimeContext.getOperatorStates();
 		if (operatorStates.isEmpty()) {
+			// We return null to signal that there is nothing to checkpoint
 			return null;
 		} else {
+			// Checkpoint the states and store the handles in a map
 			Map<String, PartitionedStateHandle> snapshots = new HashMap<String, PartitionedStateHandle>();
 
 			for (Entry<String, StreamOperatorState> state : operatorStates.entrySet()) {

@@ -174,12 +174,14 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	}
 	
 	@Override
-	public <S, C extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState, StateCheckpointer<S, C> checkpointer) {
-		throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
+	public <S, C extends Serializable> OperatorState<S> getOperatorState(String name,
+			S defaultState, boolean partitioned, StateCheckpointer<S, C> checkpointer) {
+	throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
 	}
 
 	@Override
-	public <S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState) {
-		throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
+	public <S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
+			boolean partitioned) {
+	throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
 	}
 }

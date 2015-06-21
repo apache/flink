@@ -145,7 +145,7 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 		// most likely the number of offsets we're going to store here will be lower than the number of partitions.
 		int numPartitions = getNumberOfPartitions();
 		LOG.debug("The topic {} has {} partitions", topicName, numPartitions);
-		this.lastOffsets = getRuntimeContext().getOperatorState("offset", new long[numPartitions]);
+		this.lastOffsets = getRuntimeContext().getOperatorState("offset", new long[numPartitions], false);
 		this.commitedOffsets = new long[numPartitions];
 		// check if there are offsets to restore
 		if (!Arrays.equals(lastOffsets.getState(), new long[numPartitions])) {

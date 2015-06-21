@@ -41,7 +41,7 @@ import com.google.common.collect.ImmutableMap;
  */
 public class StreamOperatorState<S, C extends Serializable> implements OperatorState<S> {
 
-	protected static final Serializable DEFAULTKEY = -1;
+	public static final Serializable DEFAULTKEY = -1;
 
 	private S state;
 	private StateCheckpointer<S, C> checkpointer;

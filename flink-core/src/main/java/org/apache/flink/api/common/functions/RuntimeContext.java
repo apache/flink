@@ -186,12 +186,16 @@ public interface RuntimeContext {
 	 *            the first time {@link OperatorState#getState()} (for every
 	 *            state partition) is called before
 	 *            {@link OperatorState#updateState(Object)}.
+	 * @param partitioned
+	 *            Sets whether partitioning should be applied for the given
+	 *            state. If true a partitioner key must be used.
 	 * @param checkpointer
 	 *            The {@link StateCheckpointer} that will be used to draw
 	 *            snapshots from the user state.
 	 * @return The {@link OperatorState} for the underlying operator.
 	 */
-	<S,C extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState, StateCheckpointer<S,C> checkpointer);
+	<S, C extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
+			boolean partitioned, StateCheckpointer<S, C> checkpointer);
 
 	/**
 	 * Returns the {@link OperatorState} with the given name of the underlying
@@ -205,14 +209,18 @@ public interface RuntimeContext {
 	 * </p>
 	 * 
 	 * @param name
-	 *            Identifier for the state allowing that more operator states can be
-	 *            used by the same operator.
+	 *            Identifier for the state allowing that more operator states
+	 *            can be used by the same operator.
 	 * @param defaultState
 	 *            Default value for the operator state. This will be returned
 	 *            the first time {@link OperatorState#getState()} (for every
 	 *            state partition) is called before
 	 *            {@link OperatorState#updateState(Object)}.
+	 * @param partitioned
+	 *            Sets whether partitioning should be applied for the given
+	 *            state. If true a partitioner key must be used.
 	 * @return The {@link OperatorState} for the underlying operator.
 	 */
-	<S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState);
+	<S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
+			boolean partitioned);
 }

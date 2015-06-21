@@ -20,6 +20,8 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import java.io.Serializable;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -45,6 +47,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 
 	private final Environment env;
 	private final Map<String, StreamOperatorState> states;
+	private final List<PartitionedStreamOperatorState> partitionedStates;
 	private final KeySelector<?, ?> statePartitioner;
 	private final StateHandleProvider<?> provider;
 
@@ -56,6 +59,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 		this.env = env;
 		this.statePartitioner = statePartitioner;
 		this.states = new HashMap<String, StreamOperatorState>();
+		this.partitionedStates = new LinkedList<PartitionedStreamOperatorState>();
 		this.provider = provider;
 	}
 
@@ -81,11 +85,11 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	@SuppressWarnings("unchecked")
 	@Override
 	public <S, C extends Serializable> OperatorState<S> getOperatorState(String name,
-			S defaultState, StateCheckpointer<S, C> checkpointer) {
+			S defaultState, boolean partitioned, StateCheckpointer<S, C> checkpointer) {
 		if (defaultState == null) {
 			throw new RuntimeException("Cannot set default state to null.");
 		}
-		StreamOperatorState<S, C> state = (StreamOperatorState<S, C>) getState(name);
+		StreamOperatorState<S, C> state = (StreamOperatorState<S, C>) getState(name, partitioned);
 		state.setDefaultState(defaultState);
 		state.setCheckpointer(checkpointer);
 
@@ -94,21 +98,28 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState) {
+	public <S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
+			boolean partitioned) {
 		if (defaultState == null) {
 			throw new RuntimeException("Cannot set default state to null.");
 		}
-		StreamOperatorState<S, S> state = (StreamOperatorState<S, S>) getState(name);
+		StreamOperatorState<S, S> state = (StreamOperatorState<S, S>) getState(name, partitioned);
 		state.setDefaultState(defaultState);
 
 		return (OperatorState<S>) state;
 	}
 
-	private StreamOperatorState<?, ?> getState(String name) {
+	public StreamOperatorState<?, ?> getState(String name, boolean partitioned) {
+		// Try fetching state from the map
 		StreamOperatorState state = states.get(name);
 		if (state == null) {
-			state = createRawState();
+			// If not found, create empty state and add to the map
+			state = createRawState(partitioned);
 			states.put(name, state);
+			// We keep a reference to all partitioned states for registering input
+			if (state instanceof PartitionedStreamOperatorState) {
+				partitionedStates.add((PartitionedStreamOperatorState) state);
+			}
 		}
 		return state;
 	}
@@ -119,14 +130,19 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	 * @return An empty operator state.
 	 */
 	@SuppressWarnings("unchecked")
-	public StreamOperatorState createRawState() {
-		if (statePartitioner == null) {
-			return new StreamOperatorState(provider);
+	public StreamOperatorState createRawState(boolean partitioned) {
+		if (partitioned) {
+			if (statePartitioner != null) {
+				return new PartitionedStreamOperatorState(provider, statePartitioner);
+			} else {
+				throw new RuntimeException(
+						"A partitioning key must be provided for pastitioned state.");
+			}
 		} else {
-			return new PartitionedStreamOperatorState(provider, statePartitioner);
+			return new StreamOperatorState(provider);
 		}
 	}
-	
+
 	/**
 	 * Provides access to the all the states contained in the context
 	 * 
@@ -137,14 +153,17 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	}
 
 	/**
-	 * Sets the next input of the underlying operators, used to access partitioned states.
-	 * @param nextRecord Next input of the operator.
+	 * Sets the next input of the underlying operators, used to access
+	 * partitioned states.
+	 * 
+	 * @param nextRecord
+	 *            Next input of the operator.
 	 */
 	@SuppressWarnings("unchecked")
 	public void setNextInput(Object nextRecord) {
 		if (statePartitioner != null) {
-			for (StreamOperatorState state : states.values()) {
-				((PartitionedStreamOperatorState) state).setCurrentInput(nextRecord);
+			for (PartitionedStreamOperatorState state : partitionedStates) {
+				state.setCurrentInput(nextRecord);
 			}
 		}
 	}

@@ -74,7 +74,7 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> {
 	
 	@Override
 	public void open(Configuration conf){
-		collected = getRuntimeContext().getOperatorState("collected", 0L);
+		collected = getRuntimeContext().getOperatorState("collected", 0L, false);
 	}
 
 	@Override
