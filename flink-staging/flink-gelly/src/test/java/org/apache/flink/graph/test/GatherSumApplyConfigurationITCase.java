@@ -84,6 +84,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 		parameters.addBroadcastSetForSumFunction("sumBcastSet", env.fromElements(4, 5, 6));
 		parameters.addBroadcastSetForApplyFunction("applyBcastSet", env.fromElements(7, 8, 9));
 		parameters.registerAggregator("superstepAggregator", new LongSumAggregator());
+		parameters.setOptNumVertices(true);
 
 		Graph<Long, Long, Long> result = graph.runGatherSumApplyIteration(new Gather(), new Sum(),
 				new Apply(), 10, parameters);
@@ -151,6 +152,9 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 
 				Assert.assertEquals(7, aggrValue);
 			}
+
+			// test number of vertices
+			Assert.assertEquals(5, getNumberOfVertices());
 		}
 
 		public Long gather(Neighbor<Long, Long> neighbor) {
@@ -175,6 +179,9 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 
 			// test aggregator
 			aggregator = getIterationAggregator("superstepAggregator");
+
+			// test number of vertices
+			Assert.assertEquals(5, getNumberOfVertices());
 		}
 
 		public Long sum(Long newValue, Long currentValue) {
@@ -201,6 +208,9 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 
 			// test aggregator
 			aggregator = getIterationAggregator("superstepAggregator");
+
+			// test number of vertices
+			Assert.assertEquals(5, getNumberOfVertices());
 		}
 
 		public void apply(Long summedValue, Long origValue) {
@@ -212,6 +222,13 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 
 	@SuppressWarnings("serial")
 	private static final class DummyGather extends GatherFunction<Long, Long, Long> {
+
+		@Override
+		public void preSuperstep() {
+			// test number of vertices
+			// when the numVertices option is not set, -1 is returned
+			Assert.assertEquals(-1, getNumberOfVertices());
+		}
 
 		public Long gather(Neighbor<Long, Long> neighbor) {
 			return neighbor.getNeighborValue();
