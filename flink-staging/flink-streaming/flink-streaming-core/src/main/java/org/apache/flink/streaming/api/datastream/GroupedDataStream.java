@@ -26,7 +26,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
-import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 /**
  * A GroupedDataStream represents a {@link DataStream} which has been
@@ -37,9 +36,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
  * @param <OUT>
  *            The output type of the {@link GroupedDataStream}.
  */
-public class GroupedDataStream<OUT> extends DataStream<OUT> {
-
-	KeySelector<OUT, ?> keySelector;
+public class GroupedDataStream<OUT> extends KeyedDataStream<OUT> {
 
 	/**
 	 * Creates a new {@link GroupedDataStream}, group inclusion is determined using
@@ -49,17 +46,11 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 * @param keySelector Function for determining group inclusion
 	 */
 	public GroupedDataStream(DataStream<OUT> dataStream, KeySelector<OUT, ?> keySelector) {
-		super(dataStream.partitionByHash(keySelector));
-		this.keySelector = keySelector;
+		super(dataStream, keySelector);
 	}
 
 	protected GroupedDataStream(GroupedDataStream<OUT> dataStream) {
 		super(dataStream);
-		this.keySelector = dataStream.keySelector;
-	}
-
-	public KeySelector<OUT, ?> getKeySelector() {
-		return this.keySelector;
 	}
 
 	/**
@@ -225,12 +216,8 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	}
 
 	@Override
-	protected DataStream<OUT> setConnectionType(StreamPartitioner<OUT> partitioner) {
-		return super.setConnectionType(partitioner);
-	}
-
-	@Override
 	public GroupedDataStream<OUT> copy() {
 		return new GroupedDataStream<OUT>(this);
 	}
+
 }

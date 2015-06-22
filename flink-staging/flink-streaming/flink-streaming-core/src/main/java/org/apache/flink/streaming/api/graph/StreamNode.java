@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
@@ -48,6 +49,7 @@ public class StreamNode implements Serializable {
 	private String operatorName;
 	private Integer slotSharingID;
 	private boolean isolatedSlot = false;
+	private KeySelector<?,?> statePartitioner;
 
 	private transient StreamOperator<?> operator;
 	private List<OutputSelector<?>> outputSelectors;
@@ -219,4 +221,11 @@ public class StreamNode implements Serializable {
 		return operatorName + id;
 	}
 
+	public KeySelector<?, ?> getStatePartitioner() {
+		return statePartitioner;
+	}
+
+	public void setStatePartitioner(KeySelector<?, ?> statePartitioner) {
+		this.statePartitioner = statePartitioner;
+	}
 }

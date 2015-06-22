@@ -99,7 +99,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 			StreamRecord<IN> nextRecord;
 			while (isRunning && (nextRecord = readNext()) != null) {
-				headContext.setNextInput(nextRecord);
+				headContext.setNextInput(nextRecord.getObject());
 				streamOperator.processElement(nextRecord.getObject());
 			}
 

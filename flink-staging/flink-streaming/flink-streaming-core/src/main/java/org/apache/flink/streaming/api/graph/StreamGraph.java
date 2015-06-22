@@ -33,6 +33,7 @@ import java.util.Set;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.optimizer.plan.StreamingPlan;
@@ -276,6 +277,10 @@ public class StreamGraph extends StreamingPlan {
 
 	public void setParallelism(Integer vertexID, int parallelism) {
 		getStreamNode(vertexID).setParallelism(parallelism);
+	}
+
+	public void setKey(Integer vertexID, KeySelector<?,?> key) {
+		getStreamNode(vertexID).setStatePartitioner(key);
 	}
 
 	public void setBufferTimeout(Integer vertexID, long bufferTimeout) {
