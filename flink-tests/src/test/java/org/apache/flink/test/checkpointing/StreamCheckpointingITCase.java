@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -32,6 +33,7 @@ import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -195,7 +197,7 @@ public class StreamCheckpointingITCase {
 
 		static final long[] counts = new long[PARALLELISM];
 		@Override
-		public void close() {
+		public void close() throws IOException {
 			counts[getRuntimeContext().getIndexOfThisSubtask()] = index.getState();
 		}
 
@@ -205,7 +207,7 @@ public class StreamCheckpointingITCase {
 		}
 
 		@Override
-		public void open(Configuration parameters) {
+		public void open(Configuration parameters) throws IOException {
 			rnd = new Random();
 			stringBuilder = new StringBuilder();
 			step = getRuntimeContext().getNumberOfParallelSubtasks();
@@ -264,12 +266,12 @@ public class StreamCheckpointingITCase {
 		}
 
 		@Override
-		public void open(Configuration conf) {
+		public void open(Configuration conf) throws IOException {
 			count = getRuntimeContext().getOperatorState("count", 0L, false);
 		}
 
 		@Override
-		public void close() {
+		public void close() throws IOException {
 			counts[getRuntimeContext().getIndexOfThisSubtask()] = count.getState();
 		}
 		
@@ -334,25 +336,30 @@ public class StreamCheckpointingITCase {
 		}
 	}
 
-	private static class StringRichFilterFunction extends RichFilterFunction<String> {
+	private static class StringRichFilterFunction extends RichFilterFunction<String> implements Checkpointed<Long> {
 
-		OperatorState<Long> count;
+		Long count = 0L;
 		static final long[] counts = new long[PARALLELISM];
 		
 		@Override
 		public boolean filter(String value) {
-			count.updateState(count.getState() + 1);
+			count++;
 			return value.length() < 100;
-		}
-		
-		@Override
-		public void open(Configuration conf) {
-			this.count = getRuntimeContext().getOperatorState("count", 0L, false);
 		}
 
 		@Override
 		public void close() {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = count.getState();
+			counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+		}
+
+		@Override
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+			return count;
+		}
+
+		@Override
+		public void restoreState(Long state) {
+			count = state;
 		}
 	}
 
@@ -362,18 +369,18 @@ public class StreamCheckpointingITCase {
 		static final long[] counts = new long[PARALLELISM];
 		
 		@Override
-		public PrefixCount map(String value) {
+		public PrefixCount map(String value) throws IOException {
 			count.updateState(count.getState() + 1);
 			return new PrefixCount(value.substring(0, 1), value, 1L);
 		}
 		
 		@Override
-		public void open(Configuration conf) {
+		public void open(Configuration conf) throws IOException {
 			this.count = getRuntimeContext().getOperatorState("count", 0L, false);
 		}
 
 		@Override
-		public void close() {
+		public void close() throws IOException {
 			counts[getRuntimeContext().getIndexOfThisSubtask()] = count.getState();
 		}
 	}

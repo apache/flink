@@ -33,6 +33,7 @@ import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FileStateHandle;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -152,7 +153,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		}
 		
 		@Override
-		public void open(Configuration conf) {
+		public void open(Configuration conf) throws IOException {
 			collected = getRuntimeContext().getOperatorState("count", 0L, false);
 		}
 
@@ -181,12 +182,12 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		}
 	}
 
-	private static class CheckpointedSink extends RichSinkFunction<Long> {
+	private static class CheckpointedSink extends RichSinkFunction<Long> implements Checkpointed<Long> {
 
 		private long stepSize;
 		private long congruence;
 		private long toCollect;
-		private OperatorState<Long> collected;
+		private Long collected = 0L;
 		private long end;
 
 		public CheckpointedSink(long end) {
@@ -198,21 +199,30 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 			stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
 			congruence = getRuntimeContext().getIndexOfThisSubtask();
 			toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
-			collected = getRuntimeContext().getOperatorState("count", 0L, false);
 		}
 
 		@Override
 		public void invoke(Long value) throws Exception {
-			long expected = collected.getState() * stepSize + congruence;
+			long expected = collected * stepSize + congruence;
 
 			Assert.assertTrue("Value did not match expected value. " + expected + " != " + value, value.equals(expected));
 
-			collected.updateState(collected.getState() + 1);
+			collected++;
 
-			if (collected.getState() > toCollect) {
+			if (collected > toCollect) {
 				Assert.fail("Collected <= toCollect: " + collected + " > " + toCollect);
 			}
 
+		}
+
+		@Override
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+			return collected;
+		}
+
+		@Override
+		public void restoreState(Long state) {
+			collected = state;
 		}
 	}
 }

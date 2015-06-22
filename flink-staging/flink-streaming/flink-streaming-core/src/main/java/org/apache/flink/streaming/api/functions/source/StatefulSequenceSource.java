@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.api.functions.source;
 
 
+import java.io.IOException;
+
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.configuration.Configuration;
@@ -73,7 +75,7 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> {
 	}
 	
 	@Override
-	public void open(Configuration conf){
+	public void open(Configuration conf) throws IOException{
 		collected = getRuntimeContext().getOperatorState("collected", 0L, false);
 	}
 

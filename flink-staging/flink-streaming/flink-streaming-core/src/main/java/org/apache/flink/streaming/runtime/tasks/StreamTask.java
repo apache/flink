@@ -27,6 +27,7 @@ import java.util.Map.Entry;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.functors.NotNullPredicate;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.event.task.TaskEvent;
@@ -200,18 +201,15 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	public void setInitialState(StateHandle<Serializable> stateHandle) throws Exception {
 		
 		// We retrieve end restore the states for the chained oeprators.
-		List<Serializable> chainedStates = (List<Serializable>) stateHandle.getState();
+		List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>> chainedStates = (List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>>) stateHandle.getState();
 
 		// We restore all stateful chained operators
 		for (int i = 0; i < chainedStates.size(); i++) {
-			Serializable state = chainedStates.get(i);
+			Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>> state = chainedStates.get(i);
 			// If state is not null we need to restore it
 			if (state != null) {
 				StreamOperator<?> chainedOperator = outputHandler.getChainedOperators().get(i);
-
-				((StatefulStreamOperator<?>) chainedOperator)
-						.restoreInitialState((Map<String, PartitionedStateHandle>) state);
-
+				((StatefulStreamOperator<?>) chainedOperator).restoreInitialState(state);
 			}
 		}
 
@@ -226,7 +224,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 					LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
 					
 					// We wrap the states of the chained operators in a list, marking non-stateful oeprators with null
-					List<Map<String, PartitionedStateHandle>> chainedStates = new ArrayList<Map<String, PartitionedStateHandle>>();
+					List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>> chainedStates = new ArrayList<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>>();
 					
 					// A wrapper handle is created for the List of statehandles
 					WrapperStateHandle stateHandle;
@@ -273,26 +271,39 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public void confirmCheckpoint(long checkpointId, SerializedValue<StateHandle<?>> stateHandle) throws Exception {
-		// we do nothing here so far. this should call commit on the source function, for example
 		synchronized (checkpointLock) {
-			
-			List<Map<String, PartitionedStateHandle>> chainedStates = (List<Map<String, PartitionedStateHandle>>) stateHandle.deserializeValue(getUserCodeClassLoader()).getState();
+			if (stateHandle != null) {
+				List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>> chainedStates = (List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>>) stateHandle
+						.deserializeValue(getUserCodeClassLoader()).getState();
 
-			for (int i = 0; i < chainedStates.size(); i++) {
-				Map<String, PartitionedStateHandle> chainedState = chainedStates.get(i);
-				if (chainedState != null) {
+				for (int i = 0; i < chainedStates.size(); i++) {
+					Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>> chainedState = chainedStates
+							.get(i);
 					StreamOperator<?> chainedOperator = outputHandler.getChainedOperators().get(i);
-					if (chainedOperator instanceof StatefulStreamOperator) {
-						for (Entry<String, PartitionedStateHandle> stateEntry : chainedState
-								.entrySet()) {
-							for (StateHandle<Serializable> handle : stateEntry.getValue().getState().values()) {
-								((StatefulStreamOperator) chainedOperator).confirmCheckpointCompleted(
-										checkpointId, stateEntry.getKey(), handle);
+
+					if (chainedState != null) {
+						if (chainedState.f0 != null) {
+							((StatefulStreamOperator) chainedOperator).confirmCheckpointCompleted(
+									checkpointId, null, chainedState.f0);
+						}
+
+						if (chainedState.f1 != null) {
+							if (chainedOperator instanceof StatefulStreamOperator) {
+								for (Entry<String, PartitionedStateHandle> stateEntry : chainedState.f1
+										.entrySet()) {
+									for (StateHandle<Serializable> handle : stateEntry.getValue()
+											.getState().values()) {
+										((StatefulStreamOperator) chainedOperator)
+												.confirmCheckpointCompleted(checkpointId,
+														stateEntry.getKey(), handle);
+									}
+								}
 							}
 						}
 					}
 				}
 			}
+
 		}
 	}
 	
