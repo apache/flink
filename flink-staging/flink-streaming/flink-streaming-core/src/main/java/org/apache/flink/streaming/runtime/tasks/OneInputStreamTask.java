@@ -18,11 +18,12 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import java.io.IOException;
-
+import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.IndexedMutableReader;
 import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
 import org.apache.flink.streaming.runtime.io.InputGateFactory;
@@ -31,6 +32,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
 public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamOperator<IN, OUT>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(OneInputStreamTask.class);
@@ -38,6 +41,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	protected StreamRecordSerializer<IN> inSerializer;
 	private IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>> inputs;
 	protected IndexedReaderIterator<StreamRecord<IN>> recordIterator;
+
+	private volatile boolean operatorOpen = false;
 
 
 	@Override
@@ -53,6 +58,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			inputs = new IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>>(inputGate);
 
 			inputs.registerTaskEventListener(getSuperstepListener(), StreamingSuperstep.class);
+			inputs.registerTaskEventListener(new WatermarkListener(), Watermark.class);
 
 			recordIterator = new IndexedReaderIterator<StreamRecord<IN>>(inputs, inSerializer);
 		}
@@ -87,7 +93,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	public void invoke() throws Exception {
 		this.isRunning = true;
 
-		boolean operatorOpen = false;
+		operatorOpen = false;
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Task {} invoked", getName());
@@ -99,8 +105,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 			StreamRecord<IN> nextRecord;
 			while (isRunning && (nextRecord = readNext()) != null) {
-				headContext.setNextInput(nextRecord.getObject());
-				streamOperator.processElement(nextRecord.getObject());
+				headContext.setNextInput(nextRecord);
+				streamOperator.processElement(nextRecord);
 			}
 
 			closeOperator();
@@ -135,4 +141,25 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		}
 
 	}
+
+	private class WatermarkListener implements EventListener<TaskEvent> {
+
+		@Override
+		public void onEvent(TaskEvent event) {
+			Watermark watermark = (Watermark) event;
+
+			try {
+				if (operatorOpen) {
+					streamOperator.processWatermark(watermark);
+				}
+			} catch (Exception e) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Failed to forward watermark to operator: {}", e);
+				}
+				throw new RuntimeException(e);
+			}
+		}
+
+	}
+
 }

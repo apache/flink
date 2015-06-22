@@ -22,9 +22,10 @@ import java.util.Collection;
 
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.util.Collector;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-public class MockOutput<T> implements Output<T> {
+public class MockOutput<T> implements Output<StreamRecord<T>> {
 	private Collection<T> outputs;
 
 	public MockOutput(Collection<T> outputs) {
@@ -32,10 +33,15 @@ public class MockOutput<T> implements Output<T> {
 	}
 
 	@Override
-	public void collect(T record) {
+	public void collect(StreamRecord<T> record) {
 		T copied = SerializationUtils.deserialize(SerializationUtils
-				.serialize((Serializable) record));
+				.serialize((Serializable) record.getValue()));
 		outputs.add(copied);
+	}
+
+	@Override
+	public void emitWatermark(Watermark mark) {
+		throw new RuntimeException("THIS MUST BE IMPLEMENTED");
 	}
 
 	@Override

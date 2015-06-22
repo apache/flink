@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public class StreamGroupedFold<IN, OUT> extends StreamFold<IN, OUT> {
 
@@ -41,19 +42,18 @@ public class StreamGroupedFold<IN, OUT> extends StreamFold<IN, OUT> {
 	}
 
 	@Override
-	public void processElement(IN element) throws Exception {
-		Object key = keySelector.getKey(element);
+	public void processElement(StreamRecord<IN> element) throws Exception {
+		Object key = keySelector.getKey(element.getValue());
 		OUT accumulator = values.get(key);
-		FoldFunction<IN, OUT> folder = ((FoldFunction<IN, OUT>) userFunction);
 
 		if (accumulator != null) {
-			OUT folded = folder.fold(outTypeSerializer.copy(accumulator), element);
+			OUT folded = userFunction.fold(outTypeSerializer.copy(accumulator), element.getValue());
 			values.put(key, folded);
-			output.collect(folded);
+			output.collect(element.replace(folded));
 		} else {
-			OUT first = folder.fold(outTypeSerializer.copy(initialValue), element);
+			OUT first = userFunction.fold(outTypeSerializer.copy(initialValue), element.getValue());
 			values.put(key, first);
-			output.collect(first);
+			output.collect(element.replace(first));
 		}
 	}
 

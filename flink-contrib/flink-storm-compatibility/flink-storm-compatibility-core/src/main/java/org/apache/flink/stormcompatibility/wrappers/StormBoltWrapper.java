@@ -26,6 +26,9 @@ import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 
@@ -50,6 +53,12 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 	private final IRichBolt bolt;
 	/** Number of attributes of the bolt's output tuples */
 	private final int numberOfAttributes;
+
+	/**
+	 *  We have to use this because Operators must output
+	 *  {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord}.
+	 */
+	private TimestampedCollector<OUT> flinkCollector;
 
 	/**
 	 * Instantiates a new {@link StormBoltWrapper} that wraps the given Storm {@link IRichBolt bolt}
@@ -93,11 +102,12 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 
 		final TopologyContext topologyContext = StormWrapperSetupHelper.convertToTopologyContext(
 				(StreamingRuntimeContext)super.runtimeContext, false);
+		flinkCollector = new TimestampedCollector<OUT>(output);
 		OutputCollector stormCollector = null;
 
 		if (this.numberOfAttributes != -1) {
 			stormCollector = new OutputCollector(new StormBoltCollector<OUT>(
-					this.numberOfAttributes, super.output));
+					this.numberOfAttributes, flinkCollector));
 		}
 
 		this.bolt.prepare(null, topologyContext, stormCollector);
@@ -110,8 +120,13 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 	}
 
 	@Override
-	public void processElement(final IN element) throws Exception {
-		this.bolt.execute(new StormTuple<IN>(element));
+	public void processElement(final StreamRecord<IN> element) throws Exception {
+		flinkCollector.setTimestamp(element.getTimestamp());
+		this.bolt.execute(new StormTuple<IN>(element.getValue()));
 	}
 
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
+	}
 }

@@ -15,65 +15,73 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.collector;
+package org.apache.flink.streaming.runtime.io;
 
 import java.io.IOException;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.io.StreamRecordWriter;
+import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.Collector;
-import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StreamOutput<OUT> implements Collector<OUT> {
+/**
+ * Implementation of {@link Output} that sends data using a {@link RecordWriter}.
+ */
+public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StreamOutput.class);
+	private static final Logger LOG = LoggerFactory.getLogger(RecordWriterOutput.class);
 
-	private RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output;
+	private RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter;
 	private SerializationDelegate<StreamRecord<OUT>> serializationDelegate;
-	private StreamRecord<OUT> streamRecord;
 
-	public StreamOutput(RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output, SerializationDelegate<StreamRecord<OUT>> serializationDelegate) {
+	public RecordWriterOutput(
+			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
+			SerializationDelegate<StreamRecord<OUT>> serializationDelegate) {
+		Preconditions.checkNotNull(recordWriter);
+		Preconditions.checkNotNull(serializationDelegate);
 
 		this.serializationDelegate = serializationDelegate;
-
-		if (serializationDelegate != null) {
-			this.streamRecord = serializationDelegate.getInstance();
-		} else {
-			throw new RuntimeException("Serializer cannot be null");
-		}
-		this.output = output;
-	}
-
-	public RecordWriter<SerializationDelegate<StreamRecord<OUT>>> getRecordWriter() {
-		return output;
+		this.recordWriter = recordWriter;
 	}
 
 	@Override
-	public void collect(OUT record) {
-		streamRecord.setObject(record);
-		serializationDelegate.setInstance(streamRecord);
+	public void collect(StreamRecord<OUT> record) {
+		serializationDelegate.setInstance(record);
 
 		try {
-			output.emit(serializationDelegate);
+			recordWriter.emit(serializationDelegate);
 		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Emit failed due to: {}", StringUtils.stringifyException(e));
+				LOG.error("Emit failed: {}", e);
 			}
+			throw new RuntimeException("Element emission failed.", e);
+		}
+	}
+
+	@Override
+	public void emitWatermark(Watermark mark) {
+		try {
+			recordWriter.broadcastEvent(mark);
+		} catch (Exception e) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Watermark emit failed: {}", e);
+			}
+			throw new RuntimeException(e);
 		}
 	}
 
 	@Override
 	public void close() {
-		if (output instanceof StreamRecordWriter) {
-			((StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>) output).close();
+		if (recordWriter instanceof StreamRecordWriter) {
+			((StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>) recordWriter).close();
 		} else {
 			try {
-				output.flush();
+				recordWriter.flush();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -81,10 +89,10 @@ public class StreamOutput<OUT> implements Collector<OUT> {
 	}
 
 	public void clearBuffers() {
-		output.clearBuffers();
+		recordWriter.clearBuffers();
 	}
 
 	public void broadcastEvent(TaskEvent barrier) throws IOException, InterruptedException {
-		output.broadcastEvent(barrier);
+		recordWriter.broadcastEvent(barrier);
 	}
 }

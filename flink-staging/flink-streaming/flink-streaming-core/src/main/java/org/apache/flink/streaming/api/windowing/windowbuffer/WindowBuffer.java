@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.windowing.windowbuffer;
 import java.io.Serializable;
 
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 /**
@@ -39,7 +40,7 @@ public abstract class WindowBuffer<T> implements Serializable, Cloneable {
 
 	public abstract void evict(int n);
 
-	public abstract void emitWindow(Collector<StreamWindow<T>> collector);
+	public abstract void emitWindow(Collector<StreamRecord<StreamWindow<T>>> collector);
 
 	public abstract WindowBuffer<T> clone();
 

@@ -21,6 +21,7 @@ import java.util.LinkedList;
 import java.util.NoSuchElementException;
 
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 /**
@@ -36,11 +37,11 @@ public class BasicWindowBuffer<T> extends WindowBuffer<T> {
 		this.buffer = new LinkedList<T>();
 	}
 
-	public void emitWindow(Collector<StreamWindow<T>> collector) {
+	public void emitWindow(Collector<StreamRecord<StreamWindow<T>>> collector) {
 		if (emitEmpty || !buffer.isEmpty()) {
 			StreamWindow<T> currentWindow = createEmptyWindow();
 			currentWindow.addAll(buffer);
-			collector.collect(currentWindow);
+			collector.collect(new StreamRecord<StreamWindow<T>>(currentWindow));
 		} 
 	}
 

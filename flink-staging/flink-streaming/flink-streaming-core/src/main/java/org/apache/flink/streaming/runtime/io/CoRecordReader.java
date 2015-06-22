@@ -31,11 +31,17 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.StreamingSuperstep;
+import org.joda.time.Instant;
 
 /**
  * A CoRecordReader wraps {@link MutableRecordReader}s of two different input
  * types to read records effectively.
+ *
+ * <p>
+ * This also keeps track of {@link Watermark} events and forwards them to event subscribers
+ * once the {@link Watermark} from all inputs advances.
  */
 @SuppressWarnings("rawtypes")
 public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadableWritable> extends
@@ -65,6 +71,12 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 	protected CoBarrierBuffer barrierBuffer1;
 	protected CoBarrierBuffer barrierBuffer2;
 
+	private long[] watermarks1;
+	private long lastEmittedWatermark1;
+
+	private long[] watermarks2;
+	private long lastEmittedWatermark2;
+
 	public CoRecordReader(InputGate inputgate1, InputGate inputgate2) {
 		super(new UnionInputGate(inputgate1, inputgate2));
 
@@ -92,6 +104,18 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 
 		barrierBuffer1.setOtherBarrierBuffer(barrierBuffer2);
 		barrierBuffer2.setOtherBarrierBuffer(barrierBuffer1);
+
+		watermarks1 = new long[inputgate1.getNumberOfInputChannels()];
+		for (int i = 0; i < inputgate1.getNumberOfInputChannels(); i++) {
+			watermarks1[i] = Long.MIN_VALUE;
+		}
+		lastEmittedWatermark1 = Long.MIN_VALUE;
+
+		watermarks2 = new long[inputgate2.getNumberOfInputChannels()];
+		for (int i = 0; i < inputgate2.getNumberOfInputChannels(); i++) {
+			watermarks2[i] = Long.MIN_VALUE;
+		}
+		lastEmittedWatermark2 = Long.MIN_VALUE;
 	}
 
 	public void requestPartitionsOnce() throws IOException, InterruptedException {
@@ -142,6 +166,23 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 							reader1currentRecordDeserializer = reader1RecordDeserializers[boe
 									.getChannelIndex()];
 							reader1currentRecordDeserializer.setNextBuffer(boe.getBuffer());
+						} else if (boe.getEvent() instanceof Watermark) {
+							Watermark mark = (Watermark) boe.getEvent();
+							int inputIndex = boe.getChannelIndex();
+							long watermarkMillis = mark.getTimestamp().getMillis();
+							if (watermarkMillis > watermarks1[inputIndex]) {
+								watermarks1[inputIndex] = watermarkMillis;
+								long newMinWatermark = Long.MAX_VALUE;
+								for (int i = 0; i < watermarks1.length; i++) {
+									if (watermarks1[i] < newMinWatermark) {
+										newMinWatermark = watermarks1[i];
+									}
+								}
+								if (newMinWatermark > lastEmittedWatermark1) {
+									lastEmittedWatermark1 = newMinWatermark;
+									handleEvent(new Watermark(new Instant(lastEmittedWatermark1), 0));
+								}
+							}
 						} else if (boe.getEvent() instanceof StreamingSuperstep) {
 							barrierBuffer1.processSuperstep(boe);
 							currentReaderIndex = 0;
@@ -177,6 +218,23 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 							reader2currentRecordDeserializer = reader2RecordDeserializers[boe
 									.getChannelIndex()];
 							reader2currentRecordDeserializer.setNextBuffer(boe.getBuffer());
+						} else if (boe.getEvent() instanceof Watermark) {
+							Watermark mark = (Watermark) boe.getEvent();
+							int inputIndex = boe.getChannelIndex();
+							long watermarkMillis = mark.getTimestamp().getMillis();
+							if (watermarkMillis > watermarks2[inputIndex]) {
+								watermarks2[inputIndex] = watermarkMillis;
+								long newMinWatermark = Long.MAX_VALUE;
+								for (int i = 0; i < watermarks2.length; i++) {
+									if (watermarks2[i] < newMinWatermark) {
+										newMinWatermark = watermarks2[i];
+									}
+								}
+								if (newMinWatermark > lastEmittedWatermark2) {
+									lastEmittedWatermark2 = newMinWatermark;
+									handleEvent(new Watermark(new Instant(lastEmittedWatermark2), 1));
+								}
+							}
 						} else if (boe.getEvent() instanceof StreamingSuperstep) {
 							barrierBuffer2.processSuperstep(boe);
 							currentReaderIndex = 0;

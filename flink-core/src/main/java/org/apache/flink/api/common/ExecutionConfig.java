@@ -19,6 +19,7 @@
 package org.apache.flink.api.common;
 
 import com.esotericsoftware.kryo.Serializer;
+import org.joda.time.Duration;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -89,6 +90,8 @@ public class ExecutionConfig implements Serializable {
 
 	private GlobalJobParameters globalJobParameters = null;
 
+	private Duration autoWatermarkInterval = null;
+
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in lists to ensure they are registered in order in all kryo instances.
 
@@ -138,6 +141,25 @@ public class ExecutionConfig implements Serializable {
 	 */
 	public boolean isClosureCleanerEnabled() {
 		return useClosureCleaner;
+	}
+
+	/**
+	 * Sets the interval of the automatic watermark emission. Watermaks are used throughout
+	 * the streaming system to keep track of the progress of time. They are used, for example,
+	 * for time based windowing.
+	 */
+	public ExecutionConfig setAutoWatermarkInterval(Duration interval) {
+		this.autoWatermarkInterval = interval;
+		return this;
+	}
+
+	/**
+	 * Returns the interval of the automatic watermark emission.
+	 *
+	 * @see #setAutoWatermarkInterval(org.joda.time.Duration)
+	 */
+	public Duration getAutoWatermarkInterval()  {
+		return this.autoWatermarkInterval;
 	}
 
 	/**

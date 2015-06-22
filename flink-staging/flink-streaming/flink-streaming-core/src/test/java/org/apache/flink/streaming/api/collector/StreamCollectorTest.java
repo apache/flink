@@ -21,10 +21,12 @@ import static org.junit.Assert.assertArrayEquals;
 
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.streamtask.MockRecordWriter;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.MockRecordWriterFactory;
-import org.apache.flink.util.Collector;
 import org.junit.Test;
 
 public class StreamCollectorTest {
@@ -34,9 +36,11 @@ public class StreamCollectorTest {
 		MockRecordWriter recWriter = MockRecordWriterFactory.create();
 		SerializationDelegate<StreamRecord<Tuple1<Integer>>> sd = new SerializationDelegate<StreamRecord<Tuple1<Integer>>>(
 				null);
-		sd.setInstance(new StreamRecord<Tuple1<Integer>>().setObject(new Tuple1<Integer>()));
+		sd.setInstance(new StreamRecord<Tuple1<Integer>>(new Tuple1<Integer>()));
 
-		Collector<Tuple1<Integer>> collector = new StreamOutput<Tuple1<Integer>>(recWriter, sd);
+		Output<StreamRecord<Tuple1<Integer>>> output = new RecordWriterOutput<Tuple1<Integer>>(recWriter, sd);
+		TimestampedCollector<Tuple1<Integer>> collector = new TimestampedCollector<Tuple1<Integer>>(output);
+
 		collector.collect(new Tuple1<Integer>(3));
 		collector.collect(new Tuple1<Integer>(4));
 		collector.collect(new Tuple1<Integer>(5));

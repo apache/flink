@@ -27,6 +27,7 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
@@ -66,7 +67,8 @@ public abstract class StreamTaskTestBase {
 	}
 
 	public <T> void addOutput(List<T> output, TypeSerializer<T> serializer) {
-		this.mockEnv.addOutput(output, serializer);
+		StreamRecordSerializer streamRecordSerializer = new StreamRecordSerializer(serializer);
+		this.mockEnv.addOutput(output, streamRecordSerializer);
 		TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		conf.addOutputShipStrategy(ShipStrategyType.FORWARD);
 		conf.setOutputSerializer(RecordSerializerFactory.get());

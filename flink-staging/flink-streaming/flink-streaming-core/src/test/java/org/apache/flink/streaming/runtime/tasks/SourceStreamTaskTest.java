@@ -94,7 +94,7 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 
 		TupleTypeInfo<Tuple2<Long, Integer>> typeInfo = new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 		TypeSerializer<Tuple2<Long, Integer>> serializer = typeInfo.createSerializer(new ExecutionConfig());
-		StreamRecordSerializer<Tuple2<Long, Integer>> streamSerializer = new StreamRecordSerializer<Tuple2<Long, Integer>>(typeInfo, new ExecutionConfig());
+		StreamRecordSerializer<Tuple2<Long, Integer>> streamSerializer = new StreamRecordSerializer<Tuple2<Long, Integer>>(typeInfo.createSerializer(new ExecutionConfig()));
 
 		super.addOutput(outList, serializer);
 

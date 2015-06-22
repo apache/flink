@@ -21,7 +21,6 @@ import static org.junit.Assert.assertArrayEquals;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.junit.Before;
 import org.junit.Test;
@@ -29,7 +28,7 @@ import org.junit.Test;
 public class GlobalPartitionerTest {
 
 	private GlobalPartitioner<Tuple> globalPartitioner;
-	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>();
+	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>(null);
 	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(
 			null);
 

@@ -51,7 +51,7 @@ public class MockContext<IN, OUT> {
 		}
 
 		TypeInformation<IN> inTypeInfo = TypeExtractor.getForObject(inputs.iterator().next());
-		inDeserializer = new StreamRecordSerializer<IN>(inTypeInfo, new ExecutionConfig());
+		inDeserializer = new StreamRecordSerializer<IN>(inTypeInfo.createSerializer(new ExecutionConfig()));
 
 		iterator = new IndexedInputIterator();
 		outputs = new ArrayList<OUT>();
@@ -69,7 +69,7 @@ public class MockContext<IN, OUT> {
 		@Override
 		public StreamRecord<IN> next(StreamRecord<IN> reuse) throws IOException {
 			if (listIterator.hasNext()) {
-				reuse.setObject(listIterator.next());
+				reuse.replace(listIterator.next());
 			} else {
 				reuse = null;
 			}
@@ -80,7 +80,7 @@ public class MockContext<IN, OUT> {
 		public StreamRecord<IN> next() throws IOException {
 			if (listIterator.hasNext()) {
 				StreamRecord<IN> result = inDeserializer.createInstance();
-				result.setObject(listIterator.next());
+				result.replace(listIterator.next());
 				return result;
 			} else {
 				return null;
@@ -92,7 +92,7 @@ public class MockContext<IN, OUT> {
 		return outputs;
 	}
 
-	public Collector<OUT> getOutput() {
+	public Collector<StreamRecord<OUT>> getOutput() {
 		return output;
 	}
 
@@ -113,7 +113,7 @@ public class MockContext<IN, OUT> {
 
 			StreamRecord<IN> nextRecord;
 			while ((nextRecord = mockContext.getIterator().next()) != null) {
-				operator.processElement(nextRecord.getObject());
+				operator.processElement(nextRecord);
 			}
 
 			operator.close();

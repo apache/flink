@@ -37,13 +37,14 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 public class MockCoContext<IN1, IN2, OUT> {
+
 	// private Collection<IN1> input1;
 	// private Collection<IN2> input2;
 	private Iterator<IN1> inputIterator1;
 	private Iterator<IN2> inputIterator2;
 	private List<OUT> outputs;
 
-	private Output<OUT> collector;
+	private Output<StreamRecord<OUT>> collector;
 	private StreamRecordSerializer<IN1> inDeserializer1;
 	private CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> mockIterator;
 	private StreamRecordSerializer<IN2> inDeserializer2;
@@ -58,9 +59,9 @@ public class MockCoContext<IN1, IN2, OUT> {
 		this.inputIterator2 = input2.iterator();
 
 		TypeInformation<IN1> inTypeInfo1 = TypeExtractor.getForObject(input1.iterator().next());
-		inDeserializer1 = new StreamRecordSerializer<IN1>(inTypeInfo1, new ExecutionConfig());
+		inDeserializer1 = new StreamRecordSerializer<IN1>(inTypeInfo1.createSerializer(new ExecutionConfig()));
 		TypeInformation<IN2> inTypeInfo2 = TypeExtractor.getForObject(input2.iterator().next());
-		inDeserializer2 = new StreamRecordSerializer<IN2>(inTypeInfo2, new ExecutionConfig());
+		inDeserializer2 = new StreamRecordSerializer<IN2>(inTypeInfo2.createSerializer(new ExecutionConfig()));
 
 		mockIterator = new MockCoReaderIterator(inDeserializer1, inDeserializer2);
 
@@ -88,8 +89,8 @@ public class MockCoContext<IN1, IN2, OUT> {
 			this.delegate2.setInstance(target2);
 
 			int inputNumber = nextRecord();
-			target1.setObject(reuse1.getObject());
-			target2.setObject(reuse2.getObject());
+			target1.replace(reuse1.getValue());
+			target2.replace(reuse2.getValue());
 
 			return inputNumber;
 		}
@@ -120,14 +121,14 @@ public class MockCoContext<IN1, IN2, OUT> {
 
 	private int next1() {
 		reuse1 = inDeserializer1.createInstance();
-		reuse1.setObject(inputIterator1.next());
+		reuse1.replace(inputIterator1.next());
 		currentInput = 2;
 		return 1;
 	}
 
 	private int next2() {
 		reuse2 = inDeserializer2.createInstance();
-		reuse2.setObject(inputIterator2.next());
+		reuse2.replace(inputIterator2.next());
 		currentInput = 1;
 		return 2;
 	}
@@ -136,7 +137,7 @@ public class MockCoContext<IN1, IN2, OUT> {
 		return outputs;
 	}
 
-	public Output<OUT> getCollector() {
+	public Output<StreamRecord<OUT>> getCollector() {
 		return collector;
 	}
 
@@ -196,10 +197,10 @@ public class MockCoContext<IN1, IN2, OUT> {
 				if (next == 0) {
 					break;
 				} else if (next == 1) {
-					operator.processElement1(reuse1.getObject());
+					operator.processElement1(reuse1);
 					reuse1 = inputDeserializer1.createInstance();
 				} else {
-					operator.processElement2(reuse2.getObject());
+					operator.processElement2(reuse2);
 					reuse2 = inputDeserializer2.createInstance();
 				}
 			}

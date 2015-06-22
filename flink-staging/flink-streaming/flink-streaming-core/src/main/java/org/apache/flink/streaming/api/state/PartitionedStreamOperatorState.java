@@ -81,7 +81,7 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 					return defaultState;
 				}
 			} catch (Exception e) {
-				throw new RuntimeException("User-defined key selector threw an exception.");
+				throw new RuntimeException("User-defined key selector threw an exception.", e);
 			}
 		}
 	}

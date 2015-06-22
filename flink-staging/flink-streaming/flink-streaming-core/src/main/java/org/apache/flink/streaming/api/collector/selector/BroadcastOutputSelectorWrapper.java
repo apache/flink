@@ -21,25 +21,27 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 public class BroadcastOutputSelectorWrapper<OUT> implements OutputSelectorWrapper<OUT> {
 
 	private static final long serialVersionUID = 1L;
-	private List<Collector<OUT>> outputs;
+	private List<Collector<StreamRecord<OUT>>> outputs;
 
 	public BroadcastOutputSelectorWrapper() {
-		outputs = new ArrayList<Collector<OUT>>();
+		outputs = new ArrayList<Collector<StreamRecord<OUT>>>();
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public void addCollector(Collector<?> output, StreamEdge edge) {
-		outputs.add((Collector<OUT>) output);
+	public void addCollector(Collector<StreamRecord<?>> output, StreamEdge edge) {
+		Collector output1 = output;
+		outputs.add((Collector<StreamRecord<OUT>>) output1);
 	}
 
 	@Override
-	public Iterable<Collector<OUT>> getSelectedOutputs(OUT record) {
+	public Iterable<Collector<StreamRecord<OUT>>> getSelectedOutputs(OUT record) {
 		return outputs;
 	}
 }

@@ -44,7 +44,7 @@ import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class WindowIntegrationTest implements Serializable {
+public class WindowingITCase implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 	private static final Integer MEMORYSIZE = 32;

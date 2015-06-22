@@ -28,8 +28,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.collector.CollectorWrapper;
-import org.apache.flink.streaming.api.collector.StreamOutput;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.CollectorWrapper;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -50,11 +51,11 @@ public class OutputHandler<OUT> {
 	private StreamTask<OUT, ?> vertex;
 	private StreamConfig configuration;
 	private ClassLoader cl;
-	private Output<OUT> outerOutput;
+	private Output<StreamRecord<OUT>> outerOutput;
 
 	public List<StreamOperator<?>> chainedOperators;
 
-	private Map<StreamEdge, StreamOutput<?>> outputMap;
+	private Map<StreamEdge, RecordWriterOutput<?>> outputMap;
 
 	private Map<Integer, StreamConfig> chainedConfigs;
 	private List<StreamEdge> outEdgesInOrder;
@@ -65,7 +66,7 @@ public class OutputHandler<OUT> {
 		this.vertex = vertex;
 		this.configuration = new StreamConfig(vertex.getTaskConfiguration());
 		this.chainedOperators = new ArrayList<StreamOperator<?>>();
-		this.outputMap = new HashMap<StreamEdge, StreamOutput<?>>();
+		this.outputMap = new HashMap<StreamEdge, RecordWriterOutput<?>>();
 		this.cl = vertex.getUserCodeClassLoader();
 
 		// We read the chained configs, and the order of record writer
@@ -78,7 +79,7 @@ public class OutputHandler<OUT> {
 		// We iterate through all the out edges from this job vertex and create
 		// a stream output
 		for (StreamEdge outEdge : outEdgesInOrder) {
-			StreamOutput<?> streamOutput = createStreamOutput(
+			RecordWriterOutput<?> streamOutput = createStreamOutput(
 					outEdge,
 					outEdge.getTargetId(),
 					chainedConfigs.get(outEdge.getSourceId()),
@@ -96,12 +97,12 @@ public class OutputHandler<OUT> {
 
 	public void broadcastBarrier(long id, long timestamp) throws IOException, InterruptedException {
 		StreamingSuperstep barrier = new StreamingSuperstep(id, timestamp);
-		for (StreamOutput<?> streamOutput : outputMap.values()) {
+		for (RecordWriterOutput<?> streamOutput : outputMap.values()) {
 			streamOutput.broadcastEvent(barrier);
 		}
 	}
 
-	public Collection<StreamOutput<?>> getOutputs() {
+	public Collection<RecordWriterOutput<?>> getOutputs() {
 		return outputMap.values();
 	}
 	
@@ -121,7 +122,7 @@ public class OutputHandler<OUT> {
 	 * config
 	 */
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	private <X> Output<X> createChainedCollector(StreamConfig chainedTaskConfig) {
+	private <X> Output<StreamRecord<X>> createChainedCollector(StreamConfig chainedTaskConfig) {
 
 
 		// We create a wrapper that will encapsulate the chained operators and
@@ -149,7 +150,7 @@ public class OutputHandler<OUT> {
 		if (chainedTaskConfig.isChainStart()) {
 			// The current task is the first chained task at this vertex so we
 			// return the wrapper
-			return (Output<X>) wrapper;
+			return (Output<StreamRecord<X>>) wrapper;
 		} else {
 			// The current task is a part of the chain so we get the chainable
 			// operator which will be returned and set it up using the wrapper
@@ -163,17 +164,19 @@ public class OutputHandler<OUT> {
 
 			chainedOperators.add(chainableOperator);
 			if (vertex.getExecutionConfig().isObjectReuseEnabled() || chainableOperator.isInputCopyingDisabled()) {
-				return new OperatorCollector<X>(chainableOperator);
+				return new ChainingOutput<X>(chainableOperator);
 			} else {
-				return new CopyingOperatorCollector<X>(
+				StreamRecordSerializer serializerIn1 = chainedTaskConfig.getTypeSerializerIn1(
+						vertex.getUserCodeClassLoader());
+				return new CopyingChainingOutput<X>(
 						chainableOperator,
-						(TypeSerializer<X>) chainedTaskConfig.getTypeSerializerIn1(vertex.getUserCodeClassLoader()).getObjectSerializer());
+						(TypeSerializer<StreamRecord<X>>) serializerIn1);
 			}
 		}
 
 	}
 
-	public Output<OUT> getOutput() {
+	public Output<StreamRecord<OUT>> getOutput() {
 		return outerOutput;
 	}
 
@@ -187,7 +190,7 @@ public class OutputHandler<OUT> {
 	 * 		The config of upStream task
 	 * @return The created StreamOutput
 	 */
-	private <T> StreamOutput<T> createStreamOutput(StreamEdge edge, Integer outputVertex,
+	private <T> RecordWriterOutput<T> createStreamOutput(StreamEdge edge, Integer outputVertex,
 			StreamConfig upStreamConfig, int outputIndex) {
 
 		StreamRecordSerializer<T> outSerializer = upStreamConfig
@@ -207,7 +210,7 @@ public class OutputHandler<OUT> {
 		RecordWriter<SerializationDelegate<StreamRecord<T>>> output =
 				RecordWriterFactory.createRecordWriter(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
 
-		StreamOutput<T> streamOutput = new StreamOutput<T>(output, outSerializationDelegate);
+		RecordWriterOutput<T> streamOutput = new RecordWriterOutput<T>(output, outSerializationDelegate);
 
 		if (LOG.isTraceEnabled()) {
 			LOG.trace("Partitioner set: {} with {} outputs for {}", outputPartitioner.getClass()
@@ -218,27 +221,27 @@ public class OutputHandler<OUT> {
 	}
 
 	public void flushOutputs() throws IOException, InterruptedException {
-		for (StreamOutput<?> streamOutput : getOutputs()) {
+		for (RecordWriterOutput<?> streamOutput : getOutputs()) {
 			streamOutput.close();
 		}
 	}
 
 	public void clearWriters() {
-		for (StreamOutput<?> output : outputMap.values()) {
+		for (RecordWriterOutput<?> output : outputMap.values()) {
 			output.clearBuffers();
 		}
 	}
 
-	private static class OperatorCollector<T> implements Output<T> {
+	private static class ChainingOutput<T> implements Output<StreamRecord<T>> {
+		protected OneInputStreamOperator operator;
 
-		protected OneInputStreamOperator<Object, T> operator;
-
-		public OperatorCollector(OneInputStreamOperator<Object, T> operator) {
+		public ChainingOutput(OneInputStreamOperator<?, T> operator) {
 			this.operator = operator;
 		}
 
 		@Override
-		public void collect(T record) {
+		@SuppressWarnings("unchecked")
+		public void collect(StreamRecord<T> record) {
 			try {
 				operator.getRuntimeContext().setNextInput(record);
 				operator.processElement(record);
@@ -251,7 +254,19 @@ public class OutputHandler<OUT> {
 		}
 
 		@Override
-		public final void close() {
+		public void emitWatermark(Watermark mark) {
+			try {
+				operator.processWatermark(mark);
+			} catch (Exception e) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Could not forward element to operator: {}", e);
+				}
+				throw new RuntimeException(e);
+			}
+		}
+
+		@Override
+		public void close() {
 			try {
 				operator.close();
 			} catch (Exception e) {
@@ -262,17 +277,18 @@ public class OutputHandler<OUT> {
 		}
 	}
 
-	private static class CopyingOperatorCollector<T> extends OperatorCollector<T> {
-		private final TypeSerializer<T> serializer;
+	private static class CopyingChainingOutput<T> extends ChainingOutput<T> {
+		private final TypeSerializer<StreamRecord<T>> serializer;
 
-		@SuppressWarnings({ "rawtypes", "unchecked" })
-		public CopyingOperatorCollector(OneInputStreamOperator operator, TypeSerializer<T> serializer) {
+		public CopyingChainingOutput(OneInputStreamOperator<?, T> operator,
+				TypeSerializer<StreamRecord<T>> serializer) {
 			super(operator);
 			this.serializer = serializer;
 		}
 
 		@Override
-		public void collect(T record) {
+		@SuppressWarnings("unchecked")
+		public void collect(StreamRecord<T> record) {
 			try {
 				operator.processElement(serializer.copy(record));
 			} catch (Exception e) {
