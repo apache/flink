@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -40,9 +41,13 @@ import org.apache.flink.runtime.state.LocalStateHandle.LocalStateHandleProvider;
 import org.apache.flink.runtime.state.PartitionedStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.datastream.KeyedDataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.Test;
 
@@ -91,6 +96,27 @@ public class StatefulOperatorTest {
 		assertEquals("1234578", restoredContext.getOperatorState("concat", "", false).getState());
 		assertEquals((Integer) 7, ((StatefulMapper) restoredMap.getUserFunction()).checkpointedCounter);
 
+	}
+	
+	@Test
+	public void apiTest() throws Exception {
+		StreamExecutionEnvironment env = new TestStreamEnvironment(3, 32);
+		
+		KeyedDataStream<Integer> keyedStream = env.fromCollection(Arrays.asList(0, 1, 2, 3, 4, 5, 6)).keyBy(new ModKey(4));
+		
+		keyedStream.map(new StatefulMapper()).addSink(new SinkFunction<String>() {
+			private static final long serialVersionUID = 1L;
+			public void invoke(String value) throws Exception {}
+		});
+		
+		try {
+			keyedStream.shuffle();
+			fail();
+		} catch (UnsupportedOperationException e) {
+
+		}
+		
+		env.execute();
 	}
 
 	private void processInputs(StreamMap<Integer, ?> map, List<Integer> input) throws Exception {
@@ -171,6 +197,18 @@ public class StatefulOperatorTest {
 				getRuntimeContext().getOperatorState("test", null, true, null);
 				fail();
 			} catch (RuntimeException e){
+			}
+		}
+		
+		@SuppressWarnings({ "rawtypes", "unchecked" })
+		@Override
+		public void close() throws Exception {
+			Map<String, StreamOperatorState> states = ((StreamingRuntimeContext) getRuntimeContext()).getOperatorStates();
+			PartitionedStreamOperatorState<Integer, Integer, Integer> groupCounter = (PartitionedStreamOperatorState<Integer, Integer, Integer>) states.get("groupCounter");
+			for (Entry<Serializable, Integer> count : groupCounter.getPartitionedState().entrySet()) {
+				Integer key = (Integer) count.getKey();
+				Integer expected = key < 3 ? 2 : 1;
+				assertEquals(expected, count.getValue());
 			}
 		}
 

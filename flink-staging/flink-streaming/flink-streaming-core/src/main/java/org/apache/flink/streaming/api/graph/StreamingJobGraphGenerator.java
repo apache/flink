@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -28,6 +29,7 @@ import java.util.Map.Entry;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -268,6 +270,7 @@ public class StreamingJobGraphGenerator {
 		config.setChainedOutputs(chainableOutputs);
 		config.setStateMonitoring(streamGraph.isCheckpointingEnabled());
 		config.setStateHandleProvider(streamGraph.getStateHandleProvider());
+		config.setStatePartitioner((KeySelector<?, Serializable>) vertex.getStatePartitioner());
 
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 

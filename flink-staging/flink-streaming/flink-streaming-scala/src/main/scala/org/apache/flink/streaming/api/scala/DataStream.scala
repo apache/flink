@@ -30,7 +30,8 @@ import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, F
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, GroupedDataStream, SingleOutputStreamOperator}
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, GroupedDataStream, 
+    KeyedDataStream, SingleOutputStreamOperator}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.sink.{FileSinkFunctionByMillis, SinkFunction}
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
@@ -209,6 +210,33 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def connect[T2](dataStream: DataStream[T2]): ConnectedDataStream[T, T2] = 
     javaStream.connect(dataStream.getJavaStream)
 
+
+
+  /**
+   * Partitions the operator states of the DataStream by the given key positions 
+   * (for tuple/array types).
+   */
+  def keyBy(fields: Int*): DataStream[T] = javaStream.keyBy(fields: _*)
+
+  /**
+   *
+   * Partitions the operator states of the DataStream by the given field expressions.
+   */
+  def keyBy(firstField: String, otherFields: String*): DataStream[T] =
+    javaStream.keyBy(firstField +: otherFields.toArray: _*)
+
+
+  /**
+   * Partitions the operator states of the DataStream by the given K key. 
+   */
+  def keyBy[K: TypeInformation](fun: T => K): DataStream[T] = {
+    val cleanFun = clean(fun)
+    val keyExtractor = new KeySelector[T, K] {
+      def getKey(in: T) = cleanFun(in)
+    }
+    javaStream.keyBy(keyExtractor)
+  }
+  
   /**
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations.

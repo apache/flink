@@ -301,16 +301,63 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Groups the elements of a {@link DataStream} by the given key positions to
-	 * be used with grouped operators like
-	 * {@link GroupedDataStream#reduce(ReduceFunction)}</p> This operator also
-	 * affects the partitioning of the stream, by forcing values with the same
-	 * key to go to the same processing instance.
 	 * 
+	 * It creates a new {@link KeyedDataStream} that uses the provided key for partitioning
+	 * its operator states. 
+	 *
+	 * @param key
+	 *            The KeySelector to be used for extracting the key for partitioning
+	 * @return The {@link DataStream} with partitioned state (i.e. KeyedDataStream)
+	 */
+	public KeyedDataStream<OUT> keyBy(KeySelector<OUT,?> key){
+		return new KeyedDataStream<OUT>(this, clean(key));
+	}
+
+	/**
+	 * Partitions the operator state of a {@link DataStream} by the given key positions. 
+	 *
 	 * @param fields
 	 *            The position of the fields on which the {@link DataStream}
 	 *            will be grouped.
-	 * @return The grouped {@link DataStream}
+	 * @return The {@link DataStream} with partitioned state (i.e. KeyedDataStream)
+	 */
+	public KeyedDataStream<OUT> keyBy(int... fields) {
+		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
+			return keyBy(new KeySelectorUtil.ArrayKeySelector<OUT>(fields));
+		} else {
+			return keyBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
+		}
+	}
+
+	/**
+	 * Partitions the operator state of a {@link DataStream}using field expressions. 
+	 * A field expression is either the name of a public field or a getter method with parentheses
+	 * of the {@link DataStream}S underlying type. A dot can be used to drill
+	 * down into objects, as in {@code "field1.getInnerField2()" }.
+	 *
+	 * @param fields
+	 *            One or more field expressions on which the state of the {@link DataStream} operators will be
+	 *            partitioned.
+	 * @return The {@link DataStream} with partitioned state (i.e. KeyedDataStream)
+	 **/
+	public KeyedDataStream<OUT> keyBy(String... fields) {
+		return keyBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
+	}
+
+	private KeyedDataStream<OUT> keyBy(Keys<OUT> keys) {
+		return new KeyedDataStream<OUT>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
+				getType(), getExecutionConfig())));
+	}
+	
+	/**
+	 * Partitions the operator state of a {@link DataStream} by the given key positions. 
+	 * Mind that keyBy does not affect the partitioning of the {@link DataStream}
+	 * but only the way explicit state is partitioned among parallel instances.
+	 * 
+	 * @param fields
+	 *            The position of the fields on which the states of the {@link DataStream}
+	 *            will be partitioned.
+	 * @return The {@link DataStream} with partitioned state (i.e. KeyedDataStream)
 	 */
 	public GroupedDataStream<OUT> groupBy(int... fields) {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
