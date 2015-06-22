@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.WindowedDataStream;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
@@ -67,11 +68,32 @@ public class WindowReducer<IN> extends StreamMap<StreamWindow<IN>, StreamWindow<
 			return outputWindow;
 		}
 
+		// --------------------------------------------------------------------------------------------
+		//  Forwarding calls to the wrapped reducer
+		// --------------------------------------------------------------------------------------------
+
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			FunctionUtils.openFunction(reducer, parameters);
+		}
+
+		@Override
+		public void close() throws Exception {
+			FunctionUtils.closeFunction(reducer);
+		}
+
 		@Override
 		public void setRuntimeContext(RuntimeContext t) {
 			FunctionUtils.setFunctionRuntimeContext(reducer, t);
 		}
 
+		@Override
+		public RuntimeContext getRuntimeContext() {
+			return FunctionUtils.getFunctionRuntimeContext(reducer, getRuntimeContext());
+		}
+
+		// streaming does not use iteration runtime context, so that is omitted
 	}
 
 }
