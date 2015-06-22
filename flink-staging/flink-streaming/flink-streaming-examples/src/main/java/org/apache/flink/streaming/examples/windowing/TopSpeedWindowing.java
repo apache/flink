@@ -61,7 +61,7 @@ public class TopSpeedWindowing {
 			carData = env.addSource(CarSource.create(numOfCars));
 		}
 		DataStream<Tuple4<Integer, Integer, Double, Long>> topSpeeds = carData.groupBy(0)
-				.window(Time.of(evictionSec, new CarTimestamp()))
+				.window(Time.of(evictionSec * 1000, new CarTimestamp()))
 				.every(Delta.of(triggerMeters,
 						new DeltaFunction<Tuple4<Integer, Integer, Double, Long>>() {
 							private static final long serialVersionUID = 1L;
