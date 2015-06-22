@@ -108,7 +108,7 @@ public class ByteValue implements NormalizableKey<ByteValue>, ResettableValue<By
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj instanceof ByteValue) {
+		if (obj != null && obj instanceof ByteValue) {
 			return ((ByteValue) obj).value == this.value;
 		}
 		return false;

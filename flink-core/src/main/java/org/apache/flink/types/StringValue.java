@@ -581,7 +581,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			return true;
 		}
 		
-		if (obj.getClass() == StringValue.class) {
+		if (obj != null && obj.getClass() == StringValue.class) {
 			final StringValue other = (StringValue) obj;
 			int len = this.len;
 			
