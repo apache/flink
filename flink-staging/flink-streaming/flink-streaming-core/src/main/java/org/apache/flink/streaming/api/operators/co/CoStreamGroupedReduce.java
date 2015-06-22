@@ -22,6 +22,7 @@ import java.util.Map;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.functions.co.CoReduceFunction;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public class CoStreamGroupedReduce<IN1, IN2, OUT> extends CoStreamReduce<IN1, IN2, OUT> {
 
@@ -44,30 +45,33 @@ public class CoStreamGroupedReduce<IN1, IN2, OUT> extends CoStreamReduce<IN1, IN
 	}
 
 	@Override
-	public void processElement1(IN1 element) throws Exception {
+	public void processElement1(StreamRecord<IN1> elementRecord) throws Exception {
+		IN1 element = elementRecord.getValue();
 		Object key = keySelector1.getKey(element);
 		currentValue1 = values1.get(key);
 		if (currentValue1 != null) {
 			reduced1 = userFunction.reduce1(currentValue1, element);
 			values1.put(key, reduced1);
-			output.collect(userFunction.map1(reduced1));
+			output.collect(elementRecord.replace(userFunction.map1(reduced1)));
 		} else {
 			values1.put(key, element);
-			output.collect(userFunction.map1(element));
+			output.collect(elementRecord.replace(userFunction.map1(element)));
 		}
 	}
 
 	@Override
-	public void processElement2(IN2 element) throws Exception {
+	public void processElement2(StreamRecord<IN2> elementRecord) throws Exception {
+		IN2 element = elementRecord.getValue();
+
 		Object key = keySelector2.getKey(element);
 		currentValue2 = values2.get(key);
 		if (currentValue2 != null) {
 			reduced2 = userFunction.reduce2(currentValue2, element);
 			values2.put(key, reduced2);
-			output.collect(userFunction.map2(reduced2));
+			output.collect(elementRecord.replace(userFunction.map2(reduced2)));
 		} else {
 			values2.put(key, element);
-			output.collect(userFunction.map2(element));
+			output.collect(elementRecord.replace(userFunction.map2(element)));
 		}
 	}
 }

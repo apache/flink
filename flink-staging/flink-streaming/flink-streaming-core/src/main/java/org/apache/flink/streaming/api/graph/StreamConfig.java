@@ -24,12 +24,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -94,26 +94,26 @@ public class StreamConfig implements Serializable {
 		return config.getString(OPERATOR_NAME, "Missing");
 	}
 
-	public void setTypeSerializerIn1(StreamRecordSerializer<?> serializer) {
+	public void setTypeSerializerIn1(TypeSerializer<?> serializer) {
 		setTypeSerializer(TYPE_SERIALIZER_IN_1, serializer);
 	}
 
-	public void setTypeSerializerIn2(StreamRecordSerializer<?> serializer) {
+	public void setTypeSerializerIn2(TypeSerializer<?> serializer) {
 		setTypeSerializer(TYPE_SERIALIZER_IN_2, serializer);
 	}
 
-	public void setTypeSerializerOut1(StreamRecordSerializer<?> serializer) {
+	public void setTypeSerializerOut1(TypeSerializer<?> serializer) {
 		setTypeSerializer(TYPE_SERIALIZER_OUT_1, serializer);
 	}
 
-	public void setTypeSerializerOut2(StreamRecordSerializer<?> serializer) {
+	public void setTypeSerializerOut2(TypeSerializer<?> serializer) {
 		setTypeSerializer(TYPE_SERIALIZER_OUT_2, serializer);
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> StreamRecordSerializer<T> getTypeSerializerIn1(ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerIn1(ClassLoader cl) {
 		try {
-			return (StreamRecordSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
+			return (TypeSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
 					TYPE_SERIALIZER_IN_1, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate serializer.", e);
@@ -121,9 +121,9 @@ public class StreamConfig implements Serializable {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> StreamRecordSerializer<T> getTypeSerializerIn2(ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerIn2(ClassLoader cl) {
 		try {
-			return (StreamRecordSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
+			return (TypeSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
 					TYPE_SERIALIZER_IN_2, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate serializer.", e);
@@ -131,9 +131,9 @@ public class StreamConfig implements Serializable {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> StreamRecordSerializer<T> getTypeSerializerOut1(ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerOut1(ClassLoader cl) {
 		try {
-			return (StreamRecordSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
+			return (TypeSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
 					TYPE_SERIALIZER_OUT_1, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate serializer.", e);
@@ -141,16 +141,16 @@ public class StreamConfig implements Serializable {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> StreamRecordSerializer<T> getTypeSerializerOut2(ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerOut2(ClassLoader cl) {
 		try {
-			return (StreamRecordSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
+			return (TypeSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
 					TYPE_SERIALIZER_OUT_2, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate serializer.", e);
 		}
 	}
 
-	private void setTypeSerializer(String key, StreamRecordSerializer<?> typeWrapper) {
+	private void setTypeSerializer(String key, TypeSerializer<?> typeWrapper) {
 		try {
 			InstantiationUtil.writeObjectToConfig(typeWrapper, this.config, key);
 		} catch (IOException e) {

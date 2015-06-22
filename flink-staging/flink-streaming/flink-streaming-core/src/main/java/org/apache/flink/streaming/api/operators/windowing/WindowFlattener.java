@@ -19,7 +19,9 @@ package org.apache.flink.streaming.api.operators.windowing;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * This operator flattens the results of the window transformations by
@@ -36,9 +38,14 @@ public class WindowFlattener<T> extends AbstractStreamOperator<T>
 	}
 
 	@Override
-	public void processElement(StreamWindow<T> window) throws Exception {
-		for (T element : window) {
-			output.collect(element);
+	public void processElement(StreamRecord<StreamWindow<T>> window) throws Exception {
+		for (T element : window.getValue()) {
+			output.collect(new StreamRecord<T>(element));
 		}
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
 	}
 }

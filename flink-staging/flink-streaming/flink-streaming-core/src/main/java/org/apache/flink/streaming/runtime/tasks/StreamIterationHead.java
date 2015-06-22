@@ -25,9 +25,10 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
-import org.apache.flink.streaming.api.collector.StreamOutput;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,7 +77,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 			LOG.debug("Iteration source {} invoked", getName());
 		}
 
-		Collection<StreamOutput<?>> outputs = outputHandler.getOutputs();
+		Collection<RecordWriterOutput<?>> outputs = outputHandler.getOutputs();
 
 		try {
 			StreamRecord<OUT> nextRecord;
@@ -90,8 +91,8 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 				if (nextRecord == null) {
 					break;
 				}
-				for (StreamOutput<?> output : outputs) {
-					((StreamOutput<OUT>) output).collect(nextRecord.getObject());
+				for (RecordWriterOutput<?> output : outputs) {
+					((RecordWriterOutput<OUT>) output).collect(nextRecord);
 				}
 			}
 

@@ -20,6 +20,9 @@ package org.apache.flink.streaming.runtime.tasks;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.StringUtils;
@@ -43,6 +46,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 	@Override
 	public void registerInputOutput() {
 		super.registerInputOutput();
+
 		try {
 			iterationId = configuration.getIterationId();
 			iterationWaitTime = configuration.getIterationWaitTime();
@@ -53,59 +57,33 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 			throw new StreamTaskException(String.format(
 					"Cannot register inputs of StreamIterationSink %s", iterationId), e);
 		}
+		this.streamOperator = new RecordPusher();
 	}
 
-	@Override
-	public void invoke() throws Exception {
-		isRunning = true;
-		
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Iteration sink {} invoked", getName());
-		}
+	class RecordPusher extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
+		private static final long serialVersionUID = 1L;
 
-		try {
-			forwardRecords();
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Iteration sink {} invoke finished", getName());
-			}
-		}
-		catch (Exception e) {
-			LOG.error("Iteration tail " + getEnvironment().getTaskNameWithSubtasks() + " failed", e);
-			throw e;
-		}
-		finally {
-			// Cleanup
-			isRunning = false;
-			clearBuffers();
-		}
-	}
-
-	protected void forwardRecords() throws Exception {
-		StreamRecord<IN> reuse = inSerializer.createInstance();
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			if (!pushToQueue(reuse)) {
-				break;
-			}
-			reuse = inSerializer.createInstance();
-		}
-	}
-
-	private boolean pushToQueue(StreamRecord<IN> record) throws InterruptedException {
-		try {
-			if (shouldWait) {
-				return dataChannel.offer(record, iterationWaitTime, TimeUnit.MILLISECONDS);
-			} else {
-				dataChannel.put(record);
-				return true;
-			}
-		} catch (InterruptedException e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Pushing back record at iteration %s failed due to: {}", iterationId,
-						StringUtils.stringifyException(e));
+		@Override
+		public void processElement(StreamRecord<IN> record) throws Exception {
+			try {
+				if (shouldWait) {
+					dataChannel.offer(record, iterationWaitTime, TimeUnit.MILLISECONDS);
+				} else {
+					dataChannel.put(record);
+				}
+			} catch (InterruptedException e) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Pushing back record at iteration %s failed due to: {}", iterationId,
+							StringUtils.stringifyException(e));
+				}
 				throw e;
 			}
-			return false;
+		}
+
+		@Override
+		public void processWatermark(Watermark mark) throws Exception {
+			// ignore
 		}
 	}
+
 }

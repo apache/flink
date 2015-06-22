@@ -89,6 +89,10 @@ public class ExecutionConfig implements Serializable {
 
 	private GlobalJobParameters globalJobParameters = null;
 
+	private long autoWatermarkInterval = 0;
+
+	private boolean timestampsEnabled = false;
+
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in lists to ensure they are registered in order in all kryo instances.
 
@@ -138,6 +142,62 @@ public class ExecutionConfig implements Serializable {
 	 */
 	public boolean isClosureCleanerEnabled() {
 		return useClosureCleaner;
+	}
+
+	/**
+	 * Sets the interval of the automatic watermark emission. Watermaks are used throughout
+	 * the streaming system to keep track of the progress of time. They are used, for example,
+	 * for time based windowing.
+	 *
+	 * @param interval The interval between watermarks in milliseconds.
+	 */
+	public ExecutionConfig setAutoWatermarkInterval(long interval) {
+		this.autoWatermarkInterval = interval;
+		return this;
+	}
+
+	/**
+	 * Enables streaming timestamps. When this is enabled all records that are emitted
+	 * from a source have a timestamp attached. This is required if a topology contains
+	 * operations that rely on watermarks and timestamps to perform operations, such as
+	 * event-time windows.
+	 *
+	 * <p>
+	 * This is automatically enabled if you enable automatic watermarks.
+	 *
+	 * @see #setAutoWatermarkInterval(long)
+	 */
+	public ExecutionConfig enableTimestamps() {
+		this.timestampsEnabled = true;
+		return this;
+	}
+
+	/**
+	 * Disables streaming timestamps.
+	 *
+	 * @see #enableTimestamps()
+	 */
+	public ExecutionConfig disableTimestamps() {
+		this.timestampsEnabled = false;
+		return this;
+	}
+
+	/**
+	 * Returns true when timestamps are enabled.
+	 *
+	 * @see #enableTimestamps()
+	 */
+	public boolean areTimestampsEnabled() {
+		return timestampsEnabled;
+	}
+
+	/**
+	 * Returns the interval of the automatic watermark emission.
+	 *
+	 * @see #setAutoWatermarkInterval(long)
+	 */
+	public long getAutoWatermarkInterval()  {
+		return this.autoWatermarkInterval;
 	}
 
 	/**
@@ -637,6 +697,8 @@ public class ExecutionConfig implements Serializable {
 	 * getRuntimeContext().getExecutionConfig().getUserConfig()
 	 */
 	public static class GlobalJobParameters implements Serializable {
+		private static final long serialVersionUID = 1L;
+
 		/**
 		 * Convert UserConfig into a Map<String, String> representation.
 		 * This can be used by the runtime, for example for presenting the user config in the web frontend.

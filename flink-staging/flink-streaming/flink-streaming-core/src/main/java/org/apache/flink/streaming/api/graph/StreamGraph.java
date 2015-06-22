@@ -34,6 +34,7 @@ import java.util.Set;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
@@ -49,7 +50,6 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
@@ -168,12 +168,9 @@ public class StreamGraph extends StreamingPlan {
 			addNode(vertexID, OneInputStreamTask.class, operatorObject, operatorName);
 		}
 
-		StreamRecordSerializer<IN> inSerializer = inTypeInfo != null ? new StreamRecordSerializer<IN>(
-				inTypeInfo, executionConfig) : null;
+		TypeSerializer<IN> inSerializer = inTypeInfo != null && !(inTypeInfo instanceof MissingTypeInfo) ? inTypeInfo.createSerializer(executionConfig) : null;
 
-		StreamRecordSerializer<OUT> outSerializer = (outTypeInfo != null)
-				&& !(outTypeInfo instanceof MissingTypeInfo) ? new StreamRecordSerializer<OUT>(
-				outTypeInfo, executionConfig) : null;
+		TypeSerializer<OUT> outSerializer = outTypeInfo != null && !(outTypeInfo instanceof MissingTypeInfo) ? outTypeInfo.createSerializer(executionConfig) : null;
 
 		setSerializers(vertexID, inSerializer, null, outSerializer);
 
@@ -183,18 +180,15 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public <IN1, IN2, OUT> void addCoOperator(Integer vertexID,
-			TwoInputStreamOperator<IN1, IN2, OUT> taskoperatorObject,
-			TypeInformation<IN1> in1TypeInfo, TypeInformation<IN2> in2TypeInfo,
-			TypeInformation<OUT> outTypeInfo, String operatorName) {
+			TwoInputStreamOperator<IN1, IN2, OUT> taskoperatorObject, TypeInformation<IN1> in1TypeInfo,
+			TypeInformation<IN2> in2TypeInfo, TypeInformation<OUT> outTypeInfo, String operatorName) {
 
 		addNode(vertexID, TwoInputStreamTask.class, taskoperatorObject, operatorName);
 
-		StreamRecordSerializer<OUT> outSerializer = (outTypeInfo != null)
-				&& !(outTypeInfo instanceof MissingTypeInfo) ? new StreamRecordSerializer<OUT>(
-				outTypeInfo, executionConfig) : null;
+		TypeSerializer<OUT> outSerializer = (outTypeInfo != null) && !(outTypeInfo instanceof MissingTypeInfo) ?
+				outTypeInfo.createSerializer(executionConfig) : null;
 
-		setSerializers(vertexID, new StreamRecordSerializer<IN1>(in1TypeInfo, executionConfig),
-				new StreamRecordSerializer<IN2>(in2TypeInfo, executionConfig), outSerializer);
+		setSerializers(vertexID, in1TypeInfo.createSerializer(executionConfig), in2TypeInfo.createSerializer(executionConfig), outSerializer);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CO-TASK: {}", vertexID);
@@ -316,8 +310,7 @@ public class StreamGraph extends StreamingPlan {
 						// We set the proper serializers for the sink/source
 						setSerializersFrom(tailOps.get(0).getId(), sink.getId());
 						if (loop.isCoIteration()) {
-							source.setSerializerOut(new StreamRecordSerializer(loop
-									.getFeedbackType(), executionConfig));
+							source.setSerializerOut(loop.getFeedbackType().createSerializer(executionConfig));
 						} else {
 							setSerializersFrom(headOpsInGroup.get(0).getId(), source.getId());
 						}
@@ -430,8 +423,7 @@ public class StreamGraph extends StreamingPlan {
 		getStreamNode(vertexID).setBufferTimeout(bufferTimeout);
 	}
 
-	private void setSerializers(Integer vertexID, StreamRecordSerializer<?> in1,
-			StreamRecordSerializer<?> in2, StreamRecordSerializer<?> out) {
+	private void setSerializers(Integer vertexID, TypeSerializer<?> in1, TypeSerializer<?> in2, TypeSerializer<?> out) {
 		StreamNode vertex = getStreamNode(vertexID);
 		vertex.setSerializerIn1(in1);
 		vertex.setSerializerIn2(in2);
@@ -447,9 +439,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public <OUT> void setOutType(Integer vertexID, TypeInformation<OUT> outType) {
-		StreamRecordSerializer<OUT> serializer = new StreamRecordSerializer<OUT>(outType,
-				executionConfig);
-		getStreamNode(vertexID).setSerializerOut(serializer);
+		getStreamNode(vertexID).setSerializerOut(outType.createSerializer(executionConfig));
 	}
 
 	public <IN, OUT> void setOperator(Integer vertexID, StreamOperator<OUT> operatorObject) {

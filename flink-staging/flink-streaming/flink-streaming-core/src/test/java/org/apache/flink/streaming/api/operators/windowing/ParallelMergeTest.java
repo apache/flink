@@ -25,10 +25,9 @@ import java.util.List;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.operators.windowing.ParallelGroupedMerge;
-import org.apache.flink.streaming.api.operators.windowing.ParallelMerge;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
-import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestCollector;
+import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestOutput;
 import org.junit.Test;
 
 public class ParallelMergeTest {
@@ -45,37 +44,38 @@ public class ParallelMergeTest {
 			}
 		};
 
-		TestCollector<StreamWindow<Integer>> out = new TestCollector<StreamWindow<Integer>>();
-		List<StreamWindow<Integer>> output = out.getCollected();
+		TestOutput<StreamWindow<Integer>> output = new TestOutput<StreamWindow<Integer>>();
+		TimestampedCollector<StreamWindow<Integer>> collector = new TimestampedCollector<StreamWindow<Integer>>(output);
+		List<StreamWindow<Integer>> result = output.getCollected();
 
 		ParallelMerge<Integer> merger = new ParallelMerge<Integer>(reducer);
 		merger.numberOfDiscretizers = 2;
 
-		merger.flatMap1(createTestWindow(1), out);
-		merger.flatMap1(createTestWindow(1), out);
-		merger.flatMap2(new Tuple2<Integer, Integer>(1, 1), out);
-		assertTrue(output.isEmpty());
-		merger.flatMap2(new Tuple2<Integer, Integer>(1, 1), out);
-		assertEquals(StreamWindow.fromElements(2), output.get(0));
+		merger.flatMap1(createTestWindow(1), collector);
+		merger.flatMap1(createTestWindow(1), collector);
+		merger.flatMap2(new Tuple2<Integer, Integer>(1, 1), collector);
+		assertTrue(result.isEmpty());
+		merger.flatMap2(new Tuple2<Integer, Integer>(1, 1), collector);
+		assertEquals(StreamWindow.fromElements(2), result.get(0));
 
-		merger.flatMap2(new Tuple2<Integer, Integer>(2, 2), out);
-		merger.flatMap1(createTestWindow(2), out);
-		merger.flatMap1(createTestWindow(2), out);
-		merger.flatMap2(new Tuple2<Integer, Integer>(2, 1), out);
-		assertEquals(1, output.size());
-		merger.flatMap1(createTestWindow(2), out);
-		assertEquals(StreamWindow.fromElements(3), output.get(1));
+		merger.flatMap2(new Tuple2<Integer, Integer>(2, 2), collector);
+		merger.flatMap1(createTestWindow(2), collector);
+		merger.flatMap1(createTestWindow(2), collector);
+		merger.flatMap2(new Tuple2<Integer, Integer>(2, 1), collector);
+		assertEquals(1, result.size());
+		merger.flatMap1(createTestWindow(2), collector);
+		assertEquals(StreamWindow.fromElements(3), result.get(1));
 
 		// check error handling
-		merger.flatMap1(createTestWindow(3), out);
-		merger.flatMap2(new Tuple2<Integer, Integer>(3, 1), out);
-		merger.flatMap2(new Tuple2<Integer, Integer>(3, 1), out);
+		merger.flatMap1(createTestWindow(3), collector);
+		merger.flatMap2(new Tuple2<Integer, Integer>(3, 1), collector);
+		merger.flatMap2(new Tuple2<Integer, Integer>(3, 1), collector);
 
-		merger.flatMap2(new Tuple2<Integer, Integer>(4, 1), out);
-		merger.flatMap2(new Tuple2<Integer, Integer>(4, 1), out);
-		merger.flatMap1(createTestWindow(4), out);
+		merger.flatMap2(new Tuple2<Integer, Integer>(4, 1), collector);
+		merger.flatMap2(new Tuple2<Integer, Integer>(4, 1), collector);
+		merger.flatMap1(createTestWindow(4), collector);
 		try {
-			merger.flatMap1(createTestWindow(4), out);
+			merger.flatMap1(createTestWindow(4), collector);
 			fail();
 		} catch (RuntimeException e) {
 			// Do nothing
@@ -83,12 +83,12 @@ public class ParallelMergeTest {
 
 		ParallelMerge<Integer> merger2 = new ParallelMerge<Integer>(reducer);
 		merger2.numberOfDiscretizers = 2;
-		merger2.flatMap1(createTestWindow(0), out);
-		merger2.flatMap1(createTestWindow(1), out);
-		merger2.flatMap1(createTestWindow(1), out);
-		merger2.flatMap2(new Tuple2<Integer, Integer>(1, 1), out);
+		merger2.flatMap1(createTestWindow(0), collector);
+		merger2.flatMap1(createTestWindow(1), collector);
+		merger2.flatMap1(createTestWindow(1), collector);
+		merger2.flatMap2(new Tuple2<Integer, Integer>(1, 1), collector);
 		try {
-			merger2.flatMap2(new Tuple2<Integer, Integer>(1, 1), out);
+			merger2.flatMap2(new Tuple2<Integer, Integer>(1, 1), collector);
 			fail();
 		} catch (RuntimeException e) {
 			// Do nothing
@@ -99,18 +99,19 @@ public class ParallelMergeTest {
 	@Test
 	public void groupedTest() throws Exception {
 
-		TestCollector<StreamWindow<Integer>> out = new TestCollector<StreamWindow<Integer>>();
-		List<StreamWindow<Integer>> output = out.getCollected();
+		TestOutput<StreamWindow<Integer>> output = new TestOutput<StreamWindow<Integer>>();
+		TimestampedCollector<StreamWindow<Integer>> collector = new TimestampedCollector<StreamWindow<Integer>>(output);
+		List<StreamWindow<Integer>> result = output.getCollected();
 
 		ParallelMerge<Integer> merger = new ParallelGroupedMerge<Integer>();
 		merger.numberOfDiscretizers = 2;
 
-		merger.flatMap1(createTestWindow(1), out);
-		merger.flatMap1(createTestWindow(1), out);
-		merger.flatMap2(new Tuple2<Integer, Integer>(1, 1), out);
-		assertTrue(output.isEmpty());
-		merger.flatMap2(new Tuple2<Integer, Integer>(1, 1), out);
-		assertEquals(StreamWindow.fromElements(1, 1), output.get(0));
+		merger.flatMap1(createTestWindow(1), collector);
+		merger.flatMap1(createTestWindow(1), collector);
+		merger.flatMap2(new Tuple2<Integer, Integer>(1, 1), collector);
+		assertTrue(result.isEmpty());
+		merger.flatMap2(new Tuple2<Integer, Integer>(1, 1), collector);
+		assertEquals(StreamWindow.fromElements(1, 1), result.get(0));
 	}
 
 	private StreamWindow<Integer> createTestWindow(Integer id) {

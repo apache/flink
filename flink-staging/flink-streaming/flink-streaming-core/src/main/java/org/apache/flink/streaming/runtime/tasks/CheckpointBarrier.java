@@ -24,14 +24,28 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.task.TaskEvent;
 
-public class StreamingSuperstep extends TaskEvent {
+/**
+ * Checkpoint barriers are used to synchronize checkpoints throughout the streaming topology. The
+ * barriers are emitted by the sources when instructed to do so by the JobManager. When
+ * operators receive a {@link CheckpointBarrier} on one of its inputs it must block processing
+ * of further elements on this input until all inputs received the checkpoint barrier
+ * corresponding to to that checkpoint. Once all inputs received the checkpoint barrier for
+ * a checkpoint the operator is to perform the checkpoint and then broadcast the barrier to
+ * downstream operators.
+ *
+ * <p>
+ * The checkpoint barrier IDs are advancing. Once an operator receives a {@link CheckpointBarrier}
+ * for a checkpoint with a higher id it is to discard all barriers that it received from previous
+ * checkpoints and unblock all other inputs.
+ */
+public class CheckpointBarrier extends TaskEvent {
 
 	protected long id;
 	protected long timestamp;
 
-	public StreamingSuperstep() {}
+	public CheckpointBarrier() {}
 
-	public StreamingSuperstep(long id, long timestamp) {
+	public CheckpointBarrier(long id, long timestamp) {
 		this.id = id;
 		this.timestamp = timestamp;
 	}
@@ -67,17 +81,17 @@ public class StreamingSuperstep extends TaskEvent {
 
 	@Override
 	public boolean equals(Object other) {
-		if (other == null || !(other instanceof StreamingSuperstep)) {
+		if (other == null || !(other instanceof CheckpointBarrier)) {
 			return false;
 		}
 		else {
-			StreamingSuperstep that = (StreamingSuperstep) other;
+			CheckpointBarrier that = (CheckpointBarrier) other;
 			return that.id == this.id && that.timestamp == this.timestamp;
 		}
 	}
 
 	@Override
 	public String toString() {
-		return String.format("StreamingSuperstep %d @ %d", id, timestamp);
+		return String.format("CheckpointBarrier %d @ %d", id, timestamp);
 	}
 }

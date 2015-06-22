@@ -24,8 +24,10 @@ import java.util.List;
 import org.apache.commons.math.util.MathUtils;
 import org.apache.flink.streaming.api.functions.co.CoWindowFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.state.CircularFifoList;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -47,6 +49,12 @@ public class CoStreamWindow<IN1, IN2, OUT>
 	protected long startTime;
 	protected long nextRecordTime;
 
+	// We keep track of watermarks from both inputs, the combined input is the minimum
+	// Once the minimum advances we emit a new watermark for downstream operators
+	private long combinedWatermark = Long.MIN_VALUE;
+	private long input1Watermark = Long.MAX_VALUE;
+	private long input2Watermark = Long.MAX_VALUE;
+
 	public CoStreamWindow(CoWindowFunction<IN1, IN2, OUT> coWindowFunction, long windowSize,
 			long slideInterval, TimestampWrapper<IN1> timeStamp1, TimestampWrapper<IN2> timeStamp2) {
 		super(coWindowFunction);
@@ -62,13 +70,13 @@ public class CoStreamWindow<IN1, IN2, OUT>
 	}
 
 	@Override
-	public void processElement1(IN1 element) throws Exception {
-		window.addToBuffer1(element);
+	public void processElement1(StreamRecord<IN1> element) throws Exception {
+		window.addToBuffer1(element.getValue());
 	}
 
 	@Override
-	public void processElement2(IN2 element) throws Exception {
-		window.addToBuffer2(element);
+	public void processElement2(StreamRecord<IN2> element) throws Exception {
+		window.addToBuffer2(element.getValue());
 	}
 
 	@SuppressWarnings("unchecked")
@@ -86,8 +94,30 @@ public class CoStreamWindow<IN1, IN2, OUT>
 			second.add(element);
 		}
 
+		TimestampedCollector<OUT> timestampedCollector = new TimestampedCollector<OUT>(output);
+		timestampedCollector.setTimestamp(System.currentTimeMillis());
 		if (!window.circularList1.isEmpty() || !window.circularList2.isEmpty()) {
-			userFunction.coWindow(first, second, output);
+			userFunction.coWindow(first, second, timestampedCollector);
+		}
+	}
+
+	@Override
+	public void processWatermark1(Watermark mark) throws Exception {
+		input1Watermark = mark.getTimestamp();
+		long newMin = Math.min(input1Watermark, input2Watermark);
+		if (newMin > combinedWatermark && input1Watermark != Long.MAX_VALUE && input2Watermark != Long.MAX_VALUE) {
+			combinedWatermark = newMin;
+			output.emitWatermark(new Watermark(combinedWatermark));
+		}
+	}
+
+	@Override
+	public void processWatermark2(Watermark mark) throws Exception {
+		input2Watermark = mark.getTimestamp();
+		long newMin = Math.min(input1Watermark, input2Watermark);
+		if (newMin > combinedWatermark && input1Watermark != Long.MAX_VALUE && input2Watermark != Long.MAX_VALUE) {
+			combinedWatermark = newMin;
+			output.emitWatermark(new Watermark(combinedWatermark));
 		}
 	}
 

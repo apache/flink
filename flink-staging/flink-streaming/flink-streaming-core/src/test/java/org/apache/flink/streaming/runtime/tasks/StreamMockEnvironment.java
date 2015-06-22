@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.event.task.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -36,7 +37,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
@@ -45,8 +45,6 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.types.Record;
-import org.apache.flink.util.MutableObjectIterator;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -54,6 +52,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.Future;
 
 import static org.junit.Assert.fail;
@@ -87,9 +86,9 @@ public class StreamMockEnvironment implements Environment {
 
 	private final int bufferSize;
 
-	public StreamMockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
-		this.jobConfiguration = new Configuration();
-		this.taskConfiguration = new Configuration();
+	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
+		this.jobConfiguration = jobConfig;
+		this.taskConfiguration = taskConfig;
 		this.inputs = new LinkedList<InputGate>();
 		this.outputs = new LinkedList<ResultPartitionWriter>();
 
@@ -101,20 +100,11 @@ public class StreamMockEnvironment implements Environment {
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
 	}
 
-	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
-		try {
-			final IteratorWrappingTestSingleInputGate<Record> reader = new IteratorWrappingTestSingleInputGate<Record>(bufferSize, Record.class, inputIterator);
-
-			inputs.add(reader.getInputGate());
-
-			return reader;
-		}
-		catch (Throwable t) {
-			throw new RuntimeException("Error setting up mock readers: " + t.getMessage(), t);
-		}
+	public void addInputGate(InputGate gate) {
+		inputs.add(gate);
 	}
 
-	public <T> void addOutput(final List<T> outputList, final TypeSerializer<T> serializer) {
+	public <T> void addOutput(final Queue<Object> outputList, final TypeSerializer<T> serializer) {
 		try {
 			// The record-oriented writers wrap the buffer writer. We mock it
 			// to collect the returned buffers and deserialize the content to
@@ -160,6 +150,29 @@ public class StreamMockEnvironment implements Environment {
 					return null;
 				}
 			}).when(mockWriter).writeBuffer(any(Buffer.class), anyInt());
+
+			// Add events to the output list
+			doAnswer(new Answer<Void>() {
+
+				@Override
+				public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
+					AbstractEvent event = (AbstractEvent) invocationOnMock.getArguments()[0];
+
+					outputList.add(event);
+					return null;
+				}
+			}).when(mockWriter).writeEvent(any(AbstractEvent.class), anyInt());
+
+			doAnswer(new Answer<Void>() {
+
+				@Override
+				public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
+					AbstractEvent event = (AbstractEvent) invocationOnMock.getArguments()[0];
+
+					outputList.add(event);
+					return null;
+				}
+			}).when(mockWriter).writeEventToAllChannels(any(AbstractEvent.class));
 
 			outputs.add(mockWriter);
 		}

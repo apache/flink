@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * This operator represents the grouped discretization step of a window
@@ -67,9 +68,10 @@ public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 	}
 
 	@Override
-	public void processElement(IN element) throws Exception {
+	public void processElement(StreamRecord<IN> element) throws Exception {
 
-			Object key = keySelector.getKey(element);
+
+			Object key = keySelector.getKey(element.getValue());
 
 			StreamDiscretizer<IN> groupDiscretizer = groupedDiscretizers.get(key);
 

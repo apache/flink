@@ -26,7 +26,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
-import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestCollector;
+import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestOutput;
 import org.junit.Test;
 
 public class SlidingCountPreReducerTest {
@@ -37,7 +37,7 @@ public class SlidingCountPreReducerTest {
 
 	@Test
 	public void testPreReduce1() throws Exception {
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 
 		SlidingCountPreReducer<Integer> preReducer = new SlidingCountPreReducer<Integer>(reducer,
 				serializer, 3, 2, 0);
@@ -80,7 +80,7 @@ public class SlidingCountPreReducerTest {
 
 	@Test
 	public void testPreReduce2() throws Exception {
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 
 		SlidingCountPreReducer<Integer> preReducer = new SlidingCountPreReducer<Integer>(reducer,
 				serializer, 5, 2, 0);
@@ -122,7 +122,7 @@ public class SlidingCountPreReducerTest {
 
 	@Test
 	public void testPreReduce3() throws Exception {
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 
 		SlidingCountPreReducer<Integer> preReducer = new SlidingCountPreReducer<Integer>(reducer,
 				serializer, 6, 3, 0);
@@ -159,7 +159,7 @@ public class SlidingCountPreReducerTest {
 
 	@Test
 	public void testPreReduce4() throws Exception {
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 
 		SlidingCountPreReducer<Integer> preReducer = new SlidingCountPreReducer<Integer>(reducer,
 				serializer, 5, 1, 2);

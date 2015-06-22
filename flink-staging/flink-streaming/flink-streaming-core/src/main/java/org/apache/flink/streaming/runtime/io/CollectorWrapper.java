@@ -15,29 +15,45 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.collector;
+package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
-public class CollectorWrapper<OUT> implements Output<OUT> {
+import java.util.ArrayList;
+import java.util.List;
+
+public class CollectorWrapper<OUT> implements Output<StreamRecord<OUT>> {
 
 	private OutputSelectorWrapper<OUT> outputSelectorWrapper;
 
+	private List<Output<OUT>> allOutputs;
+
 	public CollectorWrapper(OutputSelectorWrapper<OUT> outputSelectorWrapper) {
 		this.outputSelectorWrapper = outputSelectorWrapper;
+		allOutputs = new ArrayList<Output<OUT>>();
 	}
 
-	public void addCollector(Collector<?> output, StreamEdge edge) {
+	public void addCollector(Collector<StreamRecord<?>> output, StreamEdge edge) {
 		outputSelectorWrapper.addCollector(output, edge);
+		allOutputs.add((Output) output);
 	}
 
 	@Override
-	public void collect(OUT record) {
-		for (Collector<OUT> output : outputSelectorWrapper.getSelectedOutputs(record)) {
+	public void collect(StreamRecord<OUT> record) {
+		for (Collector<StreamRecord<OUT>> output : outputSelectorWrapper.getSelectedOutputs(record.getValue())) {
 			output.collect(record);
+		}
+	}
+
+	@Override
+	public void emitWatermark(Watermark mark) {
+		for (Output<OUT> output : allOutputs) {
+			output.emitWatermark(mark);
 		}
 	}
 

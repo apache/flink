@@ -22,7 +22,9 @@ import java.util.Map;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * This operator merges together the different partitions of the
@@ -44,7 +46,8 @@ public class WindowMerger<T> extends AbstractStreamOperator<StreamWindow<T>>
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void processElement(StreamWindow<T> nextWindow) throws Exception {
+	public void processElement(StreamRecord<StreamWindow<T>> nextWindowRecord) throws Exception {
+		StreamWindow<T> nextWindow = nextWindowRecord.getValue();
 
 		StreamWindow<T> current = windows.get(nextWindow.windowID);
 
@@ -55,10 +58,16 @@ public class WindowMerger<T> extends AbstractStreamOperator<StreamWindow<T>>
 		}
 
 		if (current.numberOfParts == 1) {
-			output.collect(current);
+			nextWindowRecord.replace(current);
+			output.collect(nextWindowRecord);
 			windows.remove(nextWindow.windowID);
 		} else {
 			windows.put(nextWindow.windowID, current);
 		}
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
 	}
 }

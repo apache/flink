@@ -19,9 +19,11 @@ package org.apache.flink.streaming.api.operators.windowing;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.WindowEvent;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * This operator manages the window buffers attached to the discretizers.
@@ -41,8 +43,8 @@ public class StreamWindowBuffer<T>
 	}
 
 	@Override
-	public void processElement(WindowEvent<T> windowEvent) throws Exception {
-		handleWindowEvent(windowEvent);
+	public void processElement(StreamRecord<WindowEvent<T>> windowEvent) throws Exception {
+		handleWindowEvent(windowEvent.getValue());
 	}
 
 	protected void handleWindowEvent(WindowEvent<T> windowEvent, WindowBuffer<T> buffer)
@@ -60,4 +62,8 @@ public class StreamWindowBuffer<T>
 		handleWindowEvent(windowEvent, buffer);
 	}
 
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
+	}
 }

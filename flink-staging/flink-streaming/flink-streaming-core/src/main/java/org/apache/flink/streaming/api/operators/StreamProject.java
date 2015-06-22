@@ -20,6 +20,8 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public class StreamProject<IN, OUT extends Tuple>
 		extends AbstractStreamOperator<OUT>
@@ -43,16 +45,21 @@ public class StreamProject<IN, OUT extends Tuple>
 
 
 	@Override
-	public void processElement(IN element) throws Exception {
+	public void processElement(StreamRecord<IN> element) throws Exception {
 		for (int i = 0; i < this.numFields; i++) {
-			outTuple.setField(((Tuple) element).getField(fields[i]), i);
+			outTuple.setField(((Tuple) element.getValue()).getField(fields[i]), i);
 		}
-		output.collect(outTuple);
+		output.collect(element.replace(outTuple));
 	}
 
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
 		outTuple = outSerializer.createInstance();
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
 	}
 }

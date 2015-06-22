@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 
 import java.util.List;
 
@@ -60,7 +61,22 @@ public class ListSourceContext<T> implements SourceFunction.SourceContext<T> {
 	}
 
 	@Override
+	public void collectWithTimestamp(T element, long timestamp) {
+		target.add(element);
+	}
+
+	@Override
+	public void emitWatermark(Watermark mark) {
+		// don't do anything
+	}
+
+	@Override
 	public Object getCheckpointLock() {
 		return lock;
+	}
+
+	@Override
+	public void close() {
+
 	}
 }
