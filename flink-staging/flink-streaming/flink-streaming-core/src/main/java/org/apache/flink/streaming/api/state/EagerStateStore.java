@@ -87,5 +87,10 @@ public class EagerStateStore<S, C extends Serializable> implements PartitionedSt
 	public void setCheckPointer(StateCheckpointer<S, C> checkpointer) {
 		this.checkpointer = checkpointer;
 	}
+	
+	@Override
+	public String toString() {
+		return fetchedState.toString();
+	}
 
 }

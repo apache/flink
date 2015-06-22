@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -192,7 +193,7 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 		}
 		
 		@Override
-		public void open(Configuration conf){
+		public void open(Configuration conf) throws IOException{
 			state = getRuntimeContext().getOperatorState("state", 1, false, this);
 		}
 

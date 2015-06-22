@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions.util;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
@@ -175,13 +176,13 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	
 	@Override
 	public <S, C extends Serializable> OperatorState<S> getOperatorState(String name,
-			S defaultState, boolean partitioned, StateCheckpointer<S, C> checkpointer) {
+			S defaultState, boolean partitioned, StateCheckpointer<S, C> checkpointer) throws IOException {
 	throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
 	}
 
 	@Override
 	public <S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
-			boolean partitioned) {
+			boolean partitioned) throws IOException{
 	throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
 	}
 }

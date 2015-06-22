@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.state;
 
+import java.io.IOException;
+
 import org.apache.flink.api.common.functions.MapFunction;
 
 /**
@@ -45,8 +47,10 @@ public interface OperatorState<T> {
 	 * independent state for each partition.
 	 * 
 	 * @return The operator state corresponding to the current input.
+	 * 
+	 * @throws IOException Thrown if the system cannot access the state.
 	 */
-	T getState();
+	T getState() throws IOException;
 
 	/**
 	 * Updates the operator state accessible by {@link #getState()} to the given
@@ -55,7 +59,9 @@ public interface OperatorState<T> {
 	 * 
 	 * @param state
 	 *            The new state.
+	 *            
+	 * @throws IOException Thrown if the system cannot access the state.
 	 */
-	void updateState(T state);
+	void updateState(T state) throws IOException;
 	
 }

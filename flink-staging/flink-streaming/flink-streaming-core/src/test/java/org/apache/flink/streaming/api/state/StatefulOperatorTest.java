@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.state;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,11 +32,14 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.LocalStateHandle.LocalStateHandleProvider;
 import org.apache.flink.runtime.state.PartitionedStateHandle;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
@@ -65,6 +69,7 @@ public class StatefulOperatorTest {
 		assertEquals((Integer) 5, context.getOperatorState("counter", 0, false).getState());
 		assertEquals(ImmutableMap.of(0, 2, 1, 3), context.getOperatorStates().get("groupCounter").getPartitionedState());
 		assertEquals("12345", context.getOperatorState("concat", "", false).getState());
+		assertEquals((Integer) 5, ((StatefulMapper) map.getUserFunction()).checkpointedCounter);
 
 		byte[] serializedState = InstantiationUtil.serializeObject(map.getStateSnapshotFromFunction(1, 1));
 
@@ -74,6 +79,7 @@ public class StatefulOperatorTest {
 		assertEquals((Integer) 5, restoredContext.getOperatorState("counter", 0, false).getState());
 		assertEquals(ImmutableMap.of(0, 2, 1, 3), context.getOperatorStates().get("groupCounter").getPartitionedState());
 		assertEquals("12345", restoredContext.getOperatorState("concat", "", false).getState());
+		assertEquals((Integer) 5, ((StatefulMapper) restoredMap.getUserFunction()).checkpointedCounter);
 		out.clear();
 
 		processInputs(restoredMap, Arrays.asList(7, 8));
@@ -83,6 +89,8 @@ public class StatefulOperatorTest {
 		assertEquals(ImmutableMap.of(0, 3, 1, 4), restoredContext.getOperatorStates().get("groupCounter")
 				.getPartitionedState());
 		assertEquals("1234578", restoredContext.getOperatorState("concat", "", false).getState());
+		assertEquals((Integer) 7, ((StatefulMapper) restoredMap.getUserFunction()).checkpointedCounter);
+
 	}
 
 	private void processInputs(StreamMap<Integer, ?> map, List<Integer> input) throws Exception {
@@ -116,8 +124,9 @@ public class StatefulOperatorTest {
 		}, context);
 
 		if (serializedState != null) {
-			op.restoreInitialState((Map<String, PartitionedStateHandle>) InstantiationUtil.deserializeObject(serializedState, Thread
-					.currentThread().getContextClassLoader()));
+			op.restoreInitialState((Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>) InstantiationUtil
+					.deserializeObject(serializedState, Thread.currentThread()
+							.getContextClassLoader()));
 		}
 
 		op.open(null);
@@ -125,18 +134,21 @@ public class StatefulOperatorTest {
 		return op;
 	}
 
-	public static class StatefulMapper extends RichMapFunction<Integer, String> {
-
-		private static final long serialVersionUID = -9007873655253339356L;
+	public static class StatefulMapper extends RichMapFunction<Integer, String> implements
+			Checkpointed<Integer> {
+	private static final long serialVersionUID = -9007873655253339356L;
 		OperatorState<Integer> counter;
 		OperatorState<Integer> groupCounter;
 		OperatorState<String> concat;
+		
+		Integer checkpointedCounter = 0;
 
 		@Override
 		public String map(Integer value) throws Exception {
 			counter.updateState(counter.getState() + 1);
 			groupCounter.updateState(groupCounter.getState() + 1);
 			concat.updateState(concat.getState() + value.toString());
+			checkpointedCounter++;
 			try {
 				counter.updateState(null);
 				fail();
@@ -146,7 +158,7 @@ public class StatefulOperatorTest {
 		}
 
 		@Override
-		public void open(Configuration conf) {
+		public void open(Configuration conf) throws IOException {
 			counter = getRuntimeContext().getOperatorState("counter", 0, false);
 			groupCounter = getRuntimeContext().getOperatorState("groupCounter", 0, true);
 			concat = getRuntimeContext().getOperatorState("concat", "", false);
@@ -160,6 +172,17 @@ public class StatefulOperatorTest {
 				fail();
 			} catch (RuntimeException e){
 			}
+		}
+
+		@Override
+		public Integer snapshotState(long checkpointId, long checkpointTimestamp)
+				throws Exception {
+			return checkpointedCounter;
+		}
+
+		@Override
+		public void restoreState(Integer state) {
+			this.checkpointedCounter = (Integer) state;
 		}
 	}
 	

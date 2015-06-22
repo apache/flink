@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
@@ -193,9 +194,11 @@ public interface RuntimeContext {
 	 *            The {@link StateCheckpointer} that will be used to draw
 	 *            snapshots from the user state.
 	 * @return The {@link OperatorState} for the underlying operator.
+	 * 
+	 * @throws IOException Thrown if the system cannot access the state.
 	 */
 	<S, C extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
-			boolean partitioned, StateCheckpointer<S, C> checkpointer);
+			boolean partitioned, StateCheckpointer<S, C> checkpointer) throws IOException;
 
 	/**
 	 * Returns the {@link OperatorState} with the given name of the underlying
@@ -220,7 +223,9 @@ public interface RuntimeContext {
 	 *            Sets whether partitioning should be applied for the given
 	 *            state. If true a partitioner key must be used.
 	 * @return The {@link OperatorState} for the underlying operator.
+	 * 
+	 * @throws IOException Thrown if the system cannot access the state.
 	 */
 	<S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
-			boolean partitioned);
+			boolean partitioned) throws IOException;
 }

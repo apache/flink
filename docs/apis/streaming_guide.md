@@ -1188,13 +1188,15 @@ Rich functions provide, in addition to the user-defined function (`map()`, `redu
 Stateful computation
 ------------
 
-Flink supports the checkpointing and persistence of user defined operator state, so in case of a failure this state can be restored to the latest checkpoint and the processing will continue from there. This gives exactly once processing semantics with respect to the operator states when the sources follow this stateful pattern as well. In practice this usually means that sources keep track of their current offset as their OperatorState. The `PersistentKafkaSource` provides this stateful functionality for reading streams from Kafka. 
+Flink supports the checkpointing and persistence of user defined operator states, so in case of a failure this state can be restored to the latest checkpoint and the processing will continue from there. This gives exactly once processing semantics with respect to the operator states when the sources follow this stateful pattern as well. In practice this usually means that sources keep track of their current offset as their OperatorState. The `PersistentKafkaSource` provides this stateful functionality for reading streams from Kafka.
 
-Flink supports two ways of accessing operator states: partitioned and non-partitioned state access.
+### OperatorState
 
-In case of non-partitioned state access, an operator state is maintained for each parallel instance of a given operator. When `OperatorState.getState()` is called, a separate state is returned in each parallel instance. In practice this means if we keep a counter for the received inputs in a mapper, `getState()` will return number of inputs processed by each parallel mapper.
+Flink supports two types of operator states: partitioned and non-partitioned states.
 
-In case of of partitioned `OperatorState` a separate state is maintained for each received key. This can be used for instance to count received inputs by different keys, or store and update summary statistics of different sub-streams.
+In case of non-partitioned operator state, an operator state is maintained for each parallel instance of a given operator. When `OperatorState.getState()` is called, a separate state is returned in each parallel instance. In practice this means if we keep a counter for the received inputs in a mapper, `getState()` will return number of inputs processed by each parallel mapper.
+
+In case of of partitioned operator state a separate state is maintained for each received key. This can be used for instance to count received inputs by different keys, or store and update summary statistics of different sub-streams.
 
 Checkpointing of the states needs to be enabled from the `StreamExecutionEnvironment` using the `enableCheckpointing(…)` where additional parameters can be passed to modify the default 5 second checkpoint interval.
 
@@ -1264,7 +1266,45 @@ public static class CounterSource implements RichParallelSourceFunction<Long> {
 
 Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `flink.streaming.api.checkpoint.CheckpointComitter` interface.
 
+### Checkpointed interface
+
+Another way of exposing user defined operator state for the Flink runtime for checkpointing is by using the `Checkpointed` interface.
+
+When the user defined function implements the `Checkpointed` interface, the `snapshotState(…)` and `restoreState(…)` methods will be executed to draw and restore function state.
+
+For example the same counting, reduce function shown for `OperatorState`s by using the `Checkpointed` interface instead:
+
+{% highlight java %}
+public class CounterSum implements ReduceFunction<Long>, Checkpointed<Long> {
+    
+    //persistent counter
+    private long counter = 0;
+
+    @Override
+    public Long reduce(Long value1, Long value2) throws Exception {
+        counter++;
+        return value1 + value2;
+    }
+
+    // regularly persists state during normal operation
+    @Override
+    public Serializable snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+        return new Long(counter);
+    }
+
+    // restores state on recovery from failure
+    @Override
+    public void restoreState(Serializable state) {
+        counter = (Long) state;
+    }
+}
+{% endhighlight %} 
+
+### State checkpoints in iterative jobs
+
 Fink currently only provides processing guarantees for jobs without iterations. Enabling checkpointing on an iterative job causes an exception. In order to force checkpointing on an iterative program the user needs to set a special flag when enabling checkpointing: `env.enableCheckpointing(interval, force = true)`.
+
+Please note that records in flight in the loop edges (and the state changes associated with them) will be lost during failure.
 
 [Back to top](#top)
 

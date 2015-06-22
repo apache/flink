@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.state;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 
@@ -58,19 +59,19 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 	}
 
 	@Override
-	public S getState() {
+	public S getState() throws IOException {
 		return state;
 	}
 
 	@Override
-	public void updateState(S state) {
+	public void updateState(S state) throws IOException {
 		if (state == null) {
 			throw new RuntimeException("Cannot set state to null.");
 		}
 		this.state = state;
 	}
 	
-	public void setDefaultState(S defaultState) {
+	public void setDefaultState(S defaultState) throws IOException {
 		if (getState() == null) {
 			updateState(defaultState);
 		}
@@ -101,6 +102,11 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 
 	public Map<Serializable, S> getPartitionedState() throws Exception {
 		return ImmutableMap.of(DEFAULTKEY, state);
+	}
+	
+	@Override
+	public String toString() {
+		return state.toString();
 	}
 
 }

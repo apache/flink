@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -49,8 +50,9 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	private final Map<String, StreamOperatorState> states;
 	private final List<PartitionedStreamOperatorState> partitionedStates;
 	private final KeySelector<?, ?> statePartitioner;
-	private final StateHandleProvider<?> provider;
+	private final StateHandleProvider<Serializable> provider;
 
+	@SuppressWarnings("unchecked")
 	public StreamingRuntimeContext(String name, Environment env, ClassLoader userCodeClassLoader,
 			ExecutionConfig executionConfig, KeySelector<?, ?> statePartitioner,
 			StateHandleProvider<?> provider) {
@@ -60,7 +62,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 		this.statePartitioner = statePartitioner;
 		this.states = new HashMap<String, StreamOperatorState>();
 		this.partitionedStates = new LinkedList<PartitionedStreamOperatorState>();
-		this.provider = provider;
+		this.provider = (StateHandleProvider<Serializable>) provider;
 	}
 
 	/**
@@ -81,11 +83,15 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	public Configuration getTaskStubParameters() {
 		return new TaskConfig(env.getTaskConfiguration()).getStubParameters();
 	}
+	
+	public StateHandleProvider<Serializable> getStateHandleProvider() {
+		return provider;
+	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public <S, C extends Serializable> OperatorState<S> getOperatorState(String name,
-			S defaultState, boolean partitioned, StateCheckpointer<S, C> checkpointer) {
+			S defaultState, boolean partitioned, StateCheckpointer<S, C> checkpointer) throws IOException {
 		if (defaultState == null) {
 			throw new RuntimeException("Cannot set default state to null.");
 		}
@@ -99,7 +105,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	@SuppressWarnings("unchecked")
 	@Override
 	public <S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
-			boolean partitioned) {
+			boolean partitioned) throws IOException {
 		if (defaultState == null) {
 			throw new RuntimeException("Cannot set default state to null.");
 		}

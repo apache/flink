@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.state;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 
@@ -68,9 +69,9 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 	}
 
 	@Override
-	public S getState() {
+	public S getState() throws IOException{
 		if (currentInput == null) {
-			return null;
+			throw new IllegalStateException("Need a valid input for accessing the state.");
 		} else {
 			try {
 				Serializable key = keySelector.getKey(currentInput);
@@ -80,23 +81,23 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 					return defaultState;
 				}
 			} catch (Exception e) {
-				throw new RuntimeException(e);
+				throw new RuntimeException("User-defined key selector threw an exception.");
 			}
 		}
 	}
 
 	@Override
-	public void updateState(S state) {
+	public void updateState(S state) throws IOException {
 		if (state == null) {
 			throw new RuntimeException("Cannot set state to null.");
 		}
 		if (currentInput == null) {
-			throw new RuntimeException("Need a valid input for updating a state.");
+			throw new IllegalStateException("Need a valid input for updating a state.");
 		} else {
 			try {
 				stateStore.setStateForKey(keySelector.getKey(currentInput), state);
 			} catch (Exception e) {
-				throw new RuntimeException(e);
+				throw new RuntimeException("User-defined key selector threw an exception.");
 			}
 		}
 	}
@@ -124,6 +125,11 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 	@Override
 	public Map<Serializable, S> getPartitionedState() throws Exception {
 		return stateStore.getPartitionedState();
+	}
+	
+	@Override
+	public String toString() {
+		return stateStore.toString();
 	}
 
 }
