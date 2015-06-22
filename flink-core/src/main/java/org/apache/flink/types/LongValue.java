@@ -116,7 +116,7 @@ public class LongValue implements NormalizableKey<LongValue>, ResettableValue<Lo
 	 */
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj != null && obj.getClass() == LongValue.class) {
+		if (obj instanceof LongValue) {
 			return ((LongValue) obj).value == this.value;
 		}
 		return false;
