@@ -18,7 +18,10 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +43,8 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 
 	@Override
 	public void invoke() throws Exception {
+		final SourceOutput<StreamRecord<OUT>> output = new SourceOutput<StreamRecord<OUT>>(outputHandler.getOutput(), checkpointLock);
+
 		this.isRunning = true;
 
 		boolean operatorOpen = false;
@@ -52,7 +57,7 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 			openOperator();
 			operatorOpen = true;
 
-			streamOperator.run(checkpointLock, outputHandler.getOutput());
+			streamOperator.run(checkpointLock, output);
 
 			closeOperator();
 			operatorOpen = false;
@@ -88,5 +93,35 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 	public void cancel() {
 		super.cancel();
 		streamOperator.cancel();
+	}
+
+	private static class SourceOutput<T> implements Output<T> {
+		private final Output<T> output;
+		private final Object lockObject;
+
+		public SourceOutput(Output<T> output, Object lockObject) {
+			this.output = output;
+			this.lockObject = lockObject;
+		}
+
+		@Override
+		public void emitWatermark(Watermark mark) {
+			synchronized (lockObject) {
+				output.emitWatermark(mark);
+			}
+		}
+
+		@Override
+		public void collect(T record) {
+			synchronized (lockObject) {
+				output.collect(record);
+			}
+
+		}
+
+		@Override
+		public void close() {
+			output.close();
+		}
 	}
 }

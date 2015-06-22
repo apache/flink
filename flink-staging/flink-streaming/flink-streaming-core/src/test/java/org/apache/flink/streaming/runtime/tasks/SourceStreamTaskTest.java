@@ -18,10 +18,27 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.LinkedList;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+import java.io.Serializable;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,39 +46,35 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.OperatorState;
-import org.apache.flink.api.common.state.StateCheckpointer;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.streaming.api.collector.selector.BroadcastOutputSelectorWrapper;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.graph.StreamEdge;
-import org.apache.flink.streaming.api.graph.StreamNode;
-import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.util.StringUtils;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
+/**
+ * These tests verify that the RichFunction methods are called (in correct order). And that
+ * checkpointing/element emission don't occur concurrently.
+ */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({Task.class, ResultPartitionWriter.class})
-public class SourceStreamTaskTest extends StreamTaskTestBase {
+@PrepareForTest({ResultPartitionWriter.class})
+public class SourceStreamTaskTest {
 
-	private static final int MEMORY_MANAGER_SIZE = 1024 * 1024;
 
-	private static final int NETWORK_BUFFER_SIZE = 1024;
+	/**
+	 * This test verifies that open() and close() are correctly called by the StreamTask.
+	 */
+	@Test
+	public void testOpenClose() throws Exception {
+		final SourceStreamTask<String> sourceTask = new SourceStreamTask<String>();
+		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<String>(sourceTask, BasicTypeInfo.STRING_TYPE_INFO);
+
+		StreamConfig streamConfig = testHarness.getStreamConfig();
+		StreamSource<String> sourceOperator = new StreamSource<String>(new OpenCloseTestSource());
+		streamConfig.setStreamOperator(sourceOperator);
+
+		testHarness.invoke();
+		testHarness.waitForTaskCompletion();
+
+		Assert.assertTrue("RichFunction methods where not called.", OpenCloseTestSource.closeCalled);
+
+		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
+		Assert.assertEquals(10, resultElements.size());
+	}
 
 	/**
 	 * This test ensures that the SourceStreamTask properly serializes checkpointing
@@ -76,7 +89,7 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 	 * source kept emitting elements while the checkpoint was ongoing.
 	 */
 	@Test
-	public void testDataSourceTask() throws Exception {
+	public void testCheckpointing() throws Exception {
 		final int NUM_ELEMENTS = 100;
 		final int NUM_CHECKPOINTS = 100;
 		final int NUM_CHECKPOINTERS = 1;
@@ -84,38 +97,15 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 		final int SOURCE_CHECKPOINT_DELAY = 1000; // how many random values we sum up in storeCheckpoint
 		final int SOURCE_READ_DELAY = 1; // in ms
 
-		List<Tuple2<Long, Integer>> outList = new ArrayList<Tuple2<Long, Integer>>();
 
-		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
-
-		StreamSource<Tuple2<Long, Integer>> sourceOperator = new StreamSource<Tuple2<Long, Integer>>(new MockSource(NUM_ELEMENTS, SOURCE_CHECKPOINT_DELAY, SOURCE_READ_DELAY));
-
+		final TupleTypeInfo<Tuple2<Long, Integer>> typeInfo = new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 		final SourceStreamTask<Tuple2<Long, Integer>> sourceTask = new SourceStreamTask<Tuple2<Long, Integer>>();
+		final StreamTaskTestHarness<Tuple2<Long, Integer>> testHarness = new StreamTaskTestHarness<Tuple2<Long, Integer>>(sourceTask, typeInfo);
 
-		TupleTypeInfo<Tuple2<Long, Integer>> typeInfo = new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
-		TypeSerializer<Tuple2<Long, Integer>> serializer = typeInfo.createSerializer(new ExecutionConfig());
-		StreamRecordSerializer<Tuple2<Long, Integer>> streamSerializer = new StreamRecordSerializer<Tuple2<Long, Integer>>(typeInfo, new ExecutionConfig());
-
-		super.addOutput(outList, serializer);
-
-		StreamConfig streamConfig = super.getStreamConfig();
-
+		StreamConfig streamConfig = testHarness.getStreamConfig();
+		StreamSource<Tuple2<Long, Integer>> sourceOperator = new StreamSource<Tuple2<Long, Integer>>(new MockSource(NUM_ELEMENTS, SOURCE_CHECKPOINT_DELAY, SOURCE_READ_DELAY));
 		streamConfig.setStreamOperator(sourceOperator);
-		streamConfig.setChainStart();
-		streamConfig.setOutputSelectorWrapper(new BroadcastOutputSelectorWrapper<Object>());
-		streamConfig.setNumberOfOutputs(1);
 
-		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
-		StreamNode sourceVertex = new StreamNode(null, 0, sourceOperator, "source", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-		StreamNode targetVertexDummy = new StreamNode(null, 1, sourceOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-
-		outEdgesInOrder.add(new StreamEdge(sourceVertex, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>()));
-		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
-		streamConfig.setNonChainedOutputs(outEdgesInOrder);
-		streamConfig.setTypeSerializerOut1(streamSerializer);
-		streamConfig.setVertexID(0);
-
-		super.registerTask(sourceTask);
 
 		ExecutorService executor = Executors.newFixedThreadPool(10);
 		Future[] checkpointerResults = new Future[NUM_CHECKPOINTERS];
@@ -123,13 +113,8 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 			checkpointerResults[i] = executor.submit(new Checkpointer(NUM_CHECKPOINTS, CHECKPOINT_INTERVAL, sourceTask));
 		}
 
-
-		try {
-			sourceTask.invoke();
-		} catch (Exception e) {
-			System.err.println(StringUtils.stringifyException(e));
-			Assert.fail("Invoke method caused exception.");
-		}
+		testHarness.invoke();
+		testHarness.waitForTaskCompletion();
 
 		// Get the result from the checkpointers, if these threw an exception it
 		// will be rethrown here
@@ -142,11 +127,11 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 			}
 		}
 
-		Assert.assertEquals(NUM_ELEMENTS, outList.size());
+		List<Tuple2<Long, Integer>> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
+		Assert.assertEquals(NUM_ELEMENTS, resultElements.size());
 	}
 
-	private static class MockSource extends RichSourceFunction<Tuple2<Long, Integer>> implements StateCheckpointer<Integer, Integer> {
-
+	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, Checkpointed {
 		private static final long serialVersionUID = 1;
 
 		private int maxElements;
@@ -157,7 +142,6 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 		private volatile long lastCheckpointId = -1;
 
 		private Semaphore semaphore;
-		private OperatorState<Integer> state;
 
 		private volatile boolean isRunning = true;
 
@@ -166,7 +150,7 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 			this.checkpointDelay = checkpointDelay;
 			this.readDelay = readDelay;
 			this.count = 0;
-			this.semaphore = new Semaphore(1);
+			semaphore = new Semaphore(1);
 		}
 
 		@Override
@@ -191,33 +175,32 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 		public void cancel() {
 			isRunning = false;
 		}
-		
-		@Override
-		public void open(Configuration conf) throws IOException{
-			state = getRuntimeContext().getOperatorState("state", 1, false, this);
-		}
-
 
 		@Override
-		public Integer snapshotState(Integer state, long checkpointId, long checkpointTimestamp) {
+		public Serializable snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
 			if (!semaphore.tryAcquire()) {
 				Assert.fail("Concurrent invocation of snapshotState.");
-			} else {
-				int startCount = count;
-				
-				if (startCount != count) {
-					semaphore.release();
-					// This means that next() was invoked while the snapshot was ongoing
-					Assert.fail("Count is different at start end end of snapshot.");
-				}
-				semaphore.release();
 			}
-			return 0;
+			int startCount = count;
+			lastCheckpointId = checkpointId;
+
+			long sum = 0;
+			for (int i = 0; i < checkpointDelay; i++) {
+				sum += new Random().nextLong();
+			}
+
+			if (startCount != count) {
+				semaphore.release();
+				// This means that next() was invoked while the snapshot was ongoing
+				Assert.fail("Count is different at start end end of snapshot.");
+			}
+			semaphore.release();
+			return sum;
 		}
 
 		@Override
-		public Integer restoreState(Integer stateSnapshot) {
-			return stateSnapshot;
+		public void restoreState(Serializable state) {
+
 		}
 	}
 
@@ -245,6 +228,46 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 				Thread.sleep(checkpointInterval);
 			}
 			return true;
+		}
+	}
+
+	public static class OpenCloseTestSource extends RichSourceFunction<String> {
+		private static final long serialVersionUID = 1L;
+
+		public static boolean openCalled = false;
+		public static boolean closeCalled = false;
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+			if (closeCalled) {
+				Assert.fail("Close called before open.");
+			}
+			openCalled = true;
+		}
+
+		@Override
+		public void close() throws Exception {
+			super.close();
+			if (!openCalled) {
+				Assert.fail("Open was not called before close.");
+			}
+			closeCalled = true;
+		}
+
+		@Override
+		public void run(SourceContext<String> ctx) throws Exception {
+			if (!openCalled) {
+				Assert.fail("Open was not called before run.");
+			}
+			for (int i = 0; i < 10; i++) {
+				ctx.collect("Hello" + i);
+			}
+		}
+
+		@Override
+		public void cancel() {
+
 		}
 	}
 }

@@ -114,9 +114,9 @@ public class StormBoltWrapperTest {
 
 		final StreamRecord record = mock(StreamRecord.class);
 		if (numberOfAttributes == 0) {
-			when(record.getObject()).thenReturn(rawTuple);
+			when(record.getValue()).thenReturn(rawTuple);
 		} else {
-			when(record.getObject()).thenReturn(flinkTuple);
+			when(record.getValue()).thenReturn(flinkTuple);
 		}
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
@@ -129,8 +129,9 @@ public class StormBoltWrapperTest {
 
 		final StormBoltWrapper wrapper = new StormBoltWrapper(bolt);
 		wrapper.setup(mock(Output.class), taskContext);
+		wrapper.open(new Configuration());
 
-		wrapper.processElement(record.getObject());
+		wrapper.processElement(record);
 		if (numberOfAttributes == 0) {
 			verify(bolt).execute(eq(new StormTuple<String>(rawTuple)));
 		} else {

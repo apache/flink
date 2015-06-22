@@ -48,6 +48,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.InstantiationUtil;
@@ -103,12 +105,13 @@ public class StatefulOperatorTest {
 	@Test
 	public void apiTest() throws Exception {
 		StreamExecutionEnvironment env = new TestStreamEnvironment(3, 32);
-		
+
 		KeyedDataStream<Integer> keyedStream = env.fromCollection(Arrays.asList(0, 1, 2, 3, 4, 5, 6)).keyBy(new ModKey(4));
 		
 		keyedStream.map(new StatefulMapper()).addSink(new SinkFunction<String>() {
 			private static final long serialVersionUID = 1L;
-			public void invoke(String value) throws Exception {}
+			public void invoke(String value) throws Exception {
+			}
 		});
 		
 		keyedStream.map(new StatefulMapper2()).setParallelism(1).addSink(new SinkFunction<String>() {
@@ -128,8 +131,8 @@ public class StatefulOperatorTest {
 
 	private void processInputs(StreamMap<Integer, ?> map, List<Integer> input) throws Exception {
 		for (Integer i : input) {
-			map.getRuntimeContext().setNextInput(i);
-			map.processElement(i);
+			map.getRuntimeContext().setNextInput(new StreamRecord<Integer>(i, 0L));
+			map.processElement(new StreamRecord<Integer>(i, 0L));
 		}
 	}
 
@@ -144,11 +147,16 @@ public class StatefulOperatorTest {
 
 		StreamMap<Integer, String> op = new StreamMap<Integer, String>(new StatefulMapper());
 
-		op.setup(new Output<String>() {
+		op.setup(new Output<StreamRecord<String>>() {
 
 			@Override
-			public void collect(String record) {
-				outputList.add(record);
+			public void collect(StreamRecord<String> record) {
+				outputList.add(record.getValue());
+			}
+
+			@Override
+			public void emitWatermark(Watermark mark) {
+
 			}
 
 			@Override

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators.windowing;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.policy.CentralActiveTrigger;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,9 +52,11 @@ public class GroupedActiveDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 	}
 
 	@Override
-	public void processElement(IN element) throws Exception {
-			last = element;
-			Object key = keySelector.getKey(element);
+	public void processElement(StreamRecord<IN> element) throws Exception {
+
+//			last = copy(element);
+			last = element.getValue();
+			Object key = keySelector.getKey(element.getValue());
 
 			synchronized (groupedDiscretizers) {
 				StreamDiscretizer<IN> groupDiscretizer = groupedDiscretizers.get(key);

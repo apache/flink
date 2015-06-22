@@ -19,6 +19,8 @@ package org.apache.flink.stormcompatibility.wrappers;
 
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
+import org.apache.flink.streaming.api.watermark.Watermark;
+
 import java.util.LinkedList;
 
 class TestContext implements SourceContext<Tuple1<Integer>> {
@@ -33,8 +35,22 @@ class TestContext implements SourceContext<Tuple1<Integer>> {
 	}
 
 	@Override
+	public void collectWithTimestamp(Tuple1<Integer> element, long timestamp) {
+		this.result.add(element.copy());
+	}
+
+	@Override
+	public void emitWatermark(Watermark mark) {
+		// ignore it
+	}
+
+	@Override
 	public Object getCheckpointLock() {
 		return null;
 	}
 
+	@Override
+	public void close() {
+
+	}
 }

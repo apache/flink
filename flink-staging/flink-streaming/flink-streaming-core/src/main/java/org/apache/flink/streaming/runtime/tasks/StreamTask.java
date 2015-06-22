@@ -73,12 +73,12 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	protected StreamingRuntimeContext headContext;
 
 	protected ClassLoader userClassLoader;
-
-	private EventListener<TaskEvent> superstepListener;
+	
+	private EventListener<TaskEvent> checkpointBarrierListener;
 
 	public StreamTask() {
 		streamOperator = null;
-		superstepListener = new SuperstepEventListener();
+		checkpointBarrierListener = new CheckpointBarrierListener();
 		contexts = new ArrayList<StreamingRuntimeContext>();
 	}
 
@@ -171,7 +171,9 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	protected void openOperator() throws Exception {
 		for (StreamOperator<?> operator : outputHandler.getChainedOperators()) {
-			operator.open(getTaskConfiguration());
+			if (operator != null) {
+				operator.open(getTaskConfiguration());
+			}
 		}
 	}
 
@@ -179,7 +181,10 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		// We need to close them first to last, since upstream operators in the chain might emit
 		// elements in their close methods.
 		for (int i = outputHandler.getChainedOperators().size()-1; i >= 0; i--) {
-			outputHandler.getChainedOperators().get(i).close();
+			StreamOperator<?> operator = outputHandler.getChainedOperators().get(i);
+			if (operator != null) {
+				operator.close();
+			}
 		}
 	}
 
@@ -194,8 +199,8 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		this.isRunning = false;
 	}
 
-	public EventListener<TaskEvent> getSuperstepListener() {
-		return this.superstepListener;
+	public EventListener<TaskEvent> getCheckpointBarrierListener() {
+		return this.checkpointBarrierListener;
 	}
 
 	// ------------------------------------------------------------------------
@@ -305,12 +310,12 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	// ------------------------------------------------------------------------
 
-	private class SuperstepEventListener implements EventListener<TaskEvent> {
+	private class CheckpointBarrierListener implements EventListener<TaskEvent> {
 
 		@Override
 		public void onEvent(TaskEvent event) {
 			try {
-				StreamingSuperstep sStep = (StreamingSuperstep) event;
+				CheckpointBarrier sStep = (CheckpointBarrier) event;
 				triggerCheckpoint(sStep.getId(), sStep.getTimestamp());
 			}
 			catch (Exception e) {

@@ -17,87 +17,106 @@
 
 package org.apache.flink.streaming.runtime.streamrecord;
 
-import java.io.Serializable;
-
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple;
-
 /**
- * Object for wrapping a tuple or other object with ID used for sending records
- * between streaming task in Apache Flink stream processing.
+ * One value in a data stream. This stores the value and the associated timestamp.
  */
-public class StreamRecord<T> implements Serializable {
-	private static final long serialVersionUID = 1L;
+public class StreamRecord<T> {
 
-	private T streamObject;
-	public boolean isTuple;
+	// We store it as Object so that we can reuse a StreamElement for emitting
+	// elements of a different type while still reusing the timestamp.
+	private Object value;
+	private long timestamp;
 
 	/**
-	 * Creates an empty StreamRecord
+	 * Creates a new {@link StreamRecord} wrapping the given value. The timestamp is set to the
+	 * result of {@code new Instant(0)}.
 	 */
-	public StreamRecord() {
+	public StreamRecord(T value) {
+		this(value, Long.MIN_VALUE + 1);
+		// be careful to set it to MIN_VALUE + 1, because MIN_VALUE is reserved as the
+		// special tag to signify that a transmitted element is a Watermark in StreamRecordSerializer
 	}
 
 	/**
-	 * Gets the wrapped object from the StreamRecord
-	 * 
-	 * @return The object wrapped
+	 * Creates a new {@link StreamRecord} wrapping the given value. The timestamp is set to the
+	 * given timestamp.
+	 *
+	 * @param value The value to wrap in this {@link StreamRecord}
+	 * @param timestamp The timestamp in milliseconds
 	 */
-	public T getObject() {
-		return streamObject;
+	public StreamRecord(T value, long timestamp) {
+		this.value = value;
+		this.timestamp = timestamp;
 	}
 
 	/**
-	 * Gets the field of the contained object at the given position. If a tuple
-	 * is wrapped then the getField method is invoked. If the StreamRecord
-	 * contains and object of Basic types only position 0 could be returned.
-	 * 
-	 * @param pos
-	 *            Position of the field to get.
-	 * @return Returns the object contained in the position.
+	 * Returns the value wrapped in this stream value.
 	 */
-	public Object getField(int pos) {
-		if (isTuple) {
-			return ((Tuple) streamObject).getField(pos);
-		} else {
-			if (pos == 0) {
-				return streamObject;
-			} else {
-				throw new IndexOutOfBoundsException();
-			}
+	@SuppressWarnings("unchecked")
+	public T getValue() {
+		return (T) value;
+	}
+
+	/**
+	 * Returns the timestamp associated with this stream value in milliseconds.
+	 */
+	public long getTimestamp() {
+		return timestamp;
+	}
+
+	/**
+	 * Replace the currently stored value by the given new value. This returns a StreamElement
+	 * with the generic type parameter that matches the new value while keeping the old
+	 * timestamp.
+	 *
+	 * @param element Element to set in this stream value
+	 * @return Returns the StreamElement with replaced value
+	 */
+	@SuppressWarnings("unchecked")
+	public <X> StreamRecord<X> replace(X element) {
+		this.value = element;
+		return (StreamRecord<X>) this;
+	}
+
+	/**
+	 * Replace the currently stored value by the given new value and the currently stored
+	 * timestamp with the new timestamp. This returns a StreamElement with the generic type
+	 * parameter that matches the new value.
+	 *
+	 * @param value The new value to wrap in this {@link StreamRecord}
+	 * @param timestamp The new timestamp in milliseconds
+	 * @return Returns the StreamElement with replaced value
+	 */
+	@SuppressWarnings("unchecked")
+	public <X> StreamRecord<X> replace(X value, long timestamp) {
+		this.timestamp = timestamp;
+		this.value = value;
+		return (StreamRecord<X>) this;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
 		}
-	}
-
-	/**
-	 * Extracts key for the stored object using the keySelector provided.
-	 * 
-	 * @param keySelector
-	 *            KeySelector for extracting the key
-	 * @return The extracted key
-	 */
-	public <R> R getKey(KeySelector<T, R> keySelector) {
-		try {
-			return keySelector.getKey(streamObject);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to extract key: " + e.getMessage());
+		if (o == null || getClass() != o.getClass()) {
+			return false;
 		}
+
+		StreamRecord that = (StreamRecord) o;
+
+		return value.equals(that.value) && timestamp == that.timestamp;
 	}
 
-	/**
-	 * Sets the object stored
-	 * 
-	 * @param object
-	 *            Object to set
-	 * @return Returns the StreamRecord object
-	 */
-	public StreamRecord<T> setObject(T object) {
-		this.streamObject = object;
-		return this;
+	@Override
+	public int hashCode() {
+		int result = value != null ? value.hashCode() : 0;
+		result = 31 * result + (int) (timestamp ^ (timestamp >>> 32));
+		return result;
 	}
 
 	@Override
 	public String toString() {
-		return streamObject.toString();
+		return "Record{" + value + "; " + timestamp + '}';
 	}
-
 }

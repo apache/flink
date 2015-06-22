@@ -18,17 +18,11 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import java.io.IOException;
-
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.IndexedMutableReader;
-import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
-import org.apache.flink.streaming.runtime.io.InputGateFactory;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
+import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,56 +30,26 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 	private static final Logger LOG = LoggerFactory.getLogger(OneInputStreamTask.class);
 
-	protected StreamRecordSerializer<IN> inSerializer;
-	private IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>> inputs;
-	protected IndexedReaderIterator<StreamRecord<IN>> recordIterator;
-
+	private StreamInputProcessor<IN> inputProcessor;
 
 	@Override
 	public void registerInputOutput() {
 		super.registerInputOutput();
 
-		inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
+		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
 
 		int numberOfInputs = configuration.getNumberOfInputs();
 
 		if (numberOfInputs > 0) {
-			InputGate inputGate = InputGateFactory.createInputGate(getEnvironment().getAllInputGates());
-			inputs = new IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>>(inputGate);
+			InputGate[] inputGates = getEnvironment().getAllInputGates();
+			inputProcessor = new StreamInputProcessor<IN>(inputGates, inSerializer, getExecutionConfig().areTimestampsEnabled());
+
+			inputProcessor.registerTaskEventListener(getCheckpointBarrierListener(), CheckpointBarrier.class);
 
 			AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
 			AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
 
-			inputs.setReporter(reporter);
-
-			inputs.registerTaskEventListener(getSuperstepListener(), StreamingSuperstep.class);
-
-			recordIterator = new IndexedReaderIterator<StreamRecord<IN>>(inputs, inSerializer);
-		}
-	}
-
-	/*
-	 * Reads the next record from the reader iterator and stores it in the
-	 * nextRecord variable
-	 */
-	protected StreamRecord<IN> readNext() throws IOException {
-		StreamRecord<IN> nextRecord = inSerializer.createInstance();
-		try {
-			return recordIterator.next(nextRecord);
-		} catch (IOException e) {
-			if (isRunning) {
-				throw new RuntimeException("Could not read next record.", e);
-			} else {
-				// Task already cancelled do nothing
-				return null;
-			}
-		} catch (IllegalStateException e) {
-			if (isRunning) {
-				throw new RuntimeException("Could not read next record.", e);
-			} else {
-				// Task already cancelled do nothing
-				return null;
-			}
+			inputProcessor.setReporter(reporter);
 		}
 	}
 
@@ -103,10 +67,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			openOperator();
 			operatorOpen = true;
 
-			StreamRecord<IN> nextRecord;
-			while (isRunning && (nextRecord = readNext()) != null) {
-				headContext.setNextInput(nextRecord.getObject());
-				streamOperator.processElement(nextRecord.getObject());
+			while (inputProcessor.processInput(streamOperator)) {
+				// nothing to do, just keep processing
 			}
 
 			closeOperator();
@@ -123,8 +85,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			if (operatorOpen) {
 				try {
 					closeOperator();
-				}
-				catch (Throwable t) {
+				} catch (Throwable t) {
 					LOG.warn("Exception while closing operator.", t);
 				}
 			}
@@ -134,8 +95,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		finally {
 			this.isRunning = false;
 			// Cleanup
-			inputs.clearBuffers();
-			inputs.cleanup();
+			inputProcessor.clearBuffers();
+			inputProcessor.cleanup();
 			outputHandler.flushOutputs();
 			clearBuffers();
 		}

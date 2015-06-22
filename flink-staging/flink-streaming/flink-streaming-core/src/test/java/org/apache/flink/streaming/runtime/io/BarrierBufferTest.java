@@ -35,7 +35,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.event.EventListener;
-import org.apache.flink.streaming.runtime.tasks.StreamingSuperstep;
+import org.apache.flink.streaming.runtime.tasks.CheckpointBarrier;
 
 import org.junit.Test;
 
@@ -67,10 +67,10 @@ public class BarrierBufferTest {
 		List<BufferOrEvent> input = new LinkedList<BufferOrEvent>();
 		input.add(createBuffer(0));
 		input.add(createBuffer(0));
-		input.add(createSuperstep(1, 0));
+		input.add(createBarrier(1, 0));
 		input.add(createBuffer(0));
 		input.add(createBuffer(0));
-		input.add(createSuperstep(2, 0));
+		input.add(createBarrier(2, 0));
 		input.add(createBuffer(0));
 
 		InputGate mockIG = new MockInputGate(1, input);
@@ -82,11 +82,11 @@ public class BarrierBufferTest {
 		assertEquals(input.get(0), nextBoe = bb.getNextNonBlocked());
 		assertEquals(input.get(1), nextBoe = bb.getNextNonBlocked());
 		assertEquals(input.get(2), nextBoe = bb.getNextNonBlocked());
-		bb.processSuperstep(nextBoe);
+		bb.processBarrier(nextBoe);
 		assertEquals(input.get(3), nextBoe = bb.getNextNonBlocked());
 		assertEquals(input.get(4), nextBoe = bb.getNextNonBlocked());
 		assertEquals(input.get(5), nextBoe = bb.getNextNonBlocked());
-		bb.processSuperstep(nextBoe);
+		bb.processBarrier(nextBoe);
 		assertEquals(input.get(6), nextBoe = bb.getNextNonBlocked());
 
 		bb.cleanup();
@@ -98,18 +98,18 @@ public class BarrierBufferTest {
 		List<BufferOrEvent> input = new LinkedList<BufferOrEvent>();
 		input.add(createBuffer(0));
 		input.add(createBuffer(1));
-		input.add(createSuperstep(1, 0));
-		input.add(createSuperstep(2, 0));
+		input.add(createBarrier(1, 0));
+		input.add(createBarrier(2, 0));
 		input.add(createBuffer(0));
-		input.add(createSuperstep(3, 0));
-		input.add(createBuffer(0));
-		input.add(createBuffer(1));
-		input.add(createSuperstep(1, 1));
+		input.add(createBarrier(3, 0));
 		input.add(createBuffer(0));
 		input.add(createBuffer(1));
-		input.add(createSuperstep(2, 1));
-		input.add(createSuperstep(3, 1));
-		input.add(createSuperstep(4, 0));
+		input.add(createBarrier(1, 1));
+		input.add(createBuffer(0));
+		input.add(createBuffer(1));
+		input.add(createBarrier(2, 1));
+		input.add(createBarrier(3, 1));
+		input.add(createBarrier(4, 0));
 		input.add(createBuffer(0));
 		input.add(new BufferOrEvent(new EndOfPartitionEvent(), 1));
 		
@@ -123,24 +123,24 @@ public class BarrierBufferTest {
 		check(input.get(0), nextBoe = bb.getNextNonBlocked());
 		check(input.get(1), nextBoe = bb.getNextNonBlocked());
 		check(input.get(2), nextBoe = bb.getNextNonBlocked());
-		bb.processSuperstep(nextBoe);
+		bb.processBarrier(nextBoe);
 		check(input.get(7), nextBoe = bb.getNextNonBlocked());
 		check(input.get(8), nextBoe = bb.getNextNonBlocked());
-		bb.processSuperstep(nextBoe);
+		bb.processBarrier(nextBoe);
 		check(input.get(3), nextBoe = bb.getNextNonBlocked());
-		bb.processSuperstep(nextBoe);
+		bb.processBarrier(nextBoe);
 		check(input.get(10), nextBoe = bb.getNextNonBlocked());
 		check(input.get(11), nextBoe = bb.getNextNonBlocked());
-		bb.processSuperstep(nextBoe);
+		bb.processBarrier(nextBoe);
 		check(input.get(4), nextBoe = bb.getNextNonBlocked());
 		check(input.get(5), nextBoe = bb.getNextNonBlocked());
-		bb.processSuperstep(nextBoe);
+		bb.processBarrier(nextBoe);
 		check(input.get(12), nextBoe = bb.getNextNonBlocked());
-		bb.processSuperstep(nextBoe);
+		bb.processBarrier(nextBoe);
 		check(input.get(6), nextBoe = bb.getNextNonBlocked());
 		check(input.get(9), nextBoe = bb.getNextNonBlocked());
 		check(input.get(13), nextBoe = bb.getNextNonBlocked());
-		bb.processSuperstep(nextBoe);
+		bb.processBarrier(nextBoe);
 		check(input.get(14), nextBoe = bb.getNextNonBlocked());
 		check(input.get(15), nextBoe = bb.getNextNonBlocked());
 
@@ -206,8 +206,8 @@ public class BarrierBufferTest {
 		}
 	}
 
-	protected static BufferOrEvent createSuperstep(long id, int channel) {
-		return new BufferOrEvent(new StreamingSuperstep(id, System.currentTimeMillis()), channel);
+	protected static BufferOrEvent createBarrier(long id, int channel) {
+		return new BufferOrEvent(new CheckpointBarrier(id, System.currentTimeMillis()), channel);
 	}
 
 	protected static BufferOrEvent createBuffer(int channel) {

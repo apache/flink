@@ -28,31 +28,30 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.streaming.runtime.tasks.StreamingSuperstep;
+import org.apache.flink.streaming.runtime.tasks.CheckpointBarrier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Class encapsulating the functionality that is necessary to sync inputs on
- * superstep barriers. Once a barrier is received from an input channel, whe
- * should not process further buffers from that channel until we received the
- * barrier from all other channels as well. To avoid back-pressuring the
+ * The barrier buffer is responsible for implementing the blocking behaviour described
+ * here: {@link CheckpointBarrier}.
+ *
+ * <p>
+ * To avoid back-pressuring the
  * readers, we buffer up the new data received from the blocked channels until
  * the blocks are released.
- * 
  */
 public class BarrierBuffer {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BarrierBuffer.class);
 
-	private Queue<SpillingBufferOrEvent> nonprocessed = new LinkedList<SpillingBufferOrEvent>();
-	private Queue<SpillingBufferOrEvent> blockedNonprocessed = new LinkedList<SpillingBufferOrEvent>();
+	private Queue<SpillingBufferOrEvent> nonProcessed = new LinkedList<SpillingBufferOrEvent>();
+	private Queue<SpillingBufferOrEvent> blockedNonProcessed = new LinkedList<SpillingBufferOrEvent>();
 
 	private Set<Integer> blockedChannels = new HashSet<Integer>();
 	private int totalNumberOfInputChannels;
 
-	private StreamingSuperstep currentSuperstep;
-	private boolean superstepStarted;
+	private CheckpointBarrier currentBarrier;
 
 	private AbstractReader reader;
 
@@ -64,6 +63,8 @@ public class BarrierBuffer {
 	private boolean inputFinished = false;
 
 	private BufferOrEvent endOfStreamEvent = null;
+
+	private long lastCheckpointId = Long.MIN_VALUE;
 
 	public BarrierBuffer(InputGate inputGate, AbstractReader reader) {
 		this.inputGate = inputGate;
@@ -79,32 +80,18 @@ public class BarrierBuffer {
 	}
 
 	/**
-	 * Starts the next superstep in the buffer
-	 * 
-	 * @param superstep
-	 *            The next superstep
-	 */
-	protected void startSuperstep(StreamingSuperstep superstep) {
-		this.currentSuperstep = superstep;
-		this.superstepStarted = true;
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Superstep started with id: " + superstep.getId());
-		}
-	}
-
-	/**
-	 * Get then next non-blocked non-processed BufferOrEvent. Returns null if
-	 * not available.
+	 * Get then next non-blocked non-processed {@link BufferOrEvent}. Returns null if
+	 * none available.
 	 * 
 	 * @throws IOException
 	 */
-	protected BufferOrEvent getNonProcessed() throws IOException {
-		SpillingBufferOrEvent nextNonprocessed;
+	private BufferOrEvent getNonProcessed() throws IOException {
+		SpillingBufferOrEvent nextNonProcessed;
 
-		while ((nextNonprocessed = nonprocessed.poll()) != null) {
-			BufferOrEvent boe = nextNonprocessed.getBufferOrEvent();
+		while ((nextNonProcessed = nonProcessed.poll()) != null) {
+			BufferOrEvent boe = nextNonProcessed.getBufferOrEvent();
 			if (isBlocked(boe.getChannelIndex())) {
-				blockedNonprocessed.add(new SpillingBufferOrEvent(boe, bufferSpiller, spillReader));
+				blockedNonProcessed.add(new SpillingBufferOrEvent(boe, bufferSpiller, spillReader));
 			} else {
 				return boe;
 			}
@@ -114,25 +101,24 @@ public class BarrierBuffer {
 	}
 
 	/**
-	 * Checks whether a given channel index is blocked for this inputgate
+	 * Checks whether the channel with the given index is blocked.
 	 * 
-	 * @param channelIndex
-	 *            The channel index to check
+	 * @param channelIndex The channel index to check
 	 */
-	protected boolean isBlocked(int channelIndex) {
+	private boolean isBlocked(int channelIndex) {
 		return blockedChannels.contains(channelIndex);
 	}
 
 	/**
-	 * Checks whether all channels are blocked meaning that barriers are
+	 * Checks whether all channels are blocked meaning that barriers have been
 	 * received from all channels
 	 */
-	protected boolean isAllBlocked() {
+	private boolean isAllBlocked() {
 		return blockedChannels.size() == totalNumberOfInputChannels;
 	}
 
 	/**
-	 * Returns the next non-blocked BufferOrEvent. This is a blocking operator.
+	 * Returns the next non-blocked {@link BufferOrEvent}. This is a blocking operator.
 	 */
 	public BufferOrEvent getNextNonBlocked() throws IOException, InterruptedException {
 		// If there are non-processed buffers from the previously blocked ones,
@@ -141,7 +127,7 @@ public class BarrierBuffer {
 
 		if (bufferOrEvent != null) {
 			return bufferOrEvent;
-		} else if (blockedNonprocessed.isEmpty() && inputFinished) {
+		} else if (blockedNonProcessed.isEmpty() && inputFinished) {
 			return endOfStreamEvent;
 		} else {
 			// If no non-processed, get new from input
@@ -162,7 +148,7 @@ public class BarrierBuffer {
 					} else {
 						if (isBlocked(bufferOrEvent.getChannelIndex())) {
 							// If channel blocked we just store it
-							blockedNonprocessed.add(new SpillingBufferOrEvent(bufferOrEvent,
+							blockedNonProcessed.add(new SpillingBufferOrEvent(bufferOrEvent,
 									bufferSpiller, spillReader));
 						} else {
 							return bufferOrEvent;
@@ -182,7 +168,7 @@ public class BarrierBuffer {
 	 * @param channelIndex
 	 *            The channel index to block.
 	 */
-	protected void blockChannel(int channelIndex) {
+	private void blockChannel(int channelIndex) {
 		if (!blockedChannels.contains(channelIndex)) {
 			blockedChannels.add(channelIndex);
 			if (LOG.isDebugEnabled()) {
@@ -199,16 +185,14 @@ public class BarrierBuffer {
 
 	/**
 	 * Releases the blocks on all channels.
-	 * 
-	 * @throws IOException
 	 */
-	protected void releaseBlocks() {
-		if (!nonprocessed.isEmpty()) {
+	private void releaseBlocks() {
+		if (!nonProcessed.isEmpty()) {
 			// sanity check
 			throw new RuntimeException("Error in barrier buffer logic");
 		}
-		nonprocessed = blockedNonprocessed;
-		blockedNonprocessed = new LinkedList<SpillingBufferOrEvent>();
+		nonProcessed = blockedNonProcessed;
+		blockedNonProcessed = new LinkedList<SpillingBufferOrEvent>();
 
 		try {
 			spillReader.setSpillFile(bufferSpiller.getSpillFile());
@@ -218,7 +202,7 @@ public class BarrierBuffer {
 		}
 
 		blockedChannels.clear();
-		superstepStarted = false;
+		currentBarrier = null;
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("All barriers received, blocks released");
 		}
@@ -228,28 +212,46 @@ public class BarrierBuffer {
 	 * Method that is executed once the barrier has been received from all
 	 * channels.
 	 */
-	protected void actOnAllBlocked() {
+	private void actOnAllBlocked() {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Publishing barrier to the vertex");
 		}
 
-		if (currentSuperstep != null && !inputFinished) {
-			reader.publish(currentSuperstep);
+		if (currentBarrier != null && !inputFinished) {
+			reader.publish(currentBarrier);
+			lastCheckpointId = currentBarrier.getId();
 		}
 
 		releaseBlocks();
 	}
 
 	/**
-	 * Processes a streaming superstep event
+	 * Processes one {@link org.apache.flink.streaming.runtime.tasks.CheckpointBarrier}
 	 * 
-	 * @param bufferOrEvent
-	 *            The BufferOrEvent containing the event
+	 * @param bufferOrEvent The {@link BufferOrEvent} containing the checkpoint barrier
 	 */
-	public void processSuperstep(BufferOrEvent bufferOrEvent) {
-		StreamingSuperstep superstep = (StreamingSuperstep) bufferOrEvent.getEvent();
-		if (!superstepStarted) {
-			startSuperstep(superstep);
+	public void processBarrier(BufferOrEvent bufferOrEvent) {
+		CheckpointBarrier receivedBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
+
+		if (receivedBarrier.getId() < lastCheckpointId) {
+			// a barrier from an old checkpoint, ignore these
+			return;
+		}
+
+		if (currentBarrier == null) {
+			this.currentBarrier = receivedBarrier;
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Checkpoint barrier received start waiting for checkpoint: {}", receivedBarrier);
+			}
+		} else if (receivedBarrier.getId() > currentBarrier.getId()) {
+			// we have a barrier from a more recent checkpoint, free all locks and start with
+			// this newer checkpoint
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Checkpoint barrier received while waiting on checkpoint {}. Restarting waiting with checkpoint {}: ", currentBarrier, receivedBarrier);
+			}
+			releaseBlocks();
+			currentBarrier = receivedBarrier;
+
 		}
 		blockChannel(bufferOrEvent.getChannelIndex());
 	}
@@ -269,11 +271,11 @@ public class BarrierBuffer {
 	}
 
 	public String toString() {
-		return nonprocessed.toString() + blockedNonprocessed.toString();
+		return nonProcessed.toString() + blockedNonProcessed.toString();
 	}
 
 	public boolean isEmpty() {
-		return nonprocessed.isEmpty() && blockedNonprocessed.isEmpty();
+		return nonProcessed.isEmpty() && blockedNonProcessed.isEmpty();
 	}
 
 }

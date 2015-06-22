@@ -61,6 +61,14 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 		}
 	}
 
+	@Override
+	public void broadcastEmit(T record) throws IOException, InterruptedException {
+		super.broadcastEmit(record);
+		if (flushAlways) {
+			flush();
+		}
+	}
+
 	public void close() {
 		try {
 			if (outputFlusher != null) {
