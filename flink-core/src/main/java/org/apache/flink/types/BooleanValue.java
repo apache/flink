@@ -89,7 +89,7 @@ public class BooleanValue implements NormalizableKey<BooleanValue>, ResettableVa
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj.getClass() == BooleanValue.class) {
+		if (obj instanceof BooleanValue) {
 			return ((BooleanValue) obj).value == this.value;
 		}
 		return false;

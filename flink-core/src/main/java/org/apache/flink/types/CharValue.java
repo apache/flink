@@ -108,7 +108,7 @@ public class CharValue implements NormalizableKey<CharValue>, ResettableValue<Ch
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj != null && obj.getClass() == CharValue.class) {
+		if (obj instanceof CharValue) {
 			return ((CharValue) obj).value == this.value;
 		}
 		return false;
