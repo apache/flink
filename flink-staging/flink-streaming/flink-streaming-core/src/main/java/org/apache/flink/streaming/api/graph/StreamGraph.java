@@ -470,7 +470,7 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	public static enum ResourceStrategy {
+	public enum ResourceStrategy {
 		DEFAULT, ISOLATE, NEWGROUP
 	}
 

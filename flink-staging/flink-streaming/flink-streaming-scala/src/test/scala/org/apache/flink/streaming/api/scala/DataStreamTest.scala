@@ -22,10 +22,13 @@ import java.lang
 
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph, StreamNode}
-import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator}
+import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamCounter, StreamOperator}
+import org.apache.flink.streaming.api.scala.windowing.Delta
 import org.apache.flink.streaming.api.windowing.helper.Count
 import org.apache.flink.streaming.runtime.partitioner._
 import org.apache.flink.util.Collector
@@ -378,6 +381,10 @@ class DataStreamTest {
     }
   }
 
+  // TODO test grouped aggregations
+
+  // TODO window test
+
   @Test
   def iterationTest {
     val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism)
@@ -476,7 +483,7 @@ class DataStreamTest {
   /////////////////////////////////////////////////////////////
   // Utilities
   /////////////////////////////////////////////////////////////
-
+  
   private def getFunctionForDataStream(dataStream: DataStream[_]): Function = {
     val operator = getOperatorForDataStream(dataStream)
       .asInstanceOf[AbstractUdfStreamOperator[_, _]]
