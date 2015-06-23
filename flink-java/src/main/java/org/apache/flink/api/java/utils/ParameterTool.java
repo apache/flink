@@ -197,7 +197,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return Integer.valueOf(value);
 	}
 
-	public int getLong(String key, int defaultValue) {
+	public int getInt(String key, int defaultValue) {
 		addToDefaults(key, Integer.toString(defaultValue));
 		String value = get(key);
 		if(value == null) {
