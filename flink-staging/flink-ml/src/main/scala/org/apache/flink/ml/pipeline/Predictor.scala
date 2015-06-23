@@ -72,8 +72,8 @@ trait Predictor[Self] extends Estimator[Self] with WithParameters {
     */
   def evaluate[Testing, PredictionValue](
       testing: DataSet[Testing],
-      evaluateParameters: ParameterMap = ParameterMap.Empty)(implicit
-      evaluator: EvaluateDataSetOperation[Self, Testing, PredictionValue])
+      evaluateParameters: ParameterMap = ParameterMap.Empty)
+      (implicit evaluator: EvaluateDataSetOperation[Self, Testing, PredictionValue])
     : DataSet[(PredictionValue, PredictionValue)] = {
     FlinkMLTools.registerFlinkMLTypes(testing.getExecutionEnvironment)
     evaluator.evaluateDataSet(this, evaluateParameters, testing)
@@ -174,7 +174,7 @@ object Predictor {
   }
 }
 
-/** Type class for the predict operation of [[Predictor]]. This predict operation works on DataSets.
+/** Trait for the predict operation of [[Predictor]]. This predict operation works on DataSets.
   *
   * [[Predictor]]s either have to implement this trait or the [[PredictOperation]] trait. The
   * implementation has to be made available as an implicit value or function in the scope of
@@ -233,11 +233,10 @@ trait PredictOperation[Instance, Model, Testing, Prediction] extends Serializabl
     * @param model The model representation of the prediciton algorithm
     * @return A label for the provided example of type [[Prediction]]
     */
-  def predict(value: Testing, model: Model):
-    Prediction
+  def predict(value: Testing, model: Model): Prediction
 }
 
-/** Type class for the evaluate operation of [[Predictor]]. This evaluate operation works on
+/** Trait for the evaluate operation of [[Predictor]]. This evaluate operation works on
   * DataSets.
   *
   * It takes a [[DataSet]] of some type. For each element of this [[DataSet]] the evaluate method
