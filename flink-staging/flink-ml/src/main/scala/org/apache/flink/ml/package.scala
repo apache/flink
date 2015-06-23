@@ -18,14 +18,17 @@
 
 package org.apache.flink
 
-import org.apache.flink.api.common.functions.{RichFilterFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.{RichFlatMapFunction, RichFilterFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.statistics.ContinuousHistogram
+import org.apache.flink.util.Collector
 
 import scala.reflect.ClassTag
+import scala.collection.JavaConverters._
 
 package object ml {
 
@@ -49,12 +52,44 @@ package object ml {
     }
   }
 
+  /** Pimp my [[DataSet]] to support histogram creation
+    *
+    * @param dataSet
+    */
+  implicit class RichDoubleDataSet(dataSet: DataSet[Double]) {
+
+    /** Creates a [[ContinuousHistogram]] from a [[DataSet]]
+      *
+      * @param bins Number of bins required
+      */
+    def createHistogram(bins: Int): DataSet[ContinuousHistogram] = {
+      require(bins > 0, "Number of bins must be positive")
+      MLUtils.createContinuousHistogram(dataSet, bins)
+    }
+  }
+
   implicit class RichDataSet[T](dataSet: DataSet[T]) {
     def mapWithBcVariable[B, O: TypeInformation: ClassTag](
         broadcastVariable: DataSet[B])(
         fun: (T, B) => O)
       : DataSet[O] = {
       dataSet.map(new BroadcastSingleElementMapper[T, B, O](dataSet.clean(fun)))
+        .withBroadcastSet(broadcastVariable, "broadcastVariable")
+    }
+
+    def flatMapWithBcVariable[B, O: TypeInformation: ClassTag](
+        broadcastVariable: DataSet[B])(
+        fun: (T, B) => List[O])
+      : DataSet[O] = {
+      dataSet.flatMap(new BroadcastSingleElementFlatMapper[T, B, O](dataSet.clean(fun)))
+        .withBroadcastSet(broadcastVariable, "broadcastVariable")
+    }
+
+    def mapWithBcSet[B, O: TypeInformation: ClassTag](
+        broadcastVariable: DataSet[B])(
+        fun: (T, Seq[B]) => O)
+      : DataSet[O] = {
+      dataSet.map(new BroadcastSingleSetMapper[T, B, O](dataSet.clean(fun)))
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
     }
 
@@ -80,6 +115,36 @@ package object ml {
     @throws(classOf[Exception])
     override def open(configuration: Configuration): Unit = {
       broadcastVariable = getRuntimeContext.getBroadcastVariable[B]("broadcastVariable").get(0)
+    }
+
+    override def map(value: T): O = {
+      fun(value, broadcastVariable)
+    }
+  }
+
+  private class BroadcastSingleElementFlatMapper[T, B, O](
+      fun: (T, B) => List[O])
+    extends RichFlatMapFunction[T, O] {
+    var broadcastVariable: B = _
+
+    @throws(classOf[Exception])
+    override def open(configuration: Configuration): Unit = {
+      broadcastVariable = getRuntimeContext.getBroadcastVariable[B]("broadcastVariable").get(0)
+    }
+
+    override def flatMap(value: T, out: Collector[O]): Unit = {
+      fun(value, broadcastVariable).iterator.foreach(output => out.collect(output))
+    }
+  }
+
+  private class BroadcastSingleSetMapper[T, B, O](
+      fun: (T, Seq[B]) => O)
+    extends RichMapFunction[T, O] {
+    var broadcastVariable: Seq[B] = _
+
+    @throws(classOf[Exception])
+    override def open(configuration: Configuration): Unit = {
+      broadcastVariable = getRuntimeContext.getBroadcastVariable[B]("broadcastVariable").asScala
     }
 
     override def map(value: T): O = {

@@ -18,12 +18,14 @@
 
 package org.apache.flink.ml
 
-import org.apache.flink.api.common.functions.RichMapFunction
+import org.apache.flink.api.common.functions.{RichMapPartitionFunction, RichMapFunction}
 import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common.LabeledVector
-import org.apache.flink.ml.math.SparseVector
+import org.apache.flink.ml.math.{DenseVector, SparseVector}
+import org.apache.flink.ml.statistics.{DataStats, DiscreteHistogram, ContinuousHistogram}
+import org.apache.flink.util.Collector
 
 /** Convenience functions for machine learning tasks
   *
@@ -40,6 +42,8 @@ import org.apache.flink.ml.math.SparseVector
 object MLUtils {
 
   val DIMENSION = "dimension"
+
+  val HISTOGRAM_STATS = "MIN_MAX_HISTOGRAM_STATS"
 
   /** Reads a file in libSVM/SVMLight format and converts the data into a data set of
     * [[LabeledVector]]. The dimension of the [[LabeledVector]] is determined automatically.
@@ -118,5 +122,61 @@ object MLUtils {
     }
 
     stringRepresentation.writeAsText(filePath)
+  }
+
+  /** Create a [[ContinuousHistogram]] from the input data
+    *
+    * @param bins Number of bins required
+    * @param data input [[DataSet]] of [[Double]]
+    * @return [[ContinuousHistogram]] over the data
+    */
+  def createContinuousHistogram(data: DataSet[Double], bins: Int): DataSet[ContinuousHistogram] = {
+    val stats = DataStats.dataStats(data.map(x => DenseVector(Array(x))))
+
+    data.mapPartition(new RichMapPartitionFunction[Double, ContinuousHistogram] {
+      var statistics: (Double, Double) = _
+
+      override def open(configuration: Configuration): Unit = {
+        val stats = getRuntimeContext.getBroadcastVariable[DataStats](HISTOGRAM_STATS).get(0)
+        val minimum = stats.fields.head.min
+        val maximum = stats.fields.head.max
+        statistics = (minimum - 2 * (maximum - minimum), maximum + 2 * (maximum - minimum))
+      }
+
+      override def mapPartition(
+          values: java.lang.Iterable[Double],
+          out: Collector[ContinuousHistogram])
+        : Unit = {
+        val localHistogram = new ContinuousHistogram(bins, statistics._1, statistics._2)
+        val iterator = values.iterator()
+        while (iterator.hasNext) {
+          localHistogram.add(iterator.next())
+        }
+        out.collect(localHistogram)
+      }
+    })
+      .withBroadcastSet(stats, HISTOGRAM_STATS)
+      .reduce((x, y) => x.merge(y, bins))
+  }
+
+  /** Create a [[DiscreteHistogram]] from the input data
+    *
+    * @param data input [[DataSet]] of [[Double]]
+    * @return [[DiscreteHistogram]] over the data
+    */
+  def createDiscreteHistogram(data: DataSet[Double]): DataSet[DiscreteHistogram] = {
+    data.mapPartition(new RichMapPartitionFunction[Double, DiscreteHistogram] {
+      override def mapPartition(
+          values: java.lang.Iterable[Double],
+          out: Collector[DiscreteHistogram])
+        : Unit = {
+        val localHistogram = new DiscreteHistogram(Int.MaxValue)
+        val iterator = values.iterator()
+        while (iterator.hasNext) {
+          localHistogram.add(iterator.next())
+        }
+        out.collect(localHistogram)
+      }
+    }).reduce((x, y) => x.merge(y, 0))
   }
 }

@@ -20,6 +20,8 @@ package org.apache.flink.ml
 
 import java.io.File
 
+import org.apache.flink.ml.statistics.{ContinuousHistogram, DiscreteHistogram}
+
 import scala.io.Source
 
 import org.scalatest.{FlatSpec, Matchers}
@@ -108,5 +110,40 @@ class MLUtilsSuite extends FlatSpec with Matchers with FlinkTestBase {
     counter should be(expectedLines.size)
 
     tempFile.delete()
+  }
+
+  it should "create a discrete histogram" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val discreteData = Seq(1.0, 2.0, 3.0, 5.0, 1.0, 7.0, 9.0, 1.0, 0.0, 1.0, 4.0, 6.0, 7.0, 9.0,
+      4.0, 3.0, 1.0, 4.0, 6.0, 8.0, 4.0, 3.0, 6.0, 8.0, 4.0, 3.0, 6.0, 8.0, 9.0, 7.0, 8.0, 2.0, 3.0,
+      6.0, 0.0)
+    val h = MLUtils
+      .createDiscreteHistogram(env.fromCollection(discreteData))
+      .collect().toArray.apply(0)
+
+    h.count(0) should equal(discreteData.count(x => x == 0))
+    h.count(1) should equal(discreteData.count(x => x == 1))
+    h.count(2) should equal(discreteData.count(x => x == 2))
+    h.count(3) should equal(discreteData.count(x => x == 3))
+    h.count(4) should equal(discreteData.count(x => x == 4))
+    h.count(5) should equal(discreteData.count(x => x == 5))
+    h.count(6) should equal(discreteData.count(x => x == 6))
+    h.count(7) should equal(discreteData.count(x => x == 7))
+    h.count(8) should equal(discreteData.count(x => x == 8))
+    h.count(9) should equal(discreteData.count(x => x == 9))
+  }
+
+  it should "create a continuous histogram" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val discreteData = Seq(1.0, 2.0, 3.0, 5.0, 1.0, 7.0, 9.0, 1.0, 0.0, 1.0, 4.0, 6.0, 7.0, 9.0,
+      4.0, 3.0, 1.0, 4.0, 6.0, 8.0, 4.0, 3.0, 6.0, 8.0, 4.0, 3.0, 6.0, 8.0, 9.0, 7.0, 8.0, 2.0, 3.0,
+      6.0, 0.0)
+    val h = env.fromCollection(discreteData).setParallelism(4)
+      .createHistogram(5)
+      .collect().toArray.apply(0)
+
+    h.count(h.quantile(0.2)) should equal(7)
+    h.count(h.quantile(0.1)) should equal(4)
+    h.count(h.quantile(0.5)) should equal(18)
   }
 }
