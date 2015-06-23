@@ -52,6 +52,7 @@ FlinkML currently supports the following algorithms:
 ### Utilities
 
 * [Distance Metrics](distance_metrics.html)
+* [Statistics](statistics.html)
 
 ## Getting Started
 

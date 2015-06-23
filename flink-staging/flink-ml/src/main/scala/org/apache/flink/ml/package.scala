@@ -24,6 +24,8 @@ import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.math.Vector
+import org.apache.flink.ml.statistics.DataStats
 
 import scala.reflect.ClassTag
 
@@ -46,6 +48,30 @@ package object ml {
   implicit class RichLabeledDataSet(dataSet: DataSet[LabeledVector]) {
     def writeAsLibSVM(path: String): DataSink[String] = {
       MLUtils.writeLibSVM(path, dataSet)
+    }
+  }
+
+  /** Pimp my [[DataSet]] to directly support `dataStats`
+    *
+    * @param dataSet
+    */
+  implicit class RichVectorDataSet(dataSet: DataSet[Vector]) {
+
+    /** Evaluate statistics for the [[dataSet]]
+      *
+      * @return statistics for the data set
+      */
+    def dataStats(): DataSet[DataStats] = {
+      dataSet.dataStats(Array.ofDim(0))
+    }
+
+    /** Evaluate statistics for the [[dataSet]] when some of the fields are discrete valued.
+      *
+      * @param discreteFields Array of indices of fields which are discrete valued
+      * @return statistics for the data set
+      */
+    def dataStats(discreteFields: Array[Int]): DataSet[DataStats] = {
+      DataStats.dataStats(dataSet, discreteFields)
     }
   }
 
