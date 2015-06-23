@@ -20,6 +20,8 @@ package org.apache.flink.test.util;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import org.apache.flink.api.common.accumulators.ContinuousHistogram;
+import org.apache.flink.api.common.accumulators.DiscreteHistogram;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -34,6 +36,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+
+import static org.junit.Assert.assertEquals;
 
 @RunWith(Parameterized.class)
 public class DataSetUtilsITCase extends MultipleProgramsTestBase {
@@ -80,5 +84,38 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 		Set<Long> result = Sets.newHashSet(ids.collect());
 
 		Assert.assertEquals(expectedSize, result.size());
+	}
+
+	@Test
+	public void testHistogram() throws Exception {
+		DataSet<Double> data = ExecutionEnvironment.getExecutionEnvironment().fromElements(1.0, 2.0,
+				3.0, 5.0, 1.0, 7.0, 9.0, 1.0, 0.0, 1.0, 4.0, 6.0, 7.0, 9.0, 4.0, 3.0, 1.0, 4.0, 6.0,
+				8.0, 4.0, 3.0, 6.0, 8.0, 4.0, 3.0, 6.0, 8.0, 9.0, 7.0, 8.0, 2.0, 3.0, 6.0, 0.0)
+				.setParallelism(2);
+
+		DiscreteHistogram histogram1 = DataSetUtils.createDiscreteHistogram(data).collect().get(0);
+		assertEquals(35, histogram1.getTotal());
+		assertEquals(10, histogram1.getSize());
+		assertEquals(2, histogram1.count(0.0));
+		assertEquals(5, histogram1.count(1.0));
+		assertEquals(2, histogram1.count(2.0));
+		assertEquals(5, histogram1.count(3.0));
+		assertEquals(5, histogram1.count(4.0));
+		assertEquals(1, histogram1.count(5.0));
+		assertEquals(5, histogram1.count(6.0));
+		assertEquals(3, histogram1.count(7.0));
+		assertEquals(4, histogram1.count(8.0));
+		assertEquals(3, histogram1.count(9.0));
+
+		ContinuousHistogram histogram2 = DataSetUtils.createContinuousHistogram(data, 5).collect().get(0);
+		assertEquals(35, histogram2.getTotal());
+		assertEquals(5, histogram2.getSize());
+		assertEquals(4, histogram2.count(histogram2.quantile(0.1)));
+		assertEquals(7, histogram2.count(histogram2.quantile(0.2)));
+		assertEquals(18, histogram2.count(histogram2.quantile(0.5)));
+		assertEquals(0.0, histogram2.min(), 0.0);
+		assertEquals(9.0, histogram2.max(), 0.0);
+		assertEquals(4.543, histogram2.mean(), 1e-3);
+		assertEquals(7.619, histogram2.variance(), 1e-3);
 	}
 }

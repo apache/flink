@@ -18,9 +18,11 @@
 
 package org.apache.flink.api.scala.util
 
+import org.apache.flink.api.common.accumulators.{ContinuousHistogram, DiscreteHistogram}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.utils._
 import org.apache.flink.test.util.MultipleProgramsTestBase
+import org.junit.Assert.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -60,5 +62,39 @@ class DataSetUtilsITCase (
     val result = numbers.zipWithUniqueId.collect().map(_._1).toSet
 
     Assert.assertEquals(expectedSize, result.size)
+  }
+
+  @Test
+  @throws(classOf[Exception])
+  def testHistogram(): Unit = {
+    val data: DataSet[Double] = ExecutionEnvironment.getExecutionEnvironment.fromElements(1.0, 2.0,
+      3.0, 5.0, 1.0, 7.0, 9.0, 1.0, 0.0, 1.0, 4.0, 6.0, 7.0, 9.0, 4.0, 3.0, 1.0, 4.0, 6.0, 8.0, 4.0,
+      3.0, 6.0, 8.0, 4.0, 3.0, 6.0, 8.0, 9.0, 7.0, 8.0, 2.0, 3.0, 6.0, 0.0)
+      .setParallelism(2)
+
+    val histogram1: DiscreteHistogram = data.createDiscreteHistogram.collect().head
+    assertEquals(35, histogram1.getTotal)
+    assertEquals(10, histogram1.getSize)
+    assertEquals(2, histogram1.count(0.0))
+    assertEquals(5, histogram1.count(1.0))
+    assertEquals(2, histogram1.count(2.0))
+    assertEquals(5, histogram1.count(3.0))
+    assertEquals(5, histogram1.count(4.0))
+    assertEquals(1, histogram1.count(5.0))
+    assertEquals(5, histogram1.count(6.0))
+    assertEquals(3, histogram1.count(7.0))
+    assertEquals(4, histogram1.count(8.0))
+    assertEquals(3, histogram1.count(9.0))
+
+    val histogram2: ContinuousHistogram = data.createContinuousHistogram(5).collect().head
+    assertEquals(35, histogram2.getTotal)
+    assertEquals(5, histogram2.getSize)
+    assertEquals(4, histogram2.count(histogram2.quantile(0.1)))
+    assertEquals(7, histogram2.count(histogram2.quantile(0.2)))
+    assertEquals(18, histogram2.count(histogram2.quantile(0.5)))
+    assertEquals(0.0, histogram2.min, 0.0)
+    assertEquals(9.0, histogram2.max, 0.0)
+    assertEquals(4.543, histogram2.mean, 1e-3)
+    assertEquals(7.619, histogram2.variance, 1e-3)
   }
 }

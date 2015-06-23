@@ -19,7 +19,10 @@
 package org.apache.flink.api.java.utils;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.api.common.accumulators.ContinuousHistogram;
+import org.apache.flink.api.common.accumulators.DiscreteHistogram;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
@@ -246,6 +249,56 @@ public final class DataSetUtils {
 		return new GroupReduceOperator<>(mapPartitionOperator, input.getType(), sampleInCoordinator, callLocation);
 	}
 
+	/**
+	 * Creates a {@link org.apache.flink.api.common.accumulators.DiscreteHistogram} from the data set
+	 *
+	 * @param data Discrete valued data set
+	 * @return A histogram over data
+	 */
+	public static DataSet<DiscreteHistogram> createDiscreteHistogram(DataSet<Double> data) {
+		return data.mapPartition(new RichMapPartitionFunction<Double, DiscreteHistogram>() {
+			@Override
+			public void mapPartition(Iterable<Double> values, Collector<DiscreteHistogram> out) throws Exception {
+				DiscreteHistogram histogram = new DiscreteHistogram();
+				for (double value : values) {
+					histogram.add(value);
+				}
+				out.collect(histogram);
+			}
+		}).reduce(new ReduceFunction<DiscreteHistogram>() {
+			@Override
+			public DiscreteHistogram reduce(DiscreteHistogram value1, DiscreteHistogram value2) throws Exception {
+				value1.merge(value2);
+				return value1;
+			}
+		});
+	}
+
+	/**
+	 * Creates a {@link org.apache.flink.api.common.accumulators.ContinuousHistogram} from the data set
+	 *
+	 * @param data Continuous valued data set
+	 * @param bins Number of bins in the histogram
+	 * @return A histogram over data
+	 */
+	public static DataSet<ContinuousHistogram> createContinuousHistogram(DataSet<Double> data, final int bins) {
+		return data.mapPartition(new RichMapPartitionFunction<Double, ContinuousHistogram>() {
+			@Override
+			public void mapPartition(Iterable<Double> values, Collector<ContinuousHistogram> out) throws Exception {
+				ContinuousHistogram histogram = new ContinuousHistogram(bins);
+				for (double value : values) {
+					histogram.add(value);
+				}
+				out.collect(histogram);
+			}
+		}).reduce(new ReduceFunction<ContinuousHistogram>() {
+			@Override
+			public ContinuousHistogram reduce(ContinuousHistogram value1, ContinuousHistogram value2) throws Exception {
+				value1.merge(value2);
+				return value1;
+			}
+		});
+	}
 
 	// *************************************************************************
 	//     UTIL METHODS

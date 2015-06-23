@@ -47,6 +47,7 @@ env.execute();
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.utils._
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
 env.setParallelism(1)
@@ -87,6 +88,7 @@ env.execute();
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.utils._
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
 env.setParallelism(1)
