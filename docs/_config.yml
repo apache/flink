@@ -67,4 +67,4 @@ kramdown:
 
 host: localhost
 
-baseurl:
+baseurl: http://ci.apache.org/projects/flink/flink-docs-release-0.9
