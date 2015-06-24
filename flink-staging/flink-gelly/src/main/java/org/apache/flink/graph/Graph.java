@@ -1025,7 +1025,6 @@ public class Graph<K, VV, EV> {
 	 * @param vertex the vertex to be added
 	 * @return the new graph containing the existing vertices as well as the one just added
 	 */
-	@SuppressWarnings("unchecked")
 	public Graph<K, VV, EV> addVertex(final Vertex<K, VV> vertex) {
 		List<Vertex<K, VV>> newVertex = new ArrayList<Vertex<K, VV>>();
 		newVertex.add(vertex);
@@ -1040,7 +1039,6 @@ public class Graph<K, VV, EV> {
 	 * @param verticesToAdd the list of vertices to add
 	 * @return the new graph containing the existing and newly added vertices
 	 */
-	@SuppressWarnings("unchecked")
 	public Graph<K, VV, EV> addVertices(List<Vertex<K, VV>> verticesToAdd) {
 		// Add the vertices
 		DataSet<Vertex<K, VV>> newVertices = this.vertices.union(this.context.fromCollection(verticesToAdd)).distinct();
@@ -1074,7 +1072,6 @@ public class Graph<K, VV, EV> {
 	 * @param newEdges the data set of edges to be added
 	 * @return a new graph containing the existing edges plus the newly added edges.
 	 */
-	@SuppressWarnings("unchecked")
 	public Graph<K, VV, EV> addEdges(List<Edge<K, EV>> newEdges) {
 
 		DataSet<Edge<K,EV>> newEdgesDataSet = this.context.fromCollection(newEdges);
