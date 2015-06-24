@@ -26,6 +26,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
@@ -35,14 +36,11 @@ import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexCentricConfiguration;
 import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
+import org.apache.flink.graph.test.operations.CompareResults;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.LongValue;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
@@ -54,21 +52,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-    private String resultPath;
     private String expectedResult;
-
-    @Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
 
 	@Test
 	public void testRunWithConfiguration() throws Exception {
@@ -88,16 +72,19 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		parameters.registerAggregator("superstepAggregator", new LongSumAggregator());
 		parameters.setOptNumVertices(true);
 
-		Graph<Long, Long, Long> result = graph.runVertexCentricIteration(
+		Graph<Long, Long, Long> res = graph.runVertexCentricIteration(
 				new UpdateFunction(), new MessageFunction(), 10, parameters);
 
-		result.getVertices().writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
-		expectedResult = "1	11\n" +
-						"2	11\n" +
-						"3	11\n" +
-						"4	11\n" +
-						"5	11";
+		DataSet<Vertex<Long,Long>> data = res.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
+        
+		expectedResult = "1,11\n" +
+						"2,11\n" +
+						"3,11\n" +
+						"4,11\n" +
+						"5,11";
+		
+		CompareResults.compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -123,15 +110,16 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		Assert.assertEquals(2, iteration.getIterationConfiguration().getParallelism());
 		Assert.assertEquals(true, iteration.getIterationConfiguration().isSolutionSetUnmanagedMemory());
 
-		DataSet<Vertex<Long, Long>> result = TestGraphUtils.getLongLongVertexData(env).runOperation(iteration);
+		DataSet<Vertex<Long, Long>> data = TestGraphUtils.getLongLongVertexData(env).runOperation(iteration);
+        List<Vertex<Long,Long>> result= data.collect();
+        
+		expectedResult = "1,11\n" +
+						"2,12\n" +
+						"3,13\n" +
+						"4,14\n" +
+						"5,15";
 		
-		result.writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
-		expectedResult = "1	11\n" +
-						"2	12\n" +
-						"3	13\n" +
-						"4	14\n" +
-						"5	15";
+		CompareResults.compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -145,16 +133,20 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(), 
 				TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
 
-		Graph<Long, Long, Long> result = graph.runVertexCentricIteration(
+		Graph<Long, Long, Long> res = graph.runVertexCentricIteration(
 				new UpdateFunctionDefault(), new MessageFunctionDefault(), 5);
 
-		result.getVertices().map(new VertexToTuple2Map<Long, Long>()).writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
-		expectedResult = "1	6\n" +
-						"2	6\n" +
-						"3	6\n" +
-						"4	6\n" +
-						"5	6";
+		
+		DataSet<Tuple2<Long, Long>> data = res.getVertices().map(new VertexToTuple2Map<Long, Long>());
+        List<Tuple2<Long, Long>> result= data.collect();
+        
+		expectedResult = "1,6\n" +
+						"2,6\n" +
+						"3,6\n" +
+						"4,6\n" +
+						"5,6";
+		
+		CompareResults.compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -174,14 +166,15 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.runVertexCentricIteration(new VertexUpdateDirection(), new IdMessengerTrg(), 5)
 				.getVertices();
 
-		resultedVertices.writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
+        List<Vertex<Long, HashSet<Long>>> result= resultedVertices.collect();
 
-		expectedResult = "1	[5]\n" +
-				"2	[1]\n" +
-				"3	[1, 2]\n" +
-				"4	[3]\n" +
-				"5	[3, 4]";
+		expectedResult = "1,[5]\n" +
+				"2,[1]\n" +
+				"3,[1, 2]\n" +
+				"4,[3]\n" +
+				"5,[3, 4]";
+		
+		CompareResults.compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -206,14 +199,15 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.runVertexCentricIteration(new VertexUpdateDirection(), new IdMessengerSrc(), 5, parameters)
 				.getVertices();
 
-		resultedVertices.writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
+        List<Vertex<Long, HashSet<Long>>> result= resultedVertices.collect();
 
-		expectedResult = "1	[2, 3]\n" +
-				"2	[3]\n" +
-				"3	[4, 5]\n" +
-				"4	[5]\n" +
-				"5	[1]";
+		expectedResult = "1,[2, 3]\n" +
+				"2,[3]\n" +
+				"3,[4, 5]\n" +
+				"4,[5]\n" +
+				"5,[1]";
+		
+		CompareResults.compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -238,14 +232,15 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.runVertexCentricIteration(new VertexUpdateDirection(), new IdMessengerAll(), 5, parameters)
 				.getVertices();
 
-		resultedVertices.writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
+        List<Vertex<Long, HashSet<Long>>> result= resultedVertices.collect();
 
-		expectedResult = "1	[2, 3, 5]\n" +
-				"2	[1, 3]\n" +
-				"3	[1, 2, 4, 5]\n" +
-				"4	[3, 5]\n" +
-				"5	[1, 3, 4]";
+		expectedResult = "1,[2, 3, 5]\n" +
+				"2,[1, 3]\n" +
+				"3,[1, 2, 4, 5]\n" +
+				"4,[3, 5]\n" +
+				"5,[1, 3, 4]";
+		
+		CompareResults.compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -262,14 +257,15 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		DataSet<Vertex<Long, Long>> verticesWithNumVertices = graph.runVertexCentricIteration(new UpdateFunctionNumVertices(),
 				new DummyMessageFunction(), 2).getVertices();
 
-		verticesWithNumVertices.writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
+        List<Vertex<Long, Long>> result= verticesWithNumVertices.collect();
 
-		expectedResult = "1	-1\n" +
-				"2	-1\n" +
-				"3	-1\n" +
-				"4	-1\n" +
-				"5	-1";
+		expectedResult = "1,-1\n" +
+				"2,-1\n" +
+				"3,-1\n" +
+				"4,-1\n" +
+				"5,-1";
+		
+		CompareResults.compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -293,14 +289,15 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runVertexCentricIteration(
 				new UpdateFunctionInDegrees(), new DegreesMessageFunction(), 5, parameters).getVertices();
 
-		verticesWithDegrees.writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
+        List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
 
-		expectedResult = "1	1\n" +
-				"2	1\n" +
-				"3	2\n" +
-				"4	1\n" +
-				"5	2";
+		expectedResult = "1,1\n" +
+				"2,1\n" +
+				"3,2\n" +
+				"4,1\n" +
+				"5,2";
+		
+		CompareResults.compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -317,14 +314,15 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runVertexCentricIteration(
 				new UpdateFunctionInDegrees(), new DummyMessageFunction(), 2).getVertices();
 
-		verticesWithDegrees.writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
+        List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
 
-		expectedResult = "1	-1\n" +
-				"2	-1\n" +
-				"3	-1\n" +
-				"4	-1\n" +
-				"5	-1";
+		expectedResult = "1,-1\n" +
+				"2,-1\n" +
+				"3,-1\n" +
+				"4,-1\n" +
+				"5,-1";
+		
+		CompareResults.compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -348,14 +346,15 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runVertexCentricIteration(
 				new UpdateFunctionOutDegrees(), new DegreesMessageFunction(), 5, parameters).getVertices();
 
-		verticesWithDegrees.writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
+        List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
 
-		expectedResult = "1	2\n" +
-				"2	1\n" +
-				"3	2\n" +
-				"4	1\n" +
-				"5	1";
+		expectedResult = "1,2\n" +
+				"2,1\n" +
+				"3,2\n" +
+				"4,1\n" +
+				"5,1";
+		
+		CompareResults.compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -372,14 +371,15 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runVertexCentricIteration(
 				new UpdateFunctionInDegrees(), new DummyMessageFunction(), 2).getVertices();
 
-		verticesWithDegrees.writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
+        List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
 
-		expectedResult = "1	-1\n" +
-				"2	-1\n" +
-				"3	-1\n" +
-				"4	-1\n" +
-				"5	-1";
+		expectedResult = "1,-1\n" +
+				"2,-1\n" +
+				"3,-1\n" +
+				"4,-1\n" +
+				"5,-1";
+		
+		CompareResults.compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -403,14 +403,15 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		DataSet<Vertex<Long, Boolean>> verticesWithNumNeighbors = graph.runVertexCentricIteration(
 				new VertexUpdateNumNeighbors(), new IdMessenger(), 1, parameters).getVertices();
 
-		verticesWithNumNeighbors.writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
+        List<Vertex<Long, Boolean>> result= verticesWithNumNeighbors.collect();
 
-		expectedResult = "1	true\n" +
-				"2	true\n" +
-				"3	true\n" +
-				"4	true\n" +
-				"5	true";
+		expectedResult = "1,true\n" +
+				"2,true\n" +
+				"3,true\n" +
+				"4,true\n" +
+				"5,true";
+		
+		CompareResults.compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")
