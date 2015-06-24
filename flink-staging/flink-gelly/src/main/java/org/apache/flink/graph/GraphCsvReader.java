@@ -114,20 +114,24 @@ public class GraphCsvReader<K,VV,EV>{
 	 * @param  type2 The type of CSV field 2 for the CSV reader used for reading Edge data and the type of Edge Value in the returned Graph.
 	 * @return The {@link org.apache.flink.graph.Graph} with Edges and Vertices extracted from the parsed CSV data.
 	 */
-	public Graph<K, VV, EV> types(Class<K> type0, Class<VV> type1, Class<EV> type2) {
-		/* If both Vertex value and Edge values are present */
-			DataSet<Tuple3<K, K, EV>> edges = this.EdgeReader.types(type0, type0, type2);
-			if(path1!=null)
-			{
-				DataSet<Tuple2<K, VV>> vertices = this.VertexReader.types(type0, type1);
-				return Graph.fromTupleDataSet(vertices, edges, executionContext);
-			}
-				return Graph.fromTupleDataSet(edges, this.mapper, executionContext);
-	}
+	public Graph<K,VV,EV> types(Class<K> type0, Class<VV> type1, Class<EV> type2)
+	{
+		DataSet<Tuple3<K, K, EV>> edges = this.EdgeReader.types(type0, type0, type2);
+		if(path1!=null)
+		{
+			DataSet<Tuple2<K, VV>> vertices = this.VertexReader.types(type0, type1);
+			return Graph.fromTupleDataSet(vertices, edges, executionContext);
+		}
+		else
+		{
+			return Graph.fromTupleDataSet(edges, this.mapper, executionContext);
+		}
 
+
+	}
 	/**
-	 * Specifies the types for the Graph fields and returns a Graph with those field types
-	 *NullValue for vertices
+	 * Specifies the types for the Graph fields and returns a Graph with those field types in the special case
+	 * where Vertices don't have a value
 	 * @param type0 The type of CSV field 0 and 1 for the CSV reader used for reading Edge data and the type of Vetex ID in the returned Graph.
 	 * @param  type1 The type of CSV field 2 for the CSV reader used for reading Edge data and the type of Edge Value in the returned Graph.
 	 * @return The {@link org.apache.flink.graph.Graph} with Edge extracted from the parsed CSV data and Vertices mapped from Edges with null Value.
@@ -139,9 +143,8 @@ public class GraphCsvReader<K,VV,EV>{
 	}
 
 	/**
-	 * Specifies the types for the Graph fields and returns a Graph with those field types and a NullValue for
-	 * EdgeValue
-	 *
+	 * Specifies the types for the Graph fields and returns a Graph with those field types ain the special case
+	 * where Edges don't have a value
 	 * @param type0 The type of CSV field 0 and 1 for the CSV reader used for reading Edge data and the type of Vetex ID in the returned Graph.
 	 * @param  type1 The type of CSV field 2 for the CSV reader used for reading Edge data and the type of Edge Value in the returned Graph.
 	 * @return The {@link org.apache.flink.graph.Graph} with Edge extracted from the parsed CSV data and Vertices mapped from Edges with null Value.
@@ -168,9 +171,8 @@ public class GraphCsvReader<K,VV,EV>{
 	}
 
 	/**
-	 * Specifies the types for the Graph fields and returns a Graph with those field types and a NullValue for
-	 * EdgeValue and VertexValue
-	 *
+	 * Specifies the types for the Graph fields and returns a Graph with those field types.
+	 * This method is overloaded for the case in which Vertices and Edges don't have a value
 	 * @param type0 The type of CSV field 0 and 1 for the CSV reader used for reading Edge data and the type of Vetex ID in the returned Graph.
 	 * @return The {@link org.apache.flink.graph.Graph} with Edge extracted from the parsed CSV data and Vertices mapped from Edges with null Value.
 	 */
@@ -183,11 +185,8 @@ public class GraphCsvReader<K,VV,EV>{
 						return new Tuple3<K, K, NullValue>(tuple2.f0, tuple2.f1, NullValue.getInstance());
 					}
 				});
-			return Graph.fromTupleDataSet(edges, executionContext);
+		return Graph.fromTupleDataSet(edges, executionContext);
 	}
-
-
-
 	/**
 	 *Configures the Delimiter that separates rows for the CSV reader used to read the edges
 	 *	({@code '\n'}) is used by default.
@@ -499,4 +498,8 @@ public class GraphCsvReader<K,VV,EV>{
 		}
 		return this;
 	}
+
+
+
+
 }
