@@ -18,15 +18,13 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import java.util.List;
+
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.apache.flink.api.java.DataSet;
@@ -61,22 +59,6 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	private String resultPath;
-	private String expected;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
-	}
-
 	@Test
 	public void testUnion2IdenticalDataSets() throws Exception {
 		/*
@@ -87,10 +69,11 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> unionDs = ds.union(CollectionDataSets.get3TupleDataSet(env));
 
-		unionDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = unionDs.collect();
 
-		expected = FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING;
+		String expected = FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING;
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -107,11 +90,13 @@ public class UnionITCase extends MultipleProgramsTestBase {
 				.union(CollectionDataSets.get3TupleDataSet(env))
 				.union(CollectionDataSets.get3TupleDataSet(env));
 
-		unionDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = unionDs.collect();
 
-		expected = FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING +
+		String expected = FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING
+				+ FULL_TUPLE_3_STRING +
 				FULL_TUPLE_3_STRING +	FULL_TUPLE_3_STRING;
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -128,10 +113,11 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> unionDs = CollectionDataSets.get3TupleDataSet(env)
 				.union(empty);
 
-		unionDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = unionDs.collect();
 
-		expected = FULL_TUPLE_3_STRING;
+		String expected = FULL_TUPLE_3_STRING;
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class RichFilter1 extends RichFilterFunction<Tuple3<Integer,Long,String>> {
@@ -142,5 +128,5 @@ public class UnionITCase extends MultipleProgramsTestBase {
 			return false;
 		}
 	}
-	
+
 }
