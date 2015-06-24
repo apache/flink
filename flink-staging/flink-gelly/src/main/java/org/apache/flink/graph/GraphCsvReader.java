@@ -114,9 +114,48 @@ public class GraphCsvReader<K,VV,EV>{
 	 * @param  type2 The type of CSV field 2 for the CSV reader used for reading Edge data and the type of Edge Value in the returned Graph.
 	 * @return The {@link org.apache.flink.graph.Graph} with Edges and Vertices extracted from the parsed CSV data.
 	 */
-	public Graph<K,VV,EV> types(Class<K> type0, Class<VV> type1, Class<EV> type2)
+	public Graph<K, VV, EV> types(Class<K> type0, Class<VV> type1, Class<EV> type2) {
+		/* If both Vertex value and Edge values are present */
+			DataSet<Tuple3<K, K, EV>> edges = this.EdgeReader.types(type0, type0, type2);
+			if(path1!=null)
+			{
+				DataSet<Tuple2<K, VV>> vertices = this.VertexReader.types(type0, type1);
+				return Graph.fromTupleDataSet(vertices, edges, executionContext);
+			}
+				return Graph.fromTupleDataSet(edges, this.mapper, executionContext);
+	}
+
+	/**
+	 * Specifies the types for the Graph fields and returns a Graph with those field types
+	 *NullValue for vertices
+	 * @param type0 The type of CSV field 0 and 1 for the CSV reader used for reading Edge data and the type of Vetex ID in the returned Graph.
+	 * @param  type1 The type of CSV field 2 for the CSV reader used for reading Edge data and the type of Edge Value in the returned Graph.
+	 * @return The {@link org.apache.flink.graph.Graph} with Edge extracted from the parsed CSV data and Vertices mapped from Edges with null Value.
+	 */
+	public Graph<K, NullValue, EV> typesVertexValueNull(Class<K> type0, Class<EV> type1)
 	{
-		DataSet<Tuple3<K, K, EV>> edges = this.EdgeReader.types(type0, type0, type2);
+		DataSet<Tuple3<K, K, EV>> edges = this.EdgeReader.types(type0, type0, type1);
+		return Graph.fromTupleDataSet(edges, executionContext);
+	}
+
+	/**
+	 * Specifies the types for the Graph fields and returns a Graph with those field types and a NullValue for
+	 * EdgeValue
+	 *
+	 * @param type0 The type of CSV field 0 and 1 for the CSV reader used for reading Edge data and the type of Vetex ID in the returned Graph.
+	 * @param  type1 The type of CSV field 2 for the CSV reader used for reading Edge data and the type of Edge Value in the returned Graph.
+	 * @return The {@link org.apache.flink.graph.Graph} with Edge extracted from the parsed CSV data and Vertices mapped from Edges with null Value.
+	 */
+	public Graph<K, VV, NullValue> typesEdgeValueNull(Class<K> type0, Class<VV> type1)
+	{
+		DataSet<Tuple3<K, K, NullValue>> edges = this.EdgeReader.types(type0, type0)
+				.map(new MapFunction<Tuple2<K, K>, Tuple3<K, K, NullValue>>() {
+					@Override
+					public Tuple3<K, K, NullValue> map(Tuple2<K, K> tuple2) throws Exception {
+						return new Tuple3<K, K, NullValue>(tuple2.f0, tuple2.f1, NullValue.getInstance());
+					}
+				});
+
 		if(path1!=null)
 		{
 			DataSet<Tuple2<K, VV>> vertices = this.VertexReader.types(type0, type1);
@@ -126,23 +165,28 @@ public class GraphCsvReader<K,VV,EV>{
 		{
 			return Graph.fromTupleDataSet(edges, this.mapper, executionContext);
 		}
-
-
 	}
+
 	/**
-	 * Specifies the types for the Graph fields and returns a Graph with those field types
-	 *
-	 * This method is overloaded for the case in which Vertices don't have a value
+	 * Specifies the types for the Graph fields and returns a Graph with those field types and a NullValue for
+	 * EdgeValue and VertexValue
 	 *
 	 * @param type0 The type of CSV field 0 and 1 for the CSV reader used for reading Edge data and the type of Vetex ID in the returned Graph.
-	 * @param  type1 The type of CSV field 2 for the CSV reader used for reading Edge data and the type of Edge Value in the returned Graph.
 	 * @return The {@link org.apache.flink.graph.Graph} with Edge extracted from the parsed CSV data and Vertices mapped from Edges with null Value.
 	 */
-	public Graph<K, NullValue, EV> types(Class<K> type0, Class<EV> type1)
+	public Graph<K, NullValue, NullValue> types(Class<K> type0)
 	{
-		DataSet<Tuple3<K, K, EV>> edges = this.EdgeReader.types(type0, type0, type1);
-		return Graph.fromTupleDataSet(edges, executionContext);
+		DataSet<Tuple3<K, K, NullValue>> edges = this.EdgeReader.types(type0, type0).
+				map(new MapFunction<Tuple2<K, K>, Tuple3<K, K, NullValue>>() {
+					@Override
+					public Tuple3<K, K, NullValue> map(Tuple2<K, K> tuple2) throws Exception {
+						return new Tuple3<K, K, NullValue>(tuple2.f0, tuple2.f1, NullValue.getInstance());
+					}
+				});
+			return Graph.fromTupleDataSet(edges, executionContext);
 	}
+
+
 
 	/**
 	 *Configures the Delimiter that separates rows for the CSV reader used to read the edges
@@ -455,8 +499,4 @@ public class GraphCsvReader<K,VV,EV>{
 		}
 		return this;
 	}
-
-
-
-
 }

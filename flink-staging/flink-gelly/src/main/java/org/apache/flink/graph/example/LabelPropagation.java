@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
@@ -60,10 +59,8 @@ public class LabelPropagation implements ProgramDescription {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		// Set up the graph
-		DataSet<Vertex<Long, Long>> vertices = getVertexDataSet(env);
-		DataSet<Edge<Long, NullValue>> edges = getEdgeDataSet(env);
 
-		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(vertices, edges,	env);
+		Graph<Long, Long, NullValue> graph = LabelPropagation.getGraph(env);
 
 		// Set up the program
 		DataSet<Vertex<Long, Long>> verticesWithCommunity = graph.run(
@@ -134,26 +131,25 @@ public class LabelPropagation implements ProgramDescription {
 	}
 
 	@SuppressWarnings("serial")
-	private static DataSet<Edge<Long, NullValue>> getEdgeDataSet(ExecutionEnvironment env) {
-
-		if (fileOutput) {
-			return env.readCsvFile(edgeInputPath)
-					.fieldDelimiter("\t")
-					.lineDelimiter("\n")
-					.types(Long.class, Long.class)
-					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
-						@Override
-						public Edge<Long, NullValue> map(Tuple2<Long, Long> value) throws Exception {
-							return new Edge<Long, NullValue>(value.f0, value.f1, NullValue.getInstance());
-						}
-					});
+	private static Graph<Long, Long, NullValue> getGraph(ExecutionEnvironment env)
+	{
+		if(fileOutput) {
+			return Graph.fromCsvReader(vertexInputPath, edgeInputPath, env).fieldDelimiterEdges("\t")
+					.fieldDelimiterVertices("\t")
+					.lineDelimiterEdges("\n")
+					.lineDelimiterVertices("\n").typesEdgeValueNull(Long.class, Long.class);
 		}
-
-		return env.generateSequence(1, numVertices).flatMap(
+		return Graph.fromDataSet(env.
+				generateSequence(1, numVertices).map(new MapFunction<Long, Vertex<Long, Long>>() {
+					public Vertex<Long, Long> map(Long l) throws Exception {
+						return new Vertex<Long, Long>(l, l);
+					}
+				}),
+				env.generateSequence(1, numVertices).flatMap(
 				new FlatMapFunction<Long, Edge<Long, NullValue>>() {
 					@Override
 					public void flatMap(Long key,
-							Collector<Edge<Long, NullValue>> out) {
+										Collector<Edge<Long, NullValue>> out) {
 						int numOutEdges = (int) (Math.random() * (numVertices / 2));
 						for (int i = 0; i < numOutEdges; i++) {
 							long target = (long) (Math.random() * numVertices) + 1;
@@ -161,7 +157,7 @@ public class LabelPropagation implements ProgramDescription {
 									NullValue.getInstance()));
 						}
 					}
-				});
+				}), env);
 	}
 
 	@Override

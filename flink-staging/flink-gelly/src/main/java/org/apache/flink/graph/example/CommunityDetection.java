@@ -27,8 +27,6 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.CommunityDetectionData;
 import org.apache.flink.graph.library.CommunityDetectionAlgorithm;
-import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
-
 /**
  * This example shows how to use the {@link org.apache.flink.graph.library.CommunityDetectionAlgorithm}
  * library method:
@@ -61,15 +59,8 @@ public class CommunityDetection implements ProgramDescription {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		// set up the graph
-		DataSet<Edge<Long, Double>> edges = getEdgesDataSet(env);
-		Graph<Long, Long, Double> graph = Graph.fromDataSet(edges,
-				new MapFunction<Long, Long>() {
 
-					public Long map(Long label) {
-						return label;
-					}
-				}, env);
-
+		Graph<Long, Long, Double> graph = CommunityDetection.getGraph(env);
 		// the result is in the form of <vertexId, communityId>, where the communityId is the label
 		// which the vertex converged to
 		DataSet<Vertex<Long, Long>> communityVertices =
@@ -126,17 +117,35 @@ public class CommunityDetection implements ProgramDescription {
 		return true;
 	}
 
-	private static DataSet<Edge<Long, Double>> getEdgesDataSet(ExecutionEnvironment env) {
 
-		if(fileOutput) {
-			return env.readCsvFile(edgeInputPath)
-					.ignoreComments("#")
-					.fieldDelimiter("\t")
-					.lineDelimiter("\n")
-					.types(Long.class, Long.class, Double.class)
-					.map(new Tuple3ToEdgeMap<Long, Double>());
-		} else {
-			return CommunityDetectionData.getDefaultEdgeDataSet(env);
+	private static Graph<Long, Long, Double> getGraph(ExecutionEnvironment env)
+	{
+		Graph<Long, Long, Double> graph;
+		if(!fileOutput)
+		{
+			DataSet<Edge<Long, Double>> edges = CommunityDetectionData.getDefaultEdgeDataSet(env);
+			graph = Graph.fromDataSet(edges,
+					new MapFunction<Long, Long>() {
+
+						public Long map(Long label) {
+							return label;
+						}
+					}, env);
 		}
+		else
+		{
+			graph = Graph.fromCsvReader(edgeInputPath,new MapFunction<Long, Long>() {
+				public Long map(Long label) {
+					return label;
+				}
+			}, env).ignoreCommentsEdges("#")
+					.fieldDelimiterEdges("\t")
+					.lineDelimiterEdges("\n")
+					.types(Long.class, Long.class, Double.class);
+
+		}
+		return graph;
 	}
+
+
 }
