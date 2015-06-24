@@ -114,7 +114,6 @@ public class JaccardSimilarityMeasure implements ProgramDescription {
 	/**
 	 * Each vertex will have a HashSet containing its neighbor ids as value.
 	 */
-	@SuppressWarnings("serial")
 	private static final class GatherNeighbors implements ReduceNeighborsFunction<HashSet<Long>> {
 
 		@Override
@@ -136,7 +135,6 @@ public class JaccardSimilarityMeasure implements ProgramDescription {
 	 *
 	 * The Jaccard similarity coefficient is then, the intersection/union.
 	 */
-	@SuppressWarnings("serial")
 	private static final class ComputeJaccard implements
 			MapFunction<Triplet<Long, HashSet<Long>, Double>, Edge<Long, Double>> {
 
