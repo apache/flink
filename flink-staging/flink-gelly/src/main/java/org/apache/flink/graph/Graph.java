@@ -1253,7 +1253,7 @@ public class Graph<K, VV, EV> {
 	 * @param graph the graph to perform difference with
 	 * @return a new graph where the common vertices and edges have been removed
 	 */
-	public Graph<K,VV,EV> difference(Graph<K,VV,EV> graph) throws java.lang.Exception{
+	public Graph<K,VV,EV> difference(Graph<K,VV,EV> graph) {
 		DataSet<Vertex<K,VV>> removeVerticesData = graph.getVertices();
 		return this.removeVertices(removeVerticesData);
 	}
