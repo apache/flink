@@ -24,7 +24,7 @@ FlinkML is the Machine Learning (ML) library for Flink. It is a new effort in th
 with a growing list of algorithms and contributors. With FlinkML we aim to provide
 scalable ML algorithms, an intuitive API, and tools that help minimize glue code in end-to-end ML
 systems. You can see more details about our goals and where the library is headed in our [vision
-and roadmap here](vision_roadmap.html).
+and roadmap here](https://cwiki.apache.org/confluence/display/FLINK/FlinkML%3A+Vision+and+Roadmap).
 
 * This will be replaced by the TOC
 {:toc}
