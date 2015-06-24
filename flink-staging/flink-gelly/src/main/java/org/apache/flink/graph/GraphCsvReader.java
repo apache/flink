@@ -87,10 +87,7 @@ public class GraphCsvReader<K,VV,EV>{
 
 	public GraphCsvReader (String path2, final MapFunction<K, VV> mapper, ExecutionEnvironment context)
 	{
-
 			this(new Path(Preconditions.checkNotNull(path2, "The file path may not be null.")),mapper, context);
-
-
 	}
 
 	public CsvReader getEdgeReader()
