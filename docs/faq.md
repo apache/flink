@@ -103,8 +103,8 @@ parallelism has to be 1 and set it accordingly.
 
 The parallelism can be set in numerous ways to ensure a fine-grained control
 over the execution of a Flink program. See
-the [Configuration guide](config.html#common-options) for detailed instructions on how to
-set the parallelism. Also check out [this figure](config.html#configuring-taskmanager-processing-slots) detailing 
+the [Configuration guide](setup/config.html#common-options) for detailed instructions on how to
+set the parallelism. Also check out [this figure](setup/config.html#configuring-taskmanager-processing-slots) detailing
 how the processing slots and parallelism are related to each other.
 
 ## Errors
@@ -149,7 +149,7 @@ you need to adapt the number of network buffers via the config parameter
 `taskmanager.network.numberOfBuffers`.
 As a rule-of-thumb, the number of buffers should be at least
 `4 * numberOfNodes * numberOfTasksPerNode^2`. See
-[Configuration Reference](config.html) for details.
+[Configuration Reference](setup/config.html) for details.
 
 ### My job fails early with a java.io.EOFException. What could be the cause?
 
@@ -244,7 +244,7 @@ destage operations to disk, if necessary. By default, the system reserves around
 70% of the memory. If you frequently run applications that need more memory in
 the user-defined functions, you can reduce that value using the configuration
 entries `taskmanager.memory.fraction` or `taskmanager.memory.size`. See the
-[Configuration Reference](config.html) for details. This will leave more memory to JVM heap,
+[Configuration Reference](setup/config.html) for details. This will leave more memory to JVM heap,
 but may cause data processing tasks to go to disk more often.
 
 ### Why do the TaskManager log files become so huge?
