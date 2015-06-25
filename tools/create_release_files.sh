@@ -51,6 +51,8 @@
 # fail immediately
 set -o errexit
 set -o nounset
+# print command before executing
+set -o xtrace
 
 CURR_DIR=`pwd`
 if [[ `basename $CURR_DIR` != "tools" ]] ; then
@@ -85,37 +87,43 @@ else
 fi
 
 
+prepare() {
+  # prepare
+  git clone http://git-wip-us.apache.org/repos/asf/flink.git flink
+  cd flink
+  git checkout -b "$RELEASE_VERSION-$RELEASE_CANDIDATE" origin/$RELEASE_BRANCH
+  rm -f .gitignore
+  rm -f .travis.yml
+  rm -f deploysettings.xml
+  rm -f CHANGELOG
+}
+
 # create source package
-git clone http://git-wip-us.apache.org/repos/asf/flink.git flink
-cd flink
-git checkout -b "$RELEASE_VERSION-$RELEASE_CANDIDATE" origin/$RELEASE_BRANCH
-rm -f .gitignore
-rm -f .travis.yml
-rm -f deploysettings.xml
-rm -f CHANGELOG
+make_source_release() {
 
-#find . -name 'pom.xml' -type f -exec sed -i 's#<version>$OLD_VERSION</version>#<version>$NEW_VERSION</version>#' {} \;
-if [ "$(uname)" == "Darwin" ]; then
-    find . -name 'pom.xml' -type f -exec sed -i "" 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
-else
-    find . -name 'pom.xml' -type f -exec sed -i    's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
-fi
+  #find . -name 'pom.xml' -type f -exec sed -i 's#<version>$OLD_VERSION</version>#<version>$NEW_VERSION</version>#' {} \;
+  if [ "$(uname)" == "Darwin" ]; then
+      find . -name 'pom.xml' -type f -exec sed -i "" 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+  else
+      find . -name 'pom.xml' -type f -exec sed -i    's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+  fi
 
-git commit --author="$GIT_AUTHOR" -am "Commit for release $RELEASE_VERSION"
-git remote add asf_push https://$USER_NAME@git-wip-us.apache.org/repos/asf/flink.git
-RELEASE_HASH=`git rev-parse HEAD`
-echo "Echo created release hash $RELEASE_HASH"
+  git commit --author="$GIT_AUTHOR" -am "Commit for release $RELEASE_VERSION"
+  git remote add asf_push https://$USER_NAME@git-wip-us.apache.org/repos/asf/flink.git
+  RELEASE_HASH=`git rev-parse HEAD`
+  echo "Echo created release hash $RELEASE_HASH"
 
-cd ..
+  cd ..
 
-echo "Creating source package"
-rsync -a --exclude "flink/.git" flink/ flink-$RELEASE_VERSION
-tar czf flink-${RELEASE_VERSION}-src.tgz flink-$RELEASE_VERSION
-echo $GPG_PASSPHRASE | $GPG --batch --default-key $GPG_KEY --passphrase-fd 0 --armour --output flink-$RELEASE_VERSION-src.tgz.asc \
-  --detach-sig flink-$RELEASE_VERSION-src.tgz
-$MD5SUM flink-$RELEASE_VERSION-src.tgz > flink-$RELEASE_VERSION-src.tgz.md5
-$SHASUM flink-$RELEASE_VERSION-src.tgz > flink-$RELEASE_VERSION-src.tgz.sha
-rm -rf flink-$RELEASE_VERSION
+  echo "Creating source package"
+  rsync -a --exclude "flink/.git" flink/ flink-$RELEASE_VERSION
+  tar czf flink-${RELEASE_VERSION}-src.tgz flink-$RELEASE_VERSION
+  echo $GPG_PASSPHRASE | $GPG --batch --default-key $GPG_KEY --passphrase-fd 0 --armour --output flink-$RELEASE_VERSION-src.tgz.asc \
+    --detach-sig flink-$RELEASE_VERSION-src.tgz
+  $MD5SUM flink-$RELEASE_VERSION-src.tgz > flink-$RELEASE_VERSION-src.tgz.md5
+  $SHASUM flink-$RELEASE_VERSION-src.tgz > flink-$RELEASE_VERSION-src.tgz.sha
+  rm -rf flink-$RELEASE_VERSION
+}
 
 
 make_binary_release() {
@@ -138,7 +146,7 @@ make_binary_release() {
     echo "Files in uberjar: $NUM_FILES_IN_UBERJAR. Uberjar: $UBERJAR"
     if [ "$NUM_FILES_IN_UBERJAR" -ge "65536" ] ; then
       echo "The number of files in the uberjar ($NUM_FILES_IN_UBERJAR) exceeds the maximum number of possible files for Java 6 (65536)"
-      exit 1
+    #  exit 1
     fi
   fi
   cd flink-dist/target/flink-$RELEASE_VERSION-bin/
@@ -158,27 +166,45 @@ make_binary_release() {
 
 }
 
+deploy_to_maven() {
+  echo "Deploying to repository.apache.org"
+
+  cd flink
+  cp ../../deploysettings.xml .
+  echo "For your reference, the command:\n\t $MVN clean deploy -Prelease --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE ./tools/generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP1 pom.xml"
+  $MVN clean deploy -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.executable=$GPG -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+  ../generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP1 pom.xml
+  sleep 4
+  $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+}
+
+copy_data() {
+  # Copy data
+  echo "Copying release tarballs"
+  folder=flink-$RELEASE_VERSION-$RELEASE_CANDIDATE
+  ssh $USER_NAME@people.apache.org mkdir -p /home/$USER_NAME/public_html/$folder
+  rsync flink-*.tgz* $USER_NAME@people.apache.org:/home/$USER_NAME/public_html/$folder/
+  echo "copy done"
+}
+
+prepare
+
+make_source_release
+
 make_binary_release "hadoop1" "-Dhadoop.profile=1"
 #make_binary_release "hadoop200alpha" "-P!include-yarn -Dhadoop.version=2.0.0-alpha"
 make_binary_release "hadoop2" ""
+make_binary_release "hadoop24" "-Dhadoop.version=2.4.1"
+make_binary_release "hadoop26" "-Dhadoop.version=2.6.0"
+make_binary_release "hadoop27" "-Dhadoop.version=2.7.0"
 # make_binary_release "mapr4" "-Dhadoop.profile=2 -Pvendor-repos -Dhadoop.version=2.3.0-mapr-4.0.0-FCS"
 
+copy_data
 
-# Copy data
-echo "Copying release tarballs"
-folder=flink-$RELEASE_VERSION-$RELEASE_CANDIDATE
-ssh $USER_NAME@people.apache.org mkdir -p /home/$USER_NAME/public_html/$folder
-rsync flink-*.tgz* $USER_NAME@people.apache.org:/home/$USER_NAME/public_html/$folder/
-echo "copy done"
+deploy_to_maven
 
-echo "Deploying to repository.apache.org"
 
-cd flink
-cp ../../deploysettings.xml .
-echo "For your reference, the command:\n\t $MVN clean deploy -Prelease --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE ./tools/generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP1 pom.xml"
-$MVN clean deploy -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.executable=$GPG -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
-../generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP1 pom.xml
-sleep 4
-$MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+
+
 
 echo "Done. Don't forget to commit the release version"
