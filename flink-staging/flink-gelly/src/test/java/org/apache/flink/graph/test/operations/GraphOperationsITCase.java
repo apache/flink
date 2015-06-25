@@ -28,6 +28,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.api.java.DataSet;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -264,6 +265,80 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 					"4,5,45\n" +
 					"5,1,51\n" +
 					"6,1,61\n";
+	}
+
+	@Test
+	public void testDifference() throws Exception {
+		/*Test  difference() method  by checking    the output  for getEdges()   on  the resultant   graph
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		Graph<Long, Long, Long> graph2 = Graph.fromDataSet(TestGraphUtils.getLongLongVertexDataDifference(env),
+				TestGraphUtils.getLongLongEdgeDataDifference(env), env);
+
+		graph = graph.difference(graph2);
+
+		graph.getEdges().writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult = "4,5,45\n";
+
+
+	}
+
+
+	@Test
+	public void testDifferenceVertices() throws Exception{
+		/*Test  difference() method  by checking    the output  for getVertices()   on  the resultant   graph
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		Graph<Long, Long, Long> graph2 = Graph.fromDataSet(TestGraphUtils.getLongLongVertexDataDifference(env),
+				TestGraphUtils.getLongLongEdgeDataDifference(env), env);
+
+		graph = graph.difference(graph2);
+
+		graph.getVertices().writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult =  "2,2\n" +
+				"4,4\n" +
+				"5,5\n" ;
+	}
+
+	@Test
+	public void testDifference2() throws Exception {
+		/*
+		 * Test difference() such that no common vertices are there
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Vertex<Long,Long>> vertex = env.fromElements(new Vertex<Long,Long>(6L,6L));
+
+		Graph<Long, Long, Long> graph2 = Graph.fromDataSet(vertex,TestGraphUtils.getLongLongEdgeDataDifference2(env),env);
+
+		graph = graph.difference(graph2);
+
+		graph.getEdges().writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult =	"1,2,12\n" +
+				"1,3,13\n" +
+				"2,3,23\n" +
+				"3,4,34\n" +
+				"3,5,35\n" +
+				"4,5,45\n" +
+				"5,1,51\n" ;
+
 	}
 
 	@Test
