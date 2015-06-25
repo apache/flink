@@ -18,6 +18,8 @@
 
 package org.apache.flink.ml.feature.extraction
 
+import java.nio.charset.Charset
+
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{Parameter, ParameterMap}
 import org.apache.flink.ml.feature.extraction.FeatureHasher.{NonNegative, NumFeatures}
@@ -58,9 +60,6 @@ import scala.util.hashing.MurmurHash3
   */
 class FeatureHasher extends Transformer[FeatureHasher] {
 
-  // The seed used to initialize the hasher
-  val Seed = 0
-
   /** Sets the number of features (entries) in the output vector
     *
     * @param numFeatures the user-specified numFeatures value. In case the user gives a value less
@@ -88,6 +87,9 @@ class FeatureHasher extends Transformer[FeatureHasher] {
 }
 
 object FeatureHasher {
+
+  // The seed used to initialize the hasher
+  val Seed = 0
 
   // ====================================== Parameters =============================================
 
@@ -125,31 +127,33 @@ object FeatureHasher {
   /** [[TransformOperation]] to map an [[Iterable]] of arbitrary elements
     * into a [[SparseVector]]
     */
-  implicit def transformSeqToVector[T <: Iterable] = {
+  implicit def transformDocumentToVector[T <: Iterable[String]] = {
     new TransformOperation[FeatureHasher, T, Vector] {
       override def transform(
                               instance: FeatureHasher,
                               transformParameters: ParameterMap,
                               input: DataSet[T])
       : DataSet[Vector] = {
-        val resultingParameters = instance.parameters ++ transformParameters
 
+        val resultingParameters = instance.parameters ++ transformParameters
         val nonNegative = resultingParameters(NonNegative)
         val numFeatures = resultingParameters(NumFeatures)
 
         // each item of the sequence is hashed and transformed into a tuple (index, value)
         input.map {
-          inputSeq => {
-            val entries = inputSeq.map {
-              entry => {
-                val h = MurmurHash3.arrayHash(Array[T](entry)) % numFeatures
-                val index = Math.abs(h)
-                /* instead of using two hash functions (Weinberger et al.), assume the sign is in-
-                   dependent of the other bits */
-                val value = if (h >= 0) 1.0 else -1.0
-                (index, value)
+          document => {
+            val entries =
+              document.map {
+                term => {
+                  val h = MurmurHash3.bytesHash(
+                    term.getBytes(Charset.forName("UTF-8")), Seed)
+                  val index = Math.abs(h) % numFeatures
+                  /* instead of using two hash functions (Weinberger et al.), assume the sign is in-
+                     dependent of the other bits */
+                  val value = if (h >= 0) 1.0 else -1.0
+                  (index, value)
+                }
               }
-            }
             val myVector = SparseVector.fromCOO(numFeatures, entries)
             // in case of non negative output, return the absolute of the vector
             if (nonNegative) {
