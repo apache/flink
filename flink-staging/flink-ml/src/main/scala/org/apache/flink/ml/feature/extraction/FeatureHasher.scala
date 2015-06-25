@@ -19,11 +19,10 @@
 package org.apache.flink.ml.feature.extraction
 
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.{Parameter, ParameterMap, Transformer}
+import org.apache.flink.ml.common.{Parameter, ParameterMap}
 import org.apache.flink.ml.feature.extraction.FeatureHasher.{NonNegative, NumFeatures}
 import org.apache.flink.ml.math.{Vector, SparseVector}
-
-import scala.reflect.ClassTag
+import org.apache.flink.ml.pipeline.{Transformer, TransformOperation, FitOperation}
 import scala.util.hashing.MurmurHash3
 
 
@@ -34,11 +33,11 @@ import scala.util.hashing.MurmurHash3
   *
   * By default for [[FeatureHasher]] transformer numFeatures=2#94;20 and nonNegative=false.
   *
-  * This transformer takes a [[Seq]] of objects and maps it to a
+  * This transformer takes a [[Seq]] of arbitrary types and maps it to a
   * feature [[Vector]].
   *
   * This transformer can be prepended to all [[Transformer]] and
-  * [[org.apache.flink.ml.common.Learner]] implementations which expect an input of
+  * [[org.apache.flink.ml.pipeline.Predictor]] implementations which expect an input of
   * [[Vector]].
   *
   * @example
@@ -57,7 +56,7 @@ import scala.util.hashing.MurmurHash3
   * When True, output values can be interpreted as frequencies. When False, output values will have
   * expected value zero; by default equal to false
   */
-class FeatureHasher[T: ClassTag] extends Transformer[Seq[T], Vector] with Serializable {
+class FeatureHasher extends Transformer[FeatureHasher] {
 
   // The seed used to initialize the hasher
   val Seed = 0
@@ -68,7 +67,7 @@ class FeatureHasher[T: ClassTag] extends Transformer[Seq[T], Vector] with Serial
     *                    than 1, numFeatures is set to its default value: 2&#94;20
     * @return the FeatureHasher instance with its numFeatures value set to the user-specified value
     */
-  def setNumFeatures(numFeatures: Int): FeatureHasher[T] = {
+  def setNumFeatures(numFeatures: Int): FeatureHasher = {
     // number of features must be greater zero
     if (numFeatures < 1) {
       throw new IllegalArgumentException("numFeatures must be greater than zero")
@@ -82,47 +81,15 @@ class FeatureHasher[T: ClassTag] extends Transformer[Seq[T], Vector] with Serial
     * @param nonNegative the user-specified nonNegative value.
     * @return the FeatureHasher instance with its nonNegative value set to the user-specified value
     */
-  def setNonNegative(nonNegative: Boolean): FeatureHasher[T] = {
+  def setNonNegative(nonNegative: Boolean): FeatureHasher = {
     parameters.add(NonNegative, nonNegative)
     this
-  }
-
-  override def transform(input: DataSet[Seq[T]], parameters: ParameterMap):
-  DataSet[Vector] = {
-    val resultingParameters = this.parameters ++ parameters
-
-    val nonNegative = resultingParameters(NonNegative)
-    val numFeatures = resultingParameters(NumFeatures)
-
-    // each item of the sequence is hashed and transformed into a tuple (index, value)
-    input.map {
-      inputSeq => {
-        val entries = inputSeq.map {
-          entry => {
-            val h = MurmurHash3.arrayHash(Array[T](entry)) % numFeatures
-            val index = Math.abs(h)
-            /* instead of using two hash functions (Weinberger et al.), assume the sign is in-
-               dependent of the other bits */
-            val value = if (h >= 0) 1.0 else -1.0
-            (index, value)
-          }
-        }
-        val myVector = SparseVector.fromCOO(numFeatures, entries)
-        // in case of non negative output, return the absolute of the vector
-        if (nonNegative) {
-          for (index <- myVector.indices) {
-            myVector(index) = Math.abs(myVector(index))
-          }
-        }
-        myVector
-        // in case we want to return a DenseVector based on some decision metric
-        // we can still return SparseVector.toDenseVector
-      }
-    }
   }
 }
 
 object FeatureHasher {
+
+  // ====================================== Parameters =============================================
 
   case object NumFeatures extends Parameter[Int] {
     override val defaultValue: Option[Int] = Some(Math.pow(2, 20).toInt)
@@ -132,7 +99,68 @@ object FeatureHasher {
     override val defaultValue: Option[Boolean] = Some(false)
   }
 
-  def apply[T: ClassTag](): FeatureHasher[T] = {
-    new FeatureHasher[T]()
+  // ==================================== Factory methods ==========================================
+
+  def apply(): FeatureHasher = {
+    new FeatureHasher()
+  }
+
+  // ====================================== Operations =============================================
+
+  /** The [[FeatureHasher]] transformer does not need a fitting phase.
+    *
+    * @tparam T The fitting works with arbitrary input types
+    * @return
+    */
+  implicit def fitNoOp[T] = {
+    new FitOperation[FeatureHasher, T]{
+      override def fit(
+                        instance: FeatureHasher,
+                        fitParameters: ParameterMap,
+                        input: DataSet[T])
+      : Unit = {}
+    }
+  }
+
+  /** [[TransformOperation]] to map an [[Iterable]] of arbitrary elements
+    * into a [[SparseVector]]
+    */
+  implicit def transformSeqToVector[T <: Iterable] = {
+    new TransformOperation[FeatureHasher, T, Vector] {
+      override def transform(
+                              instance: FeatureHasher,
+                              transformParameters: ParameterMap,
+                              input: DataSet[T])
+      : DataSet[Vector] = {
+        val resultingParameters = instance.parameters ++ transformParameters
+
+        val nonNegative = resultingParameters(NonNegative)
+        val numFeatures = resultingParameters(NumFeatures)
+
+        // each item of the sequence is hashed and transformed into a tuple (index, value)
+        input.map {
+          inputSeq => {
+            val entries = inputSeq.map {
+              entry => {
+                val h = MurmurHash3.arrayHash(Array[T](entry)) % numFeatures
+                val index = Math.abs(h)
+                /* instead of using two hash functions (Weinberger et al.), assume the sign is in-
+                   dependent of the other bits */
+                val value = if (h >= 0) 1.0 else -1.0
+                (index, value)
+              }
+            }
+            val myVector = SparseVector.fromCOO(numFeatures, entries)
+            // in case of non negative output, return the absolute of the vector
+            if (nonNegative) {
+              for (index <- myVector.indices) {
+                myVector(index) = Math.abs(myVector(index))
+              }
+            }
+            myVector
+          }
+        }
+      }
+    }
   }
 }
