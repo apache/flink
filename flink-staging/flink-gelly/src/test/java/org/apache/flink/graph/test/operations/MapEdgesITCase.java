@@ -64,7 +64,7 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 				"4,5,46\n" + 
 				"5,1,52\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -88,7 +88,7 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 				"4,5,string(45)\n" + 
 				"5,1,string(51)\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -112,7 +112,7 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 				"4,5,(45)\n" + 
 				"5,1,(51)\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -136,7 +136,7 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 			"4,5,(T,45)\n" + 
 			"5,1,(T,51)\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -161,7 +161,7 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 			"4,5,(45.0,45)\n" + 
 			"5,1,(51.0,51)\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")

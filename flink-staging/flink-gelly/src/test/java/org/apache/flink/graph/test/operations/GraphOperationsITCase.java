@@ -65,7 +65,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 					"4,5,45\n" + "5,4,45\n" +
 					"5,1,51\n" + "1,5,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -89,7 +89,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 					"5,4,45\n" +
 					"1,5,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")
@@ -119,7 +119,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		expectedResult = "3,5,35\n" +
 					"4,5,45\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")
@@ -145,7 +145,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")
@@ -171,7 +171,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 					"4,5,45\n" +
 					"5,1,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -189,7 +189,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
         
 		expectedResult = "5";
 		
-		CompareResults.compareResultAsText(result, expectedResult);
+		compareResultAsText(result, expectedResult);
 	}
 
 	@Test
@@ -207,7 +207,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
         
 		expectedResult = "7";
 		
-		CompareResults.compareResultAsText(result, expectedResult);
+		compareResultAsText(result, expectedResult);
 	}
 
 	@Test
@@ -225,7 +225,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
         
 		expectedResult = "1\n2\n3\n4\n5\n";
 		
-		CompareResults.compareResultAsText(result, expectedResult);
+		compareResultAsText(result, expectedResult);
 	}
 
 	@Test
@@ -246,7 +246,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 				"3,5\n" + "4,5\n" +
 				"5,1\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -279,7 +279,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 					"5,1,51\n" +
 					"6,1,61\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -300,6 +300,6 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 				"3,5,3,5,35\n" + "4,5,4,5,45\n" +
 				"5,1,5,1,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 }

@@ -65,7 +65,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"5,5\n" +
 				"6,6\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -96,7 +96,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"6,6\n" +
 				"7,7\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -120,7 +120,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,4\n" +
 				"5,5\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -149,7 +149,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,4\n" +
 				"5,5\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -179,7 +179,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"5,5\n" +
 				"6,6\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -202,7 +202,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"2,3,23\n" +
 				"3,4,34\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -229,7 +229,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -255,7 +255,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,5,45\n" +
 				"5,1,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -282,7 +282,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -312,7 +312,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,5,45\n" +
 				"5,1,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -340,7 +340,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,4\n" +
 				"5,5\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 	
 	@Test
@@ -368,7 +368,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"5,1,51\n" +
 				"6,1,61\n";	
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -401,7 +401,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,5,45\n" +
 				"5,1,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -432,7 +432,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,5,45\n" +
 				"5,1,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -460,7 +460,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,5,45\n" +
 				"5,1,51\n";	
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -485,7 +485,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -513,7 +513,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -542,7 +542,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -568,7 +568,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,5,45\n" +
 				"5,1,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -598,6 +598,6 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,5,45\n" +
 				"5,1,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 }

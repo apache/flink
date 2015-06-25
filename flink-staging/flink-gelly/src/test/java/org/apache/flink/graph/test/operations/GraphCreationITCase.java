@@ -63,7 +63,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 					"4,(null)\n" +
 					"5,(null)\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -84,7 +84,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 					"4,4\n" +
 					"5,5\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -105,7 +105,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 				"4,(8.0,3)\n" +
 				"5,(10.0,4)\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -127,7 +127,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
         result.add(res);
 		expectedResult = "true";
 		
-		CompareResults.compareResultAsText(result, expectedResult);
+		compareResultAsText(result, expectedResult);
 	}
 
 	@Test
@@ -148,7 +148,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 
 		expectedResult = "false\n";
 		
-		CompareResults.compareResultAsText(result, expectedResult);
+		compareResultAsText(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")

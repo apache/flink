@@ -69,7 +69,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,90\n" +
 	                "5,1,102\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -97,7 +97,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,45\n" +
 	                "5,1,51\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -125,7 +125,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,45\n" +
 	                "5,1,51\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -153,7 +153,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,45\n" +
 	                "5,1,51\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -180,7 +180,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,45\n" +
 	                "5,1,51\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -208,7 +208,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,90\n" +
 	                "5,1,102\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -236,7 +236,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,45\n" +
 	                "5,1,51\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -264,7 +264,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,45\n" +
 	                "5,1,51\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -292,7 +292,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,120\n" +
 	                "5,1,51\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -319,7 +319,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,45\n" +
 	                "5,1,51\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -347,7 +347,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,80\n" +
 	                "5,1,102\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -375,7 +375,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,45\n" +
 	                "5,1,51\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -403,7 +403,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,45\n" +
 	                "5,1,51\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -431,7 +431,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,45\n" +
 	                "5,1,140\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -458,7 +458,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	                "4,5,45\n" +
 	                "5,1,51\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@SuppressWarnings("serial")

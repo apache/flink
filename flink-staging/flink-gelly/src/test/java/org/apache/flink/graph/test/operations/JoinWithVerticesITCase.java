@@ -66,7 +66,7 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 	                "4,8\n" +
 	                "5,10\n";
        
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -92,7 +92,7 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 	                "4,4\n" +
 	                "5,5\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -118,7 +118,7 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 	                "4,4\n" +
 	                "5,5\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -144,7 +144,7 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 	                "4,40\n" +
 	                "5,5\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -169,7 +169,7 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 	                "4,40\n" +
 	                "5,5\n";
         
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@SuppressWarnings("serial")

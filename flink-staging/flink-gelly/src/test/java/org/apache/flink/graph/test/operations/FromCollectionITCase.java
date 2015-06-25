@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-
 import java.util.List;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -63,7 +62,7 @@ public class FromCollectionITCase extends MultipleProgramsTestBase {
 	                "4,5,45\n" +
 	                "5,1,51\n";
         
-        CompareResults.compareResultAsTuples(result, expectedResult);
+        compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -85,7 +84,7 @@ public class FromCollectionITCase extends MultipleProgramsTestBase {
 	                "4,(null)\n" +
 	                "5,(null)\n";
         
-        CompareResults.compareResultAsTuples(result, expectedResult);
+        compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -107,7 +106,7 @@ public class FromCollectionITCase extends MultipleProgramsTestBase {
 	                "4,8\n" +
 	                "5,10\n";
         
-        CompareResults.compareResultAsTuples(result, expectedResult);
+        compareResultAsTuples(result, expectedResult);
     }
 
 	@SuppressWarnings("serial")

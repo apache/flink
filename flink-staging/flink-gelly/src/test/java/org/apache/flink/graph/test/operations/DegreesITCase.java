@@ -60,7 +60,7 @@ public class DegreesITCase extends MultipleProgramsTestBase {
                     "4,1\n" +
                     "5,1\n";
         
-        CompareResults.compareResultAsTuples(result, expectedResult);
+        compareResultAsTuples(result, expectedResult);
         
     }
 
@@ -85,7 +85,7 @@ public class DegreesITCase extends MultipleProgramsTestBase {
                 "4,1\n" +
                 "5,0\n";
         
-        CompareResults.compareResultAsTuples(result, expectedResult);
+        compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -107,7 +107,7 @@ public class DegreesITCase extends MultipleProgramsTestBase {
 		            "3,2\n" +
 		            "4,1\n" +
 		            "5,2\n";
-	    CompareResults.compareResultAsTuples(result, expectedResult);
+	    compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -129,7 +129,7 @@ public class DegreesITCase extends MultipleProgramsTestBase {
 	                "4,1\n" +
 	                "5,3\n";
         
-        CompareResults.compareResultAsTuples(result, expectedResult);
+        compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -151,7 +151,7 @@ public class DegreesITCase extends MultipleProgramsTestBase {
 	                "4,2\n" +
 	                "5,3\n";
         
-        CompareResults.compareResultAsTuples(result, expectedResult);
+        compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -173,9 +173,6 @@ public class DegreesITCase extends MultipleProgramsTestBase {
                 "4,1\n" +
                 "5,0\n";
         
-        CompareResults.compareResultAsTuples(result, expectedResult);
+        compareResultAsTuples(result, expectedResult);
     }
-	
-	
-
 }
