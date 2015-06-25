@@ -75,7 +75,7 @@ trait Vector extends Serializable {
   }
 }
 
-object Vector{
+object Vector {
   /** BreezeVectorConverter implementation for [[Vector]]
     *
     * This allows to convert Breeze vectors into [[Vector]].

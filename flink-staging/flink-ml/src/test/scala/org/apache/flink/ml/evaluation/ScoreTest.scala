@@ -39,7 +39,7 @@ class ScoreTest
 
     val yy = env.fromCollection(Seq((0.0, 1.0), (0.0, 0.0), (3.0, 5.0)))
 
-    val loss = Score.squaredLoss
+    val loss = new SquaredLoss()
 
     val result = loss.evaluate(yy).collect()
 
@@ -52,7 +52,7 @@ class ScoreTest
 
     val yy = env.fromCollection(Seq("a" -> "a", "a" -> "b", "b" -> "c", "d" -> "d"))
 
-    val loss = Score.zeroOneLoss[String]
+    val loss = new ZeroOneLoss[String]()
 
     val result = loss.evaluate(yy).collect()
 
@@ -66,7 +66,7 @@ class ScoreTest
     val yy = env.fromCollection(Seq[(Double,Double)](
       -2.3 -> 2.3, -1.0 -> -10.5, 2.0 -> 3.0, 4.0 -> -5.0))
 
-    val loss = Score.zeroOneSignumLoss
+    val loss = new ZeroOneSignumLoss()
 
     val result = loss.evaluate(yy).collect()
 
@@ -76,22 +76,51 @@ class ScoreTest
 
   it should "work with a slightly more involved case with linear regression" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
-        val center = DenseVector(1.0, -2.0, 3.0, -4.0, 5.0)
-        val weights = DenseVector(2.0, 1.0, 0.0, -1.0, -2.0)
-        val n = 1000
-        val noise = 0.5
-        val ds = env.fromCollection(ToyData.singleGaussianLinearProblem(n, center, weights, noise))
+    val center = DenseVector(1.0, -2.0, 3.0, -4.0, 5.0)
+    val weights = DenseVector(2.0, 1.0, 0.0, -1.0, -2.0)
+    val n = 1000
+    val noise = 0.5
+    val ds = env.fromCollection(ToyData.singleGaussianLinearProblem(n, center, weights, noise))
 
-        val slr = new SimpleLeastSquaresRegression
-        slr.fit(ds)
+    val slr = new SimpleLeastSquaresRegression
+    slr.fit(ds)
 
-        val test = ds.map(x => (x.vector, x.label))
+    val test = ds.map(x => (x.vector, x.label))
 
-        val labels = slr.evaluate(test)
+    val labels = slr.evaluate(test)
 
-        val error = Score.squaredLoss.evaluate(labels)
-        val expectedError = noise*noise
+    val error = new SquaredLoss().evaluate(labels)
+    val expectedError = noise*noise
 
-        error.collect().head shouldBe (expectedError +- expectedError/5)
+    error.collect().head shouldBe (expectedError +- expectedError/5)
+  }
+
+  it should "work for accuracy score" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val yy = env.fromCollection(Seq(0.0 -> 0.0, 1.0 -> 1.0, 2.0 -> 2.0, 3.0 -> 2.0))
+
+    val accuracyScore = new AccuracyScore()
+
+    val result = accuracyScore.evaluate(yy).collect()
+
+    result.length shouldBe 1
+    result.head shouldBe (0.75 +- 1e9)
+  }
+
+  it should "calculate the R2 score correctly" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    // List of 50 (i, i + 1.0) tuples, where i the index
+    val valueList = Range.Double(0.0, 50.0, 1.0).toList zip Range.Double(0.0, 50.0, 1.0).map(_ + 1)
+
+    val yy = env.fromCollection(valueList)
+
+    val r2 = new R2Score()
+
+    val result = r2.evaluate(yy).collect()
+
+    result.length shouldBe 1
+    result.head shouldBe (0.995 +- 1e9)
   }
 }

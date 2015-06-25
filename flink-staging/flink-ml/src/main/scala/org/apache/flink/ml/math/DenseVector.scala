@@ -18,7 +18,11 @@
 
 package org.apache.flink.ml.math
 
-import breeze.linalg.{SparseVector => BreezeSparseVector, DenseVector => BreezeDenseVector, Vector => BreezeVector}
+import breeze.linalg.{
+  SparseVector => BreezeSparseVector,
+  DenseVector => BreezeDenseVector,
+  Vector => BreezeVector,
+  DenseMatrix => BreezeDenseMatrix}
 
 /**
  * Dense vector implementation of [[Vector]]. The data is represented in a continuous array of

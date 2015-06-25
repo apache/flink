@@ -32,7 +32,7 @@ class ScorerITSuite  extends FlatSpec with Matchers with FlinkTestBase {
   it should "work for squared loss" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val loss = Score.squaredLoss
+    val loss = new SquaredLoss()
 
     val scorer = new Scorer(loss)
 
