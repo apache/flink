@@ -61,7 +61,7 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 				"4,0.1\n" +
 				"5,0.1\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -82,7 +82,7 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 				"4,(8,42)\n" +
 				"5,(10,42)\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -104,8 +104,7 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 			"4,0.1\n" +
 			"5,0.1\n";
 	
-	CompareResults.compareResultAsTuples(result, expectedResult);
-	
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -126,7 +125,7 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 				"4,(F,3)\n" +
 				"5,(F,4)\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")

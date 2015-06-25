@@ -67,7 +67,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"4,5\n" +
 				"5,1\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -90,7 +90,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 					"4,3\n" + 
 					"5,3\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -114,7 +114,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"4,5\n" +
 				"5,1";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -137,7 +137,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"3,5\n" +
 				"4,5";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -158,7 +158,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"4,5\n" +
 				"5,1";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -182,7 +182,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"5,3\n" +
 				"5,4";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -204,7 +204,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"3,2\n" +
 				"4,3";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -226,7 +226,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"5,3\n" +
 				"5,4";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -257,7 +257,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"5,3\n" +
 				"5,4";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -283,7 +283,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"4,3\n" +
 				"4,5";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -303,7 +303,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"5,3\n" +
 				"5,4";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -326,7 +326,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"4,45\n" + 
 				"5,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -349,7 +349,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"4,45\n" +
 				"5,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -372,7 +372,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"4,34\n" +
 				"5,35\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -395,7 +395,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				"4,45\n" + 
 				"5,51\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")

@@ -68,7 +68,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"4,5\n" + 
 				"5,1\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -91,7 +91,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"4,102\n" + 
 				"5,285\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 		
 		
 	}
@@ -117,7 +117,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"4,12\n" + 
 				"5,13\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -137,7 +137,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 		expectedResult = "4,5\n" +
 				"5,1\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -157,7 +157,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 		expectedResult = "4,102\n" +
 				"5,285\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -178,7 +178,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 		expectedResult = "4,12\n" +
 				"5,13\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -201,7 +201,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"4,5\n" + 
 				"5,1\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -224,7 +224,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"4,102\n" +
 				"5,285\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -247,7 +247,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"4,8\n" + 
 				"5,8\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -271,7 +271,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"5,1\n" +
 				"5,2";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -295,7 +295,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"5,570\n" +
 				"5,285";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -319,7 +319,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"5,8\n" +
 				"5,16";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -347,7 +347,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"5,1\n" +
 				"5,2";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -375,7 +375,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"5,285\n" +
 				"5,284";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -404,7 +404,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"5,13\n" +
 				"5,18";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")
@@ -666,4 +666,3 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 		}
 	}
 }
-

@@ -36,7 +36,6 @@ import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexCentricConfiguration;
 import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
-import org.apache.flink.graph.test.operations.CompareResults;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.LongValue;
 import org.junit.Assert;
@@ -84,7 +83,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 						"4,11\n" +
 						"5,11";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -119,7 +118,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 						"4,14\n" +
 						"5,15";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -146,7 +145,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 						"4,6\n" +
 						"5,6";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -174,7 +173,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				"4,[3]\n" +
 				"5,[3, 4]";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -207,7 +206,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				"4,[5]\n" +
 				"5,[1]";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -240,7 +239,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				"4,[3, 5]\n" +
 				"5,[1, 3, 4]";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -265,7 +264,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				"4,-1\n" +
 				"5,-1";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -297,7 +296,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				"4,1\n" +
 				"5,2";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -322,7 +321,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				"4,-1\n" +
 				"5,-1";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -354,7 +353,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				"4,1\n" +
 				"5,1";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -379,7 +378,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				"4,-1\n" +
 				"5,-1";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -411,7 +410,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				"4,true\n" +
 				"5,true";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")

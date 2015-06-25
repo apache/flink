@@ -62,7 +62,7 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 			"4,5\n" +
 			"5,6\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -84,7 +84,7 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 			"4,four\n" +
 			"5,five\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -106,7 +106,7 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 			"4,(4)\n" +
 			"5,(5)\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -128,7 +128,7 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 			"4,(T,4)\n" +
 			"5,(T,5)\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -151,7 +151,7 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 			"4,(4.0,4)\n" +
 			"5,(5.0,5)\n";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")

@@ -31,7 +31,6 @@ import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.GatherSumApplyIteration;
 import org.apache.flink.graph.gsa.Neighbor;
 import org.apache.flink.graph.gsa.SumFunction;
-import org.apache.flink.graph.test.operations.CompareResults;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.LongValue;
 import org.junit.Assert;
@@ -81,7 +80,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 				"4,11\n" +
 				"5,11";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -116,7 +115,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 				"4,14\n" +
 				"5,15";
 		
-		CompareResults.compareResultAsTuples(result, expectedResult);
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")
