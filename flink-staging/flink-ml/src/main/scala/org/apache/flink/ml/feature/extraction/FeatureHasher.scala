@@ -20,10 +20,13 @@ package org.apache.flink.ml.feature.extraction
 
 import java.nio.charset.Charset
 
+import breeze.linalg.VectorBuilder
+import breeze.numerics.abs
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{Parameter, ParameterMap}
 import org.apache.flink.ml.feature.extraction.FeatureHasher.{NonNegative, NumFeatures}
 import org.apache.flink.ml.math.{Vector, SparseVector}
+import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.pipeline.{Transformer, TransformOperation, FitOperation}
 import scala.util.hashing.MurmurHash3
 
@@ -132,7 +135,7 @@ object FeatureHasher {
       override def transform(
                               instance: FeatureHasher,
                               transformParameters: ParameterMap,
-                              input: DataSet[T])
+                              documents: DataSet[T])
       : DataSet[Vector] = {
 
         val resultingParameters = instance.parameters ++ transformParameters
@@ -140,28 +143,22 @@ object FeatureHasher {
         val numFeatures = resultingParameters(NumFeatures)
 
         // each item of the sequence is hashed and transformed into a tuple (index, value)
-        input.map {
-          document => {
-            val entries =
-              document.map {
-                term => {
-                  val h = MurmurHash3.bytesHash(
-                    term.getBytes(Charset.forName("UTF-8")), Seed)
-                  val index = Math.abs(h) % numFeatures
-                  /* instead of using two hash functions (Weinberger et al.), assume the sign is in-
-                     dependent of the other bits */
-                  val value = if (h >= 0) 1.0 else -1.0
-                  (index, value)
-                }
-              }
-            val myVector = SparseVector.fromCOO(numFeatures, entries)
-            // in case of non negative output, return the absolute of the vector
-            if (nonNegative) {
-              for (index <- myVector.indices) {
-                myVector(index) = Math.abs(myVector(index))
-              }
-            }
-            myVector
+        documents.map { words =>
+          val builder = new VectorBuilder[Double](numFeatures)
+          for(w <- words) {
+            val hash = MurmurHash3.bytesHash(w.getBytes(Charset.forName("UTF-8")), Seed)
+            val index = Math.abs(hash) % numFeatures
+            /* instead of using two hash functions (Weinberger et al.), assume the sign is in-
+               dependent of the other bits */
+            val value = if (hash >= 0) 1.0 else -1.0
+            builder.add(index, value)
+          }
+          // in case of non negative output, return the absolute of the vector
+          if (nonNegative) {
+            abs(builder.toSparseVector).fromBreeze
+          }
+          else {
+            builder.toSparseVector.fromBreeze
           }
         }
       }
