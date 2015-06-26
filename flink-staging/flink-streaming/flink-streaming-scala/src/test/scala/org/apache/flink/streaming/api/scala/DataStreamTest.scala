@@ -415,6 +415,35 @@ class DataStreamTest {
     assert(globalPartitioner.isInstanceOf[GlobalPartitioner[_]])
   }
 
+  @Test
+  def testIterations {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val source = env.fromElements(1, 2, 3)
+
+    val iterated = source.iterate((input: ConnectedDataStream[Int, String]) => {
+      val head = input.map(i => (i + 1).toString, s => s)
+      (head.filter(_ == "2"), head.filter(_ != "2"))
+    }, 1000)
+
+    val iterated2 = source.iterate((input: DataStream[Int]) => 
+      (input.map(_ + 1), input.map(_.toString)), 2000)
+
+    try {
+      val invalid = source.iterate((input: ConnectedDataStream[Int, String]) => {
+        val head = input.partitionByHash(1, 1).map(i => (i + 1).toString, s => s)
+        (head.filter(_ == "2"), head.filter(_ != "2"))
+      }, 1000)
+      fail
+    } catch {
+      case uoe: UnsupportedOperationException =>
+      case e: Exception => fail
+    }
+
+    val sg = env.getStreamGraph
+
+    assert(sg.getStreamLoops().size() == 2)
+  }
+
   /////////////////////////////////////////////////////////////
   // Utilities
   /////////////////////////////////////////////////////////////
