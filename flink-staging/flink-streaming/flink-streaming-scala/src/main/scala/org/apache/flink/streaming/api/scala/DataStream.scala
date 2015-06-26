@@ -353,32 +353,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * the keepPartitioning flag to true
    *
    */
-  def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R])): DataStream[R] =
-    iterate(0)(stepFunction)
-  
-
-  /**
-   * Initiates an iterative part of the program that creates a loop by feeding
-   * back data streams. To create a streaming iteration the user needs to define
-   * a transformation that creates two DataStreams. The first one is the output
-   * that will be fed back to the start of the iteration and the second is the output
-   * stream of the iterative part.
-   * <p>
-   * stepfunction: initialStream => (feedback, output)
-   * <p>
-   * A common pattern is to use output splitting to create feedback and output DataStream.
-   * Please refer to the .split(...) method of the DataStream
-   * <p>
-   * By default a DataStream with iteration will never terminate, but the user
-   * can use the maxWaitTime parameter to set a max waiting time for the iteration head.
-   * If no data received in the set time the stream terminates.
-   * <p>
-   * By default the feedback partitioning is set to match the input, to override this set 
-   * the keepPartitioning flag to true
-   *
-   */
-  def iterate[R](maxWaitTimeMillis:Long = 0)
-                (stepFunction: DataStream[T] => (DataStream[T], DataStream[R]), 
+  def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R]),
+                    maxWaitTimeMillis:Long = 0,
                     keepPartitioning: Boolean = false) : DataStream[R] = {
     val iterativeStream = javaStream.iterate(maxWaitTimeMillis)
 
@@ -386,6 +362,37 @@ class DataStream[T](javaStream: JavaStream[T]) {
     iterativeStream.closeWith(feedback.getJavaStream, keepPartitioning)
     output
   }
+  
+  /**
+   * Initiates an iterative part of the program that creates a loop by feeding
+   * back data streams. To create a streaming iteration the user needs to define
+   * a transformation that creates two DataStreams. The first one is the output
+   * that will be fed back to the start of the iteration and the second is the output
+   * stream of the iterative part.
+   * 
+   * The input stream of the iterate operator and the feedback stream will be treated
+   * as a ConnectedDataStream where the the input is connected with the feedback stream.
+   * 
+   * This allows the user to distinguish standard input from feedback inputs.
+   * 
+   * <p>
+   * stepfunction: initialStream => (feedback, output)
+   * <p>
+   * The user must set the max waiting time for the iteration head.
+   * If no data received in the set time the stream terminates. If this parameter is set
+   * to 0 then the iteration sources will indefinitely, so the job must be killed to stop.
+   *
+   */
+  def iterate[R, F: TypeInformation: ClassTag](stepFunction: ConnectedDataStream[T, F] => 
+    (DataStream[F], DataStream[R]), maxWaitTimeMillis:Long): DataStream[R] = {
+    val feedbackType: TypeInformation[F] = implicitly[TypeInformation[F]]
+    val connectedIterativeStream = javaStream.iterate(maxWaitTimeMillis).
+                                   withFeedbackType(feedbackType)
+
+    val (feedback, output) = stepFunction(connectedIterativeStream)
+    connectedIterativeStream.closeWith(feedback.getJavaStream)
+    output
+  }  
 
   /**
    * Applies an aggregation that that gives the current maximum of the data stream at
