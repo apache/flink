@@ -26,7 +26,6 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -498,7 +497,7 @@ public class DataStream<OUT> {
 	 * @return The partitioned DataStream.
 	 * @see KeySelector
 	 */
-	public <K extends Comparable<K>> DataStream<OUT> partitionCustom(Partitioner<K> partitioner, KeySelector<OUT, K> keySelector) {
+	public <K> DataStream<OUT> partitionCustom(Partitioner<K> partitioner, KeySelector<OUT, K> keySelector) {
 		return setConnectionType(new CustomPartitionerWrapper<K, OUT>(clean(partitioner), clean(keySelector)));
 	}
 

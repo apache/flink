@@ -18,22 +18,23 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.common.io.OutputFormat
-import org.apache.flink.api.scala.ClosureCleaner
-import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
-import org.apache.flink.core.fs.{FileSystem, Path}
-
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
-import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, FoldFunction, MapFunction, ReduceFunction}
+import org.apache.flink.api.common.functions.{ReduceFunction, FlatMapFunction, MapFunction,
+  Partitioner, FoldFunction, FilterFunction}
+import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
+import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
+import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, SingleOutputStreamOperator}
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink,
+  GroupedDataStream, SingleOutputStreamOperator}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
-import org.apache.flink.streaming.api.functions.sink.{FileSinkFunctionByMillis, SinkFunction}
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
+import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.operators.{StreamGroupedReduce, StreamReduce}
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.streaming.api.windowing.policy.{EvictionPolicy, TriggerPolicy}
@@ -289,6 +290,43 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
+   * Partitions a tuple DataStream on the specified key fields using a custom partitioner.
+   * This method takes the key position to partition on, and a partitioner that accepts the key
+   * type.
+   * <p>
+   * Note: This method works only on single field keys.
+   */
+  def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: Int) : DataStream[T] =
+    javaStream.partitionCustom(partitioner, field)
+
+  /**
+   * Partitions a POJO DataStream on the specified key fields using a custom partitioner.
+   * This method takes the key expression to partition on, and a partitioner that accepts the key
+   * type.
+   * <p>
+   * Note: This method works only on single field keys.
+   */
+  def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: String)
+  : DataStream[T] = javaStream.partitionCustom(partitioner, field)
+
+  /**
+   * Partitions a DataStream on the key returned by the selector, using a custom partitioner.
+   * This method takes the key selector to get the key to partition on, and a partitioner that
+   * accepts the key type.
+   * <p>
+   * Note: This method works only on single field keys, i.e. the selector cannot return tuples
+   * of fields.
+   */
+  def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], fun: T => K)
+  : DataStream[T] = {
+    val cleanFun = clean(fun)
+    val keyExtractor = new KeySelector[T, K] {
+      def getKey(in: T) = cleanFun(in)
+    }
+    javaStream.partitionCustom(partitioner, keyExtractor)
+  }
+
+  /**
    * Sets the partitioning of the DataStream so that the output tuples
    * are broad casted to every parallel instance of the next component. This
    * setting only effects the how the outputs will be distributed between the
@@ -296,7 +334,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def broadcast: DataStream[T] = javaStream.broadcast()
-  
+
   /**
    * Sets the partitioning of the DataStream so that the output values all go to 
    * the first instance of the next processing operator. Use this setting with care
