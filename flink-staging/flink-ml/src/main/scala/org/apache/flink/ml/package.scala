@@ -71,6 +71,10 @@ package object ml {
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
     }
 
+    /** Calculates the mean value of a DataSet[T <\: Numeric[T]]
+      *
+      * @return A DataSet[Double] with the mean value as its only element
+      */
     def mean()(implicit num: Numeric[T], ttit: TypeInformation[(T, Int)]): DataSet[Double] =
       dataSet.map(x => (x, 1))
         .reduce((xc, yc) => (num.plus(xc._1, yc._1), xc._2 + yc._2))

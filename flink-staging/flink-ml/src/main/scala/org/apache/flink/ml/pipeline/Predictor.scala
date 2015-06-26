@@ -22,7 +22,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.ml._
-import org.apache.flink.ml.common.{FlinkMLTools, ParameterMap, WithParameters}
+import org.apache.flink.ml.common.{LabeledVector, FlinkMLTools, ParameterMap, WithParameters}
+import org.apache.flink.ml.math.{Vector => FlinkVector}
 
 /** Predictor trait for Flink's pipeline operators.
   *
@@ -167,6 +168,43 @@ object Predictor {
         testing.mapWithBcVariable(model){
           (element, model) => {
             (element._2, predictOperation.predict(element._1, model))
+          }
+        }
+      }
+    }
+  }
+
+  /** [[EvaluateDataSetOperation]] which takes a [[PredictOperation]] to calculate a tuple
+    * of true label value and predicted label value, when the provided with a DataSet of
+    * [[LabeledVector]].
+    *
+    * Note: We have to put the TypeInformation implicit values for Testing and PredictionValue after
+    * the PredictOperation implicit parameter. Otherwise, if it's defined as a context bound, then
+    * the Scala compiler does not find the implicit [[PredictOperation]] value.
+    *
+    * @param predictOperation An implicit PredictOperation that takes a Flink Vector and returns
+    *                         a Double
+    * @tparam Instance The [[Predictor]] instance that calls the function
+    * @tparam Model The model that the calling [[Predictor]] uses for predictions
+    * @return An EvaluateDataSetOperation for LabeledVector
+    */
+  implicit def LabeledVectorEvaluateDataSetOperation[
+  Instance <: Predictor[Instance],
+  Model](
+      implicit predictOperation: PredictOperation[Instance, Model, FlinkVector, Double])
+    : EvaluateDataSetOperation[Instance, LabeledVector, Double] = {
+    new EvaluateDataSetOperation[Instance, LabeledVector, Double] {
+      override def evaluateDataSet(
+          instance: Instance,
+          evaluateParameters: ParameterMap,
+          testing: DataSet[LabeledVector])
+      : DataSet[(Double,  Double)] = {
+        val resultingParameters = instance.parameters ++ evaluateParameters
+        val model = predictOperation.getModel(instance, resultingParameters)
+
+        testing.mapWithBcVariable(model){
+          (element, model) => {
+            (element.label, predictOperation.predict(element.vector, model))
           }
         }
       }
