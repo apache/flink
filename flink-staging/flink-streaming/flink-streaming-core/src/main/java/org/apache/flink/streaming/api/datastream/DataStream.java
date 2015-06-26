@@ -25,6 +25,8 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -64,9 +66,10 @@ import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.FieldsPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
@@ -81,7 +84,6 @@ import com.google.common.base.Preconditions;
  * <ul>
  * <li>{@link DataStream#map},</li>
  * <li>{@link DataStream#filter}, or</li>
- * <li>{@link DataStream#sum}.</li>
  * </ul>
  * 
  * @param <OUT>
@@ -451,6 +453,66 @@ public class DataStream<OUT> {
 	}
 
 	/**
+	 * Partitions a tuple DataStream on the specified key fields using a custom partitioner.
+	 * This method takes the key position to partition on, and a partitioner that accepts the key type.
+	 * <p>
+	 * Note: This method works only on single field keys.
+	 *
+	 * @param partitioner The partitioner to assign partitions to keys.
+	 * @param field The field index on which the DataStream is to partitioned.
+	 * @return The partitioned DataStream.
+	 */
+	public <K> DataStream<OUT> partitionCustom(Partitioner<K> partitioner, int field) {
+		Keys.ExpressionKeys<OUT> outExpressionKeys = new Keys.ExpressionKeys<OUT>(new int[]{field}, getType());
+		return partitionCustom(partitioner, outExpressionKeys);
+	}
+
+	/**
+	 * Partitions a POJO DataStream on the specified key fields using a custom partitioner.
+	 * This method takes the key expression to partition on, and a partitioner that accepts the key type.
+	 * <p>
+	 * Note: This method works only on single field keys.
+	 *
+	 * @param partitioner The partitioner to assign partitions to keys.
+	 * @param field The field index on which the DataStream is to partitioned.
+	 * @return The partitioned DataStream.
+	 */
+	public <K> DataStream<OUT> partitionCustom(Partitioner<K> partitioner, String field) {
+		Keys.ExpressionKeys<OUT> outExpressionKeys = new Keys.ExpressionKeys<OUT>(new String[]{field}, getType());
+		return partitionCustom(partitioner, outExpressionKeys);
+	}
+
+
+	/**
+	 * Partitions a DataStream on the key returned by the selector, using a custom partitioner.
+	 * This method takes the key selector to get the key to partition on, and a partitioner that
+	 * accepts the key type.
+	 * <p>
+	 * Note: This method works only on single field keys, i.e. the selector cannot return tuples
+	 * of fields.
+	 *
+	 * @param partitioner
+	 * 		The partitioner to assign partitions to keys.
+	 * @param keySelector
+	 * 		The KeySelector with which the DataStream is partitioned.
+	 * @return The partitioned DataStream.
+	 * @see KeySelector
+	 */
+	public <K extends Comparable<K>> DataStream<OUT> partitionCustom(Partitioner<K> partitioner, KeySelector<OUT, K> keySelector) {
+		return setConnectionType(new CustomPartitionerWrapper<K, OUT>(clean(partitioner), clean(keySelector)));
+	}
+
+	//	private helper method for custom partitioning
+	private <K> DataStream<OUT> partitionCustom(Partitioner<K> partitioner, Keys<OUT> keys) {
+		KeySelector<OUT, K> keySelector = KeySelectorUtil.getSelectorForOneKey(keys, partitioner, getType(), getExecutionConfig());
+
+		return setConnectionType(
+				new CustomPartitionerWrapper<K, OUT>(
+						clean(partitioner),
+						clean(keySelector)));
+	}
+
+	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
 	 * are broadcasted to every parallel instance of the next component.
 	 *
@@ -530,7 +592,7 @@ public class DataStream<OUT> {
 	 * iteration head. The user can also use different feedback type than the
 	 * input of the iteration and treat the input and feedback streams as a
 	 * {@link ConnectedDataStream} be calling
-	 * {@link IterativeDataStream#withFeedbackType(TypeInfo)}
+	 * {@link IterativeDataStream#withFeedbackType(TypeInformation)}
 	 * <p>
 	 * A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
@@ -561,7 +623,7 @@ public class DataStream<OUT> {
 	 * iteration head. The user can also use different feedback type than the
 	 * input of the iteration and treat the input and feedback streams as a
 	 * {@link ConnectedDataStream} be calling
-	 * {@link IterativeDataStream#withFeedbackType(TypeInfo)}
+	 * {@link IterativeDataStream#withFeedbackType(TypeInformation)}
 	 * <p>
 	 * A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
