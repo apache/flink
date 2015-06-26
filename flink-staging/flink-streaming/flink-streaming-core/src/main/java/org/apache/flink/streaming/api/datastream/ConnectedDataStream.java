@@ -61,8 +61,12 @@ public class ConnectedDataStream<IN1, IN2> {
 	protected ConnectedDataStream(DataStream<IN1> input1, DataStream<IN2> input2) {
 		this.jobGraphBuilder = input1.streamGraph;
 		this.environment = input1.environment;
-		this.dataStream1 = input1.copy();
-		this.dataStream2 = input2.copy();
+		if (input1 != null) {
+			this.dataStream1 = input1.copy();
+		}
+		if (input2 != null) {
+			this.dataStream2 = input2.copy();
+		}
 
 		if ((input1 instanceof GroupedDataStream) && (input2 instanceof GroupedDataStream)) {
 			this.isGrouped = true;

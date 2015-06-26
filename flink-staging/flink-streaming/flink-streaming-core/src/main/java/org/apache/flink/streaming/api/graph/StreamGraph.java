@@ -196,9 +196,9 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	@SuppressWarnings("rawtypes")
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public void addIterationHead(Integer sourceID, Integer iterationHead, Integer iterationID,
-			long timeOut) {
+			long timeOut, TypeInformation<?> feedbackType) {
 
 		StreamNode itSource = addNode(sourceID, StreamIterationHead.class, null, null);
 
@@ -206,12 +206,17 @@ public class StreamGraph extends StreamingPlan {
 		streamLoops.put(iterationID, iteration);
 		vertexIDtoLoop.put(sourceID, iteration);
 
-		setSerializersFrom(iterationHead, sourceID);
 		itSource.setOperatorName("IterationSource-" + sourceID);
 		itSource.setParallelism(getStreamNode(iterationHead).getParallelism());
 		
-
-		addEdge(sourceID, iterationHead, new RebalancePartitioner(true), 0, new ArrayList<String>());
+		if(feedbackType == null){
+			setSerializersFrom(iterationHead, sourceID);
+			addEdge(sourceID, iterationHead, new RebalancePartitioner(true), 0, new ArrayList<String>());
+		}else{
+			itSource.setSerializerOut(new StreamRecordSerializer(feedbackType, executionConfig));
+			addEdge(sourceID, iterationHead, new RebalancePartitioner(true), 2, new ArrayList<String>());
+		}
+		
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("ITERATION SOURCE: {}", sourceID);

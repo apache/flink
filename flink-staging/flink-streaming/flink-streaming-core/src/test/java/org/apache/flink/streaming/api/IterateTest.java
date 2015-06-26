@@ -21,15 +21,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream;
+import org.apache.flink.streaming.api.datastream.IterativeDataStream.ConnectedIterativeDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -191,6 +196,47 @@ public class IterateTest {
 		}
 
 	}
+	
+	@Test
+	public void testCoIteration() throws Exception {
+		StreamExecutionEnvironment env = new TestStreamEnvironment(2, MEMORYSIZE);
+		
+		
+		ConnectedIterativeDataStream<Integer, String> coIt =  env.fromElements(0, 0).iterate(2000).withFeedbackType("String");
+		
+		try{
+			coIt.groupBy(1, 2);
+			fail();
+		} catch (UnsupportedOperationException e){}
+		
+		DataStream<String> head = coIt.flatMap(new CoFlatMapFunction<Integer, String, String>() {
+
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void flatMap1(Integer value, Collector<String> out) throws Exception {
+				out.collect(((Integer) (value + 1)).toString());
+			}
+
+			@Override
+			public void flatMap2(String value, Collector<String> out) throws Exception {
+				Integer intVal = Integer.valueOf(value);
+				if(intVal < 2){
+					out.collect(((Integer) (intVal + 1)).toString());
+				}
+				
+			}
+		});
+		
+		coIt.closeWith(head.broadcast());
+	
+		head.addSink(new TestSink()).setParallelism(1);
+		
+		env.execute();
+		
+		assertEquals(new HashSet<String>(Arrays.asList("1","1","2","2","2","2")), TestSink.collected);
+
+	}
 
 	@Test
 	public void testWithCheckPointing() throws Exception {
@@ -224,6 +270,18 @@ public class IterateTest {
 		env.enableCheckpointing(1, true);
 		env.getStreamGraph().getJobGraph();
 
+	}
+	
+	public static class TestSink implements SinkFunction<String>{
+
+		private static final long serialVersionUID = 1L;
+		public static Set<String> collected = new HashSet<String>();
+		
+		@Override
+		public void invoke(String value) throws Exception {
+			collected.add(value);
+		}
+		
 	}
 
 }

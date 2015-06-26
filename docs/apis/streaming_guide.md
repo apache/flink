@@ -1108,7 +1108,7 @@ The operator applied on the iteration starting point is the head of the iteratio
 DataStream<Integer> head = iteration.map(new IterationHead());
 {% endhighlight %}
 
-To close an iteration and define the iteration tail, the user calls `closeWith(iterationTail)` method of the `IterativeDataStream`. This iteration tail (the DataStream given to the `closeWith` function) will be fed back to the iteration head. A common pattern is to use [filters](#filter) to separate the output of the iteration from the feedback-stream.
+To close an iteration and define the iteration tail, the user calls `closeWith(feedbackStream)` method of the `IterativeDataStream`. This iteration tail (the DataStream given to the `closeWith` function) will be fed back to the iteration head. A common pattern is to use [filters](#filter) to separate the output of the iteration from the feedback-stream.
 
 {% highlight java %}
 DataStream<Integer> tail = head.map(new IterationTail());
@@ -1116,8 +1116,6 @@ DataStream<Integer> tail = head.map(new IterationTail());
 iteration.closeWith(tail.filter(isFeedback));
 
 DataStream<Integer> output = tail.filter(isOutput);
-
-output.map(…).project(…);
 {% endhighlight %}
 
 In this case, all values passing the `isFeedback` filter will be fed back to the iteration head, and the values passing the `isOutput` filter will produce the output of the iteration that can be transformed further (here with a `map` and a `projection`) outside the iteration.
@@ -1126,6 +1124,22 @@ Because iterative streaming programs do not have a set number of iterations for 
 To use this functionality the user needs to add the maxWaitTimeMillis parameter to the `dataStream.iterate(…)` call to control the max wait time.
 
 By default the partitioning of the feedback stream will be automatically set to be the same as the input of the iteration head. To override this the user can set an optional boolean flag in the `closeWith` method. 
+
+#### Iteration head as a co-operator
+The user can also treat the input and feedback stream of a streaming iteration as a `ConnectedDataStream`. This can be used to distinguish the feedback tuples and also to change the type of the iteration feedback. 
+
+To use this feature the user needs to call the `withFeedbackType(type)` method of the iterative data stream and pass the type of the feedback stream:
+
+{% highlight java %}
+ConnectedIterativeDataStream<Integer, String> coiteration = source.iterate(maxWaitTimeMillis).withFeedbackType(“String”);
+
+DataStream<String> head = coiteration.flatMap(new CoFlatMapFunction<Integer, String, String>(){})
+
+iteration.closeWith(head);
+
+{% endhighlight %}
+
+In this case the original input of the head operator will be used as the first input to the co-operator and the feedback stream will be used as the second input.
 </div>
 <div data-lang="scala" markdown="1">
 The Flink Streaming API supports implementing iterative stream processing dataflows similarly to the batch Flink API. Iterative streaming programs also implement a step function and embed it into an `IterativeDataStream`.
@@ -1134,19 +1148,31 @@ Unlike in the batch API the user does not define the maximum number of iteration
 A common pattern is to use [filters](#filter) to separate the output from the feedback-stream. In this case all values passing the `isFeedback` filter will be fed back to the iteration head, and the values passing the `isOutput` filter will produce the output of the iteration that can be transformed further (here with a `map` and a `projection`) outside the iteration.
 
 {% highlight scala %}
-val iteratedStream = someDataStream.iterate(maxWaitTime) {
+val iteratedStream = someDataStream.iterate(
   iteration => {
     val head = iteration.map(iterationHead)
     val tail = head.map(iterationTail)
     (tail.filter(isFeedback), tail.filter(isOutput))
-  }
-}.map(…).project(…)
+  }, maxWaitTimeMillis).map(…).project(…)
 {% endhighlight %}
 
 Because iterative streaming programs do not have a set number of iterations for each data element, the streaming program has no information on the end of its input. As a consequence iterative streaming programs run until the user manually stops the program. While this is acceptable under normal circumstances a method is provided to allow iterative programs to shut down automatically if no input received by the iteration head for a predefined number of milliseconds.
 To use this functionality the user needs to add the maxWaitTimeMillis parameter to the `dataStream.iterate(…)` call to control the max wait time. 
 
 By default the partitioning of the feedback stream will be automatically set to be the same as the input of the iteration head. To override this the user can set an optional boolean flag in the `iterate` method. 
+
+#### Iteration head as a co-operator
+The user can also treat the input and feedback stream of a streaming iteration as a `ConnectedDataStream`. This can be used to distinguish the feedback tuples and also to change the type of the iteration feedback. 
+
+To use this feature the user needs to call implement a step function that operates on a `ConnectedDataStream` and pass it to the `iterate(…)` call.
+
+{% highlight scala %}
+val iteratedStream = someDataStream.iterate(
+			stepFunction: ConnectedDataStream[T, F] => (DataStream[F], DataStream[R]), 
+			maxWaitTimeMillis)
+{% endhighlight %}
+
+In this case the original input of the head operator will be used as the first input to the co-operator and the feedback stream will be used as the second input.
 </div>
 
 </div>
