@@ -24,6 +24,9 @@ import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
+import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
+import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
 
@@ -64,7 +67,6 @@ public class GroupedDataStream<OUT> extends KeyedDataStream<OUT> {
 	 *            element of the input values with the same key.
 	 * @return The transformed DataStream.
 	 */
-	@Override
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
 		return transform("Grouped Reduce", getType(), new StreamGroupedReduce<OUT>(
 				clean(reducer), keySelector));
@@ -83,135 +85,250 @@ public class GroupedDataStream<OUT> extends KeyedDataStream<OUT> {
 	 *            The initialValue passed to the folders for each key.
 	 * @return The transformed DataStream.
 	 */
-
-	@Override
 	public <R> SingleOutputStreamOperator<R, ?> fold(R initialValue, FoldFunction<OUT, R> folder) {
 
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType(),
-				Utils.getCallLocationName(), false);
+				Utils.getCallLocationName(), true);
 
 		return transform("Grouped Fold", outType, new StreamGroupedFold<OUT, R>(clean(folder),
 				keySelector, initialValue, outType));
 	}
 
 	/**
-	 * Applies an aggregation that sums the grouped data stream at the given
-	 * position, grouped by the given key position. Input values with the same
-	 * key will be summed.
+	 * Applies an aggregation that gives a rolling sum of the data stream at the
+	 * given position grouped by the given key. An independent aggregate is kept
+	 * per key.
 	 * 
 	 * @param positionToSum
 	 *            The position in the data point to sum
 	 * @return The transformed DataStream.
 	 */
-	@Override
-	public SingleOutputStreamOperator<OUT, ?> sum(final int positionToSum) {
-		return super.sum(positionToSum);
+	public SingleOutputStreamOperator<OUT, ?> sum(int positionToSum) {
+		return aggregate(new SumAggregator<OUT>(positionToSum, getType(), getExecutionConfig()));
 	}
 
 	/**
-	 * Applies an aggregation that gives the minimum of the grouped data stream
-	 * at the given position, grouped by the given key position. Input values
-	 * with the same key will be minimized.
+	 * Applies an aggregation that that gives the current sum of the pojo data
+	 * stream at the given field expressionby the given key. An independent
+	 * aggregate is kept per key. A field expression is either the name of a
+	 * public field or a getter method with parentheses of the
+	 * {@link DataStream}S underlying type. A dot can be used to drill down into
+	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * 
+	 * @param field
+	 *            The field expression based on which the aggregation will be
+	 *            applied.
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> sum(String field) {
+		return aggregate(new SumAggregator<OUT>(field, getType(), getExecutionConfig()));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current minimum of the data
+	 * stream at the given position by the given key. An independent aggregate
+	 * is kept per key.
 	 * 
 	 * @param positionToMin
 	 *            The position in the data point to minimize
 	 * @return The transformed DataStream.
 	 */
-	@Override
-	public SingleOutputStreamOperator<OUT, ?> min(final int positionToMin) {
-		return super.min(positionToMin);
+	public SingleOutputStreamOperator<OUT, ?> min(int positionToMin) {
+		return aggregate(new ComparableAggregator<OUT>(positionToMin, getType(), AggregationType.MIN,
+				getExecutionConfig()));
 	}
 
 	/**
-	 * Applies an aggregation that that gives the current element with the
-	 * minimum value at the given position for each group on a grouped data
-	 * stream. If more elements have the minimum value at the given position,
-	 * the operator returns the first one by default.
+	 * Applies an aggregation that that gives the current minimum of the pojo
+	 * data stream at the given field expression by the given key. An
+	 * independent aggregate is kept per key. A field expression is either the
+	 * name of a public field or a getter method with parentheses of the
+	 * {@link DataStream}S underlying type. A dot can be used to drill down into
+	 * objects, as in {@code "field1.getInnerField2()" }.
 	 * 
-	 * @param positionToMinBy
-	 *            The position in the data point to minimize
+	 * @param field
+	 *            The field expression based on which the aggregation will be
+	 *            applied.
 	 * @return The transformed DataStream.
 	 */
-	@Override
-	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy) {
-		return super.minBy(positionToMinBy);
+	public SingleOutputStreamOperator<OUT, ?> min(String field) {
+		return aggregate(new ComparableAggregator<OUT>(field, getType(), AggregationType.MIN,
+				false, getExecutionConfig()));
 	}
 
 	/**
-	 * Applies an aggregation that that gives the current element with the
-	 * minimum value at the given position for each group on a grouped data
-	 * stream. If more elements have the minimum value at the given position,
-	 * the operator returns either the first or last one depending on the
-	 * parameters.
-	 * 
-	 * @param positionToMinBy
-	 *            The position in the data point to minimize
-	 * @param first
-	 *            If true, then the operator return the first element with the
-	 *            maximum value, otherwise returns the last
-	 * @return The transformed DataStream.
-	 */
-	@Override
-	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
-		return super.minBy(positionToMinBy, first);
-	}
-
-	/**
-	 * Applies an aggregation that gives the maximum of the grouped data stream
-	 * at the given position, grouped by the given key position. Input values
-	 * with the same key will be maximized.
+	 * Applies an aggregation that gives the current maximum of the data stream
+	 * at the given position by the given key. An independent aggregate is kept
+	 * per key.
 	 * 
 	 * @param positionToMax
 	 *            The position in the data point to maximize
 	 * @return The transformed DataStream.
 	 */
-	@Override
-	public SingleOutputStreamOperator<OUT, ?> max(final int positionToMax) {
-		return super.max(positionToMax);
+	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
+		return aggregate(new ComparableAggregator<OUT>(positionToMax, getType(), AggregationType.MAX,
+				getExecutionConfig()));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current maximum of the pojo
+	 * data stream at the given field expression by the given key. An
+	 * independent aggregate is kept per key. A field expression is either the
+	 * name of a public field or a getter method with parentheses of the
+	 * {@link DataStream}S underlying type. A dot can be used to drill down into
+	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * 
+	 * @param field
+	 *            The field expression based on which the aggregation will be
+	 *            applied.
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> max(String field) {
+		return aggregate(new ComparableAggregator<OUT>(field, getType(), AggregationType.MAX,
+				false, getExecutionConfig()));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current minimum element of the
+	 * pojo data stream by the given field expression by the given key. An
+	 * independent aggregate is kept per key. A field expression is either the
+	 * name of a public field or a getter method with parentheses of the
+	 * {@link DataStream}S underlying type. A dot can be used to drill down into
+	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * 
+	 * @param field
+	 *            The field expression based on which the aggregation will be
+	 *            applied.
+	 * @param first
+	 *            If True then in case of field equality the first object will
+	 *            be returned
+	 * @return The transformed DataStream.
+	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public SingleOutputStreamOperator<OUT, ?> minBy(String field, boolean first) {
+		return aggregate(new ComparableAggregator(field, getType(), AggregationType.MINBY,
+				first, getExecutionConfig()));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current maximum element of the
+	 * pojo data stream by the given field expression by the given key. An
+	 * independent aggregate is kept per key. A field expression is either the
+	 * name of a public field or a getter method with parentheses of the
+	 * {@link DataStream}S underlying type. A dot can be used to drill down into
+	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * 
+	 * @param field
+	 *            The field expression based on which the aggregation will be
+	 *            applied.
+	 * @param first
+	 *            If True then in case of field equality the first object will
+	 *            be returned
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> maxBy(String field, boolean first) {
+		return aggregate(new ComparableAggregator<OUT>(field, getType(), AggregationType.MAXBY,
+				first, getExecutionConfig()));
 	}
 
 	/**
 	 * Applies an aggregation that that gives the current element with the
-	 * maximum value at the given position for each group on a grouped data
-	 * stream. If more elements have the maximum value at the given position,
-	 * the operator returns the first one by default.
+	 * minimum value at the given position by the given key. An independent
+	 * aggregate is kept per key. If more elements have the minimum value at the
+	 * given position, the operator returns the first one by default.
+	 * 
+	 * @param positionToMinBy
+	 *            The position in the data point to minimize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy) {
+		return this.minBy(positionToMinBy, true);
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current element with the
+	 * minimum value at the given position by the given key. An independent
+	 * aggregate is kept per key. If more elements have the minimum value at the
+	 * given position, the operator returns the first one by default.
+	 * 
+	 * @param positionToMinBy
+	 *            The position in the data point to minimize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> minBy(String positionToMinBy) {
+		return this.minBy(positionToMinBy, true);
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current element with the
+	 * minimum value at the given position by the given key. An independent
+	 * aggregate is kept per key. If more elements have the minimum value at the
+	 * given position, the operator returns either the first or last one,
+	 * depending on the parameter set.
+	 * 
+	 * @param positionToMinBy
+	 *            The position in the data point to minimize
+	 * @param first
+	 *            If true, then the operator return the first element with the
+	 *            minimal value, otherwise returns the last
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
+		return aggregate(new ComparableAggregator<OUT>(positionToMinBy, getType(), AggregationType.MINBY, first,
+				getExecutionConfig()));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current element with the
+	 * maximum value at the given position by the given key. An independent
+	 * aggregate is kept per key. If more elements have the maximum value at the
+	 * given position, the operator returns the first one by default.
 	 * 
 	 * @param positionToMaxBy
 	 *            The position in the data point to maximize
 	 * @return The transformed DataStream.
 	 */
-	@Override
 	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy) {
-		return super.maxBy(positionToMaxBy);
+		return this.maxBy(positionToMaxBy, true);
 	}
 
 	/**
 	 * Applies an aggregation that that gives the current element with the
-	 * maximum value at the given position for each group on a grouped data
-	 * stream. If more elements have the maximum value at the given position,
-	 * the operator returns either the first or last one depending on the
-	 * parameters.
+	 * maximum value at the given position by the given key. An independent
+	 * aggregate is kept per key. If more elements have the maximum value at the
+	 * given position, the operator returns the first one by default.
 	 * 
 	 * @param positionToMaxBy
 	 *            The position in the data point to maximize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> maxBy(String positionToMaxBy) {
+		return this.maxBy(positionToMaxBy, true);
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current element with the
+	 * maximum value at the given position by the given key. An independent
+	 * aggregate is kept per key. If more elements have the maximum value at the
+	 * given position, the operator returns either the first or last one,
+	 * depending on the parameter set.
+	 * 
+	 * @param positionToMaxBy
+	 *            The position in the data point to maximize.
 	 * @param first
 	 *            If true, then the operator return the first element with the
 	 *            maximum value, otherwise returns the last
 	 * @return The transformed DataStream.
 	 */
-	@Override
 	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy, boolean first) {
-		return super.maxBy(positionToMaxBy, first);
+		return aggregate(new ComparableAggregator<OUT>(positionToMaxBy, getType(), AggregationType.MAXBY, first,
+				getExecutionConfig()));
 	}
 
-	@Override
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
-
 		StreamGroupedReduce<OUT> operator = new StreamGroupedReduce<OUT>(clean(aggregate), keySelector);
-
 		SingleOutputStreamOperator<OUT, ?> returnStream = transform("Grouped Aggregation",
 				getType(), operator);
-
 		return returnStream;
 	}
 

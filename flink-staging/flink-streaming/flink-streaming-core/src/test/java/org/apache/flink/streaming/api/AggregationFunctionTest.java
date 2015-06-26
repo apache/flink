@@ -17,6 +17,12 @@
 
 package org.apache.flink.streaming.api;
 
+import static org.junit.Assert.assertEquals;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -24,22 +30,14 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
-import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
 import org.apache.flink.streaming.api.operators.StreamReduce;
 import org.apache.flink.streaming.util.MockContext;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.junit.Test;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 public class AggregationFunctionTest {
 
@@ -147,26 +145,7 @@ public class AggregationFunctionTest {
 				new StreamReduce<Integer>(minFunction0), simpleInput));
 		assertEquals(expectedMaxList0, MockContext.createAndExecute(
 				new StreamReduce<Integer>(maxFunction0), simpleInput));
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
-		try {
-			env.generateSequence(1, 100).min(1);
-			fail();
-		} catch (Exception e) {
-			// Nothing to do here
-		}
-		try {
-			env.generateSequence(1, 100).min(2);
-			fail();
-		} catch (Exception e) {
-			// Nothing to do here
-		}
-		try {
-			env.generateSequence(1, 100).min(3);
-			fail();
-		} catch (Exception e) {
-			// Nothing to do here
-		}
+		
 	}
 
 	@Test

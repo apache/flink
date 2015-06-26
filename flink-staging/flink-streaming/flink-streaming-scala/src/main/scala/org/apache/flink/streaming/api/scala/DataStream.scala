@@ -396,47 +396,50 @@ class DataStream[T](javaStream: JavaStream[T]) {
 
   /**
    * Applies an aggregation that that gives the current maximum of the data stream at
-   * the given position.
+   * the given position by the given key. An independent aggregate is kept per key.
    *
    */
   def max(position: Int): DataStream[T] = aggregate(AggregationType.MAX, position)
   
   /**
    * Applies an aggregation that that gives the current maximum of the data stream at
-   * the given field.
+   * the given field by the given key. An independent aggregate is kept per key.
    *
    */
   def max(field: String): DataStream[T] = aggregate(AggregationType.MAX, field)
   
   /**
    * Applies an aggregation that that gives the current minimum of the data stream at
-   * the given position.
+   * the given position by the given key. An independent aggregate is kept per key.
    *
    */
   def min(position: Int): DataStream[T] = aggregate(AggregationType.MIN, position)
   
   /**
    * Applies an aggregation that that gives the current minimum of the data stream at
-   * the given field.
+   * the given field by the given key. An independent aggregate is kept per key.
    *
    */
   def min(field: String): DataStream[T] = aggregate(AggregationType.MIN, field)
 
   /**
-   * Applies an aggregation that sums the data stream at the given position.
+   * Applies an aggregation that sums the data stream at the given position by the given 
+   * key. An independent aggregate is kept per key.
    *
    */
   def sum(position: Int): DataStream[T] = aggregate(AggregationType.SUM, position)
   
   /**
-   * Applies an aggregation that sums the data stream at the given field.
+   * Applies an aggregation that sums the data stream at the given field by the given 
+   * key. An independent aggregate is kept per key.
    *
    */
   def sum(field: String): DataStream[T] =  aggregate(AggregationType.SUM, field)
 
   /**
    * Applies an aggregation that that gives the current minimum element of the data stream by
-   * the given position. When equality, the first element is returned with the minimal value.
+   * the given position by the given key. An independent aggregate is kept per key. 
+   * When equality, the first element is returned with the minimal value.
    *
    */
   def minBy(position: Int): DataStream[T] = aggregate(AggregationType
@@ -444,7 +447,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     
    /**
    * Applies an aggregation that that gives the current minimum element of the data stream by
-   * the given field. When equality, the first element is returned with the minimal value.
+   * the given field by the given key. An independent aggregate is kept per key.
+   * When equality, the first element is returned with the minimal value.
    *
    */
   def minBy(field: String): DataStream[T] = aggregate(AggregationType
@@ -452,7 +456,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
 
    /**
    * Applies an aggregation that that gives the current maximum element of the data stream by
-   * the given position. When equality, the first element is returned with the maximal value.
+   * the given position by the given key. An independent aggregate is kept per key. 
+   * When equality, the first element is returned with the maximal value.
    *
    */
   def maxBy(position: Int): DataStream[T] =
@@ -460,7 +465,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     
    /**
    * Applies an aggregation that that gives the current maximum element of the data stream by
-   * the given field. When equality, the first element is returned with the maximal value.
+   * the given field by the given key. An independent aggregate is kept per key. 
+   * When equality, the first element is returned with the maximal value.
    *
    */
   def maxBy(field: String): DataStream[T] =
@@ -486,19 +492,12 @@ class DataStream[T](javaStream: JavaStream[T]) {
     val invokable = jStream match {
       case groupedStream: GroupedDataStream[Product] => new StreamGroupedReduce[Product](reducer,
         groupedStream.getKeySelector())
-      case _ => new StreamReduce(reducer)
+      case _ => throw new UnsupportedOperationException("Aggregations are only supported for" + 
+          "grouped and windowed data streams.")
     }
     new DataStream[Product](jStream.transform("aggregation", jStream.getType(),invokable))
       .asInstanceOf[DataStream[T]]
   }
-
-  /**
-   * Creates a new DataStream containing the current number (count) of
-   * received records.
-   *
-   */
-  def count: DataStream[Long] = new DataStream[java.lang.Long](
-    javaStream.count()).asInstanceOf[DataStream[Long]]
 
   /**
    * Creates a new DataStream by applying the given function to every element of this DataStream.
@@ -579,7 +578,11 @@ class DataStream[T](javaStream: JavaStream[T]) {
       throw new NullPointerException("Reduce function must not be null.")
     }
  
-    javaStream.reduce(reducer)
+    javaStream match {
+      case groupedStream: GroupedDataStream[T] => groupedStream.reduce(reducer)
+      case _ => throw new UnsupportedOperationException("Reduce is only supported for" + 
+          "grouped and windowed data streams.")
+    }
   }
 
   /**
@@ -608,7 +611,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
     
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    javaStream.fold(initialValue, folder).returns(outType).asInstanceOf[JavaStream[R]]
+    
+    javaStream match {
+      case groupedStream: GroupedDataStream[T] => groupedStream.fold(initialValue, folder).
+      returns(outType).asInstanceOf[JavaStream[R]]
+      case _ => throw new UnsupportedOperationException("Fold is only supported for" + 
+          "grouped and windowed data streams.")
+    }
+    
   }
 
   /**
