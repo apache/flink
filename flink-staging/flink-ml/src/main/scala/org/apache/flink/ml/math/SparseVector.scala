@@ -119,7 +119,7 @@ case class SparseVector(
   override def equals(obj: Any): Boolean = {
     obj match {
       case sv: SparseVector if size == sv.size =>
-        indices.sameElements(indices) && data.sameElements(sv.data)
+        indices.sameElements(sv.indices) && data.sameElements(sv.data)
       case _ => false
     }
   }
@@ -242,7 +242,7 @@ object SparseVector {
             dense.iterator.toIterable)
         case sparse: BreezeSparseVector[Double] =>
           new SparseVector(
-            sparse.used,
+            sparse.length,
             sparse.index.take(sparse.used),
             sparse.data.take(sparse.used))
       }
