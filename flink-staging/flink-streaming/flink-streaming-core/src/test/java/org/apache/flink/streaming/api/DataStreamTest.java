@@ -29,7 +29,6 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -39,7 +38,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.GroupedDataStream;
-import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.datastream.WindowedDataStream;
@@ -50,8 +48,6 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.graph.StreamGraph.StreamLoop;
-import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.windowing.helper.Count;
@@ -88,12 +84,12 @@ public class DataStreamTest {
 				}).name("testMap");
 
 		DataStream<Long> dataStream2 = env.generateSequence(0, 0).name("testSource2")
-				.reduce(new ReduceFunction<Long>() {
+				.map(new MapFunction<Long, Long>() {
 					@Override
-					public Long reduce(Long value1, Long value2) throws Exception {
+					public Long map(Long value) throws Exception {
 						return null;
 					}
-				}).name("testReduce");
+				}).name("testMap");
 
 		DataStream<Long> connected = dataStream1.connect(dataStream2)
 				.flatMap(new CoFlatMapFunction<Long, Long, Long>() {
@@ -120,7 +116,7 @@ public class DataStreamTest {
 		assertTrue(plan.contains("testSource1"));
 		assertTrue(plan.contains("testSource2"));
 		assertTrue(plan.contains("testMap"));
-		assertTrue(plan.contains("testReduce"));
+		assertTrue(plan.contains("testMap"));
 		assertTrue(plan.contains("testCoFlatMap"));
 		assertTrue(plan.contains("testWindowFold"));
 	}
@@ -415,19 +411,10 @@ public class DataStreamTest {
 		StreamEdge splitEdge = streamGraph.getStreamEdge(select.getId(), sink.getId());
 		assertEquals("a", splitEdge.getSelectedNames().get(0));
 
-		FoldFunction<Integer, String> foldFunction = new FoldFunction<Integer, String>() {
+		ConnectedDataStream<Integer, Integer> connect = map.connect(flatMap);
+		CoMapFunction<Integer, Integer, String> coMapper = new CoMapFunction<Integer, Integer, String>() {
 			@Override
-			public String fold(String accumulator, Integer value) throws Exception {
-				return null;
-			}
-		};
-		DataStream<String> fold = map.fold("", foldFunction);
-		assertEquals(foldFunction, getFunctionForDataStream(fold));
-
-		ConnectedDataStream<String, Integer> connect = fold.connect(flatMap);
-		CoMapFunction<String, Integer, String> coMapper = new CoMapFunction<String, Integer, String>() {
-			@Override
-			public String map1(String value) {
+			public String map1(Integer value) {
 				return null;
 			}
 
@@ -440,7 +427,7 @@ public class DataStreamTest {
 		assertEquals(coMapper, getFunctionForDataStream(coMap));
 
 		try {
-			streamGraph.getStreamEdge(fold.getId(), coMap.getId());
+			streamGraph.getStreamEdge(map.getId(), coMap.getId());
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}

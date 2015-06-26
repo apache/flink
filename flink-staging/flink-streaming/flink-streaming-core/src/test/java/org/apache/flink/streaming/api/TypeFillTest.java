@@ -72,11 +72,6 @@ public class TypeFillTest {
 		} catch (Exception e) {
 		}
 		try {
-			source.connect(source).reduce(new TestCoReduce<Long, Long, Integer>()).print();
-			fail();
-		} catch (Exception e) {
-		}
-		try {
 			source.connect(source).windowReduce(new TestCoWindow<Long, Long, String>(), 10, 100)
 					.print();
 			fail();
@@ -89,8 +84,7 @@ public class TypeFillTest {
 		source.connect(source).map(new TestCoMap<Long, Long, Integer>()).returns("Integer").print();
 		source.connect(source).flatMap(new TestCoFlatMap<Long, Long, Integer>())
 				.returns(BasicTypeInfo.INT_TYPE_INFO).print();
-		source.connect(source).reduce(new TestCoReduce<Long, Long, Integer>())
-				.returns(Integer.class).print();
+		
 		source.connect(source).windowReduce(new TestCoWindow<Long, Long, String>(), 10, 100)
 				.returns("String").print();
 

@@ -476,7 +476,7 @@ dataStream.filter(new FilterFunction<Integer>() {
       <td><strong>Reduce</strong></td>
       <td>
         <p>Combines a stream of elements into another stream by repeatedly combining two elements
-        into one and emits the current state after every reduction. Reduce may be applied on a full, windowed or grouped data stream.
+        into one and emits the current state after every reduction. Reduce may only be applied on a windowed or grouped data stream.
         <br/>
         
         <strong>IMPORTANT:</strong> The streaming and the batch reduce functions have different semantics. A streaming reduce on a data stream emits the current reduced value for every new element on a data stream. On a windowed data stream it works as a batch reduce: it produces at most one value per window.
@@ -498,7 +498,7 @@ dataStream.reduce(new ReduceFunction<Integer>() {
     <tr>
       <td><strong>Fold</strong></td>
       <td>
-        <p>Combines a stream element by element with an initial aggregator value. Fold may be applied on a full, windowed or grouped data stream.
+        <p>Combines a stream element by element with an initial aggregator value. Fold may only be applied on a windowed or grouped data stream.
         <br/>
          A folder that appends strings one by one to the empty sting:</p>
 {% highlight java %}
@@ -605,7 +605,7 @@ dataStream.filter{ _ != 0 }
       <td><strong>Reduce</strong></td>
       <td>
         <p>Combines a stream of elements into another stream by repeatedly combining two elements
-        into one and emits the current state after every reduction. Reduce may be applied on a full, windowed or grouped data stream.
+        into one and emits the current state after every reduction. Reduce may only be applied on a windowed or grouped data stream.
         <br/>
         
         <strong>IMPORTANT:</strong> The streaming and the batch reduce functions have different semantics. A streaming reduce on a data stream emits the current reduced value for every new element on a data stream. On a windowed data stream it works as a batch reduce: it produces at most one value per window.
@@ -621,7 +621,7 @@ dataStream.reduce{ _ + _}
     <tr>
       <td><strong>Fold</strong></td>
         <td>
-        <p>Combines a stream element by element with an initial aggregator value. Fold may be applied on a full, windowed or grouped data stream.
+        <p>Combines a stream element by element with an initial aggregator value. Fold may only be applied windowed or grouped data stream.
         <br/>
          A folder that appends strings one by one to the empty sting:</p>
 {% highlight scala %}
@@ -658,7 +658,7 @@ Aggregation or reduce operators called on `GroupedDataStream`s produce elements 
 
 ### Aggregations
 
-The Flink Streaming API supports different types of pre-defined aggregations of `DataStreams`. A common property of these operators, is that they produce the stream of intermediate aggregate values (just like reduce on streams).
+The Flink Streaming API supports different types of pre-defined aggregations of `GroupedDataStream`s and `WindowedDataStream`s. A common property of these operators, is that they produce the stream of intermediate aggregate values.
 
 Types of aggregations: `sum(field)`, `min(field)`, `max(field)`, `minBy(field, first)`, `maxBy(field, first)`.
 
@@ -1014,7 +1014,7 @@ val dataStream2 : DataStream[String] = ...
 The windowReduce operator applies a user defined `CoWindowFunction` to time aligned windows of the two data streams and return zero or more elements of an arbitrary type. The user can define the window and slide intervals and can also implement custom timestamps to be used for calculating windows.
 
 #### Reduce on ConnectedDataStream
-The Reduce operator for the `ConnectedDataStream` applies a simple reduce transformation on the joined data streams and then maps the reduced elements to a common output type.
+The Reduce operator for the `ConnectedDataStream` applies a group-reduce transformation on the grouped joined data streams and then maps the reduced elements to a common output type. It works only for connected data streams where the inputs are grouped.
 
 ### Output splitting
 <div class="codetabs" markdown="1">

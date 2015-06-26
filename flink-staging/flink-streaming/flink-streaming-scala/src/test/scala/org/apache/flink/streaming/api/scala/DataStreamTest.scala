@@ -49,6 +49,7 @@ class DataStreamTest {
     assert("testMap" == dataStream1.getName)
 
     val dataStream2 = env.generateSequence(0, 0).name("testSource2")
+      .groupBy(x=>x)
       .reduce((x, y) => 0)
       .name("testReduce")
     assert("testReduce" == dataStream2.getName)
@@ -341,10 +342,10 @@ class DataStreamTest {
     val foldFunction = new FoldFunction[Int, String] {
       override def fold(accumulator: String, value: Int): String = ""
     }
-    val fold = map.fold("", foldFunction)
+    val fold = map.groupBy(x=>x).fold("", foldFunction)
     assert(foldFunction == getFunctionForDataStream(fold))
     assert(
-      getFunctionForDataStream(map
+      getFunctionForDataStream(map.groupBy(x=>x)
         .fold("", (x: String, y: Int) => ""))
         .isInstanceOf[FoldFunction[Int, String]])
 
