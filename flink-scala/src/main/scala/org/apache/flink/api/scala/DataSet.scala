@@ -1197,7 +1197,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
   /**
    * Partitions a DataSet on the key returned by the selector, using a custom partitioner.
-   * This method takes the key selector t get the key to partition on, and a partitioner that
+   * This method takes the key selector to get the key to partition on, and a partitioner that
    * accepts the key type.
    * <p>
    * Note: This method works only on single field keys, i.e. the selector cannot return tuples
