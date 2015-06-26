@@ -123,4 +123,20 @@ class ScoreTest
     result.length shouldBe 1
     result.head shouldBe (0.995 +- 1e9)
   }
+
+  it should "calculate the R2 score correctly for edge cases" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    // List of 50 (i, i + 1.0) tuples, where i the index
+    val valueList = Array.ofDim[Double](50) zip Array.ofDim[Double](50).map(_ + 1.0)
+
+    val yy = env.fromCollection(valueList)
+
+    val r2 = new R2Score()
+
+    val result = r2.evaluate(yy).collect()
+
+    result.length shouldBe 1
+    result.head shouldBe (0.0 +- 1e9)
+  }
 }

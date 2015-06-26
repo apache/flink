@@ -35,8 +35,7 @@ class Scorer(val metric: Score[Double]) extends WithParameters {
 
     FlinkMLTools.registerFlinkMLTypes(testing.getExecutionEnvironment)
     val resultingParameters = predictorInstance.parameters ++ evaluateParameters
-    val predictions = predictorInstance.
-      evaluate[Testing, Double](testing, resultingParameters)
+    val predictions = predictorInstance.evaluate[Testing, Double](testing, resultingParameters)
     //TODO: Use parameters
     metric.evaluate(predictions)
   }

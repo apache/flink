@@ -85,7 +85,7 @@ import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, Predictor}
   *  Threshold for relative change of sum of squared residuals until convergence.
   *
   */
-class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
+class MultipleLinearRegression extends Regressor[MultipleLinearRegression]{
   import org.apache.flink.ml._
   import MultipleLinearRegression._
 
@@ -201,7 +201,8 @@ object MultipleLinearRegression {
           }
         }
       }
-      override def predict(value: T, model: WeightVector): Double = {
+      override def predict(value: T, model: WeightVector, predictParameters: ParameterMap):
+        Double = {
         import Breeze._
         val WeightVector(weights, weight0) = model
         val dotProduct = value.asBreeze.dot(weights.asBreeze)

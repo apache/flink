@@ -175,7 +175,7 @@ object Predictor {
   }
 
   /** [[EvaluateDataSetOperation]] which takes a [[PredictOperation]] to calculate a tuple
-    * of true label value and predicted label value, when the provided with a DataSet of
+    * of true label value and predicted label value, when provided with a DataSet of
     * [[LabeledVector]].
     *
     * Note: We have to put the TypeInformation implicit values for Testing and PredictionValue after

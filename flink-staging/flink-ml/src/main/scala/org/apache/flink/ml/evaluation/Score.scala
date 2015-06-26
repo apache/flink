@@ -111,12 +111,21 @@ class R2Score extends Score[Double] with PerformanceScore {
     val onlyTrue = trueAndPredicted.map(truthPrediction => truthPrediction._1)
     val meanTruth = onlyTrue.mean()
 
-    val squaredLoss = new SquaredLoss()
-
-    val ssRes = squaredLoss.evaluate(trueAndPredicted)
-    val ssTot = squaredLoss.evaluate(onlyTrue.crossWithTiny(meanTruth))
-    //TODO: Handle 0 in nominator or denominator
-    val r2 = ssRes.crossWithTiny(ssTot).map(resTot => 1 - (resTot._1/resTot._2))
+    val ssRes = trueAndPredicted
+      .map(tp => (tp._1 - tp._2) * (tp._1 - tp._2)).reduce(_ + _)
+    val ssTot = onlyTrue
+      .crossWithTiny(meanTruth).map(tp => (tp._1 - tp._2) * (tp._1 - tp._2)).reduce(_ + _)
+    val r2 = ssRes.crossWithTiny(ssTot).map{resTot =>
+      val ssRes  = resTot._1
+      val ssTot  = resTot._2
+      // We avoid dividing by 0 and just assign 0.0
+      if (ssTot == 0.0) {
+        0.0
+      }
+      else {
+        1 - (ssRes / ssTot)
+      }
+    }
 
     r2
   }

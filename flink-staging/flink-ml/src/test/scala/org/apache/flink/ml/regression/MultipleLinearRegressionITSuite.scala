@@ -19,7 +19,7 @@
 package org.apache.flink.ml.regression
 
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.ml.common.{WeightVector, ParameterMap}
+import org.apache.flink.ml.common.{LabeledVector, WeightVector, ParameterMap}
 import org.apache.flink.ml.preprocessing.PolynomialFeatures
 import org.scalatest.{Matchers, FlatSpec}
 
@@ -131,5 +131,29 @@ class MultipleLinearRegressionITSuite
       case (truth, prediction) => Math.abs(truth - prediction)}.sum
 
     absoluteErrorSum should be < 50.0
+  }
+
+  it should "calculate its score correctly" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val expectedR2 = 0.29310994289260195
+
+    val mlr = MultipleLinearRegression()
+
+    import RegressionData._
+
+    val parameters = ParameterMap()
+
+    parameters.add(MultipleLinearRegression.Stepsize, 10.0)
+    parameters.add(MultipleLinearRegression.Iterations, 100)
+//    parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.0001)
+
+    val inputDS = env.fromCollection(data)
+    val evaluationDS = inputDS
+
+    mlr.fit(inputDS, parameters)
+
+    val r2Score = mlr.score(evaluationDS).collect().head
+
+    r2Score should be (expectedR2 +- 0.1)
   }
 }
