@@ -80,6 +80,19 @@ class BreezeMathSuite extends FlatSpec with Matchers {
     flinkVector should equal(vector)
   }
 
+  it should "convert a sparse Flink vector into a sparse Breeze vector and vice versa" in {
+    val vector = SparseVector.fromCOO(3, (1, 1.0), (2, 2.0))
+
+    val breezeVector = vector.asBreeze
+
+    val flinkVector = breezeVector.fromBreeze
+
+    breezeVector.getClass should be(new linalg.SparseVector[Double](null).getClass())
+    flinkVector.getClass should be (classOf[SparseVector])
+
+    flinkVector should equal(vector)
+  }
+
   it should "convert a sparse Flink vector into a sparse Breeze vector and given the right " +
     "converter back into a dense Flink vector" in {
     implicit val converter = implicitly[BreezeVectorConverter[DenseVector]]
