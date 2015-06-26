@@ -109,6 +109,7 @@ public class LocalExecutor extends PlanExecutor {
 				}
 				// start it up
 				this.flink = new LocalFlinkMiniCluster(configuration, true);
+				this.flink.start();
 			} else {
 				throw new IllegalStateException("The local executor was already started.");
 			}
@@ -168,7 +169,7 @@ public class LocalExecutor extends PlanExecutor {
 			}
 
 			try {
-				Optimizer pc = new Optimizer(new DataStatistics(), this.flink.getConfiguration());
+				Optimizer pc = new Optimizer(new DataStatistics(), this.flink.configuration());
 				OptimizedPlan op = pc.compile(plan);
 				
 				JobGraphGenerator jgg = new JobGraphGenerator();
@@ -251,7 +252,7 @@ public class LocalExecutor extends PlanExecutor {
 		LocalExecutor exec = new LocalExecutor();
 		try {
 			exec.start();
-			Optimizer pc = new Optimizer(new DataStatistics(), exec.flink.getConfiguration());
+			Optimizer pc = new Optimizer(new DataStatistics(), exec.flink.configuration());
 			OptimizedPlan op = pc.compile(plan);
 			PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 

@@ -27,6 +27,8 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.instance.{HardwareDescription, InstanceConnectionInfo, InstanceID}
+import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService
+import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
 import org.junit.Assert.{assertNotEquals, assertNotNull}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -62,38 +64,39 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
         val hardwareDescription = HardwareDescription.extractFromSystem(10)
 
+        val leaderSessionID = UUID.randomUUID()
+
         var id1: InstanceID = null
         var id2: InstanceID = null
-        val registrationSessionID = UUID.randomUUID()
 
         // task manager 1
         within(1 second) {
-          jm ! RegisterTaskManager(
-            registrationSessionID,
-            tmDummy1,
-            connectionInfo1,
-            hardwareDescription,
-            1)
+          jm.tell(
+            RegisterTaskManager(
+              connectionInfo1,
+              hardwareDescription,
+              1),
+            tmDummy1)
 
           val response = receiveOne(1 second)
           response match {
-            case AcknowledgeRegistration(registrationSessionID, _,  _, id, _) => id1 = id
+            case LeaderSessionMessage(leaderSessionID, AcknowledgeRegistration(id, _)) => id1 = id
             case _ => fail("Wrong response message: " + response)
           }
         }
 
         // task manager 2
         within(1 second) {
-          jm ! RegisterTaskManager(
-            registrationSessionID,
-            tmDummy2,
-            connectionInfo2,
-            hardwareDescription,
-            1)
+          jm.tell(
+            RegisterTaskManager(
+              connectionInfo2,
+              hardwareDescription,
+              1),
+            tmDummy2)
 
           val response = receiveOne(1 second)
           response match {
-            case AcknowledgeRegistration(registrationSessionID, _, _, id, _) => id2 = id
+            case LeaderSessionMessage(leaderSessionID, AcknowledgeRegistration(id, _)) => id2 = id
             case _ => fail("Wrong response message: " + response)
           }
         }
@@ -118,27 +121,27 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
         val connectionInfo = new InstanceConnectionInfo(InetAddress.getLocalHost,1)
         val hardwareDescription = HardwareDescription.extractFromSystem(10)
 
-        val registrationSessionID = UUID.randomUUID()
-        
         within(1 second) {
-          jm ! RegisterTaskManager(
-            registrationSessionID,
-            tmDummy,
-            connectionInfo,
-            hardwareDescription,
-            1)
-          jm ! RegisterTaskManager(
-            registrationSessionID,
-            tmDummy,
-            connectionInfo,
-            hardwareDescription,
-            1)
-          jm ! RegisterTaskManager(
-            registrationSessionID,
-            tmDummy,
-            connectionInfo,
-            hardwareDescription,
-            1)
+          jm.tell(
+            RegisterTaskManager(
+              connectionInfo,
+              hardwareDescription,
+              1),
+            tmDummy)
+
+          jm.tell(
+            RegisterTaskManager(
+              connectionInfo,
+              hardwareDescription,
+              1),
+            tmDummy)
+
+          jm.tell(
+            RegisterTaskManager(
+              connectionInfo,
+              hardwareDescription,
+              1),
+            tmDummy)
 
           expectMsgType[AcknowledgeRegistration]
           expectMsgType[AlreadyRegistered]
@@ -152,9 +155,12 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
   }
 
   private def startTestingJobManager(system: ActorSystem): ActorRef = {
-    val (jm: ActorRef, _) = JobManager.startJobManagerActors(new Configuration(), _system,
-                                                             None, None,
-                                                             StreamingMode.BATCH_ONLY)
+    val (jm: ActorRef, _) = JobManager.startJobManagerActors(
+      new Configuration(),
+      _system,
+      None,
+      None,
+      StreamingMode.BATCH_ONLY)
     jm
   }
 }

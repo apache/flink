@@ -45,14 +45,15 @@ public class TestRunner {
 
 		// start the cluster with the runtime monitor
 		Configuration configuration = new Configuration();
-		configuration.setBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, true);
+		configuration.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 		configuration.setBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, true);
 		configuration.setString(ConfigConstants.JOB_MANAGER_WEB_DOC_ROOT_KEY,
-			"/data/repositories/flink/flink-dist/target/flink-0.10-SNAPSHOT-bin/flink-0.10-SNAPSHOT/resources/web-runtime-monitor");
+			"flink-dist/target/flink-0.10-SNAPSHOT-bin/flink-0.10-SNAPSHOT/resources/web-runtime-monitor");
 		
 		LocalFlinkMiniCluster cluster = new LocalFlinkMiniCluster(configuration, false);
+		cluster.start();
 
-		final int port = cluster.getJobManagerRPCPort();
+		final int port = cluster.getLeaderRPCPort();
 		runWordCount(port);
 		runWebLogAnalysisExample(port);
 		runWordCount(port);

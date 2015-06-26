@@ -101,9 +101,13 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 	 * @throws IOException
 	 * @throws YarnException
 	 */
-	public FlinkYarnCluster(final YarnClient yarnClient, final ApplicationId appId, Configuration hadoopConfig,
-							org.apache.flink.configuration.Configuration flinkConfig,
-							Path sessionFilesDir, boolean detached) throws IOException, YarnException {
+	public FlinkYarnCluster(
+			final YarnClient yarnClient,
+			final ApplicationId appId,
+			Configuration hadoopConfig,
+			org.apache.flink.configuration.Configuration flinkConfig,
+			Path sessionFilesDir,
+			boolean detached) throws IOException, YarnException {
 		this.akkaDuration = AkkaUtils.getTimeout(flinkConfig);
 		this.akkaTimeout = Timeout.durationToTimeout(akkaDuration);
 		this.yarnClient = yarnClient;

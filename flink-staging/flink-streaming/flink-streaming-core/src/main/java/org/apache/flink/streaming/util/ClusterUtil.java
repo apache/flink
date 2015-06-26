@@ -63,6 +63,8 @@ public class ClusterUtil {
 
 		try {
 			exec = new LocalFlinkMiniCluster(configuration, true);
+			exec.start();
+			
 			if (detached) {
 				exec.submitJobDetached(jobGraph);
 				return null;

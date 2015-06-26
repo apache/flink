@@ -71,6 +71,10 @@ class MemoryArchivist(private val max_entries: Int)
   var canceledCnt: Int = 0
   var failedCnt: Int = 0
 
+  override def preStart(): Unit = {
+    log.info(s"Started memory archivist ${self.path}")
+  }
+
   override def handleMessage: Receive = {
     
     /* Receive Execution Graph to archive */

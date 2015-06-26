@@ -800,7 +800,7 @@ public class TaskTest {
 		try {
 			// we may have to wait for a bit to give the actors time to receive the message
 			// and put it into the queue
-			TaskMessages.UpdateTaskExecutionState message = 
+			TaskMessages.UpdateTaskExecutionState message =
 					(TaskMessages.UpdateTaskExecutionState) listenerMessages.take();
 			assertNotNull("There is no additional listener message", message);
 			

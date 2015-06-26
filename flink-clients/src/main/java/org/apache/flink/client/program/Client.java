@@ -22,10 +22,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -33,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
@@ -48,15 +43,16 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsErroneous;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsFound;
 import org.apache.flink.runtime.messages.accumulators.RequestAccumulatorResults;
@@ -67,7 +63,6 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 
 import com.google.common.base.Preconditions;
@@ -79,18 +74,18 @@ public class Client {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(Client.class);
 
-	/** The configuration to use for the client (optimizer, timeouts, ...) */
+	/**
+	 * The configuration to use for the client (optimizer, timeouts, ...) and to connect to the
+	 * JobManager.
+	 */
 	private final Configuration configuration;
-
-	/** The address of the JobManager to send the program to */
-	private final InetSocketAddress jobManagerAddress;
 
 	/** The optimizer used in the optimization of batch programs */
 	private final Optimizer compiler;
 
 	/** The class loader to use for classes from the user program (e.g., functions and data types) */
 	private final ClassLoader userCodeClassLoader;
-	
+
 	/** Flag indicating whether to sysout print execution updates */
 	private boolean printStatusDuringExecution = true;
 
@@ -98,7 +93,7 @@ public class Client {
 	 * If != -1, this field specifies the total number of available slots on the cluster
 	 * connected to the client.
 	 */
-	private int maxSlots = -1;
+	private int maxSlots;
 
 	/** ID of the last job submitted with this client. */
 	private JobID lastJobId = null;
@@ -107,85 +102,35 @@ public class Client {
 	// ------------------------------------------------------------------------
 	//                            Construction
 	// ------------------------------------------------------------------------
-	
+
 	/**
-	 * Creates a new instance of the class that submits the jobs to a job-manager.
-	 * at the given address using the default port.
-	 * 
-	 * @param jobManagerAddress Address and port of the job-manager.
+	 * Creates a instance that submits the programs to the JobManager defined in the
+	 * configuration. It sets the maximum number of slots to unknown (= -1).
+	 *
+	 * @param config The config used to obtain the JobManager's address.
+	 * @param userCodeClassLoader The class loader to use for loading user code classes.
 	 */
-	public Client(InetSocketAddress jobManagerAddress, Configuration config, 
-							ClassLoader userCodeClassLoader, int maxSlots) throws UnknownHostException
-	{
-		Preconditions.checkNotNull(jobManagerAddress, "JobManager address is null");
-		Preconditions.checkNotNull(config, "Configuration is null");
-		Preconditions.checkNotNull(userCodeClassLoader, "User code ClassLoader is null");
-		
-		this.configuration = config;
-		
-		if (jobManagerAddress.isUnresolved()) {
-			// address is unresolved, resolve it
-			String host = jobManagerAddress.getHostName();
-			if (host == null) {
-				throw new IllegalArgumentException("Host in jobManagerAddress is null");
-			}
-			
-			try {
-				InetAddress address = InetAddress.getByName(host);
-				this.jobManagerAddress = new InetSocketAddress(address, jobManagerAddress.getPort());
-			}
-			catch (UnknownHostException e) {
-				throw new UnknownHostException("Cannot resolve JobManager host name '" + host + "'.");
-			}
-		}
-		else {
-			// address is already resolved, use it as is
-			this.jobManagerAddress = jobManagerAddress;
-		}
-		
-		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
-		this.userCodeClassLoader = userCodeClassLoader;
-		this.maxSlots = maxSlots;
+	public Client(Configuration config, ClassLoader userCodeClassLoader) {
+		this(config, userCodeClassLoader, -1);
 	}
 
 	/**
 	 * Creates a instance that submits the programs to the JobManager defined in the
-	 * configuration. This method will try to resolve the JobManager hostname and throw an exception
-	 * if that is not possible.
+	 * configuration.
 	 * 
-	 * @param config The config used to obtain the job-manager's address.
-	 * @param userCodeClassLoader The class loader to use for loading user code classes.   
+	 * @param config The config used to obtain the JobManager's address.
+	 * @param userCodeClassLoader The class loader to use for loading user code classes.
+	 * @param maxSlots The number of maxSlots on the cluster if != -1
 	 */
-	public Client(Configuration config, ClassLoader userCodeClassLoader) throws UnknownHostException {
+	public Client(Configuration config, ClassLoader userCodeClassLoader, int maxSlots) {
 		Preconditions.checkNotNull(config, "Configuration is null");
 		Preconditions.checkNotNull(userCodeClassLoader, "User code ClassLoader is null");
 		
 		this.configuration = config;
 		this.userCodeClassLoader = userCodeClassLoader;
-		
-		// instantiate the address to the job manager
-		final String address = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		if (address == null) {
-			throw new IllegalConfigurationException(
-					"Cannot find address to job manager's RPC service in the global configuration.");
-		}
-		
-		final int port = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-														ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-		if (port < 0) {
-			throw new IllegalConfigurationException("Cannot find port to job manager's RPC service in the global configuration.");
-		}
-		
-		try {
-			InetAddress inetAddress = InetAddress.getByName(address);
-			this.jobManagerAddress = new InetSocketAddress(inetAddress, port);
-		}
-		catch (UnknownHostException e) {
-			throw new UnknownHostException("Cannot resolve the JobManager hostname '" + address
-					+ "' specified in the configuration");
-		}
 
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
+		this.maxSlots = maxSlots;
 	}
 
 	/**
@@ -377,8 +322,6 @@ public class Client {
 	public JobSubmissionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
 		this.lastJobId = jobGraph.getJobID();
 		
-		LOG.info("JobManager actor system address is " + jobManagerAddress);
-		
 		LOG.info("Starting client actor system");
 		final ActorSystem actorSystem;
 		try {
@@ -388,58 +331,59 @@ public class Client {
 			throw new ProgramInvocationException("Could start client actor system.", e);
 		}
 
-		FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
-
-		LOG.info("Looking up JobManager");
-		ActorGateway jobManagerGateway;
-		ActorRef jobManagerActorRef;
 		try {
-			jobManagerActorRef = JobManager.getJobManagerRemoteReference(
-					jobManagerAddress,
-					actorSystem,
-					configuration);
+			FiniteDuration lookupTimeout = AkkaUtils.getLookupTimeout(configuration);
+			FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
 
+			LOG.info("Looking up JobManager");
+			ActorGateway jobManagerGateway;
 
-		} catch (IOException e) {
-			throw new ProgramInvocationException("Failed to resolve JobManager", e);
-		}
+			LeaderRetrievalService leaderRetrievalService;
 
-		try{
-			jobManagerGateway = JobManager.getJobManagerGateway(jobManagerActorRef, timeout);
-		} catch (Exception e) {
-			throw new ProgramInvocationException("Failed to retrieve the JobManager gateway.", e);
-		}
+			try {
+				leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(configuration);
+			} catch (Exception e) {
+				throw new ProgramInvocationException("Could not create the leader retrieval service.", e);
+			}
 
-		LOG.info("JobManager runs at " + jobManagerGateway.path());
+			try {
+				jobManagerGateway = LeaderRetrievalUtils.retrieveLeaderGateway(
+						leaderRetrievalService,
+						actorSystem,
+						lookupTimeout);
+			} catch (LeaderRetrievalException e) {
+				throw new ProgramInvocationException("Failed to retrieve JobManager gateway", e);
+			}
 
-		LOG.info("Communication between client and JobManager will have a timeout of " + timeout);
+			LOG.info("Leading JobManager actor system address is " + jobManagerGateway.path());
 
-		LOG.info("Checking and uploading JAR files");
-		try {
-			JobClient.uploadJarFiles(jobGraph, jobManagerGateway, timeout);
-		}
-		catch (IOException e) {
-			throw new ProgramInvocationException("Could not upload the program's JAR files to the JobManager.", e);
-		}
+			LOG.info("JobManager runs at " + jobManagerGateway.path());
 
-		try{
-			if (wait) {
-				return JobClient.submitJobAndWait(actorSystem,
+			LOG.info("Communication between client and JobManager will have a timeout of " + timeout);
+
+			LOG.info("Checking and uploading JAR files");
+			try {
+				JobClient.uploadJarFiles(jobGraph, jobManagerGateway, timeout);
+			} catch (IOException e) {
+				throw new ProgramInvocationException("Could not upload the program's JAR files to the JobManager.", e);
+			}
+
+			try {
+				if (wait) {
+					return JobClient.submitJobAndWait(actorSystem,
 						jobManagerGateway, jobGraph, timeout, printStatusDuringExecution, userCodeClassLoader);
+				} else {
+					JobClient.submitJobDetached(jobManagerGateway, jobGraph, timeout, userCodeClassLoader);
+					// return a dummy execution result with the JobId
+					return new JobSubmissionResult(jobGraph.getJobID());
+				}
+			} catch (JobExecutionException e) {
+				throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
+			} catch (Exception e) {
+				throw new ProgramInvocationException("Exception during program execution.", e);
 			}
-			else {
-				JobClient.submitJobDetached(jobManagerGateway, jobGraph, timeout, userCodeClassLoader);
-				// return a dummy execution result with the JobId
-				return new JobSubmissionResult(jobGraph.getJobID());
-			}
-		}
-		catch (JobExecutionException e) {
-			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
-		}
-		catch (Exception e) {
-			throw new ProgramInvocationException("Exception during program execution.", e);
-		}
-		finally {
+		} finally {
+			// shut down started actor system
 			actorSystem.shutdown();
 			
 			// wait at most for 30 seconds, to work around an occasional akka problem
@@ -454,6 +398,7 @@ public class Client {
 	 */
 	public void cancel(JobID jobId) throws Exception {
 		final FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
+		final FiniteDuration lookupTimeout = AkkaUtils.getLookupTimeout(configuration);
 
 		ActorSystem actorSystem;
 		try {
@@ -462,31 +407,48 @@ public class Client {
 			throw new ProgramInvocationException("Could start client actor system.", e);
 		}
 
-		ActorRef jobManager;
 		try {
-			jobManager = JobManager.getJobManagerRemoteReference(jobManagerAddress, actorSystem, timeout);
-		} catch (Exception e) {
-			throw new ProgramInvocationException("Error getting the remote actor reference for the job manager.", e);
-		}
+			ActorGateway jobManagerGateway;
 
-		Future<Object> response;
-		try {
-			ActorGateway jobManagerGateway = JobManager.getJobManagerGateway(jobManager, timeout);
-			response = jobManagerGateway.ask(new JobManagerMessages.CancelJob(jobId), timeout);
-		} catch (Exception e) {
-			throw new ProgramInvocationException("Failed to query the job manager gateway.", e);
-		}
+			LeaderRetrievalService leaderRetrievalService;
 
-		Object result = Await.result(response, timeout);
+			try {
+				leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(configuration);
+			} catch (Exception e) {
+				throw new ProgramInvocationException("Could not create the leader retrieval service.", e);
+			}
 
-		if (result instanceof JobManagerMessages.CancellationSuccess) {
-			LOG.debug("Job cancellation with ID " + jobId + " succeeded.");
-		} else if (result instanceof JobManagerMessages.CancellationFailure) {
-			Throwable t = ((JobManagerMessages.CancellationFailure) result).cause();
-			LOG.debug("Job cancellation with ID " + jobId + " failed.", t);
-			throw new Exception("Failed to cancel the job because of \n" + t.getMessage());
-		} else {
-			throw new Exception("Unknown message received while cancelling.");
+			try {
+				jobManagerGateway = LeaderRetrievalUtils.retrieveLeaderGateway(
+						leaderRetrievalService,
+						actorSystem,
+						lookupTimeout);
+			} catch (LeaderRetrievalException e) {
+				throw new ProgramInvocationException("Failed to retrieve JobManager gateway", e);
+			}
+
+			Future<Object> response;
+			try {
+				response = jobManagerGateway.ask(new JobManagerMessages.CancelJob(jobId), timeout);
+			} catch (Exception e) {
+				throw new ProgramInvocationException("Failed to query the job manager gateway.", e);
+			}
+			
+			Object result = Await.result(response, timeout);
+
+			if (result instanceof JobManagerMessages.CancellationSuccess) {
+				LOG.debug("Job cancellation with ID " + jobId + " succeeded.");
+			} else if (result instanceof JobManagerMessages.CancellationFailure) {
+				Throwable t = ((JobManagerMessages.CancellationFailure) result).cause();
+				LOG.debug("Job cancellation with ID " + jobId + " failed.", t);
+				throw new Exception("Failed to cancel the job because of \n" + t.getMessage());
+			} else {
+				throw new Exception("Unknown message received while cancelling.");
+			}
+		} finally {
+			// shut down started actor system
+			actorSystem.shutdown();
+			actorSystem.awaitTermination();
 		}
 	}
 
@@ -512,6 +474,7 @@ public class Client {
 	public Map<String, Object> getAccumulators(JobID jobID, ClassLoader loader) throws Exception {
 
 		final FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
+		final FiniteDuration lookupTimeout = AkkaUtils.getLookupTimeout(configuration);
 
 		ActorSystem actorSystem;
 		try {
@@ -520,22 +483,32 @@ public class Client {
 			throw new Exception("Could start client actor system.", e);
 		}
 
-		ActorRef jobManager;
 		try {
-			jobManager = JobManager.getJobManagerRemoteReference(jobManagerAddress, actorSystem, timeout);
-		} catch (Exception e) {
-			throw new Exception("Error getting the remote actor reference for the job manager.", e);
-		}
+			ActorGateway jobManagerGateway;
 
-		Future<Object> response;
-		try {
-			ActorGateway jobManagerGateway = JobManager.getJobManagerGateway(jobManager, timeout);
-			response = jobManagerGateway.ask(new RequestAccumulatorResults(jobID), timeout);
-		} catch (Exception e) {
-			throw new Exception("Failed to query the job manager gateway for accumulators.", e);
-		}
+			LeaderRetrievalService leaderRetrievalService;
 
-		try {
+			try {
+				leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(configuration);
+			} catch (Exception e) {
+				throw new ProgramInvocationException("Could not create the leader retrieval service.", e);
+			}
+
+			try {
+				jobManagerGateway = LeaderRetrievalUtils.retrieveLeaderGateway(
+						leaderRetrievalService,
+						actorSystem,
+						lookupTimeout);
+			} catch (LeaderRetrievalException e) {
+				throw new ProgramInvocationException("Failed to retrieve JobManager gateway", e);
+			}
+
+			Future<Object> response;
+			try {
+				response = jobManagerGateway.ask(new RequestAccumulatorResults(jobID), timeout);
+			} catch (Exception e) {
+				throw new Exception("Failed to query the job manager gateway for accumulators.", e);
+			}
 
 			Object result = Await.result(response, timeout);
 
@@ -548,14 +521,12 @@ public class Client {
 			} else if (result instanceof AccumulatorResultsErroneous) {
 				throw ((AccumulatorResultsErroneous) result).cause();
 			} else {
-				LOG.warn("Failed to fetch accumulators for job {}.", jobID);
+				throw new Exception("Failed to fetch accumulators for the job " + jobID + ".");
 			}
-
-		} catch (Exception e) {
-			LOG.error("Error occurred while fetching accumulators for {}", jobID, e);
+		} finally {
+			actorSystem.shutdown();
+			actorSystem.awaitTermination();
 		}
-
-		return Collections.emptyMap();
 	}
 
 

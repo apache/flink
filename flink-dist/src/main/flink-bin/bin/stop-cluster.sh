@@ -30,13 +30,16 @@ for slave in ${SLAVES[@]}; do
 done
 
 # Stop JobManager instance(s)
-if [[ -z $ZK_QUORUM ]]; then
-    "$bin"/jobmanager.sh stop
-else
-	# HA Mode
+shopt -s nocasematch
+if [[ $RECOVERY_MODE == "zookeeper" ]]; then
+    # HA Mode
     readMasters
 
     for master in ${MASTERS[@]}; do
         ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l $bin/jobmanager.sh stop &"
     done
+
+else
+	  "$bin"/jobmanager.sh stop
 fi
+shopt -u nocasematch

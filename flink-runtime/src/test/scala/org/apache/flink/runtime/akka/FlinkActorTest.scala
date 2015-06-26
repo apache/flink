@@ -25,7 +25,7 @@ import akka.testkit.{TestActorRef, TestKit}
 import grizzled.slf4j.Logger
 import org.apache.flink.runtime.akka.FlinkUntypedActorTest.PlainRequiresLeaderSessionID
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
-import org.apache.flink.runtime.{LeaderSessionMessages, FlinkActor}
+import org.apache.flink.runtime.{LeaderSessionMessageFilter, FlinkActor}
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -45,10 +45,10 @@ class FlinkActorTest(_system: ActorSystem)
   }
 
   test("A Flink actor should only accept LeaderSessionMessages with a valid leader session id") {
-    val leaderSessionID = Some(UUID.randomUUID())
-    val oldSessionID = Some(UUID.randomUUID())
+    val leaderSessionID = UUID.randomUUID()
+    val oldSessionID = UUID.randomUUID()
 
-    val props = Props(classOf[PlainFlinkActor], leaderSessionID)
+    val props = Props(classOf[PlainFlinkActor], Option(leaderSessionID))
 
     val actor = TestActorRef[PlainFlinkActor](props)
 
@@ -63,9 +63,9 @@ class FlinkActorTest(_system: ActorSystem)
 
   test("A Flink actor should throw an exception when receiving an unwrapped " +
     "RequiresLeaderSessionID message") {
-    val leaderSessionID = Some(UUID.randomUUID())
+    val leaderSessionID = UUID.randomUUID()
 
-    val props = Props(classOf[PlainFlinkActor], leaderSessionID)
+    val props = Props(classOf[PlainFlinkActor], Option(leaderSessionID))
     val actor = TestActorRef[PlainFlinkActor](props)
 
     actor.receive(LeaderSessionMessage(leaderSessionID, 1))
@@ -79,7 +79,7 @@ class FlinkActorTest(_system: ActorSystem)
     } catch {
       case e: Exception =>
         e.getMessage should be("Received a message PlainRequiresLeaderSessionID without a " +
-          "leader session ID, even though it requires to have one.")
+          s"leader session ID, even though the message requires a leader session ID.")
     }
   }
 
@@ -91,7 +91,7 @@ class FlinkActorTest(_system: ActorSystem)
 
 class PlainFlinkActor(val leaderSessionID: Option[UUID])
   extends FlinkActor
-  with LeaderSessionMessages {
+  with LeaderSessionMessageFilter {
 
   val log = Logger(getClass)
 

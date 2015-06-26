@@ -18,12 +18,13 @@
 ################################################################################
 
 # Start/stop a Flink JobManager.
-USAGE="Usage: jobmanager.sh (start (local|cluster) [batch|streaming] [host])|stop|stop-all)"
+USAGE="Usage: jobmanager.sh (start (local|cluster) [batch|streaming] [host] [webui-port])|stop|stop-all)"
 
 STARTSTOP=$1
 EXECUTIONMODE=$2
 STREAMINGMODE=$3
 HOST=$4 # optional when starting multiple instances
+WEBUIPORT=$5 # optinal when starting multiple instances
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -64,6 +65,10 @@ if [[ $STARTSTOP == "start" ]]; then
     args="--configDir ${FLINK_CONF_DIR} --executionMode ${EXECUTIONMODE} --streamingMode ${STREAMINGMODE}"
     if [ ! -z $HOST ]; then
         args="${args} --host $HOST"
+    fi
+
+    if [ ! -z $WEBUIPORT ]; then
+        args="${args} --webui-port $WEBUIPORT"
     fi
 fi
 

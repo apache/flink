@@ -27,34 +27,30 @@ import org.apache.flink.runtime.messages.RequiresLeaderSessionID
   * Messages which contain a valid leader session ID are unwrapped and forwarded to the actor.
   *
   */
-trait LeaderSessionMessages extends FlinkActor {
+trait LeaderSessionMessageFilter extends FlinkActor {
   protected def leaderSessionID: Option[UUID]
 
   abstract override def receive: Receive = {
-    case LeaderSessionMessage(id, msg) =>
-      // Filter out messages which have not the correct leader session ID
-      (leaderSessionID, id) match {
-        case (Some(currentID), Some(msgID)) =>
-          if(currentID.equals(msgID)) {
-            // correct leader session ID
-            super.receive(msg)
-          } else {
-            // discard message because of incorrect leader session ID
-            handleDiscardedMessage(msg)
-          }
-
-        case _ => handleDiscardedMessage(msg)
+    case leaderMessage@LeaderSessionMessage(msgID, msg) =>
+      if (leaderSessionID.equals(Option(msgID))) {
+        super.receive(msg)
+      } else {
+        handleDiscardedMessage(leaderSessionID, leaderMessage)
       }
     case msg: RequiresLeaderSessionID =>
       throw new Exception(s"Received a message $msg without a leader session ID, even though" +
-        " it requires to have one.")
+        s" the message requires a leader session ID.")
     case msg =>
-      // pass the message to the parent's receive method for further processing
       super.receive(msg)
   }
 
-  private def handleDiscardedMessage(msg: Any): Unit = {
-    log.debug(s"Discard message $msg because the leader session ID was not correct.")
+  private def handleDiscardedMessage(
+      expectedLeaderSessionID: Option[UUID],
+      msg: LeaderSessionMessage)
+    : Unit = {
+    log.warn(s"Discard message $msg because the expected leader session ID " +
+      s"$expectedLeaderSessionID did not equal the received leader session ID" +
+      s"${msg.leaderSessionID}.")
   }
 
   /** Wrap [[RequiresLeaderSessionID]] messages in a [[LeaderSessionMessage]]
@@ -65,7 +61,7 @@ trait LeaderSessionMessages extends FlinkActor {
   override def decorateMessage(message: Any): Any = {
     message match {
       case msg: RequiresLeaderSessionID =>
-        LeaderSessionMessage(leaderSessionID, super.decorateMessage(msg))
+        LeaderSessionMessage(leaderSessionID.orNull, super.decorateMessage(msg))
 
       case msg => super.decorateMessage(msg)
     }

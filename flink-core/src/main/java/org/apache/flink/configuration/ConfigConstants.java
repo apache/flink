@@ -452,6 +452,31 @@ public final class ConfigConstants {
 	
 	public static final String FLINK_JVM_OPTIONS = "env.java.opts";
 
+  	// --------------------------- Recovery -----------------------------------
+
+	/** Defines recovery mode used for the cluster execution ("standalone", "zookeeper") */
+	public static final String RECOVERY_MODE = "recovery.mode";
+
+  	// --------------------------- ZooKeeper ----------------------------------
+
+	/** ZooKeeper servers. */
+	public static final String ZOOKEEPER_QUORUM_KEY = "ha.zookeeper.quorum";
+
+	/** ZooKeeper root path. */
+	public static final String ZOOKEEPER_DIR_KEY = "ha.zookeeper.dir";
+
+	public static final String ZOOKEEPER_LATCH_PATH = "ha.zookeeper.dir.latch";
+
+	public static final String ZOOKEEPER_LEADER_PATH = "ha.zookeeper.dir.leader";
+
+	public static final String ZOOKEEPER_SESSION_TIMEOUT = "ha.zookeeper.client.session-timeout";
+
+	public static final String ZOOKEEPER_CONNECTION_TIMEOUT = "ha.zookeeper.client.connection-timeout";
+
+	public static final String ZOOKEEPER_RETRY_WAIT = "ha.zookeeper.client.retry-wait";
+
+	public static final String ZOOKEEPER_MAX_RETRY_ATTEMPTS = "ha.zookeeper.client.max-retry-attempts";
+
 	// ------------------------------------------------------------------------
 	//                            Default Values
 	// ------------------------------------------------------------------------
@@ -694,33 +719,23 @@ public final class ConfigConstants {
 	/**
 	 * Sets the number of local task managers
 	 */
-	public static final String LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER = "localinstancemanager.numtaskmanager";
+	public static final String LOCAL_NUMBER_TASK_MANAGER = "local.number-taskmanager";
 
-	public static final String LOCAL_INSTANCE_MANAGER_START_WEBSERVER = "localinstancemanager.start-webserver";
+	public static final int DEFAULT_LOCAL_NUMBER_TASK_MANAGER = 1;
+
+	public static final String LOCAL_NUMBER_JOB_MANAGER = "local.number-jobmanager";
+
+	public static final int DEFAULT_LOCAL_NUMBER_JOB_MANAGER = 1;
+
+	public static final String LOCAL_START_WEBSERVER = "local.start-webserver";
+
+  	// --------------------------- Recovery ---------------------------------
+
+	public static String DEFAULT_RECOVERY_MODE = "standalone";
 
 	// --------------------------- ZooKeeper ----------------------------------
 
-	/** ZooKeeper servers. */
-	public static final String ZOOKEEPER_QUORUM_KEY = "ha.zookeeper.quorum";
-
-	/** ZooKeeper root path. */
-	public static final String ZOOKEEPER_DIR_KEY = "ha.zookeeper.dir";
-
-	public static final String ZOOKEEPER_LATCH_PATH = "ha.zookeeper.dir.latch";
-
-	public static final String ZOOKEEPER_LEADER_PATH = "ha.zookeeper.dir.leader";
-
-	public static final String ZOOKEEPER_SESSION_TIMEOUT = "ha.zookeeper.client.session-timeout";
-
-	public static final String ZOOKEEPER_CONNECTION_TIMEOUT = "ha.zookeeper.client.connection-timeout";
-
-	public static final String ZOOKEEPER_RETRY_WAIT = "ha.zookeeper.client.retry-wait";
-
-	public static final String ZOOKEEPER_MAX_RETRY_ATTEMPTS = "ha.zookeeper.client.max-retry-attempts";
-
-	// - Defaults -------------------------------------------------------------
-
-	public static final String DEFAULT_ZOOKEEPER_ZNODE_ROOT = "/flink";
+	public static final String DEFAULT_ZOOKEEPER_DIR_KEY = "/flink";
 
 	public static final String DEFAULT_ZOOKEEPER_LATCH_PATH = "/leaderlatch";
 

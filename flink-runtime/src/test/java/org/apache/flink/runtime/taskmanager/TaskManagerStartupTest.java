@@ -36,7 +36,7 @@ import java.util.UUID;
 /**
  * Tests that check how the TaskManager behaves when encountering startup problems.
  */
-public class TestManagerStartupTest {
+public class TaskManagerStartupTest {
 
 	/**
 	 * Tests that the TaskManager fails synchronously when the actor system port

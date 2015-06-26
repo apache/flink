@@ -258,6 +258,10 @@ public class BlobServer extends Thread implements BlobService {
 					LOG.warn("Exception while unregistering BLOB server's cleanup shutdown hook.");
 				}
 			}
+
+			if(LOG.isInfoEnabled()) {
+				LOG.info("Stopped BLOB server at {}:{}", serverSocket.getInetAddress().getHostAddress(), getPort());
+			}
 		}
 	}
 

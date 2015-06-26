@@ -29,7 +29,7 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.instance.AkkaActorGateway
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
-import org.apache.flink.runtime.util.EnvironmentInformation
+import org.apache.flink.runtime.util.{StandaloneUtils, LeaderRetrievalUtils, EnvironmentInformation}
 import org.apache.flink.runtime.webmonitor.WebMonitor
 import org.apache.flink.yarn.Messages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
@@ -112,17 +112,11 @@ object ApplicationMaster {
               streamingMode)
 
           actorSystem = system
-          val extActor = system.asInstanceOf[ExtendedActorSystem]
-          val jobManagerPort = extActor.provider.getDefaultAddress.port.get
+          val address = AkkaUtils.getAddress(actorSystem)
+          val jobManagerPort = address.port.get
 
           if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) != -1) {
             // start the web info server
-            val lookupTimeout = AkkaUtils.getLookupTimeout(config)
-            val jobManagerGateway = JobManager.getJobManagerGateway(jobManager, lookupTimeout)
-            val archiverGateway = new AkkaActorGateway(
-              archiver,
-              jobManagerGateway.leaderSessionID())
-
             LOG.info("Starting Job Manger web frontend.")
             config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDirs)
             config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0); // set port to 0.
@@ -130,13 +124,16 @@ object ApplicationMaster {
             config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, ownHostname)
             config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort)
 
+            // TODO: Add support for HA: Make web server work independently from the JM
+            val leaderRetrievalService = StandaloneUtils.createLeaderRetrievalService(config)
+
             webserver = if(
               config.getBoolean(
                 ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY,
                 false)) {
-              JobManager.startWebRuntimeMonitor(config, jobManagerGateway, archiverGateway)
+              JobManager.startWebRuntimeMonitor(config, leaderRetrievalService, actorSystem)
             } else {
-              new WebInfoServer(config, jobManagerGateway, archiverGateway)
+              new WebInfoServer(config, leaderRetrievalService, actorSystem)
             }
 
             webserver.start()
@@ -257,7 +254,8 @@ object ApplicationMaster {
       executionRetries,
       delayBetweenRetries,
       timeout,
-      _) = JobManager.createJobManagerComponents(configuration)
+      _,
+      leaderElectionService) = JobManager.createJobManagerComponents(configuration)
 
     // start the archiver
     val archiver: ActorRef = jobManagerSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
@@ -273,7 +271,8 @@ object ApplicationMaster {
         executionRetries,
         delayBetweenRetries,
         timeout,
-        streamingMode)
+        streamingMode,
+        leaderElectionService)
       with ApplicationMasterActor)
 
     LOG.debug("Starting JobManager actor")

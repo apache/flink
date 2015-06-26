@@ -36,7 +36,6 @@ import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -576,7 +575,7 @@ public class CheckpointCoordinator {
 	public ActorGateway createJobStatusListener(
 			ActorSystem actorSystem,
 			long checkpointInterval,
-			Option<UUID> leaderSessionID) {
+			UUID leaderSessionID) {
 		synchronized (lock) {
 			if (shutdown) {
 				throw new IllegalArgumentException("Checkpoint coordinator is shut down");

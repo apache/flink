@@ -20,19 +20,23 @@ package org.apache.flink.test.web;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.Assert;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.concurrent.TimeUnit;
 
 @RunWith(Parameterized.class)
 public class WebFrontendITCase extends MultipleProgramsTestBase {
@@ -41,7 +45,16 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	static {
 		startWebServer = true;
 	}
-	
+
+	private static int port = -1;
+
+	@BeforeClass
+	public static void initialize() {
+		WebMonitor webMonitor = cluster.webMonitor().get();
+		port = webMonitor.getServerPort();
+	}
+
+	static final FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
 	public WebFrontendITCase(TestExecutionMode m) {
 		super(m);
@@ -57,7 +70,8 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	@Test
 	public void getNumberOfTaskManagers() {
 		try {
-			Assert.assertEquals("{\"taskmanagers\": "+cluster.getTaskManagers().size()+", \"slots\": 4}", TestBaseUtils.getFromHTTP("http://localhost:8081/jobsInfo?get=taskmanagers"));
+			Assert.assertEquals("{\"taskmanagers\": "+cluster.getTaskManagers().size()+", \"slots\": 4}",
+					TestBaseUtils.getFromHTTP("http://localhost:" + port + "/jobsInfo?get=taskmanagers"));
 		}catch(Throwable e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
@@ -67,7 +81,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	@Test
 	public void getTaskmanagers() {
 		try {
-			String json = getFromHTTP("http://localhost:8081/setupInfo?get=taskmanagers");
+			String json = getFromHTTP("http://localhost:" + port + "/setupInfo?get=taskmanagers");
 			JSONObject parsed = new JSONObject(json);
 			Object taskManagers = parsed.get("taskmanagers");
 			Assert.assertNotNull(taskManagers);
@@ -102,7 +116,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	@Test
 	public void getConfiguration() {
 		try {
-			String config = getFromHTTP("http://localhost:8081/setupInfo?get=globalC");
+			String config = getFromHTTP("http://localhost:" + port + "/setupInfo?get=globalC");
 			JSONObject parsed = new JSONObject(config);
 			Assert.assertEquals(logDir.toString(), parsed.getString("jobmanager.web.logpath"));
 			Assert.assertEquals(cluster.configuration().getString("taskmanager.numberOfTaskSlots", null), parsed.getString("taskmanager.numberOfTaskSlots"));

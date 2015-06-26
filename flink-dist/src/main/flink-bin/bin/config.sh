@@ -94,7 +94,7 @@ KEY_ENV_LOG_MAX="env.log.max"
 KEY_ENV_JAVA_HOME="env.java.home"
 KEY_ENV_JAVA_OPTS="env.java.opts"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
-KEY_ZK_QUORUM="ha.zookeeper.quorum"
+KEY_RECOVERY_MODE="recovery.mode"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 
 ########################################################################################################################
@@ -205,8 +205,8 @@ if [ -z "${ZK_HEAP}" ]; then
     ZK_HEAP=$(readFromConfig ${KEY_ZK_HEAP_MB} 0 "${YAML_CONF}")
 fi
 
-if [ -z "${ZK_QUORUM}" ]; then
-    ZK_QUORUM=$(readFromConfig ${KEY_ZK_QUORUM} "" "${YAML_CONF}")
+if [ -z "${RECOVERY_MODE}" ]; then
+    RECOVERY_MODE=$(readFromConfig ${KEY_RECOVERY_MODE} "standalone" "${YAML_CONF}")
 fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.
@@ -268,13 +268,18 @@ readMasters() {
     fi
 
     MASTERS=()
+    WEBUIPORTS=()
 
     GOON=true
     while $GOON; do
         read line || GOON=false
-        HOST=$( extractHostName $line)
-        if [ -n "$HOST" ]; then
+        HOSTWEBUIPORT=$( extractHostName $line)
+
+        if [ -n "$HOSTWEBUIPORT" ]; then
+            HOST=$(echo $HOSTWEBUIPORT | cut -f1 -d:)
+            WEBUIPORT=$(echo $HOSTWEBUIPORT | cut -f2 -d:)
             MASTERS+=(${HOST})
+            WEBUIPORTS+=(${WEBUIPORT})
         fi
     done < "$MASTERS_FILE"
 }

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.messages
 
 import java.text.SimpleDateFormat
-import java.util.Date
+import java.util.{UUID, Date}
 
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.execution.ExecutionState

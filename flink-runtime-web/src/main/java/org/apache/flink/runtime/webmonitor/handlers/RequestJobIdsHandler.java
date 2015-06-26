@@ -21,6 +21,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
+import org.apache.flink.runtime.webmonitor.JobManagerArchiveRetriever;
 import org.apache.flink.runtime.webmonitor.JsonFactory;
 import org.apache.flink.runtime.webmonitor.WebRuntimeMonitor;
 
@@ -37,19 +38,19 @@ import java.util.Map;
  */
 public class RequestJobIdsHandler implements RequestHandler, RequestHandler.JsonResponse {
 	
-	private final ActorGateway target;
+	private final JobManagerArchiveRetriever retriever;
 	
 	private final FiniteDuration timeout;
 	
-	public RequestJobIdsHandler(ActorGateway target) {
-		this(target, WebRuntimeMonitor.DEFAULT_REQUEST_TIMEOUT);
+	public RequestJobIdsHandler(JobManagerArchiveRetriever retriever) {
+		this(retriever, WebRuntimeMonitor.DEFAULT_REQUEST_TIMEOUT);
 	}
 	
-	public RequestJobIdsHandler(ActorGateway target, FiniteDuration timeout) {
-		if (target == null || timeout == null) {
+	public RequestJobIdsHandler(JobManagerArchiveRetriever retriever, FiniteDuration timeout) {
+		if (retriever == null || timeout == null) {
 			throw new NullPointerException();
 		}
-		this.target = target;
+		this.retriever = retriever;
 		this.timeout = timeout;
 	}
 	
@@ -57,9 +58,15 @@ public class RequestJobIdsHandler implements RequestHandler, RequestHandler.Json
 	public String handleRequest(Map<String, String> params) throws Exception {
 		// we need no parameters, get all requests
 		try {
-			Future<Object> future = target.ask(RequestJobsWithIDsOverview.getInstance(), timeout);
-			JobsWithIDsOverview result = (JobsWithIDsOverview) Await.result(future, timeout);
-			return JsonFactory.generateJobsOverviewJSON(result);
+			ActorGateway jobManager = retriever.getJobManagerGateway();
+
+			if (jobManager != null) {
+				Future<Object> future = jobManager.ask(RequestJobsWithIDsOverview.getInstance(), timeout);
+				JobsWithIDsOverview result = (JobsWithIDsOverview) Await.result(future, timeout);
+				return JsonFactory.generateJobsOverviewJSON(result);
+			} else {
+				throw new Exception("No connection to the leading JobManager.");
+			}
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Failed to fetch list of all running jobs: " + e.getMessage(), e);

@@ -55,7 +55,6 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -184,12 +183,14 @@ public class FlinkClient {
 		final Configuration configuration = jobGraph.getJobConfiguration();
 
 		final Client client;
-		try {
-			client = new Client(new InetSocketAddress(this.jobManagerHost, this.jobManagerPort), configuration,
-					JobWithJars.buildUserCodeClassLoader(jarFiles, JobWithJars.class.getClassLoader()), -1);
-		} catch (final UnknownHostException e) {
-			throw new RuntimeException("Cannot execute job due to UnknownHostException", e);
-		}
+
+		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerHost);
+		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
+
+		client = new Client(
+			configuration,
+			JobWithJars.buildUserCodeClassLoader(jarFiles, JobWithJars.class.getClassLoader()),
+			-1);
 
 		try {
 			client.run(jobGraph, false);
@@ -302,7 +303,7 @@ public class FlinkClient {
 			throw new RuntimeException("Could not start actor system to communicate with JobManager", e);
 		}
 
-		return JobManager.getJobManagerRemoteReference(new InetSocketAddress(this.jobManagerHost, this.jobManagerPort),
+		return JobManager.getJobManagerActorRef(new InetSocketAddress(this.jobManagerHost, this.jobManagerPort),
 				actorSystem, AkkaUtils.getLookupTimeout(configuration));
 	}
 

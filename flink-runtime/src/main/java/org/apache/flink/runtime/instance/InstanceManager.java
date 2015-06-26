@@ -30,7 +30,6 @@ import java.util.UUID;
 import akka.actor.ActorRef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 
 /**
  * Simple manager that keeps track of which TaskManager are available and alive.
@@ -143,7 +142,7 @@ public class InstanceManager {
 			InstanceConnectionInfo connectionInfo,
 			HardwareDescription resources,
 			int numberOfSlots,
-			Option<UUID> leaderSessionID){
+			UUID leaderSessionID){
 		synchronized(this.lock){
 			if (this.isShutdown) {
 				throw new IllegalStateException("InstanceManager is shut down.");
@@ -177,8 +176,14 @@ public class InstanceManager {
 			totalNumberOfAliveTaskSlots += numberOfSlots;
 
 			if (LOG.isInfoEnabled()) {
-				LOG.info(String.format("Registered TaskManager at %s (%s) as %s. Current number of registered hosts is %d.",
-						connectionInfo.getHostname(), taskManager.path(), id, registeredHostsById.size()));
+				LOG.info(String.format("Registered TaskManager at %s (%s) as %s. " +
+								"Current number of registered hosts is %d. " +
+								"Current number of alive task slots is %d.",
+						connectionInfo.getHostname(),
+						taskManager.path(),
+						id,
+						registeredHostsById.size(),
+						totalNumberOfAliveTaskSlots));
 			}
 
 			host.reportHeartBeat();
@@ -190,13 +195,22 @@ public class InstanceManager {
 		}
 	}
 
-	public void unregisterTaskManager(ActorRef taskManager){
+	/**
+	 * Unregisters the TaskManager with the given {@link ActorRef}. Unregistering means to mark
+	 * the given instance as dead and notify {@link InstanceListener} about the dead instance.
+	 *
+	 * @param taskManager TaskManager which is about to be marked dead.
+	 */
+	public void unregisterTaskManager(ActorRef taskManager, boolean terminated){
 		Instance host = registeredHostsByConnection.get(taskManager);
 
 		if(host != null){
 			registeredHostsByConnection.remove(taskManager);
 			registeredHostsById.remove(host.getId());
-			deadHosts.add(taskManager);
+
+			if (terminated) {
+				deadHosts.add(taskManager);
+			}
 
 			host.markDead();
 
@@ -204,10 +218,28 @@ public class InstanceManager {
 
 			notifyDeadInstance(host);
 
-			LOG.info("Unregistered task manager " + taskManager.path().address() + ". Number of " +
+			LOG.info("Unregistered task manager " + taskManager.path() + ". Number of " +
 					"registered task managers " + getNumberOfRegisteredTaskManagers() + ". Number" +
 					" of available slots " + getTotalNumberOfSlots() + ".");
 		}
+	}
+
+	/**
+	 * Unregisters all currently registered TaskManagers from the InstanceManager.
+	 */
+	public void unregisterAllTaskManagers() {
+		for(Instance instance: registeredHostsById.values()) {
+			deadHosts.add(instance.getActorGateway().actor());
+
+			instance.markDead();
+
+			totalNumberOfAliveTaskSlots -= instance.getTotalNumberOfSlots();
+
+			notifyDeadInstance(instance);
+		}
+
+		registeredHostsById.clear();
+		registeredHostsByConnection.clear();
 	}
 
 	public boolean isRegistered(ActorRef taskManager) {

@@ -25,8 +25,6 @@ import static org.junit.Assert.fail;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
-
 /**
  * This class contains tests for the {@link org.apache.flink.util.AbstractID} class.
  */

@@ -51,12 +51,14 @@ public class PartialConsumePipelinedResultTest {
 	@BeforeClass
 	public static void setUp() throws Exception {
 		final Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, NUMBER_OF_TMS);
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUMBER_OF_TMS);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUMBER_OF_SLOTS_PER_TM);
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
 		config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, NUMBER_OF_NETWORK_BUFFERS);
 
 		flink = new TestingCluster(config, true);
+
+		flink.start();
 
 		jobClient = JobClient.startJobClientActorSystem(flink.configuration());
 	}
@@ -102,7 +104,7 @@ public class PartialConsumePipelinedResultTest {
 
 		JobClient.submitJobAndWait(
 				jobClient,
-				flink.getJobManagerGateway(),
+				flink.getLeaderGateway(TestingUtils.TESTING_DURATION()),
 				jobGraph,
 				TestingUtils.TESTING_DURATION(),
 				false, this.getClass().getClassLoader());

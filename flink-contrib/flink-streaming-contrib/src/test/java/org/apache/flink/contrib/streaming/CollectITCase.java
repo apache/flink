@@ -22,7 +22,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.junit.Test;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.contrib.streaming.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.junit.Assert;
 
@@ -38,9 +37,10 @@ public class CollectITCase {
 
 		Configuration config = new Configuration();
 		ForkableFlinkMiniCluster cluster = new ForkableFlinkMiniCluster(config, false);
+		cluster.start();
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getJobManagerRPCPort());
+				"localhost", cluster.getLeaderRPCPort());
 
 		long N = 10;
 		DataStream<Long> stream = env.generateSequence(1, N);

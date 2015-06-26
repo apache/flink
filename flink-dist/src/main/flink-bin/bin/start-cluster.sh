@@ -32,21 +32,26 @@ bin=`cd "$bin"; pwd`
 . "$bin"/config.sh
 
 # Start the JobManager instance(s)
-if [[ -z $ZK_QUORUM ]]; then
-    echo "Starting cluster (${STREAMING_MODE} mode)."
-
-    # Start single JobManager on this machine
-    "$bin"/jobmanager.sh start cluster ${STREAMING_MODE}
-else
+shopt -s nocasematch
+if [[ $RECOVERY_MODE == "zookeeper" ]]; then
     # HA Mode
     readMasters
 
     echo "Starting HA cluster (${STREAMING_MODE} mode) with ${#MASTERS[@]} masters and ${#ZK_QUORUM[@]} peers in ZooKeeper quorum."
 
-    for master in ${MASTERS[@]}; do
-        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l $FLINK_BIN_DIR/jobmanager.sh start cluster ${STREAMING_MODE} ${master} &"
+    for ((i=0;i<${#MASTERS[@]};++i)); do
+        master=${MASTERS[i]}
+        webuiport=${WEBUIPORTS[i]}
+        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l $FLINK_BIN_DIR/jobmanager.sh start cluster ${STREAMING_MODE} ${master} ${webuiport} &"
     done
+
+else
+    echo "Starting cluster (${STREAMING_MODE} mode)."
+
+    # Start single JobManager on this machine
+    "$bin"/jobmanager.sh start cluster ${STREAMING_MODE}
 fi
+shopt -u nocasematch
 
 # Start TaskManager instance(s)
 readSlaves

@@ -16,26 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.leaderelection;
 
-import akka.actor.UntypedActor;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
-import java.util.concurrent.BlockingQueue;
+import java.util.UUID;
 
 /**
- * Actor for testing that simply puts all its messages into a 
- * blocking queue.
+ * Test {@link LeaderRetrievalService} implementation which directly forwards calls of
+ * notifyListener to the listener.
  */
-class ForwardingActor extends UntypedActor {
+public class TestingLeaderRetrievalService implements LeaderRetrievalService {
 
-	private final BlockingQueue<Object> queue;
-	
-	public ForwardingActor(BlockingQueue<Object> queue) {
-		this.queue = queue;
+	private LeaderRetrievalListener listener;
+
+	@Override
+	public void start(LeaderRetrievalListener listener) throws Exception {
+		this.listener = listener;
 	}
 
 	@Override
-	public void onReceive(Object message) {
-		queue.add(message);
+	public void stop() throws Exception {
+
+	}
+
+	public void notifyListener(String address, UUID leaderSessionID) {
+		listener.notifyLeaderAddress(address, leaderSessionID);
 	}
 }

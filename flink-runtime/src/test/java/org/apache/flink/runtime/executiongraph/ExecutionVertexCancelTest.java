@@ -35,7 +35,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.Messages;
-import org.apache.flink.runtime.messages.TaskMessages;
+import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
+import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
@@ -574,9 +575,9 @@ public class ExecutionVertexCancelTest {
 		@Override
 		public Object handleMessage(Object message) throws Exception {
 			Object result;
-			if(message instanceof TaskMessages.SubmitTask) {
+			if(message instanceof SubmitTask) {
 				result = Messages.getAcknowledge();
-			} else if(message instanceof TaskMessages.CancelTask) {
+			} else if(message instanceof CancelTask) {
 				index++;
 
 				if(index >= results.length){
