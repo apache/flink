@@ -19,7 +19,6 @@
 package org.apache.flink.ml.math
 
 import breeze.linalg.{SparseVector => BreezeSparseVector, DenseVector => BreezeDenseVector, Vector => BreezeVector}
-import org.apache.flink.ml.math.Vector
 
 /** Base trait for Vectors
   *
@@ -88,7 +87,7 @@ object Vector{
 
         case sparse: BreezeSparseVector[Double] =>
           new SparseVector(
-            sparse.used,
+            sparse.length,
             sparse.index.take(sparse.used),
             sparse.data.take(sparse.used))
       }

@@ -133,4 +133,19 @@ class SparseVectorSuite extends FlatSpec with Matchers {
 
     vec.magnitude should be(9)
   }
+
+  it should "convert from and to Breeze vectors" in {
+    import Breeze._
+
+    val flinkVector = SparseVector.fromCOO(3, (1, 1.0), (2, 2.0))
+    val breezeVector = breeze.linalg.SparseVector(3)(1 -> 1.0, 2 -> 2.0)
+
+    // use the vector BreezeVectorConverter
+    flinkVector should equal(breezeVector.fromBreeze)
+
+    // use the sparse vector BreezeVectorConverter
+    flinkVector should equal(breezeVector.fromBreeze(SparseVector.sparseVectorConverter))
+
+    flinkVector.asBreeze should be(breezeVector)
+  }
 }
