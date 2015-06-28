@@ -32,23 +32,20 @@ MultipleProgramsTestBase(mode){
 
   private var resultPath: String = null
   private var expectedResult: String = null
-
-  var tempFolder: TemporaryFolder = new TemporaryFolder()
+  private val tempFolder: TemporaryFolder = new TemporaryFolder()
 
   @Rule
-  def getFolder(): TemporaryFolder = {
-    tempFolder;
-  }
+  def getFolder = tempFolder
 
   @Before
   @throws(classOf[Exception])
-  def before {
+  def before(): Unit = {
     resultPath = tempFolder.newFile.toURI.toString
   }
 
   @Test
   @throws(classOf[Exception])
-  def testZipWithIndex {
+  def testZipWithIndex(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
 
@@ -63,7 +60,7 @@ MultipleProgramsTestBase(mode){
 
   @After
   @throws(classOf[Exception])
-  def after {
+  def after(): Unit = {
     TestBaseUtils.compareResultsByLinesInMemory(expectedResult, resultPath)
   }
 }
