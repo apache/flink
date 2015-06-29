@@ -18,14 +18,11 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import com.google.common.collect.Maps;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * A successful checkpoint describes a checkpoint after all required tasks acknowledged it (with their state)
@@ -41,9 +38,7 @@ public class SuccessfulCheckpoint {
 	
 	private final long timestamp;
 	
-	private final Map<JobVertexID, StateForTask> vertexToState;
-	
-	private final List<StateForTask> states; 
+	private final List<StateForTask> states;
 
 
 	public SuccessfulCheckpoint(JobID job, long checkpointID, long timestamp, List<StateForTask> states) {
@@ -51,10 +46,6 @@ public class SuccessfulCheckpoint {
 		this.checkpointID = checkpointID;
 		this.timestamp = timestamp;
 		this.states = states;
-		vertexToState = Maps.newHashMap();
-		for(StateForTask state : states){
-			vertexToState.put(state.getOperatorId(), state);
-		}
 	}
 
 	public JobID getJobId() {
@@ -71,17 +62,6 @@ public class SuccessfulCheckpoint {
 
 	public List<StateForTask> getStates() {
 		return states;
-	}
-
-	/**
-	 * Returns the task state included in the checkpoint for a given JobVertexID if it exists or 
-	 * null if no state is included for that id.
-	 * 
-	 * @param jobVertexID
-	 * @return
-	 */
-	public StateForTask getState(JobVertexID jobVertexID) {
-		return vertexToState.get(jobVertexID);
 	}
 
 	// --------------------------------------------------------------------------------------------

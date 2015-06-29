@@ -36,7 +36,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 
 import org.apache.flink.configuration.{Configuration, ConfigConstants, GlobalConfiguration, IllegalConfigurationException}
-import org.apache.flink.runtime.messages.checkpoint.{ConfirmCheckpoint, TriggerCheckpoint, AbstractCheckpointMessage}
+import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.{StreamingMode, ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobService, BlobCache}
@@ -425,17 +425,16 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
           log.debug(s"Taskmanager received a checkpoint request for unknown task $taskExecutionId.")
         }
 
-      case message: ConfirmCheckpoint =>
+      case message: NotifyCheckpointComplete =>
         val taskExecutionId = message.getTaskExecutionId
         val checkpointId = message.getCheckpointId
         val timestamp = message.getTimestamp
-        val state = message.getState
 
         log.debug(s"Receiver ConfirmCheckpoint ${checkpointId}@${timestamp} for $taskExecutionId.")
 
         val task = runningTasks.get(taskExecutionId)
         if (task != null) {
-          task.confirmCheckpoint(checkpointId, state)
+          task.notifyCheckpointComplete(checkpointId)
         } else {
           log.debug(
             s"Taskmanager received a checkpoint confirmation for unknown task $taskExecutionId.")

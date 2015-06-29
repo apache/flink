@@ -15,19 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.checkpoint;
-
-import java.io.Serializable;
-
-import org.apache.flink.runtime.state.StateHandle;
 
 /**
  * This interface must be implemented by functions/operations that want to receive
  * a commit notification once a checkpoint has been completely acknowledged by all
  * participants.
  */
-public interface CheckpointCommitter {
+public interface CheckpointNotifier {
 
 	/**
 	 * This method is called as a notification once a distributed checkpoint has been completed.
@@ -36,9 +31,7 @@ public interface CheckpointCommitter {
 	 * fail any more.
 	 * 
 	 * @param checkpointId The ID of the checkpoint that has been completed.
-	 * @param stateName The name of the committed state
-	 * @param checkPointedState Handle to the state that was checkpointed with this checkpoint id.
-	 * @throws Exception 
+	 * @throws Exception
 	 */
-	void commitCheckpoint(long checkpointId, String stateName, StateHandle<Serializable> checkPointedState) throws Exception;
+	void notifyCheckpointComplete(long checkpointId) throws Exception;
 }
