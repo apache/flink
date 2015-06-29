@@ -37,10 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A record-oriented reader.
- * <p>
- * This abstract base class is used by both the mutable and immutable record
- * readers.
+ * Input reader for {@link org.apache.flink.streaming.runtime.tasks.OneInputStreamTask}.
  *
  * <p>
  * This also keeps track of {@link Watermark} events and forwards them to event subscribers
@@ -49,8 +46,7 @@ import org.slf4j.LoggerFactory;
  * @param <T>
  *            The type of the record that can be read with this record reader.
  */
-public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable> extends
-		AbstractReader implements ReaderBase, StreamingReader {
+public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable> extends AbstractReader implements ReaderBase, StreamingReader {
 
 	@SuppressWarnings("unused")
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingAbstractRecordReader.class);
@@ -67,8 +63,9 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 	private long lastEmittedWatermark;
 
 	@SuppressWarnings("unchecked")
-	protected StreamingAbstractRecordReader(InputGate inputGate) {
-		super(inputGate);
+	protected StreamingAbstractRecordReader(InputGate[] inputGates) {
+		super(InputGateUtil.createInputGate(inputGates));
+
 		barrierBuffer = new BarrierBuffer(inputGate, this);
 
 		// Initialize one deserializer per input channel
@@ -136,8 +133,7 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 					if (handleEvent(event)) {
 						if (inputGate.isFinished()) {
 							if (!barrierBuffer.isEmpty()) {
-								throw new RuntimeException(
-										"BarrierBuffer should be empty at this point");
+								throw new RuntimeException("BarrierBuffer should be empty at this point");
 							}
 							isFinished = true;
 							return false;

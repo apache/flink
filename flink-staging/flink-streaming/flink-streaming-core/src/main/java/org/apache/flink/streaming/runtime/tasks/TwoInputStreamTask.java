@@ -28,12 +28,11 @@ import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+
 import org.apache.flink.streaming.runtime.io.CoReaderIterator;
-import org.apache.flink.streaming.runtime.io.CoRecordReader;
-import org.apache.flink.streaming.runtime.io.InputGateFactory;
+import org.apache.flink.streaming.runtime.io.CoStreamingRecordReader;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +43,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 	protected StreamRecordSerializer<IN1> inputDeserializer1 = null;
 	protected StreamRecordSerializer<IN2> inputDeserializer2 = null;
 
-	CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>> coReader;
+	CoStreamingRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>> coReader;
 	CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> coIter;
 
 	private volatile boolean operatorOpen = false;
@@ -159,12 +158,10 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 			}
 		}
 
-		final InputGate reader1 = InputGateFactory.createInputGate(inputList1);
-		final InputGate reader2 = InputGateFactory.createInputGate(inputList2);
+		coReader = new CoStreamingRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>>(
+				inputList1, inputList2);
 
-		coReader = new CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>>(
-				reader1, reader2);
-
+		coReader.registerTaskEventListener(getSuperstepListener(), StreamingSuperstep.class);
 		coReader.registerTaskEventListener(new WatermarkListener(), Watermark.class);
 
 		coIter = new CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>>(coReader,
@@ -185,7 +182,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 			Watermark watermark = (Watermark) event;
 			try {
 				if (operatorOpen) {
-					if (watermark.getInputIndex() == 0) {
+					if (watermark.getInputIndex() == 1) {
 						streamOperator.processWatermark1(watermark);
 					} else {
 						streamOperator.processWatermark2(watermark);

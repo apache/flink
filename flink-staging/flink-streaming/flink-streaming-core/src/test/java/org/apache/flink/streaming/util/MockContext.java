@@ -28,13 +28,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-import org.apache.flink.util.Collector;
-import org.apache.flink.util.MutableObjectIterator;
 
 public class MockContext<IN, OUT> {
 	private Collection<IN> inputs;
@@ -42,7 +41,7 @@ public class MockContext<IN, OUT> {
 
 	private MockOutput<OUT> output;
 	private StreamRecordSerializer<IN> inDeserializer;
-	private IndexedReaderIterator<StreamRecord<IN>> iterator;
+	private IndexedInputIterator iterator;
 
 	public MockContext(Collection<IN> inputs) {
 		this.inputs = inputs;
@@ -58,7 +57,7 @@ public class MockContext<IN, OUT> {
 		output = new MockOutput<OUT>(outputs);
 	}
 
-	private class IndexedInputIterator extends IndexedReaderIterator<StreamRecord<IN>> {
+	private class IndexedInputIterator extends ReaderIterator<StreamRecord<IN>> {
 		Iterator<IN> listIterator;
 
 		public IndexedInputIterator() {
@@ -92,11 +91,11 @@ public class MockContext<IN, OUT> {
 		return outputs;
 	}
 
-	public Collector<StreamRecord<OUT>> getOutput() {
+	public Output<StreamRecord<OUT>> getOutput() {
 		return output;
 	}
 
-	public MutableObjectIterator<StreamRecord<IN>> getIterator() {
+	public ReaderIterator<StreamRecord<IN>> getIterator() {
 		return iterator;
 	}
 

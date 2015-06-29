@@ -24,19 +24,17 @@ import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.ReusingDeserializationDelegate;
 
 /**
- * A CoReaderIterator wraps a {@link CoRecordReader} producing records of two
- * input types.
+ * A reader iterator that reads from a {@link CoStreamingRecordReader}
  */
 public class CoReaderIterator<T1, T2> {
 
-	private final CoRecordReader<DeserializationDelegate<T1>, DeserializationDelegate<T2>> reader; // the
-																									// source
+	private final CoStreamingRecordReader<DeserializationDelegate<T1>, DeserializationDelegate<T2>> reader;
 
 	protected final ReusingDeserializationDelegate<T1> delegate1;
 	protected final ReusingDeserializationDelegate<T2> delegate2;
 
 	public CoReaderIterator(
-			CoRecordReader<DeserializationDelegate<T1>, DeserializationDelegate<T2>> reader,
+			CoStreamingRecordReader<DeserializationDelegate<T1>, DeserializationDelegate<T2>> reader,
 			TypeSerializer<T1> serializer1, TypeSerializer<T2> serializer2) {
 		this.reader = reader;
 		this.delegate1 = new ReusingDeserializationDelegate<T1>(serializer1);
