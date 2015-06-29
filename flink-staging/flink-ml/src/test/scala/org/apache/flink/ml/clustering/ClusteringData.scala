@@ -26,7 +26,7 @@ import org.apache.flink.ml.math.{DenseVector, Vector}
  * Trainings- and test-data set for the K-Means implementation
  * [[org.apache.flink.ml.clustering.KMeans]].
  */
-object Clustering {
+object ClusteringData {
 
   /*
    * Number of iterations for the K-Means algorithm.

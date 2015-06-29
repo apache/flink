@@ -18,17 +18,14 @@
 
 package org.apache.flink.ml.clustering
 
-import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
 import org.apache.flink.api.scala.{DataSet, _}
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.ml._
 import org.apache.flink.ml.common.{LabeledVector, _}
 import org.apache.flink.ml.math.Breeze._
-import org.apache.flink.ml.math.Vector
+import org.apache.flink.ml.math.{BLAS, Vector}
 import org.apache.flink.ml.metrics.distances.EuclideanDistanceMetric
 import org.apache.flink.ml.pipeline._
-
-import scala.collection.JavaConverters._
 
 
 /**
@@ -136,7 +133,9 @@ class KMeans extends Predictor[KMeans] {
  * of the algorithm and the [[FitOperation]] & [[PredictOperation]].
  */
 object KMeans {
-  val CENTROIDS = "centroids"
+
+  /** Euclidean Distance Metric */
+  val euclidean = EuclideanDistanceMetric()
 
   case object NumIterations extends Parameter[Int] {
     val defaultValue = Some(10)
@@ -167,7 +166,8 @@ object KMeans {
 
         instance.centroids match {
           case Some(centroids) => {
-            input.map(new SelectNearestCenterMapper).withBroadcastSet(centroids, CENTROIDS)
+            input.mapWithBcSet(centroids)
+              {(dataPoint, centroids) => selectNearestCentroid(dataPoint, centroids)}
           }
 
           case None => {
@@ -197,12 +197,17 @@ object KMeans {
 
         val finalCentroids = centroids.iterate(numIterations) { currentCentroids =>
           val newCentroids: DataSet[LabeledVector] = input
-            .map(new SelectNearestCenterMapper).withBroadcastSet(currentCentroids, CENTROIDS)
+            .mapWithBcSet(currentCentroids)
+              {(dataPoint, centroids) => selectNearestCentroid(dataPoint, centroids)}
             .map(x => (x.label, x.vector, 1.0)).withForwardedFields("label->_1; vector->_2")
             .groupBy(x => x._1)
             .reduce((p1, p2) => (p1._1,(p1._2.asBreeze + p2._2.asBreeze).fromBreeze, p1._3 + p2._3))
+            // TODO replace addition of Breeze vectors by future build in flink function
             .withForwardedFields("_1")
-            .map(x => LabeledVector(x._1, (x._2.asBreeze :/ x._3).fromBreeze))
+            .map(x => {
+              BLAS.scal(1.0/x._3, x._2)
+              LabeledVector(x._1, x._2)
+            })
             .withForwardedFields("_1->label")
 
           newCentroids
@@ -213,35 +218,22 @@ object KMeans {
     }
   }
 
-}
-
-/**
- * Converts a given vector into a labeled vector where the label denotes the label of the closest
- * centroid.
- */
-@ForwardedFields(Array("*->vector"))
-final class SelectNearestCenterMapper extends RichMapFunction[Vector, LabeledVector] {
-
-  import KMeans._
-
-  private var centroids: Traversable[LabeledVector] = null
-
-  /** Reads the centroid values from a broadcast variable into a collection. */
-  override def open(parameters: Configuration) {
-    centroids = getRuntimeContext.getBroadcastVariable[LabeledVector](CENTROIDS).asScala
-  }
-
-  def map(v: Vector): LabeledVector = {
+  /**
+   * Converts a given vector into a labeled vector where the label denotes the label of the closest
+   * centroid.
+   */
+  @ForwardedFields(Array("*->vector"))
+  private def selectNearestCentroid(dataPoint: Vector, centroids: Traversable[LabeledVector]) = {
     var minDistance: Double = Double.MaxValue
     var closestCentroidLabel: Double = -1
     centroids.foreach(centroid => {
-      val distance = EuclideanDistanceMetric().distance(v, centroid.vector)
+      val distance = euclidean.distance(dataPoint, centroid.vector)
       if (distance < minDistance) {
         minDistance = distance
         closestCentroidLabel = centroid.label
       }
     })
-    LabeledVector(closestCentroidLabel, v)
+    LabeledVector(closestCentroidLabel, dataPoint)
   }
 
 }
