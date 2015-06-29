@@ -156,18 +156,23 @@ object KMeans {
   /**
    * [[PredictOperation]] for vector types. The result type is a [[LabeledVector]].
    */
-  implicit def predictValues = {
-    new PredictOperation[KMeans, Vector, LabeledVector] {
-      override def predict(
-        instance: KMeans,
-        predictParameters: ParameterMap,
-        input: DataSet[Vector])
-      : DataSet[LabeledVector] = {
+  implicit def predictDataSet = {
+    new PredictDataSetOperation[KMeans, Vector, LabeledVector] {
 
+      /** Calculates the predictions for all elements in the [[DataSet]] input
+        *
+        * @param instance
+        * @param predictParameters
+        * @param input
+        * @return a [[DataSet[LabeledVectors]] containing the nearest centroids
+        */
+      override def predictDataSet(instance: KMeans, predictParameters: ParameterMap,
+                                  input: DataSet[Vector])
+      : DataSet[LabeledVector] = {
         instance.centroids match {
           case Some(centroids) => {
             input.mapWithBcSet(centroids)
-              {(dataPoint, centroids) => selectNearestCentroid(dataPoint, centroids)}
+              { (dataPoint, centroids) => selectNearestCentroid(dataPoint, centroids) }
           }
 
           case None => {
