@@ -30,6 +30,8 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.MessageId;
 import backtype.storm.tuple.Values;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
 
 /**
@@ -37,17 +39,23 @@ import java.util.List;
  */
 class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 
-	/** The storm representation of the original Flink tuple */
+	/** The Storm representation of the original Flink tuple */
 	private final Values stormTuple;
+	/** The schema (ie, ordered field names) of the tuple */
+	private final Fields schema;
 
 	/**
-	 * Create a new Storm tuple from the given Flink tuple.
-	 *
+	 * Create a new Storm tuple from the given Flink tuple. The provided {@code nameIndexMap} is ignored for raw input
+	 * types.
+	 * 
 	 * @param flinkTuple
 	 * 		The Flink tuple to be converted.
+	 * @param schema
+	 * 		The schema (ie, ordered field names) of the tuple.
 	 */
-	public StormTuple(final IN flinkTuple) {
+	public StormTuple(final IN flinkTuple, final Fields schema) {
 		if (flinkTuple instanceof org.apache.flink.api.java.tuple.Tuple) {
+			this.schema = schema;
 			final org.apache.flink.api.java.tuple.Tuple t = (org.apache.flink.api.java.tuple.Tuple) flinkTuple;
 
 			final int numberOfAttributes = t.getArity();
@@ -56,6 +64,7 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 				this.stormTuple.add(t.getField(i));
 			}
 		} else {
+			this.schema = null;
 			this.stormTuple = new Values(flinkTuple);
 		}
 	}
@@ -67,22 +76,38 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 
 	@Override
 	public boolean contains(final String field) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		if (this.schema != null) {
+			return this.schema.contains(field);
+		}
+
+		try {
+			this.getPublicMemberField(field);
+			return true;
+		} catch (NoSuchFieldException f) {
+			try {
+				this.getGetterMethod(field);
+				return true;
+			} catch (Exception g) {
+				return false;
+			}
+		} catch (Exception e) {
+			return false;
+		}
 	}
 
 	@Override
 	public Fields getFields() {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return this.schema;
 	}
 
 	@Override
 	public int fieldIndex(final String field) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return this.schema.fieldIndex(field);
 	}
 
 	@Override
 	public List<Object> select(final Fields selector) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return this.schema.select(selector, this.stormTuple);
 	}
 
 	@Override
@@ -135,54 +160,103 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 		return (byte[]) this.stormTuple.get(i);
 	}
 
+	private Field getPublicMemberField(final String field) throws Exception {
+		assert (this.stormTuple.size() == 1);
+		return this.stormTuple.get(0).getClass().getField(field);
+	}
+
+	private Method getGetterMethod(final String field) throws Exception {
+		assert (this.stormTuple.size() == 1);
+		return this.stormTuple
+				.get(0)
+				.getClass()
+				.getMethod("get" + Character.toUpperCase(field.charAt(0)) + field.substring(1),
+						(Class<?>[]) null);
+	}
+
+	private Object getValueByPublicMember(final String field) throws Exception {
+		assert (this.stormTuple.size() == 1);
+		return getPublicMemberField(field).get(this.stormTuple.get(0));
+	}
+
+	private Object getValueByGetter(final String field) throws Exception {
+		assert (this.stormTuple.size() == 1);
+		return getGetterMethod(field).invoke(this.stormTuple.get(0), (Object[]) null);
+	}
+
+	@SuppressWarnings("unchecked")
+	public <T> T getValueByName(final String field) {
+		if (this.schema != null) {
+			return (T) this.getValue(this.schema.fieldIndex(field));
+		}
+		assert (this.stormTuple.size() == 1);
+
+		Exception e;
+		try {
+			// try public member
+			return (T) getValueByPublicMember(field);
+		} catch (NoSuchFieldException f) {
+			try {
+				// try getter-method
+				return (T) getValueByGetter(field);
+			} catch (Exception g) {
+				e = g;
+			}
+		} catch (Exception f) {
+			e = f;
+		}
+
+		throw new RuntimeException("Could not access field <" + field + ">", e);
+	}
+
 	@Override
 	public Object getValueByField(final String field) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return getValueByName(field);
 	}
 
 	@Override
 	public String getStringByField(final String field) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return getValueByName(field);
 	}
 
 	@Override
 	public Integer getIntegerByField(final String field) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return getValueByName(field);
 	}
 
 	@Override
 	public Long getLongByField(final String field) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return getValueByName(field);
 	}
 
 	@Override
 	public Boolean getBooleanByField(final String field) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return getValueByName(field);
 	}
 
 	@Override
 	public Short getShortByField(final String field) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return getValueByName(field);
 	}
 
 	@Override
 	public Byte getByteByField(final String field) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return getValueByName(field);
 	}
 
 	@Override
 	public Double getDoubleByField(final String field) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return getValueByName(field);
 	}
 
 	@Override
 	public Float getFloatByField(final String field) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return getValueByName(field);
 	}
 
 	@Override
 	public byte[] getBinaryByField(final String field) {
-		throw new UnsupportedOperationException("Not implemented yet");
+		return getValueByName(field);
 	}
 
 	@Override

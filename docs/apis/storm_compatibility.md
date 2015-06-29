@@ -34,7 +34,7 @@ This document shows how to use existing Storm code with Flink.
 * This will be replaced by the TOC
 {:toc}
 
-### Project Configuration
+# Project Configuration
 
 Support for Storm is contained in the `flink-storm-compatibility-core` Maven module.
 The code resides in the `org.apache.flink.stormcompatibility` package.
@@ -51,7 +51,7 @@ Add the following dependency to your `pom.xml` if you want to execute Storm code
 
 **Please note**: `flink-storm-compatibility-core` is not part of the provided binary Flink distribution. Thus, you need to include `flink-storm-compatiblitly-core` classes (and their dependencies) in your program jar that is submitted to Flink's JobManager.
 
-### Execute Storm Topologies
+# Execute Storm Topologies
 
 Flink provides a Storm compatible API (`org.apache.flink.stormcompatibility.api`) that offers replacements for the following classes:
 
@@ -88,18 +88,18 @@ if(runLocal) { // submit to test cluster
 </div>
 </div>
 
-### Embed Storm Operators in Flink Streaming Programs 
+# Embed Storm Operators in Flink Streaming Programs 
 
 As an alternative, Spouts and Bolts can be embedded into regular streaming programs.
 The Storm compatibility layer offers a wrapper classes for each, namely `StormSpoutWrapper` and `StormBoltWrapper` (`org.apache.flink.stormcompatibility.wrappers`).
 
-Per default, both wrappers convert Storm output tuples to Flink's `Tuple` types (ie, `Tuple1` to `Tuple25` according to the number of fields of the Storm tuples).
+Per default, both wrappers convert Storm output tuples to Flink's [Tuple](programming_guide.html#tuples-and-case-classes) types (ie, `Tuple1` to `Tuple25` according to the number of fields of the Storm tuples).
 For single field output tuples a conversion to the field's data type is also possible (eg, `String` instead of `Tuple1<String>`).
 
 Because Flink cannot infer the output field types of Storm operators, it is required to specify the output type manually.
 In order to get the correct `TypeInformation` object, Flink's `TypeExtractor` can be used.
 
-#### Embed Spouts
+## Embed Spouts
 
 In order to use a Spout as Flink source, use `StreamExecutionEnvironment.addSource(SourceFunction, TypeInformation)`.
 The Spout object is handed to the constructor of `StormSpoutWrapper<OUT>` that serves as first argument to `addSource(...)`.
@@ -126,7 +126,7 @@ Using `StormFiniteSpoutWrapper` allows the Flink program to shut down automatica
 If `StormSpoutWrapper` is used, the program will run until it is [canceled](cli.html) manually.
 
 
-#### Embed Bolts
+## Embed Bolts
 
 In order to use a Bolt as Flink operator, use `DataStream.transform(String, TypeInformation, OneInputStreamOperator)`.
 The Bolt object is handed to the constructor of `StormBoltWrapper<IN,OUT>` that serves as last argument to `transform(...)`.
@@ -149,7 +149,26 @@ DataStream<Tuple2<String, Integer>> counts = text.transform(
 </div>
 </div>
 
-### Storm Compatibility Examples
+### Named Attribute Access for Embedded Bolts
+
+Bolts can accesses input tuple fields via name (additionally to access via index).
+To use this feature with embedded Bolts, you need to have either a
+
+ 1. [POJO](programming_guide.html#pojos) type input stream or
+ 2. [Tuple](programming_guide.html#tuples-and-case-classes) type input stream and spedify the input schema (ie, name-to-index-mapping)
+
+For POJO input types, Flink accesses the fields via reflection.
+For this case, Flink expects either a corresponding public member variable or public getter method.
+For example, if a Bolt accesses a field via name `sentence` (eg, `String s = input.getStringByField("sentence");`), the input POJO class must have a member variable `public String sentence;` or method `public String getSentence() { ... };` (pay attention to camel-case naming).
+
+For `Tuple` input types, it is required to specify the input schema using Storm's `Fields` class.
+For this case, the constructor of `StormBoltWrapper` takes an additional argument: `new StormBoltWrapper<Tuple1<String>, Tuple2<String, Integer>>(new StormBoltTokenizerByName(), new Fields("sentence"))`.
+The input type is `Tuple1<String>` and `Fields("sentence")` specify that `input.getStringByField("sentence")` is equivalent to `input.getString(0)`.
+
+See [BoltTokenizerWordCountPojo](https://github.com/apache/flink/tree/master/flink-contrib/flink-storm-compatibility/flink-storm-compatibility-examples/src/main/java/org/apache/flink/stormcompatibility/wordcount/BoltTokenizerWordCountPojo.java) and [BoltTokenizerWordCountWithNames](https://github.com/apache/flink/tree/master/flink-contrib/flink-storm-compatibility/flink-storm-compatibility-examples/src/main/java/org/apache/flink/stormcompatibility/wordcount/BoltTokenizerWordCountWithNames.java) for examples.  
+
+# Storm Compatibility Examples
 
 You can find more examples in Maven module `flink-storm-compatibilty-examples`.
+For the different versions of WordCount, see [README.md](https://github.com/apache/flink/tree/master/flink-contrib/flink-storm-compatibility/flink-storm-compatibility-examples/README.md).
 

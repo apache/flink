@@ -17,21 +17,28 @@
 
 package org.apache.flink.stormcompatibility.wordcount;
 
-import backtype.storm.topology.IRichSpout;
-import org.apache.flink.api.common.functions.FlatMapFunction;
+import backtype.storm.topology.IRichBolt;
+import backtype.storm.tuple.Fields;
+
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.io.CsvInputFormat;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
-import org.apache.flink.stormcompatibility.util.StormFileSpout;
-import org.apache.flink.stormcompatibility.util.StormInMemorySpout;
-import org.apache.flink.stormcompatibility.wrappers.StormFiniteSpoutWrapper;
+import org.apache.flink.stormcompatibility.wordcount.stormoperators.StormBoltTokenizerByName;
+import org.apache.flink.stormcompatibility.wordcount.stormoperators.WordCountDataTuple;
+import org.apache.flink.stormcompatibility.wrappers.StormBoltWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.Collector;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
- * fashion. The used data source is a Storm {@link IRichSpout bolt}.
+ * fashion. The tokenizer step is performed by a Storm {@link IRichBolt bolt}. In contrast to
+ * {@link BoltTokenizerWordCount} the tokenizer's input is a {@link Tuple} type and the single field is accessed by
+ * name.
  * <p/>
  * <p/>
  * The input is a plain text file with lines separated by newline characters.
@@ -43,10 +50,10 @@ import org.apache.flink.util.Collector;
  * <p/>
  * This example shows how to:
  * <ul>
- * <li>use a Storm bolt within a Flink Streaming program.
+ * <li>how to access attributes by name for {@link Tuple} type input streams
  * </ul>
  */
-public class SpoutSourceWordCount {
+public class BoltTokenizerWordCountWithNames {
 
 	// *************************************************************************
 	// PROGRAM
@@ -62,11 +69,16 @@ public class SpoutSourceWordCount {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		// get input data
-		final DataStream<String> text = getTextDataStream(env);
+		final DataStream<Tuple1<String>> text = getTextDataStream(env);
 
-		final DataStream<Tuple2<String, Integer>> counts =
+		final DataStream<Tuple2<String, Integer>> counts = text
 				// split up the lines in pairs (2-tuples) containing: (word,1)
-				text.flatMap(new Tokenizer())
+				// this is done by a Storm bolt that is wrapped accordingly
+				.transform("StormBoltTokenizer",
+						TypeExtractor.getForObject(new Tuple2<String, Integer>("", 0)),
+						new StormBoltWrapper<Tuple1<String>, Tuple2<String, Integer>>(
+								new StormBoltTokenizerByName(), new Fields("sentence")))
+				// split up the lines in pairs (2-tuples) containing: (word,1)
 				// group by the tuple field "0" and sum up tuple field "1"
 				.groupBy(0).sum(1);
 
@@ -78,32 +90,7 @@ public class SpoutSourceWordCount {
 		}
 
 		// execute program
-		env.execute("Streaming WordCount with Storm spout source");
-	}
-
-	// *************************************************************************
-	// USER FUNCTIONS
-	// *************************************************************************
-
-	/**
-	 * Implements the string tokenizer that splits sentences into words as a user-defined FlatMapFunction. The function
-	 * takes a line (String) and splits it into multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
-	 */
-	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void flatMap(final String value, final Collector<Tuple2<String, Integer>> out) throws Exception {
-			// normalize and split the line
-			final String[] tokens = value.toLowerCase().split("\\W+");
-
-			// emit the pairs
-			for (final String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new Tuple2<String, Integer>(token, 1));
-				}
-			}
-		}
+		env.execute("Streaming WordCount with Storm bolt tokenizer");
 	}
 
 	// *************************************************************************
@@ -123,30 +110,29 @@ public class SpoutSourceWordCount {
 				textPath = args[0];
 				outputPath = args[1];
 			} else {
-				System.err.println("Usage: SpoutSourceWordCount <text path> <result path>");
+				System.err.println("Usage: BoltTokenizerWordCount <text path> <result path>");
 				return false;
 			}
 		} else {
-			System.out.println("Executing SpoutSourceWordCount example with built-in default data");
+			System.out.println("Executing BoltTokenizerWordCount example with built-in default data");
 			System.out.println("  Provide parameters to read input data from a file");
-			System.out.println("  Usage: SpoutSourceWordCount <text path> <result path>");
+			System.out.println("  Usage: BoltTokenizerWordCount <text path> <result path>");
 		}
 		return true;
 	}
 
-	private static DataStream<String> getTextDataStream(final StreamExecutionEnvironment env) {
+	private static DataStream<Tuple1<String>> getTextDataStream(final StreamExecutionEnvironment env) {
 		if (fileOutput) {
 			// read the text file from given input path
-			final String[] tokens = textPath.split(":");
-			final String localFile = tokens[tokens.length - 1];
-			return env.addSource(
-					new StormFiniteSpoutWrapper<String>(new StormFileSpout(localFile), true),
-					TypeExtractor.getForClass(String.class)).setParallelism(1);
+			TypeInformation<Tuple1<String>> sourceType = TypeExtractor
+					.getForObject(new Tuple1<String>(""));
+			return env.createInput(new CsvInputFormat<Tuple1<String>>(new Path(
+					textPath), CsvInputFormat.DEFAULT_LINE_DELIMITER,
+					CsvInputFormat.DEFAULT_LINE_DELIMITER, sourceType),
+					sourceType);
 		}
 
-		return env.addSource(new StormFiniteSpoutWrapper<String>(new StormInMemorySpout(WordCountData.WORDS), true),
-				TypeExtractor.getForClass(String.class));
-
+		return env.fromElements(WordCountDataTuple.TUPLES);
 	}
 
 }
