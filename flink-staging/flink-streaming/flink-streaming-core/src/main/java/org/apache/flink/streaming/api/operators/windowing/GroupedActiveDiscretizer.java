@@ -52,8 +52,6 @@ public class GroupedActiveDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 
 	@Override
 	public void processElement(IN element) throws Exception {
-
-//			last = copy(element);
 			last = element;
 			Object key = keySelector.getKey(element);
 
@@ -67,10 +65,6 @@ public class GroupedActiveDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 
 				groupDiscretizer.processRealElement(element);
 			}
-
-
-
-
 	}
 
 	@Override
@@ -90,7 +84,6 @@ public class GroupedActiveDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 			centralThread.interrupt();
 			centralThread.join();
 		} catch (InterruptedException e) {
-			e.printStackTrace();
 			LOG.info("GroupedActiveDiscretizer got interruped while joining with central thread: {}", e);
 		}
 	}

@@ -167,7 +167,6 @@ public class IterateTest {
 		it.closeWith(head.union(head.map(new NoOpMap()).shuffle()), true);
 		it2.closeWith(head2, false);
 
-		System.out.println(env.getExecutionPlan());
 		StreamGraph graph = env.getStreamGraph();
 
 		for (StreamLoop loop : graph.getStreamLoops()) {
