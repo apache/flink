@@ -394,15 +394,16 @@ public class StreamingJobGraphGenerator {
 			List<JobVertexID> ackVertices = new ArrayList<JobVertexID>(jobVertices.size());
 
 			// collect the vertices that receive "commit checkpoint" messages
-			// currently, these are only the sources
+			// currently, these are all certices
 			List<JobVertexID> commitVertices = new ArrayList<JobVertexID>();
 			
 			
 			for (JobVertex vertex : jobVertices.values()) {
 				if (vertex.isInputVertex()) {
 					triggerVertices.add(vertex.getID());
-					commitVertices.add(vertex.getID());
 				}
+				// TODO: add check whether the user function implements the checkpointing interface
+				commitVertices.add(vertex.getID());
 				ackVertices.add(vertex.getID());
 			}
 
