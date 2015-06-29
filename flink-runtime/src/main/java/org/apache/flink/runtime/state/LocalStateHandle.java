@@ -23,36 +23,33 @@ import java.io.Serializable;
 /**
  * A StateHandle that includes the operator states directly.
  */
-public class LocalStateHandle implements StateHandle<Serializable> {
+public class LocalStateHandle<T extends Serializable> implements StateHandle<T> {
 
 	private static final long serialVersionUID = 2093619217898039610L;
 
-	private final Serializable state;
+	private final T state;
 
-	public LocalStateHandle(Serializable state) {
+	public LocalStateHandle(T state) {
 		this.state = state;
 	}
 
 	@Override
-	public Serializable getState() {
+	public T getState() {
 		return state;
 	}
 
 	@Override
 	public void discardState() throws Exception {
 	}
-	
-	public static LocalStateHandleProvider createProvider(){
-		return new LocalStateHandleProvider();
-	}
 
-	private static class LocalStateHandleProvider implements StateHandleProvider<Serializable> {
+	public static class LocalStateHandleProvider<R extends Serializable> implements
+			StateHandleProvider<R> {
 
 		private static final long serialVersionUID = 4665419208932921425L;
 
 		@Override
-		public LocalStateHandle createStateHandle(Serializable state) {
-			return new LocalStateHandle(state);
+		public LocalStateHandle<R> createStateHandle(R state) {
+			return new LocalStateHandle<R>(state);
 		}
 
 	}

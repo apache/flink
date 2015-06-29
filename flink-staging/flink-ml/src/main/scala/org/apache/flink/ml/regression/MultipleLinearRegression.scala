@@ -19,14 +19,14 @@
 package org.apache.flink.ml.regression
 
 import org.apache.flink.api.scala.DataSet
-import org.apache.flink.ml.math.Vector
+import org.apache.flink.ml.math.{Breeze, Vector}
 import org.apache.flink.ml.common._
 
 import org.apache.flink.api.scala._
 
-import org.apache.flink.ml.optimization.{LinearPrediction, SquaredLoss, GenericLossFunction,
-SimpleGradientDescent}
-import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
+import org.apache.flink.ml.optimization.{LinearPrediction, SquaredLoss, GenericLossFunction, SimpleGradientDescent}
+import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, Predictor}
+
 
 /** Multiple linear regression using the ordinary least squares (OLS) estimator.
   *
@@ -128,8 +128,6 @@ class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
 
 object MultipleLinearRegression {
 
-  import org.apache.flink.ml._
-
   val WEIGHTVECTOR_BROADCAST = "weights_broadcast"
 
   val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
@@ -189,27 +187,13 @@ object MultipleLinearRegression {
     }
   }
 
-  /** Calculates the predictions for new data with respect to the learned linear model.
-    *
-    * @tparam T Testing data type for which the prediction is calculated. Has to be a subtype of
-    *           [[Vector]]
-    * @return [[PredictOperation]] which calculates for a given vector it's label according to the
-    *        linear model. The result of this [[PredictOperation]] is a [[LabeledVector]]
-    */
   implicit def predictVectors[T <: Vector] = {
-    new PredictOperation[MultipleLinearRegression, T, LabeledVector] {
-      override def predict(
-        instance: MultipleLinearRegression,
-        predictParameters: ParameterMap,
-        input: DataSet[T])
-      : DataSet[LabeledVector] = {
-        instance.weightsOption match {
-          case Some(weights) => {
-            input.mapWithBcVariable(weights) {
-              (dataPoint, weights) =>
-                LabeledVector(LinearPrediction.predict(dataPoint, weights), dataPoint)
-            }
-          }
+    new PredictOperation[MultipleLinearRegression, WeightVector, T, Double]() {
+      override def getModel(self: MultipleLinearRegression, predictParameters: ParameterMap)
+        : DataSet[WeightVector] = {
+        self.weightsOption match {
+          case Some(weights) => weights
+
 
           case None => {
             throw new RuntimeException("The MultipleLinearRegression has not been fitted to the " +
@@ -217,34 +201,11 @@ object MultipleLinearRegression {
           }
         }
       }
-    }
-  }
-
-  /** Calculates the predictions for labeled data with respect to the learned linear model.
-    *
-    * @return A DataSet[(Double, Double)] where each tuple is a (truth, prediction) pair.
-    */
-  implicit def predictLabeledVectors = {
-    new PredictOperation[MultipleLinearRegression, LabeledVector, (Double, Double)] {
-      override def predict(
-        instance: MultipleLinearRegression,
-        predictParameters: ParameterMap,
-        input: DataSet[LabeledVector])
-      : DataSet[(Double, Double)] = {
-        instance.weightsOption match {
-          case Some(weights) => {
-            input.mapWithBcVariable(weights) {
-              (labeledVector, weights) => {
-                (labeledVector.label, LinearPrediction.predict(labeledVector.vector, weights))
-              }
-            }
-          }
-
-          case None => {
-            throw new RuntimeException("The MultipleLinearRegression has not been fitted to the " +
-              "data. This is necessary to learn the weight vector of the linear function.")
-          }
-        }
+      override def predict(value: T, model: WeightVector): Double = {
+        import Breeze._
+        val WeightVector(weights, weight0) = model
+        val dotProduct = value.asBreeze.dot(weights.asBreeze)
+        dotProduct + weight0
       }
     }
   }

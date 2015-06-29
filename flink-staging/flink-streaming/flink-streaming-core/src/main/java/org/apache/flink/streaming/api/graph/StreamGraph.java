@@ -33,6 +33,7 @@ import java.util.Set;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.optimizer.plan.StreamingPlan;
@@ -195,9 +196,9 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	@SuppressWarnings("rawtypes")
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public void addIterationHead(Integer sourceID, Integer iterationHead, Integer iterationID,
-			long timeOut) {
+			long timeOut, TypeInformation<?> feedbackType) {
 
 		StreamNode itSource = addNode(sourceID, StreamIterationHead.class, null, null);
 
@@ -205,12 +206,17 @@ public class StreamGraph extends StreamingPlan {
 		streamLoops.put(iterationID, iteration);
 		vertexIDtoLoop.put(sourceID, iteration);
 
-		setSerializersFrom(iterationHead, sourceID);
 		itSource.setOperatorName("IterationSource-" + sourceID);
 		itSource.setParallelism(getStreamNode(iterationHead).getParallelism());
 		
-
-		addEdge(sourceID, iterationHead, new RebalancePartitioner(true), 0, new ArrayList<String>());
+		if(feedbackType == null){
+			setSerializersFrom(iterationHead, sourceID);
+			addEdge(sourceID, iterationHead, new RebalancePartitioner(true), 0, new ArrayList<String>());
+		}else{
+			itSource.setSerializerOut(new StreamRecordSerializer(feedbackType, executionConfig));
+			addEdge(sourceID, iterationHead, new RebalancePartitioner(true), 2, new ArrayList<String>());
+		}
+		
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("ITERATION SOURCE: {}", sourceID);
@@ -276,6 +282,10 @@ public class StreamGraph extends StreamingPlan {
 
 	public void setParallelism(Integer vertexID, int parallelism) {
 		getStreamNode(vertexID).setParallelism(parallelism);
+	}
+
+	public void setKey(Integer vertexID, KeySelector<?,?> key) {
+		getStreamNode(vertexID).setStatePartitioner(key);
 	}
 
 	public void setBufferTimeout(Integer vertexID, long bufferTimeout) {

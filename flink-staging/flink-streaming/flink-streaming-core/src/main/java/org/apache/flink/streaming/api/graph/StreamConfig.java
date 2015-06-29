@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
@@ -59,6 +60,7 @@ public class StreamConfig implements Serializable {
 	private static final String OUT_STREAM_EDGES = "outStreamEdges";
 	private static final String IN_STREAM_EDGES = "inStreamEdges";
 	private static final String STATEHANDLE_PROVIDER = "stateHandleProvider";
+	private static final String STATE_PARTITIONER = "statePartitioner";
 
 	// DEFAULT VALUES
 	private static final long DEFAULT_TIMEOUT = 100;
@@ -381,7 +383,6 @@ public class StreamConfig implements Serializable {
 	}
 	
 	public void setStateHandleProvider(StateHandleProvider<?> provider) {
-
 		try {
 			InstantiationUtil.writeObjectToConfig(provider, this.config, STATEHANDLE_PROVIDER);
 		} catch (IOException e) {
@@ -396,6 +397,24 @@ public class StreamConfig implements Serializable {
 					.readObjectFromConfig(this.config, STATEHANDLE_PROVIDER, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate statehandle provider.", e);
+		}
+	}
+	
+	public void setStatePartitioner(KeySelector<?, Serializable> partitioner) {
+		try {
+			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER);
+		} catch (IOException e) {
+			throw new StreamTaskException("Could not serialize state partitioner.", e);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public KeySelector<?, Serializable> getStatePartitioner(ClassLoader cl) {
+		try {
+			return (KeySelector<?, Serializable>) InstantiationUtil
+					.readObjectFromConfig(this.config, STATE_PARTITIONER, cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not instantiate state partitioner.", e);
 		}
 	}
 

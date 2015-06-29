@@ -18,17 +18,30 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.StateCheckpointer;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.collector.selector.BroadcastOutputSelectorWrapper;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -41,18 +54,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicLong;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Task.class, ResultPartitionWriter.class})
@@ -144,7 +145,7 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 		Assert.assertEquals(NUM_ELEMENTS, outList.size());
 	}
 
-	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, Checkpointed {
+	private static class MockSource extends RichSourceFunction<Tuple2<Long, Integer>> implements StateCheckpointer<Integer, Integer> {
 
 		private static final long serialVersionUID = 1;
 
@@ -156,6 +157,7 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 		private volatile long lastCheckpointId = -1;
 
 		private Semaphore semaphore;
+		private OperatorState<Integer> state;
 
 		private volatile boolean isRunning = true;
 
@@ -164,7 +166,7 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 			this.checkpointDelay = checkpointDelay;
 			this.readDelay = readDelay;
 			this.count = 0;
-			semaphore = new Semaphore(1);
+			this.semaphore = new Semaphore(1);
 		}
 
 		@Override
@@ -189,32 +191,33 @@ public class SourceStreamTaskTest extends StreamTaskTestBase {
 		public void cancel() {
 			isRunning = false;
 		}
+		
+		@Override
+		public void open(Configuration conf) throws IOException{
+			state = getRuntimeContext().getOperatorState("state", 1, false, this);
+		}
+
 
 		@Override
-		public Serializable snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+		public Integer snapshotState(Integer state, long checkpointId, long checkpointTimestamp) {
 			if (!semaphore.tryAcquire()) {
 				Assert.fail("Concurrent invocation of snapshotState.");
-			}
-			int startCount = count;
-			lastCheckpointId = checkpointId;
-
-			long sum = 0;
-			for (int i = 0; i < checkpointDelay; i++) {
-				sum += new Random().nextLong();
-			}
-
-			if (startCount != count) {
+			} else {
+				int startCount = count;
+				
+				if (startCount != count) {
+					semaphore.release();
+					// This means that next() was invoked while the snapshot was ongoing
+					Assert.fail("Count is different at start end end of snapshot.");
+				}
 				semaphore.release();
-				// This means that next() was invoked while the snapshot was ongoing
-				Assert.fail("Count is different at start end end of snapshot.");
 			}
-			semaphore.release();
-			return sum;
+			return 0;
 		}
 
 		@Override
-		public void restoreState(Serializable state) {
-
+		public Integer restoreState(Integer stateSnapshot) {
+			return stateSnapshot;
 		}
 	}
 

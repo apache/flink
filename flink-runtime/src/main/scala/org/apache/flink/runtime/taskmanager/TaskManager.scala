@@ -429,12 +429,13 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
         val taskExecutionId = message.getTaskExecutionId
         val checkpointId = message.getCheckpointId
         val timestamp = message.getTimestamp
+        val state = message.getState
 
         log.debug(s"Receiver ConfirmCheckpoint ${checkpointId}@${timestamp} for $taskExecutionId.")
 
         val task = runningTasks.get(taskExecutionId)
         if (task != null) {
-          task.confirmCheckpoint(checkpointId, timestamp)
+          task.confirmCheckpoint(checkpointId, state)
         } else {
           log.debug(
             s"Taskmanager received a checkpoint confirmation for unknown task $taskExecutionId.")

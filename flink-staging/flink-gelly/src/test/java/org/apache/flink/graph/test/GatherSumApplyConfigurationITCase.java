@@ -33,12 +33,8 @@ import org.apache.flink.graph.gsa.Neighbor;
 import org.apache.flink.graph.gsa.SumFunction;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.LongValue;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -51,21 +47,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 		super(mode);
 	}
 
-	private String resultPath;
 	private String expectedResult;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
 
 	@Test
 	public void testRunWithConfiguration() throws Exception {
@@ -86,17 +68,19 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 		parameters.registerAggregator("superstepAggregator", new LongSumAggregator());
 		parameters.setOptNumVertices(true);
 
-		Graph<Long, Long, Long> result = graph.runGatherSumApplyIteration(new Gather(), new Sum(),
+		Graph<Long, Long, Long> res = graph.runGatherSumApplyIteration(new Gather(), new Sum(),
 				new Apply(), 10, parameters);
 
-		result.getVertices().writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
+        DataSet<Vertex<Long, Long>> data = res.getVertices();
+        List<Vertex<Long, Long>> result= data.collect();
 
-		expectedResult = "1	11\n" +
-				"2	11\n" +
-				"3	11\n" +
-				"4	11\n" +
-				"5	11";
+		expectedResult = "1,11\n" +
+				"2,11\n" +
+				"3,11\n" +
+				"4,11\n" +
+				"5,11";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -122,15 +106,16 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 		Assert.assertEquals(2, iteration.getIterationConfiguration().getParallelism());
 		Assert.assertEquals(true, iteration.getIterationConfiguration().isSolutionSetUnmanagedMemory());
 
-		DataSet<Vertex<Long, Long>> result = TestGraphUtils.getLongLongVertexData(env).runOperation(iteration);
-
-		result.writeAsCsv(resultPath, "\n", "\t");
-		env.execute();
-		expectedResult = "1	11\n" +
-				"2	12\n" +
-				"3	13\n" +
-				"4	14\n" +
-				"5	15";
+		DataSet<Vertex<Long, Long>> data = TestGraphUtils.getLongLongVertexData(env).runOperation(iteration);
+        List<Vertex<Long, Long>> result= data.collect();
+        
+		expectedResult = "1,11\n" +
+				"2,12\n" +
+				"3,13\n" +
+				"4,14\n" +
+				"5,15";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")

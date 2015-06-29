@@ -21,9 +21,13 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.functors.NotNullPredicate;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.event.task.TaskEvent;
@@ -34,13 +38,15 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.state.FileStateHandle;
 import org.apache.flink.runtime.state.LocalStateHandle;
+import org.apache.flink.runtime.state.PartitionedStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.runtime.util.SerializedValue;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StatefulStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.state.WrapperStateHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,11 +69,11 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	protected volatile boolean isRunning = false;
 
 	protected List<StreamingRuntimeContext> contexts;
+	
+	protected StreamingRuntimeContext headContext;
 
 	protected ClassLoader userClassLoader;
 	
-	private StateHandleProvider<Serializable> stateHandleProvider;
-
 	private EventListener<TaskEvent> superstepListener;
 
 	public StreamTask() {
@@ -80,22 +86,21 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	public void registerInputOutput() {
 		this.userClassLoader = getUserCodeClassLoader();
 		this.configuration = new StreamConfig(getTaskConfiguration());
-		this.stateHandleProvider = getStateHandleProvider();
+		
+		streamOperator = configuration.getStreamOperator(userClassLoader);
 
 		outputHandler = new OutputHandler<OUT>(this);
-
-		streamOperator = configuration.getStreamOperator(userClassLoader);
 		
 		if (streamOperator != null) {
 			// IterationHead and IterationTail don't have an Operator...
 
 			//Create context of the head operator
-			StreamingRuntimeContext headContext = createRuntimeContext(configuration);
+			headContext = createRuntimeContext(configuration);
 			this.contexts.add(headContext);
 			streamOperator.setup(outputHandler.getOutput(), headContext);
 		}
 
-		hasChainedOperators = !outputHandler.getChainedOperators().isEmpty();
+		hasChainedOperators = !(outputHandler.getChainedOperators().size() == 1);
 	}
 
 	public String getName() {
@@ -104,8 +109,12 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	public StreamingRuntimeContext createRuntimeContext(StreamConfig conf) {
 		Environment env = getEnvironment();
-		return new StreamingRuntimeContext(conf.getStreamOperator(userClassLoader).getClass()
-				.getSimpleName(), env, getUserCodeClassLoader(), getExecutionConfig());
+		String operatorName = conf.getStreamOperator(userClassLoader).getClass().getSimpleName();
+		
+		KeySelector<?,Serializable> statePartitioner = conf.getStatePartitioner(userClassLoader);
+		
+		return new StreamingRuntimeContext(operatorName, env, getUserCodeClassLoader(),
+				getExecutionConfig(), statePartitioner, getStateHandleProvider());
 	}
 	
 	private StateHandleProvider<Serializable> getStateHandleProvider() {
@@ -129,7 +138,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 			switch (backend) {
 				case JOBMANAGER:
 					LOG.info("State backend for state checkpoints is set to jobmanager.");
-					return LocalStateHandle.createProvider();
+					return new LocalStateHandle.LocalStateHandleProvider<Serializable>();
 				case FILESYSTEM:
 					String checkpointDir = GlobalConfiguration.getString(ConfigConstants.STATE_BACKEND_FS_DIR, null);
 					if (checkpointDir != null) {
@@ -155,20 +164,16 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	}
 
 	protected void openOperator() throws Exception {
-		streamOperator.open(getTaskConfiguration());
-
-		for (OneInputStreamOperator<?, ?> operator : outputHandler.chainedOperators) {
+		for (StreamOperator<?> operator : outputHandler.getChainedOperators()) {
 			operator.open(getTaskConfiguration());
 		}
 	}
 
 	protected void closeOperator() throws Exception {
-		streamOperator.close();
-
 		// We need to close them first to last, since upstream operators in the chain might emit
 		// elements in their close methods.
-		for (int i = outputHandler.chainedOperators.size()-1; i >= 0; i--) {
-			outputHandler.chainedOperators.get(i).close();
+		for (int i = outputHandler.getChainedOperators().size()-1; i >= 0; i--) {
+			outputHandler.getChainedOperators().get(i).close();
 		}
 	}
 
@@ -191,40 +196,23 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	//  Checkpoint and Restore
 	// ------------------------------------------------------------------------
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void setInitialState(StateHandle<Serializable> stateHandle) throws Exception {
-		// here, we later resolve the state handle into the actual state by
-		// loading the state described by the handle from the backup store
-		Serializable state = stateHandle.getState();
+		
+		// We retrieve end restore the states for the chained oeprators.
+		List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>> chainedStates = (List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>>) stateHandle.getState();
 
-		if (hasChainedOperators) {
-			@SuppressWarnings("unchecked")
-			List<Serializable> chainedStates = (List<Serializable>) state;
-
-			Serializable headState = chainedStates.get(0);
-			if (headState != null) {
-				if (streamOperator instanceof StatefulStreamOperator) {
-					((StatefulStreamOperator) streamOperator).restoreInitialState(headState);
-				}
+		// We restore all stateful chained operators
+		for (int i = 0; i < chainedStates.size(); i++) {
+			Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>> state = chainedStates.get(i);
+			// If state is not null we need to restore it
+			if (state != null) {
+				StreamOperator<?> chainedOperator = outputHandler.getChainedOperators().get(i);
+				((StatefulStreamOperator<?>) chainedOperator).restoreInitialState(state);
 			}
-
-			for (int i = 1; i < chainedStates.size(); i++) {
-				Serializable chainedState = chainedStates.get(i);
-				if (chainedState != null) {
-					StreamOperator chainedOperator = outputHandler.getChainedOperators().get(i - 1);
-					if (chainedOperator instanceof StatefulStreamOperator) {
-						((StatefulStreamOperator) chainedOperator).restoreInitialState(chainedState);
-					}
-
-				}
-			}
-
-		} else {
-			if (streamOperator instanceof StatefulStreamOperator) {
-				((StatefulStreamOperator) streamOperator).restoreInitialState(state);
-			}
-
 		}
+
 	}
 
 	@Override
@@ -235,35 +223,26 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 				try {
 					LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
 					
-					// first draw the state that should go into checkpoint
-					StateHandle<Serializable> state;
+					// We wrap the states of the chained operators in a list, marking non-stateful oeprators with null
+					List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>> chainedStates = new ArrayList<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>>();
+					
+					// A wrapper handle is created for the List of statehandles
+					WrapperStateHandle stateHandle;
 					try {
 
-						Serializable userState = null;
-
-						if (streamOperator instanceof StatefulStreamOperator) {
-							userState = ((StatefulStreamOperator) streamOperator).getStateSnapshotFromFunction(checkpointId, timestamp);
-						}
-
-
-						if (hasChainedOperators) {
-							// We construct a list of states for chained tasks
-							List<Serializable> chainedStates = new ArrayList<Serializable>();
-
-							chainedStates.add(userState);
-
-							for (OneInputStreamOperator<?, ?> chainedOperator : outputHandler.getChainedOperators()) {
-								if (chainedOperator instanceof StatefulStreamOperator) {
-									chainedStates.add(((StatefulStreamOperator) chainedOperator).getStateSnapshotFromFunction(checkpointId, timestamp));
-								}
+						// We construct a list of states for chained tasks
+						for (StreamOperator<?> chainedOperator : outputHandler
+								.getChainedOperators()) {
+							if (chainedOperator instanceof StatefulStreamOperator) {
+								chainedStates.add(((StatefulStreamOperator<?>) chainedOperator)
+										.getStateSnapshotFromFunction(checkpointId, timestamp));
+							}else{
+								chainedStates.add(null);
 							}
-
-							userState = CollectionUtils.exists(chainedStates,
-									NotNullPredicate.INSTANCE) ? (Serializable) chainedStates
-									: null;
 						}
 						
-						state = userState == null ? null : stateHandleProvider.createStateHandle(userState);
+						stateHandle = CollectionUtils.exists(chainedStates,
+								NotNullPredicate.INSTANCE) ? new WrapperStateHandle(chainedStates) : null;
 					}
 					catch (Exception e) {
 						throw new Exception("Error while drawing snapshot of the user state.", e);
@@ -273,10 +252,10 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 					outputHandler.broadcastBarrier(checkpointId, timestamp);
 					
 					// now confirm the checkpoint
-					if (state == null) {
+					if (stateHandle == null) {
 						getEnvironment().acknowledgeCheckpoint(checkpointId);
 					} else {
-						getEnvironment().acknowledgeCheckpoint(checkpointId, state);
+						getEnvironment().acknowledgeCheckpoint(checkpointId, stateHandle);
 					}
 				}
 				catch (Exception e) {
@@ -289,21 +268,42 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	public void confirmCheckpoint(long checkpointId, long timestamp) throws Exception {
-		// we do nothing here so far. this should call commit on the source function, for example
+	public void confirmCheckpoint(long checkpointId, SerializedValue<StateHandle<?>> stateHandle) throws Exception {
 		synchronized (checkpointLock) {
-			if (streamOperator instanceof StatefulStreamOperator) {
-				((StatefulStreamOperator) streamOperator).confirmCheckpointCompleted(checkpointId, timestamp);
-			}
+			if (stateHandle != null) {
+				List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>> chainedStates = (List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>>) stateHandle
+						.deserializeValue(getUserCodeClassLoader()).getState();
 
-			if (hasChainedOperators) {
-				for (OneInputStreamOperator<?, ?> chainedOperator : outputHandler.getChainedOperators()) {
-					if (chainedOperator instanceof StatefulStreamOperator) {
-						((StatefulStreamOperator) chainedOperator).confirmCheckpointCompleted(checkpointId, timestamp);
+				for (int i = 0; i < chainedStates.size(); i++) {
+					Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>> chainedState = chainedStates
+							.get(i);
+					StreamOperator<?> chainedOperator = outputHandler.getChainedOperators().get(i);
+
+					if (chainedState != null) {
+						if (chainedState.f0 != null) {
+							((StatefulStreamOperator) chainedOperator).confirmCheckpointCompleted(
+									checkpointId, null, chainedState.f0);
+						}
+
+						if (chainedState.f1 != null) {
+							if (chainedOperator instanceof StatefulStreamOperator) {
+								for (Entry<String, PartitionedStateHandle> stateEntry : chainedState.f1
+										.entrySet()) {
+									for (StateHandle<Serializable> handle : stateEntry.getValue()
+											.getState().values()) {
+										((StatefulStreamOperator) chainedOperator)
+												.confirmCheckpointCompleted(checkpointId,
+														stateEntry.getKey(), handle);
+									}
+								}
+							}
+						}
 					}
 				}
 			}
+
 		}
 	}
 	

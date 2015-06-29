@@ -79,5 +79,26 @@ public class MusicProfilesData {
 		errors.add("ERROR: <song_15 track_15> Black Trees");
 		return env.fromCollection(errors);
 	}
-}
 
+	public static final String USER_SONG_TRIPLETS = "user_1	song_1	100\n" + "user_1	song_5	200\n"
+			+ "user_2	song_1	10\n" + "user_2	song_4	20\n"
+			+ "user_3	song_2	3\n"
+			+ "user_4	song_2	1\n" + "user_4	song_3	2\n"
+			+ "user_5	song_3	30";
+
+	public static final String MISMATCHES = "ERROR: <song_5 track_8> Angie";
+
+	public static final String MAX_ITERATIONS = "2";
+
+	public static final String TOP_SONGS_RESULT = "user_1	song_1\n" +
+								"user_2	song_4\n" +
+								"user_3	song_2\n" +
+								"user_4	song_3\n" +
+								"user_5	song_3";
+
+	public static final String COMMUNITIES_RESULT = "user_1	1\n" +
+								"user_2	1\n" +
+								"user_3	3\n" +
+								"user_4	3\n" +
+								"user_5	4";
+}

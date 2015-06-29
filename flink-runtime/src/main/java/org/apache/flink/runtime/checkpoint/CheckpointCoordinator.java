@@ -32,6 +32,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.ConfirmCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -315,7 +317,7 @@ public class CheckpointCoordinator {
 		final long checkpointId = message.getCheckpointId();
 
 		SuccessfulCheckpoint completed = null;
-		
+		PendingCheckpoint checkpoint;
 		synchronized (lock) {
 			// we need to check inside the lock for being shutdown as well, otherwise we
 			// get races and invalid error log messages
@@ -323,7 +325,8 @@ public class CheckpointCoordinator {
 				return;
 			}
 			
-			PendingCheckpoint checkpoint = pendingCheckpoints.get(checkpointId);
+			checkpoint = pendingCheckpoints.get(checkpointId);
+			
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
 				if (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getState())) {
 					
@@ -367,11 +370,15 @@ public class CheckpointCoordinator {
 		// to be outside the lock scope
 		if (completed != null) {
 			final long timestamp = completed.getTimestamp();
+			
 			for (ExecutionVertex ev : tasksToCommitTo) {
 				Execution ee = ev.getCurrentExecutionAttempt();
 				if (ee != null) {
 					ExecutionAttemptID attemptId = ee.getAttemptId();
-					ConfirmCheckpoint confirmMessage = new ConfirmCheckpoint(job, attemptId, checkpointId, timestamp);
+					StateForTask stateForTask = completed.getState(ev.getJobvertexId());
+					SerializedValue<StateHandle<?>> taskState = (stateForTask != null) ? stateForTask.getState() : null;
+					ConfirmCheckpoint confirmMessage = new ConfirmCheckpoint(job, attemptId, checkpointId, 
+							timestamp, taskState);
 					ev.sendMessageToCurrentExecution(confirmMessage, ee.getAttemptId());
 				}
 			}

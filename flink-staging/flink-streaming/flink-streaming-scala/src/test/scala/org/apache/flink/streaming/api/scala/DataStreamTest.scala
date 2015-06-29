@@ -49,6 +49,7 @@ class DataStreamTest {
     assert("testMap" == dataStream1.getName)
 
     val dataStream2 = env.generateSequence(0, 0).name("testSource2")
+      .groupBy(x=>x)
       .reduce((x, y) => 0)
       .name("testReduce")
     assert("testReduce" == dataStream2.getName)
@@ -341,10 +342,10 @@ class DataStreamTest {
     val foldFunction = new FoldFunction[Int, String] {
       override def fold(accumulator: String, value: Int): String = ""
     }
-    val fold = map.fold("", foldFunction)
+    val fold = map.groupBy(x=>x).fold("", foldFunction)
     assert(foldFunction == getFunctionForDataStream(fold))
     assert(
-      getFunctionForDataStream(map
+      getFunctionForDataStream(map.groupBy(x=>x)
         .fold("", (x: String, y: Int) => ""))
         .isInstanceOf[FoldFunction[Int, String]])
 
@@ -413,6 +414,35 @@ class DataStreamTest {
     val globalPartitioner = streamGraph
       .getStreamEdge(global.getId, globalSink.getId).getPartitioner
     assert(globalPartitioner.isInstanceOf[GlobalPartitioner[_]])
+  }
+
+  @Test
+  def testIterations {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val source = env.fromElements(1, 2, 3)
+
+    val iterated = source.iterate((input: ConnectedDataStream[Int, String]) => {
+      val head = input.map(i => (i + 1).toString, s => s)
+      (head.filter(_ == "2"), head.filter(_ != "2"))
+    }, 1000)
+
+    val iterated2 = source.iterate((input: DataStream[Int]) => 
+      (input.map(_ + 1), input.map(_.toString)), 2000)
+
+    try {
+      val invalid = source.iterate((input: ConnectedDataStream[Int, String]) => {
+        val head = input.partitionByHash(1, 1).map(i => (i + 1).toString, s => s)
+        (head.filter(_ == "2"), head.filter(_ != "2"))
+      }, 1000)
+      fail
+    } catch {
+      case uoe: UnsupportedOperationException =>
+      case e: Exception => fail
+    }
+
+    val sg = env.getStreamGraph
+
+    assert(sg.getStreamLoops().size() == 2)
   }
 
   /////////////////////////////////////////////////////////////

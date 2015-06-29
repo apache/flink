@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterFactory;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -51,7 +52,7 @@ public class OutputHandler<OUT> {
 	private ClassLoader cl;
 	private Output<OUT> outerOutput;
 
-	public List<OneInputStreamOperator<?, ?>> chainedOperators;
+	public List<StreamOperator<?>> chainedOperators;
 
 	private Map<StreamEdge, StreamOutput<?>> outputMap;
 
@@ -63,7 +64,7 @@ public class OutputHandler<OUT> {
 		// Initialize some fields
 		this.vertex = vertex;
 		this.configuration = new StreamConfig(vertex.getTaskConfiguration());
-		this.chainedOperators = new ArrayList<OneInputStreamOperator<?, ?>>();
+		this.chainedOperators = new ArrayList<StreamOperator<?>>();
 		this.outputMap = new HashMap<StreamEdge, StreamOutput<?>>();
 		this.cl = vertex.getUserCodeClassLoader();
 
@@ -88,6 +89,9 @@ public class OutputHandler<OUT> {
 		// We create the outer output that will be passed to the first task
 		// in the chain
 		this.outerOutput = createChainedCollector(configuration);
+		
+		// Add the head operator to the end of the list
+		this.chainedOperators.add(vertex.streamOperator);
 	}
 
 	public void broadcastBarrier(long id, long timestamp) throws IOException, InterruptedException {
@@ -101,7 +105,7 @@ public class OutputHandler<OUT> {
 		return outputMap.values();
 	}
 	
-	public List<OneInputStreamOperator<?, ?>> getChainedOperators(){
+	public List<StreamOperator<?>> getChainedOperators(){
 		return chainedOperators;
 	}
 
@@ -226,16 +230,17 @@ public class OutputHandler<OUT> {
 	}
 
 	private static class OperatorCollector<T> implements Output<T> {
-		protected OneInputStreamOperator operator;
 
-		public OperatorCollector(OneInputStreamOperator<?, T> operator) {
+		protected OneInputStreamOperator<Object, T> operator;
+
+		public OperatorCollector(OneInputStreamOperator<Object, T> operator) {
 			this.operator = operator;
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public void collect(T record) {
 			try {
+				operator.getRuntimeContext().setNextInput(record);
 				operator.processElement(record);
 			} catch (Exception e) {
 				if (LOG.isErrorEnabled()) {
@@ -260,13 +265,13 @@ public class OutputHandler<OUT> {
 	private static class CopyingOperatorCollector<T> extends OperatorCollector<T> {
 		private final TypeSerializer<T> serializer;
 
-		public CopyingOperatorCollector(OneInputStreamOperator<?, T> operator, TypeSerializer<T> serializer) {
+		@SuppressWarnings({ "rawtypes", "unchecked" })
+		public CopyingOperatorCollector(OneInputStreamOperator operator, TypeSerializer<T> serializer) {
 			super(operator);
 			this.serializer = serializer;
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public void collect(T record) {
 			try {
 				operator.processElement(serializer.copy(record));

@@ -1025,7 +1025,6 @@ public class Graph<K, VV, EV> {
 	 * @param vertex the vertex to be added
 	 * @return the new graph containing the existing vertices as well as the one just added
 	 */
-	@SuppressWarnings("unchecked")
 	public Graph<K, VV, EV> addVertex(final Vertex<K, VV> vertex) {
 		List<Vertex<K, VV>> newVertex = new ArrayList<Vertex<K, VV>>();
 		newVertex.add(vertex);
@@ -1040,7 +1039,6 @@ public class Graph<K, VV, EV> {
 	 * @param verticesToAdd the list of vertices to add
 	 * @return the new graph containing the existing and newly added vertices
 	 */
-	@SuppressWarnings("unchecked")
 	public Graph<K, VV, EV> addVertices(List<Vertex<K, VV>> verticesToAdd) {
 		// Add the vertices
 		DataSet<Vertex<K, VV>> newVertices = this.vertices.union(this.context.fromCollection(verticesToAdd)).distinct();
@@ -1074,7 +1072,6 @@ public class Graph<K, VV, EV> {
 	 * @param newEdges the data set of edges to be added
 	 * @return a new graph containing the existing edges plus the newly added edges.
 	 */
-	@SuppressWarnings("unchecked")
 	public Graph<K, VV, EV> addEdges(List<Edge<K, EV>> newEdges) {
 
 		DataSet<Edge<K,EV>> newEdgesDataSet = this.context.fromCollection(newEdges);
@@ -1122,7 +1119,6 @@ public class Graph<K, VV, EV> {
 
 		return removeVertices(vertexToBeRemoved);
 	}
-
 	/**
 	 * Removes the given list of vertices and its edges from the graph.
 	 *
@@ -1130,9 +1126,22 @@ public class Graph<K, VV, EV> {
 	 * @return the resulted graph containing the initial vertices and edges minus the vertices
 	 * 		   and edges removed.
 	 */
-	public Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved) {
 
-		DataSet<Vertex<K, VV>> newVertices = getVertices().coGroup(this.context.fromCollection(verticesToBeRemoved)).where(0).equalTo(0)
+	public Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved)
+	{
+		return removeVertices(this.context.fromCollection(verticesToBeRemoved));
+	}
+
+	/**
+	 * Removes the given list of vertices and its edges from the graph.
+	 *
+	 * @param verticesToBeRemoved the DataSet of vertices to be removed
+	 * @return the resulted graph containing the initial vertices and edges minus the vertices
+	 * 		   and edges removed.
+	 */
+	private Graph<K, VV, EV> removeVertices(DataSet<Vertex<K, VV>> verticesToBeRemoved) {
+
+		DataSet<Vertex<K, VV>> newVertices = getVertices().coGroup(verticesToBeRemoved).where(0).equalTo(0)
 				.with(new VerticesRemovalCoGroup<K, VV>());
 
 		DataSet < Edge < K, EV >> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
@@ -1163,6 +1172,8 @@ public class Graph<K, VV, EV> {
 			}
 		}
 	}
+
+
 
 	@ForwardedFieldsSecond("f0; f1; f2")
 	private static final class ProjectEdgeToBeRemoved<K,VV,EV> implements JoinFunction<Vertex<K, VV>, Edge<K, EV>, Edge<K, EV>> {
@@ -1244,6 +1255,17 @@ public class Graph<K, VV, EV> {
 		DataSet<Vertex<K, VV>> unionedVertices = graph.getVertices().union(this.getVertices()).distinct();
 		DataSet<Edge<K, EV>> unionedEdges = graph.getEdges().union(this.getEdges());
 		return new Graph<K, VV, EV>(unionedVertices, unionedEdges, this.context);
+	}
+
+	/**
+	 * Performs Difference on the vertex and edge sets of the input graphs
+	 * removes common vertices and edges. If a source/target vertex is removed, its corresponding edge will also be removed
+	 * @param graph the graph to perform difference with
+	 * @return a new graph where the common vertices and edges have been removed
+	 */
+	public Graph<K,VV,EV> difference(Graph<K,VV,EV> graph) {
+		DataSet<Vertex<K,VV>> removeVerticesData = graph.getVertices();
+		return this.removeVertices(removeVerticesData);
 	}
 
 	/**

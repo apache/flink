@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -43,8 +42,10 @@ import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.MessageAndMetadata;
 import kafka.network.SocketServer;
+import kafka.server.KafkaConfig;
+import kafka.server.KafkaServer;
+
 import org.I0Itec.zkclient.ZkClient;
-import org.apache.commons.collections.map.LinkedMap;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -74,14 +75,11 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import kafka.server.KafkaConfig;
-import kafka.server.KafkaServer;
 import scala.collection.Seq;
 
 /**
@@ -183,62 +181,6 @@ public class KafkaITCase {
 		zkClient.close();
 	}
 
-	// --------------------------  test checkpointing ------------------------
-	@Test
-	public void testCheckpointing() throws Exception {
-		createTestTopic("testCheckpointing", 1, 1);
-
-		Properties props = new Properties();
-		props.setProperty("zookeeper.connect", zookeeperConnectionString);
-		props.setProperty("group.id", "testCheckpointing");
-		props.setProperty("auto.commit.enable", "false");
-		ConsumerConfig cc = new ConsumerConfig(props);
-		PersistentKafkaSource<String> source = new PersistentKafkaSource<String>("testCheckpointing", new FakeDeserializationSchema(), cc);
-
-
-		Field pendingCheckpointsField = PersistentKafkaSource.class.getDeclaredField("pendingCheckpoints");
-		pendingCheckpointsField.setAccessible(true);
-		LinkedMap pendingCheckpoints = (LinkedMap) pendingCheckpointsField.get(source);
-
-
-		Assert.assertEquals(0, pendingCheckpoints.size());
-		// first restore
-		source.restoreState(new long[]{1337});
-		// then open
-		source.open(new Configuration());
-		long[] state1 = source.snapshotState(1, 15);
-		Assert.assertArrayEquals(new long[]{1337}, state1);
-		long[] state2 = source.snapshotState(2, 30);
-		Assert.assertArrayEquals(new long[]{1337}, state2);
-		Assert.assertEquals(2, pendingCheckpoints.size());
-
-		source.commitCheckpoint(1);
-		Assert.assertEquals(1, pendingCheckpoints.size());
-
-		source.commitCheckpoint(2);
-		Assert.assertEquals(0, pendingCheckpoints.size());
-
-		source.commitCheckpoint(666); // invalid checkpoint
-		Assert.assertEquals(0, pendingCheckpoints.size());
-
-		// create 500 snapshots
-		for(int i = 0; i < 500; i++) {
-			source.snapshotState(i, 15 * i);
-		}
-		Assert.assertEquals(500, pendingCheckpoints.size());
-
-		// commit only the second last
-		source.commitCheckpoint(498);
-		Assert.assertEquals(1, pendingCheckpoints.size());
-
-		// access invalid checkpoint
-		source.commitCheckpoint(490);
-
-		// and the last
-		source.commitCheckpoint(499);
-		Assert.assertEquals(0, pendingCheckpoints.size());
-	}
-
 	private static class FakeDeserializationSchema implements DeserializationSchema<String> {
 
 		@Override
@@ -282,7 +224,6 @@ public class KafkaITCase {
 	 *
 	 */
 	@Test
-	@Ignore
 	public void testPersistentSourceWithOffsetUpdates() throws Exception {
 		LOG.info("Starting testPersistentSourceWithOffsetUpdates()");
 
@@ -369,7 +310,7 @@ public class KafkaITCase {
 
 				LOG.info("Reader " + getRuntimeContext().getIndexOfThisSubtask() + " got " + value + " count=" + count + "/" + finalCount);
 				// verify if we've seen everything
-
+				
 				if (count == finalCount) {
 					LOG.info("Received all values");
 					for (int i = 0; i < values.length; i++) {

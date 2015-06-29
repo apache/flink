@@ -30,7 +30,7 @@ import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, F
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, GroupedDataStream, SingleOutputStreamOperator}
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, SingleOutputStreamOperator}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.sink.{FileSinkFunctionByMillis, SinkFunction}
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
@@ -209,24 +209,51 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def connect[T2](dataStream: DataStream[T2]): ConnectedDataStream[T, T2] = 
     javaStream.connect(dataStream.getJavaStream)
 
+
+
+  /**
+   * Partitions the operator states of the DataStream by the given key positions 
+   * (for tuple/array types).
+   */
+  def keyBy(fields: Int*): DataStream[T] = javaStream.keyBy(fields: _*)
+
+  /**
+   *
+   * Partitions the operator states of the DataStream by the given field expressions.
+   */
+  def keyBy(firstField: String, otherFields: String*): DataStream[T] =
+    javaStream.keyBy(firstField +: otherFields.toArray: _*)
+
+
+  /**
+   * Partitions the operator states of the DataStream by the given K key. 
+   */
+  def keyBy[K: TypeInformation](fun: T => K): DataStream[T] = {
+    val cleanFun = clean(fun)
+    val keyExtractor = new KeySelector[T, K] {
+      def getKey(in: T) = cleanFun(in)
+    }
+    javaStream.keyBy(keyExtractor)
+  }
+  
   /**
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def groupBy(fields: Int*): DataStream[T] = javaStream.groupBy(fields: _*)
+  def groupBy(fields: Int*): GroupedDataStream[T] = javaStream.groupBy(fields: _*)
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def groupBy(firstField: String, otherFields: String*): DataStream[T] = 
+  def groupBy(firstField: String, otherFields: String*): GroupedDataStream[T] = 
    javaStream.groupBy(firstField +: otherFields.toArray: _*)   
   
   /**
    * Groups the elements of a DataStream by the given K key to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def groupBy[K: TypeInformation](fun: T => K): DataStream[T] = {
+  def groupBy[K: TypeInformation](fun: T => K): GroupedDataStream[T] = {
 
     val cleanFun = clean(fun)
     val keyExtractor = new KeySelector[T, K] {
@@ -325,32 +352,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * the keepPartitioning flag to true
    *
    */
-  def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R])): DataStream[R] =
-    iterate(0)(stepFunction)
-  
-
-  /**
-   * Initiates an iterative part of the program that creates a loop by feeding
-   * back data streams. To create a streaming iteration the user needs to define
-   * a transformation that creates two DataStreams. The first one is the output
-   * that will be fed back to the start of the iteration and the second is the output
-   * stream of the iterative part.
-   * <p>
-   * stepfunction: initialStream => (feedback, output)
-   * <p>
-   * A common pattern is to use output splitting to create feedback and output DataStream.
-   * Please refer to the .split(...) method of the DataStream
-   * <p>
-   * By default a DataStream with iteration will never terminate, but the user
-   * can use the maxWaitTime parameter to set a max waiting time for the iteration head.
-   * If no data received in the set time the stream terminates.
-   * <p>
-   * By default the feedback partitioning is set to match the input, to override this set 
-   * the keepPartitioning flag to true
-   *
-   */
-  def iterate[R](maxWaitTimeMillis:Long = 0)
-                (stepFunction: DataStream[T] => (DataStream[T], DataStream[R]), 
+  def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R]),
+                    maxWaitTimeMillis:Long = 0,
                     keepPartitioning: Boolean = false) : DataStream[R] = {
     val iterativeStream = javaStream.iterate(maxWaitTimeMillis)
 
@@ -358,112 +361,37 @@ class DataStream[T](javaStream: JavaStream[T]) {
     iterativeStream.closeWith(feedback.getJavaStream, keepPartitioning)
     output
   }
-
-  /**
-   * Applies an aggregation that that gives the current maximum of the data stream at
-   * the given position.
-   *
-   */
-  def max(position: Int): DataStream[T] = aggregate(AggregationType.MAX, position)
   
   /**
-   * Applies an aggregation that that gives the current maximum of the data stream at
-   * the given field.
+   * Initiates an iterative part of the program that creates a loop by feeding
+   * back data streams. To create a streaming iteration the user needs to define
+   * a transformation that creates two DataStreams. The first one is the output
+   * that will be fed back to the start of the iteration and the second is the output
+   * stream of the iterative part.
+   * 
+   * The input stream of the iterate operator and the feedback stream will be treated
+   * as a ConnectedDataStream where the the input is connected with the feedback stream.
+   * 
+   * This allows the user to distinguish standard input from feedback inputs.
+   * 
+   * <p>
+   * stepfunction: initialStream => (feedback, output)
+   * <p>
+   * The user must set the max waiting time for the iteration head.
+   * If no data received in the set time the stream terminates. If this parameter is set
+   * to 0 then the iteration sources will indefinitely, so the job must be killed to stop.
    *
    */
-  def max(field: String): DataStream[T] = aggregate(AggregationType.MAX, field)
-  
-  /**
-   * Applies an aggregation that that gives the current minimum of the data stream at
-   * the given position.
-   *
-   */
-  def min(position: Int): DataStream[T] = aggregate(AggregationType.MIN, position)
-  
-  /**
-   * Applies an aggregation that that gives the current minimum of the data stream at
-   * the given field.
-   *
-   */
-  def min(field: String): DataStream[T] = aggregate(AggregationType.MIN, field)
+  def iterate[R, F: TypeInformation: ClassTag](stepFunction: ConnectedDataStream[T, F] => 
+    (DataStream[F], DataStream[R]), maxWaitTimeMillis:Long): DataStream[R] = {
+    val feedbackType: TypeInformation[F] = implicitly[TypeInformation[F]]
+    val connectedIterativeStream = javaStream.iterate(maxWaitTimeMillis).
+                                   withFeedbackType(feedbackType)
 
-  /**
-   * Applies an aggregation that sums the data stream at the given position.
-   *
-   */
-  def sum(position: Int): DataStream[T] = aggregate(AggregationType.SUM, position)
-  
-  /**
-   * Applies an aggregation that sums the data stream at the given field.
-   *
-   */
-  def sum(field: String): DataStream[T] =  aggregate(AggregationType.SUM, field)
-
-  /**
-   * Applies an aggregation that that gives the current minimum element of the data stream by
-   * the given position. When equality, the first element is returned with the minimal value.
-   *
-   */
-  def minBy(position: Int): DataStream[T] = aggregate(AggregationType
-    .MINBY, position)
-    
-   /**
-   * Applies an aggregation that that gives the current minimum element of the data stream by
-   * the given field. When equality, the first element is returned with the minimal value.
-   *
-   */
-  def minBy(field: String): DataStream[T] = aggregate(AggregationType
-    .MINBY, field )
-
-   /**
-   * Applies an aggregation that that gives the current maximum element of the data stream by
-   * the given position. When equality, the first element is returned with the maximal value.
-   *
-   */
-  def maxBy(position: Int): DataStream[T] =
-    aggregate(AggregationType.MAXBY, position)
-    
-   /**
-   * Applies an aggregation that that gives the current maximum element of the data stream by
-   * the given field. When equality, the first element is returned with the maximal value.
-   *
-   */
-  def maxBy(field: String): DataStream[T] =
-    aggregate(AggregationType.MAXBY, field)
-    
-  private def aggregate(aggregationType: AggregationType, field: String): DataStream[T] = {
-    val position = fieldNames2Indices(javaStream.getType(), Array(field))(0)
-    aggregate(aggregationType, position)
-  }
-
-  private def aggregate(aggregationType: AggregationType, position: Int): DataStream[T] = {
-
-    val jStream = javaStream.asInstanceOf[JavaStream[Product]]
-
-    val reducer = aggregationType match {
-      case AggregationType.SUM =>
-        new SumAggregator(position, jStream.getType, jStream.getExecutionConfig)
-      case _ =>
-        new ComparableAggregator(position, jStream.getType, aggregationType, true,
-          jStream.getExecutionConfig)
-    }
-
-    val invokable = jStream match {
-      case groupedStream: GroupedDataStream[Product] => new StreamGroupedReduce[Product](reducer,
-        groupedStream.getKeySelector())
-      case _ => new StreamReduce(reducer)
-    }
-    new DataStream[Product](jStream.transform("aggregation", jStream.getType(),invokable))
-      .asInstanceOf[DataStream[T]]
-  }
-
-  /**
-   * Creates a new DataStream containing the current number (count) of
-   * received records.
-   *
-   */
-  def count: DataStream[Long] = new DataStream[java.lang.Long](
-    javaStream.count()).asInstanceOf[DataStream[Long]]
+    val (feedback, output) = stepFunction(connectedIterativeStream)
+    connectedIterativeStream.closeWith(feedback.getJavaStream)
+    output
+  }  
 
   /**
    * Creates a new DataStream by applying the given function to every element of this DataStream.
@@ -535,63 +463,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
     flatMap(flatMapper)
   }
 
-  /**
-   * Creates a new [[DataStream]] by reducing the elements of this DataStream
-   * using an associative reduce function.
-   */
-  def reduce(reducer: ReduceFunction[T]): DataStream[T] = {
-    if (reducer == null) {
-      throw new NullPointerException("Reduce function must not be null.")
-    }
  
-    javaStream.reduce(reducer)
-  }
-
-  /**
-  * Creates a new [[DataStream]] by reducing the elements of this DataStream
-   * using an associative reduce function.
-   */
-  def reduce(fun: (T, T) => T): DataStream[T] = {
-    if (fun == null) {
-      throw new NullPointerException("Reduce function must not be null.")
-    }
-    val cleanFun = clean(fun)
-    val reducer = new ReduceFunction[T] {
-      def reduce(v1: T, v2: T) = { cleanFun(v1, v2) }
-    }
-    reduce(reducer)
-  }
-
-  /**
-   * Creates a new [[DataStream]] by folding the elements of this DataStream
-   * using an associative fold function and an initial value.
-   */
-  def fold[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[T,R]): 
-  DataStream[R] = {
-    if (folder == null) {
-      throw new NullPointerException("Fold function must not be null.")
-    }
-    
-    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    javaStream.fold(initialValue, folder).returns(outType).asInstanceOf[JavaStream[R]]
-  }
-
-  /**
-   * Creates a new [[DataStream]] by folding the elements of this DataStream
-   * using an associative fold function and an initial value.
-   */
-  def fold[R: TypeInformation: ClassTag](initialValue: R, fun: (R,T) => R): DataStream[R] = {
-    if (fun == null) {
-      throw new NullPointerException("Fold function must not be null.")
-    }
-    val cleanFun = clean(fun)
-    val folder = new FoldFunction[T,R] {
-      def fold(acc: R, v: T) = {
-        cleanFun(acc, v)
-      }
-    }
-    fold(initialValue, folder)
-  }
 
   /**
    * Creates a new DataStream that contains only the elements satisfying the given filter predicate.

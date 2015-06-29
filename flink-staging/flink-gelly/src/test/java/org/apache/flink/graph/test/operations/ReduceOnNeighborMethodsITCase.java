@@ -19,6 +19,7 @@
 package org.apache.flink.graph.test.operations;
 
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -34,11 +35,7 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -49,21 +46,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-    private String resultPath;
     private String expectedResult;
-
-    @Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
 
 	@Test
 	public void testSumOfOutNeighbors() throws Exception {
@@ -77,14 +60,15 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
 				graph.groupReduceOnNeighbors(new SumOutNeighbors(), EdgeDirection.OUT);
-
-		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
+		
 		expectedResult = "1,5\n" +
 				"2,3\n" + 
 				"3,9\n" +
 				"4,5\n" + 
 				"5,1\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -99,14 +83,17 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSum = 
 				graph.groupReduceOnNeighbors(new SumInNeighbors(), EdgeDirection.IN);
-
-		verticesWithSum.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSum.collect();
+		
 		expectedResult = "1,255\n" +
 				"2,12\n" + 
 				"3,59\n" +
 				"4,102\n" + 
 				"5,285\n";
+		
+		compareResultAsTuples(result, expectedResult);
+		
+		
 	}
 
 	@Test
@@ -122,15 +109,15 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
 				graph.groupReduceOnNeighbors(new SumAllNeighbors(), EdgeDirection.ALL);
-
-		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
 
 		expectedResult = "1,11\n" +
 				"2,6\n" + 
 				"3,15\n" +
 				"4,12\n" + 
 				"5,13\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -145,11 +132,12 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 				graph.groupReduceOnNeighbors(new SumOutNeighborsIdGreaterThanThree(), EdgeDirection.OUT);
-
-		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
+		
 		expectedResult = "4,5\n" +
 				"5,1\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -164,11 +152,12 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSum =
 				graph.groupReduceOnNeighbors(new SumInNeighborsIdGreaterThanThree(), EdgeDirection.IN);
-
-		verticesWithSum.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSum.collect();
+		
 		expectedResult = "4,102\n" +
 				"5,285\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -184,12 +173,12 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 				graph.groupReduceOnNeighbors(new SumAllNeighborsIdGreaterThanThree(), EdgeDirection.ALL);
-
-		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
 
 		expectedResult = "4,12\n" +
 				"5,13\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -204,15 +193,15 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
 				graph.reduceOnNeighbors(new SumNeighbors(), EdgeDirection.OUT);
-
-		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
 
 		expectedResult = "1,5\n" +
 				"2,3\n" + 
 				"3,9\n" +
 				"4,5\n" + 
 				"5,1\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -227,14 +216,15 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSum = 
 				graph.groupReduceOnNeighbors(new SumInNeighborsNoValue(), EdgeDirection.IN);
-		verticesWithSum.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSum.collect();
 	
 		expectedResult = "1,255\n" +
 				"2,12\n" +
 				"3,59\n" +
 				"4,102\n" +
 				"5,285\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -249,15 +239,15 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfAllNeighborValues =
 				graph.reduceOnNeighbors(new SumNeighbors(), EdgeDirection.ALL);
-
-		verticesWithSumOfAllNeighborValues.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSumOfAllNeighborValues.collect();
 	
 		expectedResult = "1,10\n" +
 				"2,4\n" + 
 				"3,12\n" +
 				"4,8\n" + 
 				"5,8\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -272,9 +262,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 				graph.groupReduceOnNeighbors(new SumOutNeighborsNoValueMultipliedByTwoIdGreaterThanTwo(), EdgeDirection.OUT);
-
-		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
 
 		expectedResult = "3,9\n" +
 				"3,18\n" +
@@ -282,6 +270,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"4,10\n" +
 				"5,1\n" +
 				"5,2";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -296,8 +286,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 				graph.groupReduceOnNeighbors(new SumInNeighborsNoValueMultipliedByTwoIdGreaterThanTwo(), EdgeDirection.IN);
-		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
 
 		expectedResult = "3,59\n" +
 				"3,118\n" +
@@ -305,6 +294,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"4,102\n" +
 				"5,570\n" +
 				"5,285";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -319,9 +310,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfAllNeighborValues =
 				graph.groupReduceOnNeighbors(new SumAllNeighborsNoValueMultipliedByTwoIdGreaterThanTwo(), EdgeDirection.ALL);
-
-		verticesWithSumOfAllNeighborValues.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSumOfAllNeighborValues.collect();
 
 		expectedResult = "3,12\n" +
 				"3,24\n" +
@@ -329,6 +318,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"4,16\n" +
 				"5,8\n" +
 				"5,16";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -343,9 +334,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 				graph.groupReduceOnNeighbors(new SumOutNeighborsMultipliedByTwo(), EdgeDirection.OUT);
-
-		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
+		
 		expectedResult = "1,5\n" +
 				"1,10\n" +
 				"2,3\n" +
@@ -356,6 +346,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"4,10\n" +
 				"5,1\n" +
 				"5,2";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -370,9 +362,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSum =
 				graph.groupReduceOnNeighbors(new SumInNeighborsSubtractOne(), EdgeDirection.IN);
-
-		verticesWithSum.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSum.collect();
+		
 		expectedResult = "1,255\n" +
 				"1,254\n" +
 				"2,12\n" +
@@ -383,6 +374,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"4,101\n" +
 				"5,285\n" +
 				"5,284";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -398,9 +391,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 				graph.groupReduceOnNeighbors(new SumAllNeighborsAddFive(), EdgeDirection.ALL);
-
-		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
 
 		expectedResult = "1,11\n" +
 				"1,16\n" +
@@ -412,6 +403,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				"4,17\n" +
 				"5,13\n" +
 				"5,18";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")
@@ -673,4 +666,3 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 		}
 	}
 }
-

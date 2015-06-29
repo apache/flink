@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.jobgraph.tasks;
 
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.SerializedValue;
+
 public interface CheckpointCommittingOperator {
 	
-	void confirmCheckpoint(long checkpointId, long timestamp) throws Exception;
+	void confirmCheckpoint(long checkpointId, SerializedValue<StateHandle<?>> state) throws Exception;
 }
