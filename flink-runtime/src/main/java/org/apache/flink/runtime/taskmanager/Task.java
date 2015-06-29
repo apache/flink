@@ -46,7 +46,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointCommittingOperator;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointNotificationOperator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
@@ -883,11 +883,11 @@ public class Task implements Runnable {
 							checkpointer.triggerCheckpoint(checkpointID, checkpointTimestamp);
 						}
 						catch (Throwable t) {
-							logger.error("Error while triggering checkpoint for " + taskName, t);
+							failExternally(new RuntimeException("Error while triggering checkpoint for " + taskName, t));
 						}
 					}
 				};
-				executeAsyncCallRunnable(runnable, "Checkpoint Trigger");
+				executeAsyncCallRunnable(runnable, "Checkpoint Trigger for " + taskName);
 			}
 			else {
 				LOG.error("Task received a checkpoint request, but is not a checkpointing task - "
@@ -899,15 +899,14 @@ public class Task implements Runnable {
 		}
 	}
 	
-	public void confirmCheckpoint(final long checkpointID, 
-		final SerializedValue<StateHandle<?>> state) {
+	public void notifyCheckpointComplete(final long checkpointID) {
 		AbstractInvokable invokable = this.invokable;
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
-			if (invokable instanceof CheckpointCommittingOperator) {
+			if (invokable instanceof CheckpointNotificationOperator) {
 
 				// build a local closure 
-				final CheckpointCommittingOperator checkpointer = (CheckpointCommittingOperator) invokable;
+				final CheckpointNotificationOperator checkpointer = (CheckpointNotificationOperator) invokable;
 				final Logger logger = LOG;
 				final String taskName = taskNameWithSubtask;
 
@@ -915,14 +914,15 @@ public class Task implements Runnable {
 					@Override
 					public void run() {
 						try {
-							checkpointer.confirmCheckpoint(checkpointID, state);
+							checkpointer.notifyCheckpointComplete(checkpointID);
 						}
 						catch (Throwable t) {
-							logger.error("Error while confirming checkpoint for " + taskName, t);
+							// fail task if checkpoint confirmation failed.
+							failExternally(new RuntimeException("Error while confirming checkpoint", t));
 						}
 					}
 				};
-				executeAsyncCallRunnable(runnable, "Checkpoint Confirmation");
+				executeAsyncCallRunnable(runnable, "Checkpoint Confirmation for " + taskName);
 			}
 			else {
 				LOG.error("Task received a checkpoint commit notification, but is not a checkpoint committing task - "

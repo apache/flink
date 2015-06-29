@@ -467,7 +467,11 @@ public abstract class YarnTestBase {
 			// check if thread died
 			if(!runner.isAlive()) {
 				sendOutput();
-				Assert.fail("Runner thread died before the test was finished. Return value = " +runner.getReturnValue());
+				if(runner.getReturnValue() != 0) {
+					Assert.fail("Runner thread died before the test was finished. Return value = " + runner.getReturnValue());
+				} else {
+					LOG.info("Runner stopped earlier than expected with return value = 0");
+				}
 			}
 		}
 		sendOutput();

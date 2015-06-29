@@ -30,7 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.PartitionedStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
-import org.apache.flink.streaming.api.checkpoint.CheckpointCommitter;
+import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.state.StreamOperatorState;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
@@ -134,11 +134,10 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 
 	}
 
-	public void confirmCheckpointCompleted(long checkpointId, String stateName,
-			StateHandle<Serializable> checkpointedState) throws Exception {
-		if (userFunction instanceof CheckpointCommitter) {
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		if (userFunction instanceof CheckpointNotifier) {
 			try {
-				((CheckpointCommitter) userFunction).commitCheckpoint(checkpointId, stateName, checkpointedState);
+				((CheckpointNotifier) userFunction).notifyCheckpointComplete(checkpointId);
 			} catch (Exception e) {
 				throw new Exception("Error while confirming checkpoint " + checkpointId + " to the stream function", e);
 			}

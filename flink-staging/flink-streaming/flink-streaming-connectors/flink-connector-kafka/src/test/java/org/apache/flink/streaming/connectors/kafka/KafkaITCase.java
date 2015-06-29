@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -46,6 +47,7 @@ import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 
 import org.I0Itec.zkclient.ZkClient;
+import org.apache.commons.collections.map.LinkedMap;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -182,6 +184,63 @@ public class KafkaITCase {
 		zkClient.close();
 	}
 
+	// --------------------------  test checkpointing ------------------------
+	@Test
+	public void testCheckpointing() throws Exception {
+		createTestTopic("testCheckpointing", 1, 1);
+
+		Properties props = new Properties();
+		props.setProperty("zookeeper.connect", zookeeperConnectionString);
+		props.setProperty("group.id", "testCheckpointing");
+		props.setProperty("auto.commit.enable", "false");
+		ConsumerConfig cc = new ConsumerConfig(props);
+		PersistentKafkaSource<String> source = new PersistentKafkaSource<String>("testCheckpointing", new FakeDeserializationSchema(), cc);
+
+
+		Field pendingCheckpointsField = PersistentKafkaSource.class.getDeclaredField("pendingCheckpoints");
+		pendingCheckpointsField.setAccessible(true);
+		LinkedMap pendingCheckpoints = (LinkedMap) pendingCheckpointsField.get(source);
+
+
+		Assert.assertEquals(0, pendingCheckpoints.size());
+		// first restore
+		source.restoreState(new long[]{1337});
+		// then open
+		source.open(new Configuration());
+		long[] state1 = source.snapshotState(1, 15);
+		Assert.assertArrayEquals(new long[]{1337}, state1);
+		long[] state2 = source.snapshotState(2, 30);
+		Assert.assertArrayEquals(new long[]{1337}, state2);
+		Assert.assertEquals(2, pendingCheckpoints.size());
+
+		source.notifyCheckpointComplete(1);
+		Assert.assertEquals(1, pendingCheckpoints.size());
+
+		source.notifyCheckpointComplete(2);
+		Assert.assertEquals(0, pendingCheckpoints.size());
+
+		source.notifyCheckpointComplete(666); // invalid checkpoint
+		Assert.assertEquals(0, pendingCheckpoints.size());
+
+		// create 500 snapshots
+		for(int i = 0; i < 500; i++) {
+			source.snapshotState(i, 15 * i);
+		}
+		Assert.assertEquals(500, pendingCheckpoints.size());
+
+		// commit only the second last
+		source.notifyCheckpointComplete(498);
+		Assert.assertEquals(1, pendingCheckpoints.size());
+
+		// access invalid checkpoint
+		source.notifyCheckpointComplete(490);
+
+		// and the last
+		source.notifyCheckpointComplete(499);
+		Assert.assertEquals(0, pendingCheckpoints.size());
+	}
+
+
 	private static class FakeDeserializationSchema implements DeserializationSchema<String> {
 
 		@Override
@@ -220,6 +279,34 @@ public class KafkaITCase {
 
 		zk.close();
 	}
+
+	public static class TestPersistentKafkaSource<OUT> extends PersistentKafkaSource<OUT> {
+		private static Object sync = new Object();
+		public static long[] finalOffset;
+		public TestPersistentKafkaSource(String topicName, DeserializationSchema<OUT> deserializationSchema, ConsumerConfig consumerConfig) {
+			super(topicName, deserializationSchema, consumerConfig);
+		}
+
+		@Override
+		public void close() {
+			super.close();
+			LOG.info("Starting close " +Arrays.toString(commitedOffsets));
+			synchronized (sync) {
+				if (finalOffset == null) {
+					finalOffset = new long[commitedOffsets.length];
+				}
+				for(int i = 0; i < commitedOffsets.length; i++) {
+					if(commitedOffsets[i] > 0) {
+						if(finalOffset[i] > 0) {
+							throw new RuntimeException("This is unexpected on i = "+i);
+						}
+						finalOffset[i] = commitedOffsets[i];
+					}
+				}
+			}
+			LOG.info("Finished closing. Final "+Arrays.toString(finalOffset));
+		}
+	}
 	/**
 	 * We want to use the High level java consumer API but manage the offset in Zookeeper manually.
 	 *
@@ -246,27 +333,35 @@ public class KafkaITCase {
 		// write a sequence from 0 to 99 to each of the three partitions.
 		writeSequence(env, topicName, 0, 99);
 
-
 		readSequence(env, standardCC, topicName, 0, 100, 300);
+
+		LOG.info("State in persistent kafka sources {}", TestPersistentKafkaSource.finalOffset);
 
 		// check offsets to be set at least higher than 50.
 		// correctly, we would expect them to be set to 99, but right now there is no way of stopping a topology once all pending
 		// checkpoints have been committed.
 		// To work around that limitation, the persistent kafka consumer is throtteled with a thread.sleep().
-		long o1 = PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 0);
-		long o2 = PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 1);
-		long o3 = PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 2);
-		Assert.assertTrue("The offset seems incorrect, got " + o1, o1 > 50L);
-		Assert.assertTrue("The offset seems incorrect, got " + o2, o2 > 50L);
-		Assert.assertTrue("The offset seems incorrect, got " + o3, o3 > 50L);
-		/** Once we have proper shutdown of streaming jobs, enable these tests
-		 Assert.assertEquals("The offset seems incorrect", 99L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 0));
-		 Assert.assertEquals("The offset seems incorrect", 99L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 1));
-		 Assert.assertEquals("The offset seems incorrect", 99L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 2));*/
 
+		long o1 = -1, o2 = -1, o3 = -1;
+		if(TestPersistentKafkaSource.finalOffset[0] > 0) {
+			o1 = PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 0);
+			Assert.assertTrue("The offset seems incorrect, got " + o1, o1 == TestPersistentKafkaSource.finalOffset[0]);
+		}
+		if(TestPersistentKafkaSource.finalOffset[1] > 0) {
+			o2 = PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 1);
+			Assert.assertTrue("The offset seems incorrect, got " + o2, o2 == TestPersistentKafkaSource.finalOffset[1]);
+		}
+		if(TestPersistentKafkaSource.finalOffset[2] > 0) {
+			o3 = PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 2);
+			Assert.assertTrue("The offset seems incorrect, got " + o3, o3 == TestPersistentKafkaSource.finalOffset[2]);
+		}
+		Assert.assertFalse("no offset has been set", TestPersistentKafkaSource.finalOffset[0] == 0 &&
+													TestPersistentKafkaSource.finalOffset[1] == 0 &&
+													TestPersistentKafkaSource.finalOffset[2] == 0);
+		LOG.info("Got final offsets from zookeeper o1={}, o2={}, o3={}", o1, o2, o3);
 
 		LOG.info("Manipulating offsets");
-		// set the offset to 25, 50, and 75 for the three partitions
+		// set the offset to 50 for the three partitions
 		PersistentKafkaSource.setOffset(zk, standardCC.groupId(), topicName, 0, 50);
 		PersistentKafkaSource.setOffset(zk, standardCC.groupId(), topicName, 1, 50);
 		PersistentKafkaSource.setOffset(zk, standardCC.groupId(), topicName, 2, 50);
@@ -283,20 +378,16 @@ public class KafkaITCase {
 
 	private void readSequence(StreamExecutionEnvironment env, ConsumerConfig cc, final String topicName, final int valuesStartFrom, final int valuesCount, final int finalCount) throws Exception {
 		LOG.info("Reading sequence for verification until final count {}", finalCount);
-		DataStream<Tuple2<Integer, Integer>> source = env.addSource(
-				new PersistentKafkaSource<Tuple2<Integer, Integer>>(topicName, new Utils.TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1,1), env.getConfig()), cc)
-		)
-				//add a sleeper mapper. Since there is no good way of "shutting down" a running topology, we have
-				// to play this trick. The problem is that we have to wait until all checkpoints are confirmed
-				.map(new MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
-						Thread.sleep(150);
-						return value;
-					}
-				}).setParallelism(3);
+		TestPersistentKafkaSource<Tuple2<Integer, Integer>> pks = new TestPersistentKafkaSource<Tuple2<Integer, Integer>>(topicName, new Utils.TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1, 1), env.getConfig()), cc);
+		DataStream<Tuple2<Integer, Integer>> source = env.addSource(pks).map(new MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
+			// we need to slow down the source so that it can participate in a few checkpoints.
+			// Otherwise it would write its data into buffers and shut down.
+			@Override
+			public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
+				Thread.sleep(50);
+				return value;
+			}
+		});
 
 		// verify data
 		DataStream<Integer> validIndexes = source.flatMap(new RichFlatMapFunction<Tuple2<Integer, Integer>, Integer>() {
@@ -312,7 +403,6 @@ public class KafkaITCase {
 
 				LOG.info("Reader " + getRuntimeContext().getIndexOfThisSubtask() + " got " + value + " count=" + count + "/" + finalCount);
 				// verify if we've seen everything
-				
 				if (count == finalCount) {
 					LOG.info("Received all values");
 					for (int i = 0; i < values.length; i++) {

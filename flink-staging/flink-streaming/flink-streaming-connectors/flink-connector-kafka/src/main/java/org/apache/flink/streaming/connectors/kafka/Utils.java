@@ -27,16 +27,25 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
 import java.io.IOException;
 
+/**
+ * Utilities for the Kafka connector
+ */
 public class Utils {
-	public static class TypeInformationSerializationSchema<T>
-			implements DeserializationSchema<T>, SerializationSchema<T, byte[]> {
+
+	/**
+	 * Utility serialization schema, created from Flink's TypeInformation system.
+	 * @param <T>
+	 */
+	public static class TypeInformationSerializationSchema<T> implements DeserializationSchema<T>, SerializationSchema<T, byte[]> {
 		private final TypeSerializer<T> serializer;
 		private final TypeInformation<T> ti;
+		private transient DataOutputSerializer dos;
 
-		public TypeInformationSerializationSchema(Object type, ExecutionConfig ec) {
-			this.ti = (TypeInformation<T>) TypeExtractor.getForObject(type);
+		public TypeInformationSerializationSchema(T type, ExecutionConfig ec) {
+			this.ti = TypeExtractor.getForObject(type);
 			this.serializer = ti.createSerializer(ec);
 		}
+
 		@Override
 		public T deserialize(byte[] message) {
 			try {
@@ -53,13 +62,22 @@ public class Utils {
 
 		@Override
 		public byte[] serialize(T element) {
-			DataOutputSerializer dos = new DataOutputSerializer(16);
+			if(dos == null) {
+				dos = new DataOutputSerializer(16);
+			}
 			try {
 				serializer.serialize(element, dos);
 			} catch (IOException e) {
 				throw new RuntimeException("Unable to serialize record", e);
 			}
-			return dos.getByteArray();
+			byte[] ret = dos.getByteArray();
+			if(ret.length != dos.length()) {
+				byte[] n = new byte[dos.length()];
+				System.arraycopy(ret, 0, n, 0, dos.length());
+				ret = n;
+			}
+			dos.clear();
+			return ret;
 		}
 
 		@Override
