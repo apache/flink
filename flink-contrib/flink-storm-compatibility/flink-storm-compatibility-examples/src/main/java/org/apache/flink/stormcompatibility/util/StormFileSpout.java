@@ -30,7 +30,7 @@ import java.util.Map;
 /**
  * Implements a Storm Spout that reads data from a given local file.
  */
-public final class StormFileSpout extends AbstractStormSpout {
+public class StormFileSpout extends AbstractStormSpout {
 	private static final long serialVersionUID = -6996907090003590436L;
 
 	private final String path;

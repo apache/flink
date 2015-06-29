@@ -68,7 +68,7 @@ abstract class AbstractStormCollector<OUT> {
 			}
 		} else {
 			throw new UnsupportedOperationException(
-					"SimpleStormBoltWrapper can handle not more then 25 attributes, but "
+					"Flink cannot handle more then 25 attributes, but "
 					+ this.numberOfAttributes + " are declared by the given bolt");
 		}
 	}

@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.stormcompatibility.wrappers;
 
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
+import backtype.storm.tuple.Fields;
 
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 
 
@@ -53,6 +52,8 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 	private final IRichBolt bolt;
 	/** Number of attributes of the bolt's output tuples */
 	private final int numberOfAttributes;
+	/** The schema (ie, ordered field names) of the input stream. */
+	private final Fields inputSchema;
 
 	/**
 	 *  We have to use this because Operators must output
@@ -61,9 +62,10 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 	private TimestampedCollector<OUT> flinkCollector;
 
 	/**
-	 * Instantiates a new {@link StormBoltWrapper} that wraps the given Storm {@link IRichBolt bolt}
-	 * such that it can be used within a Flink streaming program. The output type will be one of
-	 * {@link Tuple1} to {@link Tuple25} depending on the bolt's declared number of attributes.
+	 * Instantiates a new {@link StormBoltWrapper} that wraps the given Storm {@link IRichBolt bolt} such that it can be
+	 * used within a Flink streaming program. As no input schema is defined, attribute-by-name access in only possible
+	 * for POJO input types. The output type will be one of {@link Tuple1} to {@link Tuple25} depending on the bolt's
+	 * declared number of attributes.
 	 * 
 	 * @param bolt
 	 * 		The Storm {@link IRichBolt bolt} to be used.
@@ -71,15 +73,33 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 	 * 		If the number of declared output attributes is not with range [1;25].
 	 */
 	public StormBoltWrapper(final IRichBolt bolt) throws IllegalArgumentException {
-		this(bolt, false);
+		this(bolt, null, false);
 	}
 
 	/**
-	 * Instantiates a new {@link StormBoltWrapper} that wraps the given Storm {@link IRichBolt bolt}
-	 * such that it can be used within a Flink streaming program. The output type can be any type if
-	 * parameter {@code rawOutput} is {@code true} and the bolt's number of declared output tuples
-	 * is 1. If {@code rawOutput} is {@code false} the output type will be one of {@link Tuple1} to
-	 * {@link Tuple25} depending on the bolt's declared number of attributes.
+	 * Instantiates a new {@link StormBoltWrapper} that wraps the given Storm {@link IRichBolt bolt} such that it can be
+	 * used within a Flink streaming program. The given input schema enable attribute-by-name access for input types
+	 * {@link Tuple1} to {@link Tuple25}. The output type will be one of {@link Tuple1} to {@link Tuple25} depending on
+	 * the bolt's declared number of attributes.
+	 * 
+	 * @param bolt
+	 * 		The Storm {@link IRichBolt bolt} to be used.
+	 * @param inputSchema
+	 * 		The schema (ie, ordered field names) of the input stream.
+	 * @throws IllegalArgumentException
+	 * 		If the number of declared output attributes is not with range [1;25].
+	 */
+	public StormBoltWrapper(final IRichBolt bolt, final Fields inputSchema)
+			throws IllegalArgumentException {
+		this(bolt, inputSchema, false);
+	}
+
+	/**
+	 * Instantiates a new {@link StormBoltWrapper} that wraps the given Storm {@link IRichBolt bolt} such that it can be
+	 * used within a Flink streaming program. As no input schema is defined, attribute-by-name access in only possible
+	 * for POJO input types. The output type can be any type if parameter {@code rawOutput} is {@code true} and the
+	 * bolt's number of declared output tuples is 1. If {@code rawOutput} is {@code false} the output type will be one
+	 * of {@link Tuple1} to {@link Tuple25} depending on the bolt's declared number of attributes.
 	 * 
 	 * @param bolt
 	 * 		The Storm {@link IRichBolt bolt} to be used.
@@ -91,8 +111,34 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 	 * 		not 1 or if {@code rawOuput} is {@code false} and the number of declared output
 	 * 		attributes is not with range [1;25].
 	 */
-	public StormBoltWrapper(final IRichBolt bolt, final boolean rawOutput) throws IllegalArgumentException {
+	public StormBoltWrapper(final IRichBolt bolt, final boolean rawOutput)
+			throws IllegalArgumentException {
+		this(bolt, null, rawOutput);
+	}
+
+	/**
+	 * Instantiates a new {@link StormBoltWrapper} that wraps the given Storm {@link IRichBolt bolt} such that it can be
+	 * used within a Flink streaming program. The given input schema enable attribute-by-name access for input types
+	 * {@link Tuple1} to {@link Tuple25}. The output type can be any type if parameter {@code rawOutput} is {@code true}
+	 * and the bolt's number of declared output tuples is 1. If {@code rawOutput} is {@code false} the output type will
+	 * be one of {@link Tuple1} to {@link Tuple25} depending on the bolt's declared number of attributes.
+	 * 
+	 * @param bolt
+	 * 		The Storm {@link IRichBolt bolt} to be used.
+	 * @param inputSchema
+	 * 		The schema (ie, ordered field names) of the input stream.
+	 * @param rawOutput
+	 * 		Set to {@code true} if a single attribute output stream, should not be of type
+	 * 		{@link Tuple1} but be of a raw type.
+	 * @throws IllegalArgumentException
+	 * 		If {@code rawOuput} is {@code true} and the number of declared output attributes is
+	 * 		not 1 or if {@code rawOuput} is {@code false} and the number of declared output
+	 * 		attributes is not with range [1;25].
+	 */
+	public StormBoltWrapper(final IRichBolt bolt, final Fields inputSchema, final boolean rawOutput)
+			throws IllegalArgumentException {
 		this.bolt = bolt;
+		this.inputSchema = inputSchema;
 		this.numberOfAttributes = StormWrapperSetupHelper.getNumberOfAttributes(bolt, rawOutput);
 	}
 
@@ -101,7 +147,7 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 		super.open(parameters);
 
 		final TopologyContext topologyContext = StormWrapperSetupHelper.convertToTopologyContext(
-				(StreamingRuntimeContext)super.runtimeContext, false);
+				super.runtimeContext, false);
 		flinkCollector = new TimestampedCollector<OUT>(output);
 		OutputCollector stormCollector = null;
 
@@ -122,11 +168,12 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 	@Override
 	public void processElement(final StreamRecord<IN> element) throws Exception {
 		flinkCollector.setTimestamp(element.getTimestamp());
-		this.bolt.execute(new StormTuple<IN>(element.getValue()));
+		this.bolt.execute(new StormTuple<IN>(element.getValue(), inputSchema));
 	}
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
 		output.emitWatermark(mark);
 	}
+
 }

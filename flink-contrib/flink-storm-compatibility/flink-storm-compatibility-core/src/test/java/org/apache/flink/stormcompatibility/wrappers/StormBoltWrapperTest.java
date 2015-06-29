@@ -47,7 +47,6 @@ import static org.mockito.Mockito.when;
 @PrepareForTest({StreamRecordSerializer.class, StormWrapperSetupHelper.class})
 public class StormBoltWrapperTest {
 
-	@SuppressWarnings("unused")
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrapperRawType() throws Exception {
 		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
@@ -57,7 +56,6 @@ public class StormBoltWrapperTest {
 		new StormBoltWrapper<Object, Object>(mock(IRichBolt.class), true);
 	}
 
-	@SuppressWarnings("unused")
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrapperToManyAttributes1() throws Exception {
 		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
@@ -71,7 +69,6 @@ public class StormBoltWrapperTest {
 		new StormBoltWrapper<Object, Object>(mock(IRichBolt.class));
 	}
 
-	@SuppressWarnings("unused")
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrapperToManyAttributes2() throws Exception {
 		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
@@ -127,16 +124,17 @@ public class StormBoltWrapperTest {
 		declarer.declare(new Fields(schema));
 		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
-		final StormBoltWrapper wrapper = new StormBoltWrapper(bolt);
+		final StormBoltWrapper wrapper = new StormBoltWrapper(bolt, null);
 		wrapper.setup(mock(Output.class), taskContext);
 		wrapper.open(new Configuration());
 
 		wrapper.processElement(record);
 		if (numberOfAttributes == 0) {
-			verify(bolt).execute(eq(new StormTuple<String>(rawTuple)));
+			verify(bolt).execute(eq(new StormTuple<String>(rawTuple, null)));
 		} else {
-			verify(bolt).execute(eq(new StormTuple<Tuple>(flinkTuple)));
+			verify(bolt).execute(eq(new StormTuple<Tuple>(flinkTuple, null)));
 		}
+
 	}
 
 	@SuppressWarnings("unchecked")
