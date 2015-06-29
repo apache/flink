@@ -84,9 +84,6 @@ public class GroupedActiveDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 	@Override
 	public void close() throws Exception {
 		super.close();
-		for (StreamDiscretizer<IN> group : groupedDiscretizers.values()) {
-			group.emitWindow();
-		}
 
 		try {
 			centralCheck.running = false;
