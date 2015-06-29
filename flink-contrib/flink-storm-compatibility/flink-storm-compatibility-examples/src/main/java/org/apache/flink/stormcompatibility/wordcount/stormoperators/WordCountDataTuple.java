@@ -15,28 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.stormcompatibility.util;
+package org.apache.flink.stormcompatibility.wordcount.stormoperators;
 
-import backtype.storm.tuple.Values;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 
-/**
- * Implements a Storm Spout that reads data from {@link WordCountData#WORDS}.
- */
-public class StormInMemorySpout extends AbstractStormSpout {
-	private static final long serialVersionUID = -4008858647468647019L;
+@SuppressWarnings("unchecked")
+public class WordCountDataTuple {
+	public static Tuple1<String>[] TUPLES;
 
-	private String[] source;
-	private int counter = 0;
-
-	public StormInMemorySpout(String[] source) {
-		this.source = source;
-	}
-
-	@Override
-	public void nextTuple() {
-		if (this.counter < WordCountData.WORDS.length) {
-			this.collector.emit(new Values(WordCountData.WORDS[this.counter++]));
+	static {
+		TUPLES = new Tuple1[WordCountData.WORDS.length];
+		for (int i = 0; i < TUPLES.length; ++i) {
+			TUPLES[i] = new Tuple1<String>(WordCountData.WORDS[i]);
 		}
 	}
 
