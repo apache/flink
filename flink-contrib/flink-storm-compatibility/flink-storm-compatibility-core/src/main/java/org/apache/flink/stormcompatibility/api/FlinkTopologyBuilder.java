@@ -30,6 +30,8 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.IRichStateSpout;
 import backtype.storm.topology.SpoutDeclarer;
 import backtype.storm.topology.TopologyBuilder;
+import backtype.storm.tuple.Fields;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.stormcompatibility.wrappers.StormBoltWrapper;
 import org.apache.flink.stormcompatibility.wrappers.StormSpoutWrapper;
@@ -60,6 +62,8 @@ public class FlinkTopologyBuilder {
 	private final HashMap<String, IRichSpout> spouts = new HashMap<String, IRichSpout>();
 	/** All user bolts by their ID */
 	private final HashMap<String, IRichBolt> bolts = new HashMap<String, IRichBolt>();
+	/** All declared output schemas by operator ID */
+	private final HashMap<String, Fields> outputSchemas = new HashMap<String, Fields>();
 
 	/**
 	 * Creates a Flink program that used the specified spouts and bolts.
@@ -79,6 +83,7 @@ public class FlinkTopologyBuilder {
 
 			final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
 			userSpout.declareOutputFields(declarer);
+			this.outputSchemas.put(spoutId, declarer.outputSchema);
 
 			/* TODO in order to support multiple output streams, use an additional wrapper (or modify StormSpoutWrapper
 			 * and StormCollector)
@@ -118,6 +123,7 @@ public class FlinkTopologyBuilder {
 
 				final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
 				userBolt.declareOutputFields(declarer);
+				this.outputSchemas.put(boltId, declarer.outputSchema);
 
 				final ComponentCommon common = stormTopolgoy.get_bolts().get(boltId).get_common();
 
@@ -162,7 +168,7 @@ public class FlinkTopologyBuilder {
 						final TypeInformation<?> outType = declarer.getOutputType();
 
 						final SingleOutputStreamOperator operator = inputDataStream.transform(boltId, outType,
-								new StormBoltWrapper(userBolt));
+								new StormBoltWrapper(userBolt, this.outputSchemas.get(producerId)));
 						if (outType != null) {
 							// only for non-sink nodes
 							availableOperators.put(boltId, operator);

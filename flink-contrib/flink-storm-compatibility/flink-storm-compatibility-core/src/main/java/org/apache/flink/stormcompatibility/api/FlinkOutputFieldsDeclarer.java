@@ -37,7 +37,7 @@ import java.util.List;
 final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 
 	/** the declared output schema */
-	private Fields outputSchema;
+	Fields outputSchema;
 
 	@Override
 	public void declare(final Fields fields) {

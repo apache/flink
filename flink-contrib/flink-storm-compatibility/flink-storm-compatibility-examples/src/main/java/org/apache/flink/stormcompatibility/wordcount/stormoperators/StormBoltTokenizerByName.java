@@ -32,9 +32,9 @@ import java.util.Map;
  * schema: {@code <String>}) and splits it into multiple pairs in the form of "(word,1)" (output tuple schema:
  * {@code <String,Integer>}).
  * <p>
- * Same as {@link StormBoltTokenizerByName}, but accesses input attribute by index (instead of name).
+ * Same as {@link StormBoltTokenizer}, but accesses input attribute by name (instead of index).
  */
-public final class StormBoltTokenizer implements IRichBolt {
+public final class StormBoltTokenizerByName implements IRichBolt {
 	private static final long serialVersionUID = -8589620297208175149L;
 
 	public static final String ATTRIBUTE_WORD = "word";
@@ -53,7 +53,7 @@ public final class StormBoltTokenizer implements IRichBolt {
 
 	@Override
 	public void execute(final Tuple input) {
-		final String[] tokens = input.getString(0).toLowerCase().split("\\W+");
+		final String[] tokens = input.getStringByField("sentence").toLowerCase().split("\\W+");
 
 		for (final String token : tokens) {
 			if (token.length() > 0) {

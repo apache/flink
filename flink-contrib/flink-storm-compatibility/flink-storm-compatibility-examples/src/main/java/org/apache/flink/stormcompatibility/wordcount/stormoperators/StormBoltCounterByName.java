@@ -25,24 +25,21 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Implements the string tokenizer that splits sentences into words as a Storm bolt. The bolt takes a line (input tuple
- * schema: {@code <String>}) and splits it into multiple pairs in the form of "(word,1)" (output tuple schema:
- * {@code <String,Integer>}).
- * <p>
- * Same as {@link StormBoltTokenizerByName}, but accesses input attribute by index (instead of name).
+ * Implements the word counter that the occurrence of each unique word. The bolt takes a pair (input tuple schema:
+ * {@code <String,Integer>}) and sums the given word count for each unique word (output tuple schema:
+ * {@code <String,Integer>} ).
  */
-public final class StormBoltTokenizer implements IRichBolt {
-	private static final long serialVersionUID = -8589620297208175149L;
+public class StormBoltCounterByName implements IRichBolt {
+	private static final long serialVersionUID = 399619605462625934L;
 
 	public static final String ATTRIBUTE_WORD = "word";
 	public static final String ATTRIBUTE_COUNT = "count";
 
-	public static final int ATTRIBUTE_WORD_INDEX = 0;
-	public static final int ATTRIBUTE_COUNT_INDEX = 1;
-
+	private final HashMap<String, Count> counts = new HashMap<String, Count>();
 	private OutputCollector collector;
 
 	@SuppressWarnings("rawtypes")
@@ -53,13 +50,16 @@ public final class StormBoltTokenizer implements IRichBolt {
 
 	@Override
 	public void execute(final Tuple input) {
-		final String[] tokens = input.getString(0).toLowerCase().split("\\W+");
+		final String word = input.getStringByField(StormBoltTokenizer.ATTRIBUTE_WORD);
 
-		for (final String token : tokens) {
-			if (token.length() > 0) {
-				this.collector.emit(new Values(token, 1));
-			}
+		Count currentCount = this.counts.get(word);
+		if (currentCount == null) {
+			currentCount = new Count();
+			this.counts.put(word, currentCount);
 		}
+		currentCount.count += input.getIntegerByField(StormBoltTokenizer.ATTRIBUTE_COUNT);
+
+		this.collector.emit(new Values(word, currentCount.count));
 	}
 
 	@Override
@@ -73,6 +73,16 @@ public final class StormBoltTokenizer implements IRichBolt {
 	@Override
 	public Map<String, Object> getComponentConfiguration() {
 		return null;
+	}
+
+	/**
+	 * A counter helper to emit immutable tuples to the given stormCollector and avoid unnecessary object
+	 * creating/deletion.
+	 */
+	private static final class Count {
+		public int count;
+
+		public Count() {/* nothing to do */}
 	}
 
 }
