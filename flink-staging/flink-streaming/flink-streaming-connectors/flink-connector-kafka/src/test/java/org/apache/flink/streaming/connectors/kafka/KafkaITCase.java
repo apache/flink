@@ -75,6 +75,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
@@ -224,6 +225,7 @@ public class KafkaITCase {
 	 *
 	 */
 	@Test
+	@Ignore
 	public void testPersistentSourceWithOffsetUpdates() throws Exception {
 		LOG.info("Starting testPersistentSourceWithOffsetUpdates()");
 
