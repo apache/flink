@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Ignore;
@@ -82,7 +83,9 @@ public class OneInputStreamTaskTest {
 
 		Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseMapFunction.closeCalled);
 
-		Assert.assertArrayEquals("Output was not correct.", expectedOutput.toArray(), testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 	}
 
 	/**
@@ -111,16 +114,18 @@ public class OneInputStreamTaskTest {
 
 		// now the output should still be empty
 		testHarness.waitForInputProcessing();
-		Assert.assertArrayEquals("Output was not correct.", expectedOutput.toArray(), testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 
 		testHarness.processEvent(new Watermark(initialTime), 1, 1);
 
 		// now the watermark should have propagated, Map simply forward Watermarks
 		testHarness.waitForInputProcessing();
 		expectedOutput.add(new Watermark(initialTime));
-		Assert.assertArrayEquals("Output was not correct.",
-				expectedOutput.toArray(),
-				testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 
 		// contrary to checkpoint barriers these elements are not blocked by watermarks
 		testHarness.processElement(new StreamRecord<String>("Hello", initialTime));
@@ -137,7 +142,9 @@ public class OneInputStreamTaskTest {
 		// the output after the two StreamRecords
 		testHarness.waitForInputProcessing();
 		expectedOutput.add(new Watermark(initialTime.plus(2)));
-		Assert.assertArrayEquals("Output was not correct.", expectedOutput.toArray(), testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 
 
 		// advance watermark from one of the inputs, now we should get a now one since the
@@ -145,7 +152,9 @@ public class OneInputStreamTaskTest {
 		testHarness.processEvent(new Watermark(initialTime.plus(4)), 1, 1);
 		testHarness.waitForInputProcessing();
 		expectedOutput.add(new Watermark(initialTime.plus(3)));
-		Assert.assertArrayEquals("Output was not correct.", expectedOutput.toArray(), testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 
 		// advance the other two inputs, now we should get a new one since the
 		// minimum increases again
@@ -153,13 +162,15 @@ public class OneInputStreamTaskTest {
 		testHarness.processEvent(new Watermark(initialTime.plus(4)), 1, 0);
 		testHarness.waitForInputProcessing();
 		expectedOutput.add(new Watermark(initialTime.plus(4)));
-		Assert.assertArrayEquals("Output was not correct.", expectedOutput.toArray(), testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 
 		testHarness.endInput();
 
 		testHarness.waitForTaskCompletion();
 
-		List<String> resultElements = testHarness.getRawElementsFromOutput(testHarness.getOutput());
+		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 		Assert.assertEquals(2, resultElements.size());
 	}
 
@@ -198,7 +209,9 @@ public class OneInputStreamTaskTest {
 
 		testHarness.waitForInputProcessing();
 		// we should not yet see the superstep, only the two elements from non-blocked input
-		Assert.assertArrayEquals("Output was not correct.", testHarness.getOutput().toArray(), expectedOutput.toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				testHarness.getOutput(),
+				expectedOutput);
 
 		testHarness.processEvent(new StreamingSuperstep(0, 0), 0, 1);
 		testHarness.processEvent(new StreamingSuperstep(0, 0), 1, 0);
@@ -210,92 +223,16 @@ public class OneInputStreamTaskTest {
 		expectedOutput.add(new StreamingSuperstep(0, 0));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
 		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
-		Assert.assertArrayEquals("Output was not correct.", testHarness.getOutput().toArray(), expectedOutput.toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				testHarness.getOutput(),
+				expectedOutput);
 
 		testHarness.endInput();
 
 		testHarness.waitForTaskCompletion();
 
-		List<String> resultElements = testHarness.getRawElementsFromOutput(testHarness.getOutput());
+		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 		Assert.assertEquals(4, resultElements.size());
-	}
-
-	/**
-	 * This test verifies that checkpoint barriers and barrier buffers work correctly with
-	 * concurrent checkpoint barriers where one checkpoint is "overtaking" another checkpoint, i.e.
-	 * some inputs receive barriers from an earlier checkpoint, thereby blocking,
-	 * then all inputs receive barriers from a later checkpoint.
-	 *
-	 * Disabled for now, since the behaviour seems completely bonkers.
-	 */
-	@Test
-	@SuppressWarnings("unchecked")
-	@Ignore
-	public void testOvertakingCheckpointBarriers() throws Exception {
-		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>();
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(mapTask, 2, 2, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
-
-		StreamConfig streamConfig = testHarness.getStreamConfig();
-		StreamMap<String, String> mapOperator = new StreamMap<String, String>(new IdentityMap());
-		streamConfig.setStreamOperator(mapOperator);
-
-		Queue expectedOutput = new ConcurrentLinkedQueue();
-		Instant initialTime = Instant.now();
-
-		testHarness.invoke();
-
-		testHarness.processEvent(new StreamingSuperstep(0, 0), 0, 0);
-
-		// These elements should be buffered until we receive superstep barriers from
-		// all inputs
-		testHarness.processElement(new StreamRecord<String>("Hello-0-0", initialTime), 0, 0);
-		testHarness.processElement(new StreamRecord<String>("Ciao-0-0", initialTime), 0, 0);
-
-		// These elements should be forwarded, since we did not yet receive a checkpoint barrier
-		// on that input, only add to same input, otherwise we would not know the ordering
-		// of the output since the Task might read the inputs in any order
-		testHarness.processElement(new StreamRecord<String>("Hello-1-1", initialTime), 1, 1);
-		testHarness.processElement(new StreamRecord<String>("Ciao-1-1", initialTime), 1, 1);
-		expectedOutput.add(new StreamRecord<String>("Hello-1-1", initialTime));
-		expectedOutput.add(new StreamRecord<String>("Ciao-1-1", initialTime));
-
-		testHarness.waitForInputProcessing();
-		// we should not yet see the superstep, only the two elements from non-blocked input
-//		Assert.assertArrayEquals("Output was not correct.", testHarness.getOutput().toArray(), expectedOutput.toArray());
-
-		// Now give a later superstep to all inputs
-		testHarness.processEvent(new StreamingSuperstep(1, 1), 0, 0);
-		testHarness.processEvent(new StreamingSuperstep(1, 1), 0, 1);
-		testHarness.processEvent(new StreamingSuperstep(1, 1), 1, 0);
-		testHarness.processEvent(new StreamingSuperstep(1, 1), 1, 1);
-
-		expectedOutput.add(new StreamingSuperstep(1, 1));
-		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
-		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
-//		Assert.assertArrayEquals("Output was not correct.", testHarness.getOutput().toArray(), expectedOutput.toArray());
-
-
-		// Then give the earlier superstep
-//		testHarness.processEvent(new StreamingSuperstep(0, 0), 0, 1);
-//		testHarness.processEvent(new StreamingSuperstep(0, 0), 1, 0);
-//		testHarness.processEvent(new StreamingSuperstep(0, 0), 1, 1);
-
-		testHarness.waitForInputProcessing();
-
-		// now we should see the superstep and after that the buffered elements
-		expectedOutput.add(new StreamingSuperstep(0, 0));
-		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
-		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
-//		Assert.assertArrayEquals("Output was not correct.", testHarness.getOutput().toArray(), expectedOutput.toArray());
-
-		testHarness.endInput();
-
-		testHarness.waitForTaskCompletion();
-
-		System.out.println(testHarness.getOutput());
-
-		List<String> resultElements = testHarness.getRawElementsFromOutput(testHarness.getOutput());
-//		Assert.assertEquals(4, resultElements.size());
 	}
 
 	// This must only be used in one test, otherwise the static fields will be changed

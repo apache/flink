@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Test;
@@ -58,6 +59,7 @@ public class TwoInputStreamTaskTest {
 	 * timestamp to emitted elements.
 	 */
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testOpenCloseAndTimestamps() throws Exception {
 		final TwoInputStreamTask<String, Integer, String> coMapTask = new TwoInputStreamTask<String, Integer, String>();
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness = new TwoInputStreamTaskTestHarness<String, Integer, String>(coMapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
@@ -79,7 +81,7 @@ public class TwoInputStreamTaskTest {
 
 		testHarness.processElement(new StreamRecord<Integer>(1337, initialTime.plus(2)), 1, 0);
 
-		expectedOutput.add(new StreamRecord<Integer>(1337, initialTime.plus(2)));
+		expectedOutput.add(new StreamRecord<String>("1337", initialTime.plus(2)));
 
 		testHarness.endInput();
 
@@ -87,7 +89,9 @@ public class TwoInputStreamTaskTest {
 
 		Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseMapFunction.closeCalled);
 
-		Assert.assertArrayEquals("Output was not correct.", expectedOutput.toArray(), testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 	}
 
 	/**
@@ -118,14 +122,18 @@ public class TwoInputStreamTaskTest {
 
 		// now the output should still be empty
 		testHarness.waitForInputProcessing();
-		Assert.assertArrayEquals("Output was not correct.", expectedOutput.toArray(), testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 
 		testHarness.processEvent(new Watermark(initialTime), 1, 1);
 
 		// now the watermark should have propagated, Map simply forward Watermarks
 		testHarness.waitForInputProcessing();
 		expectedOutput.add(new Watermark(initialTime));
-		Assert.assertArrayEquals("Output was not correct.", expectedOutput.toArray(), testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 
 		// contrary to checkpoint barriers these elements are not blocked by watermarks
 		testHarness.processElement(new StreamRecord<String>("Hello", initialTime), 0, 0);
@@ -134,7 +142,9 @@ public class TwoInputStreamTaskTest {
 		expectedOutput.add(new StreamRecord<String>("42", initialTime));
 
 		testHarness.waitForInputProcessing();
-		Assert.assertArrayEquals("Output was not correct.", expectedOutput.toArray(), testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 
 		testHarness.processEvent(new Watermark(initialTime.plus(4)), 0, 0);
 		testHarness.processEvent(new Watermark(initialTime.plus(3)), 0, 1);
@@ -145,7 +155,9 @@ public class TwoInputStreamTaskTest {
 		// the output after the two StreamRecords
 		expectedOutput.add(new Watermark(initialTime.plus(2)));
 		testHarness.waitForInputProcessing();
-		Assert.assertArrayEquals("Output was not correct.", expectedOutput.toArray(), testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 
 
 		// advance watermark from one of the inputs, now we should get a now one since the
@@ -153,7 +165,9 @@ public class TwoInputStreamTaskTest {
 		testHarness.processEvent(new Watermark(initialTime.plus(4)), 1, 1);
 		testHarness.waitForInputProcessing();
 		expectedOutput.add(new Watermark(initialTime.plus(3)));
-		Assert.assertArrayEquals("Output was not correct.", expectedOutput.toArray(), testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 
 		// advance the other two inputs, now we should get a new one since the
 		// minimum increases again
@@ -161,13 +175,15 @@ public class TwoInputStreamTaskTest {
 		testHarness.processEvent(new Watermark(initialTime.plus(4)), 1, 0);
 		testHarness.waitForInputProcessing();
 		expectedOutput.add(new Watermark(initialTime.plus(4)));
-		Assert.assertArrayEquals("Output was not correct.", expectedOutput.toArray(), testHarness.getOutput().toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
 
 		testHarness.endInput();
 
 		testHarness.waitForTaskCompletion();
 
-		List<String> resultElements = testHarness.getRawElementsFromOutput(testHarness.getOutput());
+		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 		Assert.assertEquals(2, resultElements.size());
 	}
 
@@ -209,7 +225,9 @@ public class TwoInputStreamTaskTest {
 
 		testHarness.waitForInputProcessing();
 		// we should not yet see the superstep, only the two elements from non-blocked input
-		Assert.assertArrayEquals("Output was not correct.", testHarness.getOutput().toArray(), expectedOutput.toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				testHarness.getOutput(),
+				expectedOutput);
 
 		testHarness.processEvent(new StreamingSuperstep(0, 0), 0, 1);
 		testHarness.processEvent(new StreamingSuperstep(0, 0), 1, 0);
@@ -220,13 +238,15 @@ public class TwoInputStreamTaskTest {
 		// now we should see the superstep and after that the buffered elements
 		expectedOutput.add(new StreamingSuperstep(0, 0));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
-		Assert.assertArrayEquals("Output was not correct.", testHarness.getOutput().toArray(), expectedOutput.toArray());
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+				testHarness.getOutput(),
+				expectedOutput);
 
 		testHarness.endInput();
 
 		testHarness.waitForTaskCompletion();
 
-		List<String> resultElements = testHarness.getRawElementsFromOutput(testHarness.getOutput());
+		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 		Assert.assertEquals(4, resultElements.size());
 	}
 

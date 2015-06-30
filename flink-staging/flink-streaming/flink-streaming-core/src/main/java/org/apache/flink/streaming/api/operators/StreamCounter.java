@@ -32,7 +32,7 @@ public class StreamCounter<IN> extends AbstractStreamOperator<Long> implements O
 
 	@Override
 	public void processElement(StreamRecord<IN> element) {
-		output.collect(new StreamRecord(++count));
+		output.collect(element.replace(++count));
 	}
 
 	@Override

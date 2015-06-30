@@ -186,38 +186,11 @@ public class StreamTaskTestHarness<OUT> {
 
 	/**
 	 * Get all the output from the task. This contains StreamRecords and Events interleaved. Use
-	 * {@link #getStreamRecordsFromOutput} to extract only the StreamRecords.
+	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getRawElementsFromOutput(java.util.Queue)}}
+	 * to extract only the StreamRecords.
 	 */
 	public Queue getOutput() {
 		return outputList;
-	}
-
-	/**
-	 * Extracts the StreamRecords from the given output list.
-	 */
-	@SuppressWarnings("unchecked")
-	public List<StreamRecord<OUT>> getStreamRecordsFromOutput(List output) {
-		List<StreamRecord<OUT>> resultElements = new LinkedList<StreamRecord<OUT>>();
-		for (Object e: output) {
-			if (e instanceof StreamRecord) {
-				resultElements.add((StreamRecord<OUT>) e);
-			}
-		}
-		return resultElements;
-	}
-
-	/**
-	 * Extracts the raw elements from the given output list.
-	 */
-	@SuppressWarnings("unchecked")
-	public List<OUT> getRawElementsFromOutput(Queue output) {
-		List<OUT> resultElements = new LinkedList<OUT>();
-		for (Object e: output) {
-			if (e instanceof StreamRecord) {
-				resultElements.add((OUT) ((StreamRecord) e).getValue());
-			}
-		}
-		return resultElements;
 	}
 
 	public StreamConfig getStreamConfig() {

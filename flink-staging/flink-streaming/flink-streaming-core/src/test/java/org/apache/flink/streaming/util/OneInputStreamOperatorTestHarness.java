@@ -32,8 +32,8 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Deque;
-import java.util.LinkedList;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * A test harness for testing a {@link OneInputStreamOperator}.
@@ -47,9 +47,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 	OneInputStreamOperator<IN, OUT> operator;
 
-	Deque<StreamRecord<OUT>> emittedElements;
-	Deque<OUT> rawEmittedElements;
-	Deque<Watermark> emittedWatermarks;
+	ConcurrentLinkedQueue outputList;
 
 	ExecutionConfig executionConfig;
 
@@ -58,9 +56,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
 		this.operator = operator;
 
-		emittedElements = new LinkedList<StreamRecord<OUT>>();
-		rawEmittedElements = new LinkedList<OUT>();
-		emittedWatermarks = new LinkedList<Watermark>();
+		outputList = new ConcurrentLinkedQueue();
 
 		executionConfig = new ExecutionConfig();
 
@@ -76,29 +72,12 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	/**
-	 * Returns the {@link java.util.Deque} to which emitted {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord}s are written.
-	 * You can modify this. Modifications will not be reflected in the {@link java.util.Deque} returned
-	 * from {@link #getRawEmittedElements()}.
+	 * Get all the output from the task. This contains StreamRecords and Events interleaved. Use
+	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getStreamRecordsFromOutput(java.util.List)}
+	 * to extract only the StreamRecords.
 	 */
-	public Deque<StreamRecord<OUT>> getEmittedElements() {
-		return emittedElements;
-	}
-
-	/**
-	 * Returns the {@link java.util.Deque} to which emitted elements are written.
-	 * You can modify this. Modifications will not be reflected in the {@link java.util.Deque} returned
-	 * from {@link #getEmittedElements()}.
-	 */
-	public Deque<OUT> getRawEmittedElements() {
-		return rawEmittedElements;
-	}
-
-	/**
-	 * Returns the {@link java.util.Deque} to which emitted {@link org.apache.flink.streaming.api.watermark.Watermark}s are written.
-	 * You can modify this.
-	 */
-	public Deque<Watermark> getEmittedWatermarks() {
-		return emittedWatermarks;
+	public Queue getOutput() {
+		return outputList;
 	}
 
 	/**
@@ -141,17 +120,19 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	private class MockOutput implements Output<StreamRecord<OUT>> {
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public void emitWatermark(Watermark mark) {
-			emittedWatermarks.add(mark);
+			outputList.add(mark);
 		}
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public void collect(StreamRecord<OUT> element) {
 			if (outputSerializer == null) {
 				outputSerializer = TypeExtractor.getForObject(element.getValue()).createSerializer(executionConfig);
 			}
-			emittedElements.add(new StreamRecord<OUT>(outputSerializer.copy(element.getValue()), element.getTimestamp()));
-			rawEmittedElements.add(outputSerializer.copy(element.getValue()));
+			outputList.add(new StreamRecord<OUT>(outputSerializer.copy(element.getValue()),
+					element.getTimestamp()));
 		}
 
 		@Override

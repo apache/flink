@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -71,7 +72,7 @@ public class SourceStreamTaskTest {
 
 		Assert.assertTrue("RichFunction methods where not called.", OpenCloseTestSource.closeCalled);
 
-		List<String> resultElements = testHarness.getRawElementsFromOutput(testHarness.getOutput());
+		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 		Assert.assertEquals(10, resultElements.size());
 	}
 
@@ -126,7 +127,7 @@ public class SourceStreamTaskTest {
 			}
 		}
 
-		List<Tuple2<Long, Integer>> resultElements = testHarness.getRawElementsFromOutput(testHarness.getOutput());
+		List<Tuple2<Long, Integer>> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 		Assert.assertEquals(NUM_ELEMENTS, resultElements.size());
 	}
 
