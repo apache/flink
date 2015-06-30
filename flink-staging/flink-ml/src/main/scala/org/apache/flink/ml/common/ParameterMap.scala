@@ -21,7 +21,7 @@ package org.apache.flink.ml.common
 import scala.collection.mutable
 
 /**
- * Map used to store configuration parameters for [[Learner]] and [[Transformer]]. The parameter
+ * Map used to store configuration parameters for algorithms. The parameter
  * values are stored in a [[Map]] being identified by a [[Parameter]] object. ParameterMaps can
  * be fused. This operation is left associative, meaning that latter ParameterMaps can override
  * parameter values defined in a preceding ParameterMap.
@@ -112,7 +112,7 @@ object ParameterMap {
  *
  * @tparam T Type of parameter value associated to this parameter key
  */
-trait Parameter[T] {
+trait Parameter[+T] {
 
   /**
    * Default value of parameter. If no such value exists, then returns [[None]]
