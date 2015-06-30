@@ -19,6 +19,7 @@
 package org.apache.flink.ml.classification
 
 import org.scalatest.{FlatSpec, Matchers}
+import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase
@@ -40,11 +41,9 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val trainingDS = env.fromCollection(Classification.trainingData)
 
-    val testingDS = trainingDS.map(_.vector)
-
     svm.fit(trainingDS)
 
-    val weightVector = svm.weightsOption.get.collect().apply(0)
+    val weightVector = svm.weightsOption.get.collect().head
 
     weightVector.valueIterator.zip(Classification.expectedWeightVector.valueIterator).foreach {
       case (weight, expectedWeight) =>
@@ -69,19 +68,37 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     svm.fit(trainingDS)
 
-    val threshold = 0.0
-
-    val predictionPairs = svm.evaluate(test).map {
-      truthPrediction =>
-        val truth = truthPrediction._1
-        val prediction = truthPrediction._2
-        val thresholdedPrediction = if (prediction > threshold) 1.0 else -1.0
-        (truth, thresholdedPrediction)
-    }
+    val predictionPairs = svm.evaluate(test)
 
     val absoluteErrorSum = predictionPairs.collect().map{
       case (truth, prediction) => Math.abs(truth - prediction)}.sum
 
     absoluteErrorSum should be < 15.0
+  }
+
+  it should "be possible to get the raw decision function values" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val svm = SVM().
+      setBlocks(env.getParallelism)
+      .setOutputDecisionFunction(false)
+
+    val customWeights = env.fromElements(DenseVector(1.0, 1.0, 1.0))
+
+    svm.weightsOption = Option(customWeights)
+
+    val test = env.fromElements(DenseVector(5.0, 5.0, 5.0))
+
+    val thresholdedPrediction = svm.predict(test).map(vectorLabel => vectorLabel._2).collect().head
+
+    thresholdedPrediction should be (1.0 +- 1e-9)
+
+    svm.setOutputDecisionFunction(true)
+
+    val rawPrediction = svm.predict(test).map(vectorLabel => vectorLabel._2).collect().head
+
+    rawPrediction should be (15.0 +- 1e-9)
+
+
   }
 }
