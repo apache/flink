@@ -103,7 +103,7 @@ class KMeans extends Predictor[KMeans] {
   /**
    * Stores the learned clusters after the fit operation
    */
-  var centroids: Option[DataSet[LabeledVector]] = None
+  var centroids: Option[DataSet[Seq[LabeledVector]]] = None
 
   /**
    * Sets the maximum number of iterations.
@@ -120,10 +120,10 @@ class KMeans extends Predictor[KMeans] {
    * Sets the initial centroids on which the algorithm will start computing. These points should
    * depend on the data and significantly influence the resulting centroids.
    *
-   * @param initialCentroids A sequence of labeled vectors.
+   * @param initialCentroids A set of labeled vectors.
    * @return itself
    */
-  def setInitialCentroids(initialCentroids: DataSet[LabeledVector]): KMeans = {
+  def setInitialCentroids(initialCentroids: Seq[LabeledVector]): KMeans = {
     parameters.add(InitialCentroids, initialCentroids)
     this
   }
@@ -143,7 +143,7 @@ object KMeans {
     val defaultValue = Some(10)
   }
 
-  case object InitialCentroids extends Parameter[DataSet[LabeledVector]] {
+  case object InitialCentroids extends Parameter[Seq[LabeledVector]] {
     val defaultValue = None
   }
 
@@ -176,7 +176,7 @@ object KMeans {
       : DataSet[LabeledVector] = {
         instance.centroids match {
           case Some(centroids) =>
-            testDS.mapWithBcSet(centroids)
+            testDS.mapWithBcVariable(centroids)
               { (dataPoint, centroids) => selectNearestCentroid(dataPoint, centroids) }
           case None =>
             throw new RuntimeException("The KMeans model has not been trained. Call first fit" +
@@ -198,12 +198,14 @@ object KMeans {
       : Unit = {
         val resultingParameters = instance.parameters ++ fitParameters
 
-        val centroids: DataSet[LabeledVector] = resultingParameters.get(InitialCentroids).get
+        val centroids: DataSet[Seq[LabeledVector]] = trainingDS
+          .getExecutionEnvironment
+          .fromElements(resultingParameters.get(InitialCentroids).get)
         val numIterations: Int = resultingParameters.get(NumIterations).get
 
         val finalCentroids = centroids.iterate(numIterations) { currentCentroids =>
           val newCentroids: DataSet[LabeledVector] = trainingDS
-            .mapWithBcSet(currentCentroids)
+            .mapWithBcVariable(currentCentroids)
               { (dataPoint, centroids) => selectNearestCentroid(dataPoint, centroids) }
             .map(x => (x.label, x.vector, 1.0)).withForwardedFields("label->_1; vector->_2")
             .groupBy(x => x._1)
@@ -217,7 +219,10 @@ object KMeans {
             })
             .withForwardedFields("_1->label")
 
-          newCentroids
+          // currentCentroids contains only one element. So, this is output only once
+          currentCentroids.mapWithBcSet(newCentroids){
+            (_,newCenters) => newCenters
+          }
         }
 
         instance.centroids = Some(finalCentroids)
@@ -235,7 +240,7 @@ object KMeans {
    *         centroid.
    */
   @ForwardedFields(Array("*->vector"))
-  private def selectNearestCentroid(dataPoint: Vector, centroids: Traversable[LabeledVector]) = {
+  private def selectNearestCentroid(dataPoint: Vector, centroids: Seq[LabeledVector]) = {
     var minDistance: Double = Double.MaxValue
     var closestCentroidLabel: Double = -1
     centroids.foreach(centroid => {
