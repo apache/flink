@@ -88,7 +88,8 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 
 	@Override
 	public int compare(T first, T second) {
-		return first.compareTo(second);
+		int cmp = first.compareTo(second);
+		return this.ascending ? cmp : -cmp;
 	}
 
 	@Override
