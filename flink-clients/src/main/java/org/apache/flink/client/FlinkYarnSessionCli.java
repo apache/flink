@@ -74,6 +74,7 @@ public class FlinkYarnSessionCli {
 	private final Option SLOTS;
 	private final Option DETACHED;
 	private final Option STREAMING;
+	private final Option NAME;
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
@@ -97,6 +98,7 @@ public class FlinkYarnSessionCli {
 		DYNAMIC_PROPERTIES = new Option(shortPrefix + "D", true, "Dynamic properties");
 		DETACHED = new Option(shortPrefix + "d", longPrefix + "detached", false, "Start detached");
 		STREAMING = new Option(shortPrefix + "st", longPrefix + "streaming", false, "Start Flink in streaming mode");
+		NAME = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
 	}
 
 	public AbstractFlinkYarnClient createFlinkYarnClient(CommandLine cmd) {
@@ -220,6 +222,9 @@ public class FlinkYarnSessionCli {
 		if (cmd.hasOption(STREAMING.getOpt())) {
 			flinkYarnClient.setStreamingMode(true);
 		}
+		if(cmd.hasOption(NAME.getOpt())) {
+			flinkYarnClient.setName(cmd.getOptionValue(NAME.getOpt()));
+		}
 		return flinkYarnClient;
 	}
 
@@ -244,6 +249,7 @@ public class FlinkYarnSessionCli {
 		opt.addOption(DYNAMIC_PROPERTIES);
 		opt.addOption(DETACHED);
 		opt.addOption(STREAMING);
+		opt.addOption(NAME);
 		formatter.printHelp(" ", opt);
 	}
 
@@ -350,6 +356,7 @@ public class FlinkYarnSessionCli {
 		options.addOption(DYNAMIC_PROPERTIES);
 		options.addOption(DETACHED);
 		options.addOption(STREAMING);
+		options.addOption(NAME);
 	}
 
 	public int run(String[] args) {

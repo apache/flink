@@ -138,4 +138,10 @@ public abstract class AbstractFlinkYarnClient {
 	 * @param streamingMode
 	 */
 	public abstract  void setStreamingMode(boolean streamingMode);
+
+	/**
+	 * Set a name for the YARN application
+	 * @param name
+	 */
+	public abstract void setName(String name);
 }

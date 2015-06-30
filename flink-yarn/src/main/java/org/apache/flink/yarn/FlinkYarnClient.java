@@ -143,6 +143,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	private boolean detached;
 	private boolean streamingMode;
 
+	private String customName = null;
 
 	public FlinkYarnClient() {
 		conf = new YarnConfiguration();
@@ -341,7 +342,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	 * This method will block until the ApplicationMaster/JobManager have been
 	 * deployed on YARN.
 	 */
-	protected AbstractFlinkYarnCluster deployInternal(String clusterName) throws Exception {
+	protected AbstractFlinkYarnCluster deployInternal(String defaultName) throws Exception {
 		isReadyForDepoyment();
 
 		LOG.info("Using values:");
@@ -591,14 +592,17 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		capability.setMemory(jobManagerMemoryMb);
 		capability.setVirtualCores(1);
 
-		if(clusterName == null) {
-			clusterName = "Flink session with "+taskManagerCount+" TaskManagers";
+		if(defaultName == null) {
+			defaultName = "Flink session with "+taskManagerCount+" TaskManagers";
 		}
 		if(detached) {
-			clusterName += " (detached)";
+			defaultName += " (detached)";
 		}
 
-		appContext.setApplicationName(clusterName); // application name
+		if(this.customName != null) {
+			defaultName = customName;
+		}
+		appContext.setApplicationName(defaultName); // application name
 		appContext.setApplicationType("Apache Flink");
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
@@ -732,6 +736,11 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	@Override
 	public void setStreamingMode(boolean streamingMode) {
 		this.streamingMode = streamingMode;
+	}
+
+	@Override
+	public void setName(String name) {
+		customName = name;
 	}
 
 	public static class YarnDeploymentException extends RuntimeException {

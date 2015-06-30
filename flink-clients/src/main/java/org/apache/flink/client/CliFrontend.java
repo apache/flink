@@ -134,8 +134,6 @@ public class CliFrontend {
 
 	private AbstractFlinkYarnCluster yarnCluster;
 
-
-
 	/**
 	 *
 	 * @throws Exception Thrown if teh configuration directory was not found, the configuration could not

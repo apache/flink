@@ -121,6 +121,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 						"-n", "1",
 						"-jm", "768",
 						"-tm", "1024",
+						"--name", "MyCustomName", // test setting a custom name
 						"--detached"},
 				"Flink JobManager is now running on", RunTypes.YARN_SESSION);
 
@@ -142,7 +143,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			yc.start();
 			List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
 			Assert.assertEquals(1, apps.size()); // Only one running
-			ApplicationId id = apps.get(0).getApplicationId();
+			ApplicationReport app = apps.get(0);
+			Assert.assertEquals("MyCustomName", app.getName());
+			ApplicationId id = app.getApplicationId();
 			yc.killApplication(id);
 
 			while(yc.getApplications(EnumSet.of(YarnApplicationState.KILLED)).size() == 0) {
