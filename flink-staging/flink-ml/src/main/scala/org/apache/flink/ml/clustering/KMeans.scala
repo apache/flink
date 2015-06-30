@@ -63,21 +63,21 @@ import org.apache.flink.ml.pipeline._
  *
  * @example
  * {{{
- *      val trainingDS: DataSet[Vector] = env.fromCollection(Clustering.trainingData)
- *      val initialCentroids: DataSet[LabledVector] = env.fromCollection(Clustering.initCentroids)
+ *       val trainingDS: DataSet[Vector] = env.fromCollection(Clustering.trainingData)
+ *       val initialCentroids: DataSet[LabledVector] = env.fromCollection(Clustering.initCentroids)
  *
- *      val kmeans = KMeans()
- *        .setInitialCentroids(initialCentroids)
- *        .setNumIterations(10)
+ *       val kmeans = KMeans()
+ *         .setInitialCentroids(initialCentroids)
+ *         .setNumIterations(10)
  *
- *      kmeans.fit(trainingDS)
+ *       kmeans.fit(trainingDS)
  *
- *      // getting the computed centroids
- *      val centroidsResult = kmeans.centroids.get.collect()
+ *       // getting the computed centroids
+ *       val centroidsResult = kmeans.centroids.get.collect()
  *
- *      // get matching clusters for new points
- *      val testDS: DataSet[Vector] = env.fromCollection(Clustering.testData)
- *      val clusters: DataSet[LabeledVector] = kmeans.predict(testDS)
+ *       // get matching clusters for new points
+ *       val testDS: DataSet[Vector] = env.fromCollection(Clustering.testData)
+ *       val clusters: DataSet[LabeledVector] = kmeans.predict(testDS)
  * }}}
  *
  * =Parameters=
@@ -100,13 +100,15 @@ class KMeans extends Predictor[KMeans] {
 
   import KMeans._
 
-  /** Stores the learned clusters after the fit operation */
+  /**
+   * Stores the learned clusters after the fit operation
+   */
   var centroids: Option[DataSet[LabeledVector]] = None
 
   /**
-   * Sets the number of iterations.
+   * Sets the maximum number of iterations.
    *
-   * @param numIterations
+   * @param numIterations The maximum number of iterations.
    * @return itself
    */
   def setNumIterations(numIterations: Int): KMeans = {
@@ -115,8 +117,8 @@ class KMeans extends Predictor[KMeans] {
   }
 
   /**
-   * Sets the initial centroids on which the algorithm will start computing.
-   * These points should depend on the data and significantly influence the resulting centroids.
+   * Sets the initial centroids on which the algorithm will start computing. These points should
+   * depend on the data and significantly influence the resulting centroids.
    *
    * @param initialCentroids A sequence of labeled vectors.
    * @return itself
@@ -155,30 +157,30 @@ object KMeans {
 
   /**
    * [[PredictOperation]] for vector types. The result type is a [[LabeledVector]].
-   */
+   *
+   * @return Anew [[PredictDataSetOperation]] to predict the labels of a [[DataSet]] of [[Vector]]s.
+   * */
   implicit def predictDataSet = {
     new PredictDataSetOperation[KMeans, Vector, LabeledVector] {
 
       /** Calculates the predictions for all elements in the [[DataSet]] input
         *
-        * @param instance
-        * @param predictParameters
-        * @param input
-        * @return a [[DataSet[LabeledVectors]] containing the nearest centroids
+        * @param instance Reference to the current KMeans instance.
+        * @param predictParameters Container for predication parameter.
+        * @param testDS Data set to make predict on.
+        *
+        * @return A [[DataSet[LabeledVectors]] containing the nearest centroids.
         */
       override def predictDataSet(instance: KMeans, predictParameters: ParameterMap,
-                                  input: DataSet[Vector])
+                                  testDS: DataSet[Vector])
       : DataSet[LabeledVector] = {
         instance.centroids match {
-          case Some(centroids) => {
-            input.mapWithBcSet(centroids)
+          case Some(centroids) =>
+            testDS.mapWithBcSet(centroids)
               { (dataPoint, centroids) => selectNearestCentroid(dataPoint, centroids) }
-          }
-
-          case None => {
+          case None =>
             throw new RuntimeException("The KMeans model has not been trained. Call first fit" +
               "before calling the predict operation.")
-          }
         }
       }
     }
@@ -187,13 +189,12 @@ object KMeans {
   /**
    * [[FitOperation]] which iteratively computes centroids that match the given input DataSet by
    * adjusting the given initial centroids.
+   *
+   * @return A new  [[FitOperation]] to train the model using the training data set.
    */
   implicit def fitKMeans = {
     new FitOperation[KMeans, Vector] {
-      override def fit(
-        instance: KMeans,
-        fitParameters: ParameterMap,
-        input: DataSet[Vector])
+      override def fit(instance: KMeans, fitParameters: ParameterMap, trainingDS: DataSet[Vector])
       : Unit = {
         val resultingParameters = instance.parameters ++ fitParameters
 
@@ -201,16 +202,17 @@ object KMeans {
         val numIterations: Int = resultingParameters.get(NumIterations).get
 
         val finalCentroids = centroids.iterate(numIterations) { currentCentroids =>
-          val newCentroids: DataSet[LabeledVector] = input
+          val newCentroids: DataSet[LabeledVector] = trainingDS
             .mapWithBcSet(currentCentroids)
-              {(dataPoint, centroids) => selectNearestCentroid(dataPoint, centroids)}
+              { (dataPoint, centroids) => selectNearestCentroid(dataPoint, centroids) }
             .map(x => (x.label, x.vector, 1.0)).withForwardedFields("label->_1; vector->_2")
             .groupBy(x => x._1)
-            .reduce((p1, p2) => (p1._1,(p1._2.asBreeze + p2._2.asBreeze).fromBreeze, p1._3 + p2._3))
+            .reduce((p1, p2) =>
+              (p1._1, (p1._2.asBreeze + p2._2.asBreeze).fromBreeze, p1._3 + p2._3))
             // TODO replace addition of Breeze vectors by future build in flink function
             .withForwardedFields("_1")
             .map(x => {
-              BLAS.scal(1.0/x._3, x._2)
+              BLAS.scal(1.0 / x._3, x._2)
               LabeledVector(x._1, x._2)
             })
             .withForwardedFields("_1->label")
@@ -226,6 +228,11 @@ object KMeans {
   /**
    * Converts a given vector into a labeled vector where the label denotes the label of the closest
    * centroid.
+   *
+   * @param dataPoint The vector to determine the nearest centroid.
+   * @param centroids A collection of the centroids.
+   * @return A [[LabeledVector]] consisting of the input vector and the label of the closest
+   *         centroid.
    */
   @ForwardedFields(Array("*->vector"))
   private def selectNearestCentroid(dataPoint: Vector, centroids: Traversable[LabeledVector]) = {
