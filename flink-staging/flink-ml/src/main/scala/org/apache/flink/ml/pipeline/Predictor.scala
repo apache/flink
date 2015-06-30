@@ -121,7 +121,7 @@ object Predictor {
 
         input.mapWithBcVariable(model){
           (element, model) => {
-            (element, predictOperation.predict(element, model))
+            (element, predictOperation.predict(element, model, resultingParameters))
           }
         }
       }
@@ -166,7 +166,7 @@ object Predictor {
 
         testing.mapWithBcVariable(model){
           (element, model) => {
-            (element._2, predictOperation.predict(element._1, model))
+            (element._2, predictOperation.predict(element._1, model, resultingParameters))
           }
         }
       }
@@ -191,10 +191,10 @@ object Predictor {
 trait PredictDataSetOperation[Self, Testing, Prediction] extends Serializable{
 
   /** Calculates the predictions for all elements in the [[DataSet]] input
-    * 
-    * @param instance
-    * @param predictParameters
-    * @param input
+    *
+    * @param instance The Predictor instance that we will use to make the predictions
+    * @param predictParameters The parameters for the prediction
+    * @param input The DataSet containing the unlabeled examples
     * @return
     */
   def predictDataSet(
@@ -210,43 +210,50 @@ trait PredictDataSetOperation[Self, Testing, Prediction] extends Serializable{
   * It is sufficient for a [[Predictor]] to only implement this trait to support the evaluate and
   * predict method.
   *
-  * @tparam Instance
-  * @tparam Model
-  * @tparam Testing
-  * @tparam Prediction
+  * @tparam Instance The concrete type of the [[Predictor]] that we will use for predictions
+  * @tparam Model The representation of the predictive model for the algorithm, for example a
+  *               Vector of weights
+  * @tparam Testing The type of the example that we will use to make the predictions (input)
+  * @tparam Prediction The type of the label that the prediction operation will produce (output)
+  *
   */
 trait PredictOperation[Instance, Model, Testing, Prediction] extends Serializable{
 
   /** Defines how to retrieve the model of the type for which this operation was defined
-    * 
-    * @param instance
-    * @return
+    *
+    * @param instance The Predictor instance that we will use to make the predictions
+    * @param predictParameters The parameters for the prediction
+    * @return A DataSet with the model representation as its only element
     */
   def getModel(instance: Instance, predictParameters: ParameterMap): DataSet[Model]
 
   /** Calculates the prediction for a single element given the model of the [[Predictor]].
     *
-    * @param value
-    * @param model
-    * @return
+    * @param value The unlabeled example on which we make the prediction
+    * @param model The model representation of the prediciton algorithm
+    * @param predictParameters The parameters for the prediction
+    * @return A label for the provided example of type [[Prediction]]
     */
-  def predict(value: Testing, model: Model): Prediction
+  def predict(value: Testing, model: Model, predictParameters: ParameterMap):
+    Prediction
 }
 
-/** Type class for the evalute operation of [[Predictor]]. This evaluate operation works on
+/** Type class for the evaluate operation of [[Predictor]]. This evaluate operation works on
   * DataSets.
   *
   * It takes a [[DataSet]] of some type. For each element of this [[DataSet]] the evaluate method
   * computes the prediction value and returns a tuple of true label value and prediction value.
   *
-  * @tparam Instance
-  * @tparam Testing
-  * @tparam PredictionValue
+  * @tparam Instance The concrete type of the Predictor instance that we will use to make the
+  *                  predictions
+  * @tparam Testing The type of the example that we will use to make the predictions (input)
+  * @tparam Prediction The type of the label that the prediction operation will produce (output)
+  *
   */
-trait EvaluateDataSetOperation[Instance, Testing, PredictionValue] extends Serializable{
+trait EvaluateDataSetOperation[Instance, Testing, Prediction] extends Serializable{
   def evaluateDataSet(
       instance: Instance,
       evaluateParameters: ParameterMap,
       testing: DataSet[Testing])
-    : DataSet[(PredictionValue, PredictionValue)]
+    : DataSet[(Prediction, Prediction)]
 }
