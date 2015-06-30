@@ -18,6 +18,7 @@
 
 package org.apache.flink.ml.classification
 
+import org.apache.flink.ml.common.LabeledVector
 import org.scalatest.{FlatSpec, Matchers}
 import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
 
@@ -28,30 +29,7 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   behavior of "The SVM using CoCoA implementation"
 
-  it should "train a SVM" in {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
-    val svm = SVM().
-    setBlocks(env.getParallelism).
-    setIterations(100).
-    setLocalIterations(100).
-    setRegularization(0.002).
-    setStepsize(0.1).
-    setSeed(0)
-
-    val trainingDS = env.fromCollection(Classification.trainingData)
-
-    svm.fit(trainingDS)
-
-    val weightVector = svm.weightsOption.get.collect().head
-
-    weightVector.valueIterator.zip(Classification.expectedWeightVector.valueIterator).foreach {
-      case (weight, expectedWeight) =>
-        weight should be(expectedWeight +- 0.1)
-    }
-  }
-
-  it should "make (mostly) correct predictions" in {
+  def fixture = new {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val svm = SVM().
@@ -64,11 +42,30 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val trainingDS = env.fromCollection(Classification.trainingData)
 
-    val test = trainingDS.map(x => (x.vector, x.label))
+    val test = trainingDS.map(x => x.vector)
 
     svm.fit(trainingDS)
+  }
 
-    val predictionPairs = svm.evaluate(test)
+  it should "train a SVM" in {
+
+    val f = fixture
+
+    val weightVector = f.svm.weightsOption.get.collect().head
+
+    weightVector.valueIterator.zip(Classification.expectedWeightVector.valueIterator).foreach {
+      case (weight, expectedWeight) =>
+        weight should be(expectedWeight +- 0.1)
+    }
+  }
+
+  it should "make (mostly) correct predictions" in {
+
+    val f = fixture
+
+    val test = f.trainingDS
+
+    val predictionPairs = f.svm.evaluate(test)
 
     val absoluteErrorSum = predictionPairs.collect().map{
       case (truth, prediction) => Math.abs(truth - prediction)}.sum
@@ -97,8 +94,16 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val rawPrediction = svm.predict(test).map(vectorLabel => vectorLabel._2).collect().head
 
-    rawPrediction should be (15.0 +- 1e-9)
+    rawPrediction should be (15.0 +- 1e-9)    
+  }
 
+  it should "correctly calculate its score" in {
+    val f = fixture
 
+    val test = f.trainingDS
+
+    val score = f.svm.score(test).collect().head
+
+    score should be > 0.9
   }
 }
