@@ -109,6 +109,11 @@ public class StatefulOperatorTest {
 			public void invoke(String value) throws Exception {}
 		});
 		
+		keyedStream.map(new StatefulMapper2()).setParallelism(1).addSink(new SinkFunction<String>() {
+			private static final long serialVersionUID = 1L;
+			public void invoke(String value) throws Exception {}
+		});
+		
 		try {
 			keyedStream.shuffle();
 			fail();
@@ -222,6 +227,36 @@ public class StatefulOperatorTest {
 		public void restoreState(Integer state) {
 			this.checkpointedCounter = (Integer) state;
 		}
+	}
+	
+	public static class StatefulMapper2 extends RichMapFunction<Integer, String> {
+		private static final long serialVersionUID = 1L;
+		OperatorState<Integer> groupCounter;
+		
+		@Override
+		public String map(Integer value) throws Exception {
+			groupCounter.updateState(groupCounter.getState() + 1);
+			
+			return value.toString();
+		}
+
+		@Override
+		public void open(Configuration conf) throws IOException {		
+			groupCounter = getRuntimeContext().getOperatorState("groupCounter", 0, true);
+		}
+		
+		@SuppressWarnings({ "rawtypes", "unchecked" })
+		@Override
+		public void close() throws Exception {
+			Map<String, StreamOperatorState> states = ((StreamingRuntimeContext) getRuntimeContext()).getOperatorStates();
+			PartitionedStreamOperatorState<Integer, Integer, Integer> groupCounter = (PartitionedStreamOperatorState<Integer, Integer, Integer>) states.get("groupCounter");
+			for (Entry<Serializable, Integer> count : groupCounter.getPartitionedState().entrySet()) {
+				Integer key = (Integer) count.getKey();
+				Integer expected = key < 3 ? 2 : 1;
+				assertEquals(expected, count.getValue());
+			}
+		}
+		
 	}
 	
 	public static class ModKey implements KeySelector<Integer, Serializable> {
