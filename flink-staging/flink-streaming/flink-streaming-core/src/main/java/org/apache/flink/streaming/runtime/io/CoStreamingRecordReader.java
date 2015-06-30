@@ -29,7 +29,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.tasks.StreamingSuperstep;
+import org.apache.flink.streaming.runtime.tasks.CheckpointBarrier;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,8 +145,8 @@ public class CoStreamingRecordReader<T1 extends IOReadableWritable, T2 extends I
 				// Event received
 				final AbstractEvent event = bufferOrEvent.getEvent();
 
-				if (event instanceof StreamingSuperstep) {
-					barrierBuffer.processSuperstep(bufferOrEvent);
+				if (event instanceof CheckpointBarrier) {
+					barrierBuffer.processBarrier(bufferOrEvent);
 				} else if (event instanceof Watermark) {
 					Watermark mark = (Watermark) event;
 					int inputIndex = bufferOrEvent.getChannelIndex();

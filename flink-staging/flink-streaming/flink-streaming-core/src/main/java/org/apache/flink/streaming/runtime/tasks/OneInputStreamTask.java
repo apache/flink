@@ -56,7 +56,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			InputGate[] inputGates = getEnvironment().getAllInputGates();
 			inputReader = new StreamingMutableRecordReader<DeserializationDelegate<StreamRecord<IN>>>(inputGates);
 
-			inputReader.registerTaskEventListener(getSuperstepListener(), StreamingSuperstep.class);
+			inputReader.registerTaskEventListener(getCheckpointBarrierListener(), CheckpointBarrier.class);
 			inputReader.registerTaskEventListener(new WatermarkListener(), Watermark.class);
 
 			inputIterator = new ReaderIterator<StreamRecord<IN>>(inputReader, inSerializer);

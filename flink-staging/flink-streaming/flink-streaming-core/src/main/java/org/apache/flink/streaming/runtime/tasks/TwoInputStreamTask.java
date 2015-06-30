@@ -161,7 +161,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 		coReader = new CoStreamingRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>>(
 				inputList1, inputList2);
 
-		coReader.registerTaskEventListener(getSuperstepListener(), StreamingSuperstep.class);
+		coReader.registerTaskEventListener(getCheckpointBarrierListener(), CheckpointBarrier.class);
 		coReader.registerTaskEventListener(new WatermarkListener(), Watermark.class);
 
 		coIter = new CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>>(coReader,

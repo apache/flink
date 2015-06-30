@@ -96,7 +96,7 @@ public class OutputHandler<OUT> {
 	}
 
 	public void broadcastBarrier(long id, long timestamp) throws IOException, InterruptedException {
-		StreamingSuperstep barrier = new StreamingSuperstep(id, timestamp);
+		CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp);
 		for (RecordWriterOutput<?> streamOutput : outputMap.values()) {
 			streamOutput.broadcastEvent(barrier);
 		}
