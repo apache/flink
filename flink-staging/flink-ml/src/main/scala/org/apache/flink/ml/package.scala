@@ -75,7 +75,7 @@ package object ml {
 
     def mapWithBcSet[B, O: TypeInformation: ClassTag](
         broadcastVariable: DataSet[B])(
-        fun: (T, Traversable[B]) => O)
+        fun: (T, Seq[B]) => O)
     : DataSet[O] = {
       dataSet.map(new BroadcastSetMapper[T, B, O](dataSet.clean(fun)))
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
@@ -128,13 +128,16 @@ package object ml {
     }
   }
 
-  private class BroadcastSetMapper[T, B, O](fun: (T, Traversable[B]) => O)
+  private class BroadcastSetMapper[T, B, O](fun: (T, Seq[B]) => O)
     extends RichMapFunction[T, O] {
-    var broadcastVariable: Traversable[B] = _
+    var broadcastVariable: Seq[B] = _
 
     @throws(classOf[Exception])
     override def open(configuration: Configuration): Unit = {
-      broadcastVariable = getRuntimeContext.getBroadcastVariable[B]("broadcastVariable").asScala
+      broadcastVariable = getRuntimeContext
+        .getBroadcastVariable[B]("broadcastVariable")
+        .asScala
+        .toSeq
     }
 
     override def map(value: T): O = {

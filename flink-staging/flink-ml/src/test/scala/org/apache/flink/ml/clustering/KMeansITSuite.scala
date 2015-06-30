@@ -31,7 +31,7 @@ class KMeansITSuite extends FlatSpec with Matchers with FlinkTestBase {
   def fixture = new {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val kmeans = KMeans().
-      setInitialCentroids(env.fromCollection(ClusteringData.centroidData)).
+      setInitialCentroids(ClusteringData.centroidData).
       setNumIterations(ClusteringData.iterations)
 
     val trainingDS = env.fromCollection(ClusteringData.trainingData)
@@ -39,10 +39,10 @@ class KMeansITSuite extends FlatSpec with Matchers with FlinkTestBase {
     kmeans.fit(trainingDS)
   }
 
-  it should "data points are clustered into 'K' cluster centers" in {
+  it should "cluster data points into 'K' cluster centers" in {
     val f = fixture
 
-    val centroidsResult = f.kmeans.centroids.get.collect()
+    val centroidsResult = f.kmeans.centroids.get.collect().apply(0)
 
     val centroidsExpected = ClusteringData.expectedCentroids
 
@@ -53,7 +53,7 @@ class KMeansITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val expectedMap = centroidsExpected map (e => e.label->e.vector.asInstanceOf[DenseVector]) toMap
 
     // each of the results must be in lookup table
-    centroidsResult foreach(result => {
+    centroidsResult.iterator.foreach(result => {
       val expectedVector = expectedMap.get(result.label).get
 
       // the type must match (not None)
