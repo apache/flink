@@ -39,6 +39,9 @@ import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
 /** Implements a soft-margin SVM using the communication-efficient distributed dual coordinate
   * ascent algorithm (CoCoA) with hinge-loss function.
   *
+  * It can be used for binary classification problems, with the labels set as +1.0 to indiciate a
+  * positive example and -1.0 to indicate a negative example.
+  *
   * The algorithm solves the following minimization problem:
   *
   * `min_{w in bbb"R"^d} lambda/2 ||w||^2 + 1/n sum_(i=1)^n l_{i}(w^Tx_i)`
@@ -120,6 +123,12 @@ import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
   *  - [[org.apache.flink.ml.classification.SVM.Seed]]:
   *  Defines the seed to initialize the random number generator. The seed directly controls which
   *  data points are chosen for the SDCA method. (Default value: '''0''')
+  *
+  *  - [[org.apache.flink.ml.classification.SVM.Threshold]]:
+  *  Defines the limiting value for the decision function above which examples are labeled as
+  *  positive (+1.0). Examples with a decision function value below this value are classified as
+  *  negative(-1.0). In order to get the raw decision function value you need to unset this
+  *  parameter using the [[clearThreshold()]] function.  (Default value: '''0.0''')
   */
 class SVM extends Predictor[SVM] {
 
@@ -187,6 +196,26 @@ class SVM extends Predictor[SVM] {
     parameters.add(Seed, seed)
     this
   }
+
+  /** Sets the threshold above which elements are classified as positive
+    *
+    * @param threshold
+    * @return
+    */
+  def setThreshold(threshold: Double): SVM = {
+    parameters.add(Threshold, threshold)
+    this
+  }
+
+  /** Clears the classification threshold, predictions made after calling this function will have
+    * the raw decision function value.
+    *
+    * @return
+    */
+  def clearThreshold(): SVM = {
+    parameters.add(Threshold, Option.empty[Double])
+    this
+  }
 }
 
 /** Companion object of SVM. Contains convenience functions and the parameter type definitions
@@ -222,6 +251,10 @@ object SVM{
     val defaultValue = Some(0L)
   }
 
+  case object Threshold extends Parameter[Double] {
+    val defaultValue = Option(0.0)
+  }
+
   // ========================================== Factory methods ====================================
 
   def apply(): SVM = {
@@ -242,8 +275,21 @@ object SVM{
         }
       }
 
-      override def predict(value: T, model: DenseVector): Double = {
-        value.asBreeze dot model.asBreeze
+      override def predict(value: T, model: DenseVector, predictParameters: ParameterMap):
+        Double = {
+        val thresholdOption = predictParameters.get(Threshold)
+
+        val rawValue = value.asBreeze dot model.asBreeze
+        // If the Threshold option has been reset, we will get back a Some(None) thresholdOption
+        // causing the exception when we try to get the value. In that case we just return the
+        // raw value
+        try {
+          val thresOptionValue = thresholdOption.get
+          if (rawValue > thresOptionValue) 1.0 else -1.0
+        }
+        catch {
+          case e: java.lang.ClassCastException => rawValue
+        }
       }
     }
   }

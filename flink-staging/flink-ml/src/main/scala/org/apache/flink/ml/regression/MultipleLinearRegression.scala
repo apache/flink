@@ -201,7 +201,8 @@ object MultipleLinearRegression {
           }
         }
       }
-      override def predict(value: T, model: WeightVector): Double = {
+      override def predict(value: T, model: WeightVector, predictParameters: ParameterMap):
+        Double = {
         import Breeze._
         val WeightVector(weights, weight0) = model
         val dotProduct = value.asBreeze.dot(weights.asBreeze)

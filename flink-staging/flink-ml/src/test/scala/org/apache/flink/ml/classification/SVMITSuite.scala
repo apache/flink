@@ -19,6 +19,7 @@
 package org.apache.flink.ml.classification
 
 import org.scalatest.{FlatSpec, Matchers}
+import org.apache.flink.ml.math.{Vector => FlinkVector}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase
@@ -26,6 +27,8 @@ import org.apache.flink.test.util.FlinkTestBase
 class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   behavior of "The SVM using CoCoA implementation"
+
+  //TODO: Do SVM setup in a function
 
   it should "train a SVM" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -40,11 +43,9 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val trainingDS = env.fromCollection(Classification.trainingData)
 
-    val testingDS = trainingDS.map(_.vector)
-
     svm.fit(trainingDS)
 
-    val weightVector = svm.weightsOption.get.collect().apply(0)
+    val weightVector = svm.weightsOption.get.collect().head
 
     weightVector.valueIterator.zip(Classification.expectedWeightVector.valueIterator).foreach {
       case (weight, expectedWeight) =>
@@ -69,19 +70,38 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     svm.fit(trainingDS)
 
-    val threshold = 0.0
-
-    val predictionPairs = svm.evaluate(test).map {
-      truthPrediction =>
-        val truth = truthPrediction._1
-        val prediction = truthPrediction._2
-        val thresholdedPrediction = if (prediction > threshold) 1.0 else -1.0
-        (truth, thresholdedPrediction)
-    }
+    val predictionPairs = svm.evaluate(test)
 
     val absoluteErrorSum = predictionPairs.collect().map{
       case (truth, prediction) => Math.abs(truth - prediction)}.sum
 
     absoluteErrorSum should be < 15.0
+  }
+
+  it should "be possible to get the raw decision function values" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val svm = SVM().
+      setBlocks(env.getParallelism).
+      setIterations(100).
+      setLocalIterations(100).
+      setRegularization(0.002).
+      setStepsize(0.1).
+      setSeed(0).
+      clearThreshold()
+
+    val trainingDS = env.fromCollection(Classification.trainingData)
+
+    val test = trainingDS.map(x => x.vector)
+
+    svm.fit(trainingDS)
+
+    val predictions: DataSet[(FlinkVector, Double)] = svm.predict(test)
+
+    val preds = predictions.map(vectorLabel => vectorLabel._2).collect()
+
+    preds.max should be > 1.0
+    preds.min should be < -1.0
+
   }
 }
