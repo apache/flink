@@ -24,9 +24,7 @@ public class ProducerFailedException extends CancelTaskException {
 
 	private static final long serialVersionUID = -1555492656299526395L;
 
-	private final Throwable cause;
-
 	public ProducerFailedException(Throwable cause) {
-		this.cause = cause;
+		super(cause);
 	}
 }
