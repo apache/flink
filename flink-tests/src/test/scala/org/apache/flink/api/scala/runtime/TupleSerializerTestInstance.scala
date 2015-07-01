@@ -17,11 +17,9 @@
  */
 package org.apache.flink.api.scala.runtime
 
+import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerializer}
 import org.junit.Assert._
-import org.apache.flink.api.common.typeutils.SerializerTestInstance
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.junit.Assert
-import org.junit.Test
+import org.junit.{Assert, Test}
 
 
 class TupleSerializerTestInstance[T <: Product] (
@@ -57,7 +55,7 @@ class TupleSerializerTestInstance[T <: Product] (
     for (i <- 0 until shouldTuple.productArity) {
       val should = shouldTuple.productElement(i)
       val is = isTuple.productElement(i)
-      if (should.getClass.isArray) {
+      if (should != null && should.getClass.isArray) {
         should match {
           case booleans: Array[Boolean] =>
             Assert.assertTrue(message, booleans.sameElements(is.asInstanceOf[Array[Boolean]]))

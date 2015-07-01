@@ -17,10 +17,11 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.commons.lang.SerializationUtils
+import java.util.BitSet
+
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
-import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
  * Serializer for Case Classes. Creation and access is different from
@@ -76,17 +77,37 @@ abstract class CaseClassSerializer[T <: Product](
     initArray()
     var i = 0
     while (i < arity) {
-      fields(i) = fieldSerializers(i).copy(from.productElement(i).asInstanceOf[AnyRef])
+      val fieldValue: AnyRef = from.productElement(i).asInstanceOf[AnyRef]
+      if(fieldValue != null){
+        fields(i) = fieldSerializers(i).copy(fieldValue)
+      } else {
+        fields(i) = null
+      }
       i += 1
     }
     createInstance(fields)
   }
 
   def serialize(value: T, target: DataOutputView) {
-    var i = 0
+    val bitIndicator: BitSet = new BitSet(arity)
+    var i: Int = 0
+    while (i < arity) {
+      {
+        val element: Any = value.productElement(i)
+        bitIndicator.set(i, element != null)
+      }
+      i += 1
+    }
+
+    target.write(bitIndicator.toByteArray)
+
+    i = 0
     while (i < arity) {
       val serializer = fieldSerializers(i).asInstanceOf[TypeSerializer[Any]]
-      serializer.serialize(value.productElement(i), target)
+      val element: Any = value.productElement(i)
+      if (element != null) {
+        serializer.serialize(element, target)
+      }
       i += 1
     }
   }
@@ -97,9 +118,19 @@ abstract class CaseClassSerializer[T <: Product](
 
   def deserialize(source: DataInputView): T = {
     initArray()
+
+    val bitSetSize: Int = (arity / 8) + 1
+    val buffer: Array[Byte] = new Array[Byte](bitSetSize)
+    source.read(buffer)
+    val bitIndicator: BitSet = BitSet.valueOf(buffer)
+
     var i = 0
     while (i < arity) {
-      fields(i) = fieldSerializers(i).deserialize(source)
+      if(bitIndicator.get(i)){
+        fields(i) = fieldSerializers(i).deserialize(source)
+      } else {
+        fields(i) = null
+      }
       i += 1
     }
     createInstance(fields)
@@ -108,6 +139,23 @@ abstract class CaseClassSerializer[T <: Product](
   def initArray() = {
     if (fields == null) {
       fields = new Array[AnyRef](arity)
+    }
+  }
+
+  override def copy(source: DataInputView, target: DataOutputView): Unit = {
+    val bitSetSize: Int = (arity / 8) + 1
+    val buffer: Array[Byte] = new Array[Byte](bitSetSize)
+    source.read(buffer)
+    val bitIndicator: BitSet = BitSet.valueOf(buffer)
+
+    target.write(bitIndicator.toByteArray)
+
+    var i: Int = 0
+    while (i < arity) {
+      if (bitIndicator.get(i)) {
+        fieldSerializers(i).copy(source, target)
+      }
+      i += 1
     }
   }
 }

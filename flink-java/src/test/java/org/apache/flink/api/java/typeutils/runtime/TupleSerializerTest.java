@@ -207,6 +207,16 @@ public class TupleSerializerTest {
 		runTests(testTuples);
 	}
 
+	@Test
+	public void testTupleWithNull() {
+		@SuppressWarnings("unchecked")
+		Tuple2<Integer,String>[] testTuples = new Tuple2[] {
+				new Tuple2<Integer,String>(0,"a"), new Tuple2<Integer,String>(1,"b"), new Tuple2<Integer,String>(-1,null)
+		};
+
+		runTests(testTuples);
+	}
+
 	private <T extends Tuple> void runTests(T... instances) {
 		try {
 			TupleTypeInfo<T> tupleTypeInfo = (TupleTypeInfo<T>) TypeExtractor.getForObject(instances[0]);

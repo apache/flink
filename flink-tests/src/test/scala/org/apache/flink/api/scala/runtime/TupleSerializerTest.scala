@@ -205,6 +205,12 @@ class TupleSerializerTest {
     runTests(testTuples)
   }
 
+  @Test
+  def testTupleWithNull(): Unit = {
+    val testTuples = Array((0,"a"), (1,"b"), (-1,null))
+    runTests(testTuples)
+  }
+
   private final def runTests[T <: Product : TypeInformation](instances: Array[T]) {
     try {
       // Register the custom Kryo Serializer
