@@ -112,7 +112,7 @@ object ParameterMap {
  *
  * @tparam T Type of parameter value associated to this parameter key
  */
-trait Parameter[+T] {
+trait Parameter[T] {
 
   /**
    * Default value of parameter. If no such value exists, then returns [[None]]

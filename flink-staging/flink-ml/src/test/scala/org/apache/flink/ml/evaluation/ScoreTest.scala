@@ -39,7 +39,7 @@ class ScoreTest
 
     val yy = env.fromCollection(Seq((0.0, 1.0), (0.0, 0.0), (3.0, 5.0)))
 
-    val loss = new SquaredLoss()
+    val loss = RegressionScores.squaredLoss
 
     val result = loss.evaluate(yy).collect()
 
@@ -52,7 +52,7 @@ class ScoreTest
 
     val yy = env.fromCollection(Seq("a" -> "a", "a" -> "b", "b" -> "c", "d" -> "d"))
 
-    val loss = new ZeroOneLoss[String]()
+    val loss = ClassificationScores.zeroOneLoss[String]
 
     val result = loss.evaluate(yy).collect()
 
@@ -66,7 +66,7 @@ class ScoreTest
     val yy = env.fromCollection(Seq[(Double,Double)](
       -2.3 -> 2.3, -1.0 -> -10.5, 2.0 -> 3.0, 4.0 -> -5.0))
 
-    val loss = new ZeroOneSignumLoss()
+    val loss = RegressionScores.zeroOneSignumLoss
 
     val result = loss.evaluate(yy).collect()
 
@@ -89,7 +89,7 @@ class ScoreTest
 
     val labels = slr.evaluate(test)
 
-    val error = new SquaredLoss().evaluate(labels)
+    val error = RegressionScores.squaredLoss.evaluate(labels)
     val expectedError = noise*noise
 
     error.collect().head shouldBe (expectedError +- expectedError/5)
@@ -100,7 +100,7 @@ class ScoreTest
 
     val yy = env.fromCollection(Seq(0.0 -> 0.0, 1.0 -> 1.0, 2.0 -> 2.0, 3.0 -> 2.0))
 
-    val accuracyScore = new AccuracyScore()
+    val accuracyScore = ClassificationScores.accuracyScore
 
     val result = accuracyScore.evaluate(yy).collect()
 
@@ -116,7 +116,7 @@ class ScoreTest
 
     val yy = env.fromCollection(valueList)
 
-    val r2 = new R2Score()
+    val r2 = RegressionScores.r2Score
 
     val result = r2.evaluate(yy).collect()
 
@@ -132,7 +132,7 @@ class ScoreTest
 
     val yy = env.fromCollection(valueList)
 
-    val r2 = new R2Score()
+    val r2 = RegressionScores.r2Score
 
     val result = r2.evaluate(yy).collect()
 

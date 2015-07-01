@@ -20,7 +20,7 @@ package org.apache.flink.ml.classification
 
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.ml.common.LabeledVector
-import org.apache.flink.ml.evaluation.AccuracyScore
+import org.apache.flink.ml.evaluation.ClassificationScores
 import org.apache.flink.ml.pipeline.{EvaluateDataSetOperation, Predictor}
 
 trait Classifier[Self] extends Predictor[Self]{
@@ -29,6 +29,6 @@ trait Classifier[Self] extends Predictor[Self]{
   def score(testing: DataSet[LabeledVector])
            (implicit evaluateOperation: EvaluateDataSetOperation[Self, LabeledVector, Double]):
   DataSet[Double] = {
-    new AccuracyScore().evaluate(this.evaluate[LabeledVector, Double](testing))
+    ClassificationScores.accuracyScore.evaluate(this.evaluate[LabeledVector, Double](testing))
   }
 }

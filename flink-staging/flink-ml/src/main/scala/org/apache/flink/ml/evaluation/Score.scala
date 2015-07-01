@@ -58,75 +58,78 @@ abstract class MeanScore[PredictionType: TypeInformation: ClassTag](
   }
 }
 
+object RegressionScores {
+  /**
+   * Squared loss function
+   *
+   * returns (y1 - y2)'
+   *
+   * @return a Loss object
+   */
+  def squaredLoss = new MeanScore[Double]((y1,y2) => (y1 - y2) * (y1 - y2)) with Loss
 
-//TODO: Return to functions in companion object, classes are more cumbersome
-/**
- * Squared loss function
- *
- * returns (y1 - y2)'
- *
- * @return a Loss object
- */
-class SquaredLoss extends MeanScore[Double]((y1,y2) => (y1 - y2) * (y1 - y2)) with Loss
-
-/**
- * Zero One Loss Function
- *
- * returns 1 if outputs differ and 0 if they are equal
- *
- * @tparam T output type
- * @return a Loss object
- */
-class ZeroOneLoss[T: TypeInformation: ClassTag]
-  extends MeanScore[T]((y1, y2) => if (y1 == y2) 0 else 1) with Loss
-
-/**
- * Zero One Loss Function also usable for score information
- *
- * returns 1 if sign of outputs differ and 0 if the signs are equal
- *
- * @return a Loss object
- */
-class ZeroOneSignumLoss
-  extends MeanScore[Double]({ (y1, y2) =>
+  /**
+   * Zero One Loss Function also usable for score information
+   *
+   * returns 1 if sign of outputs differ and 0 if the signs are equal
+   *
+   * @return a Loss object
+   */
+  def zeroOneSignumLoss = new MeanScore[Double]({ (y1, y2) =>
     val sy1 = scala.math.signum(y1)
     val sy2 = scala.math.signum(y2)
     if (sy1 == sy2) 0 else 1
-    })
-  with Loss
+  }) with Loss
 
-/** Calculates the fraction of correct predictions
-  *
-  */
-class AccuracyScore
-  extends MeanScore[Double]((y1, y2) => if (y1 == y2) 1 else 0) with PerformanceScore
+  /** Calculates the coefficient of determination, $R^2^$
+    *
+    * $R^2^$ indicates how well the data fit the a calculated model
+    * Reference: [[http://en.wikipedia.org/wiki/Coefficient_of_determination]]
+    */
+  def r2Score = new Score[Double] with PerformanceScore {
+    override def evaluate(trueAndPredicted: DataSet[(Double, Double)]): DataSet[Double] = {
+      val onlyTrue = trueAndPredicted.map(truthPrediction => truthPrediction._1)
+      val meanTruth = onlyTrue.mean()
 
-/** Calculates the coefficient of determination, $R^2^$
-  *
-  * $R^2^$ indicates how well the data fit the a calculated model
-  * Reference: [[http://en.wikipedia.org/wiki/Coefficient_of_determination]]
-  */
-class R2Score extends Score[Double] with PerformanceScore {
-  override def evaluate(trueAndPredicted: DataSet[(Double, Double)]): DataSet[Double] = {
-    val onlyTrue = trueAndPredicted.map(truthPrediction => truthPrediction._1)
-    val meanTruth = onlyTrue.mean()
-
-    val ssRes = trueAndPredicted
-      .map(tp => (tp._1 - tp._2) * (tp._1 - tp._2)).reduce(_ + _)
-    val ssTot = onlyTrue
-      .crossWithTiny(meanTruth).map(tp => (tp._1 - tp._2) * (tp._1 - tp._2)).reduce(_ + _)
-    val r2 = ssRes.crossWithTiny(ssTot).map{resTot =>
-      val ssRes  = resTot._1
-      val ssTot  = resTot._2
-      // We avoid dividing by 0 and just assign 0.0
-      if (ssTot == 0.0) {
-        0.0
+      val ssRes = trueAndPredicted
+        .map(tp => (tp._1 - tp._2) * (tp._1 - tp._2)).reduce(_ + _)
+      val ssTot = onlyTrue
+        .crossWithTiny(meanTruth).map(tp => (tp._1 - tp._2) * (tp._1 - tp._2)).reduce(_ + _)
+      val r2 = ssRes.crossWithTiny(ssTot).map{resTot =>
+        val ssRes  = resTot._1
+        val ssTot  = resTot._2
+        // We avoid dividing by 0 and just assign 0.0
+        if (ssTot == 0.0) {
+          0.0
+        }
+        else {
+          1 - (ssRes / ssTot)
+        }
       }
-      else {
-        1 - (ssRes / ssTot)
-      }
+      r2
     }
-
-    r2
   }
 }
+
+object ClassificationScores {
+  /** Calculates the fraction of correct predictions
+    *
+    */
+  def accuracyScore = new MeanScore[Double]((y1, y2) => if (y1 == y2) 1 else 0)
+    with PerformanceScore
+
+  /**
+   * Zero One Loss Function
+   *
+   * returns 1 if outputs differ and 0 if they are equal
+   *
+   * @tparam T output type
+   * @return a Loss object
+   */
+  def zeroOneLoss[T: TypeInformation: ClassTag] = {
+    //TODO: If T == Double, == comparison could be problematic
+    new MeanScore[T]((y1, y2) => if (y1 == y2) 0 else 1) with Loss
+  }
+}
+
+

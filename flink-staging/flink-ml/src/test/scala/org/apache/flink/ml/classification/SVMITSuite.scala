@@ -40,6 +40,7 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
       setStepsize(0.1).
       setSeed(0)
 
+
     val trainingDS = env.fromCollection(Classification.trainingData)
 
     val test = trainingDS.map(x => x.vector)
@@ -81,7 +82,7 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
       .setOutputDecisionFunction(false)
 
     val customWeights = env.fromElements(DenseVector(1.0, 1.0, 1.0))
-
+ 
     svm.weightsOption = Option(customWeights)
 
     val test = env.fromElements(DenseVector(5.0, 5.0, 5.0))

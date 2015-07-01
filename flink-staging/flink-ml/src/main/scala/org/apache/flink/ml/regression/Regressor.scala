@@ -20,7 +20,7 @@ package org.apache.flink.ml.regression
 
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.ml.common.LabeledVector
-import org.apache.flink.ml.evaluation.R2Score
+import org.apache.flink.ml.evaluation.RegressionScores
 import org.apache.flink.ml.pipeline.{EvaluateDataSetOperation, Predictor}
 
 trait Regressor[Self] extends Predictor[Self]{
@@ -29,6 +29,6 @@ trait Regressor[Self] extends Predictor[Self]{
   def score(testing: DataSet[LabeledVector])
       (implicit evaluateOperation: EvaluateDataSetOperation[Self, LabeledVector, Double]):
     DataSet[Double] = {
-    new R2Score().evaluate(this.evaluate[LabeledVector, Double](testing))
+    RegressionScores.r2Score.evaluate(this.evaluate[LabeledVector, Double](testing))
   }
 }
