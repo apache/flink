@@ -693,6 +693,9 @@ Currently, the following parameters can be specified:
 * <strong>Number of Vertices</strong>: Accessing the total number of vertices within the iteration. This property can be set using the `setOptNumVertices()` method.
 The number of vertices can then be accessed in the gather, sum and/or apply functions by using the `getNumberOfVertices()` method. If the option is not set in the configuration, this method will return -1.
 
+* <strong>Neighbor Direction</strong>: By Default values are gathered from the out neighbors of the Vertex. This can be modified
+using the 'SetDirection()' method.
+
 The following example illustrates the usage of the number of vertices option.
 
 {% highlight java %}
