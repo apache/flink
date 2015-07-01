@@ -958,6 +958,19 @@ val result = in.partitionByHash(0).mapPartition { ... }
     </tr>
     </tr>
     <tr>
+      <td><strong>Custom Partitioning</strong></td>
+      <td>
+        <p>Manually specify a partitioning over the data.
+          <br/>
+          <i>Note</i>: This method works only on single field keys.</p>
+{% highlight scala %}
+val in: DataSet[(Int, String)] = // [...]
+val result = in
+  .partitionCustom(partitioner: Partitioner[K], key)
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
       <td><strong>Sort Partition</strong></td>
       <td>
         <p>Locally sorts all partitions of a data set on a specified field in a specified order. 
