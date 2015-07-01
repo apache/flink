@@ -281,7 +281,13 @@ object SVM{
 
   implicit def predictVectors[T <: Vector] = {
     new PredictOperation[SVM, DenseVector, T, Double](){
+
+      var thresholdValue: Double = _
+      var outputDecisionFunction: Boolean = _
+
       override def getModel(self: SVM, predictParameters: ParameterMap): DataSet[DenseVector] = {
+        thresholdValue = predictParameters(ThresholdValue)
+        outputDecisionFunction = predictParameters(OutputDecisionFunction)
         self.weightsOption match {
           case Some(model) => model
           case None => {
@@ -291,10 +297,8 @@ object SVM{
         }
       }
 
-      override def predict(value: T, model: DenseVector, predictParameters: ParameterMap):
+      override def predict(value: T, model: DenseVector):
         Double = {
-        val thresholdValue = predictParameters(ThresholdValue)
-        val outputDecisionFunction = predictParameters(OutputDecisionFunction)
 
         val rawValue = value.asBreeze dot model.asBreeze
 

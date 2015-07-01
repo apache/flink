@@ -121,7 +121,7 @@ object Predictor {
 
         input.mapWithBcVariable(model){
           (element, model) => {
-            (element, predictOperation.predict(element, model, resultingParameters))
+            (element, predictOperation.predict(element, model))
           }
         }
       }
@@ -166,7 +166,7 @@ object Predictor {
 
         testing.mapWithBcVariable(model){
           (element, model) => {
-            (element._2, predictOperation.predict(element._1, model, resultingParameters))
+            (element._2, predictOperation.predict(element._1, model))
           }
         }
       }
@@ -231,10 +231,9 @@ trait PredictOperation[Instance, Model, Testing, Prediction] extends Serializabl
     *
     * @param value The unlabeled example on which we make the prediction
     * @param model The model representation of the prediciton algorithm
-    * @param predictParameters The parameters for the prediction
     * @return A label for the provided example of type [[Prediction]]
     */
-  def predict(value: Testing, model: Model, predictParameters: ParameterMap):
+  def predict(value: Testing, model: Model):
     Prediction
 }
 
