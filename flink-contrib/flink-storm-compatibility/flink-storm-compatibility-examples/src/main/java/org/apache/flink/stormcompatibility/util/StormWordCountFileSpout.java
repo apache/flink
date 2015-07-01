@@ -17,27 +17,22 @@
 
 package org.apache.flink.stormcompatibility.util;
 
-import backtype.storm.tuple.Values;
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
+import backtype.storm.topology.OutputFieldsDeclarer;
+import backtype.storm.tuple.Fields;
 
 /**
- * Implements a Storm Spout that reads data from {@link WordCountData#WORDS}.
+ * Implements a Storm Spout that reads data from a given local file.
  */
-public class StormInMemorySpout extends AbstractStormSpout {
-	private static final long serialVersionUID = -4008858647468647019L;
+public final class StormWordCountFileSpout extends StormFileSpout {
+	private static final long serialVersionUID = 2372251989250954503L;
 
-	private String[] source;
-	private int counter = 0;
-
-	public StormInMemorySpout(String[] source) {
-		this.source = source;
+	public StormWordCountFileSpout(String path) {
+		super(path);
+		// TODO Auto-generated constructor stub
 	}
 
 	@Override
-	public void nextTuple() {
-		if (this.counter < WordCountData.WORDS.length) {
-			this.collector.emit(new Values(WordCountData.WORDS[this.counter++]));
-		}
+	public void declareOutputFields(final OutputFieldsDeclarer declarer) {
+		declarer.declare(new Fields("sentence"));
 	}
-
 }
