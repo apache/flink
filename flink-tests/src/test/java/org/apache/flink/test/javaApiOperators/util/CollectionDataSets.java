@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -311,6 +312,19 @@ public class CollectionDataSets {
 		public String toString() {
 			return myInt + "," + myLong + "," + myString;
 		}
+	}
+
+	public static class CustomTypeComparator implements Comparator<CustomType> {
+		@Override
+		public int compare(CustomType o1, CustomType o2) {
+			int diff = o1.myInt - o2.myInt;
+			if (diff != 0) {
+				return diff;
+			}
+			diff = (int) (o1.myLong - o2.myLong);
+			return diff != 0 ? diff : o1.myString.compareTo(o2.myString);
+		}
+
 	}
 
 	public static DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> getSmallTuplebasedDataSet(ExecutionEnvironment env) {

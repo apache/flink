@@ -78,8 +78,8 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testCoGroupOnTwoCustomTypeInputsWithKeyExtractors() throws Exception {
 		/*
-				 * CoGroup on two custom type inputs with key extractors
-				 */
+		 * CoGroup on two custom type inputs with key extractors
+		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -515,7 +515,9 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 
 		compareResultAsText(result, expected);
 	}
-	
+
+
+
 	// --------------------------------------------------------------------------------------------
 	//  UDF classes
 	// --------------------------------------------------------------------------------------------
