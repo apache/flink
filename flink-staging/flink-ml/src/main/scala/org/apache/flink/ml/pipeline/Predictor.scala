@@ -178,10 +178,6 @@ object Predictor {
     * of true label value and predicted label value, when provided with a DataSet of
     * [[LabeledVector]].
     *
-    * Note: We have to put the TypeInformation implicit values for Testing and PredictionValue after
-    * the PredictOperation implicit parameter. Otherwise, if it's defined as a context bound, then
-    * the Scala compiler does not find the implicit [[PredictOperation]] value.
-    *
     * @param predictOperation An implicit PredictOperation that takes a Flink Vector and returns
     *                         a Double
     * @tparam Instance The [[Predictor]] instance that calls the function
