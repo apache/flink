@@ -154,13 +154,24 @@ The SVM implementation can be controlled by the following parameters:
         </td>
       </tr>
       <tr>
-        <td><strong>Threshold</strong></td>
+        <td><strong>ThresholdValue</strong></td>
         <td>
           <p>
             Defines the limiting value for the decision function above which examples are labeled as
             positive (+1.0). Examples with a decision function value below this value are classified
-             as negative (-1.0). In order to get the raw decision function value you need to
-             unset this parameter using the [[clearThreshold()]] function.  (Default value: <strong>0.0</strong>)
+            as negative (-1.0). In order to get the raw decision function values you need to indicate it by
+            using the OutputDecisionFunction parameter.  (Default value: <strong>0.0</strong>)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>OutputDecisionFunction</strong></td>
+        <td>
+          <p>
+            Determines whether the predict and evaluate functions of the SVM should return the distance
+            to the separating hyperplane, or binary class labels. Setting this to true will 
+            return the raw distance to the hyperplane for each example. Setting it to false will 
+            return the binary class label (+1.0, -1.0) (Default value: <strong>false<\strong>)
           </p>
         </td>
       </tr>

@@ -124,11 +124,18 @@ import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
   *  Defines the seed to initialize the random number generator. The seed directly controls which
   *  data points are chosen for the SDCA method. (Default value: '''0''')
   *
-  *  - [[org.apache.flink.ml.classification.SVM.Threshold]]:
+  *  - [[org.apache.flink.ml.classification.SVM.ThresholdValue]]:
   *  Defines the limiting value for the decision function above which examples are labeled as
   *  positive (+1.0). Examples with a decision function value below this value are classified as
-  *  negative(-1.0). In order to get the raw decision function value you need to unset this
-  *  parameter using the [[clearThreshold()]] function.  (Default value: '''0.0''')
+  *  negative(-1.0). In order to get the raw decision function values you need to indicate it by
+  *  using the [[org.apache.flink.ml.classification.SVM.OutputDecisionFunction]].
+  *  (Default value: '''0.0''')
+  *
+  *  - [[org.apache.flink.ml.classification.SVM.OutputDecisionFunction]]:
+  *  Determines whether the predict and evaluate functions of the SVM should return the distance
+  *  to the separating hyperplane, or binary class labels. Setting this to true will return the raw
+  *  distance to the hyperplane for each example. Setting it to false will return the binary
+  *  class label (+1.0, -1.0) (Default value: '''false''')
   */
 class SVM extends Predictor[SVM] {
 
@@ -197,23 +204,31 @@ class SVM extends Predictor[SVM] {
     this
   }
 
-  /** Sets the threshold above which elements are classified as positive
+  /** Sets the threshold above which elements are classified as positive.
     *
+    * The [[predict ]]and [[evaluate]]functions will return +1.0 for items with a decision function
+    * value above this threshold, and -1.0 for items below it.
     * @param threshold
     * @return
     */
   def setThreshold(threshold: Double): SVM = {
-    parameters.add(Threshold, threshold)
+    parameters.add(ThresholdValue, threshold)
     this
   }
 
-  /** Clears the classification threshold, predictions made after calling this function will have
-    * the raw decision function value.
+  /** Sets whether the predictions should return the raw decision function value or the
+    * thresholded binary value.
     *
-    * @return
+    * When setting this to true, predict and evaluate return the raw decision value, which is
+    * the distance from the separating hyperplane.
+    * When setting this to false, they return thresholded (+1.0, -1.0) values.
+    *
+    * @param outputDecisionFunction When set to true, [[predict ]]and [[evaluate]] return the raw
+    *                               decision function values. When set to false, they return the
+    *                               thresholded binary values (+1.0, -1.0).
     */
-  def clearThreshold(): SVM = {
-    parameters.add(Threshold, Option.empty[Double])
+  def setOutputDecisionFunction(outputDecisionFunction: Boolean): SVM = {
+    parameters.add(OutputDecisionFunction, outputDecisionFunction)
     this
   }
 }
@@ -251,8 +266,12 @@ object SVM{
     val defaultValue = Some(0L)
   }
 
-  case object Threshold extends Parameter[Double] {
-    val defaultValue = Option(0.0)
+  case object ThresholdValue extends Parameter[Double] {
+    val defaultValue = Some(0.0)
+  }
+
+  case object OutputDecisionFunction extends Parameter[Boolean] {
+    val defaultValue = Some(false)
   }
 
   // ========================================== Factory methods ====================================
@@ -277,18 +296,16 @@ object SVM{
 
       override def predict(value: T, model: DenseVector, predictParameters: ParameterMap):
         Double = {
-        val thresholdOption = predictParameters.get(Threshold)
+        val thresholdValue = predictParameters(ThresholdValue)
+        val outputDecisionFunction = predictParameters(OutputDecisionFunction)
 
         val rawValue = value.asBreeze dot model.asBreeze
-        // If the Threshold option has been reset, we will get back a Some(None) thresholdOption
-        // causing the exception when we try to get the value. In that case we just return the
-        // raw value
-        try {
-          val thresOptionValue = thresholdOption.get
-          if (rawValue > thresOptionValue) 1.0 else -1.0
+
+        if (outputDecisionFunction) {
+          rawValue
         }
-        catch {
-          case e: java.lang.ClassCastException => rawValue
+        else {
+          if (rawValue > thresholdValue) 1.0 else -1.0
         }
       }
     }

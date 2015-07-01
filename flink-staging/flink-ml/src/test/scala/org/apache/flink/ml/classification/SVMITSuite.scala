@@ -88,7 +88,7 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
       setRegularization(0.002).
       setStepsize(0.1).
       setSeed(0).
-      clearThreshold()
+      setOutputDecisionFunction(true)
 
     val trainingDS = env.fromCollection(Classification.trainingData)
 
