@@ -261,8 +261,7 @@ public class IncrementalSSSP implements ProgramDescription {
 			return Graph.fromCsvReader(verticesInputPath, edgesInSSSPInputPath, env).lineDelimiterEdges("\n")
 					.types(Long.class, Double.class, Double.class);
 		}
-		else
-		{
+		else {
 			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
 					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
 					"<output path> <max iterations>");

@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.ConnectedComponentsDefaultData;
@@ -116,13 +115,10 @@ public class ConnectedComponents implements ProgramDescription {
 		return true;
 	}
 
-	private static Graph<Long, Long, NullValue> getGraph(ExecutionEnvironment env)
-	{
+	private static Graph<Long, Long, NullValue> getGraph(ExecutionEnvironment env) {
 		Graph<Long, Long, NullValue> graph;
-		if(!fileOutput)
-		{
-			DataSet<Edge<Long, NullValue>> edges = ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env);
-			graph = Graph.fromDataSet(edges,
+		if(!fileOutput) {
+			graph = Graph.fromDataSet(ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
 					new MapFunction<Long, Long>() {
 
 						public Long map(Long label) {
@@ -130,8 +126,7 @@ public class ConnectedComponents implements ProgramDescription {
 						}
 					}, env);
 		}
-		else
-		{
+		else {
 			graph = Graph.fromCsvReader(edgeInputPath,new MapFunction<Long, Long>() {
 				public Long map(Long label) {
 					return label;

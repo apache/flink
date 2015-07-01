@@ -286,18 +286,16 @@ public class Graph<K, VV, EV> {
 	*
 	* Vertices with value are created from a CSV file with 2 fields
 	* Edges with value are created from a CSV file with 3 fields
-	* from Tuple3.
-	*
 	* @param verticesPath path to a CSV file with the Vertices data.
 	* @param edgesPath path to a CSV file with the Edges data
 	* @param context the flink execution environment.
-	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , which on calling types() method to specify types of the
+	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , on which calling types() method to specify types of the
 	*		 Vertex ID, Vertex Value and Edge value returns a Graph
 	*/
 	public static  GraphCsvReader fromCsvReader(String verticesPath, String edgesPath, ExecutionEnvironment context) {
 		return new GraphCsvReader(verticesPath, edgesPath, context);
 	}
-	/** Creates a graph from a CSV file for Edges., Vertices are
+	/** Creates a graph from a CSV file for Edges.Vertices are
 	* induced from the edges.
 	*
 	* Edges with value are created from a CSV file with 3 fields. Vertices are created
@@ -305,7 +303,7 @@ public class Graph<K, VV, EV> {
 	*
 	* @param edgesPath a path to a CSV file with the Edges data
 	* @param context the flink execution environment.
-	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , which on calling types() method to specify types of the
+	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , on which calling types() method to specify types of the
 	* Vertex ID, Vertex Value and Edge value returns a Graph
 	*/
 	public static GraphCsvReader fromCsvReader(String edgesPath, ExecutionEnvironment context) {
@@ -322,7 +320,7 @@ public class Graph<K, VV, EV> {
 	 * @param edgesPath a path to a CSV file with the Edges data
 	 * @param mapper the mapper function.
 	 * @param context the flink execution environment.
-	 * @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , which on calling types() method to specify types of the
+	 * @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , on which calling types() method to specify types of the
 	 * Vertex ID, Vertex Value and Edge value returns a Graph
 	 */
 	public static GraphCsvReader fromCsvReader(String edgesPath, final MapFunction mapper, ExecutionEnvironment context) {
