@@ -400,7 +400,7 @@ public class FlinkYarnSessionCli {
 
 
 			try {
-				yarnCluster = flinkYarnClient.deploy(null);
+				yarnCluster = flinkYarnClient.deploy();
 				// only connect to cluster if its not a detached session.
 				if(!flinkYarnClient.isDetached()) {
 					yarnCluster.connectToCluster();

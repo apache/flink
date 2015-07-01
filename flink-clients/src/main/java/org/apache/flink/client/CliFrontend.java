@@ -732,7 +732,7 @@ public class CliFrontend {
 			// user wants to run Flink in YARN cluster.
 			CommandLine commandLine = options.getCommandLine();
 			AbstractFlinkYarnClient flinkYarnClient = CliFrontendParser.getFlinkYarnSessionCli().createFlinkYarnClient(commandLine);
-
+			flinkYarnClient.setName("Flink Application: " + programName);
 			if (flinkYarnClient == null) {
 				throw new RuntimeException("Unable to create Flink YARN Client. Check previous log messages");
 			}
@@ -751,7 +751,7 @@ public class CliFrontend {
 			}
 
 			try {
-				yarnCluster = flinkYarnClient.deploy("Flink Application: " + programName);
+				yarnCluster = flinkYarnClient.deploy();
 				yarnCluster.connectToCluster();
 			}
 			catch(Exception e) {

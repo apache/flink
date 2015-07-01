@@ -315,7 +315,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		return detached;
 	}
 
-	public AbstractFlinkYarnCluster deploy(final String clusterName) throws Exception {
+	public AbstractFlinkYarnCluster deploy() throws Exception {
 
 		UserGroupInformation.setConfiguration(conf);
 		UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
@@ -328,11 +328,11 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 			return ugi.doAs(new PrivilegedExceptionAction<AbstractFlinkYarnCluster>() {
 				@Override
 				public AbstractFlinkYarnCluster run() throws Exception {
-					return deployInternal(clusterName);
+					return deployInternal();
 				}
 			});
 		} else {
-			return deployInternal(clusterName);
+			return deployInternal();
 		}
 	}
 
@@ -342,7 +342,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	 * This method will block until the ApplicationMaster/JobManager have been
 	 * deployed on YARN.
 	 */
-	protected AbstractFlinkYarnCluster deployInternal(String defaultName) throws Exception {
+	protected AbstractFlinkYarnCluster deployInternal() throws Exception {
 		isReadyForDepoyment();
 
 		LOG.info("Using values:");
@@ -592,17 +592,17 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		capability.setMemory(jobManagerMemoryMb);
 		capability.setVirtualCores(1);
 
-		if(defaultName == null) {
-			defaultName = "Flink session with "+taskManagerCount+" TaskManagers";
-		}
-		if(detached) {
-			defaultName += " (detached)";
+		String name;
+		if(customName == null) {
+			name = "Flink session with "+taskManagerCount+" TaskManagers";
+			if(detached) {
+				name += " (detached)";
+			}
+		} else {
+			name = customName;
 		}
 
-		if(this.customName != null) {
-			defaultName = customName;
-		}
-		appContext.setApplicationName(defaultName); // application name
+		appContext.setApplicationName(name); // application name
 		appContext.setApplicationType("Apache Flink");
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
@@ -740,6 +740,9 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 	@Override
 	public void setName(String name) {
+		if(name == null) {
+			throw new IllegalArgumentException("The passed name is null");
+		}
 		customName = name;
 	}
 
