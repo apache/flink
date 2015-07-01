@@ -72,20 +72,17 @@ import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
   *
   * @example
   *          {{{
-  *             val trainingDS: DataSet[LabeledVector] = env.readSVMFile(pathToTrainingFile)
+  *             val trainingDS: DataSet[LabeledVector] = env.readLibSVM(pathToTrainingFile)
   *
   *             val svm = SVM()
   *               .setBlocks(10)
-  *               .setIterations(10)
-  *               .setLocalIterations(10)
-  *               .setRegularization(0.5)
-  *               .setStepsize(0.5)
   *
   *             svm.fit(trainingDS)
   *
-  *             val testingDS: DataSet[Vector] = env.readVectorFile(pathToTestingFile)
+  *             val testingDS: DataSet[Vector] = env.readLibSVM(pathToTestingFile)
+  *               .map(lv => lv.vector)
   *
-  *             val predictionDS: DataSet[LabeledVector] = svm.predict(testingDS)
+  *             val predictionDS: DataSet[(Vector, Double)] = svm.predict(testingDS)
   *          }}}
   *
   * =Parameters=

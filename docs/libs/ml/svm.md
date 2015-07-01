@@ -191,24 +191,30 @@ The SVM implementation can be controlled by the following parameters:
 ## Examples
 
 {% highlight scala %}
-import org.apache.flink.ml.math.{Vector => FlinkVector}
+import org.apache.flink.api.scala._
+import org.apache.flink.ml.math.Vector
+import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.classification.SVM
+import org.apache.flink.ml.RichExecutionEnvironment
+
+val pathToTrainingFile: String = ???
+val pathToTestingFile: String = ???
+val env = ExecutionEnvironment.getExecutionEnvironment
+
 // Read the training data set, from a LibSVM formatted file
 val trainingDS: DataSet[LabeledVector] = env.readLibSVM(pathToTrainingFile)
 
 // Create the SVM learner
 val svm = SVM()
-.setBlocks(10)
-.setIterations(10)
-.setLocalIterations(10)
-.setRegularization(0.5)
-.setStepsize(0.5)
+  .setBlocks(10)
 
 // Learn the SVM model
 svm.fit(trainingDS)
 
 // Read the testing data set
-val testingDS: DataSet[Vector] = env.readVectorFile(pathToTestingFile)
+val testingDS: DataSet[Vector] = env.readLibSVM(pathToTestingFile).map(lv => lv.vector)
 
 // Calculate the predictions for the testing data set
-val predictionDS: DataSet[(FlinkVector, Double)] = svm.predict(testingDS)
+val predictionDS: DataSet[(Vector, Double)] = svm.predict(testingDS)
+
 {% endhighlight %}
