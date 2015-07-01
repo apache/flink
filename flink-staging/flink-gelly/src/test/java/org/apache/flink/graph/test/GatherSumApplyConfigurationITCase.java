@@ -23,6 +23,8 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.graph.Edge;
+import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.gsa.ApplyFunction;
@@ -38,6 +40,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.HashSet;
 import java.util.List;
 
 @RunWith(Parameterized.class)
@@ -115,6 +118,117 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 				"4,14\n" +
 				"5,15";
 		
+		compareResultAsTuples(result, expectedResult);
+	}
+
+	@Test
+	public void testIterationDefaultDirection() throws Exception {
+
+		/*
+		 * Test that if no direction parameter is given, the iteration works as before
+		 * (i.e. it gathers information from the IN edges and neighbors and the information is calculated for an OUT edge
+		 * Default direction parameter is OUT for the GatherSumApplyIterations)
+		 * When data is gathered from the IN edges the Gather Sum and Apply functions
+		 * set the set of vertices which have path to a vertex as the value of that vertex
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		List<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdges();
+
+		edges.remove(0);
+
+		Graph<Long, HashSet<Long>, Long> graph = Graph
+				.fromCollection(TestGraphUtils.getLongLongVertices(), edges, env)
+				.mapVertices(new GatherSumApplyConfigurationITCase.InitialiseHashSetMapper());
+
+		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph.runGatherSumApplyIteration(
+				new GetReachableVertices(), new FindAllReachableVertices(), new UpdateReachableVertices(), 4)
+				.getVertices();
+
+		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
+
+		expectedResult = "1,[1, 2, 3, 4, 5]\n"
+						+"2,[2]\n"
+						+"3,[1, 2, 3, 4, 5]\n"
+						+"4,[1, 2, 3, 4, 5]\n"
+						+"5,[1, 2, 3, 4, 5]\n";
+
+		compareResultAsTuples(result, expectedResult);
+	}
+
+	@Test
+	public void testIterationDirectionIN() throws Exception {
+
+		/*
+		 * Test that if the direction parameter IN is given, the iteration works as expected
+		 * (i.e. it gathers information from the OUT edges and neighbors and the information is calculated for an IN edge
+		 * When data is gathered from the OUT edges the Gather Sum and Apply functions
+		 * set the set of vertices which have path from a vertex as the value of that vertex
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		GSAConfiguration parameters = new GSAConfiguration();
+
+		parameters.setDirection(EdgeDirection.IN);
+
+		List<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdges();
+
+		edges.remove(0);
+
+		Graph<Long, HashSet<Long>, Long> graph = Graph
+				.fromCollection(TestGraphUtils.getLongLongVertices(), edges, env)
+				.mapVertices(new GatherSumApplyConfigurationITCase.InitialiseHashSetMapper());
+
+		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph.runGatherSumApplyIteration(
+				new GetReachableVertices(), new FindAllReachableVertices(), new UpdateReachableVertices(), 4,
+																								parameters)
+				.getVertices();
+		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
+
+		expectedResult = "1,[1, 3, 4, 5]\n"
+				+"2,[1, 2, 3, 4, 5]\n"
+				+"3,[1, 3, 4, 5]\n"
+				+"4,[1, 3, 4, 5]\n"
+				+"5,[1, 3, 4, 5]\n";
+
+		compareResultAsTuples(result, expectedResult);
+	}
+
+	@Test
+	public void testIterationDirectionALL() throws Exception {
+
+		/*
+		 * Test that if the direction parameter OUT is given, the iteration works as expected
+		 * (i.e. it gathers information from both IN and OUT edges and neighbors
+		 * When data is gathered from the ALL edges the Gather Sum and Apply functions
+		 * set the set of vertices which are connected to a Vertex through some path as value of that vertex
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		GSAConfiguration parameters = new GSAConfiguration();
+		parameters.setDirection(EdgeDirection.ALL);
+
+		List<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdges();
+
+		edges.remove(0);
+
+		Graph<Long, HashSet<Long>, Long> graph = Graph
+				.fromCollection(TestGraphUtils.getLongLongVertices(), edges, env)
+				.mapVertices(new GatherSumApplyConfigurationITCase.InitialiseHashSetMapper());
+
+		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph.runGatherSumApplyIteration(
+				new GetReachableVertices(), new FindAllReachableVertices(), new UpdateReachableVertices(), 4,
+				parameters)
+				.getVertices();
+
+		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
+
+		expectedResult = "1,[1, 2, 3, 4, 5]\n"
+				+"2,[1, 2, 3, 4, 5]\n"
+				+"3,[1, 2, 3, 4, 5]\n"
+				+"4,[1, 2, 3, 4, 5]\n"
+				+"5,[1, 2, 3, 4, 5]\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -243,4 +357,47 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 			return 1l;
 		}
 	}
+
+	@SuppressWarnings("serial")
+	public static final class InitialiseHashSetMapper implements MapFunction<Vertex<Long, Long>, HashSet<Long>> {
+
+		@Override
+		public HashSet<Long> map(Vertex<Long, Long> value) throws Exception {
+			HashSet<Long> h = new HashSet<Long>();
+			h.add(value.getId());
+			return h;
+		}
+	}
+
+	private static final class GetReachableVertices extends GatherFunction<HashSet<Long>, Long, HashSet<Long>> {
+
+		@Override
+		public HashSet<Long> gather(Neighbor<HashSet<Long>, Long> neighbor) {
+			return neighbor.getNeighborValue();
+		}
+	}
+
+	private static final class FindAllReachableVertices extends SumFunction<HashSet<Long>, Long, HashSet<Long>> {
+		@Override
+		public HashSet<Long> sum(HashSet<Long> newSet, HashSet<Long> currentSet) {
+			HashSet<Long> set = currentSet;
+			for(Long l : newSet) {
+				set.add(l);
+			}
+			return set;
+		}
+	}
+
+	private static final class UpdateReachableVertices extends ApplyFunction<Long, HashSet<Long>, HashSet<Long>> {
+
+		@Override
+		public void apply(HashSet<Long> newValue, HashSet<Long> currentValue) {
+			newValue.addAll(currentValue);
+			if(newValue.size()>currentValue.size()) {
+				setResult(newValue);
+			}
+		}
+	}
+
+
 }

@@ -47,7 +47,6 @@ import java.util.HashSet;
  */
 public class GSAExistenceOfPaths implements ProgramDescription {
 
-	@SuppressWarnings("serial")
 	public static void main(String[] args) throws Exception {
 
 		if(!parseParameters(args)) {
@@ -60,7 +59,6 @@ public class GSAExistenceOfPaths implements ProgramDescription {
 		DataSet<Tuple2<Long, HashSet<Long>>> vertices = getVerticesDataSet(env);
 
 		Graph<Long, HashSet<Long>, Long> graph = Graph.fromTupleDataSet(vertices, edges, env);
-
 
 		GSAConfiguration parameters = new GSAConfiguration();
 		parameters.setDirection(EdgeDirection.IN);
@@ -102,8 +100,7 @@ public class GSAExistenceOfPaths implements ProgramDescription {
 		@Override
 		public HashSet<Long> sum(HashSet<Long> newSet, HashSet<Long> currentSet) {
 			HashSet<Long> set = currentSet;
-			for(Long l : newSet)
-			{
+			for(Long l : newSet) {
 				set.add(l);
 			}
 			return set;
