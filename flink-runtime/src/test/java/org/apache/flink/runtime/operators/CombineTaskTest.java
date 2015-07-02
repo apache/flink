@@ -92,7 +92,35 @@ public class CombineTaskTest extends DriverTestBase<RichGroupReduceFunction<Reco
 		
 		this.outList.clear();
 	}
-	
+
+	@Test
+	public void testOversizedRecordCombineTask() {
+		int keyCnt = 1;
+		int valCnt = 20;
+
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
+		addDriverComparator(this.comparator);
+		addDriverComparator(this.comparator);
+		setOutput(this.outList);
+
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
+		getTaskConfig().setRelativeMemoryDriver(combine_frac);
+		getTaskConfig().setFilehandlesDriver(2);
+
+		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<Record, Record>();
+
+		try {
+			testDriver(testTask, MockCombiningReduceStub.class);
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("Invoke method caused exception.");
+		}
+
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+(keyCnt*valCnt), this.outList.size() == keyCnt*valCnt);
+
+		this.outList.clear();
+	}
+
 	@Test
 	public void testFailingCombineTask() {
 		int keyCnt = 100;
@@ -119,7 +147,7 @@ public class CombineTaskTest extends DriverTestBase<RichGroupReduceFunction<Reco
 			Assert.fail("Test failed due to an exception.");
 		}
 	}
-	
+
 	@Test
 	public void testCancelCombineTaskSorting()
 	{

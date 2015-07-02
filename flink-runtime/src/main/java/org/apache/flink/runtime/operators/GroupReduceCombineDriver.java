@@ -143,7 +143,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("GroupReduceCombineDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+			LOG.debug("GroupReduceCombineDriver object reuse: {}.", (this.objectReuseEnabled ? "ENABLED" : "DISABLED"));
 		}
 	}
 
@@ -172,11 +172,13 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 			// write the value again
 			if (!this.sorter.write(value)) {
 				if (oversizedRecordCount == Long.MAX_VALUE) {
-					LOG.error("Number of oversized record has exceeded MAX Long");
+					LOG.debug("Number of oversized record has exceeded MAX Long");
 				} else {
 					++oversizedRecordCount;
-					LOG.warn("Cannot write record to fresh sort buffer. Record too large. Oversized record count: {}", oversizedRecordCount);
+					LOG.debug("Cannot write record to fresh sort buffer. Record too large. Oversized record count: {}", oversizedRecordCount);
 				}
+				// simply forward the record
+				this.output.collect((OUT)value);
 			}
 		}
 
