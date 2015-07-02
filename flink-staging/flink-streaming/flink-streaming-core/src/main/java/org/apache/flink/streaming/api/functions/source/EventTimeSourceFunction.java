@@ -19,9 +19,14 @@ package org.apache.flink.streaming.api.functions.source;
 
 
 /**
- * A marker interface that must be implemented by {@link SourceFunction}s that manually assign
- * timestamps and emit {@link org.apache.flink.streaming.api.watermark.Watermark}s. Automatic
- * emission of watermarks will be suppressed if a source implements this interface.
+ * A marker interface that must be implemented by {@link SourceFunction}s that emit elements with
+ * timestamps. The {@link SourceFunction} can extract the timestamp from the data and attach it to
+ * the element upon emission.
+ *
+ * <p>
+ * Event-time sources must manually emit
+ * {@link org.apache.flink.streaming.api.watermark.Watermark watermarks} to keep track of progress.
+ * Automatic emission of watermarks will be suppressed if a source implements this interface.
  *
  * <p>
  * Elements must be emitted using
@@ -31,4 +36,4 @@ package org.apache.flink.streaming.api.functions.source;
  *
  * @param <T> Type of the elements emitted by this source.
  */
-public interface ManualTimestampSourceFunction<T> extends SourceFunction<T> { }
+public interface EventTimeSourceFunction<T> extends SourceFunction<T> { }

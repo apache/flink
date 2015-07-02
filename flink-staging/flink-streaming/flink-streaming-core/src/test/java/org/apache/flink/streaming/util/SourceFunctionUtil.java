@@ -28,7 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.LocalStateHandle;
-import org.apache.flink.streaming.api.functions.source.ManualTimestampSourceFunction;
+import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -50,7 +50,7 @@ public class SourceFunctionUtil<T> {
 			final Output<StreamRecord<T>> collector = new MockOutput<T>(outputs);
 			final Object lockingObject = new Object();
 			SourceFunction.SourceContext<T> ctx;
-			if (sourceFunction instanceof ManualTimestampSourceFunction) {
+			if (sourceFunction instanceof EventTimeSourceFunction) {
 				ctx = new StreamSource.ManualTimestampContext<T>(lockingObject, collector);
 			} else {
 				ctx = new StreamSource.AutomaticTimestampContext<T>(lockingObject, collector);

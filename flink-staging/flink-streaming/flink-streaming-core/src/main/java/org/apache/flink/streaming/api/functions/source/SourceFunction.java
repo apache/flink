@@ -76,7 +76,7 @@ import java.io.Serializable;
  * <p>
  * <b>Note about element timestamps and watermarks:</b> <br>
  * Sources must only manually emit watermarks when they implement
- * {@link org.apache.flink.streaming.api.functions.source.ManualTimestampSourceFunction}.
+ * {@link EventTimeSourceFunction }.
  * Otherwise, elements automatically get the current timestamp assigned at ingress
  * and the system automatically emits watermarks.
  *
@@ -132,7 +132,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 		 * <p>
 		 * <b>Important:</b>
 		 * Sources must only manually emit watermarks when they implement
-		 * {@link org.apache.flink.streaming.api.functions.source.ManualTimestampSourceFunction}.
+		 * {@link EventTimeSourceFunction}.
 		 * Otherwise, elements automatically get the current timestamp assigned at ingress
 		 * and the system automatically emits watermarks.
 		 */

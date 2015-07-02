@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.streaming.api.functions.source.ManualTimestampSourceFunction;
+import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -42,7 +42,7 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 
 	public void run(final Object lockingObject, final Output<StreamRecord<T>> collector) throws Exception {
 
-		if (executionConfig.getAutoWatermarkInterval() != null && !(userFunction instanceof ManualTimestampSourceFunction)) {
+		if (executionConfig.getAutoWatermarkInterval() != null && !(userFunction instanceof EventTimeSourceFunction)) {
 			ScheduledExecutorService service = Executors.newScheduledThreadPool(2);
 
 			service.scheduleAtFixedRate(new Runnable() {
@@ -57,7 +57,7 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		}
 
 		SourceFunction.SourceContext<T> ctx = null;
-		if (userFunction instanceof ManualTimestampSourceFunction) {
+		if (userFunction instanceof EventTimeSourceFunction) {
 			ctx = new ManualTimestampContext<T>(lockingObject, collector);
 		} else {
 			ctx = new AutomaticTimestampContext<T>(lockingObject, collector);
