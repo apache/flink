@@ -18,17 +18,26 @@
 
 package org.apache.flink.ml.regression
 
-import org.apache.flink.api.scala.DataSet
-import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.api.scala._
 import org.apache.flink.ml.evaluation.RegressionScores
-import org.apache.flink.ml.pipeline.{EvaluateDataSetOperation, Predictor}
+import org.apache.flink.ml.pipeline.Predictor
 
+/** Trait that regression algorithms should implement
+  *
+  * @tparam Self Type of the implementing class
+  */
 trait Regressor[Self] extends Predictor[Self]{
   that: Self =>
 
-  def score(testing: DataSet[LabeledVector])
-      (implicit evaluateOperation: EvaluateDataSetOperation[Self, LabeledVector, Double]):
-    DataSet[Double] = {
-    RegressionScores.r2Score.evaluate(this.evaluate[LabeledVector, Double](testing))
+  override def calculateScore[Prediction](input: DataSet[(Prediction, Prediction)])
+  : DataSet[Double] = {
+    val tpi = input.getType()
+    if (tpi == createTypeInformation[(Double, Double)]) {
+      val doubleInput = input.asInstanceOf[DataSet[(Double, Double)]]
+      RegressionScores.r2Score.evaluate(doubleInput)
+    }
+    else {
+      throw new UnsupportedOperationException("ALS should have Double predictions")
+    }
   }
 }

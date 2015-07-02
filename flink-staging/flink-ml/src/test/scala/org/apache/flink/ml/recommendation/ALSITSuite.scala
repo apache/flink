@@ -25,6 +25,7 @@ import org.scalatest._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase
+import Recommendation._
 
 class ALSITSuite
   extends FlatSpec
@@ -35,8 +36,8 @@ class ALSITSuite
 
   behavior of "The alternating least squares (ALS) implementation"
 
-  it should "properly factorize a matrix" in {
-    import Recommendation._
+  def fixture = new {
+
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -50,28 +51,41 @@ class ALSITSuite
 
     als.fit(inputDS)
 
-    val testData = env.fromCollection(expectedResult.map{
-      case (userID, itemID, rating) => (userID, itemID)
-    })
+    val evaluationData = env.fromCollection(expectedResult)
 
-    val predictions = als.predict(testData).collect()
+    val testData = evaluationData.map(idsAndRating => (idsAndRating._1 , idsAndRating._2))
+  }
+
+  it should "properly factorize a matrix" in {
+
+    val f =  fixture
+
+    val predictions = f.als.predict(f.testData).collect()
 
     predictions.length should equal(expectedResult.length)
 
     val resultMap = expectedResult map {
-      case (uID, iID, value) => (uID, iID) -> value
+      case (uID, iID, rating) => (uID, iID) -> rating
     } toMap
 
     predictions foreach {
-      case (uID, iID, value) => {
-        resultMap.isDefinedAt(((uID, iID))) should be(true)
+      case (uID, iID, rating) => {
+        resultMap.isDefinedAt((uID, iID)) should be (true)
 
-        value should be(resultMap((uID, iID)) +- 0.1)
+        rating should be(resultMap((uID, iID)) +- 0.1)
       }
     }
 
-    val risk = als.empiricalRisk(inputDS).collect().apply(0)
+    val risk = f.als.empiricalRisk(f.inputDS).collect().head
 
-    risk should be(expectedEmpiricalRisk +- 1)
+    risk should be (expectedEmpiricalRisk +- 1)
+  }
+
+  it should "provide a score for the factorization" in {
+    val f =  fixture
+
+    val rmse = f.als.score(f.evaluationData).collect().head
+
+    rmse should be < 0.01
   }
 }

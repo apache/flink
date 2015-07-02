@@ -115,8 +115,8 @@ object ClassificationScores {
   /** Calculates the fraction of correct predictions
     *
     */
-  def accuracyScore = new MeanScore[Double]((y1, y2) => if (y1 == y2) 1 else 0)
-    with PerformanceScore
+  def accuracyScore =
+    new MeanScore[Double]((y1, y2) => if (y1 == y2) 1 else 0) with PerformanceScore
 
   /**
    * Zero One Loss Function
@@ -127,7 +127,9 @@ object ClassificationScores {
    * @return a Loss object
    */
   def zeroOneLoss[T: TypeInformation: ClassTag] = {
-    //TODO: If T == Double, == comparison could be problematic
+    // TODO: If T == Double, == comparison could be problematic
+    // Also, if we plan to use LabeledVector for all classification tasks, the type parameter can be
+    // removed
     new MeanScore[T]((y1, y2) => if (y1 == y2) 0 else 1) with Loss
   }
 }

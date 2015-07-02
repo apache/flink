@@ -18,7 +18,6 @@
 
 package org.apache.flink.ml.classification
 
-import org.apache.flink.ml.common.LabeledVector
 import org.scalatest.{FlatSpec, Matchers}
 import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
 

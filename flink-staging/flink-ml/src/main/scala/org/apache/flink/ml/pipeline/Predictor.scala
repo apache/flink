@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.ml._
 import org.apache.flink.ml.common.{LabeledVector, FlinkMLTools, ParameterMap, WithParameters}
+import org.apache.flink.ml.evaluation.ClassificationScores
 import org.apache.flink.ml.math.{Vector => FlinkVector}
 
 /** Predictor trait for Flink's pipeline operators.
@@ -60,7 +61,7 @@ trait Predictor[Self] extends Estimator[Self] with WithParameters {
     predictor.predictDataSet(this, predictParameters, testing)
   }
 
-  /** Evaluates the testing data by computing the prediction value and returning a pair of true
+  /** Computes a prediction value for each example in the testing data and returns a pair of true
     * label value and prediction value. It is important that the implementation chooses a Testing
     * type from which it can extract the true label value.
     *
@@ -79,6 +80,32 @@ trait Predictor[Self] extends Estimator[Self] with WithParameters {
     FlinkMLTools.registerFlinkMLTypes(testing.getExecutionEnvironment)
     evaluator.evaluateDataSet(this, evaluateParameters, testing)
   }
+
+  /** Calculates a numerical score for the [[Predictor]]
+    *
+    * By convention, higher scores are considered better, so even if a loss is used as a performance
+    * measure, it will be negated, so that that higher is better.
+    * @param testing The evaluation DataSet, that contains the features and the true value
+    * @param evaluateOperation An EvaluateDataSetOperation that produces Double results
+    * @tparam Testing The type of the features and true value, for example [[LabeledVector]]
+    * @return A DataSet containing one Double that indicates the score of the predictor
+    */
+  def score[Testing](testing: DataSet[Testing])
+           (implicit evaluateOperation: EvaluateDataSetOperation[Self, Testing, Double]):
+    DataSet[Double] = {
+    // TODO: Generalized so that we don't necessarily expect Double prediction values
+    calculateScore(this.evaluate[Testing, Double](testing))
+  }
+
+  /** Calculates the performance score for the algorithm, given a DataSet of (truth, prediction)
+    * tuples
+    *
+    * @param input A DataSet of (truth, prediction) tuples
+    * @tparam Prediction The type of the supervised label, for example a numerical class label.
+    * @return A DataSet containing one Double that indicates the score of the predictor
+    */
+  private[ml] def calculateScore[Prediction](input: DataSet[(Prediction, Prediction)]):
+    DataSet[Double]
 }
 
 object Predictor {

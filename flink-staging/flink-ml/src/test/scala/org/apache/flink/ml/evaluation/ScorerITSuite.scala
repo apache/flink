@@ -19,6 +19,7 @@ package org.apache.flink.ml.evaluation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.ParameterMap
+import org.apache.flink.ml.preprocessing.StandardScaler
 import org.apache.flink.ml.regression.RegressionData._
 import org.apache.flink.ml.regression.MultipleLinearRegression
 import org.apache.flink.test.util.FlinkTestBase
@@ -29,7 +30,7 @@ class ScorerITSuite  extends FlatSpec with Matchers with FlinkTestBase {
 
   behavior of "the Scorer class"
 
-  it should "work for squared loss" in {
+  def fixture =  new {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val loss = RegressionScores.squaredLoss
@@ -45,11 +46,49 @@ class ScorerITSuite  extends FlatSpec with Matchers with FlinkTestBase {
     parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.001)
 
     val inputDS = env.fromCollection(data)
-    val evaluationDS = inputDS.map(x => (x.vector, x.label))
+  }
 
-    mlr.fit(inputDS, parameters)
+  it should "work for squared loss" in {
 
-    val mse = scorer.evaluate(evaluationDS, mlr).collect().head
+    val f =  fixture
+
+    f.mlr.fit(f.inputDS, f.parameters)
+
+    val evaluationDS = f.inputDS.map(x => (x.vector, x.label))
+
+    val mse = f.scorer.evaluate(evaluationDS, f.mlr).collect().head
+
+    mse should be < 2.0
+  }
+
+  it should "be possible to obtain scores for a chained predictor" in {
+    val f = fixture
+
+    val scaler = StandardScaler()
+
+    val chainedMLR = scaler.chainPredictor(f.mlr)
+
+    chainedMLR.fit(f.inputDS, f.parameters)
+
+    val evaluationDS = f.inputDS.map(x => (x.vector, x.label))
+
+    val mse = f.scorer.evaluate(evaluationDS, chainedMLR).collect().head
+
+    mse should be < 2.0
+  }
+
+  it should "be possible to call score on a chained predictor" in {
+    val f = fixture
+
+    val scaler = StandardScaler()
+
+    val chainedMLR = scaler.chainPredictor(f.mlr)
+
+    chainedMLR.fit(f.inputDS, f.parameters)
+
+    val evaluationDS = f.inputDS
+
+    val mse = chainedMLR.score(evaluationDS).collect().head
 
     mse should be < 2.0
   }

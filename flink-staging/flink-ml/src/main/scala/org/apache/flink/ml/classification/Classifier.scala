@@ -18,17 +18,26 @@
 
 package org.apache.flink.ml.classification
 
-import org.apache.flink.api.scala.DataSet
-import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.api.scala._
 import org.apache.flink.ml.evaluation.ClassificationScores
-import org.apache.flink.ml.pipeline.{EvaluateDataSetOperation, Predictor}
+import org.apache.flink.ml.pipeline.Predictor
 
+/** Trait that classification algorithms should implement
+  *
+  * @tparam Self Type of the implementing class
+  */
 trait Classifier[Self] extends Predictor[Self]{
   that: Self =>
 
-  def score(testing: DataSet[LabeledVector])
-           (implicit evaluateOperation: EvaluateDataSetOperation[Self, LabeledVector, Double]):
-  DataSet[Double] = {
-    ClassificationScores.accuracyScore.evaluate(this.evaluate[LabeledVector, Double](testing))
+  override def calculateScore[Prediction](input: DataSet[(Prediction, Prediction)])
+    : DataSet[Double] = {
+    val tpi = input.getType()
+    if (tpi == createTypeInformation[(Double, Double)]) {
+      val doubleInput = input.asInstanceOf[DataSet[(Double, Double)]]
+      ClassificationScores.accuracyScore.evaluate(doubleInput)
+    }
+    else {
+      throw new UnsupportedOperationException("ALS should have Double predictions")
+    }
   }
 }

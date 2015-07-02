@@ -20,9 +20,6 @@
 package org.apache.flink.ml.evaluation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.data.ToyData
-import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.ml.regression.SimpleLeastSquaresRegression
 import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -72,27 +69,6 @@ class ScoreTest
 
     result.length shouldBe 1
     result.head shouldBe (0.5 +- 1e9)
-  }
-
-  it should "work with a slightly more involved case with linear regression" in {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val center = DenseVector(1.0, -2.0, 3.0, -4.0, 5.0)
-    val weights = DenseVector(2.0, 1.0, 0.0, -1.0, -2.0)
-    val n = 1000
-    val noise = 0.5
-    val ds = env.fromCollection(ToyData.singleGaussianLinearProblem(n, center, weights, noise))
-
-    val slr = new SimpleLeastSquaresRegression
-    slr.fit(ds)
-
-    val test = ds.map(x => (x.vector, x.label))
-
-    val labels = slr.evaluate(test)
-
-    val error = RegressionScores.squaredLoss.evaluate(labels)
-    val expectedError = noise*noise
-
-    error.collect().head shouldBe (expectedError +- expectedError/5)
   }
 
   it should "work for accuracy score" in {
