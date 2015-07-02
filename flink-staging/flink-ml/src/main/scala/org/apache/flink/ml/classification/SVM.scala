@@ -308,8 +308,7 @@ object SVM{
 
         if (outputDecisionFunction) {
           rawValue
-        }
-        else {
+        } else {
           if (rawValue > thresholdValue) 1.0 else -1.0
         }
       }

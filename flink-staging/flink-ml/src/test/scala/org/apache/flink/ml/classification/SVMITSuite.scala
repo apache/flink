@@ -28,8 +28,6 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   behavior of "The SVM using CoCoA implementation"
 
-  //TODO: Do SVM setup in a function
-
   it should "train a SVM" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
