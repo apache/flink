@@ -37,6 +37,8 @@ import org.apache.flink.util.Collector;
  * values, in the following format:"<sourceVertexID>\t<targetVertexID>".
  * For this simple implementation it is required that each page has at least one incoming
  * and one outgoing link,otherwise the rank differs from the actual theoretical value.
+ * 
+ * 
  * If no arguments are provided, the example runs with a random graph of 10 vertices.
  *
  */
