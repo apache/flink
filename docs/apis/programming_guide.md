@@ -136,7 +136,7 @@ mvn archetype:generate /
 </div>
 </div>
 
-The archetypes are working for stable releases and preview versions (`-SNAPSHOT`)
+The archetypes are working for stable releases and preview versions (`-SNAPSHOT`).
 
 If you want to add Flink to an existing Maven project, add the following entry to your
 *dependencies* section in the *pom.xml* file of your project:
@@ -187,7 +187,17 @@ that creates the type information for Flink operations.
 </div>
 </div>
 
+#### Scala Dependency Versions
 
+Because Scala 2.10 binary is not compatible with Scala 2.11 binary, we provide multiple artifacts
+to support both Scala versions.
+
+Starting from the 0.10 line, we cross-build all Flink modules for both 2.10 and 2.11. If you want
+to run your program on Flink with Scala 2.11, you need to add a `_2.11` suffix to the `artifactId`
+values of the Flink modules in your dependencies section.
+
+If you are looking for building Flink with Scala 2.11, please check
+[build guide](../setup/building.html#build-flink-for-scala-211).
 
 #### Hadoop Dependency Versions
 
