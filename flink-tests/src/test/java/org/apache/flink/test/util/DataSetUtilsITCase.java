@@ -62,6 +62,19 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 		expectedResult = "0,A\n" + "1,B\n" + "2,C\n" + "3,D\n" + "4,E\n" + "5,F";
 	}
 
+	@Test
+	public void testZipWithUniqueId() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F");
+
+		DataSet<Tuple2<Long, String>> result = DataSetUtils.zipWithUniqueId(in);
+
+		result.writeAsCsv(resultPath, "\n", ",");
+		env.execute();
+
+		expectedResult = "0,A\n" + "2,B\n" + "4,C\n" + "6,D\n" + "8,E\n" + "10,F";
+	}
 
 	@After
 	public void after() throws Exception{
