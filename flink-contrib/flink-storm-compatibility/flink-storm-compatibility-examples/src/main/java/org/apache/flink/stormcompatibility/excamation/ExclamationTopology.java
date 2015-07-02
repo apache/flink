@@ -21,7 +21,7 @@ import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.stormcompatibility.api.FlinkTopologyBuilder;
 import org.apache.flink.stormcompatibility.excamation.stormoperators.ExclamationBolt;
 import org.apache.flink.stormcompatibility.util.OutputFormatter;
-import org.apache.flink.stormcompatibility.util.SimpleOutputFormatter;
+import org.apache.flink.stormcompatibility.util.RawOutputFormatter;
 import org.apache.flink.stormcompatibility.util.StormBoltFileSink;
 import org.apache.flink.stormcompatibility.util.StormBoltPrintSink;
 import org.apache.flink.stormcompatibility.util.StormFileSpout;
@@ -36,7 +36,7 @@ public class ExclamationTopology {
 	public final static String firstBoltId = "exclamation1";
 	public final static String secondBoltId = "exclamation2";
 	public final static String sinkId = "sink";
-	private final static OutputFormatter formatter = new SimpleOutputFormatter();
+	private final static OutputFormatter formatter = new RawOutputFormatter();
 
 	public static FlinkTopologyBuilder buildTopology() {
 		final FlinkTopologyBuilder builder = new FlinkTopologyBuilder();
