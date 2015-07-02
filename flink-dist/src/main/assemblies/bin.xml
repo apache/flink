@@ -39,7 +39,7 @@ under the License.
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 
 			<includes>
-				<include>org.apache.flink:flink-python</include>
+				<include>org.apache.flink:flink-python${scala.suffix}</include>
 			</includes>
 		</dependencySet>
 	</dependencySets>
@@ -47,7 +47,7 @@ under the License.
 	<files>
 		<!-- copy fat jar -->
 		<file>
-			<source>target/flink-dist-${project.version}.jar</source>
+			<source>target/flink-dist${scala.suffix}-${project.version}.jar</source>
 			<outputDirectory>lib/</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>
@@ -155,12 +155,20 @@ under the License.
 				<include>*.jar</include>
 			</includes>
 			<excludes>
+<<<<<<< HEAD
 				<exclude>flink-java-examples-${project.version}.jar</exclude>
 				<exclude>original-flink-java-examples-${project.version}.jar</exclude>
 				<exclude>flink-java-examples-${project.version}-sources.jar</exclude>
 				<exclude>flink-java-examples-${project.version}-tests.jar</exclude>
 				<exclude>flink-java-examples-${project.version}-javadoc.jar</exclude>
 				<exclude>flink-java-examples-${project.version}-*.jar</exclude>
+=======
+				<exclude>flink-java-examples${scala.suffix}-${project.version}.jar</exclude>
+				<exclude>original-flink-java-examples${scala.suffix}-${project.version}.jar</exclude>
+				<exclude>flink-java-examples${scala.suffix}-${project.version}-sources.jar</exclude>
+				<exclude>flink-java-examples${scala.suffix}-${project.version}-tests.jar</exclude>
+				<exclude>flink-java-examples${scala.suffix}-${project.version}-javadoc.jar</exclude>
+>>>>>>> [FLINK-2200] [build system] Add scala version suffix to artifact id for Scala 2.11
 			</excludes>
 		</fileSet>
 

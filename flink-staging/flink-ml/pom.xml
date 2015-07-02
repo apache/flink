@@ -23,12 +23,12 @@
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-staging</artifactId>
+		<artifactId>flink-staging${scala.suffix}</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-ml</artifactId>
+	<artifactId>flink-ml${scala.suffix}</artifactId>
 	<name>flink-ml</name>
 
 	<packaging>jar</packaging>
@@ -36,7 +36,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala</artifactId>
+			<artifactId>flink-scala${scala.suffix}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -48,22 +48,14 @@
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
+			<artifactId>flink-clients${scala.suffix}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
+			<artifactId>flink-clients${scala.suffix}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -71,7 +63,15 @@
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils</artifactId>
+			<artifactId>flink-core${scala.suffix}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils${scala.suffix}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>

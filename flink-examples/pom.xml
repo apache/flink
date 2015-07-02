@@ -23,25 +23,25 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-parent</artifactId>
+		<artifactId>flink-parent${scala.suffix}</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-examples</artifactId>
+	<artifactId>flink-examples${scala.suffix}</artifactId>
 	<name>flink-examples</name>
 	<packaging>pom</packaging>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
+			<artifactId>flink-core${scala.suffix}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
+			<artifactId>flink-clients${scala.suffix}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>

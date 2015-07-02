@@ -25,12 +25,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-streaming-connectors-parent</artifactId>
+		<artifactId>flink-streaming-connectors-parent${scala.suffix}</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-flume</artifactId>
+	<artifactId>flink-connector-flume${scala.suffix}</artifactId>
 	<name>flink-connector-flume</name>
 
 	<packaging>jar</packaging>
@@ -44,7 +44,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-core</artifactId>
+			<artifactId>flink-streaming-core${scala.suffix}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 

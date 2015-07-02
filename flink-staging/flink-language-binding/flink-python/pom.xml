@@ -21,13 +21,13 @@ under the License.
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <artifactId>flink-language-binding-parent</artifactId>
+        <artifactId>flink-language-binding-parent${scala.suffix}</artifactId>
         <groupId>org.apache.flink</groupId>
         <version>0.10-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 	
-    <artifactId>flink-python</artifactId>
+    <artifactId>flink-python${scala.suffix}</artifactId>
     <name>flink-python</name>
     <packaging>jar</packaging>
 
@@ -54,32 +54,32 @@ under the License.
     <dependencies>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-core</artifactId>
+            <artifactId>flink-core${scala.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-java</artifactId>
+            <artifactId>flink-java${scala.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-optimizer</artifactId>
+            <artifactId>flink-optimizer${scala.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-runtime</artifactId>
+            <artifactId>flink-runtime${scala.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-clients</artifactId>
+            <artifactId>flink-clients${scala.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-language-binding-generic</artifactId>
+            <artifactId>flink-language-binding-generic${scala.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

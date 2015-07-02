@@ -24,12 +24,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-storm-compatibility-parent</artifactId>
+		<artifactId>flink-storm-compatibility-parent${scala.suffix}</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-storm-compatibility-core</artifactId>
+	<artifactId>flink-storm-compatibility-core${scala.suffix}</artifactId>
 	<name>flink-storm-compatibility-core</name>
 
 	<packaging>jar</packaging>
@@ -37,7 +37,7 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-core</artifactId>
+			<artifactId>flink-streaming-core${scala.suffix}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
