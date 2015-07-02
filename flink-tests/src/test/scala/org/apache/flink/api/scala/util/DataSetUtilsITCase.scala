@@ -58,6 +58,21 @@ MultipleProgramsTestBase(mode){
     expectedResult = "0,A\n" + "1,B\n" + "2,C\n" + "3,D\n" + "4,E\n" + "5,F"
   }
 
+  @Test
+  @throws(classOf[Exception])
+  def testZipWithUniqueId(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+
+    val input: DataSet[String] = env.fromElements("A", "B", "C", "D", "E", "F")
+    val result: DataSet[(Long, String)] = input.zipWithUniqueId
+
+    result.writeAsCsv(resultPath, "\n", ",")
+    env.execute()
+
+    expectedResult = "0,A\n" + "2,B\n" + "4,C\n" + "6,D\n" + "8,E\n" + "10,F"
+  }
+
   @After
   @throws(classOf[Exception])
   def after(): Unit = {

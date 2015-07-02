@@ -24,9 +24,9 @@ import org.apache.flink.api.java.{utils => jutils}
 import _root_.scala.language.implicitConversions
 import _root_.scala.reflect.ClassTag
 
-
 /**
- * This class provides simple utility methods for zipping elements in a file with an index.
+ * This class provides simple utility methods for zipping elements in a data set with an index
+ * or with a unique identifier.
  */
 
 class DataSetUtils[T](val self: DataSet[T]) extends AnyVal {
@@ -42,9 +42,21 @@ class DataSetUtils[T](val self: DataSet[T]) extends AnyVal {
     wrap(jutils.DataSetUtils.zipWithIndex(self.javaSet))
       .map { t => (t.f0.toLong, t.f1) }
   }
+
+  /**
+   * Method that assigns a unique id to all the elements of the input data set.
+   *
+   * @return a data set of tuple 2 consisting of ids and initial values.
+   */
+  def zipWithUniqueId(implicit ti: TypeInformation[(Long, T)],
+                      ct: ClassTag[(Long, T)]): DataSet[(Long, T)] = {
+    wrap(jutils.DataSetUtils.zipWithUniqueId(self.javaSet))
+      .map { t => (t.f0.toLong, t.f1) }
+  }
 }
 
 object DataSetUtils {
+
   /**
    * Tie the new class to an existing Scala API class: DataSet.
    */

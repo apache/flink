@@ -29,7 +29,8 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * This class provides simple utility methods for zipping elements in a file with an index.
+ * This class provides simple utility methods for zipping elements in a data set with an index
+ * or with a unique identifier.
  */
 public class DataSetUtils {
 
@@ -97,8 +98,63 @@ public class DataSetUtils {
 		}).withBroadcastSet(elementCount, "counts");
 	}
 
+	/**
+	 * Method that assigns unique Long labels to all the elements in the input data set by making use of the
+	 * following abstractions:
+	 * <ul>
+	 * 	<li> a map function generates an n-bit (n - number of parallel tasks) ID based on its own index
+	 * 	<li> with each record, a counter c is increased
+	 * 	<li> the unique label is then produced by shifting the counter c by the n-bit mapper ID
+	 * </ul>
+	 *
+	 * @param input the input data set
+	 * @return a data set of tuple 2 consisting of ids and initial values.
+	 */
+	public static <T> DataSet<Tuple2<Long, T>> zipWithUniqueId (DataSet <T> input) {
+
+		return input.mapPartition(new RichMapPartitionFunction<T, Tuple2<Long, T>>() {
+
+			long shifter = 0;
+			long start = 0;
+			long taskId = 0;
+			long label = 0;
+
+			@Override
+			public void open(Configuration parameters) throws Exception {
+				super.open(parameters);
+				shifter = log2(getRuntimeContext().getNumberOfParallelSubtasks());
+				taskId = getRuntimeContext().getIndexOfThisSubtask();
+			}
+
+			@Override
+			public void mapPartition(Iterable<T> values, Collector<Tuple2<Long, T>> out) throws Exception {
+				for(T value: values) {
+					label = start << shifter + taskId;
+
+					if(log2(start) + shifter < log2(Long.MAX_VALUE)) {
+						out.collect(new Tuple2<Long, T>(label, value));
+						start++;
+					} else {
+						throw new Exception("Exceeded Long value range while generating labels");
+					}
+				}
+			}
+		});
+	}
+
+	// *************************************************************************
+	//     UTIL METHODS
+	// *************************************************************************
+
 	private static int compareInts(int x, int y) {
 		return (x < y) ? -1 : ((x == y) ? 0 : 1);
 	}
 
+	private static int log2(long value){
+		if(value > Integer.MAX_VALUE) {
+			return 64 - Integer.numberOfLeadingZeros((int)(value >> 32));
+		} else {
+			return 32 - Integer.numberOfLeadingZeros((int)value);
+		}
+	}
 }

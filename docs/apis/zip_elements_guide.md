@@ -64,3 +64,43 @@ env.execute()
 will yield the tuples: (0,A), (1,B), (2,C), (3,D), (4,E), (5,F)
 
 [Back to top](#top)
+
+### Zip with an Unique Identifier
+In many cases, one may not need to assign consecutive labels.
+`zipWIthUniqueId` works in a pipelined fashion, speeding up the label assignment process. This method receives a data set as input and returns a new data set of unique id, initial value tuples.
+For example, the following code:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+env.setParallelism(1);
+DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F");
+
+DataSet<Tuple2<Long, String>> result = DataSetUtils.zipWithUniqueId(in);
+
+result.writeAsCsv(resultPath, "\n", ",");
+env.execute();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+env.setParallelism(1)
+val input: DataSet[String] = env.fromElements("A", "B", "C", "D", "E", "F")
+
+val result: DataSet[(Long, String)] = input.zipWithUniqueId
+
+result.writeAsCsv(resultPath, "\n", ",")
+env.execute()
+{% endhighlight %}
+</div>
+
+</div>
+
+will yield the tuples: (0,A), (2,B), (4,C), (6,D), (8,E), (10,F)
+
+[Back to top](#top)
