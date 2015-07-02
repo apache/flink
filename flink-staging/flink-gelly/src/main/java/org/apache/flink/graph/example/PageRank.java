@@ -36,7 +36,9 @@ import org.apache.flink.util.Collector;
  *
  * The edges input file is expected to contain one edge per line, with long IDs and double
  * values, in the following format:"<sourceVertexID>\t<targetVertexID>\t<edgeValue>".
- *
+ * For this simple implementation it is required that each page has at least one incoming 
+ * and one outgoing link, otherwise the rank will differ from the actual theoretical value.
+ * 
  * If no arguments are provided, the example runs with a random graph of 10 vertices
  * and random edge weights.
  *
