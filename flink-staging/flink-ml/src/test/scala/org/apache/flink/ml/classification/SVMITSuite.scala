@@ -19,7 +19,7 @@
 package org.apache.flink.ml.classification
 
 import org.scalatest.{FlatSpec, Matchers}
-import org.apache.flink.ml.math.{Vector => FlinkVector}
+import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase
@@ -82,26 +82,25 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val svm = SVM().
-      setBlocks(env.getParallelism).
-      setIterations(100).
-      setLocalIterations(100).
-      setRegularization(0.002).
-      setStepsize(0.1).
-      setSeed(0).
-      setOutputDecisionFunction(true)
+      setBlocks(env.getParallelism)
+      .setOutputDecisionFunction(false)
 
-    val trainingDS = env.fromCollection(Classification.trainingData)
+    val customWeights = env.fromElements(DenseVector(1.0, 1.0, 1.0))
 
-    val test = trainingDS.map(x => x.vector)
+    svm.weightsOption = Option(customWeights)
 
-    svm.fit(trainingDS)
+    val test = env.fromElements(DenseVector(5.0, 5.0, 5.0))
 
-    val predictions: DataSet[(FlinkVector, Double)] = svm.predict(test)
+    val thresholdedPrediction = svm.predict(test).map(vectorLabel => vectorLabel._2).collect().head
 
-    val preds = predictions.map(vectorLabel => vectorLabel._2).collect()
+    thresholdedPrediction should be (1.0 +- 1e-9)
 
-    preds.max should be > 1.0
-    preds.min should be < -1.0
+    svm.setOutputDecisionFunction(true)
+
+    val rawPrediction = svm.predict(test).map(vectorLabel => vectorLabel._2).collect().head
+
+    rawPrediction should be (15.0 +- 1e-9)
+
 
   }
 }

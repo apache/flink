@@ -203,8 +203,8 @@ class SVM extends Predictor[SVM] {
 
   /** Sets the threshold above which elements are classified as positive.
     *
-    * The [[predict ]]and [[evaluate]]functions will return +1.0 for items with a decision function
-    * value above this threshold, and -1.0 for items below it.
+    * The [[predict ]] and [[evaluate]] functions will return +1.0 for items with a decision
+    * function value above this threshold, and -1.0 for items below it.
     * @param threshold
     * @return
     */
@@ -220,7 +220,7 @@ class SVM extends Predictor[SVM] {
     * the distance from the separating hyperplane.
     * When setting this to false, they return thresholded (+1.0, -1.0) values.
     *
-    * @param outputDecisionFunction When set to true, [[predict ]]and [[evaluate]] return the raw
+    * @param outputDecisionFunction When set to true, [[predict ]] and [[evaluate]] return the raw
     *                               decision function values. When set to false, they return the
     *                               thresholded binary values (+1.0, -1.0).
     */
@@ -279,6 +279,12 @@ object SVM{
 
   // ========================================== Operations =========================================
 
+  /** Provides the operation that makes the predictions for individual examples.
+    *
+    * @tparam T
+    * @return A PredictOperation, through which it is possible to predict a value, given a
+    *         feature vector
+    */
   implicit def predictVectors[T <: Vector] = {
     new PredictOperation[SVM, DenseVector, T, Double](){
 
@@ -297,9 +303,7 @@ object SVM{
         }
       }
 
-      override def predict(value: T, model: DenseVector):
-        Double = {
-
+      override def predict(value: T, model: DenseVector): Double = {
         val rawValue = value.asBreeze dot model.asBreeze
 
         if (outputDecisionFunction) {
