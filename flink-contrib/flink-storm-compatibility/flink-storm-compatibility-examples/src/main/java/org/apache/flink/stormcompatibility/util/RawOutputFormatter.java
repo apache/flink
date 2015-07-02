@@ -20,12 +20,13 @@ package org.apache.flink.stormcompatibility.util;
 
 import backtype.storm.tuple.Tuple;
 
-public class SimpleOutputFormatter implements OutputFormatter {
-	private static final long serialVersionUID = 6349573860144270338L;
+public class RawOutputFormatter implements OutputFormatter {
+	private static final long serialVersionUID = 8685668993521259832L;
 
 	@Override
 	public String format(final Tuple input) {
-		return input.getValues().toString();
+		assert (input.size() == 1);
+		return input.getValue(0).toString();
 	}
 
 }
