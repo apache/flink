@@ -671,11 +671,61 @@ public final class ConfigConstants {
 	 */
 	public static final String LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER = "localinstancemanager.numtaskmanager";
 
-
 	public static final String LOCAL_INSTANCE_MANAGER_START_WEBSERVER = "localinstancemanager.start-webserver";
-	
-	// ------------------------------------------------------------------------
-	
+
+	// --------------------------- ZooKeeper ----------------------------------
+
+	/** ZooKeeper servers. */
+	public static final String ZOOKEEPER_QUORUM_KEY = "ha.zookeeper.quorum";
+
+	/** ZooKeeper root path. */
+	public static final String ZOOKEEPER_DIR_KEY = "ha.zookeeper.dir";
+
+	public static final String ZOOKEEPER_LATCH_PATH = "ha.zookeeper.dir.latch";
+
+	public static final String ZOOKEEPER_LEADER_PATH = "ha.zookeeper.dir.leader";
+
+	public static final String ZOOKEEPER_SESSION_TIMEOUT = "ha.zookeeper.client.session-timeout";
+
+	public static final String ZOOKEEPER_CONNECTION_TIMEOUT = "ha.zookeeper.client.connection-timeout";
+
+	public static final String ZOOKEEPER_RETRY_WAIT = "ha.zookeeper.client.retry-wait";
+
+	public static final String ZOOKEEPER_MAX_RETRY_ATTEMPTS = "ha.zookeeper.client.max-retry-attempts";
+
+	// - Defaults -------------------------------------------------------------
+
+	public static final String DEFAULT_ZOOKEEPER_ZNODE_ROOT = "/flink";
+
+	public static final String DEFAULT_ZOOKEEPER_LATCH_PATH = "/leaderlatch";
+
+	public static final String DEFAULT_ZOOKEEPER_LEADER_PATH = "/leader";
+
+	public static final int DEFAULT_ZOOKEEPER_SESSION_TIMEOUT = 60000;
+
+	public static final int DEFAULT_ZOOKEEPER_CONNECTION_TIMEOUT = 15000;
+
+	public static final int DEFAULT_ZOOKEEPER_RETRY_WAIT = 5000;
+
+	public static final int DEFAULT_ZOOKEEPER_MAX_RETRY_ATTEMPTS = 3;
+
+	// - Defaults for required ZooKeeper configuration keys -------------------
+
+	/** ZooKeeper default client port. */
+	public static final int DEFAULT_ZOOKEEPER_CLIENT_PORT = 2181;
+
+	/** ZooKeeper default init limit. */
+	public static final int DEFAULT_ZOOKEEPER_INIT_LIMIT = 10;
+
+	/** ZooKeeper default sync limit. */
+	public static final int DEFAULT_ZOOKEEPER_SYNC_LIMIT = 5;
+
+	/** ZooKeeper default peer port. */
+	public static final int DEFAULT_ZOOKEEPER_PEER_PORT = 2888;
+
+	/** ZooKeeper default leader port. */
+	public static final int DEFAULT_ZOOKEEPER_LEADER_PORT = 3888;
+
 	/**
 	 * Not instantiable.
 	 */

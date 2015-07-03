@@ -61,7 +61,7 @@ import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
-import org.apache.flink.runtime.util.{MathUtils, EnvironmentInformation}
+import org.apache.flink.runtime.util.{ZooKeeperUtil, MathUtils, EnvironmentInformation}
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -1434,6 +1434,11 @@ object TaskManager {
 
     // start the I/O manager last, it will create some temp directories.
     val ioManager: IOManager = new IOManagerAsync(taskManagerConfig.tmpDirPaths)
+
+    if (ZooKeeperUtil.isJobManagerHighAvailabilityEnabled(configuration)) {
+      // TODO @removeme @tillrohrmann Setup leader retrieval service
+      LOG.info("HA mode.")
+    }
 
     // create the actor properties (which define the actor constructor parameters)
     val tmProps = Props(taskManagerClass,
