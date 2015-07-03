@@ -178,7 +178,7 @@ public final class ConfigConstants {
 	 * for hybrid hash joins. 
 	 */
 	public static final String DEFAULT_SPILLING_MAX_FAN_KEY = "taskmanager.runtime.max-fan";
-
+	
 	/**
 	 * Key for the default spilling threshold. When more than the threshold memory of the sort buffers is full, the
 	 * sorter will start spilling to disk.
@@ -190,6 +190,12 @@ public final class ConfigConstants {
 	 * A value of 0 indicates infinite waiting.
 	 */
 	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "taskmanager.runtime.fs_timeout";
+	
+	/**
+	 * While spill probe record to disk during probe phase, whether enable bloom filter to filter the probe records
+	 * to minimize the spilled probe records count.
+	 */
+	public static final String HASHJOIN_ENABLE_BLOOMFILTER = "hashjoin.bloomfilter.enabled";
 
 	// ------------------------ YARN Configuration ------------------------
 
@@ -552,6 +558,11 @@ public final class ConfigConstants {
 	 * The default timeout for filesystem stream opening: infinite (means max long milliseconds).
 	 */
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
+	
+	/**
+	 * Enable bloom filter for hash join as it promote hash join performance most of the time.
+	 */
+	public static final boolean DEAFULT_HASHJOIN_ENABLE_BLOOMFILTER = true;
 
 	// ------------------------ YARN Configuration ------------------------
 
