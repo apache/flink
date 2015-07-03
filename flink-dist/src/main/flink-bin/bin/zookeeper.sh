@@ -17,26 +17,40 @@
 # limitations under the License.
 ################################################################################
 
+# Start/stop a ZooKeeper quorum peer.
+USAGE="Usage: zookeeper.sh (start peer-id|stop|stop-all)"
+
+STARTSTOP=$1
+PEER_ID=$2
+
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-# Stop TaskManager instance(s)
-readSlaves
-
-for slave in ${SLAVES[@]}; do
-    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l $bin/taskmanager.sh stop &"
-done
-
-# Stop JobManager instance(s)
-if [[ -z $ZK_QUORUM ]]; then
-    "$bin"/jobmanager.sh stop
-else
-	# HA Mode
-    readMasters
-
-    for master in ${MASTERS[@]}; do
-        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l $bin/jobmanager.sh stop &"
-    done
+ZK_CONF=$FLINK_CONF_DIR/zoo.cfg
+if [ ! -f $ZK_CONF ]; then
+    echo "[ERROR] No ZooKeeper configuration file found in '$ZK_CONF'."
+    exit 1
 fi
+
+if [[ $STARTSTOP == "start" ]]; then
+    if [ -z $PEER_ID ]; then
+        echo "[ERROR] Missing peer id argument. $USAGE."
+        exit 1
+    fi
+
+    if [[ ! ${ZK_HEAP} =~ ${IS_NUMBER} ]]; then
+        echo "[ERROR] Configured ZooKeeper JVM heap size is not a number. Please set '$KEY_ZK_HEAP_MB' in $FLINK_CONF_FILE."
+        exit 1
+    fi
+
+    if [ "$ZK_HEAP" -gt 0 ]; then
+        export JVM_ARGS="$JVM_ARGS -Xms"$ZK_HEAP"m -Xmx"$ZK_HEAP"m"
+    fi
+
+    # Startup parameters
+    args="--zkConfigFile $ZK_CONF --peerId $PEER_ID"
+fi
+
+${bin}/flink-daemon.sh $STARTSTOP zookeeper "${args}"

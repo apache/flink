@@ -17,6 +17,11 @@
 # limitations under the License.
 ################################################################################
 
+STREAMING_MODE=$1
+
+if [[ -z $STREAMING_MODE ]]; then
+	STREAMING_MODE="batch"
+fi
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -24,4 +29,4 @@ bin=`cd "$bin"; pwd`
 . "$bin"/config.sh
 
 # local mode, only bring up job manager. The job manager will start an internal task manager
-"$FLINK_BIN_DIR"/jobmanager.sh start local batch
+"$FLINK_BIN_DIR"/jobmanager.sh start local ${STREAMING_MODE}
