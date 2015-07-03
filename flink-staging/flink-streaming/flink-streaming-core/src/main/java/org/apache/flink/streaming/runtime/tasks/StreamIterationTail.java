@@ -83,7 +83,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 	protected void forwardRecords() throws Exception {
 		StreamRecord<IN> reuse = inSerializer.createInstance();
-		while ((reuse = recordIterator.next(reuse)) != null) {
+		while ((reuse = inputIterator.next(reuse)) != null) {
 			if (!pushToQueue(reuse)) {
 				break;
 			}

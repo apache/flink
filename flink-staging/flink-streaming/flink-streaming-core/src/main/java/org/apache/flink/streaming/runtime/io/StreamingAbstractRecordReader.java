@@ -30,21 +30,23 @@ import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpa
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.streaming.runtime.tasks.StreamingSuperstep;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.tasks.CheckpointBarrier;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A record-oriented reader.
+ * Input reader for {@link org.apache.flink.streaming.runtime.tasks.OneInputStreamTask}.
+ *
  * <p>
- * This abstract base class is used by both the mutable and immutable record
- * readers.
+ * This also keeps track of {@link Watermark} events and forwards them to event subscribers
+ * once the {@link Watermark} from all inputs advances.
  * 
  * @param <T>
  *            The type of the record that can be read with this record reader.
  */
-public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable> extends
-		AbstractReader implements ReaderBase, StreamingReader {
+public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable> extends AbstractReader implements ReaderBase, StreamingReader {
 
 	@SuppressWarnings("unused")
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingAbstractRecordReader.class);
@@ -57,9 +59,13 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 
 	private final BarrierBuffer barrierBuffer;
 
+	private long[] watermarks;
+	private long lastEmittedWatermark;
+
 	@SuppressWarnings("unchecked")
-	protected StreamingAbstractRecordReader(InputGate inputGate) {
-		super(inputGate);
+	protected StreamingAbstractRecordReader(InputGate[] inputGates) {
+		super(InputGateUtil.createInputGate(inputGates));
+
 		barrierBuffer = new BarrierBuffer(inputGate, this);
 
 		// Initialize one deserializer per input channel
@@ -68,6 +74,12 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 		for (int i = 0; i < recordDeserializers.length; i++) {
 			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<T>();
 		}
+
+		watermarks = new long[inputGate.getNumberOfInputChannels()];
+		for (int i = 0; i < inputGate.getNumberOfInputChannels(); i++) {
+			watermarks[i] = Long.MIN_VALUE;
+		}
+		lastEmittedWatermark = Long.MIN_VALUE;
 	}
 
 	protected boolean getNextRecord(T target) throws IOException, InterruptedException {
@@ -98,14 +110,30 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 				// Event received
 				final AbstractEvent event = bufferOrEvent.getEvent();
 
-				if (event instanceof StreamingSuperstep) {
-					barrierBuffer.processSuperstep(bufferOrEvent);
+				if (event instanceof CheckpointBarrier) {
+					barrierBuffer.processBarrier(bufferOrEvent);
+				} else if (event instanceof Watermark) {
+					Watermark mark = (Watermark) event;
+					int inputIndex = bufferOrEvent.getChannelIndex();
+					long watermarkMillis = mark.getTimestamp().getMillis();
+					if (watermarkMillis > watermarks[inputIndex]) {
+						watermarks[inputIndex] = watermarkMillis;
+						long newMinWatermark = Long.MAX_VALUE;
+						for (int i = 0; i < watermarks.length; i++) {
+							if (watermarks[i] < newMinWatermark) {
+								newMinWatermark = watermarks[i];
+							}
+						}
+						if (newMinWatermark > lastEmittedWatermark) {
+							lastEmittedWatermark = newMinWatermark;
+							handleEvent(new Watermark(new Instant(lastEmittedWatermark)));
+						}
+					}
 				} else {
 					if (handleEvent(event)) {
 						if (inputGate.isFinished()) {
 							if (!barrierBuffer.isEmpty()) {
-								throw new RuntimeException(
-										"BarrierBuffer should be empty at this point");
+								throw new RuntimeException("BarrierBuffer should be empty at this point");
 							}
 							isFinished = true;
 							return false;

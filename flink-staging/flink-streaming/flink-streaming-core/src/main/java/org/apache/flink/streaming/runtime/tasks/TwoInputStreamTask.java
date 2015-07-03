@@ -21,13 +21,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
+
 import org.apache.flink.streaming.runtime.io.CoReaderIterator;
-import org.apache.flink.streaming.runtime.io.CoRecordReader;
-import org.apache.flink.streaming.runtime.io.InputGateFactory;
+import org.apache.flink.streaming.runtime.io.CoStreamingRecordReader;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.slf4j.Logger;
@@ -40,14 +43,17 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 	protected StreamRecordSerializer<IN1> inputDeserializer1 = null;
 	protected StreamRecordSerializer<IN2> inputDeserializer2 = null;
 
-	CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>> coReader;
+	CoStreamingRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>> coReader;
 	CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> coIter;
+
+	private volatile boolean operatorOpen = false;
+
 
 	@Override
 	public void invoke() throws Exception {
 		this.isRunning = true;
 
-		boolean operatorOpen = false;
+		operatorOpen = false;
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Task {} invoked", getName());
@@ -84,10 +90,10 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 				if (next == 0) {
 					break;
 				} else if (next == 1) {
-					streamOperator.processElement1(reuse1.getObject());
+					streamOperator.processElement1(reuse1);
 					reuse1 = inputDeserializer1.createInstance();
 				} else {
-					streamOperator.processElement2(reuse2.getObject());
+					streamOperator.processElement2(reuse2);
 					reuse2 = inputDeserializer2.createInstance();
 				}
 			}
@@ -152,11 +158,12 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 			}
 		}
 
-		final InputGate reader1 = InputGateFactory.createInputGate(inputList1);
-		final InputGate reader2 = InputGateFactory.createInputGate(inputList2);
+		coReader = new CoStreamingRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>>(
+				inputList1, inputList2);
 
-		coReader = new CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>>(
-				reader1, reader2);
+		coReader.registerTaskEventListener(getCheckpointBarrierListener(), CheckpointBarrier.class);
+		coReader.registerTaskEventListener(new WatermarkListener(), Watermark.class);
+
 		coIter = new CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>>(coReader,
 				inputDeserializer1, inputDeserializer2);
 	}
@@ -166,5 +173,28 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 		super.clearBuffers();
 		coReader.clearBuffers();
 		coReader.cleanup();
+	}
+
+	private class WatermarkListener implements EventListener<TaskEvent> {
+
+		@Override
+		public void onEvent(TaskEvent event) {
+			Watermark watermark = (Watermark) event;
+			try {
+				if (operatorOpen) {
+					if (watermark.getInputIndex() == 1) {
+						streamOperator.processWatermark1(watermark);
+					} else {
+						streamOperator.processWatermark2(watermark);
+					}
+				}
+			} catch (Exception e) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Failed to forward watermark to operator: {}", e);
+				}
+				throw new RuntimeException(e);
+			}
+		}
+
 	}
 }

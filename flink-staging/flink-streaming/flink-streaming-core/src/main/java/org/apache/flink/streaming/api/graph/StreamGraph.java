@@ -165,11 +165,11 @@ public class StreamGraph extends StreamingPlan {
 		}
 
 		StreamRecordSerializer<IN> inSerializer = inTypeInfo != null ? new StreamRecordSerializer<IN>(
-				inTypeInfo, executionConfig) : null;
+				inTypeInfo.createSerializer(executionConfig)) : null;
 
 		StreamRecordSerializer<OUT> outSerializer = (outTypeInfo != null)
 				&& !(outTypeInfo instanceof MissingTypeInfo) ? new StreamRecordSerializer<OUT>(
-				outTypeInfo, executionConfig) : null;
+				outTypeInfo.createSerializer(executionConfig)) : null;
 
 		setSerializers(vertexID, inSerializer, null, outSerializer);
 
@@ -186,10 +186,12 @@ public class StreamGraph extends StreamingPlan {
 
 		StreamRecordSerializer<OUT> outSerializer = (outTypeInfo != null)
 				&& !(outTypeInfo instanceof MissingTypeInfo) ? new StreamRecordSerializer<OUT>(
-				outTypeInfo, executionConfig) : null;
+				outTypeInfo.createSerializer(executionConfig)) : null;
 
-		setSerializers(vertexID, new StreamRecordSerializer<IN1>(in1TypeInfo, executionConfig),
-				new StreamRecordSerializer<IN2>(in2TypeInfo, executionConfig), outSerializer);
+		setSerializers(vertexID,
+				new StreamRecordSerializer<IN1>(in1TypeInfo.createSerializer(executionConfig)),
+				new StreamRecordSerializer<IN2>(in2TypeInfo.createSerializer(executionConfig)),
+				outSerializer);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CO-TASK: {}", vertexID);
@@ -213,7 +215,7 @@ public class StreamGraph extends StreamingPlan {
 			setSerializersFrom(iterationHead, sourceID);
 			addEdge(sourceID, iterationHead, new RebalancePartitioner(true), 0, new ArrayList<String>());
 		}else{
-			itSource.setSerializerOut(new StreamRecordSerializer(feedbackType, executionConfig));
+			itSource.setSerializerOut(new StreamRecordSerializer(feedbackType.createSerializer(executionConfig)));
 			addEdge(sourceID, iterationHead, new RebalancePartitioner(true), 2, new ArrayList<String>());
 		}
 		
@@ -309,8 +311,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public <OUT> void setOutType(Integer vertexID, TypeInformation<OUT> outType) {
-		StreamRecordSerializer<OUT> serializer = new StreamRecordSerializer<OUT>(outType,
-				executionConfig);
+		StreamRecordSerializer<OUT> serializer = new StreamRecordSerializer<OUT>(outType.createSerializer(executionConfig));
 		getStreamNode(vertexID).setSerializerOut(serializer);
 	}
 

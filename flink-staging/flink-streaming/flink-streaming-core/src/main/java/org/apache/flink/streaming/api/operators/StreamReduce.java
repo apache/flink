@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public class StreamReduce<IN> extends AbstractUdfStreamOperator<IN, ReduceFunction<IN>>
 		implements OneInputStreamOperator<IN, IN> {
@@ -34,15 +36,19 @@ public class StreamReduce<IN> extends AbstractUdfStreamOperator<IN, ReduceFuncti
 	}
 
 	@Override
-	public void processElement(IN element) throws Exception {
+	public void processElement(StreamRecord<IN> element) throws Exception {
 
 		if (currentValue != null) {
-			// TODO: give operator a way to specify that elements should be copied
-			currentValue = userFunction.reduce(currentValue, element);
+			currentValue = userFunction.reduce(currentValue, element.getValue());
 		} else {
-			currentValue = element;
+			currentValue = element.getValue();
 
 		}
-		output.collect(currentValue);
+		output.collect(element.replace(currentValue));
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
 	}
 }

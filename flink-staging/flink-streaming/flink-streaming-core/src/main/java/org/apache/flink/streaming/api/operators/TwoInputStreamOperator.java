@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
 /**
  * Interface for stream operators with two inputs. Use
  * {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator} as a base class if
@@ -29,7 +32,32 @@ package org.apache.flink.streaming.api.operators;
  */
 public interface TwoInputStreamOperator<IN1, IN2, OUT> extends StreamOperator<OUT> {
 
-	public void processElement1(IN1 element) throws Exception;
+	/**
+	 * Processes one element that arrived on the first input of this two-input operator.
+	 * This method is guaranteed to not be called concurrently with other methods of the operator.
+	 */
+	public void processElement1(StreamRecord<IN1> element) throws Exception;
 
-	public void processElement2(IN2 element) throws Exception;
+	/**
+	 * Processes one element that arrived on the second input of this two-input operator.
+	 * This method is guaranteed to not be called concurrently with other methods of the operator.
+	 */
+	public void processElement2(StreamRecord<IN2> element) throws Exception;
+
+	/**
+	 * Processes a {@link Watermark} that arrived on the first input of this two-input operator.
+	 * This method is guaranteed to not be called concurrently with other methods of the operator.
+	 *
+	 * @see org.apache.flink.streaming.api.watermark.Watermark
+	 */
+	public void processWatermark1(Watermark mark) throws Exception;
+
+	/**
+	 * Processes a {@link Watermark} that arrived on the second input of this two-input operator.
+	 * This method is guaranteed to not be called concurrently with other methods of the operator.
+	 *
+	 * @see org.apache.flink.streaming.api.watermark.Watermark
+	 */
+	public void processWatermark2(Watermark mark) throws Exception;
+
 }

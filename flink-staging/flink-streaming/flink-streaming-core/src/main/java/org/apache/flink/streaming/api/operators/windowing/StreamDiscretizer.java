@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators.windowing;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.WindowEvent;
 import org.apache.flink.streaming.api.windowing.policy.ActiveEvictionPolicy;
@@ -26,6 +27,7 @@ import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerCallback;
 import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * This operator represents the discretization step of a window transformation.
@@ -67,7 +69,7 @@ public class StreamDiscretizer<IN>
 	}
 
 	@Override
-	public void processElement(IN element) throws Exception {
+	public void processElement(StreamRecord<IN> element) throws Exception {
 		processRealElement(element);
 	}
 
@@ -80,13 +82,13 @@ public class StreamDiscretizer<IN>
 	 *            a real input element
 	 * @throws Exception
 	 */
-	protected synchronized void processRealElement(IN input) throws Exception {
+	protected synchronized void processRealElement(StreamRecord<IN> input) throws Exception {
 
 		// Setting the input element in order to avoid NullFieldException when triggering on fake element
-		windowEvent.setElement(input);
+		windowEvent.setElement(input.getValue());
 		if (isActiveTrigger) {
 			ActiveTriggerPolicy<IN> trigger = (ActiveTriggerPolicy<IN>) triggerPolicy;
-			Object[] result = trigger.preNotifyTrigger(input);
+			Object[] result = trigger.preNotifyTrigger(input.getValue());
 			for (Object in : result) {
 				triggerOnFakeElement(in);
 			}
@@ -94,14 +96,14 @@ public class StreamDiscretizer<IN>
 
 		boolean isTriggered = false;
 
-		if (triggerPolicy.notifyTrigger(input)) {
+		if (triggerPolicy.notifyTrigger(input.getValue())) {
 			emitWindow();
 			isTriggered = true;
 		}
 
-		evict(input, isTriggered);
+		evict(input.getValue(), isTriggered);
 
-		output.collect(windowEvent.setElement(input));
+		output.collect(input.replace(windowEvent.setElement(input.getValue())));
 		bufferSize++;
 
 	}
@@ -109,7 +111,7 @@ public class StreamDiscretizer<IN>
 	/**
 	 * This method triggers on an arrived fake element The method is
 	 * synchronized to ensure that it cannot interleave with
-	 * {@link StreamDiscretizer#processRealElement(Object)}
+	 * {@link StreamDiscretizer#processRealElement(org.apache.flink.streaming.runtime.streamrecord.StreamRecord)}
 	 * 
 	 * @param input
 	 *            a fake input element
@@ -130,7 +132,7 @@ public class StreamDiscretizer<IN>
 	 * if not empty
 	 */
 	protected void emitWindow() {
-		output.collect(windowEvent.setTrigger());
+		output.collect(new StreamRecord(windowEvent.setTrigger()));
 	}
 
 	private void activeEvict(Object input) {
@@ -142,7 +144,7 @@ public class StreamDiscretizer<IN>
 		}
 
 		if (numToEvict > 0) {
-			output.collect(windowEvent.setEviction(numToEvict));
+			output.collect(new StreamRecord(windowEvent.setEviction(numToEvict)));
 			bufferSize -= numToEvict;
 			bufferSize = bufferSize >= 0 ? bufferSize : 0;
 		}
@@ -152,7 +154,7 @@ public class StreamDiscretizer<IN>
 		int numToEvict = evictionPolicy.notifyEviction(input, isTriggered, bufferSize);
 
 		if (numToEvict > 0) {
-			output.collect(windowEvent.setEviction(numToEvict));
+			output.collect(new StreamRecord(windowEvent.setEviction(numToEvict)));
 			bufferSize -= numToEvict;
 			bufferSize = bufferSize >= 0 ? bufferSize : 0;
 		}
@@ -219,5 +221,10 @@ public class StreamDiscretizer<IN>
 	public String toString() {
 		return "Discretizer(Trigger: " + triggerPolicy.toString() + ", Eviction: "
 				+ evictionPolicy.toString() + ")";
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
 	}
 }

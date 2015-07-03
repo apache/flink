@@ -17,16 +17,25 @@
  */
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Collector;
 
 /**
  * A {@link org.apache.flink.streaming.api.operators.StreamOperator} is supplied with an object
  * of this interface that can be used to emit elements and other messages, such as barriers
- * and low watermarks, from an operator.
+ * and watermarks, from an operator.
  *
  * @param <T> The type of the elments that can be emitted.
  */
 public interface Output<T> extends Collector<T> {
-	// NOTE: This does not yet have methods for barriers/low watermarks, this needs to be
-	// extended when this functionality arrives.
+
+	/**
+	 * Emits a {@link Watermark} from an operator. This watermark is broadcast to all downstream
+	 * operators.
+	 *
+	 * <p>
+	 * A watermark specifies that no element with a timestamp older or equal to the watermark
+	 * timestamp will be emitted in the future.
+	 */
+	void emitWatermark(Watermark mark);
 }

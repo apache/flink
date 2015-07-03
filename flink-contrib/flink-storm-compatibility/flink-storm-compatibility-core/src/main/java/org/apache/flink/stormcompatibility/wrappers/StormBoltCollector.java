@@ -23,6 +23,7 @@ import backtype.storm.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.util.Collector;
 
 import java.util.Collection;
 import java.util.List;
@@ -34,8 +35,8 @@ import java.util.List;
  */
 class StormBoltCollector<OUT> extends AbstractStormCollector<OUT> implements IOutputCollector {
 
-	/** The Flink output object */
-	private final Output<OUT> flinkOutput;
+	/** The Flink output Collector */
+	private final Collector<OUT> flinkOutput;
 
 	/**
 	 * Instantiates a new {@link StormBoltCollector} that emits Flink tuples to the given Flink
@@ -50,7 +51,7 @@ class StormBoltCollector<OUT> extends AbstractStormCollector<OUT> implements IOu
 	 * @throws UnsupportedOperationException
 	 *         if the specified number of attributes is not in the valid range of [0,25]
 	 */
-	public StormBoltCollector(final int numberOfAttributes, final Output<OUT> flinkOutput) throws UnsupportedOperationException {
+	public StormBoltCollector(final int numberOfAttributes, final Collector<OUT> flinkOutput) throws UnsupportedOperationException {
 		super(numberOfAttributes);
 		assert (flinkOutput != null);
 		this.flinkOutput = flinkOutput;

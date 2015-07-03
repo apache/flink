@@ -42,8 +42,13 @@ public class FieldsPartitioner<T> extends StreamPartitioner<T> {
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {
-		returnArray[0] = Math.abs(record.getInstance().getKey(keySelector).hashCode()
-				% numberOfOutputChannels);
+		Object key;
+		try {
+			key = keySelector.getKey(record.getInstance().getValue());
+		} catch (Exception e) {
+			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
+		}
+		returnArray[0] = Math.abs(key.hashCode() % numberOfOutputChannels);
 
 		return returnArray;
 	}

@@ -74,11 +74,11 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	protected ClassLoader userClassLoader;
 	
-	private EventListener<TaskEvent> superstepListener;
+	private EventListener<TaskEvent> checkpointBarrierListener;
 
 	public StreamTask() {
 		streamOperator = null;
-		superstepListener = new SuperstepEventListener();
+		checkpointBarrierListener = new CheckpointBarrierListener();
 		contexts = new ArrayList<StreamingRuntimeContext>();
 	}
 
@@ -188,8 +188,8 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		this.isRunning = false;
 	}
 
-	public EventListener<TaskEvent> getSuperstepListener() {
-		return this.superstepListener;
+	public EventListener<TaskEvent> getCheckpointBarrierListener() {
+		return this.checkpointBarrierListener;
 	}
 
 	// ------------------------------------------------------------------------
@@ -217,7 +217,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	@Override
 	public void triggerCheckpoint(long checkpointId, long timestamp) throws Exception {
-		
+
 		synchronized (checkpointLock) {
 			if (isRunning) {
 				try {
@@ -319,12 +319,12 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	// ------------------------------------------------------------------------
 
-	private class SuperstepEventListener implements EventListener<TaskEvent> {
+	private class CheckpointBarrierListener implements EventListener<TaskEvent> {
 
 		@Override
 		public void onEvent(TaskEvent event) {
 			try {
-				StreamingSuperstep sStep = (StreamingSuperstep) event;
+				CheckpointBarrier sStep = (CheckpointBarrier) event;
 				triggerCheckpoint(sStep.getId(), sStep.getTimestamp());
 			}
 			catch (Exception e) {

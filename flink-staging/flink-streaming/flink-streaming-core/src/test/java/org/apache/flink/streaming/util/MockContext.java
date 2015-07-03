@@ -28,13 +28,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-import org.apache.flink.util.Collector;
-import org.apache.flink.util.MutableObjectIterator;
 
 public class MockContext<IN, OUT> {
 	private Collection<IN> inputs;
@@ -42,7 +41,7 @@ public class MockContext<IN, OUT> {
 
 	private MockOutput<OUT> output;
 	private StreamRecordSerializer<IN> inDeserializer;
-	private IndexedReaderIterator<StreamRecord<IN>> iterator;
+	private IndexedInputIterator iterator;
 
 	public MockContext(Collection<IN> inputs) {
 		this.inputs = inputs;
@@ -51,14 +50,14 @@ public class MockContext<IN, OUT> {
 		}
 
 		TypeInformation<IN> inTypeInfo = TypeExtractor.getForObject(inputs.iterator().next());
-		inDeserializer = new StreamRecordSerializer<IN>(inTypeInfo, new ExecutionConfig());
+		inDeserializer = new StreamRecordSerializer<IN>(inTypeInfo.createSerializer(new ExecutionConfig()));
 
 		iterator = new IndexedInputIterator();
 		outputs = new ArrayList<OUT>();
 		output = new MockOutput<OUT>(outputs);
 	}
 
-	private class IndexedInputIterator extends IndexedReaderIterator<StreamRecord<IN>> {
+	private class IndexedInputIterator extends ReaderIterator<StreamRecord<IN>> {
 		Iterator<IN> listIterator;
 
 		public IndexedInputIterator() {
@@ -69,7 +68,7 @@ public class MockContext<IN, OUT> {
 		@Override
 		public StreamRecord<IN> next(StreamRecord<IN> reuse) throws IOException {
 			if (listIterator.hasNext()) {
-				reuse.setObject(listIterator.next());
+				reuse.replace(listIterator.next());
 			} else {
 				reuse = null;
 			}
@@ -80,7 +79,7 @@ public class MockContext<IN, OUT> {
 		public StreamRecord<IN> next() throws IOException {
 			if (listIterator.hasNext()) {
 				StreamRecord<IN> result = inDeserializer.createInstance();
-				result.setObject(listIterator.next());
+				result.replace(listIterator.next());
 				return result;
 			} else {
 				return null;
@@ -92,11 +91,11 @@ public class MockContext<IN, OUT> {
 		return outputs;
 	}
 
-	public Collector<OUT> getOutput() {
+	public Output<StreamRecord<OUT>> getOutput() {
 		return output;
 	}
 
-	public MutableObjectIterator<StreamRecord<IN>> getIterator() {
+	public ReaderIterator<StreamRecord<IN>> getIterator() {
 		return iterator;
 	}
 
@@ -113,7 +112,7 @@ public class MockContext<IN, OUT> {
 
 			StreamRecord<IN> nextRecord;
 			while ((nextRecord = mockContext.getIterator().next()) != null) {
-				operator.processElement(nextRecord.getObject());
+				operator.processElement(nextRecord);
 			}
 
 			operator.close();

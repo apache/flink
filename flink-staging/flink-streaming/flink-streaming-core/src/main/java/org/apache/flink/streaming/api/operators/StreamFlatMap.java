@@ -18,6 +18,9 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public class StreamFlatMap<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, FlatMapFunction<IN, OUT>>
@@ -25,13 +28,27 @@ public class StreamFlatMap<IN, OUT>
 
 	private static final long serialVersionUID = 1L;
 
+	private TimestampedCollector<OUT> collector;
+
 	public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
 		super(flatMapper);
 		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override
-	public void processElement(IN element) throws Exception {
-		userFunction.flatMap(element, output);
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+		collector = new TimestampedCollector(output);
+	}
+
+	@Override
+	public void processElement(StreamRecord<IN> element) throws Exception {
+		collector.setTimestamp(element.getTimestamp());
+		userFunction.flatMap(element.getValue(), collector);
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
 	}
 }

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,31 +38,32 @@ public class DirectedOutputSelectorWrapper<OUT> implements OutputSelectorWrapper
 
 	private List<OutputSelector<OUT>> outputSelectors;
 
-	private Map<String, List<Collector<OUT>>> outputMap;
-	private Set<Collector<OUT>> selectAllOutputs;
+	private Map<String, List<Collector<StreamRecord<OUT>>>> outputMap;
+	private Set<Collector<StreamRecord<OUT>>> selectAllOutputs;
 
 	public DirectedOutputSelectorWrapper(List<OutputSelector<OUT>> outputSelectors) {
 		this.outputSelectors = outputSelectors;
-		this.selectAllOutputs = new HashSet<Collector<OUT>>(); //new LinkedList<Collector<OUT>>();
-		this.outputMap = new HashMap<String, List<Collector<OUT>>>();
+		this.selectAllOutputs = new HashSet<Collector<StreamRecord<OUT>>>(); //new LinkedList<Collector<OUT>>();
+		this.outputMap = new HashMap<String, List<Collector<StreamRecord<OUT>>>>();
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public void addCollector(Collector<?> output, StreamEdge edge) {
+	public void addCollector(Collector<StreamRecord<?>> output, StreamEdge edge) {
+		Collector output1 = output;
 		List<String> selectedNames = edge.getSelectedNames();
 
 		if (selectedNames.isEmpty()) {
-			selectAllOutputs.add((Collector<OUT>) output);
+			selectAllOutputs.add((Collector<StreamRecord<OUT>>) output1);
 		} else {
 			for (String selectedName : selectedNames) {
 
 				if (!outputMap.containsKey(selectedName)) {
-					outputMap.put(selectedName, new LinkedList<Collector<OUT>>());
-					outputMap.get(selectedName).add((Collector<OUT>) output);
+					outputMap.put(selectedName, new LinkedList<Collector<StreamRecord<OUT>>>());
+					outputMap.get(selectedName).add((Collector<StreamRecord<OUT>>) output1);
 				} else {
 					if (!outputMap.get(selectedName).contains(output)) {
-						outputMap.get(selectedName).add((Collector<OUT>) output);
+						outputMap.get(selectedName).add((Collector<StreamRecord<OUT>>) output1);
 					}
 				}
 			}
@@ -69,14 +71,14 @@ public class DirectedOutputSelectorWrapper<OUT> implements OutputSelectorWrapper
 	}
 
 	@Override
-	public Iterable<Collector<OUT>> getSelectedOutputs(OUT record) {
-		Set<Collector<OUT>> selectedOutputs = new HashSet<Collector<OUT>>(selectAllOutputs);
+	public Iterable<Collector<StreamRecord<OUT>>> getSelectedOutputs(OUT record) {
+		Set<Collector<StreamRecord<OUT>>> selectedOutputs = new HashSet<Collector<StreamRecord<OUT>>>(selectAllOutputs);
 
 		for (OutputSelector<OUT> outputSelector : outputSelectors) {
 			Iterable<String> outputNames = outputSelector.select(record);
 
 			for (String outputName : outputNames) {
-				List<Collector<OUT>> outputList = outputMap.get(outputName);
+				List<Collector<StreamRecord<OUT>>> outputList = outputMap.get(outputName);
 
 				try {
 					selectedOutputs.addAll(outputList);

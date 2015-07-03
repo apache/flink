@@ -18,9 +18,11 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import java.io.Serializable;
-
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.joda.time.Instant;
+
+import java.io.Serializable;
 
 /**
  * Base interface for all stream data sources in Flink. The contract of a stream source
@@ -28,9 +30,10 @@ import org.apache.flink.api.common.functions.Function;
  * is called with a {@link org.apache.flink.util.Collector} that can be used for emitting elements.
  * The run method can run for as long as necessary. The source must, however, react to an
  * invocation of {@link #cancel} by breaking out of its main loop.
- * 
- * <b>Note about checkpointed sources</b>
+ *
  * <p>
+ * <b>Note about checkpointed sources</b> <br>
+ *
  * Sources that also implement the {@link org.apache.flink.streaming.api.checkpoint.Checkpointed}
  * interface must ensure that state checkpointing, updating of internal state and emission of
  * elements are not done concurrently. This is achieved by using the provided checkpointing lock
@@ -41,7 +44,6 @@ import org.apache.flink.api.common.functions.Function;
  * This is the basic pattern one should follow when implementing a (checkpointed) source:
  * </p>
  *
- * <pre>
  * {@code
  *  public class ExampleSource<T> implements SourceFunction<T>, Checkpointed<Long> {
  *      private long count = 0L;
@@ -69,7 +71,14 @@ import org.apache.flink.api.common.functions.Function;
  *      @Override
  *      public void restoreState(Long state) { this.count = state; }
  * }
- * </pre>
+ *
+ *
+ * <p>
+ * <b>Note about element timestamps and watermarks:</b> <br>
+ * Sources must only manually emit watermarks when they implement
+ * {@link EventTimeSourceFunction }.
+ * Otherwise, elements automatically get the current timestamp assigned at ingress
+ * and the system automatically emits watermarks.
  *
  * @param <T> The type of the elements produced by this source.
  */
@@ -107,9 +116,28 @@ public interface SourceFunction<T> extends Function, Serializable {
 	interface SourceContext<T> {
 
 		/**
-		 * Emits one element from the source.
+		 * Emits one element from the source. The result of {@link Instant#now()} is set as
+		 * the timestamp of the emitted element.
 		 */
 		void collect(T element);
+
+		/**
+		 * Emits one element from the source with the given timestamp.
+		 */
+		public void collectWithTimestamp(T element, Instant timestamp);
+
+		/**
+		 * Emits the given {@link org.apache.flink.streaming.api.watermark.Watermark}.
+		 *
+		 * <p>
+		 * <b>Important:</b>
+		 * Sources must only manually emit watermarks when they implement
+		 * {@link EventTimeSourceFunction}.
+		 * Otherwise, elements automatically get the current timestamp assigned at ingress
+		 * and the system automatically emits watermarks.
+		 */
+		void emitWatermark(Watermark mark);
+
 
 		/**
 		 * Returns the checkpoint lock. Please refer to the explanation about checkpointed sources

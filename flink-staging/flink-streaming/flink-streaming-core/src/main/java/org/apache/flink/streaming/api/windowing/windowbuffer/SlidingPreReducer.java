@@ -22,6 +22,7 @@ import java.util.LinkedList;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 /**
@@ -49,12 +50,12 @@ public abstract class SlidingPreReducer<T> extends WindowBuffer<T> implements Pr
 		this.serializer = serializer;
 	}
 
-	public void emitWindow(Collector<StreamWindow<T>> collector) {
+	public void emitWindow(Collector<StreamRecord<StreamWindow<T>>> collector) {
 		StreamWindow<T> currentWindow = createEmptyWindow();
 
 		try {
 			if (addFinalAggregate(currentWindow) || emitEmpty) {
-				collector.collect(currentWindow);
+				collector.collect(new StreamRecord<StreamWindow<T>>(currentWindow));
 			} 
 			afterEmit();
 		} catch (Exception e) {

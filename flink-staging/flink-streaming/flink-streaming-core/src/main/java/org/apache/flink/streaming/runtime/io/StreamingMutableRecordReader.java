@@ -24,11 +24,10 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
-public class StreamingMutableRecordReader<T extends IOReadableWritable> extends
-		StreamingAbstractRecordReader<T> implements MutableReader<T> {
+public class StreamingMutableRecordReader<T extends IOReadableWritable> extends StreamingAbstractRecordReader<T> implements MutableReader<T> {
 
-	public StreamingMutableRecordReader(InputGate inputGate) {
-		super(inputGate);
+	public StreamingMutableRecordReader(InputGate[] inputGates) {
+		super(inputGates);
 	}
 
 	@Override
@@ -36,8 +35,4 @@ public class StreamingMutableRecordReader<T extends IOReadableWritable> extends
 		return getNextRecord(target);
 	}
 
-	@Override
-	public void clearBuffers() {
-		super.clearBuffers();
-	}
 }
