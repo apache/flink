@@ -94,6 +94,8 @@ KEY_ENV_LOG_MAX="env.log.max"
 KEY_ENV_JAVA_HOME="env.java.home"
 KEY_ENV_JAVA_OPTS="env.java.opts"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
+KEY_ZK_QUORUM="ha.zookeeper.quorum"
+KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 
 ########################################################################################################################
 # PATHS AND CONFIG
@@ -196,10 +198,21 @@ if [ -z "${FLINK_SSH_OPTS}" ]; then
     FLINK_SSH_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" "${YAML_CONF}")
 fi
 
+# Define ZK_HEAP if it is not already set
+if [ -z "${ZK_HEAP}" ]; then
+    ZK_HEAP=$(readFromConfig ${KEY_ZK_HEAP_MB} 0 "${YAML_CONF}")
+fi
+
+if [ -z "${ZK_QUORUM}" ]; then
+    ZK_QUORUM=$(readFromConfig ${KEY_ZK_QUORUM} "" "${YAML_CONF}")
+fi
+
 # Arguments for the JVM. Used for job and task manager JVMs.
 # DO NOT USE FOR MEMORY SETTINGS! Use conf/flink-conf.yaml with keys
 # KEY_JOBM_HEAP_MB and KEY_TASKM_HEAP_MB for that!
-JVM_ARGS=""
+if [ -z "${JVM_ARGS}" ]; then
+    JVM_ARGS=""
+fi
 
 # Check if deprecated HADOOP_HOME is set.
 if [ -n "$HADOOP_HOME" ]; then
@@ -242,4 +255,44 @@ rotateLogFile() {
         done
         mv "$log" "$log.$num";
     fi
+}
+
+readMasters() {
+    MASTERS_FILE="${FLINK_CONF_DIR}/masters"
+
+    if [[ ! -f "${MASTERS_FILE}" ]]; then
+        echo "No masters file. Please specify masters in 'conf/masters'."
+        exit 1
+    fi
+
+    MASTERS=()
+
+    GOON=true
+    while $GOON; do
+        read line || GOON=false
+        HOST=$( extractHostName $line)
+        if [ -n "$HOST" ]; then
+            MASTERS+=(${HOST})
+        fi
+    done < "$MASTERS_FILE"
+}
+
+readSlaves() {
+    SLAVES_FILE="${FLINK_CONF_DIR}/slaves"
+
+    if [[ ! -f "$SLAVES_FILE" ]]; then
+        echo "No slaves file. Please specify slaves in 'conf/slaves'."
+        exit 1
+    fi
+
+    SLAVES=()
+
+    GOON=true
+    while $GOON; do
+        read line || GOON=false
+        HOST=$( extractHostName $line)
+        if [ -n "$HOST" ]; then
+            SLAVES+=(${HOST})
+        fi
+    done < "$SLAVES_FILE"
 }
