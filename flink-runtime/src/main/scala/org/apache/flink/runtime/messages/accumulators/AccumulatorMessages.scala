@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.messages.accumulators
 
 import org.apache.flink.api.common.JobID
-import org.apache.flink.runtime.accumulators.{StringifiedAccumulatorResult, AccumulatorEvent}
+import org.apache.flink.runtime.accumulators.{LargeAccumulatorEvent, StringifiedAccumulatorResult, AccumulatorEvent}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.util.SerializedValue
 
@@ -47,6 +47,20 @@ sealed trait AccumulatorResultsResponse extends AccumulatorMessage
 case class ReportAccumulatorResult(jobID: JobID,
                                    executionId: ExecutionAttemptID,
                                    accumulatorEvent: AccumulatorEvent)
+  extends AccumulatorMessage
+
+/**
+ * This message is for the case where the size of the accumulator is bigger than
+ * that allowed by akka.framesize. It reports the accumulator results of the individual
+ * tasks to the job manager.
+ *
+ * @param jobID The ID of the job the accumulator belongs to
+ * @param executionId The ID of the task execution that the accumulator belongs to.
+ * @param oversizedAccumulatorEvent The serialized accumulators
+ */
+case class ReportLargeAccumulatorResult(jobID: JobID,
+                                        executionId: ExecutionAttemptID,
+                                        oversizedAccumulatorEvent: LargeAccumulatorEvent)
   extends AccumulatorMessage
 
 /**

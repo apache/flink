@@ -30,10 +30,14 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobClient;
+import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobServerProtocol;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 
+import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,10 +48,17 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -229,29 +240,69 @@ public class JobClient {
 	public static void uploadJarFiles(JobGraph jobGraph, ActorRef jobManager, FiniteDuration timeout)
 			throws IOException {
 		if (jobGraph.hasUsercodeJarFiles()) {
-			Timeout tOut = new Timeout(timeout);
-			Future<Object> futureBlobPort = Patterns.ask(jobManager,
-					JobManagerMessages.getRequestBlobManagerPort(),
-					tOut);
-
-			int port;
-			try {
-				Object result = Await.result(futureBlobPort, timeout);
-				if (result instanceof Integer) {
-					port = (Integer) result;
-				} else {
-					throw new Exception("Expected port number (int) as answer, received " + result);
-				}
-			}
-			catch (Exception e) {
-				throw new IOException("Could not retrieve the JobManager's blob port.", e);
-			}
-
-			Option<String> jmHost = jobManager.path().address().host();
-			String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
-			InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, port);
-
+			InetSocketAddress serverAddress = getBlobServerAddress(jobManager, timeout);
 			jobGraph.uploadRequiredJarFiles(serverAddress);
 		}
+	}
+
+	public static Map<String, List<SerializedValue<Object>>> getAccumulatorBlobs(ActorRef jobManager, Map<String, List<BlobKey>> keys, FiniteDuration timeout)
+			throws IOException {
+		if (keys.isEmpty()) {
+			return Collections.emptyMap();
+		}
+
+		Map<String, List<SerializedValue<Object>>> accumulatorBlobs =
+				new HashMap<String, List<SerializedValue<Object>>>();
+
+		InetSocketAddress serverAddress = getBlobServerAddress(jobManager, timeout);
+		BlobClient bc = new BlobClient(serverAddress);
+
+		final byte[] buf = new byte[BlobServerProtocol.BUFFER_SIZE];
+		for(String accName: keys.keySet()) {
+			List<BlobKey> accBlobKeys = keys.get(accName);
+			List<SerializedValue<Object>> accBlobs = new ArrayList<SerializedValue<Object>>();
+
+			for(BlobKey bk: accBlobKeys) {
+				InputStream is = bc.get(bk);
+				ByteArrayOutputStream os = new ByteArrayOutputStream();
+				while (true) {
+					final int read = is.read(buf);
+					if (read < 0) {
+						break;
+					}
+					os.write(buf, 0, read);
+				}
+				os.flush();
+				accBlobs.add(new SerializedValue<Object>(os.toByteArray()));
+				is.close();
+				os.close();
+			}
+			accumulatorBlobs.put(accName, accBlobs);
+		}
+		bc.close();
+		return accumulatorBlobs;
+	}
+
+	private static InetSocketAddress getBlobServerAddress(ActorRef jobManager, FiniteDuration timeout) throws IOException {
+		Timeout tOut = new Timeout(timeout);
+		Future<Object> futureBlobPort = Patterns.ask(jobManager,
+				JobManagerMessages.getRequestBlobManagerPort(),
+				tOut);
+
+		int port;
+		try {
+			Object result = Await.result(futureBlobPort, timeout);
+			if (result instanceof Integer) {
+				port = (Integer) result;
+			} else {
+				throw new Exception("Expected port number (int) as answer, received " + result);
+			}
+		} catch (Exception e) {
+			throw new IOException("Could not retrieve the JobManager's blob port.", e);
+		}
+
+		Option<String> jmHost = jobManager.path().address().host();
+		String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
+		return new InetSocketAddress(jmHostname, port);
 	}
 }

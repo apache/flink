@@ -302,8 +302,8 @@ class JobManager(protected val flinkConfiguration: Configuration,
                     log.error(s"Cannot fetch serialized accumulators for job $jobID", e)
                     Collections.emptyMap()
                 }
-                val result = new SerializedJobExecutionResult(jobID, jobInfo.duration,
-                                                              accumulatorResults)
+                val result = new SerializedJobExecutionResult(jobID, jobInfo.duration, accumulatorResults,
+                                                              accumulatorManager.getJobOversizedAccumulatorRefs(jobID))
                 jobInfo.client ! JobResultSuccess(result)
 
               case JobStatus.CANCELED =>
@@ -700,6 +700,29 @@ class JobManager(protected val flinkConfiguration: Configuration,
           case e: Exception =>
             log.error("Cannot serialize accumulator result", e)
             sender() ! AccumulatorResultsErroneous(jobID, e)
+        }
+
+      case ReportLargeAccumulatorResult(jobId, _, largeAccumulatorEvent) =>
+        val accumulatorRefs = largeAccumulatorEvent.getValue()
+        accumulatorManager.processIncomingAccumulatorRefs(jobId, accumulatorRefs)
+
+        if(log.isDebugEnabled) {
+          val keyIt = accumulatorRefs.keySet().iterator()
+          while(keyIt.hasNext) {
+            val name = keyIt.next()
+            val blobIt = accumulatorRefs.get(name).iterator()
+
+            val str = new StringBuilder()
+            str.append("[")
+            while(blobIt.hasNext) {
+              str.append(" "+ blobIt.next())
+            }
+            str.append(" ]")
+
+            log.debug("Accumulator "+ name +" is in " + {
+              if(accumulatorRefs.get(name).size() > 1) " blobs " else " blob "
+            } + str.toString())
+          }
         }
 
       case RequestAccumulatorResultsStringified(jobId) =>

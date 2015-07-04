@@ -795,7 +795,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
       // and libraries - the operation does not block
       val execId = tdd.getExecutionId
       val task = new Task(tdd, memoryManager, ioManager, network, bcVarManager,
-                          self, jobManagerActor, config.timeout, libCache, fileCache)
+                          self, jobManagerActor, config.timeout, libCache, fileCache, blobService.get)
 
       log.info(s"Received task ${task.getTaskNameWithSubtasks}")
       

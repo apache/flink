@@ -20,11 +20,15 @@ package org.apache.flink.runtime.client;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.util.SerializedValue;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -38,7 +42,13 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 
 	private final JobID jobId;
 
+	// holds the result value of an accumulator
 	private final Map<String, SerializedValue<Object>> accumulatorResults;
+
+	// holds the BlobKeys pointing to the blobs in the BlobCache
+	// containing the serialized accumulators
+	private final Map<String, List<BlobKey>> largeAccumulatorBlobRefs;
+
 
 	private final long netRuntime;
 
@@ -47,13 +57,17 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	 *
 	 * @param jobID The job's ID.
 	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer) in milliseconds
-	 * @param accumulators A map of all accumulator results produced by the job, in serialized form
+	 * @param accumulators A map of all SMALL accumulator results produced by the job, in serialized form
+	 * @param largeAccumulatorBlobRefs A map of all the references to the blobs holding the LARGE accumulators that had
+	 *                                 to be sent through the BlobCache.
 	 */
 	public SerializedJobExecutionResult(JobID jobID, long netRuntime,
-										Map<String, SerializedValue<Object>> accumulators) {
+										Map<String, SerializedValue<Object>> accumulators,
+										Map<String, List<BlobKey>> largeAccumulatorBlobRefs) {
 		this.jobId = jobID;
 		this.netRuntime = netRuntime;
 		this.accumulatorResults = accumulators;
+		this.largeAccumulatorBlobRefs = largeAccumulatorBlobRefs;
 	}
 
 	public JobID getJobId() {
@@ -79,6 +93,10 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 		return this.accumulatorResults;
 	}
 
+	public Map<String, List<BlobKey>> getBlobKeysToLargeAccumulators() {
+		return this.largeAccumulatorBlobRefs;
+	}
+
 	public JobExecutionResult toJobExecutionResult(ClassLoader loader) throws IOException, ClassNotFoundException {
 		Map<String, Object> accumulators = null;
 		if (accumulatorResults != null) {
@@ -94,4 +112,53 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 
 		return new JobExecutionResult(jobId, netRuntime, accumulators);
 	}
+
+	/**
+	 * Merges the data of the accumulator in this class, with the <code>accumulatorsToMerge</code>, and
+	 * return the result in a <code>JobExecutionResult</code>. This method is used by the client to merge
+	 * the results received from the JobManager, with those in the ones of the oversized accumulators
+	 * that were fetched from the BlobCache.
+	 * @param loader
+	 * 			the ClassLoader to used to deserialize the data and the Accumulators.
+	 * @param accumulatorsToMerge
+	 * 			the Accumulators received from the BlobCache as blobs, that are to be merged with local data.
+	 * @return the final result after the merging of the different partial accumulators.
+	 * */
+	public JobExecutionResult mergeToJobExecutionResult(ClassLoader loader, Map<String, List<SerializedValue<Object>>> accumulatorsToMerge) throws IOException, ClassNotFoundException {
+		if(accumulatorsToMerge.isEmpty() || accumulatorsToMerge == null) {
+			return toJobExecutionResult(loader);
+		}
+
+		Map<String, Object> accumulators = new HashMap<String, Object>();
+
+		for(String name: accumulatorsToMerge.keySet()) {
+			List<SerializedValue<Object>> blobs = accumulatorsToMerge.get(name);
+
+			// merge the serialized accumulators
+			Accumulator acc = (Accumulator) blobs.get(0).deserializeValue(loader);
+			for(int i = 1; i < blobs.size(); i++) {
+				AccumulatorHelper.mergeAccumulators(name, acc,
+						(Accumulator) blobs.get(i).deserializeValue(loader));
+			}
+
+			// add also the data from the non-oversized (i.e. the ones that were sent through akka)
+			// accumulators, if any
+			SerializedValue<Object> localObject = accumulatorResults.remove(name);
+			if(localObject != null) {
+				acc.add(localObject.deserializeValue(loader));
+			}
+
+			// and put the data with the associated accumulator name to the list
+			accumulators.put(name, acc.getLocalValue());
+		}
+
+		// finally, put the remaining accumulators in the list.
+		for (Map.Entry<String, SerializedValue<Object>> entry : this.accumulatorResults.entrySet()) {
+			Object o = entry.getValue() == null ? null : entry.getValue().deserializeValue(loader);
+			accumulators.put(entry.getKey(), o);
+		}
+
+		return new JobExecutionResult(jobId, netRuntime, accumulators);
+	}
+
 }

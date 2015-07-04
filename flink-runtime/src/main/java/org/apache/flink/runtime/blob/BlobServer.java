@@ -21,6 +21,7 @@ package org.apache.flink.runtime.blob;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.util.ArrayList;
@@ -301,6 +302,11 @@ public class BlobServer extends Thread implements BlobService {
 				LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
 			}
 		}
+	}
+
+	@Override
+	public InetSocketAddress getBlobServerAddress() {
+		return null;
 	}
 
 	/**

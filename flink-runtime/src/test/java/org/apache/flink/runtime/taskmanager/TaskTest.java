@@ -26,6 +26,7 @@ import akka.actor.Props;
 import com.google.common.collect.Maps;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -745,7 +746,8 @@ public class TaskTest {
 						taskManagerMock, jobManagerMock,
 						new FiniteDuration(60, TimeUnit.SECONDS),
 						libCache,
-						mock(FileCache.class));
+						mock(FileCache.class),
+						mock(BlobCache.class));
 	}
 
 	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(Class<? extends AbstractInvokable> invokable) {

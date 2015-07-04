@@ -22,11 +22,13 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.util.SerializedValue;
 
 /**
@@ -70,23 +72,25 @@ public class AccumulatorManager {
 		}
 	}
 
-	public Map<String, Object> getJobAccumulatorResults(JobID jobID) {
-		Map<String, Object> result = new HashMap<String, Object>();
+	/**
+	 * This method gets the references to blobs in the cache containing the oversized
+	 * (i.e. the ones bigger than the akka.framesize) accumulators, and merges them with
+	 * the already seen oversized accumulators of the same job.
+	 */
+	public void processIncomingAccumulatorRefs(JobID jobID, Map<String, List<BlobKey>> accumulatorRefs) {
+		synchronized (this.jobAccumulators) {
 
-		JobAccumulators acc;
-		synchronized (jobAccumulators) {
-			acc = jobAccumulators.get(jobID);
-		}
-
-		if (acc != null) {
-			for (Map.Entry<String, Accumulator<?, ?>> entry : acc.getAccumulators().entrySet()) {
-				result.put(entry.getKey(), entry.getValue().getLocalValue());
+			JobAccumulators jobAccumulators = this.jobAccumulators.get(jobID);
+			if (jobAccumulators == null) {
+				jobAccumulators = new JobAccumulators();
+				this.jobAccumulators.put(jobID, jobAccumulators);
+				cleanup(jobID);
 			}
+			jobAccumulators.processRefs(accumulatorRefs);
 		}
-
-		return result;
 	}
 
+	// todo KOSTAS also see if this is correct in all scenarios
 	public Map<String, SerializedValue<Object>> getJobAccumulatorResultsSerialized(JobID jobID) throws IOException {
 		JobAccumulators acc;
 		synchronized (jobAccumulators) {
@@ -105,21 +109,41 @@ public class AccumulatorManager {
 		return result;
 	}
 
+	public Map<String, List<BlobKey>> getJobOversizedAccumulatorRefs(JobID jobID) throws IOException {
+		JobAccumulators acc;
+		synchronized (jobAccumulators) {
+			acc = jobAccumulators.get(jobID);
+		}
+
+		if (acc == null || acc.getLargeAccumulatorRefs().isEmpty()) {
+			return Collections.emptyMap();
+		}
+		return acc.getLargeAccumulatorRefs();
+	}
+
+	// todo KOSTAS update this
 	public StringifiedAccumulatorResult[] getJobAccumulatorResultsStringified(JobID jobID) throws IOException {
 		JobAccumulators acc;
 		synchronized (jobAccumulators) {
 			acc = jobAccumulators.get(jobID);
 		}
 
-		if (acc == null || acc.getAccumulators().isEmpty()) {
+		if (acc == null || (acc.getAccumulators().isEmpty() && acc.getLargeAccumulatorRefs().isEmpty())) {
 			return new StringifiedAccumulatorResult[0];
 		}
 
 		Map<String, Accumulator<?, ?>> accMap = acc.getAccumulators();
+		Map<String, List<BlobKey>> refMap = acc.getLargeAccumulatorRefs();
 
-		StringifiedAccumulatorResult[] result = new StringifiedAccumulatorResult[accMap.size()];
+		StringifiedAccumulatorResult[] result = new StringifiedAccumulatorResult[accMap.size() + refMap.size()];
 		int i = 0;
 		for (Map.Entry<String, Accumulator<?, ?>> entry : accMap.entrySet()) {
+			String type = entry.getValue() == null ? "(null)" : entry.getValue().getClass().getSimpleName();
+			String value = entry.getValue() == null ? "(null)" : entry.getValue().toString();
+			result[i++] = new StringifiedAccumulatorResult(entry.getKey(), type, value);
+		}
+
+		for (Map.Entry<String, List<BlobKey>> entry : refMap.entrySet()) {
 			String type = entry.getValue() == null ? "(null)" : entry.getValue().getClass().getSimpleName();
 			String value = entry.getValue() == null ? "(null)" : entry.getValue().toString();
 			result[i++] = new StringifiedAccumulatorResult(entry.getKey(), type, value);

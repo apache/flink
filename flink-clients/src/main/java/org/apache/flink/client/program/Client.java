@@ -26,6 +26,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
@@ -47,11 +48,13 @@ import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -396,7 +399,7 @@ public class Client {
 				SerializedJobExecutionResult result = JobClient.submitJobAndWait(actorSystem, 
 						jobManager, jobGraph, timeout, printStatusDuringExecution);
 				try {
-					return result.toJobExecutionResult(this.userCodeClassLoader);
+					return returnFinalJobExecutionReturn(jobManager, result, timeout);
 				}
 				catch (Exception e) {
 					throw new ProgramInvocationException(
@@ -419,6 +422,24 @@ public class Client {
 			actorSystem.shutdown();
 			actorSystem.awaitTermination();
 		}
+	}
+
+	private JobExecutionResult returnFinalJobExecutionReturn(ActorRef jobManager, SerializedJobExecutionResult result, FiniteDuration timeout)
+			throws IOException, ClassNotFoundException {
+
+		// if the result contained oversized (i.e. bigger that the akka.framesize) accumulators
+		// then these are put in the blobCache. This method gets their blobKeys.
+		Map<String, List<BlobKey>> blobsToFetch = result.getBlobKeysToLargeAccumulators();
+		if(blobsToFetch.isEmpty()) {
+			return result.toJobExecutionResult(this.userCodeClassLoader);
+		}
+
+		// based on the previous blobKeys, the jobClient fetches the data from the blobCache.
+		Map<String, List<SerializedValue<Object>>> accumulatorBlobs =
+				JobClient.getAccumulatorBlobs(jobManager, blobsToFetch, timeout);
+
+		// and merges them with the already sent resutls.
+		return result.mergeToJobExecutionResult(this.userCodeClassLoader, accumulatorBlobs);
 	}
 
 	// --------------------------------------------------------------------------------------------
