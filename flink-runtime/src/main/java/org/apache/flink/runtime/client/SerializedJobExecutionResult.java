@@ -43,7 +43,7 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	private final JobID jobId;
 
 	// holds the result value of an accumulator
-	private final Map<String, SerializedValue<Object>> accumulatorResults;
+	private final Map<String, SerializedValue<Object>> smallAccumulatorResults;
 
 	// holds the BlobKeys pointing to the blobs in the BlobCache
 	// containing the serialized accumulators
@@ -57,16 +57,16 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	 *
 	 * @param jobID The job's ID.
 	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer) in milliseconds
-	 * @param accumulators A map of all SMALL accumulator results produced by the job, in serialized form
+	 * @param smallAccumulators A map of all SMALL accumulator results produced by the job, in serialized form
 	 * @param largeAccumulatorBlobRefs A map of all the references to the blobs holding the LARGE accumulators that had
 	 *                                 to be sent through the BlobCache.
 	 */
 	public SerializedJobExecutionResult(JobID jobID, long netRuntime,
-										Map<String, SerializedValue<Object>> accumulators,
+										Map<String, SerializedValue<Object>> smallAccumulators,
 										Map<String, List<BlobKey>> largeAccumulatorBlobRefs) {
 		this.jobId = jobID;
 		this.netRuntime = netRuntime;
-		this.accumulatorResults = accumulators;
+		this.smallAccumulatorResults = smallAccumulators;
 		this.largeAccumulatorBlobRefs = largeAccumulatorBlobRefs;
 	}
 
@@ -90,7 +90,7 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	}
 
 	public Map<String, SerializedValue<Object>> getSerializedAccumulatorResults() {
-		return this.accumulatorResults;
+		return this.smallAccumulatorResults;
 	}
 
 	public Map<String, List<BlobKey>> getBlobKeysToLargeAccumulators() {
@@ -99,12 +99,12 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 
 	public JobExecutionResult toJobExecutionResult(ClassLoader loader) throws IOException, ClassNotFoundException {
 		Map<String, Object> accumulators = null;
-		if (accumulatorResults != null) {
-			accumulators = accumulatorResults.isEmpty() ?
+		if (smallAccumulatorResults != null) {
+			accumulators = smallAccumulatorResults.isEmpty() ?
 									Collections.<String, Object>emptyMap() :
-									new HashMap<String, Object>(this.accumulatorResults.size());
+									new HashMap<String, Object>(this.smallAccumulatorResults.size());
 
-			for (Map.Entry<String, SerializedValue<Object>> entry : this.accumulatorResults.entrySet()) {
+			for (Map.Entry<String, SerializedValue<Object>> entry : this.smallAccumulatorResults.entrySet()) {
 				Object o = entry.getValue() == null ? null : entry.getValue().deserializeValue(loader);
 				accumulators.put(entry.getKey(), o);
 			}
@@ -143,7 +143,7 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 
 			// add also the data from the non-oversized (i.e. the ones that were sent through akka)
 			// accumulators, if any
-			SerializedValue<Object> localObject = accumulatorResults.remove(name);
+			SerializedValue<Object> localObject = smallAccumulatorResults.remove(name);
 			if(localObject != null) {
 				acc.add(localObject.deserializeValue(loader));
 			}
@@ -153,7 +153,7 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 		}
 
 		// finally, put the remaining accumulators in the list.
-		for (Map.Entry<String, SerializedValue<Object>> entry : this.accumulatorResults.entrySet()) {
+		for (Map.Entry<String, SerializedValue<Object>> entry : this.smallAccumulatorResults.entrySet()) {
 			Object o = entry.getValue() == null ? null : entry.getValue().deserializeValue(loader);
 			accumulators.put(entry.getKey(), o);
 		}

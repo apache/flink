@@ -20,6 +20,7 @@ package org.apache.flink.runtime.messages.accumulators
 
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.accumulators.{LargeAccumulatorEvent, StringifiedAccumulatorResult, AccumulatorEvent}
+import org.apache.flink.runtime.blob.BlobKey
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.util.SerializedValue
 
@@ -87,10 +88,11 @@ case class RequestAccumulatorResultsStringified(jobID: JobID)
  * by [[RequestAccumulatorResults]].
  *
  * @param jobID Job Id of the job that the accumulator belongs to
- * @param result The accumulator result values, in serialized form.
+ * @param resultAccs The accumulator result values, in serialized form.
  */
 case class AccumulatorResultsFound(jobID: JobID,
-                                   result: java.util.Map[String, SerializedValue[Object]])
+                                   resultAccs: java.util.Map[String, SerializedValue[Object]],
+                                   resultRefs: java.util.Map[String, java.util.List[BlobKey]])
   extends AccumulatorResultsResponse
 
 /**

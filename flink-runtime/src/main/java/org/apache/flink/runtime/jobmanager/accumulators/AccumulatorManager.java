@@ -55,11 +55,10 @@ public class AccumulatorManager {
 	}
 
 	/**
-	 * Merges the new accumulators with the existing accumulators collected for
-	 * the job.
+	 * Merges the new accumulators with the existing accumulators collected for the job.
 	 */
-	public void processIncomingAccumulators(JobID jobID,
-											Map<String, Accumulator<?, ?>> newAccumulators) {
+	public void processSmallIncomingAccumulators(JobID jobID,
+												 Map<String, Accumulator<?, ?>> newAccumulators) {
 		synchronized (this.jobAccumulators) {
 			
 			JobAccumulators jobAccumulators = this.jobAccumulators.get(jobID);
@@ -77,7 +76,7 @@ public class AccumulatorManager {
 	 * (i.e. the ones bigger than the akka.framesize) accumulators, and merges them with
 	 * the already seen oversized accumulators of the same job.
 	 */
-	public void processIncomingAccumulatorRefs(JobID jobID, Map<String, List<BlobKey>> accumulatorRefs) {
+	public void processIncomingLargeAccumulatorRefs(JobID jobID, Map<String, List<BlobKey>> accumulatorRefs) {
 		synchronized (this.jobAccumulators) {
 
 			JobAccumulators jobAccumulators = this.jobAccumulators.get(jobID);
@@ -90,8 +89,7 @@ public class AccumulatorManager {
 		}
 	}
 
-	// todo KOSTAS also see if this is correct in all scenarios
-	public Map<String, SerializedValue<Object>> getJobAccumulatorResultsSerialized(JobID jobID) throws IOException {
+	public Map<String, SerializedValue<Object>> getJobSmallAccumulatorsSerialized(JobID jobID) throws IOException {
 		JobAccumulators acc;
 		synchronized (jobAccumulators) {
 			acc = jobAccumulators.get(jobID);
@@ -105,11 +103,10 @@ public class AccumulatorManager {
 		for (Map.Entry<String, Accumulator<?, ?>> entry : acc.getAccumulators().entrySet()) {
 			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue().getLocalValue()));
 		}
-
 		return result;
 	}
 
-	public Map<String, List<BlobKey>> getJobOversizedAccumulatorRefs(JobID jobID) throws IOException {
+	public Map<String, List<BlobKey>> getJobLargeAccumulatorRefs(JobID jobID) {
 		JobAccumulators acc;
 		synchronized (jobAccumulators) {
 			acc = jobAccumulators.get(jobID);
@@ -121,7 +118,8 @@ public class AccumulatorManager {
 		return acc.getLargeAccumulatorRefs();
 	}
 
-	// todo KOSTAS update this
+	// todo update this to include the oversized accumulators
+	// this is used when presenting the status of the job through the web interface
 	public StringifiedAccumulatorResult[] getJobAccumulatorResultsStringified(JobID jobID) throws IOException {
 		JobAccumulators acc;
 		synchronized (jobAccumulators) {
@@ -135,7 +133,7 @@ public class AccumulatorManager {
 		Map<String, Accumulator<?, ?>> accMap = acc.getAccumulators();
 		Map<String, List<BlobKey>> refMap = acc.getLargeAccumulatorRefs();
 
-		StringifiedAccumulatorResult[] result = new StringifiedAccumulatorResult[accMap.size() + refMap.size()];
+		StringifiedAccumulatorResult[] result = new StringifiedAccumulatorResult[accMap.size()];
 		int i = 0;
 		for (Map.Entry<String, Accumulator<?, ?>> entry : accMap.entrySet()) {
 			String type = entry.getValue() == null ? "(null)" : entry.getValue().getClass().getSimpleName();
@@ -144,9 +142,7 @@ public class AccumulatorManager {
 		}
 
 		for (Map.Entry<String, List<BlobKey>> entry : refMap.entrySet()) {
-			String type = entry.getValue() == null ? "(null)" : entry.getValue().getClass().getSimpleName();
-			String value = entry.getValue() == null ? "(null)" : entry.getValue().toString();
-			result[i++] = new StringifiedAccumulatorResult(entry.getKey(), type, value);
+			// todo present what?
 		}
 		return result;
 	}

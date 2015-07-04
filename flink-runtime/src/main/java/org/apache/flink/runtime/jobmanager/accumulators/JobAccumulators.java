@@ -27,8 +27,8 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.blob.BlobKey;
 
 /**
- * Simple class wrapping a map of accumulators for a single job. Just for better
- * handling.
+ * Simple class wrapping a map of accumulators for a single job.
+ * Just for better handling.
  */
 public class JobAccumulators {
 
@@ -49,8 +49,9 @@ public class JobAccumulators {
 	}
 
 	public void processRefs(Map<String, List<BlobKey>> accumulatorBlobRefs) {
-		if(accumulatorBlobRefs.isEmpty())
+		if(accumulatorBlobRefs.isEmpty()) {
 			return;
+		}
 
 		for (Map.Entry<String, List<BlobKey>> otherEntry : accumulatorBlobRefs.entrySet()) {
 			List<BlobKey> ownAccumulator = largeAccumulators.get(otherEntry.getKey());
