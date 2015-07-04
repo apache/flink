@@ -127,7 +127,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 				//} else if (data != '\r') { // ignore carriage return
 				} else {
 					while (ArrayUtils.contains(cbuff, '\r'))
-						ArrayUtils.removeElement(cbuff, 'r');
+						ArrayUtils.removeElement(cbuff, '\r');
 
 					buffer.append(cbuff);
 				}
