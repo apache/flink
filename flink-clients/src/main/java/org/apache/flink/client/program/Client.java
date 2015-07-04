@@ -427,16 +427,10 @@ public class Client {
 	private JobExecutionResult returnFinalJobExecutionReturn(ActorRef jobManager, SerializedJobExecutionResult result, FiniteDuration timeout)
 			throws IOException, ClassNotFoundException {
 
-		// if the result contained oversized (i.e. bigger that the akka.framesize) accumulators
-		// then these are put in the blobCache. This method gets their blobKeys.
 		Map<String, List<BlobKey>> blobsToFetch = result.getBlobKeysToLargeAccumulators();
-		if(blobsToFetch.isEmpty()) {
-			return result.toJobExecutionResult(this.userCodeClassLoader);
-		}
 
-		// based on the previous blobKeys, the jobClient fetches the data from the blobCache.
 		Map<String, List<SerializedValue<Object>>> accumulatorBlobs =
-				JobClient.getAccumulatorBlobs(jobManager, blobsToFetch, timeout);
+				JobClient.getLargeAccumulatorBlobs(jobManager, blobsToFetch, timeout);
 
 		// and merges them with the already sent resutls.
 		return result.mergeToJobExecutionResult(this.userCodeClassLoader, accumulatorBlobs);

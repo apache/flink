@@ -245,8 +245,21 @@ public class JobClient {
 		}
 	}
 
-	public static Map<String, List<SerializedValue<Object>>> getAccumulatorBlobs(ActorRef jobManager, Map<String, List<BlobKey>> keys, FiniteDuration timeout)
-			throws IOException {
+	/**
+	 * If the result of the job contained oversized (i.e. bigger that the akka.framesize) accumulators
+	 * then these are put in the BlobCache for the client to fetch and merge. This method gets
+	 * them from the BlobCache (if there was any). If the list of blobs to fetch is empty, then
+	 * an empty result is returned, as all (partial) accumulators were small enough to be sent
+	 * directly to the JobManager and be merged there.
+	 * 
+	 * @param jobManager the reference to the jobManager actor.
+	 * @param keys the accumulators to fetch (based on their name) along with their associated BlobKeys.
+	 * @param timeout the timeout to wait for the connection to the blob server.
+	 * @return the serialized accumulators, grouped by name.
+	 * */
+	public static Map<String, List<SerializedValue<Object>>> getLargeAccumulatorBlobs(
+			ActorRef jobManager, Map<String, List<BlobKey>> keys, FiniteDuration timeout) throws IOException {
+
 		if (keys.isEmpty()) {
 			return Collections.emptyMap();
 		}

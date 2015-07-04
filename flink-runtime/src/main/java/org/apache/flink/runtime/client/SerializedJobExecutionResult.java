@@ -93,6 +93,13 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 		return this.smallAccumulatorResults;
 	}
 
+	/**
+	 * If the result of the job contained oversized (i.e. bigger that the akka.framesize) accumulators
+	 * then these are put in the BlobCache for the client to fetch and merge. This method gets
+	 * their BlobKeys. If the result is empty, then this means that all (partial) accumulators
+	 * were small enough to be sent directly to the JobManager and be merged there.
+	 * @return the BlobKeys to the blobs containing the oversized accumulators.
+	 * */
 	public Map<String, List<BlobKey>> getBlobKeysToLargeAccumulators() {
 		return this.largeAccumulatorBlobRefs;
 	}
@@ -114,10 +121,10 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	}
 
 	/**
-	 * Merges the data of the accumulator in this class, with the <code>accumulatorsToMerge</code>, and
-	 * return the result in a <code>JobExecutionResult</code>. This method is used by the client to merge
-	 * the results received from the JobManager, with those in the ones of the oversized accumulators
-	 * that were fetched from the BlobCache.
+	 * Merges the data of the small accumulators in this class, with the <code>accumulatorsToMerge</code>, and
+	 * returns the result in a <code>JobExecutionResult</code>. This method is used by the Client to merge
+	 * the results received from the JobManager, with those in the oversized accumulators that were fetched
+	 * from the BlobCache.
 	 * @param loader
 	 * 			the ClassLoader to used to deserialize the data and the Accumulators.
 	 * @param accumulatorsToMerge

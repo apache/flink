@@ -44,11 +44,11 @@ public class JobAccumulators {
 		return this.largeAccumulators;
 	}
 
-	public void processNew(Map<String, Accumulator<?, ?>> newAccumulators) {
+	public void processNewAccumulator(Map<String, Accumulator<?, ?>> newAccumulators) {
 		AccumulatorHelper.mergeInto(this.accumulators, newAccumulators);
 	}
 
-	public void processRefs(Map<String, List<BlobKey>> accumulatorBlobRefs) {
+	public void processNewBlobRefs(Map<String, List<BlobKey>> accumulatorBlobRefs) {
 		if(accumulatorBlobRefs.isEmpty()) {
 			return;
 		}

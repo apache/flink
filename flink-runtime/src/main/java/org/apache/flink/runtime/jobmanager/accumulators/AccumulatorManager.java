@@ -57,8 +57,7 @@ public class AccumulatorManager {
 	/**
 	 * Merges the new accumulators with the existing accumulators collected for the job.
 	 */
-	public void processSmallIncomingAccumulators(JobID jobID,
-												 Map<String, Accumulator<?, ?>> newAccumulators) {
+	public void processSmallIncomingAccumulators(JobID jobID, Map<String, Accumulator<?, ?>> newAccumulators) {
 		synchronized (this.jobAccumulators) {
 			
 			JobAccumulators jobAccumulators = this.jobAccumulators.get(jobID);
@@ -67,7 +66,7 @@ public class AccumulatorManager {
 				this.jobAccumulators.put(jobID, jobAccumulators);
 				cleanup(jobID);
 			}
-			jobAccumulators.processNew(newAccumulators);
+			jobAccumulators.processNewAccumulator(newAccumulators);
 		}
 	}
 
@@ -85,7 +84,7 @@ public class AccumulatorManager {
 				this.jobAccumulators.put(jobID, jobAccumulators);
 				cleanup(jobID);
 			}
-			jobAccumulators.processRefs(accumulatorRefs);
+			jobAccumulators.processNewBlobRefs(accumulatorRefs);
 		}
 	}
 

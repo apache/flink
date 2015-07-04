@@ -247,15 +247,15 @@ public class RuntimeEnvironment implements Environment {
 		// parameter.
 
 		if(isAccumulatorTooLarge(ser, (long) (0.75 * AkkaUtils.getFramesize(jobConfiguration)))) {
-			Map<String, List<BlobKey>> accumulatorsToBlobRefs;
-			LargeAccumulatorEvent evt;
 
+			Map<String, List<BlobKey>> accumulatorsToBlobRefs;
 			try {
 				accumulatorsToBlobRefs = putAccumulatorBlobsToBlobCache(this, ser);
 			} catch (IOException e) {
 				throw new RuntimeException("Error while sending the Accumulators to the BlobCache: "+ e.getMessage());
 			}
 
+			LargeAccumulatorEvent evt;
 			try {
 				evt = new LargeAccumulatorEvent(getJobID(), accumulatorsToBlobRefs);
 			} catch (IOException e) {
