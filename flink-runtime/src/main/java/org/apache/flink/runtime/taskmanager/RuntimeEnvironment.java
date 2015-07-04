@@ -240,26 +240,39 @@ public class RuntimeEnvironment implements Environment {
 			throw new RuntimeException("Cannot serialize accumulators", e);
 		}
 
-		// todo I should define a parameter in the configuration file different from the akka.framesize and
-		// put there the threshold value. Here it should select the minimum between the two.
-		if(isAccumulatorTooLarge(ser, (long) (0.75 * AkkaUtils.getFramesize(jobConfiguration)))) {
-			Map<String, List<BlobKey>> accumulatorsToBlobRefs = putAccumulatorBlobsToBlobCache(this, ser);
+		// todo define a parameter in the configuration file different from the akka.framesize and
+		// put there the threshold value, above which an Accumulator will be considered oversized
+		// and be sent through the BlobCache.
+		// Here the threshold should be the minimum between the two, i.e. akka.framesize and that
+		// parameter.
 
+		if(isAccumulatorTooLarge(ser, (long) (0.75 * AkkaUtils.getFramesize(jobConfiguration)))) {
+			Map<String, List<BlobKey>> accumulatorsToBlobRefs;
 			LargeAccumulatorEvent evt;
+
+			try {
+				accumulatorsToBlobRefs = putAccumulatorBlobsToBlobCache(this, ser);
+			} catch (IOException e) {
+				throw new RuntimeException("Error while sending the Accumulators to the BlobCache: "+ e.getMessage());
+			}
+
 			try {
 				evt = new LargeAccumulatorEvent(getJobID(), accumulatorsToBlobRefs);
 			} catch (IOException e) {
 				throw new RuntimeException("Cannot serialize large accumulator references to send them to JobManager", e);
 			}
+
 			ReportLargeAccumulatorResult largeResult = new ReportLargeAccumulatorResult(jobId, executionId, evt);
 			jobManagerActor.tell(largeResult, ActorRef.noSender());
 		} else {
+
 			AccumulatorEvent evt;
 			try {
 				evt = new AccumulatorEvent(getJobID(), accumulators);
 			} catch (IOException e) {
 				throw new RuntimeException("Cannot serialize accumulator contents to send them to JobManager", e);
 			}
+
 			ReportAccumulatorResult accResult = new ReportAccumulatorResult(jobId, executionId, evt);
 			jobManagerActor.tell(accResult, ActorRef.noSender());
 		}
@@ -283,38 +296,26 @@ public class RuntimeEnvironment implements Environment {
 	 * @param env the context in which the task is executed.
 	 * @param accumulatorBlobs the blobs to be stored in the cache.
 	 * @return the name of each accumulator with the BlobKey that identifies its blob in the BlobCache.
+	 * @throws IOException if there is an error when connecting to the BlobServer or when sending the data.
 	 * */
-	private static Map<String, List<BlobKey>> putAccumulatorBlobsToBlobCache(Environment env, Map<String, byte[]> accumulatorBlobs) {
+	private static Map<String, List<BlobKey>> putAccumulatorBlobsToBlobCache(Environment env, Map<String, byte[]> accumulatorBlobs) throws IOException {
 		if (accumulatorBlobs.isEmpty()) {
 			return Collections.emptyMap();
 		}
 
 		Map<String, List<BlobKey>> keys = new HashMap<String, List<BlobKey>>();
-		BlobClient bc = null;
-		try {
-			bc = new BlobClient(env.getBlobCache().getBlobServerAddress());
-			for(String key: accumulatorBlobs.keySet()) {
-				BlobKey blobKey = bc.put(accumulatorBlobs.get(key));
-				List<BlobKey> accKeys = keys.get(key);
-				if(accKeys == null){
-					accKeys = new ArrayList<BlobKey>();
-				}
-				accKeys.add(blobKey);
-				keys.put(key, accKeys);
+		BlobClient bc = new BlobClient(env.getBlobCache().getBlobServerAddress());
+		for(String key: accumulatorBlobs.keySet()) {
+			BlobKey blobKey = bc.put(accumulatorBlobs.get(key));
+			List<BlobKey> accKeys = keys.get(key);
+			if(accKeys == null){
+				accKeys = new ArrayList<BlobKey>();
 			}
-			return keys;
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
-			if (bc != null) {
-				try {
-					bc.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
+			accKeys.add(blobKey);
+			keys.put(key, accKeys);
 		}
-		return Collections.emptyMap();
+		bc.close();
+		return keys;
 	}
 
 	/**

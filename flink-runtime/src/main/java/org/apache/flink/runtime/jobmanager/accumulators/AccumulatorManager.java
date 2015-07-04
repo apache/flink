@@ -73,7 +73,7 @@ public class AccumulatorManager {
 	}
 
 	/**
-	 * This method gets the references to blobs in the cache containing the oversized
+	 * This method gets the references to blobs in the BlobCache containing the oversized
 	 * (i.e. the ones bigger than the akka.framesize) accumulators, and merges them with
 	 * the already seen oversized accumulators of the same job.
 	 */

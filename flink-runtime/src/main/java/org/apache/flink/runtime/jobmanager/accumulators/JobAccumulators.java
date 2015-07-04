@@ -49,6 +49,9 @@ public class JobAccumulators {
 	}
 
 	public void processRefs(Map<String, List<BlobKey>> accumulatorBlobRefs) {
+		if(accumulatorBlobRefs.isEmpty())
+			return;
+
 		for (Map.Entry<String, List<BlobKey>> otherEntry : accumulatorBlobRefs.entrySet()) {
 			List<BlobKey> ownAccumulator = largeAccumulators.get(otherEntry.getKey());
 			if (ownAccumulator == null) {
