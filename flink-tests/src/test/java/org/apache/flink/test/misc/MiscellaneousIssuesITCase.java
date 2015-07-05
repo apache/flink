@@ -44,6 +44,7 @@ import static org.junit.Assert.*;
  *   - when null records are passed through the system.
  *   - when disjoint dataflows are executed
  *   - when accumulators are used chained after a non-udf operator.
+ *   - when an accumulator is bigger than the akka.framesize.
  *   
  * The tests are bundled into one class to reuse the same test cluster. This speeds
  * up test execution, as the majority of the test time goes usually into starting/stopping the
@@ -170,6 +171,26 @@ public class MiscellaneousIssuesITCase {
 			assertEquals(1000000L, result.getAllAccumulatorResults().get(ACC_NAME));
 		}
 		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testOversizedAccumulators() {
+		try {
+			ExecutionEnvironment env =
+					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
+
+			env.setParallelism(5);
+			env.getConfig().disableSysoutLogging();
+
+			DataSet<Long> bigEnough = env.generateSequence(1, 5000000);
+			long theCount = bigEnough.collect().size();
+
+			assertEquals(5000000, theCount);
+
+		}catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
