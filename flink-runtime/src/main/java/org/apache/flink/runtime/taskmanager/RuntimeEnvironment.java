@@ -240,8 +240,8 @@ public class RuntimeEnvironment implements Environment {
 			throw new RuntimeException("Cannot serialize accumulators", e);
 		}
 
-		// todo define a parameter in the configuration file different from the akka.framesize and
-		// put there the threshold value, above which an Accumulator will be considered oversized
+		// todo I have to define a parameter in the configuration file different from the akka.framesize
+		// and put there the threshold value, above which an Accumulator will be considered oversized
 		// and be sent through the BlobCache.
 		// Here the threshold should be the minimum between the two, i.e. akka.framesize and that
 		// parameter.
