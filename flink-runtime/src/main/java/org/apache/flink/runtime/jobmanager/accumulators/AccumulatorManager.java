@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.jobmanager.accumulators;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Collections;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.JobID;
@@ -55,9 +57,11 @@ public class AccumulatorManager {
 	}
 
 	/**
-	 * Merges the new accumulators with the existing accumulators collected for the job.
+	 * Merges the new (small) accumulators with the existing accumulators collected for the job.
+	 * This method handles only accumulators that are smaller than akka.framesize, thus sent directly
+	 * and merged in the JobManager.
 	 */
-	public void processSmallIncomingAccumulators(JobID jobID, Map<String, Accumulator<?, ?>> newAccumulators) {
+	public void processIncomingSmallAccumulators(JobID jobID, Map<String, Accumulator<?, ?>> newAccumulators) {
 		synchronized (this.jobAccumulators) {
 			
 			JobAccumulators jobAccumulators = this.jobAccumulators.get(jobID);
@@ -117,8 +121,6 @@ public class AccumulatorManager {
 		return acc.getLargeAccumulatorRefs();
 	}
 
-	// todo update this to include the oversized accumulators
-	// this is used when presenting the status of the job through the web interface
 	public StringifiedAccumulatorResult[] getJobAccumulatorResultsStringified(JobID jobID) throws IOException {
 		JobAccumulators acc;
 		synchronized (jobAccumulators) {
@@ -132,7 +134,11 @@ public class AccumulatorManager {
 		Map<String, Accumulator<?, ?>> accMap = acc.getAccumulators();
 		Map<String, List<BlobKey>> refMap = acc.getLargeAccumulatorRefs();
 
-		StringifiedAccumulatorResult[] result = new StringifiedAccumulatorResult[accMap.size()];
+		Set<String> uniqAccs = new HashSet<String>();
+		uniqAccs.addAll(accMap.keySet());
+		uniqAccs.addAll(refMap.keySet());
+
+		StringifiedAccumulatorResult[] result = new StringifiedAccumulatorResult[uniqAccs.size()];
 		int i = 0;
 		for (Map.Entry<String, Accumulator<?, ?>> entry : accMap.entrySet()) {
 			String type = entry.getValue() == null ? "(null)" : entry.getValue().getClass().getSimpleName();
@@ -141,7 +147,22 @@ public class AccumulatorManager {
 		}
 
 		for (Map.Entry<String, List<BlobKey>> entry : refMap.entrySet()) {
-			// todo present what?
+			String accName = entry.getKey();
+			if(accMap.keySet().contains(accName)) {
+				continue;
+			}
+
+			List<BlobKey> accums = entry.getValue();
+			StringBuilder str = new StringBuilder();
+			str.append("BlobKeys=[ ");
+			if(accums != null) {
+				for(BlobKey bk: accums) {
+					str.append(bk + " ");
+				}
+			}
+			str.append("]");
+			String blobKeys = str.toString();
+			result[i++] = new StringifiedAccumulatorResult(accName, "Unknown/Serialized", blobKeys);
 		}
 		return result;
 	}

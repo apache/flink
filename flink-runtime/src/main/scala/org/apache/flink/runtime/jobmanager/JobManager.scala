@@ -680,7 +680,7 @@ class JobManager(protected val flinkConfiguration: Configuration,
         if (classLoader != null) {
           try {
             val accumulators = accumulatorEvent.deserializeValue(classLoader)
-            accumulatorManager.processSmallIncomingAccumulators(jobId, accumulators)
+            accumulatorManager.processIncomingSmallAccumulators(jobId, accumulators)
           }
           catch {
             case e: Exception => log.error("Cannot update accumulators for job " + jobId, e)
@@ -690,9 +690,25 @@ class JobManager(protected val flinkConfiguration: Configuration,
         }
 
       case ReportLargeAccumulatorResult(jobId, _, largeAccumulatorEvent) =>
-        val accumulatorRefs = largeAccumulatorEvent.getValue()
+        val classLoader = try {
+          libraryCacheManager.getClassLoader(jobId)
+        } catch {
+          case e: Exception =>
+            log.error("Dropping accumulators. No class loader available for job " + jobId, e)
+            return
+        }
 
-        accumulatorManager.processIncomingLargeAccumulatorRefs(jobId, accumulatorRefs)
+        if (classLoader != null) {
+          try {
+            val accumulatorRefs = largeAccumulatorEvent.deserializeValue(classLoader)
+            accumulatorManager.processIncomingLargeAccumulatorRefs(jobId, accumulatorRefs)
+          }
+          catch {
+            case e: Exception => log.error("Cannot update accumulators for job " + jobId, e)
+          }
+        } else {
+          log.error("Dropping accumulators. No class loader available for job " + jobId)
+        }
 
       case RequestAccumulatorResults(jobID) =>
         try {
