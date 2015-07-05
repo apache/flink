@@ -25,7 +25,6 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.flink.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +68,6 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	}
 
 	public void streamFromSocket(SourceContext<String> ctx, Socket socket) throws Exception {
-
 		try {
 			StringBuffer buffer = new StringBuffer();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(
@@ -99,7 +97,8 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 								+ (CONNECTION_RETRY_SLEEP / 1000) + " seconds...");
 						try {
 							socket = new Socket();
-							socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
+							socket.connect(new InetSocketAddress(hostname, port),
+									CONNECTION_TIMEOUT_TIME);
 							success = true;
 						} catch (ConnectException ce) {
 							Thread.sleep(CONNECTION_RETRY_SLEEP);
@@ -116,14 +115,11 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 					continue;
 				}
 
-				if (data != '\r') { // ignore carriage return
-					buffer.append((char)data);
-				}
-
-				int delimiterIndex = buffer.indexOf(delimiter);
-				if (delimiterIndex != -1) {
-					ctx.collect(buffer.substring(0, delimiterIndex));
+				if (String.valueOf((char)data).equals(delimiter)) {
+					ctx.collect(buffer.toString());
 					buffer = new StringBuffer();
+				} else if (data != '\r') { // ignore carriage return
+					buffer.append((char) data);
 				}
 			}
 
