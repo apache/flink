@@ -302,8 +302,8 @@ class JobManager(protected val flinkConfiguration: Configuration,
                     log.error(s"Cannot fetch serialized accumulators for job $jobID", e)
                     Collections.emptyMap()
                 }
-                val result = new SerializedJobExecutionResult(jobID, jobInfo.duration, accumulatorResults,
-                                                      accumulatorManager.getJobLargeAccumulatorRefs(jobID))
+                val result = new SerializedJobExecutionResult(jobID, jobInfo.duration,
+                  accumulatorResults, accumulatorManager.getJobLargeAccumulatorRefs(jobID))
                 jobInfo.client ! JobResultSuccess(result)
 
               case JobStatus.CANCELED =>
