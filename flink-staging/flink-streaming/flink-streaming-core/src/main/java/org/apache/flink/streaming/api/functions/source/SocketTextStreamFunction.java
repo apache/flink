@@ -76,12 +76,9 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 					socket.getInputStream()));
 
 			while (isRunning) {
-				int charsRead;
-				// int data;
-				char [] cbuff = new char[ delimiter.length() ];
+				int data;
 				try {
-					//data = reader.read();
-					charsRead = reader.read(cbuff);
+					data = reader.read();
 				} catch (SocketException e) {
 					if (!isRunning) {
 						break;
@@ -90,7 +87,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 					}
 				}
 
-				if (charsRead == -1) {
+				if (data == -1) {
 					socket.close();
 					long retry = 0;
 					boolean success = false;
@@ -119,17 +116,14 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 					continue;
 				}
 
-				//if (String.valueOf((char)data).equals(delimiter)) {
-				if (buffer.indexOf(delimiter) != -1) {
-					ctx.collect(buffer.substring(0, buffer.indexOf(delimiter)));
-					buffer = new StringBuffer(buffer.substring(buffer.indexOf(delimiter) + delimiter.length()));
+				if (data != '\r') { // ignore carriage return
+					buffer.append((char)data);
+				}
 
-				//} else if (data != '\r') { // ignore carriage return
-				} else {
-					while (ArrayUtils.contains(cbuff, '\r'))
-						ArrayUtils.removeElement(cbuff, '\r');
-
-					buffer.append(cbuff);
+				int delimiterIndex = buffer.indexOf(delimiter);
+				if (delimiterIndex != -1) {
+					ctx.collect(buffer.substring(0, delimiterIndex));
+					buffer = new StringBuffer();
 				}
 			}
 
