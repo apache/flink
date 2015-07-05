@@ -429,10 +429,12 @@ public class Client {
 
 		Map<String, List<BlobKey>> blobsToFetch = result.getBlobKeysToLargeAccumulators();
 
-		Map<String, List<SerializedValue<Object>>> accumulatorBlobs =
-				JobClient.getLargeAccumulatorBlobs(jobManager, blobsToFetch, timeout);
-
-		// and merges them with the already sent resutls.
+		Map<String, List<SerializedValue<Object>>> accumulatorBlobs;
+		try {
+			accumulatorBlobs = JobClient.getLargeAccumulatorBlobs(jobManager, blobsToFetch, timeout);
+		} catch (IOException e) {
+			throw new IOException("Failed to fetch the oversized accumulators from the BlobCache", e);
+		}
 		return result.mergeToJobExecutionResult(this.userCodeClassLoader, accumulatorBlobs);
 	}
 

@@ -276,6 +276,7 @@ public class JobClient {
 			List<SerializedValue<Object>> accBlobs = new ArrayList<SerializedValue<Object>>();
 
 			for(BlobKey bk: accBlobKeys) {
+				long startTime = System.nanoTime();
 				InputStream is = bc.get(bk);
 				ByteArrayOutputStream os = new ByteArrayOutputStream();
 				while (true) {
@@ -286,9 +287,16 @@ public class JobClient {
 					os.write(buf, 0, read);
 				}
 				os.flush();
-				accBlobs.add(new SerializedValue<Object>(os.toByteArray()));
+				byte[] blob = os.toByteArray();
+				accBlobs.add(new SerializedValue<Object>(blob));
 				is.close();
 				os.close();
+
+				// after getting them, clean up and delete the blobs from the BlobCache.
+				bc.delete(bk);
+
+				LOG.info("Fetched and Deleted Blob: " + bk + " for Accumulator "+ accName +" @ "+
+						((10E9 * blob.length) / (1024.0 * (System.nanoTime() - startTime))) +" Kbps.");
 			}
 			accumulatorBlobs.put(accName, accBlobs);
 		}
