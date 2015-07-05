@@ -150,9 +150,11 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 
 			// add also the data from the non-oversized (i.e. the ones that were sent through akka)
 			// accumulators, if any
-			SerializedValue<Object> localObject = smallAccumulatorResults.remove(name);
-			if(localObject != null) {
-				acc.add(localObject.deserializeValue(loader));
+			if (smallAccumulatorResults != null) {
+				SerializedValue<Object> localObject = smallAccumulatorResults.remove(name);
+				if (localObject != null) {
+					acc.add(localObject.deserializeValue(loader));
+				}
 			}
 
 			// and put the data with the associated accumulator name to the list
@@ -160,11 +162,12 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 		}
 
 		// finally, put the remaining accumulators in the list.
-		for (Map.Entry<String, SerializedValue<Object>> entry : this.smallAccumulatorResults.entrySet()) {
-			Object o = entry.getValue() == null ? null : entry.getValue().deserializeValue(loader);
-			accumulators.put(entry.getKey(), o);
+		if (smallAccumulatorResults != null) {
+			for (Map.Entry<String, SerializedValue<Object>> entry : this.smallAccumulatorResults.entrySet()) {
+				Object o = entry.getValue() == null ? null : entry.getValue().deserializeValue(loader);
+				accumulators.put(entry.getKey(), o);
+			}
 		}
-
 		return new JobExecutionResult(jobId, netRuntime, accumulators);
 	}
 
