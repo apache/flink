@@ -30,7 +30,7 @@ import org.apache.flink.runtime.util.SerializedValue;
  * for the transfer from TaskManagers to the JobManager and from the JobManager
  * to the Client.
  */
-public class AccumulatorEvent extends SerializedValue<Map<String, Accumulator<?, ?>>> {
+public class SmallAccumulatorEvent extends SerializedValue<Map<String, Accumulator<?, ?>>> {
 
 	private static final long serialVersionUID = 8965894516006882735L;
 
@@ -38,7 +38,7 @@ public class AccumulatorEvent extends SerializedValue<Map<String, Accumulator<?,
 	private final JobID jobID;
 
 
-	public AccumulatorEvent(JobID jobID, Map<String, Accumulator<?, ?>> accumulators) throws IOException {
+	public SmallAccumulatorEvent(JobID jobID, Map<String, Accumulator<?, ?>> accumulators) throws IOException {
 		super(accumulators);
 		this.jobID = jobID;
 	}

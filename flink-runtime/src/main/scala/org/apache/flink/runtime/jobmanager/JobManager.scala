@@ -668,7 +668,7 @@ class JobManager(protected val flinkConfiguration: Configuration,
   private def handleAccumulatorMessage(message: AccumulatorMessage): Unit = {
 
     message match {
-      case ReportAccumulatorResult(jobId, _, accumulatorEvent) =>
+      case ReportSmallAccumulatorResult(jobId, _, accumulatorEvent) =>
         val classLoader = try {
           libraryCacheManager.getClassLoader(jobId)
         } catch {

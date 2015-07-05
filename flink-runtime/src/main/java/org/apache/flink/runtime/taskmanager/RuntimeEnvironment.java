@@ -24,7 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.accumulators.SmallAccumulatorEvent;
 import org.apache.flink.runtime.accumulators.LargeAccumulatorEvent;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -39,7 +39,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.messages.accumulators.ReportAccumulatorResult;
+import org.apache.flink.runtime.messages.accumulators.ReportSmallAccumulatorResult;
 import org.apache.flink.runtime.messages.accumulators.ReportLargeAccumulatorResult;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.StateHandle;
@@ -266,14 +266,14 @@ public class RuntimeEnvironment implements Environment {
 			jobManagerActor.tell(largeResult, ActorRef.noSender());
 		} else {
 
-			AccumulatorEvent evt;
+			SmallAccumulatorEvent evt;
 			try {
-				evt = new AccumulatorEvent(getJobID(), accumulators);
+				evt = new SmallAccumulatorEvent(getJobID(), accumulators);
 			} catch (IOException e) {
 				throw new RuntimeException("Cannot serialize accumulator contents to send them to JobManager", e);
 			}
 
-			ReportAccumulatorResult accResult = new ReportAccumulatorResult(jobId, executionId, evt);
+			ReportSmallAccumulatorResult accResult = new ReportSmallAccumulatorResult(jobId, executionId, evt);
 			jobManagerActor.tell(accResult, ActorRef.noSender());
 		}
 	}

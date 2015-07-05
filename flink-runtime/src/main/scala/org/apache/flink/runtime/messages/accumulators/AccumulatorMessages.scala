@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.messages.accumulators
 
 import org.apache.flink.api.common.JobID
-import org.apache.flink.runtime.accumulators.{LargeAccumulatorEvent, StringifiedAccumulatorResult, AccumulatorEvent}
+import org.apache.flink.runtime.accumulators.{LargeAccumulatorEvent, StringifiedAccumulatorResult, SmallAccumulatorEvent}
 import org.apache.flink.runtime.blob.BlobKey
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.util.SerializedValue
@@ -45,9 +45,9 @@ sealed trait AccumulatorResultsResponse extends AccumulatorMessage
  * @param executionId The ID of the task execution that the accumulator belongs to.
  * @param accumulatorEvent The serialized accumulators
  */
-case class ReportAccumulatorResult(jobID: JobID,
+case class ReportSmallAccumulatorResult(jobID: JobID,
                                    executionId: ExecutionAttemptID,
-                                   accumulatorEvent: AccumulatorEvent)
+                                   accumulatorEvent: SmallAccumulatorEvent)
   extends AccumulatorMessage
 
 /**
