@@ -7,9 +7,7 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
-
   http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -39,15 +37,15 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
-	
-	
+
+
 	<build>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<executions>
-				
+
 					<!-- KMeans -->
 					<execution>
 						<id>KMeans</id>
@@ -83,13 +81,13 @@ under the License.
 						</goals>
 						<configuration>
 							<classifier>TransitiveClosure</classifier>
-				
+
 							<archive>
 								<manifestEntries>
 									<program-class>org.apache.flink.examples.java.graph.TransitiveClosureNaive</program-class>
 								</manifestEntries>
 							</archive>
-				
+
 							<includes>
 								<include>**/java/graph/TransitiveClosureNaive.class</include>
 								<include>**/java/graph/TransitiveClosureNaive$*.class</include>
@@ -121,7 +119,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- EnumTriangles Basic -->
 					<execution>
 						<id>EnumTrianglesBasic</id>
@@ -147,7 +145,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- EnumTriangles Opt -->
 					<execution>
 						<id>EnumTrianglesOpt</id>
@@ -173,7 +171,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- PageRank Basic-->
 					<execution>
 						<id>PageRankBasic</id>
@@ -197,7 +195,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- These queries are currently not self-contained -->
 
 					<!-- TPC-H Query 10 -->
@@ -211,7 +209,6 @@ under the License.
 						</goals>
 						<configuration>
 							<classifier>TPCHQuery10</classifier>
-
 							<archive>
 								<manifestEntries>
 									<program-class>org.apache.flink.examples.java.relational.TPCHQuery10</program-class>
@@ -223,7 +220,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution> -->
-				
+
 					<!-- TPC-H Query 3 -->
 					<!--
 					<execution>
@@ -234,7 +231,6 @@ under the License.
 						</goals>
 						<configuration>
 							<classifier>TPCHQuery3</classifier>
-
 							<archive>
 								<manifestEntries>
 									<program-class>org.apache.flink.examples.java.relational.TPCHQuery3</program-class>
@@ -246,7 +242,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution> -->
-		
+
 					<!-- WebLogAnalysis -->
 					<execution>
 						<id>WebLogAnalysis</id>
