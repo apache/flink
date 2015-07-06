@@ -105,6 +105,7 @@ When operators contain any form of *state*, this state must be part of the snaps
 Operators snapshot their state at the point in time when they received all snapshot barriers from their input streams, before emitting the barriers to their output streams. At that point, all updates to the state from records before the barriers will have been made, and no updates that depend on records from after the barriers have been applied. Because the state of a snapshot may be potentially large, it is stored in a configurable *state backend*. By default, this is the JobManager's memory, but for serious setups, a distributed reliable storage should be configured (such as HDFS). After the state has been stored, the operator acknowledges the checkpoint, emity the snapshot barrier into the output streams, and proceeds.
 
 The resulting snapshot now contains:
+
   - For each parallel stream data source, the offset/position in the stream when the snapshot was started
   - For each operator, a pointer to the state that was stored as part of the snapshot
 
