@@ -29,15 +29,13 @@ import org.apache.flink.ml.pipeline.Predictor
 trait Classifier[Self] extends Predictor[Self]{
   that: Self =>
 
-  override def calculateScore[Prediction](input: DataSet[(Prediction, Prediction)])
-    : DataSet[Double] = {
-    val tpi = input.getType()
-    if (tpi == createTypeInformation[(Double, Double)]) {
-      val doubleInput = input.asInstanceOf[DataSet[(Double, Double)]]
-      ClassificationScores.accuracyScore.evaluate(doubleInput)
-    }
-    else {
-      throw new UnsupportedOperationException("ALS should have Double predictions")
-    }
+  /** Calculates the performance score for the algorithm, given a DataSet of (truth, prediction)
+    * tuples
+    *
+    * @param input A DataSet of (truth, prediction) tuples
+    * @return A DataSet containing one Double that indicates the score of the predictor
+    */
+  override def calculateScore(input: DataSet[(Double, Double)]): DataSet[Double] = {
+    ClassificationScores.accuracyScore.evaluate(input)
   }
 }

@@ -39,8 +39,13 @@ import org.apache.flink.ml.common.ParameterMap
 case class ChainedPredictor[T <: Transformer[T], P <: Predictor[P]](transformer: T, predictor: P)
   extends Predictor[ChainedPredictor[T, P]]{
 
-  override def calculateScore[Prediction](input: DataSet[(Prediction, Prediction)])
-    : DataSet[Double] = {
+  /** Calculates the performance score for the algorithm, given a DataSet of (truth, prediction)
+    * tuples
+    *
+    * @param input A DataSet of (truth, prediction) tuples
+    * @return A DataSet containing one Double that indicates the score of the predictor
+    */
+  override def calculateScore(input: DataSet[(Double, Double)]): DataSet[Double] = {
     predictor.calculateScore(input)
   }
 }

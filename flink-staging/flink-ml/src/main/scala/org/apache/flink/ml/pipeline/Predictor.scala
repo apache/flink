@@ -101,11 +101,9 @@ trait Predictor[Self] extends Estimator[Self] with WithParameters {
     * tuples
     *
     * @param input A DataSet of (truth, prediction) tuples
-    * @tparam Prediction The type of the supervised label, for example a numerical class label.
     * @return A DataSet containing one Double that indicates the score of the predictor
     */
-  private[ml] def calculateScore[Prediction](input: DataSet[(Prediction, Prediction)]):
-    DataSet[Double]
+  private[ml] def calculateScore(input: DataSet[(Double, Double)]): DataSet[Double]
 }
 
 object Predictor {

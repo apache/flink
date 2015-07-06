@@ -261,20 +261,11 @@ class ALS extends Predictor[ALS] {
   /** Calculates the RMSE for the algorithm, given a DataSet of (truth, prediction) tuples
     *
     * @param input A DataSet of (truth, prediction) tuples
-    * @tparam Prediction The type of the supervised label, for example a numerical rating.
     * @return A DataSet containing one Double that indicates the RMSE score of the predictor
     */
-  override def calculateScore[Prediction](input: DataSet[(Prediction, Prediction)])
-  : DataSet[Double] = {
+  override def calculateScore(input: DataSet[(Double, Double)]): DataSet[Double] = {
     // TODO: Move function to a Recommender trait?
-    val tpi = input.getType()
-    if (tpi == createTypeInformation[(Double, Double)]) {
-      val doubleInput = input.asInstanceOf[DataSet[(Double, Double)]]
-      RegressionScores.squaredLoss.evaluate(doubleInput).map(Math.sqrt(_))
-    }
-    else {
-      throw new UnsupportedOperationException("ALS should have Double predictions")
-    }
+    RegressionScores.squaredLoss.evaluate(input).map(Math.sqrt(_))
   }
 }
 
