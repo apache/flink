@@ -395,7 +395,7 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 	}
 
 	@SuppressWarnings("serial")
-	@ForwardedFieldsSecond("f1->f0")
+	@ForwardedFieldsSecond({"f0"})
 	private static final class ProjectKeyWithNeighborIN<K, VV, EV> implements FlatJoinFunction<
 			Vertex<K, VV>, Edge<K, EV>, Tuple2<K, Neighbor<VV, EV>>> {
 

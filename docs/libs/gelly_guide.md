@@ -737,8 +737,7 @@ public static final class Apply {
 
 {% endhighlight %}
 
-The following example illustrates the usage of the edge direction option. Vertices update their values to contain a list of all their in-neighbors.
-
+The following example illustrates the usage of the edge direction option.
 {% highlight java %}
 
 Graph<Long, HashSet<Long>, Double> graph = ...
