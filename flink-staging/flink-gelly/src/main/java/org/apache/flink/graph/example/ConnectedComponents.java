@@ -60,7 +60,6 @@ public class ConnectedComponents implements ProgramDescription {
 		//util method getGraph is used
 		Graph<Long, Long, NullValue> graph = ConnectedComponents.getGraph(env);
 
-
 		DataSet<Vertex<Long, Long>> verticesWithMinIds = graph
 				.run(new GSAConnectedComponents(maxIterations)).getVertices();
 
@@ -111,7 +110,7 @@ public class ConnectedComponents implements ProgramDescription {
 
 		return true;
 	}
-
+@SuppressWarnings("unchecked")
 	private static Graph<Long, Long, NullValue> getGraph(ExecutionEnvironment env) {
 		Graph<Long, Long, NullValue> graph;
 		if(!fileOutput) {
@@ -122,8 +121,7 @@ public class ConnectedComponents implements ProgramDescription {
 							return label;
 						}
 					}, env);
-		}
-		else {
+		} else {
 			graph = Graph.fromCsvReader(edgeInputPath,new MapFunction<Long, Long>() {
 				public Long map(Long label) {
 					return label;
@@ -131,7 +129,8 @@ public class ConnectedComponents implements ProgramDescription {
 			}, env).ignoreCommentsEdges("#")
 					.fieldDelimiterEdges("\t")
 					.lineDelimiterEdges("\n")
-					.typesEdgeValueNull(Long.class, Long.class);
+					.typesEdges(Long.class)
+					.typesVerticesNullEdge(Long.class, Long.class);
 
 		}
 		return graph;

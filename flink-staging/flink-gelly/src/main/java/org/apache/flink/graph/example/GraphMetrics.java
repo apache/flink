@@ -149,15 +149,16 @@ public class GraphMetrics implements ProgramDescription {
 		return true;
 	}
 
-	@SuppressWarnings("serial")
+	@SuppressWarnings({"serial", "unchecked"})
 	private static Graph<Long, NullValue, NullValue> getGraph(ExecutionEnvironment env) {
 		if(fileOutput) {
-			return Graph.fromCsvReader(edgesInputPath, env).lineDelimiterEdges("\n").fieldDelimiterEdges("\t")
-										.types(Long.class);
+			return Graph.fromCsvReader(edgesInputPath, env)
+					.lineDelimiterEdges("\n")
+					.fieldDelimiterEdges("\t")
+					.typesEdges(Long.class)
+					.typesVerticesNullEdge(Long.class);
 
-		}
-		else
-		{
+		} else {
 			return Graph.fromDataSet(ExampleUtils.getRandomEdges(env, NUM_VERTICES), env);
 		}
 	}
