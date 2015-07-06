@@ -62,6 +62,8 @@ public class MiscellaneousIssuesITCase {
 			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 3);
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
+			config.setString(ConfigConstants.AKKA_FRAMESIZE, ConfigConstants.DEFAULT_AKKA_FRAMESIZE);
+
 			cluster = new ForkableFlinkMiniCluster(config, false);
 		}
 		catch (Exception e) {
@@ -179,16 +181,20 @@ public class MiscellaneousIssuesITCase {
 	@Test
 	public void testOversizedAccumulators() {
 		try {
+
 			ExecutionEnvironment env =
 					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
 
-			env.setParallelism(5);
+			int noOfParallelism = 5;
+			int longsPerTask = 1200000;
+
+			env.setParallelism(noOfParallelism);
 			env.getConfig().disableSysoutLogging();
 
-			DataSet<Long> bigEnough = env.generateSequence(1, 5000000);
+			DataSet<Long> bigEnough = env.generateSequence(1, noOfParallelism * longsPerTask);
 			long theCount = bigEnough.collect().size();
 
-			assertEquals(5000000, theCount);
+			assertEquals(noOfParallelism * longsPerTask, theCount);
 
 		}catch (Exception e) {
 			e.printStackTrace();
