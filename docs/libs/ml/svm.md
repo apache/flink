@@ -181,7 +181,7 @@ The SVM implementation can be controlled by the following parameters:
         <p>
           Defines the seed to initialize the random number generator.
           The seed directly controls which data points are chosen for the SDCA method.
-          (Default value: <strong>0</strong>)
+          (Default value: <strong>Random Long Integer</strong>)
         </p>
       </td>
     </tr>
