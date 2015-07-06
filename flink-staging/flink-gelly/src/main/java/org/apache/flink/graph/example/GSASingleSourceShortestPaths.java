@@ -98,7 +98,7 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 		public Double gather(Neighbor<Double, Double> neighbor) {
 			return neighbor.getNeighborValue() + neighbor.getEdgeValue();
 		}
-	};
+	}
 
 	@SuppressWarnings("serial")
 	private static final class ChooseMinDistance extends SumFunction<Double, Double, Double> {
@@ -106,7 +106,7 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 		public Double sum(Double newValue, Double currentValue) {
 			return Math.min(newValue, currentValue);
 		}
-	};
+	}
 
 	@SuppressWarnings("serial")
 	private static final class UpdateDistance extends ApplyFunction<Long, Double, Double> {
@@ -157,11 +157,13 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 		return true;
 	}
 
+	@SuppressWarnings("unchecked")
 	private static Graph<Long, Double, Double> getGraph(ExecutionEnvironment env) {
 		if (fileOutput) {
 			return Graph.fromCsvReader(edgesInputPath, new InitVertices(srcVertexId), env).fieldDelimiterEdges("\t")
 					.lineDelimiterEdges("\n")
-					.types(Long.class, Long.class, Double.class);
+					.typesEdges(Long.class, Double.class)
+					.typesVertices(Long.class, Double.class);
 		} else {
 			return Graph.fromDataSet(SingleSourceShortestPathsData.getDefaultEdgeDataSet(env), new InitVertices(srcVertexId), env);
 		}

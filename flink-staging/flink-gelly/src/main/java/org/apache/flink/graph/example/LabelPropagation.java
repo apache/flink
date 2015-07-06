@@ -27,7 +27,6 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.library.LabelPropagationAlgorithm;
-import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
@@ -59,7 +58,6 @@ public class LabelPropagation implements ProgramDescription {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		// Set up the graph
-
 		Graph<Long, Long, NullValue> graph = LabelPropagation.getGraph(env);
 
 		// Set up the program
@@ -111,33 +109,15 @@ public class LabelPropagation implements ProgramDescription {
 		return true;
 	}
 
-	@SuppressWarnings("serial")
-	private static DataSet<Vertex<Long, Long>> getVertexDataSet(ExecutionEnvironment env) {
-
-		if (fileOutput) {
-			return env.readCsvFile(vertexInputPath)
-					.fieldDelimiter("\t")
-					.lineDelimiter("\n")
-					.types(Long.class, Long.class)
-					.map(new Tuple2ToVertexMap<Long, Long>());
-		}
-
-		return env.generateSequence(1, numVertices).map(
-				new MapFunction<Long, Vertex<Long, Long>>() {
-					public Vertex<Long, Long> map(Long l) throws Exception {
-						return new Vertex<Long, Long>(l, l);
-					}
-				});
-	}
-
-	@SuppressWarnings("serial")
-	private static Graph<Long, Long, NullValue> getGraph(ExecutionEnvironment env)
-	{
+	@SuppressWarnings({"serial" , "unchecked"})
+	private static Graph<Long, Long, NullValue> getGraph(ExecutionEnvironment env) {
 		if(fileOutput) {
 			return Graph.fromCsvReader(vertexInputPath, edgeInputPath, env).fieldDelimiterEdges("\t")
 					.fieldDelimiterVertices("\t")
 					.lineDelimiterEdges("\n")
-					.lineDelimiterVertices("\n").typesEdgeValueNull(Long.class, Long.class);
+					.lineDelimiterVertices("\n")
+					.typesEdges(Long.class)
+					.typesVerticesNullEdge(Long.class, Long.class);
 		}
 		return Graph.fromDataSet(env.
 				generateSequence(1, numVertices).map(new MapFunction<Long, Vertex<Long, Long>>() {

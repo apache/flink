@@ -239,15 +239,13 @@ public class IncrementalSSSP implements ProgramDescription {
 		return true;
 	}
 
-
-	private static Graph<Long, Double, Double> getGraph(ExecutionEnvironment env)
-	{
+	@SuppressWarnings("unchecked")
+	private static Graph<Long, Double, Double> getGraph(ExecutionEnvironment env) {
 		if(fileOutput) {
 			return Graph.fromCsvReader(verticesInputPath, edgesInputPath, env).lineDelimiterEdges("\n")
-					.types(Long.class, Double.class, Double.class);
-		}
-		else
-		{
+					.typesEdges(Long.class, Double.class)
+					.typesVertices(Long.class, Double.class);
+		} else {
 			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
 					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
 					"<output path> <max iterations>");
@@ -255,21 +253,19 @@ public class IncrementalSSSP implements ProgramDescription {
 		}
 	}
 
-	private static Graph<Long, Double, Double> getSSSPGraph(ExecutionEnvironment env)
-	{
+	@SuppressWarnings("unchecked")
+	private static Graph<Long, Double, Double> getSSSPGraph(ExecutionEnvironment env) {
 		if(fileOutput) {
 			return Graph.fromCsvReader(verticesInputPath, edgesInSSSPInputPath, env).lineDelimiterEdges("\n")
-					.types(Long.class, Double.class, Double.class);
-		}
-		else {
+					.typesEdges(Long.class, Double.class)
+					.typesVertices(Long.class, Double.class);
+		} else {
 			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
 					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
 					"<output path> <max iterations>");
 			return Graph.fromDataSet(IncrementalSSSPData.getDefaultVertexDataSet(env), IncrementalSSSPData.getDefaultEdgesInSSSP(env), env);
 		}
 	}
-
-
 
 	private static Edge<Long, Double> getEdgeToBeRemoved() {
 		if (fileOutput) {

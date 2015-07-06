@@ -117,12 +117,10 @@ public class CommunityDetection implements ProgramDescription {
 		return true;
 	}
 
-
-	private static Graph<Long, Long, Double> getGraph(ExecutionEnvironment env)
-	{
+	@SuppressWarnings("unchecked")
+	private static Graph<Long, Long, Double> getGraph(ExecutionEnvironment env) {
 		Graph<Long, Long, Double> graph;
-		if(!fileOutput)
-		{
+		if(!fileOutput) {
 			DataSet<Edge<Long, Double>> edges = CommunityDetectionData.getDefaultEdgeDataSet(env);
 			graph = Graph.fromDataSet(edges,
 					new MapFunction<Long, Long>() {
@@ -131,9 +129,7 @@ public class CommunityDetection implements ProgramDescription {
 							return label;
 						}
 					}, env);
-		}
-		else
-		{
+		} else {
 			graph = Graph.fromCsvReader(edgeInputPath,new MapFunction<Long, Long>() {
 				public Long map(Long label) {
 					return label;
@@ -141,8 +137,8 @@ public class CommunityDetection implements ProgramDescription {
 			}, env).ignoreCommentsEdges("#")
 					.fieldDelimiterEdges("\t")
 					.lineDelimiterEdges("\n")
-					.types(Long.class, Long.class, Double.class);
-
+					.typesEdges(Long.class, Double.class)
+					.typesVertices(Long.class, Long.class);
 		}
 		return graph;
 	}

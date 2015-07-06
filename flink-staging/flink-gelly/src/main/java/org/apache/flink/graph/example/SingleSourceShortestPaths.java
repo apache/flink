@@ -111,6 +111,7 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 		return true;
 	}
 
+	@SuppressWarnings("unchecked")
 	private static Graph<Long, Double, Double> getGraph(ExecutionEnvironment env) {
 		if (fileOutput) {
 			return Graph.fromCsvReader(edgesInputPath, new MapFunction<Long, Double>() {
@@ -120,10 +121,9 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 				}
 			}, env).lineDelimiterEdges("\n")
 					.fieldDelimiterEdges("\t")
-					.types(Long.class, Double.class, Double.class);
-
-			}
-		else {
+					.typesEdges(Long.class, Double.class)
+					.typesVertices(Long.class, Double.class);
+			} else {
 			return Graph.fromDataSet(SingleSourceShortestPathsData.getDefaultEdgeDataSet(env), new MapFunction<Long, Double>() {
 				@Override
 				public Double map(Long value) throws Exception {
