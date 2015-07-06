@@ -748,7 +748,7 @@ GSAConfiguration parameters = new GSAConfiguration();
 // set the messaging direction
 parameters.setDirection(EdgeDirection.IN);
 
-// run the vertex-centric iteration, also passing the configuration parameters
+// run the gather-sum-apply iteration, also passing the configuration parameters
 DataSet<Vertex<Long, HashSet<Long>>> result =
 			graph.runGatherSumApplyIteration(
 			new Gather(), new Sum(), new Apply(), maxIterations, parameters)
