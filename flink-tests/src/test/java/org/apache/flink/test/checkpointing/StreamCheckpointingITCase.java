@@ -198,7 +198,7 @@ public class StreamCheckpointingITCase {
 		static final long[] counts = new long[PARALLELISM];
 		@Override
 		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = index.getState();
+			counts[getRuntimeContext().getIndexOfThisSubtask()] = index.value();
 		}
 
 
@@ -222,8 +222,8 @@ public class StreamCheckpointingITCase {
 		public void run(SourceContext<String> ctx) throws Exception {
 			final Object lockingObject = ctx.getCheckpointLock();
 
-			while (isRunning && index.getState() < numElements) {
-				char first = (char) ((index.getState() % 40) + 40);
+			while (isRunning && index.value() < numElements) {
+				char first = (char) ((index.value() % 40) + 40);
 
 				stringBuilder.setLength(0);
 				stringBuilder.append(first);
@@ -231,7 +231,7 @@ public class StreamCheckpointingITCase {
 				String result = randomString(stringBuilder, rnd);
 
 				synchronized (lockingObject) {
-					index.updateState(index.getState() + step);
+					index.update(index.value() + step);
 					ctx.collect(result);
 				}
 			}
@@ -261,7 +261,7 @@ public class StreamCheckpointingITCase {
 
 		@Override
 		public PrefixCount map(PrefixCount value) throws Exception {
-			count.updateState(count.getState() + 1);
+			count.update(count.value() + 1);
 			return value;
 		}
 
@@ -272,7 +272,7 @@ public class StreamCheckpointingITCase {
 
 		@Override
 		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = count.getState();
+			counts[getRuntimeContext().getIndexOfThisSubtask()] = count.value();
 		}
 		
 	}
@@ -370,7 +370,7 @@ public class StreamCheckpointingITCase {
 		
 		@Override
 		public PrefixCount map(String value) throws IOException {
-			count.updateState(count.getState() + 1);
+			count.update(count.value() + 1);
 			return new PrefixCount(value.substring(0, 1), value, 1L);
 		}
 		
@@ -381,7 +381,7 @@ public class StreamCheckpointingITCase {
 
 		@Override
 		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = count.getState();
+			counts[getRuntimeContext().getIndexOfThisSubtask()] = count.value();
 		}
 	}
 }

@@ -59,12 +59,12 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 	}
 
 	@Override
-	public S getState() throws IOException {
+	public S value() throws IOException {
 		return state;
 	}
 
 	@Override
-	public void updateState(S state) throws IOException {
+	public void update(S state) throws IOException {
 		if (state == null) {
 			throw new RuntimeException("Cannot set state to null.");
 		}
@@ -72,8 +72,8 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 	}
 	
 	public void setDefaultState(S defaultState) throws IOException {
-		if (getState() == null) {
-			updateState(defaultState);
+		if (value() == null) {
+			update(defaultState);
 		}
 	}
 
@@ -92,12 +92,12 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 	public Map<Serializable, StateHandle<C>> snapshotState(long checkpointId,
 			long checkpointTimestamp) throws Exception {
 		return ImmutableMap.of(DEFAULTKEY, provider.createStateHandle(checkpointer.snapshotState(
-				getState(), checkpointId, checkpointTimestamp)));
+				value(), checkpointId, checkpointTimestamp)));
 
 	}
 
 	public void restoreState(Map<Serializable, StateHandle<C>> snapshots) throws Exception {
-		updateState(checkpointer.restoreState(snapshots.get(DEFAULTKEY).getState()));
+		update(checkpointer.restoreState(snapshots.get(DEFAULTKEY).getState()));
 	}
 
 	public Map<Serializable, S> getPartitionedState() throws Exception {

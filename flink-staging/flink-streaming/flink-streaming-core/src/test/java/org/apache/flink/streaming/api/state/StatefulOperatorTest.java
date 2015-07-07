@@ -71,9 +71,9 @@ public class StatefulOperatorTest {
 		processInputs(map, Arrays.asList(1, 2, 3, 4, 5));
 
 		assertEquals(Arrays.asList("1", "2", "3", "4", "5"), out);
-		assertEquals((Integer) 5, context.getOperatorState("counter", 0, false).getState());
+		assertEquals((Integer) 5, context.getOperatorState("counter", 0, false).value());
 		assertEquals(ImmutableMap.of(0, 2, 1, 3), context.getOperatorStates().get("groupCounter").getPartitionedState());
-		assertEquals("12345", context.getOperatorState("concat", "", false).getState());
+		assertEquals("12345", context.getOperatorState("concat", "", false).value());
 		assertEquals((Integer) 5, ((StatefulMapper) map.getUserFunction()).checkpointedCounter);
 
 		byte[] serializedState = InstantiationUtil.serializeObject(map.getStateSnapshotFromFunction(1, 1));
@@ -81,19 +81,19 @@ public class StatefulOperatorTest {
 		StreamMap<Integer, String> restoredMap = createOperatorWithContext(out, new ModKey(2), serializedState);
 		StreamingRuntimeContext restoredContext = restoredMap.getRuntimeContext();
 
-		assertEquals((Integer) 5, restoredContext.getOperatorState("counter", 0, false).getState());
+		assertEquals((Integer) 5, restoredContext.getOperatorState("counter", 0, false).value());
 		assertEquals(ImmutableMap.of(0, 2, 1, 3), context.getOperatorStates().get("groupCounter").getPartitionedState());
-		assertEquals("12345", restoredContext.getOperatorState("concat", "", false).getState());
+		assertEquals("12345", restoredContext.getOperatorState("concat", "", false).value());
 		assertEquals((Integer) 5, ((StatefulMapper) restoredMap.getUserFunction()).checkpointedCounter);
 		out.clear();
 
 		processInputs(restoredMap, Arrays.asList(7, 8));
 
 		assertEquals(Arrays.asList("7", "8"), out);
-		assertEquals((Integer) 7, restoredContext.getOperatorState("counter", 0, false).getState());
+		assertEquals((Integer) 7, restoredContext.getOperatorState("counter", 0, false).value());
 		assertEquals(ImmutableMap.of(0, 3, 1, 4), restoredContext.getOperatorStates().get("groupCounter")
 				.getPartitionedState());
-		assertEquals("1234578", restoredContext.getOperatorState("concat", "", false).getState());
+		assertEquals("1234578", restoredContext.getOperatorState("concat", "", false).value());
 		assertEquals((Integer) 7, ((StatefulMapper) restoredMap.getUserFunction()).checkpointedCounter);
 
 	}
@@ -176,12 +176,12 @@ public class StatefulOperatorTest {
 
 		@Override
 		public String map(Integer value) throws Exception {
-			counter.updateState(counter.getState() + 1);
-			groupCounter.updateState(groupCounter.getState() + 1);
-			concat.updateState(concat.getState() + value.toString());
+			counter.update(counter.value() + 1);
+			groupCounter.update(groupCounter.value() + 1);
+			concat.update(concat.value() + value.toString());
 			checkpointedCounter++;
 			try {
-				counter.updateState(null);
+				counter.update(null);
 				fail();
 			} catch (RuntimeException e){
 			}
@@ -235,7 +235,7 @@ public class StatefulOperatorTest {
 		
 		@Override
 		public String map(Integer value) throws Exception {
-			groupCounter.updateState(groupCounter.getState() + 1);
+			groupCounter.update(groupCounter.value() + 1);
 			
 			return value.toString();
 		}

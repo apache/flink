@@ -69,7 +69,7 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 	}
 
 	@Override
-	public S getState() throws IOException{
+	public S value() throws IOException{
 		if (currentInput == null) {
 			throw new IllegalStateException("Need a valid input for accessing the state.");
 		} else {
@@ -87,7 +87,7 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 	}
 
 	@Override
-	public void updateState(S state) throws IOException {
+	public void update(S state) throws IOException {
 		if (state == null) {
 			throw new RuntimeException("Cannot set state to null.");
 		}
