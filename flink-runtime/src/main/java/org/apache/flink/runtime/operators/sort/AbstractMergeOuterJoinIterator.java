@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.sort;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.operators.base.OuterJoinOperatorBase.OuterJoinType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -36,8 +37,6 @@ import java.util.Iterator;
  * outer join through a sort-merge join strategy.
  */
 public abstract class AbstractMergeOuterJoinIterator<T1, T2, O> extends AbstractMergeIterator<T1, T2, O> {
-
-	public enum OuterJoinType {LEFT, RIGHT, FULL}
 
 	private final OuterJoinType outerJoinType;
 
