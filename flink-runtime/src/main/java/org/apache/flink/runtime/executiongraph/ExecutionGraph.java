@@ -24,7 +24,6 @@ import akka.actor.ActorSystem;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -45,6 +44,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
@@ -197,6 +197,10 @@ public class ExecutionGraph implements Serializable {
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointCoordinator checkpointCoordinator;
 
+	/** The execution context which is used to execute futures. */
+	@SuppressWarnings("NonSerializableFieldInSerializableClass")
+	private ExecutionContext executionContext;
+
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private ExecutionConfig executionConfig;
 
@@ -207,16 +211,37 @@ public class ExecutionGraph implements Serializable {
 	/**
 	 * This constructor is for tests only, because it does not include class loading information.
 	 */
-	ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout) {
-		this(jobId, jobName, jobConfig, timeout, new ArrayList<BlobKey>(), ExecutionGraph.class.getClassLoader());
+	ExecutionGraph(
+			ExecutionContext executionContext,
+			JobID jobId,
+			String jobName,
+			Configuration jobConfig,
+			FiniteDuration timeout) {
+		this(
+			executionContext,
+			jobId,
+			jobName,
+			jobConfig,
+			timeout,
+			new ArrayList<BlobKey>(),
+			ExecutionGraph.class.getClassLoader()
+		);
 	}
 
-	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout,
-			List<BlobKey> requiredJarFiles, ClassLoader userClassLoader) {
+	public ExecutionGraph(
+			ExecutionContext executionContext,
+			JobID jobId,
+			String jobName,
+			Configuration jobConfig,
+			FiniteDuration timeout,
+			List<BlobKey> requiredJarFiles,
+			ClassLoader userClassLoader) {
 
-		if (jobId == null || jobName == null || jobConfig == null || userClassLoader == null) {
+		if (executionContext == null || jobId == null || jobName == null || jobConfig == null || userClassLoader == null) {
 			throw new NullPointerException();
 		}
+
+		this.executionContext = executionContext;
 
 		this.jobID = jobId;
 		this.jobName = jobName;
@@ -451,6 +476,15 @@ public class ExecutionGraph implements Serializable {
 		return this.stateTimestamps[status.ordinal()];
 	}
 
+	/**
+	 * Returns the ExecutionContext associated with this ExecutionGraph.
+	 *
+	 * @return ExecutionContext associated with this ExecutionGraph
+	 */
+	public ExecutionContext getExecutionContext() {
+		return executionContext;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Actions
 	// --------------------------------------------------------------------------------------------
@@ -629,6 +663,7 @@ public class ExecutionGraph implements Serializable {
 		userClassLoader = null;
 		scheduler = null;
 		checkpointCoordinator = null;
+		executionContext = null;
 
 		for (ExecutionJobVertex vertex : verticesInCreationOrder) {
 			vertex.prepareForArchiving();
@@ -719,7 +754,7 @@ public class ExecutionGraph implements Serializable {
 									restart();
 									return null;
 								}
-							}, AkkaUtils.globalExecutionContext());
+							}, executionContext);
 							break;
 						}
 						else if (numberOfRetriesLeft <= 0 && transitionState(current, JobStatus.FAILED, failureCause)) {

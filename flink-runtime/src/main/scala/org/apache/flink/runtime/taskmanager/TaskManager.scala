@@ -65,6 +65,7 @@ import org.apache.flink.runtime.util.{ZooKeeperUtil, MathUtils, EnvironmentInfor
 
 import scala.concurrent._
 import scala.concurrent.duration._
+import scala.concurrent.forkjoin.ForkJoinPool
 import scala.util.{Failure, Success}
 import scala.collection.JavaConverters._
 
@@ -1363,14 +1364,16 @@ object TaskManager {
   @throws(classOf[IllegalConfigurationException])
   @throws(classOf[IOException])
   @throws(classOf[Exception])
-  def startTaskManagerComponentsAndActor(configuration: Configuration,
-                                         actorSystem: ActorSystem,
-                                         taskManagerHostname: String,
-                                         taskManagerActorName: Option[String],
-                                         jobManagerPath: Option[String],
-                                         localTaskManagerCommunication: Boolean,
-                                         streamingMode: StreamingMode,
-                                         taskManagerClass: Class[_ <: TaskManager]): ActorRef = {
+  def startTaskManagerComponentsAndActor(
+      configuration: Configuration,
+      actorSystem: ActorSystem,
+      taskManagerHostname: String,
+      taskManagerActorName: Option[String],
+      jobManagerPath: Option[String],
+      localTaskManagerCommunication: Boolean,
+      streamingMode: StreamingMode,
+      taskManagerClass: Class[_ <: TaskManager])
+    : ActorRef = {
 
     // get and check the JobManager config
     val jobManagerAkkaUrl: String = jobManagerPath.getOrElse {
@@ -1380,17 +1383,20 @@ object TaskManager {
     }
 
     val (taskManagerConfig : TaskManagerConfiguration,
-         netConfig: NetworkEnvironmentConfiguration,
-         connectionInfo: InstanceConnectionInfo)
-
-         = parseTaskManagerConfiguration(configuration, taskManagerHostname,
-                                         localTaskManagerCommunication)
+      netConfig: NetworkEnvironmentConfiguration,
+      connectionInfo: InstanceConnectionInfo
+    ) = parseTaskManagerConfiguration(
+      configuration,
+      taskManagerHostname,
+      localTaskManagerCommunication)
 
     // pre-start checks
     checkTempDirs(taskManagerConfig.tmpDirPaths)
 
+    val executionContext = ExecutionContext.fromExecutor(new ForkJoinPool())
+
     // we start the network first, to make sure it can allocate its buffers first
-    val network = new NetworkEnvironment(taskManagerConfig.timeout, netConfig)
+    val network = new NetworkEnvironment(executionContext, taskManagerConfig.timeout, netConfig)
 
     // computing the amount of memory to use depends on how much memory is available
     // it strictly needs to happen AFTER the network stack has been initialized

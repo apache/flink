@@ -18,13 +18,9 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import akka.actor.ActorRef;
 import akka.dispatch.OnComplete;
 import akka.dispatch.OnFailure;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -32,6 +28,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.instance.InstanceGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -50,6 +47,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -131,9 +129,20 @@ public class Execution implements Serializable {
 	
 	private SerializedValue<StateHandle<?>> operatorState;
 
+	/** The execution context which is used to execute futures. */
+	@SuppressWarnings("NonSerializableFieldInSerializableClass")
+	private ExecutionContext executionContext;
+
 	// --------------------------------------------------------------------------------------------
 	
-	public Execution(ExecutionVertex vertex, int attemptNumber, long startTimestamp, FiniteDuration timeout) {
+	public Execution(
+			ExecutionContext executionContext,
+			ExecutionVertex vertex,
+			int attemptNumber,
+			long startTimestamp,
+			FiniteDuration timeout) {
+		this.executionContext = checkNotNull(executionContext);
+
 		this.vertex = checkNotNull(vertex);
 		this.attemptId = new ExecutionAttemptID();
 		
@@ -199,6 +208,8 @@ public class Execution implements Serializable {
 			throw new IllegalStateException("Cannot archive Execution while the assigned resource is still running.");
 		}
 		assignedResource = null;
+
+		executionContext = null;
 
 		partialInputChannelDeploymentDescriptors.clear();
 		partialInputChannelDeploymentDescriptors = null;
@@ -338,8 +349,9 @@ public class Execution implements Serializable {
 			vertex.getExecutionGraph().registerExecution(this);
 
 			final Instance instance = slot.getInstance();
-			final Future<Object> deployAction = Patterns.ask(instance.getTaskManager(),
-					new SubmitTask(deployment), new Timeout(timeout));
+			final InstanceGateway gateway = instance.getInstanceGateway();
+
+			final Future<Object> deployAction = gateway.ask(new SubmitTask(deployment), timeout);
 
 			deployAction.onComplete(new OnComplete<Object>(){
 
@@ -366,7 +378,7 @@ public class Execution implements Serializable {
 						}
 					}
 				}
-			}, AkkaUtils.globalExecutionContext());
+			}, executionContext);
 		}
 		catch (Throwable t) {
 			markFailed(t);
@@ -402,7 +414,7 @@ public class Execution implements Serializable {
 			else if (current == FINISHED || current == FAILED) {
 				// nothing to do any more. finished failed before it could be cancelled.
 				// in any case, the task is removed from the TaskManager already
-				sendFailIntermediateResultPartitionsRPCCall();
+				sendFailIntermediateResultPartitionsRpcCall();
 
 				return;
 			}
@@ -485,7 +497,7 @@ public class Execution implements Serializable {
 
 						return true;
 					}
-				}, AkkaUtils.globalExecutionContext());
+				}, executionContext);
 
 				// double check to resolve race conditions
 				if(consumerVertex.getExecutionState() == RUNNING){
@@ -533,7 +545,7 @@ public class Execution implements Serializable {
 					final UpdatePartitionInfo updateTaskMessage = new UpdateTaskSinglePartitionInfo(
 							consumer.getAttemptId(), partition.getIntermediateResult().getId(), descriptor);
 
-					sendUpdateTaskRpcCall(consumerSlot, updateTaskMessage);
+					sendUpdatePartitionInfoRpcCall(consumerSlot, updateTaskMessage);
 				}
 				// ----------------------------------------------------------------
 				// Consumer is scheduled or deploying => cache input channel
@@ -689,11 +701,12 @@ public class Execution implements Serializable {
 				inputChannelDeploymentDescriptors.add(partialInputChannelDeploymentDescriptor.createInputChannelDeploymentDescriptor(this));
 			}
 
-			UpdatePartitionInfo updateTaskMessage =
-					createUpdateTaskMultiplePartitionInfos(attemptId, resultIDs,
-							inputChannelDeploymentDescriptors);
+			UpdatePartitionInfo updateTaskMessage = createUpdateTaskMultiplePartitionInfos(
+				attemptId,
+				resultIDs,
+				inputChannelDeploymentDescriptors);
 
-			sendUpdateTaskRpcCall(assignedResource, updateTaskMessage);
+			sendUpdatePartitionInfoRpcCall(assignedResource, updateTaskMessage);
 		}
 	}
 
@@ -804,14 +817,23 @@ public class Execution implements Serializable {
 		}
 	}
 
+	/**
+	 * This method sends a CancelTask message to the instance of the assigned slot.
+	 *
+	 * The sending is tried up to NUM_CANCEL_CALL_TRIES times.
+	 */
 	private void sendCancelRpcCall() {
 		final SimpleSlot slot = this.assignedResource;
 
 		if (slot != null) {
 
-			Future<Object> cancelResult = AkkaUtils.retry(slot.getInstance().getTaskManager(), new
-							CancelTask(attemptId), NUM_CANCEL_CALL_TRIES,
-					AkkaUtils.globalExecutionContext(), timeout);
+			final InstanceGateway gateway = slot.getInstance().getInstanceGateway();
+
+			Future<Object> cancelResult = gateway.retry(
+				new CancelTask(attemptId),
+				NUM_CANCEL_CALL_TRIES,
+				timeout,
+				executionContext);
 
 			cancelResult.onComplete(new OnComplete<Object>() {
 
@@ -827,35 +849,40 @@ public class Execution implements Serializable {
 						}
 					}
 				}
-			}, AkkaUtils.globalExecutionContext());
+			}, executionContext);
 		}
 	}
 
-	private void sendFailIntermediateResultPartitionsRPCCall() {
+	private void sendFailIntermediateResultPartitionsRpcCall() {
 		final SimpleSlot slot = this.assignedResource;
 
 		if (slot != null) {
 			final Instance instance = slot.getInstance();
 
 			if (instance.isAlive()) {
-				try {
-					// TODO For some tests this could be a problem when querying too early if all resources were released
-					instance.getTaskManager().tell(new FailIntermediateResultPartitions(attemptId), ActorRef.noSender());
-				} catch (Throwable t) {
-					fail(new Exception("Intermediate result partition could not be failed.", t));
-				}
+				final InstanceGateway gateway = instance.getInstanceGateway();
+
+				// TODO For some tests this could be a problem when querying too early if all resources were released
+				gateway.tell(new FailIntermediateResultPartitions(attemptId));
 			}
 		}
 	}
 
-	private void sendUpdateTaskRpcCall(final SimpleSlot consumerSlot,
-										final UpdatePartitionInfo updateTaskMsg) {
+	/**
+	 * Sends an UpdatePartitionInfo message to the instance of the consumerSlot.
+	 *
+	 * @param consumerSlot Slot to whose instance the message will be sent
+	 * @param updatePartitionInfo UpdatePartitionInfo message
+	 */
+	private void sendUpdatePartitionInfoRpcCall(
+			final SimpleSlot consumerSlot,
+			final UpdatePartitionInfo updatePartitionInfo) {
 
 		if (consumerSlot != null) {
 			final Instance instance = consumerSlot.getInstance();
+			final InstanceGateway gateway = instance.getInstanceGateway();
 
-			Future<Object> futureUpdate = Patterns.ask(instance.getTaskManager(), updateTaskMsg,
-					new Timeout(timeout));
+			Future<Object> futureUpdate = gateway.ask(updatePartitionInfo, timeout);
 
 			futureUpdate.onFailure(new OnFailure() {
 				@Override
@@ -863,7 +890,7 @@ public class Execution implements Serializable {
 					fail(new IllegalStateException("Update task on instance " + instance +
 							" failed due to:", failure));
 				}
-			}, AkkaUtils.globalExecutionContext());
+			}, executionContext);
 		}
 	}
 

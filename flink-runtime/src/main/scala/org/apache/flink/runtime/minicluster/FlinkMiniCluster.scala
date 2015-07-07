@@ -34,7 +34,7 @@ import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegistere
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Future, Await}
+import scala.concurrent.{ExecutionContext, Future, Await}
 
 /**
  * Abstract base class for Flink's mini cluster. The mini cluster starts a
@@ -48,9 +48,10 @@ import scala.concurrent.{Future, Await}
  * @param streamingMode True, if the system should be started in streaming mode, false if
  *                      in pure batch mode.
  */
-abstract class FlinkMiniCluster(val userConfiguration: Configuration,
-                                val singleActorSystem: Boolean,
-                                val streamingMode: StreamingMode) {
+abstract class FlinkMiniCluster(
+    val userConfiguration: Configuration,
+    val singleActorSystem: Boolean,
+    val streamingMode: StreamingMode) {
 
   def this(userConfiguration: Configuration, singleActorSystem: Boolean) 
          = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
@@ -157,7 +158,7 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
 
     val future = gracefulStop(jobManagerActor, timeout)
 
-    implicit val executionContext = AkkaUtils.globalExecutionContext
+    implicit val executionContext = ExecutionContext.global
 
     Await.ready(Future.sequence(future +: futures), timeout)
 
@@ -179,7 +180,7 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
   }
 
   def waitForTaskManagersToBeRegistered(): Unit = {
-    implicit val executionContext = AkkaUtils.globalExecutionContext
+    implicit val executionContext = ExecutionContext.global
 
     val futures = taskManagerActors map {
       taskManager => (taskManager ? NotifyWhenRegisteredAtJobManager)(timeout)
@@ -196,8 +197,11 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
   }
   
   @throws(classOf[JobExecutionException])
-  def submitJobAndWait(jobGraph: JobGraph, printUpdates: Boolean, timeout: FiniteDuration)
-                                                                 : SerializedJobExecutionResult = {
+  def submitJobAndWait(
+      jobGraph: JobGraph,
+      printUpdates: Boolean,
+      timeout: FiniteDuration)
+    : SerializedJobExecutionResult = {
 
     val clientActorSystem = if (singleActorSystem) jobManagerActorSystem
     else JobClient.startJobClientActorSystem(configuration)

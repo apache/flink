@@ -30,8 +30,8 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.Assert;
 import org.slf4j.Logger;
@@ -148,7 +148,7 @@ public class TestBaseUtils {
 				}
 
 				Future<Iterable<Object>> bcVariableManagerFutureResponses = Futures.sequence(
-						bcVariableManagerResponseFutures, AkkaUtils.globalExecutionContext());
+						bcVariableManagerResponseFutures, TestingUtils.defaultExecutionContext());
 
 				Iterable<Object> responses = Await.result(bcVariableManagerFutureResponses, timeout);
 
@@ -158,7 +158,7 @@ public class TestBaseUtils {
 				}
 
 				Future<Iterable<Object>> numActiveConnectionsFutureResponses = Futures.sequence(
-						numActiveConnectionsResponseFutures, AkkaUtils.globalExecutionContext());
+						numActiveConnectionsResponseFutures, TestingUtils.defaultExecutionContext());
 
 				responses = Await.result(numActiveConnectionsFutureResponses, timeout);
 

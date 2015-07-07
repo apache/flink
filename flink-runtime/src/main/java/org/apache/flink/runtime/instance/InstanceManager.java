@@ -149,8 +149,9 @@ public class InstanceManager {
 				id = new InstanceID();
 			} while (registeredHostsById.containsKey(id));
 
+			InstanceGateway instanceGateway = new AkkaInstanceGateway(taskManager);
 
-			Instance host = new Instance(taskManager, connectionInfo, id, resources, numberOfSlots);
+			Instance host = new Instance(instanceGateway, connectionInfo, id, resources, numberOfSlots);
 
 			registeredHostsById.put(id, host);
 			registeredHostsByConnection.put(taskManager, host);

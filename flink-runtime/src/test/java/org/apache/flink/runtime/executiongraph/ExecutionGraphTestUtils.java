@@ -26,17 +26,16 @@ import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.LinkedList;
 
-import akka.actor.ActorRef;
-import akka.actor.Status;
-import akka.actor.UntypedActor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.BaseTestingInstanceGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.instance.InstanceGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -49,9 +48,11 @@ import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import scala.concurrent.ExecutionContext;
 
 public class ExecutionGraphTestUtils {
 
@@ -100,103 +101,95 @@ public class ExecutionGraphTestUtils {
 	//  utility mocking methods
 	// --------------------------------------------------------------------------------------------
 
-	public static Instance getInstance(final ActorRef taskManager) throws
-			Exception {
-		return getInstance(taskManager, 1);
+	public static Instance getInstance(final InstanceGateway gateway) throws Exception {
+		return getInstance(gateway, 1);
 	}
 
-	public static Instance getInstance(final ActorRef taskManager, final int numberOfSlots) throws Exception {
+	public static Instance getInstance(final InstanceGateway gateway, final int numberOfSlots) throws Exception {
 		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 		InetAddress address = InetAddress.getByName("127.0.0.1");
 		InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
-		
-		return new Instance(taskManager, connection, new InstanceID(), hardwareDescription, numberOfSlots);
+
+		return new Instance(gateway, connection, new InstanceID(), hardwareDescription, numberOfSlots);
 	}
 
-	public static class SimpleAcknowledgingTaskManager extends UntypedActor {
+	public static class SimpleInstanceGateway extends BaseTestingInstanceGateway {
 		public TaskDeploymentDescriptor lastTDD;
+
+		public SimpleInstanceGateway(ExecutionContext executionContext){
+			super(executionContext);
+		}
+
 		@Override
-		public void onReceive(Object msg) throws Exception {
-			if (msg instanceof SubmitTask) {
-				SubmitTask submitTask = (SubmitTask) msg;
+		public Object handleMessage(Object message) {
+			Object result = null;
+			if(message instanceof SubmitTask) {
+				SubmitTask submitTask = (SubmitTask) message;
 				lastTDD = submitTask.tasks();
 
-				getSender().tell(Messages.getAcknowledge(), getSelf());
-			} else if (msg instanceof CancelTask) {
-				CancelTask cancelTask = (CancelTask) msg;
-				getSender().tell(new TaskOperationResult(cancelTask.attemptID(), true), getSelf());
+				result = Messages.getAcknowledge();
+			} else if(message instanceof CancelTask) {
+				CancelTask cancelTask = (CancelTask) message;
+
+				result = new TaskOperationResult(cancelTask.attemptID(), true);
+			} else if(message instanceof FailIntermediateResultPartitions) {
+				result = new Object();
 			}
-			else if (msg instanceof FailIntermediateResultPartitions) {
-				getSender().tell(new Object(), getSelf());
+
+			return result;
+		}
+	}
+
+	public static class SimpleFailingInstanceGateway extends BaseTestingInstanceGateway {
+		public SimpleFailingInstanceGateway(ExecutionContext executionContext) {
+			super(executionContext);
+		}
+
+		@Override
+		public Object handleMessage(Object message) throws Exception {
+			if(message instanceof SubmitTask) {
+				throw new Exception(ERROR_MESSAGE);
+			} else if (message instanceof CancelTask) {
+				CancelTask cancelTask = (CancelTask) message;
+
+				return new TaskOperationResult(cancelTask.attemptID(), true);
+			} else {
+				return null;
 			}
 		}
 	}
 
 	public static final String ERROR_MESSAGE = "test_failure_error_message";
 
-	public static class SimpleFailingTaskManager extends UntypedActor {
-		@Override
-		public void onReceive(Object msg) throws Exception {
-			if (msg instanceof SubmitTask) {
-				getSender().tell(new Status.Failure(new Exception(ERROR_MESSAGE)),	getSelf());
-			} else if (msg instanceof CancelTask) {
-				CancelTask cancelTask = (CancelTask) msg;
-				getSender().tell(new TaskOperationResult(cancelTask.attemptID(), true), getSelf());
-			}
-		}
-	}
-	
-	public static ExecutionJobVertex getExecutionVertex(JobVertexID id) throws JobException {
+	public static ExecutionJobVertex getExecutionVertex(JobVertexID id, ExecutionContext executionContext) throws JobException {
 		JobVertex ajv = new JobVertex("TestVertex", id);
 		ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
-		
-		ExecutionGraph graph = new ExecutionGraph(new JobID(), "test job", new Configuration(),
+
+		ExecutionGraph graph = new ExecutionGraph(
+				executionContext,
+				new JobID(),
+				"test job",
+				new Configuration(),
 				AkkaUtils.getDefaultTimeout());
-		
+
 		ExecutionJobVertex ejv = spy(new ExecutionJobVertex(graph, ajv, 1,
 				AkkaUtils.getDefaultTimeout()));
-		
+
 		Answer<Void> noop = new Answer<Void>() {
 			@Override
 			public Void answer(InvocationOnMock invocation) {
 				return null;
 			}
 		};
-		
+
 		doAnswer(noop).when(ejv).vertexCancelled(Matchers.anyInt());
 		doAnswer(noop).when(ejv).vertexFailed(Matchers.anyInt(), Matchers.any(Throwable.class));
 		doAnswer(noop).when(ejv).vertexFinished(Matchers.anyInt());
-		
+
 		return ejv;
 	}
 	
-	// --------------------------------------------------------------------------------------------
-	
-	public static final class ActionQueue {
-		
-		private final LinkedList<Runnable> runnables = new LinkedList<Runnable>();
-		
-		public void triggerNextAction() {
-			Runnable r = runnables.remove();
-			r.run();
-		}
-
-		public void triggerLatestAction(){
-			Runnable r = runnables.removeLast();
-			r.run();
-		}
-		
-		public Runnable popNextAction() {
-			Runnable r = runnables.remove();
-			return r;
-		}
-
-		public void queueAction(Runnable r) {
-			this.runnables.add(r);
-		}
-
-		public boolean isEmpty(){
-			return runnables.isEmpty();
-		}
+	public static ExecutionJobVertex getExecutionVertex(JobVertexID id) throws JobException {
+		return getExecutionVertex(id, TestingUtils.defaultExecutionContext());
 	}
 }

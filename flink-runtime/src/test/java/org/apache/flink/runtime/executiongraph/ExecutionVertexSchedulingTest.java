@@ -23,14 +23,9 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ge
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.testkit.JavaTestKit;
-import akka.testkit.TestActorRef;
-
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.DummyInstanceGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -38,27 +33,11 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.mockito.Matchers;
 
 public class ExecutionVertexSchedulingTest {
-
-	private static ActorSystem system;
-
-	@BeforeClass
-	public static void setup(){
-		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
-	}
-
-	@AfterClass
-	public static void teardown(){
-		JavaTestKit.shutdownActorSystem(system);
-		system = null;
-	}
 
 	@Test
 	public void testSlotReleasedWhenScheduledImmediately() {
@@ -68,7 +47,7 @@ public class ExecutionVertexSchedulingTest {
 					AkkaUtils.getDefaultTimeout());
 
 			// a slot than cannot be deployed to
-			final Instance instance = getInstance(ActorRef.noSender());
+			final Instance instance = getInstance(DummyInstanceGateway.INSTANCE);
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 			
 			slot.releaseSlot();
@@ -98,7 +77,7 @@ public class ExecutionVertexSchedulingTest {
 					AkkaUtils.getDefaultTimeout());
 
 			// a slot than cannot be deployed to
-			final Instance instance = getInstance(ActorRef.noSender());
+			final Instance instance = getInstance(DummyInstanceGateway.INSTANCE);
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			slot.releaseSlot();
@@ -134,11 +113,7 @@ public class ExecutionVertexSchedulingTest {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			TestingUtils.setCallingThreadDispatcher(system);
-			ActorRef tm = TestActorRef.create(system, Props.create(ExecutionGraphTestUtils
-					.SimpleAcknowledgingTaskManager.class));
-
-			final Instance instance = getInstance(tm);
+			final Instance instance = getInstance(new ExecutionGraphTestUtils.SimpleInstanceGateway(TestingUtils.defaultExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			Scheduler scheduler = mock(Scheduler.class);
@@ -153,8 +128,6 @@ public class ExecutionVertexSchedulingTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}finally{
-			TestingUtils.setGlobalExecutionContext();
 		}
 	}
 }

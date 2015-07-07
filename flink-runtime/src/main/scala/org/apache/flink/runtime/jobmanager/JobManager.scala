@@ -60,6 +60,7 @@ import org.apache.flink.util.{ExceptionUtils, InstantiationUtil}
 import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
+import scala.concurrent.forkjoin.ForkJoinPool
 import scala.language.postfixOps
 
 /**
@@ -89,16 +90,18 @@ import scala.language.postfixOps
  * - [[JobStatusChanged]] indicates that the status of job (RUNNING, CANCELING, FINISHED, etc.) has
  * changed. This message is sent by the ExecutionGraph.
  */
-class JobManager(protected val flinkConfiguration: Configuration,
-                 protected val instanceManager: InstanceManager,
-                 protected val scheduler: FlinkScheduler,
-                 protected val libraryCacheManager: BlobLibraryCacheManager,
-                 protected val archive: ActorRef,
-                 protected val accumulatorManager: AccumulatorManager,
-                 protected val defaultExecutionRetries: Int,
-                 protected val delayBetweenRetries: Long,
-                 protected val timeout: FiniteDuration,
-                 protected val mode: StreamingMode)
+class JobManager(
+    protected val flinkConfiguration: Configuration,
+    protected val executionContext: ExecutionContext,
+    protected val instanceManager: InstanceManager,
+    protected val scheduler: FlinkScheduler,
+    protected val libraryCacheManager: BlobLibraryCacheManager,
+    protected val archive: ActorRef,
+    protected val accumulatorManager: AccumulatorManager,
+    protected val defaultExecutionRetries: Int,
+    protected val delayBetweenRetries: Long,
+    protected val timeout: FiniteDuration,
+    protected val mode: StreamingMode)
   extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
   /** List of current jobs running jobs */
@@ -117,7 +120,7 @@ class JobManager(protected val flinkConfiguration: Configuration,
 
     // disconnect the registered task managers
     instanceManager.getAllRegisteredInstances.asScala.foreach {
-      _.getTaskManager ! Disconnect("JobManager is shutting down")
+      _.getInstanceGateway().tell(Disconnect("JobManager is shutting down"))
     }
 
     archive ! PoisonPill
@@ -136,7 +139,6 @@ class JobManager(protected val flinkConfiguration: Configuration,
     }
 
     log.debug(s"Job manager ${self.path} is completely stopped.")
-
   }
 
   /**
@@ -411,8 +413,8 @@ class JobManager(protected val flinkConfiguration: Configuration,
     case message: AccumulatorMessage => handleAccumulatorMessage(message)
 
     case RequestStackTrace(instanceID) =>
-      val taskManager = instanceManager.getRegisteredInstanceById(instanceID).getTaskManager
-      taskManager forward SendStackTrace
+      val gateway = instanceManager.getRegisteredInstanceById(instanceID).getInstanceGateway
+      gateway.forward(SendStackTrace, sender)
 
     case Terminated(taskManager) =>
       if (instanceManager.isRegistered(taskManager)) {
@@ -480,10 +482,18 @@ class JobManager(protected val flinkConfiguration: Configuration,
         }
 
         // see if there already exists an ExecutionGraph for the corresponding job ID
-        executionGraph = currentJobs.getOrElseUpdate(jobGraph.getJobID,
-          (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
-            jobGraph.getJobConfiguration, timeout, jobGraph.getUserJarBlobKeys, userCodeLoader),
-            JobInfo(sender(), System.currentTimeMillis())))._1
+        executionGraph = currentJobs.getOrElseUpdate(
+          jobGraph.getJobID,
+          (new ExecutionGraph(
+            executionContext,
+            jobGraph.getJobID,
+            jobGraph.getName,
+            jobGraph.getJobConfiguration,
+            timeout,
+            jobGraph.getUserJarBlobKeys,
+            userCodeLoader),
+            JobInfo(sender(), System.currentTimeMillis()))
+        )._1
 
         // configure the execution graph
         val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries >= 0) {
@@ -1046,8 +1056,8 @@ object JobManager {
    * @param configuration The configuration from which to parse the config values.
    * @return The members for a default JobManager.
    */
-  def createJobManagerComponents(configuration: Configuration) :
-    (InstanceManager, FlinkScheduler, BlobLibraryCacheManager,
+  def createJobManagerComponents(configuration: Configuration)
+    : (ExecutionContext, InstanceManager, FlinkScheduler, BlobLibraryCacheManager,
       Props, AccumulatorManager, Int, Long, FiniteDuration, Int) = {
 
     val timeout: FiniteDuration = AkkaUtils.getTimeout(configuration)
@@ -1083,6 +1093,8 @@ object JobManager {
 
     val accumulatorManager: AccumulatorManager = new AccumulatorManager(Math.min(1, archiveCount))
 
+    val executionContext = ExecutionContext.fromExecutor(new ForkJoinPool())
+
     var blobServer: BlobServer = null
     var instanceManager: InstanceManager = null
     var scheduler: FlinkScheduler = null
@@ -1091,7 +1103,7 @@ object JobManager {
     try {
       blobServer = new BlobServer(configuration)
       instanceManager = new InstanceManager()
-      scheduler = new FlinkScheduler()
+      scheduler = new FlinkScheduler(executionContext)
       libraryCacheManager = new BlobLibraryCacheManager(blobServer, cleanupInterval)
 
       instanceManager.addInstanceListener(scheduler)
@@ -1114,8 +1126,16 @@ object JobManager {
       }
     }
 
-    (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
-      executionRetries, delayBetweenRetries, timeout, archiveCount)
+    (executionContext,
+      instanceManager,
+      scheduler,
+      libraryCacheManager,
+      archiveProps,
+      accumulatorManager,
+      executionRetries,
+      delayBetweenRetries,
+      timeout,
+      archiveCount)
   }
 
   /**
@@ -1154,9 +1174,16 @@ object JobManager {
                             archiverActorName: Option[String],
                             streamingMode: StreamingMode): (ActorRef, ActorRef) = {
 
-    val (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
-      executionRetries, delayBetweenRetries,
-      timeout, _) = createJobManagerComponents(configuration)
+    val (executionContext,
+      instanceManager,
+      scheduler,
+      libraryCacheManager,
+      archiveProps,
+      accumulatorManager,
+      executionRetries,
+      delayBetweenRetries,
+      timeout,
+      _) = createJobManagerComponents(configuration)
 
     // start the archiver with the given name, or without (avoid name conflicts)
     val archiver: ActorRef = archiverActorName match {
@@ -1164,9 +1191,19 @@ object JobManager {
       case None => actorSystem.actorOf(archiveProps)
     }
 
-    val jobManagerProps = Props(classOf[JobManager], configuration, instanceManager, scheduler,
-        libraryCacheManager, archiver, accumulatorManager, executionRetries,
-        delayBetweenRetries, timeout, streamingMode)
+    val jobManagerProps = Props(
+      classOf[JobManager],
+      configuration,
+      executionContext,
+      instanceManager,
+      scheduler,
+      libraryCacheManager,
+      archiver,
+      accumulatorManager,
+      executionRetries,
+      delayBetweenRetries,
+      timeout,
+      streamingMode)
 
     val jobManager: ActorRef = jobMangerActorName match {
       case Some(actorName) => actorSystem.actorOf(jobManagerProps, actorName)

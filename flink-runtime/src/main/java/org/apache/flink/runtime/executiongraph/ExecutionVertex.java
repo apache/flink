@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import akka.actor.ActorRef;
-
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
@@ -30,6 +28,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.instance.InstanceGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -101,14 +100,20 @@ public class ExecutionVertex implements Serializable {
 
 	// --------------------------------------------------------------------------------------------
 
-	public ExecutionVertex(ExecutionJobVertex jobVertex, int subTaskIndex,
-						IntermediateResult[] producedDataSets, FiniteDuration timeout) {
+	public ExecutionVertex(
+			ExecutionJobVertex jobVertex,
+			int subTaskIndex,
+			IntermediateResult[] producedDataSets,
+			FiniteDuration timeout) {
 		this(jobVertex, subTaskIndex, producedDataSets, timeout, System.currentTimeMillis());
 	}
 
-	public ExecutionVertex(ExecutionJobVertex jobVertex, int subTaskIndex,
-						IntermediateResult[] producedDataSets, FiniteDuration timeout,
-						long createTimestamp) {
+	public ExecutionVertex(
+			ExecutionJobVertex jobVertex,
+			int subTaskIndex,
+			IntermediateResult[] producedDataSets,
+			FiniteDuration timeout,
+			long createTimestamp) {
 		this.jobVertex = jobVertex;
 		this.subTaskIndex = subTaskIndex;
 
@@ -125,7 +130,12 @@ public class ExecutionVertex implements Serializable {
 
 		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
 
-		this.currentExecution = new Execution(this, 0, createTimestamp, timeout);
+		this.currentExecution = new Execution(
+			getExecutionGraph().getExecutionContext(),
+			this,
+			0,
+			createTimestamp,
+			timeout);
 
 		// create a co-location scheduling hint, if necessary
 		CoLocationGroup clg = jobVertex.getCoLocationGroup();
@@ -416,8 +426,12 @@ public class ExecutionVertex implements Serializable {
 
 			if (state == FINISHED || state == CANCELED || state == FAILED) {
 				priorExecutions.add(execution);
-				currentExecution = new Execution(this, execution.getAttemptNumber()+1,
-						System.currentTimeMillis(), timeout);
+				currentExecution = new Execution(
+					getExecutionGraph().getExecutionContext(),
+					this,
+					execution.getAttemptNumber()+1,
+					System.currentTimeMillis(),
+					timeout);
 
 				CoLocationGroup grp = jobVertex.getCoLocationGroup();
 				if (grp != null) {
@@ -455,9 +469,9 @@ public class ExecutionVertex implements Serializable {
 			
 			// send only if we actually have a target
 			if (slot != null) {
-				ActorRef taskManager = slot.getInstance().getTaskManager();
-				if (taskManager != null) {
-					taskManager.tell(message, ActorRef.noSender());
+				InstanceGateway gateway = slot.getInstance().getInstanceGateway();
+				if (gateway != null) {
+					gateway.tell(message);
 				}
 			}
 			else {
