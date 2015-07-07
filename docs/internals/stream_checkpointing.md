@@ -52,9 +52,9 @@ Kafka exploits this ability.
 
 The central part of Flink's fault tolerance mechanism is drawing consistent snapshots of the distributed data stream and operator state.
 These shapshots act as consistent checkpoints to which the system can fall back in case of a failure. Flink's mechanism for drawing these
-snapshots is described in "[Lightweight Asynchronous Snapshots for Distributed Dataflows](http://arxiv.org/abs/1506.08603)". It is a modification of the
-[Chandy-Lamport algorithm](http://research.microsoft.com/en-us/um/people/lamport/pubs/chandy.pdf) for distributed snapshots, simplified
-and tailored to Flink's needs.
+snapshots is described in "[Lightweight Asynchronous Snapshots for Distributed Dataflows](http://arxiv.org/abs/1506.08603)". It is inspired by 
+the standard [Chandy-Lamport algorithm](http://research.microsoft.com/en-us/um/people/lamport/pubs/chandy.pdf) for distributed snapshots and is 
+specifically tailored to Flink's execution model.
 
 
 
