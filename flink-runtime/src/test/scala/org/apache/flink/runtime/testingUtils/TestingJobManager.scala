@@ -106,11 +106,10 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
 
 
     case NotifyWhenJobRemoved(jobID) =>
-      val tms = instanceManager.getAllRegisteredInstances.map(_.getTaskManager)
+      val gateways = instanceManager.getAllRegisteredInstances.map(_.getInstanceGateway)
 
-      val responses = tms.map{
-        tm =>
-          (tm ? NotifyWhenJobRemoved(jobID))(timeout).mapTo[Boolean]
+      val responses = gateways.map{
+        gateway => gateway.ask(NotifyWhenJobRemoved(jobID), timeout).mapTo[Boolean]
       }
 
       import context.dispatcher
@@ -135,17 +134,17 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
       currentJobs.get(jobID) match {
         case Some((eg, _)) =>
           if(eg.getAllExecutionVertices.isEmpty){
-            sender ! WorkingTaskManager(ActorRef.noSender)
+            sender ! WorkingTaskManager(None)
           } else {
             val resource = eg.getAllExecutionVertices.head.getCurrentAssignedResource
 
             if(resource == null){
-              sender ! WorkingTaskManager(ActorRef.noSender)
+              sender ! WorkingTaskManager(None)
             } else {
-              sender ! WorkingTaskManager(resource.getInstance().getTaskManager)
+              sender ! WorkingTaskManager(Some(resource.getInstance().getInstanceGateway))
             }
           }
-        case None => sender ! WorkingTaskManager(ActorRef.noSender)
+        case None => sender ! WorkingTaskManager(None)
       }
 
     case NotifyWhenJobStatus(jobID, state) =>

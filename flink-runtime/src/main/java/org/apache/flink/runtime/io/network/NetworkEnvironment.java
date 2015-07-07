@@ -23,7 +23,6 @@ import akka.dispatch.OnFailure;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -46,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.Tuple2;
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -89,11 +89,20 @@ public class NetworkEnvironment {
 	private boolean isShutdown;
 
 	/**
+	 * ExecutionEnvironment which is used to execute remote calls with the
+	 * {@link JobManagerResultPartitionConsumableNotifier}
+	 */
+	private final ExecutionContext executionContext;
+
+	/**
 	 * Initializes all network I/O components.
 	 */
-	public NetworkEnvironment(FiniteDuration jobManagerTimeout,
-								NetworkEnvironmentConfiguration config) throws IOException {
+	public NetworkEnvironment(
+		ExecutionContext executionContext,
+		FiniteDuration jobManagerTimeout,
+		NetworkEnvironmentConfiguration config) throws IOException {
 
+		this.executionContext = executionContext;
 		this.configuration = checkNotNull(config);
 		this.jobManagerTimeout = checkNotNull(jobManagerTimeout);
 
@@ -182,7 +191,10 @@ public class NetworkEnvironment {
 				this.partitionManager = new ResultPartitionManager();
 				this.taskEventDispatcher = new TaskEventDispatcher();
 				this.partitionConsumableNotifier = new JobManagerResultPartitionConsumableNotifier(
-													jobManagerRef, taskManagerRef, new Timeout(jobManagerTimeout));
+					executionContext,
+					jobManagerRef,
+					taskManagerRef,
+					new Timeout(jobManagerTimeout));
 
 				this.partitionStateChecker = new JobManagerPartitionStateChecker(
 						jobManagerRef, taskManagerRef);
@@ -414,6 +426,12 @@ public class NetworkEnvironment {
 	 */
 	private static class JobManagerResultPartitionConsumableNotifier implements ResultPartitionConsumableNotifier {
 
+		/**
+		 * {@link ExecutionContext} which is used for the failure handler of {@link ScheduleOrUpdateConsumers}
+		 * messages.
+		 */
+		private final ExecutionContext executionContext;
+
 		private final ActorRef jobManager;
 
 		private final ActorRef taskManager;
@@ -421,8 +439,12 @@ public class NetworkEnvironment {
 		private final Timeout jobManagerMessageTimeout;
 
 		public JobManagerResultPartitionConsumableNotifier(
-				ActorRef jobManager, ActorRef taskManager, Timeout jobManagerMessageTimeout) {
+			ExecutionContext executionContext,
+			ActorRef jobManager,
+			ActorRef taskManager,
+			Timeout jobManagerMessageTimeout) {
 
+			this.executionContext = executionContext;
 			this.jobManager = jobManager;
 			this.taskManager = taskManager;
 			this.jobManagerMessageTimeout = jobManagerMessageTimeout;
@@ -448,7 +470,7 @@ public class NetworkEnvironment {
 
 					taskManager.tell(failMsg, ActorRef.noSender());
 				}
-			}, AkkaUtils.globalExecutionContext());
+			}, executionContext);
 		}
 	}
 

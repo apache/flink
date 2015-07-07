@@ -22,13 +22,6 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.*;
 
 import static org.junit.Assert.*;
 
-import akka.actor.Actor;
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.testkit.JavaTestKit;
-import akka.testkit.TestActorRef;
-
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
@@ -37,37 +30,20 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ExecutionVertexDeploymentTest {
-
-	private static ActorSystem system;
-
-	@BeforeClass
-	public static void setup(){
-		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
-	}
-
-	@AfterClass
-	public static void teardown(){
-		JavaTestKit.shutdownActorSystem(system);
-	}
 
 	@Test
 	public void testDeployCall() {
 		try {
 			final JobVertexID jid = new JobVertexID();
 
-			TestingUtils.setCallingThreadDispatcher(system);
-			ActorRef tm = TestActorRef.create(system, Props.create(SimpleAcknowledgingTaskManager
-					.class));
-
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 			// mock taskmanager to simply accept the call
-			Instance instance = getInstance(tm);
+			Instance instance = getInstance(
+					new SimpleInstanceGateway(TestingUtils.directExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
@@ -95,24 +71,17 @@ public class ExecutionVertexDeploymentTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			TestingUtils.setGlobalExecutionContext();
-		}
 	}
 
 	@Test
 	public void testDeployWithSynchronousAnswer() {
 		try {
-			TestingUtils.setCallingThreadDispatcher(system);
-
 			final JobVertexID jid = new JobVertexID();
 
-			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system,
-					Props.create(SimpleAcknowledgingTaskManager.class));
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
 
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
-
-			final Instance instance = getInstance(simpleTaskManager);
+			final Instance instance = getInstance(
+					new SimpleInstanceGateway(TestingUtils.directExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
@@ -143,9 +112,6 @@ public class ExecutionVertexDeploymentTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			TestingUtils.setGlobalExecutionContext();
-		}
 	}
 
 	@Test
@@ -157,10 +123,8 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system,
-					Props.create(SimpleAcknowledgingTaskManager.class));
-
-			final Instance instance = getInstance(simpleTaskManager);
+			final Instance instance = getInstance(
+					new SimpleInstanceGateway(TestingUtils.defaultExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
@@ -200,18 +164,14 @@ public class ExecutionVertexDeploymentTest {
 	@Test
 	public void testDeployFailedSynchronous() {
 		try {
-			TestingUtils.setCallingThreadDispatcher(system);
-
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system,
-					Props.create(SimpleFailingTaskManager.class));
-
-			final Instance instance = getInstance(simpleTaskManager);
+			final Instance instance = getInstance(
+					new SimpleFailingInstanceGateway(TestingUtils.directExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
@@ -230,9 +190,6 @@ public class ExecutionVertexDeploymentTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			TestingUtils.setGlobalExecutionContext();
-		}
 	}
 
 	@Test
@@ -243,10 +200,8 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system,
-					Props.create(SimpleFailingTaskManager.class));
-
-			final Instance instance = getInstance(simpleTaskManager);
+			final Instance instance = getInstance(
+					new SimpleFailingInstanceGateway(TestingUtils.directExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
@@ -280,20 +235,16 @@ public class ExecutionVertexDeploymentTest {
 	public void testFailExternallyDuringDeploy() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+
+			final TestingUtils.QueuedActionExecutionContext ec = TestingUtils.queuedActionExecutionContext();
+			final TestingUtils.ActionQueue queue = ec.actionQueue();
+
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, ec);
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			final ActionQueue queue = new ActionQueue();
-			final TestingUtils.QueuedActionExecutionContext ec = new TestingUtils
-					.QueuedActionExecutionContext(queue);
-
-			TestingUtils.setExecutionContext(ec);
-
-			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system,
-					Props.create(SimpleAcknowledgingTaskManager.class));
-			final Instance instance = getInstance(simpleTaskManager);
+			final Instance instance = getInstance(new SimpleInstanceGateway(TestingUtils.directExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
@@ -307,6 +258,7 @@ public class ExecutionVertexDeploymentTest {
 			assertEquals(testError, vertex.getFailureCause());
 
 			queue.triggerNextAction();
+			queue.triggerNextAction();
 
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
@@ -316,34 +268,29 @@ public class ExecutionVertexDeploymentTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			TestingUtils.setGlobalExecutionContext();
-		}
 	}
 
 	@Test
 	public void testFailCallOvertakesDeploymentAnswer() {
 
 		try {
-			ActionQueue queue = new ActionQueue();
-			TestingUtils.QueuedActionExecutionContext context = new TestingUtils
-					.QueuedActionExecutionContext(queue);
-
-			TestingUtils.setExecutionContext(context);
+			final TestingUtils.QueuedActionExecutionContext context = TestingUtils.queuedActionExecutionContext();
+			final TestingUtils.ActionQueue queue = context.actionQueue();
 
 			final JobVertexID jid = new JobVertexID();
 
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, context);
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
 			final ExecutionAttemptID eid = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system, Props.create(new
-					ExecutionVertexCancelTest.CancelSequenceTaskManagerCreator(new
-					TaskOperationResult(eid, false), new TaskOperationResult(eid, true))));
+			final Instance instance = getInstance(
+					new ExecutionVertexCancelTest.CancelSequenceInstanceGateway(
+							context,
+							new TaskOperationResult(eid, false),
+							new TaskOperationResult(eid, true)));
 
-			final Instance instance = getInstance(simpleTaskManager);
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
@@ -361,10 +308,13 @@ public class ExecutionVertexDeploymentTest {
 			Runnable cancel1 = queue.popNextAction();
 
 			cancel1.run();
-			// execute onComplete callback
+			// execute onComplete callback of cancel
 			queue.triggerNextAction();
 
 			deploy.run();
+
+			// execute onComplete callback of deploy
+			queue.triggerNextAction();
 
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 
@@ -379,9 +329,6 @@ public class ExecutionVertexDeploymentTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			TestingUtils.setGlobalExecutionContext();
 		}
 	}
 }

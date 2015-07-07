@@ -18,14 +18,12 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.CallingThreadDispatcher
+import com.google.common.util.concurrent.MoreExecutors
 
 import com.typesafe.config.ConfigFactory
 
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ActionQueue
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
@@ -67,19 +65,33 @@ object TestingUtils {
     new TestingCluster(config)
   }
 
-  def setGlobalExecutionContext(): Unit = {
-    AkkaUtils.globalExecutionContext = ExecutionContext.global
+  /** Returns the global [[ExecutionContext]] which is a [[scala.concurrent.forkjoin.ForkJoinPool]]
+    * with a default parallelism equal to the number of available cores.
+    *
+    * @return ExecutionContext.global
+    */
+  def defaultExecutionContext = ExecutionContext.global
+
+  /** Returns an [[ExecutionContext]] which uses the current thread to execute the runnable.
+    *
+    * @return Direct [[ExecutionContext]] which executes runnables directly
+    */
+  def directExecutionContext = ExecutionContext.fromExecutor(MoreExecutors.directExecutor())
+
+  /** @return A new [[QueuedActionExecutionContext]] */
+  def queuedActionExecutionContext = {
+    new QueuedActionExecutionContext(new ActionQueue())
   }
 
-  def setCallingThreadDispatcher(system: ActorSystem): Unit = {
-    AkkaUtils.globalExecutionContext = system.dispatchers.lookup(CallingThreadDispatcher.Id)
-  }
+  /** [[ExecutionContext]] which queues [[Runnable]] up in an [[ActionQueue]] instead of
+    * execution them. If the automatic execution mode is activated, then the [[Runnable]] are
+    * executed.
+    *
+    * @param actionQueue
+    */
+  class QueuedActionExecutionContext private[testingUtils] (val actionQueue: ActionQueue)
+    extends ExecutionContext {
 
-  def setExecutionContext(context: ExecutionContext): Unit = {
-    AkkaUtils.globalExecutionContext = context
-  }
-
-  class QueuedActionExecutionContext(queue: ActionQueue) extends ExecutionContext {
     var automaticExecution = false
 
     def toggleAutomaticExecution() = {
@@ -90,12 +102,34 @@ object TestingUtils {
       if(automaticExecution){
         runnable.run()
       }else {
-        queue.queueAction(runnable)
+        actionQueue.queueAction(runnable)
       }
     }
 
     override def reportFailure(t: Throwable): Unit = {
       t.printStackTrace()
+    }
+  }
+
+  /** Queue which stores [[Runnable]] */
+  class ActionQueue {
+    private val runnables = scala.collection.mutable.Queue[Runnable]()
+
+    def triggerNextAction {
+      val r = runnables.dequeue
+      r.run()
+    }
+
+    def popNextAction: Runnable = {
+      runnables.dequeue()
+    }
+
+    def queueAction(r: Runnable) {
+      runnables.enqueue(r)
+    }
+
+    def isEmpty: Boolean = {
+      runnables.isEmpty
     }
   }
 }

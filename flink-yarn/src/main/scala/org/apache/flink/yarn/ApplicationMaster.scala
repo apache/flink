@@ -235,16 +235,34 @@ object ApplicationMaster {
 
     // start all the components inside the job manager
     LOG.debug("Starting JobManager components")
-    val (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
-                   executionRetries, delayBetweenRetries,
-                   timeout, _) = JobManager.createJobManagerComponents(configuration)
+    val (executionContext,
+      instanceManager,
+      scheduler,
+      libraryCacheManager,
+      archiveProps,
+      accumulatorManager,
+      executionRetries,
+      delayBetweenRetries,
+      timeout,
+      _) = JobManager.createJobManagerComponents(configuration)
 
     // start the archiver
     val archiver: ActorRef = jobManagerSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
 
-    val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
-      libraryCacheManager, archiver, accumulatorManager, executionRetries,
-      delayBetweenRetries, timeout, streamingMode) with ApplicationMasterActor)
+    val jobManagerProps = Props(
+      new JobManager(
+        configuration,
+        executionContext,
+        instanceManager,
+        scheduler,
+        libraryCacheManager,
+        archiver,
+        accumulatorManager,
+        executionRetries,
+        delayBetweenRetries,
+        timeout,
+        streamingMode)
+      with ApplicationMasterActor)
 
     LOG.debug("Starting JobManager actor")
     val jobManager = JobManager.startActor(jobManagerProps, jobManagerSystem)

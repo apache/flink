@@ -110,9 +110,15 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
           jm ! RequestWorkingTaskManager(jobID)
 
-          val tm = expectMsgType[WorkingTaskManager].taskManager
-          // kill one task manager
-          tm ! PoisonPill
+          val gatewayOption = expectMsgType[WorkingTaskManager].gatewayOption
+
+          gatewayOption match {
+            case Some(gateway) =>
+              // kill one task manager
+              gateway.tell(PoisonPill)
+
+            case None => fail("Could not retrieve a working task manager.")
+          }
 
           val failure = expectMsgType[Failure]
 
