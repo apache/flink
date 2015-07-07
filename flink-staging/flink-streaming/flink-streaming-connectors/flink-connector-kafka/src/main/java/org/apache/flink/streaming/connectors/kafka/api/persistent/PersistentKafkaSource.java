@@ -148,17 +148,17 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 		this.lastOffsets = getRuntimeContext().getOperatorState("offset", new long[numPartitions], false);
 		this.commitedOffsets = new long[numPartitions];
 		// check if there are offsets to restore
-		if (!Arrays.equals(lastOffsets.getState(), new long[numPartitions])) {
-			if (lastOffsets.getState().length != numPartitions) {
-				throw new IllegalStateException("There are "+lastOffsets.getState().length+" offsets to restore for topic "+topicName+" but " +
+		if (!Arrays.equals(lastOffsets.value(), new long[numPartitions])) {
+			if (lastOffsets.value().length != numPartitions) {
+				throw new IllegalStateException("There are "+lastOffsets.value().length+" offsets to restore for topic "+topicName+" but " +
 						"there are only "+numPartitions+" in the topic");
 			}
 
-			LOG.info("Setting restored offsets {} in ZooKeeper", Arrays.toString(lastOffsets.getState()));
-			setOffsetsInZooKeeper(lastOffsets.getState());
+			LOG.info("Setting restored offsets {} in ZooKeeper", Arrays.toString(lastOffsets.value()));
+			setOffsetsInZooKeeper(lastOffsets.value());
 		} else {
 			// initialize empty offsets
-			Arrays.fill(this.lastOffsets.getState(), -1);
+			Arrays.fill(this.lastOffsets.value(), -1);
 		}
 		Arrays.fill(this.commitedOffsets, 0); // just to make it clear
 		
@@ -175,7 +175,7 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 		
 		while (running && iteratorToRead.hasNext()) {
 			MessageAndMetadata<byte[], byte[]> message = iteratorToRead.next();
-			if(lastOffsets.getState()[message.partition()] >= message.offset()) {
+			if(lastOffsets.value()[message.partition()] >= message.offset()) {
 				LOG.info("Skipping message with offset {} from partition {}", message.offset(), message.partition());
 				continue;
 			}
@@ -188,7 +188,7 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 
 			// make the state update and the element emission atomic
 			synchronized (checkpointLock) {
-				lastOffsets.getState()[message.partition()] = message.offset();
+				lastOffsets.value()[message.partition()] = message.offset();
 				ctx.collect(next);
 			}
 

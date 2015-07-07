@@ -63,14 +63,14 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> {
 					((end - start + 1) / stepSize + 1) :
 					((end - start + 1) / stepSize);
 					
-		Long currentCollected = collected.getState();
+		Long currentCollected = collected.value();
 
 		while (isRunning && currentCollected < toCollect) {
 			synchronized (checkpointLock) {
 				ctx.collect(currentCollected * stepSize + congruence);
-				collected.updateState(currentCollected + 1);
+				collected.update(currentCollected + 1);
 			}
-			currentCollected = collected.getState();
+			currentCollected = collected.value();
 		}
 	}
 	

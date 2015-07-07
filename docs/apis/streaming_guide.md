@@ -1220,7 +1220,7 @@ Flink supports the checkpointing and persistence of user defined operator states
 
 Flink supports two types of operator states: partitioned and non-partitioned states.
 
-In case of non-partitioned operator state, an operator state is maintained for each parallel instance of a given operator. When `OperatorState.getState()` is called, a separate state is returned in each parallel instance. In practice this means if we keep a counter for the received inputs in a mapper, `getState()` will return number of inputs processed by each parallel mapper.
+In case of non-partitioned operator state, an operator state is maintained for each parallel instance of a given operator. When `OperatorState.value()` is called, a separate state is returned in each parallel instance. In practice this means if we keep a counter for the received inputs in a mapper, `value()` will return number of inputs processed by each parallel mapper.
 
 In case of of partitioned operator state a separate state is maintained for each received key. This can be used for instance to count received inputs by different keys, or store and update summary statistics of different sub-streams.
 
@@ -1244,7 +1244,7 @@ public class CounterSum implements RichReduceFunction<Long> {
 
     @Override
     public Long reduce(Long value1, Long value2) throws Exception {
-        counter.updateState(counter.getState() + 1);
+        counter.update(counter.value() + 1);
         return value1 + value2;
     }
 
@@ -1275,7 +1275,7 @@ public static class CounterSource implements RichParallelSourceFunction<Long> {
             // output and state update are atomic
             synchronized (lock){
                 ctx.collect(offset);
-                offset.updateState(offset.getState() + 1);
+                offset.update(offset.value() + 1);
             }
         }
     }

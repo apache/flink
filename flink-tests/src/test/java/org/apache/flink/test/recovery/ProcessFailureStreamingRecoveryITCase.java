@@ -133,7 +133,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 			final File proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
 			boolean checkForProceedFile = true;
 
-			while (isRunning && collected.getState() < toCollect) {
+			while (isRunning && collected.value() < toCollect) {
 				// check if the proceed file exists (then we go full speed)
 				// if not, we always recheck and sleep
 				if (checkForProceedFile) {
@@ -146,8 +146,8 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 				}
 
 				synchronized (checkpointLock) {
-					sourceCtx.collect(collected.getState() * stepSize + congruence);
-					collected.updateState(collected.getState() + 1);
+					sourceCtx.collect(collected.value() * stepSize + congruence);
+					collected.update(collected.value() + 1);
 				}
 			}
 		}

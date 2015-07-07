@@ -184,9 +184,9 @@ public interface RuntimeContext {
 	 *            can be used by the same operator.
 	 * @param defaultState
 	 *            Default value for the operator state. This will be returned
-	 *            the first time {@link OperatorState#getState()} (for every
+	 *            the first time {@link OperatorState#value()} (for every
 	 *            state partition) is called before
-	 *            {@link OperatorState#updateState(Object)}.
+	 *            {@link OperatorState#update(Object)}.
 	 * @param partitioned
 	 *            Sets whether partitioning should be applied for the given
 	 *            state. If true a partitioner key must be used.
@@ -216,9 +216,9 @@ public interface RuntimeContext {
 	 *            can be used by the same operator.
 	 * @param defaultState
 	 *            Default value for the operator state. This will be returned
-	 *            the first time {@link OperatorState#getState()} (for every
+	 *            the first time {@link OperatorState#value()} (for every
 	 *            state partition) is called before
-	 *            {@link OperatorState#updateState(Object)}.
+	 *            {@link OperatorState#update(Object)}.
 	 * @param partitioned
 	 *            Sets whether partitioning should be applied for the given
 	 *            state. If true a partitioner key must be used.
