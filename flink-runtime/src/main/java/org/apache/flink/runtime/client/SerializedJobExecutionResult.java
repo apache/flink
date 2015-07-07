@@ -132,7 +132,7 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	 * @return the final result after the merging of the different partial accumulators.
 	 * */
 	public JobExecutionResult mergeToJobExecutionResult(ClassLoader loader, Map<String, List<SerializedValue<Object>>> accumulatorsToMerge) throws IOException, ClassNotFoundException {
-		if(accumulatorsToMerge.isEmpty() || accumulatorsToMerge == null) {
+		if(accumulatorsToMerge == null || accumulatorsToMerge.isEmpty()) {
 			return toJobExecutionResult(loader);
 		}
 

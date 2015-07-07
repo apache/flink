@@ -26,7 +26,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
@@ -48,13 +47,11 @@ import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -396,10 +393,13 @@ public class Client {
 
 		try{
 			if (wait) {
-				SerializedJobExecutionResult result = JobClient.submitJobAndWait(actorSystem, 
+				// this result is partial because it may contain blobKeys to oversized accumulators that
+				// have to be fetched from the BlobCache and merged before the final result is ready.
+				SerializedJobExecutionResult partialResult = JobClient.submitJobAndWait(actorSystem,
 						jobManager, jobGraph, timeout, printStatusDuringExecution);
 				try {
-					return returnFinalJobExecutionReturn(jobManager, result, timeout);
+					return JobClient.returnFinalJobExecutionResult(jobManager, partialResult,
+							this.userCodeClassLoader, timeout);
 				}
 				catch (Exception e) {
 					throw new ProgramInvocationException(
@@ -422,20 +422,6 @@ public class Client {
 			actorSystem.shutdown();
 			actorSystem.awaitTermination();
 		}
-	}
-
-	private JobExecutionResult returnFinalJobExecutionReturn(ActorRef jobManager, SerializedJobExecutionResult result, FiniteDuration timeout)
-			throws IOException, ClassNotFoundException {
-
-		Map<String, List<BlobKey>> blobsToFetch = result.getBlobKeysToLargeAccumulators();
-
-		Map<String, List<SerializedValue<Object>>> accumulatorBlobs;
-		try {
-			accumulatorBlobs = JobClient.getLargeAccumulatorBlobs(jobManager, blobsToFetch, timeout);
-		} catch (IOException e) {
-			throw new IOException("Failed to fetch the oversized accumulators from the BlobCache", e);
-		}
-		return result.mergeToJobExecutionResult(this.userCodeClassLoader, accumulatorBlobs);
 	}
 
 	// --------------------------------------------------------------------------------------------

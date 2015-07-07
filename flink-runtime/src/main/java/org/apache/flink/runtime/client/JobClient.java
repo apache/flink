@@ -26,6 +26,7 @@ import akka.actor.Props;
 import akka.actor.Status;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -185,6 +186,26 @@ public class JobClient {
 		}
 	}
 
+	public static JobExecutionResult returnFinalJobExecutionResult(
+			ActorRef jobManager, SerializedJobExecutionResult partialResult,
+			ClassLoader userCodeClassLoader, FiniteDuration timeout)
+			throws IOException, ClassNotFoundException {
+
+		if (jobManager == null || partialResult == null || userCodeClassLoader == null || timeout == null) {
+			throw new NullPointerException();
+		}
+
+		Map<String, List<BlobKey>> blobsToFetch = partialResult.getBlobKeysToLargeAccumulators();
+
+		Map<String, List<SerializedValue<Object>>> accumulatorBlobs;
+		try {
+			accumulatorBlobs = getLargeAccumulatorBlobs(jobManager, blobsToFetch, timeout);
+		} catch (IOException e) {
+			throw new IOException("Failed to fetch the oversized accumulators from the BlobCache", e);
+		}
+		return partialResult.mergeToJobExecutionResult(userCodeClassLoader, accumulatorBlobs);
+	}
+
 	/**
 	 * Submits a job in detached mode. The method sends the JobGraph to the
 	 * JobManager and waits for the answer whether teh job could be started or not.
@@ -257,7 +278,7 @@ public class JobClient {
 	 * @param timeout the timeout to wait for the connection to the blob server.
 	 * @return the serialized accumulators, grouped by name.
 	 * */
-	public static Map<String, List<SerializedValue<Object>>> getLargeAccumulatorBlobs(
+	private static Map<String, List<SerializedValue<Object>>> getLargeAccumulatorBlobs(
 			ActorRef jobManager, Map<String, List<BlobKey>> keys, FiniteDuration timeout) throws IOException {
 
 		if (keys.isEmpty()) {
