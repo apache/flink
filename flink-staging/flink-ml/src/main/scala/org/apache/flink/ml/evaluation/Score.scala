@@ -94,17 +94,20 @@ object RegressionScores {
       val ssRes = trueAndPredicted
         .map(tp => (tp._1 - tp._2) * (tp._1 - tp._2)).reduce(_ + _)
       val ssTot = onlyTrue
-        .crossWithTiny(meanTruth).map(tp => (tp._1 - tp._2) * (tp._1 - tp._2)).reduce(_ + _)
-      val r2 = ssRes.crossWithTiny(ssTot).map{resTot =>
-        val ssRes  = resTot._1
-        val ssTot  = resTot._2
-        // We avoid dividing by 0 and just assign 0.0
-        if (ssTot == 0.0) {
-          0.0
-        }
-        else {
-          1 - (ssRes / ssTot)
-        }
+        .mapWithBcVariable(meanTruth) {
+          case (truth: Double, meanTruth: Double) => (truth - meanTruth) * (truth - meanTruth)
+        }.reduce(_ + _)
+
+      val r2 = ssRes
+        .mapWithBcVariable(ssTot) {
+          case (ssRes: Double, ssTot: Double) =>
+          // We avoid dividing by 0 and just assign 0.0
+          if (ssTot == 0.0) {
+            0.0
+          }
+          else {
+            1 - (ssRes / ssTot)
+          }
       }
       r2
     }
