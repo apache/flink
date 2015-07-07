@@ -678,9 +678,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * @param input
 	 * @throws IOException
 	 */
-	protected void buildInitialTable(final MutableObjectIterator<BT> input)
-	throws IOException
-	{
+	protected void buildInitialTable(final MutableObjectIterator<BT> input) throws IOException {
 		// create the partitions
 		final int partitionFanOut = getPartitioningFanOutNoEstimates(this.availableMemory.size());
 		if (partitionFanOut > MAX_NUM_PARTITIONS) {
@@ -788,8 +786,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			final int avgRecordLenPartition = (int) (((long) p.getBuildSideBlockCount()) * 
 					this.segmentSize / p.getBuildSideRecordCount());
 			
-			final int bucketCount = (int) (((long) totalBuffersAvailable) * RECORD_TABLE_BYTES / 
-					(avgRecordLenPartition + RECORD_OVERHEAD_BYTES));
+			final int bucketCount = getInitialTableSize(totalBuffersAvailable, this.segmentSize,
+					getPartitioningFanOutNoEstimates(totalBuffersAvailable), avgRecordLenPartition);
 			
 			// compute in how many splits, we'd need to partition the result 
 			final int splits = (int) (totalBuffersNeeded / totalBuffersAvailable) + 1;
@@ -1201,7 +1199,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * @param numBuffers The number of available buffers.
 	 * @return The number 
 	 */
-	public static final int getNumWriteBehindBuffers(int numBuffers) {
+	public static int getNumWriteBehindBuffers(int numBuffers) {
 		int numIOBufs = (int) (Math.log(numBuffers) / Math.log(4) - 1.5);
 		return numIOBufs > 6 ? 6 : numIOBufs;
 	}
@@ -1216,11 +1214,12 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * @param numBuffers The number of buffers available.
 	 * @return The number of partitions to use.
 	 */
-	public static final int getPartitioningFanOutNoEstimates(int numBuffers) {
+	public static int getPartitioningFanOutNoEstimates(int numBuffers) {
 		return Math.max(10, Math.min(numBuffers / 10, MAX_NUM_PARTITIONS));
 	}
 	
-	public static final int getInitialTableSize(int numBuffers, int bufferSize, int numPartitions, int recordLenBytes) {
+	public static int getInitialTableSize(int numBuffers, int bufferSize, int numPartitions, int recordLenBytes) {
+		
 		// ----------------------------------------------------------------------------------------
 		// the following observations hold:
 		// 1) If the records are assumed to be very large, then many buffers need to go to the partitions
@@ -1249,11 +1248,11 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	/**
 	 * Assigns a partition to a bucket.
 	 * 
-	 * @param bucket
-	 * @param numPartitions
-	 * @return The hash code for the integer.
+	 * @param bucket The bucket to get the partition for.
+	 * @param numPartitions The number of partitions.
+	 * @return The partition for the bucket.
 	 */
-	public static final byte assignPartition(int bucket, byte numPartitions) {
+	public static byte assignPartition(int bucket, byte numPartitions) {
 		return (byte) (bucket % numPartitions);
 	}
 	
