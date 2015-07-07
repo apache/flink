@@ -25,7 +25,25 @@ class CrossValidation {
 
 }
 
-object KFold {
+abstract class FoldGenerator(val folds: Int) {
+
+  /** Takes a DataSet as input and creates splits (folds) of the data into
+    * (training, testing) pairs.
+    *
+    * @param input The DataSet that will be split into folds
+    * @param numFolds The number of folds. Common values are 5 or 10.
+    * @param seed Seed for replicable splitting of the data
+    * @tparam T The type of the DataSet
+    * @return An Array containing K (training, testing) tuples, where training and testing are
+    *         DataSets
+    */
+  def folds[T](
+      input: DataSet[T],
+      numFolds: Int = folds,
+      seed: Long = new Random().nextLong()): Array[(DataSet[T], DataSet[T])]
+}
+
+class KFold(folds: Int) extends FoldGenerator(folds){
   /** Takes a DataSet as input and creates K splits (folds) of the data into non-overlapping
     * (training, testing) pairs.
     *
@@ -37,9 +55,9 @@ object KFold {
     * @return An Array containing K (training, testing) tuples, where training and testing are
     *         DataSets
     */
-  def folds[T](
+  override def folds[T](
       input: DataSet[T],
-      numFolds: Int,
+      numFolds: Int = folds,
       seed: Long = new Random().nextLong()): Array[(DataSet[T], DataSet[T])] = {
     val numFoldsF = numFolds.toFloat
     (1 to numFolds).map { fold =>
@@ -50,4 +68,9 @@ object KFold {
       (training, validation)
     }.toArray
   }
+}
+
+object KFold {
+  def apply(): KFold = new KFold(10) //TODO: Keep default of 10?
+  def apply(folds: Int): KFold = new KFold(folds)
 }

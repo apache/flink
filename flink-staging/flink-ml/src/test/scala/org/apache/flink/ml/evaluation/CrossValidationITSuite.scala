@@ -32,13 +32,13 @@ class CrossValidationITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val data = env.fromCollection(1 to 100)
     val collectedData = data.collect().sorted
 
-    val twoFolds = KFold.folds(data, 2, 42L)
+    val twoFolds = KFold().folds(data, 2, 42L)
     twoFolds(0)._1.collect().sorted shouldEqual twoFolds(1)._2.collect().sorted
     twoFolds(0)._2.collect().sorted shouldEqual twoFolds(1)._1.collect().sorted
 
     for (folds <- 2 to 10) {
       for (seed <- 1 to 5) {
-        val foldedDataSets = KFold.folds(data, folds, seed)
+        val foldedDataSets = KFold().folds(data, folds, seed)
         foldedDataSets.length shouldEqual  folds
 
         foldedDataSets.foreach { case (training, testing) =>
