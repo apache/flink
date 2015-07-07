@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common.LabeledVector
 
 import scala.reflect.ClassTag
+import java.util.Random // scala.util.Random is not serializable in Scala 2.10
 
 package object ml {
 
@@ -79,6 +80,58 @@ package object ml {
       dataSet.map(x => (x, 1))
         .reduce((xc, yc) => (num.plus(xc._1, yc._1), xc._2 + yc._2))
         .map(xc => num.toDouble(xc._1) / xc._2)
+
+    /** Takes a sample from a DataSet.
+      *
+      * The sampling is probabilistically, which means that the number of elements in the result
+      * can vary.
+      *
+      * @param fraction The fraction of elements in the original DataSet that we retain in the
+      *                 sample.
+      * @param seed
+      * @return A DataSet that contains a fraction of the elements in the original DataSet.
+      */
+    def sample(fraction: Double, seed: Long = new Random().nextLong()): DataSet[T] = {
+      val rng = new Random(seed)
+      dataSet.filter(_ => rng.nextDouble() <= fraction)
+    }
+
+    /** Generates a sample from a DataSet using probabilistic bounds.
+      *
+      * The lower bound and upper bound determine the values from a U(0, 1) distribution that we
+      * consider for the sample.
+      * Original code from the Apache Spark project.
+      * @param lb The lower acceptance bound.
+      * @param ub The upper acceptance bound.
+      * @param complement When this is true, the complement of the provided bounds is used to
+      *                   select elements.
+      * @param seed
+      * @return A DataSet that contains a fraction of the elements in the original DataSet, as
+      *         defined by the provided bounds.
+      */
+    def sampleBounded(
+        lb: Double,
+        ub: Double,
+        complement: Boolean = false,
+        seed: Long = new Random().nextLong()): DataSet[T] = {
+      val rng = new Random(seed)
+      if (ub - lb <= 0.0) {
+        // TODO: How to get an empty dataset?
+        if (complement) dataSet else dataSet.filter(item => false)
+      } else {
+        if (complement) {
+          dataSet.filter { item => {
+            val x = rng.nextDouble()
+            (x < lb) || (x >= ub)
+          }}
+        } else {
+          dataSet.filter { item => {
+            val x = rng.nextDouble()
+            (x >= lb) && (x < ub)
+          }}
+        }
+      }
+    }
   }
 
   private class BroadcastSingleElementMapper[T, B, O](

@@ -119,4 +119,32 @@ class MLUtilsSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     mean should be (0.0 +- 1e-9)
   }
+
+  it should "sample a DataSet" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val ds = env.fromCollection(1 to 10000)
+
+    val sample = ds.sample(0.01, 42L)
+
+    val count = sample.count()
+    count should be (100L +- 20L)
+  }
+
+  it should "do a bounded sample of a DataSet" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val ds = env.fromCollection(1 to 10000)
+
+    val sample = ds.sampleBounded(0.0, 0.01, complement = false, seed = 42L)
+    val complementSample = ds.sampleBounded(0.0, 0.01, complement = true, seed = 42L)
+
+    val count = sample.count()
+    val complementCount = complementSample.count()
+
+    count should be (100L +- 20L)
+    complementCount should be (9900L +- 20L)
+
+    (count + complementCount) shouldEqual 10000L
+  }
 }
