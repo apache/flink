@@ -18,38 +18,27 @@
 
 package org.apache.flink.runtime.executiongraph
 
-import akka.actor.{Props, ActorSystem}
-import akka.testkit.TestKit
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils
-.SimpleAcknowledgingTaskManager
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleInstanceGateway
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.testingUtils.TestingUtils
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 
-class TaskManagerLossFailsTasksTest(_system: ActorSystem) extends TestKit(_system) with
-WordSpecLike with Matchers with BeforeAndAfterAll {
-
-  def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
-
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
+class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
 
   "A task manager loss" must {
     "fail the assigned tasks" in {
       try {
-        val tm1 = system.actorOf(Props(classOf[SimpleAcknowledgingTaskManager], "TaskManager1"))
-        val tm2 = system.actorOf(Props(classOf[SimpleAcknowledgingTaskManager], "TaskManager2"))
+        val instance1 = ExecutionGraphTestUtils.getInstance(
+          new SimpleInstanceGateway(TestingUtils.defaultExecutionContext), 10)
+        val instance2 = ExecutionGraphTestUtils.getInstance(
+          new SimpleInstanceGateway(TestingUtils.defaultExecutionContext), 10)
 
-        val instance1 = ExecutionGraphTestUtils.getInstance(tm1, 10)
-        val instance2 = ExecutionGraphTestUtils.getInstance(tm2, 10)
-
-        val scheduler = new Scheduler
+        val scheduler = new Scheduler(TestingUtils.defaultExecutionContext)
         scheduler.newInstanceAvailable(instance1)
         scheduler.newInstanceAvailable(instance2)
 
@@ -59,7 +48,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
         val jobGraph = new JobGraph("Pointwise job", sender)
 
-        val eg = new ExecutionGraph(new JobID(), "test job", new Configuration(),
+        val eg = new ExecutionGraph(
+          TestingUtils.defaultExecutionContext,
+          new JobID(),
+          "test job",
+          new Configuration(),
           AkkaUtils.getDefaultTimeout)
         eg.setNumberOfRetriesLeft(0)
         eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources)

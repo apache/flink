@@ -41,8 +41,6 @@ object AkkaUtils {
 
   val INF_TIMEOUT = 21474835 seconds
 
-  var globalExecutionContext: ExecutionContext = ExecutionContext.global
-
   /**
    * Creates a local actor system without remoting.
    *
