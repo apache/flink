@@ -1,20 +1,20 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 
 package org.apache.flink.graph.example;
 
@@ -34,7 +34,7 @@ import org.apache.flink.util.Collector;
 /**
  * This program is an example for HITS algorithm.
  * the result is either a hub value or authority value base user selection.
- *
+ * <p>
  * If no arguments are provided, the example runs with a random graph of 10 vertices
  * and random edge weights.
  */
@@ -43,7 +43,7 @@ public class HITSExample implements ProgramDescription {
     @SuppressWarnings("serial")
     public static void main(String[] args) throws Exception {
 
-        if(!parseParameters(args)) {
+        if (!parseParameters(args)) {
             return;
         }
 
@@ -57,16 +57,15 @@ public class HITSExample implements ProgramDescription {
             }
         }, env);
 
-    // add  graph to HITS class with iteration value and hub or authority enum value.
-        DataSet<Vertex<Long, Double>> HitsValue =network.run(
-                    new HITS<Long>(Hits.AUTHORITY,maxIterations)).getVertices();
+// add  graph to HITS class with iteration value and hub or authority enum value.
+        DataSet<Vertex<Long, Double>> HitsValue = network.run(
+                new HITS<Long>(Hits.AUTHORITY, maxIterations)).getVertices();
 
         if (fileOutput) {
             HitsValue.writeAsCsv(outputPath, "\n", "\t");
             env.execute("HITS algorithm");
         } else {
             HitsValue.print();
-//            env.execute("HITS algorithm");
         }
 
     }
@@ -76,9 +75,9 @@ public class HITSExample implements ProgramDescription {
         return "HITS algorithm example";
     }
 
-    // *************************************************************************
-    //     UTIL METHODS
-    // *************************************************************************
+// *************************************************************************
+//     UTIL METHODS
+// *************************************************************************
 
     private static boolean fileOutput = false;
     private static long numPages = 10;
@@ -88,8 +87,8 @@ public class HITSExample implements ProgramDescription {
 
     private static boolean parseParameters(String[] args) {
 
-        if(args.length > 0) {
-            if(args.length != 3) {
+        if (args.length > 0) {
+            if (args.length != 3) {
                 System.err.println("Usage: HITS <input edges path> <output path> <num iterations>");
                 return false;
             }
