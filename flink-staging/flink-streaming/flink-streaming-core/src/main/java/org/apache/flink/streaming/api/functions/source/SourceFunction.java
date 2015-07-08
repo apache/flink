@@ -45,11 +45,10 @@ import org.apache.flink.api.common.functions.Function;
  * {@code
  *  public class ExampleSource<T> implements SourceFunction<T>, Checkpointed<Long> {
  *      private long count = 0L;
- *      private volatile boolean isRunning;
+ *      private volatile boolean isRunning = true;
  *
  *      @Override
  *      public void run(SourceContext<T> ctx) {
- *          isRunning = true;
  *          while (isRunning && count < 1000) {
  *              synchronized (ctx.getCheckpointLock()) {
  *                  ctx.collect(count);
@@ -104,16 +103,20 @@ public interface SourceFunction<T> extends Function, Serializable {
 	 *
 	 * @param <T> The type of the elements produced by the source.
 	 */
-	interface SourceContext<T> {
+	public static interface SourceContext<T> {
 
 		/**
 		 * Emits one element from the source.
+		 * 
+		 * @param element The element to emit.
 		 */
 		void collect(T element);
 
 		/**
 		 * Returns the checkpoint lock. Please refer to the explanation about checkpointed sources
 		 * in {@link org.apache.flink.streaming.api.functions.source.SourceFunction}.
+		 * 
+		 * @return The object to use the lock. 
 		 */
 		Object getCheckpointLock();
 	}

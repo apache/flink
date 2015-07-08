@@ -24,14 +24,14 @@ import static org.junit.Assert.fail;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
-import org.apache.flink.streaming.api.functions.source.FromSplittableIteratorFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -49,27 +49,33 @@ public class StreamExecutionEnvironmentTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testFromCollectionParallelism() {
-		TypeInformation<Object> typeInfo = TypeExtractor.getForClass(Object.class);
-		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
-		boolean seenExpectedException = false;
-
 		try {
-			DataStream<Object> dataStream1 = env.fromCollection(new DummySplittableIterator(), typeInfo)
-					.setParallelism(4);
-		} catch (IllegalArgumentException e) {
-			seenExpectedException = true;
+			TypeInformation<Integer> typeInfo = BasicTypeInfo.INT_TYPE_INFO;
+			StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+
+			DataStreamSource<Integer> dataStream1 = env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
+			
+			try {
+				dataStream1.setParallelism(4);
+				fail("should throw an exception");
+			}
+			catch (IllegalArgumentException e) {
+				// expected
+			}
+	
+			env.fromParallelCollection(new DummySplittableIterator<Integer>(), typeInfo).setParallelism(4);
+	
+			String plan = env.getExecutionPlan();
+			
+			assertTrue("Parallelism for dataStream1 is not right.",
+					plan.contains("\"contents\":\"Collection Source\",\"parallelism\":1"));
+			assertTrue("Parallelism for dataStream2 is not right.",
+					plan.contains("\"contents\":\"Parallel Collection Source\",\"parallelism\":4"));
 		}
-
-		DataStream<Object> dataStream2 = env.fromParallelCollection(new DummySplittableIterator(), typeInfo)
-				.setParallelism(4);
-
-		String plan = env.getExecutionPlan();
-
-		assertTrue("Expected Exception for setting parallelism was not thrown.", seenExpectedException);
-		assertTrue("Parallelism for dataStream1 is not right.",
-				plan.contains("\"contents\":\"Collection Source\",\"parallelism\":1"));
-		assertTrue("Parallelism for dataStream2 is not right.",
-				plan.contains("\"contents\":\"Parallel Collection Source\",\"parallelism\":4"));
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 
 	@Test
@@ -119,12 +125,13 @@ public class StreamExecutionEnvironmentTest {
 		return (SourceFunction<T>) operator.getUserFunction();
 	}
 
-	public static class DummySplittableIterator extends SplittableIterator {
+	public static class DummySplittableIterator<T> extends SplittableIterator<T> {
 		private static final long serialVersionUID = 1312752876092210499L;
 
+		@SuppressWarnings("unchecked")
 		@Override
-		public Iterator[] split(int numPartitions) {
-			return new Iterator[0];
+		public Iterator<T>[] split(int numPartitions) {
+			return (Iterator<T>[]) new Iterator<?>[0];
 		}
 
 		@Override
@@ -138,8 +145,8 @@ public class StreamExecutionEnvironmentTest {
 		}
 
 		@Override
-		public Object next() {
-			return null;
+		public T next() {
+			throw new NoSuchElementException();
 		}
 
 		@Override

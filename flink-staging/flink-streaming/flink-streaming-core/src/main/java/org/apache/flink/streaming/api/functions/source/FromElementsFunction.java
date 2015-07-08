@@ -27,75 +27,108 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.Iterator;
+import java.util.Arrays;
+import java.util.Collection;
 
+/**
+ * A stream source function that returns a sequence of elements.
+ * 
+ * <p>Upon construction, this source function serializes the elements using Flink's type information.
+ * That way, any object transport using Java serialization will not be affected by the serializability
+ * if the elements.</p>
+ * 
+ * @param <T> The type of elements returned by this function.
+ */
 public class FromElementsFunction<T> implements SourceFunction<T> {
 	
 	private static final long serialVersionUID = 1L;
 
+	/** The (de)serializer to be used for the data elements */
 	private final TypeSerializer<T> serializer;
-	private final byte[] elements;
+	
+	/** The actual data elements, in serialized form */
+	private final byte[] elementsSerialized;
+	
+	/** The number of serialized elements */
+	private final int numElements;
 
+	/** Flag to make the source cancelable */
 	private volatile boolean isRunning = true;
 
-	public FromElementsFunction(TypeSerializer<T> serializer, final T... elements) {
-		this(serializer, new Iterable<T>() {
-			@Override
-			public Iterator<T> iterator() {
-				return new Iterator<T>() {
-					int index = 0;
-
-					@Override
-					public boolean hasNext() {
-						return index < elements.length;
-					}
-
-					@Override
-					public T next() {
-						return elements[index++];
-					}
-
-					@Override
-					public void remove() {
-						throw new UnsupportedOperationException();
-					}
-				};
-			}
-		});
+	
+	public FromElementsFunction(TypeSerializer<T> serializer, T... elements) throws IOException {
+		this(serializer, Arrays.asList(elements));
 	}
-
-	public FromElementsFunction(TypeSerializer<T> serializer, Iterable<T> elements) {
+	
+	public FromElementsFunction(TypeSerializer<T> serializer, Iterable<T> elements) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		OutputViewDataOutputStreamWrapper wrapper = new OutputViewDataOutputStreamWrapper(new DataOutputStream(baos));
 
+		int count = 0;
 		try {
 			for (T element : elements) {
 				serializer.serialize(element, wrapper);
+				count++;
 			}
-		} catch (IOException e) {
-			// ByteArrayOutputStream doesn't throw IOExceptions when written to
 		}
-		// closing the DataOutputStream would just flush the ByteArrayOutputStream, which in turn doesn't do anything.
+		catch (Exception e) {
+			throw new IOException("Serializing the source elements failed: " + e.getMessage(), e);
+		}
 
 		this.serializer = serializer;
-		this.elements = baos.toByteArray();
+		this.elementsSerialized = baos.toByteArray();
+		this.numElements = count;
 	}
 
 	@Override
 	public void run(SourceContext<T> ctx) throws Exception {
-		T value = serializer.createInstance();
-		ByteArrayInputStream bais = new ByteArrayInputStream(elements);
+		ByteArrayInputStream bais = new ByteArrayInputStream(elementsSerialized);
 		DataInputView input = new InputViewDataInputStreamWrapper(new DataInputStream(bais));
 
-		while (isRunning && bais.available() > 0) {
-			value = serializer.deserialize(value, input);
-			ctx.collect(value);
+		int numEmitted = 0;
+		while (isRunning && numEmitted++ < numElements) {
+			T next;
+			try {
+				next = serializer.deserialize(input);
+			}
+			catch (Exception e) {
+				throw new IOException("Failed to deserialize an element from the source. " +
+						"If you are using user-defined serialization (Value and Writable types), check the " +
+						"serialization functions.\nSerializer is " + serializer);
+			}
+			
+			ctx.collect(next);
 		}
-		// closing the DataInputStream would just close the ByteArrayInputStream, which doesn't do anything
 	}
 
 	@Override
 	public void cancel() {
 		isRunning = false;
+	}
+	
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Verifies that all elements in the collection are non-null, and are of the given class, or
+	 * a subclass thereof.
+	 * 
+	 * @param elements The collection to check.
+	 * @param viewedAs The class to which the elements must be assignable to.
+	 * 
+	 * @param <OUT> The generic type of the collection to be checked.
+	 */
+	public static <OUT> void checkCollection(Collection<OUT> elements, Class<OUT> viewedAs) {
+		for (OUT elem : elements) {
+			if (elem == null) {
+				throw new IllegalArgumentException("The collection contains a null element");
+			}
+
+			if (!viewedAs.isAssignableFrom(elem.getClass())) {
+				throw new IllegalArgumentException("The elements in the collection are not all subclasses of " +
+						viewedAs.getCanonicalName());
+			}
+		}
 	}
 }
