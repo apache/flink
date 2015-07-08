@@ -33,14 +33,30 @@ public class ListSourceContext<T> implements SourceFunction.SourceContext<T> {
 	
 	private final List<T> target;
 
+	private final long delay;
+	
 	
 	public ListSourceContext(List<T> target) {
+		this(target, 0L);
+	}
+
+	public ListSourceContext(List<T> target, long delay) {
 		this.target = target;
+		this.delay = delay;
 	}
 
 	@Override
 	public void collect(T element) {
 		target.add(element);
+		
+		if (delay > 0) {
+			try {
+				Thread.sleep(delay);
+			}
+			catch (InterruptedException e) {
+				// ignore
+			}
+		}
 	}
 
 	@Override
