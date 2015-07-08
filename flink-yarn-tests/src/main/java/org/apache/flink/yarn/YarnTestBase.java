@@ -79,10 +79,15 @@ public abstract class YarnTestBase {
 
 	protected final static int NUM_NODEMANAGERS = 2;
 
-	// The tests are scanning for these strings in the final output.
+	/** The tests are scanning for these strings in the final output. */
 	protected final static String[] PROHIBITED_STRINGS = {
 			"Exception", // we don't want any exceptions to happen
 			"Started SelectChannelConnector@0.0.0.0:8081" // Jetty should start on a random port in YARN mode.
+	};
+
+	/** These strings are white-listed, overriding teh prohibited strings */
+	protected final static String[] WHITELISTED_STRINGS = {
+			"akka.remote.RemoteTransportExceptionNoStackTrace"
 	};
 
 	// Temp directory which is deleted after the unit test.
@@ -232,10 +237,11 @@ public abstract class YarnTestBase {
 	 * So always run "mvn clean" before running the tests here.
 	 *
 	 */
-	public static void ensureNoProhibitedStringInLogFiles(final String[] prohibited) {
+	public static void ensureNoProhibitedStringInLogFiles(final String[] prohibited, final String[] whitelisted) {
 		File cwd = new File("target/"+yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
 		Assert.assertTrue("Expecting directory "+cwd.getAbsolutePath()+" to exist", cwd.exists());
 		Assert.assertTrue("Expecting directory "+cwd.getAbsolutePath()+" to be a directory", cwd.isDirectory());
+		
 		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
 			@Override
 			public boolean accept(File dir, String name) {
@@ -247,10 +253,21 @@ public abstract class YarnTestBase {
 					final String lineFromFile = scanner.nextLine();
 					for (String aProhibited : prohibited) {
 						if (lineFromFile.contains(aProhibited)) {
-							// logging in FATAL to see the actual message in TRAVIS tests.
-							Marker fatal = MarkerFactory.getMarker("FATAL");
-							LOG.error(fatal, "Prohibited String '{}' in line '{}'", aProhibited, lineFromFile);
-							return true;
+							
+							boolean whitelistedFound = false;
+							for (String white : whitelisted) {
+								if (lineFromFile.contains(white)) {
+									whitelistedFound = true;
+									break;
+								}
+							}
+							
+							if (!whitelistedFound) {
+								// logging in FATAL to see the actual message in TRAVIS tests.
+								Marker fatal = MarkerFactory.getMarker("FATAL");
+								LOG.error(fatal, "Prohibited String '{}' in line '{}'", aProhibited, lineFromFile);
+								return true;
+							}
 						}
 					}
 
