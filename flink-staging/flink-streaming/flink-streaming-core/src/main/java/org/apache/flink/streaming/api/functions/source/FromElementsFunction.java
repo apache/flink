@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -39,7 +40,7 @@ import java.util.Collection;
  * 
  * @param <T> The type of elements returned by this function.
  */
-public class FromElementsFunction<T> implements SourceFunction<T> {
+public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedAsynchronously<Integer> {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -52,6 +53,12 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 	/** The number of serialized elements */
 	private final int numElements;
 
+	/** The number of elements emitted already */
+	private volatile int numElementsEmitted;
+
+	/** The number of elements to skip initially */
+	private volatile int numElementsToSkip;
+	
 	/** Flag to make the source cancelable */
 	private volatile boolean isRunning = true;
 
@@ -83,10 +90,29 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 	@Override
 	public void run(SourceContext<T> ctx) throws Exception {
 		ByteArrayInputStream bais = new ByteArrayInputStream(elementsSerialized);
-		DataInputView input = new InputViewDataInputStreamWrapper(new DataInputStream(bais));
-
-		int numEmitted = 0;
-		while (isRunning && numEmitted++ < numElements) {
+		final DataInputView input = new InputViewDataInputStreamWrapper(new DataInputStream(bais));
+		
+		// if we are restored from a checkpoint and need to skip elements, skip them now.
+		int toSkip = numElementsToSkip;
+		if (toSkip > 0) {
+			try {
+				while (toSkip > 0) {
+					serializer.deserialize(input);
+					toSkip--;
+				}
+			}
+			catch (Exception e) {
+				throw new IOException("Failed to deserialize an element from the source. " +
+						"If you are using user-defined serialization (Value and Writable types), check the " +
+						"serialization functions.\nSerializer is " + serializer);
+			}
+			
+			this.numElementsEmitted = this.numElementsToSkip;
+		}
+		
+		final Object lock = ctx.getCheckpointLock();
+		
+		while (isRunning && numElementsEmitted < numElements) {
 			T next;
 			try {
 				next = serializer.deserialize(input);
@@ -97,13 +123,49 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 						"serialization functions.\nSerializer is " + serializer);
 			}
 			
-			ctx.collect(next);
+			synchronized (lock) {
+				ctx.collect(next);
+				numElementsEmitted++;
+			}
 		}
 	}
 
 	@Override
 	public void cancel() {
 		isRunning = false;
+	}
+
+
+	/**
+	 * Gets the number of elements produced in total by this function.
+	 * 
+	 * @return The number of elements produced in total.
+	 */
+	public int getNumElements() {
+		return numElements;
+	}
+
+	/**
+	 * Gets the number of elements emitted so far.
+	 * 
+	 * @return The number of elements emitted so far.
+	 */
+	public int getNumElementsEmitted() {
+		return numElementsEmitted;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Checkpointing
+	// ------------------------------------------------------------------------
+	
+	@Override
+	public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
+		return this.numElementsEmitted;
+	}
+
+	@Override
+	public void restoreState(Integer state) {
+		this.numElementsToSkip = state;
 	}
 	
 	// ------------------------------------------------------------------------
