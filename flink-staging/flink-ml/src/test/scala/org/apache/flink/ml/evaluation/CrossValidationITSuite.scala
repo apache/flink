@@ -18,6 +18,10 @@
 package org.apache.flink.ml.evaluation
 
 import org.apache.flink.api.scala._
+import org.apache.flink.ml.common.ParameterMap
+import org.apache.flink.ml.preprocessing.StandardScaler
+import org.apache.flink.ml.regression.RegressionData._
+import org.apache.flink.ml.regression.{MultipleLinearRegression, RegressionData}
 import org.apache.flink.test.util.FlinkTestBase
 
 import org.scalatest.{FlatSpec, Matchers}
@@ -32,13 +36,13 @@ class CrossValidationITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val data = env.fromCollection(1 to 100)
     val collectedData = data.collect().sorted
 
-    val twoFolds = KFold().folds(data, 2, 42L)
+    val twoFolds = KFold(2).folds(data, 42L)
     twoFolds(0)._1.collect().sorted shouldEqual twoFolds(1)._2.collect().sorted
     twoFolds(0)._2.collect().sorted shouldEqual twoFolds(1)._1.collect().sorted
 
     for (folds <- 2 to 10) {
       for (seed <- 1 to 5) {
-        val foldedDataSets = KFold().folds(data, folds, seed)
+        val foldedDataSets = KFold(folds).folds(data, seed)
         foldedDataSets.length shouldEqual  folds
 
         foldedDataSets.foreach { case (training, testing) =>
@@ -65,6 +69,55 @@ class CrossValidationITSuite extends FlatSpec with Matchers with FlinkTestBase {
           data.collect().sorted
       }
     }
+  }
 
+  def fixture = new {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    import RegressionData._
+
+
+    val inputDS = env.fromCollection(data)
+
+    val mlr = MultipleLinearRegression()
+      .setStepsize(10.0)
+      .setIterations(100)
+
+    println()
+  }
+
+  it should "compute the cross-validation score for a regressor" in {
+
+    val f = fixture
+
+    val cvScores = CrossValidation.crossValScore(f.mlr, f.inputDS, cv = KFold(5), seed = 0L)
+
+    cvScores.map(ds => ds.collect().head).foreach(println)
+
+  }
+
+  it should "compute the cross-validation score for a custom scorer" in {
+    val f = fixture
+
+    val squaredLossScorer = new Scorer(RegressionScores.squaredLoss)
+
+    val cvScore = CrossValidation.crossValScore(
+      f.mlr, f.inputDS, scorerOption = Some(squaredLossScorer), cv = KFold(5), seed = 0L)
+
+    cvScore.map(ds => ds.collect().head).foreach(println)
+
+  }
+
+  it should "be possible to run CV on a chained predictor" in {
+    val f = fixture
+
+    val scaler = StandardScaler()
+
+    val chainedPredictor = scaler.chainPredictor(f.mlr)
+
+    val cvScores = CrossValidation.crossValScore(
+      chainedPredictor, f.inputDS, cv = KFold(5), seed = 0L)
+
+    cvScores.map(ds => ds.collect().head).foreach(println)
   }
 }

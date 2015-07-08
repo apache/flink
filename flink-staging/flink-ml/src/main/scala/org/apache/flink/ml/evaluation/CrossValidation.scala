@@ -21,17 +21,40 @@ import org.apache.flink.api.scala._
 import org.apache.flink.ml.RichDataSet
 import java.util.Random
 
-class CrossValidation {
+import org.apache.flink.ml.pipeline.{EvaluateDataSetOperation, FitOperation, Predictor}
 
+object CrossValidation {
+  def crossValScore[P <: Predictor[P], T](
+      predictor: P,
+      data: DataSet[T],
+      scorerOption: Option[Scorer] = None,
+      cv: FoldGenerator = KFold(),
+      seed: Long = new Random().nextLong())(implicit fitOperation: FitOperation[P, T],
+      evaluateDataSetOperation: EvaluateDataSetOperation[P, T, Double]): Array[DataSet[Double]] = {
+    val folds = cv.folds(data, 1)
+
+    val scores = folds.map {
+      case (training: DataSet[T], testing: DataSet[T]) =>
+        predictor.fit(training)
+        if (scorerOption.isEmpty) {
+          predictor.score(testing)
+        } else {
+          val s = scorerOption.get
+          s.evaluate(testing, predictor)
+        }
+    }
+    // TODO: Undecided on the return type: Array[DS[Double]] or DS[Double] i.e. reduce->union?
+    // Or: Return mean and std?
+    scores//.reduce((right: DataSet[Double], left: DataSet[Double]) => left.union(right)).mean()
+  }
 }
 
-abstract class FoldGenerator(val folds: Int) {
+abstract class FoldGenerator {
 
   /** Takes a DataSet as input and creates splits (folds) of the data into
     * (training, testing) pairs.
     *
     * @param input The DataSet that will be split into folds
-    * @param numFolds The number of folds. Common values are 5 or 10.
     * @param seed Seed for replicable splitting of the data
     * @tparam T The type of the DataSet
     * @return An Array containing K (training, testing) tuples, where training and testing are
@@ -39,17 +62,16 @@ abstract class FoldGenerator(val folds: Int) {
     */
   def folds[T](
       input: DataSet[T],
-      numFolds: Int = folds,
       seed: Long = new Random().nextLong()): Array[(DataSet[T], DataSet[T])]
 }
 
-class KFold(folds: Int) extends FoldGenerator(folds){
+class KFold(numFolds: Int) extends FoldGenerator{
+
   /** Takes a DataSet as input and creates K splits (folds) of the data into non-overlapping
     * (training, testing) pairs.
     *
     * Code based on Apache Spark implementation
     * @param input The DataSet that will be split into folds
-    * @param numFolds The number of folds. Common values are 5 or 10.
     * @param seed Seed for replicable splitting of the data
     * @tparam T The type of the DataSet
     * @return An Array containing K (training, testing) tuples, where training and testing are
@@ -57,7 +79,6 @@ class KFold(folds: Int) extends FoldGenerator(folds){
     */
   override def folds[T](
       input: DataSet[T],
-      numFolds: Int = folds,
       seed: Long = new Random().nextLong()): Array[(DataSet[T], DataSet[T])] = {
     val numFoldsF = numFolds.toFloat
     (1 to numFolds).map { fold =>
