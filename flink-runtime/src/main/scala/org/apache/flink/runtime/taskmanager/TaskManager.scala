@@ -1766,7 +1766,7 @@ object TaskManager {
       override def getValue: Double = {
         try{
           fetchCPULoad.map(_.invoke(ManagementFactory.getOperatingSystemMXBean().
-            asInstanceOf[com.sun.management.OperatingSystemMXBean]).
+            asInstanceOf[java.lang.management.OperatingSystemMXBean]).
             asInstanceOf[Double]).getOrElse(-1)
         } catch {
           case t: Throwable => {
@@ -1785,7 +1785,7 @@ object TaskManager {
    * @return
    */
   private def getMethodToFetchCPULoad(): Option[Method] = {
-    val methodsList = classOf[com.sun.management.OperatingSystemMXBean].getMethods()
+    val methodsList = classOf[java.lang.management.OperatingSystemMXBean].getMethods()
     methodsList.filter(_.getName == "getProcessCpuLoad").headOption
   }
 }
