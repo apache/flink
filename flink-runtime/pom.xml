@@ -34,9 +34,9 @@ under the License.
 
 	<packaging>jar</packaging>
 
-    <properties>
-        <metrics.version>3.1.0</metrics.version>
-    </properties>
+	<properties>
+		<metrics.version>3.1.0</metrics.version>
+	</properties>
 
 	<dependencies>
 		<dependency>
@@ -168,23 +168,32 @@ under the License.
 			</exclusions>
 		</dependency>
 
-        <dependency>
-            <groupId>io.dropwizard.metrics</groupId>
-            <artifactId>metrics-core</artifactId>
-            <version>${metrics.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.dropwizard.metrics</groupId>
-            <artifactId>metrics-jvm</artifactId>
-            <version>${metrics.version}</version>
-        </dependency>
+		<dependency>
+			<groupId>io.dropwizard.metrics</groupId>
+			<artifactId>metrics-core</artifactId>
+			<version>${metrics.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.dropwizard.metrics</groupId>
+			<artifactId>metrics-jvm</artifactId>
+			<version>${metrics.version}</version>
+		</dependency>
 
-        <dependency>
-            <groupId>io.dropwizard.metrics</groupId>
-            <artifactId>metrics-json</artifactId>
-            <version>${metrics.version}</version>
-        </dependency>
+		<dependency>
+			<groupId>io.dropwizard.metrics</groupId>
+			<artifactId>metrics-json</artifactId>
+			<version>${metrics.version}</version>
+		</dependency>
 
+		<dependency>
+			<groupId>org.apache.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-recipes</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -196,7 +205,7 @@ under the License.
 				<version>3.1.4</version>
 				<executions>
 					<!-- Run scala compiler in the process-resources phase, so that dependencies on
-					    scala classes can be resolved later in the (Java) compile phase -->
+						scala classes can be resolved later in the (Java) compile phase -->
 					<execution>
 						<id>scala-compile-first</id>
 						<phase>process-resources</phase>
@@ -206,7 +215,7 @@ under the License.
 					</execution>
 
 					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
-					     scala classes can be resolved later in the (Java) test-compile phase -->
+						 scala classes can be resolved later in the (Java) test-compile phase -->
 					<execution>
 						<id>scala-test-compile</id>
 						<phase>process-test-resources</phase>

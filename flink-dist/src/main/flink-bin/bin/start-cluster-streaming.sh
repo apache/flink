@@ -17,32 +17,8 @@
 # limitations under the License.
 ################################################################################
 
-
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
-. "$bin"/config.sh
-
-HOSTLIST=$FLINK_SLAVES
-
-if [ "$HOSTLIST" = "" ]; then
-    HOSTLIST="${FLINK_CONF_DIR}/slaves"
-fi
-
-if [ ! -f "$HOSTLIST" ]; then
-    echo $HOSTLIST is not a valid slave list
-    exit 1
-fi
-
-# cluster mode, bring up job manager locally and a task manager on every slave host
-"$FLINK_BIN_DIR"/jobmanager.sh start cluster streaming
-
-GOON=true
-while $GOON
-do
-    read line || GOON=false
-    HOST=$( extractHostName $line)
-    if [ -n "$HOST" ]; then
-        ssh -n $FLINK_SSH_OPTS $HOST -- "nohup /bin/bash -l $FLINK_BIN_DIR/taskmanager.sh start streaming &"
-    fi
-done < "$HOSTLIST"
+# Start a Flink cluster in streaming mode
+${bin}/start-cluster.sh streaming

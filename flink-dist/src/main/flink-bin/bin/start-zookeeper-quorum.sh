@@ -22,21 +22,25 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-# Stop TaskManager instance(s)
-readSlaves
+# Starts a ZooKeeper quorum as configured in $FLINK_CONF/zoo.cfg
 
-for slave in ${SLAVES[@]}; do
-    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l $bin/taskmanager.sh stop &"
-done
-
-# Stop JobManager instance(s)
-if [[ -z $ZK_QUORUM ]]; then
-    "$bin"/jobmanager.sh stop
-else
-	# HA Mode
-    readMasters
-
-    for master in ${MASTERS[@]}; do
-        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l $bin/jobmanager.sh stop &"
-    done
+ZK_CONF=$FLINK_CONF_DIR/zoo.cfg
+if [ ! -f $ZK_CONF ]; then
+    echo "[ERROR] No ZooKeeper configuration file found in '$ZK_CONF'."
+    exit 1
 fi
+
+# Extract server.X from ZooKeeper config and start instances
+while read server ; do
+    server=$(echo -e "${server}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//') # trim
+
+    # match server.id=address[:port[:port]]
+    if [[ $server =~ ^server\.([0-9])+[[:space:]]*\=([^: \#]+) ]]; then
+        id=${BASH_REMATCH[1]}
+        address=${BASH_REMATCH[2]}
+
+        ssh -n $FLINK_SSH_OPTS $address -- "nohup /bin/bash -l $bin/zookeeper.sh start $id &"
+    else
+        echo "[WARN] Parse error. Skipping config entry '$server'."
+    fi
+done < <(grep "^server\." $ZK_CONF)
