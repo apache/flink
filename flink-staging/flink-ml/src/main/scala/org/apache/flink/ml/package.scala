@@ -29,6 +29,16 @@ import scala.reflect.ClassTag
 
 package object ml {
 
+  implicit class RichDouble(double: Double) {
+    def approximatelyEquals(other: Double, precision: Double = 1e-9): Boolean = {
+      if (scala.math.abs(double - other) < precision) {
+        true
+      } else {
+        false
+      }
+    }
+  }
+
   /** Pimp my [[ExecutionEnvironment]] to directly support `readLibSVM`
     *
     * @param executionEnvironment

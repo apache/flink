@@ -44,9 +44,9 @@ class ScoreITSuite extends FlatSpec with Matchers with FlinkTestBase {
   it should "work for zero one loss" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val yy = env.fromCollection(Seq("a" -> "a", "a" -> "b", "b" -> "c", "d" -> "d"))
+    val yy = env.fromCollection(Seq(1.0 -> 1.0, 2.0 -> 2.0, 3.0 -> 4.0, 4.0 -> 5.0))
 
-    val loss = ClassificationScores.zeroOneLoss[String]
+    val loss = ClassificationScores.zeroOneLoss
 
     val result = loss.evaluate(yy).collect()
 
