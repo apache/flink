@@ -38,8 +38,6 @@ import java.util.Properties;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.flink.api.common.JobSubmissionResult;
@@ -65,6 +63,7 @@ import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -447,11 +446,12 @@ public class CliFrontend {
 		}
 
 		try {
-			ActorRef jobManager = getJobManager(options);
+			ActorGateway jobManagerGateway = getJobManagerGateway(options);
 
 			LOG.info("Connecting to JobManager to retrieve list of jobs");
-			Future<Object> response = Patterns.ask(jobManager,
-					JobManagerMessages.getRequestRunningJobsStatus(), new Timeout(askTimeout));
+			Future<Object> response = jobManagerGateway.ask(
+					JobManagerMessages.getRequestRunningJobsStatus(),
+					askTimeout);
 
 			Object result;
 			try {
@@ -580,8 +580,8 @@ public class CliFrontend {
 		}
 
 		try {
-			ActorRef jobManager = getJobManager(options);
-			Future<Object> response = Patterns.ask(jobManager, new CancelJob(jobId), new Timeout(askTimeout));
+			ActorGateway jobManager = getJobManagerGateway(options);
+			Future<Object> response = jobManager.ask(new CancelJob(jobId), askTimeout);
 
 			try {
 				Await.result(response, askTimeout);
@@ -722,7 +722,15 @@ public class CliFrontend {
 		return jobManagerAddress;
 	}
 
-	protected ActorRef getJobManager(CommandLineOptions options) throws Exception {
+	/**
+	 * Retrieves the {@link ActorGateway} for the JobManager. The JobManager address is retrieved
+	 * from the provided {@link CommandLineOptions}.
+	 *
+	 * @param options CommandLineOptions specifying the JobManager URL
+	 * @return Gateway to the JobManager
+	 * @throws Exception
+	 */
+	protected ActorGateway getJobManagerGateway(CommandLineOptions options) throws Exception {
 		//TODO: Get ActorRef from YarnCluster if we are in YARN mode.
 
 		InetSocketAddress address = getJobManagerAddress(options);
@@ -745,7 +753,9 @@ public class CliFrontend {
 		LOG.info("Trying to lookup JobManager");
 		ActorRef jmActor = JobManager.getJobManagerRemoteReference(address, actorSystem, lookupTimeout);
 		LOG.info("JobManager is at " + jmActor.path());
-		return jmActor;
+
+		// Retrieve the ActorGateway from the JobManager's ActorRef
+		return JobManager.getJobManagerGateway(jmActor, lookupTimeout);
 	}
 
 	/**

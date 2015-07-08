@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import akka.actor.ActorRef;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -27,6 +25,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -72,25 +71,32 @@ public class RuntimeEnvironment implements Environment {
 	private final ResultPartitionWriter[] writers;
 	private final InputGate[] inputGates;
 	
-	private final ActorRef jobManagerActor;
+	private final ActorGateway jobManager;
 
 	private final AccumulatorRegistry accumulatorRegistry;
 
 	// ------------------------------------------------------------------------
 
-	public RuntimeEnvironment(JobID jobId, JobVertexID jobVertexId, ExecutionAttemptID executionId,
-								String taskName, String taskNameWithSubtasks,
-								int subtaskIndex, int parallelism,
-								Configuration jobConfiguration, Configuration taskConfiguration,
-								ClassLoader userCodeClassLoader,
-								MemoryManager memManager, IOManager ioManager,
-								BroadcastVariableManager bcVarManager,
+	public RuntimeEnvironment(
+			JobID jobId,
+			JobVertexID jobVertexId,
+			ExecutionAttemptID executionId,
+			String taskName,
+			String taskNameWithSubtasks,
+			int subtaskIndex,
+			int parallelism,
+			Configuration jobConfiguration,
+			Configuration taskConfiguration,
+			ClassLoader userCodeClassLoader,
+			MemoryManager memManager,
+			IOManager ioManager,
+			BroadcastVariableManager bcVarManager,
 								AccumulatorRegistry accumulatorRegistry,
-								InputSplitProvider splitProvider,
-								Map<String, Future<Path>> distCacheEntries,
-								ResultPartitionWriter[] writers,
-								InputGate[] inputGates,
-								ActorRef jobManagerActor) {
+			InputSplitProvider splitProvider,
+			Map<String, Future<Path>> distCacheEntries,
+			ResultPartitionWriter[] writers,
+			InputGate[] inputGates,
+			ActorGateway jobManager) {
 		
 		checkArgument(parallelism > 0 && subtaskIndex >= 0 && subtaskIndex < parallelism);
 
@@ -112,7 +118,7 @@ public class RuntimeEnvironment implements Environment {
 		this.distCacheEntries = checkNotNull(distCacheEntries);
 		this.writers = checkNotNull(writers);
 		this.inputGates = checkNotNull(inputGates);
-		this.jobManagerActor = checkNotNull(jobManagerActor);
+		this.jobManager = checkNotNull(jobManager);
 	}
 
 
@@ -238,6 +244,6 @@ public class RuntimeEnvironment implements Environment {
 		}
 		
 		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(jobId, executionId, checkpointId, serializedState);
-		jobManagerActor.tell(message, ActorRef.noSender());
+		jobManager.tell(message);
 	}
 }

@@ -18,27 +18,28 @@
 
 package org.apache.flink.runtime.instance;
 
-import akka.actor.ActorPath;
 import akka.actor.ActorRef;
 import akka.dispatch.Futures;
+import scala.Option;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.util.UUID;
 import java.util.concurrent.Callable;
 
 /**
- * Abstract base class for testing {@link InstanceGateway} instances. The implementing subclass
+ * Abstract base class for testing {@link ActorGateway} instances. The implementing subclass
  * only has to provide an implementation for handleMessage which contains the logic to treat
  * different messages.
  */
-abstract public class BaseTestingInstanceGateway implements InstanceGateway {
+abstract public class BaseTestingActorGateway implements ActorGateway {
 	/**
 	 * {@link ExecutionContext} which is used to execute the futures.
 	 */
 	private final ExecutionContext executionContext;
 
-	public BaseTestingInstanceGateway(ExecutionContext executionContext) {
+	public BaseTestingActorGateway(ExecutionContext executionContext) {
 		this.executionContext = executionContext;
 	}
 
@@ -75,10 +76,25 @@ abstract public class BaseTestingInstanceGateway implements InstanceGateway {
 	abstract public Object handleMessage(Object message) throws Exception;
 
 	@Override
-	public void tell(Object message) {}
+	public void tell(Object message) {
+		try {
+			handleMessage(message);
+		} catch (Exception e) {
+			// discard exception because it happens on the "remote" instance
+		}
+	}
 
 	@Override
-	public void forward(Object message, ActorRef sender) {
+	public void tell(Object message, ActorGateway sender) {
+		try{
+			handleMessage(message);
+		} catch (Exception e) {
+			// discard exception because it happens on the "remote" instance
+		}
+	}
+
+	@Override
+	public void forward(Object message, ActorGateway sender) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -89,6 +105,16 @@ abstract public class BaseTestingInstanceGateway implements InstanceGateway {
 
 	@Override
 	public String path() {
-		throw new UnsupportedOperationException();
+		return "BaseTestingInstanceGateway";
+	}
+
+	@Override
+	public ActorRef actor() {
+		return ActorRef.noSender();
+	}
+
+	@Override
+	public Option<UUID> leaderSessionID() {
+		return Option.empty();
 	}
 }

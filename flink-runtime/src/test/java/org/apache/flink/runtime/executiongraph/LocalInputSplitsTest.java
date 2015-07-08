@@ -377,7 +377,7 @@ public class LocalInputSplitsTest {
 		when(connection.getFQDNHostname()).thenReturn(hostname);
 		
 		return new Instance(
-				new ExecutionGraphTestUtils.SimpleInstanceGateway(
+				new ExecutionGraphTestUtils.SimpleActorGateway(
 						TestingUtils.defaultExecutionContext()),
 				connection,
 				new InstanceID(),

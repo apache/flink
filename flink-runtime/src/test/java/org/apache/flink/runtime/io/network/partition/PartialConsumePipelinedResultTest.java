@@ -102,7 +102,7 @@ public class PartialConsumePipelinedResultTest {
 
 		JobClient.submitJobAndWait(
 				jobClient,
-				flink.getJobManager(),
+				flink.getJobManagerGateway(),
 				jobGraph,
 				TestingUtils.TESTING_DURATION(),
 				false);

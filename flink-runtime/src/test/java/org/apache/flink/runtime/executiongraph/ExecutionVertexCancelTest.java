@@ -26,9 +26,9 @@ import java.io.IOException;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.BaseTestingInstanceGateway;
-import org.apache.flink.runtime.instance.DummyInstanceGateway;
-import org.apache.flink.runtime.instance.InstanceGateway;
+import org.apache.flink.runtime.instance.BaseTestingActorGateway;
+import org.apache.flink.runtime.instance.DummyActorGateway;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.api.common.JobID;
@@ -125,12 +125,12 @@ public class ExecutionVertexCancelTest {
 			setVertexState(vertex, ExecutionState.SCHEDULED);
 			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
 
-			InstanceGateway instanceGateway = new CancelSequenceInstanceGateway(
+			ActorGateway actorGateway = new CancelSequenceActorGateway(
 					executionContext,
 					new TaskOperationResult(execId, true),
 					new TaskOperationResult(execId, false));
 
-			Instance instance = getInstance(instanceGateway);
+			Instance instance = getInstance(actorGateway);
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 			vertex.deployToSlot(slot);
@@ -195,13 +195,13 @@ public class ExecutionVertexCancelTest {
 
 			// task manager cancel sequence mock actor
 			// first return NOT SUCCESS (task not found, cancel call overtook deploy call), then success (cancel call after deploy call)
-			InstanceGateway instanceGateway = new CancelSequenceInstanceGateway(
+			ActorGateway actorGateway = new CancelSequenceActorGateway(
 					executionContext,
 					new	TaskOperationResult(execId, false),
 					new TaskOperationResult(execId, true)
 			);
 
-			Instance instance = getInstance(instanceGateway);
+			Instance instance = getInstance(actorGateway);
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 			vertex.deployToSlot(slot);
@@ -258,11 +258,11 @@ public class ExecutionVertexCancelTest {
 					AkkaUtils.getDefaultTimeout());
 			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-			InstanceGateway instanceGateway = new CancelSequenceInstanceGateway(
+			ActorGateway actorGateway = new CancelSequenceActorGateway(
 					TestingUtils.directExecutionContext(),
 					new TaskOperationResult(execId, true));
 
-			Instance instance = getInstance(instanceGateway);
+			Instance instance = getInstance(actorGateway);
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 			setVertexState(vertex, ExecutionState.RUNNING);
@@ -299,12 +299,12 @@ public class ExecutionVertexCancelTest {
 					AkkaUtils.getDefaultTimeout());
 			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-			final InstanceGateway instanceGateway = new CancelSequenceInstanceGateway(
+			final ActorGateway actorGateway = new CancelSequenceActorGateway(
 					TestingUtils.directExecutionContext(),
 					new TaskOperationResult(execId, true)
 			);
 
-			Instance instance = getInstance(instanceGateway);
+			Instance instance = getInstance(actorGateway);
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 			setVertexState(vertex, ExecutionState.RUNNING);
@@ -350,12 +350,12 @@ public class ExecutionVertexCancelTest {
 			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 
-			final InstanceGateway instanceGateway = new CancelSequenceInstanceGateway(
+			final ActorGateway actorGateway = new CancelSequenceActorGateway(
 					TestingUtils.directExecutionContext(),
 					new TaskOperationResult(execId, false)
 			);
 
-			Instance instance = getInstance(instanceGateway);
+			Instance instance = getInstance(actorGateway);
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 			setVertexState(vertex, ExecutionState.RUNNING);
@@ -386,7 +386,7 @@ public class ExecutionVertexCancelTest {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			final InstanceGateway gateway = new CancelSequenceInstanceGateway(TestingUtils.directExecutionContext());
+			final ActorGateway gateway = new CancelSequenceActorGateway(TestingUtils.directExecutionContext());
 
 			Instance instance = getInstance(gateway);
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
@@ -423,7 +423,7 @@ public class ExecutionVertexCancelTest {
 					AkkaUtils.getDefaultTimeout());
 			final ExecutionAttemptID execID = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-			final InstanceGateway gateway = new CancelSequenceInstanceGateway(
+			final ActorGateway gateway = new CancelSequenceActorGateway(
 					TestingUtils.defaultExecutionContext(),
 					new TaskOperationResult(execID, true));
 
@@ -482,7 +482,7 @@ public class ExecutionVertexCancelTest {
 			// deploying after canceling from CREATED needs to raise an exception, because
 			// the scheduler (or any caller) needs to know that the slot should be released
 			try {
-				Instance instance = getInstance(DummyInstanceGateway.INSTANCE);
+				Instance instance = getInstance(DummyActorGateway.INSTANCE);
 				SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 				vertex.deployToSlot(slot);
@@ -525,7 +525,7 @@ public class ExecutionVertexCancelTest {
 						AkkaUtils.getDefaultTimeout());
 				setVertexState(vertex, ExecutionState.CANCELING);
 
-				Instance instance = getInstance(DummyInstanceGateway.INSTANCE);
+				Instance instance = getInstance(DummyActorGateway.INSTANCE);
 				SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 				vertex.deployToSlot(slot);
@@ -541,7 +541,7 @@ public class ExecutionVertexCancelTest {
 				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 						AkkaUtils.getDefaultTimeout());
 
-				Instance instance = getInstance(DummyInstanceGateway.INSTANCE);
+				Instance instance = getInstance(DummyActorGateway.INSTANCE);
 				SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 				setVertexResource(vertex, slot);
@@ -562,11 +562,11 @@ public class ExecutionVertexCancelTest {
 		}
 	}
 
-	public static class CancelSequenceInstanceGateway extends BaseTestingInstanceGateway {
+	public static class CancelSequenceActorGateway extends BaseTestingActorGateway {
 		private final TaskOperationResult[] results;
 		private int index = -1;
 
-		public CancelSequenceInstanceGateway(ExecutionContext executionContext, TaskOperationResult ... result) {
+		public CancelSequenceActorGateway(ExecutionContext executionContext, TaskOperationResult... result) {
 			super(executionContext);
 			this.results = result;
 		}

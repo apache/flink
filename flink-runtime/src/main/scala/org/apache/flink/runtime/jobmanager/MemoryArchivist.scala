@@ -20,13 +20,12 @@ package org.apache.flink.runtime.jobmanager
 
 import java.util
 
-import akka.actor.Actor
-
+import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.messages.accumulators._
+import org.apache.flink.runtime.{FlinkActor, LogMessages}
 import org.apache.flink.runtime.messages.webmonitor._
-import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
@@ -56,9 +55,11 @@ import scala.collection.mutable
  * @param max_entries Maximum number of stored Flink jobs
  */
 class MemoryArchivist(private val max_entries: Int)
-  extends Actor
-  with ActorLogMessages
-  with ActorSynchronousLogging {
+  extends FlinkActor
+  with LogMessages {
+
+  override val log = Logger(getClass)
+
   /*
    * Map of execution graphs belonging to recently started jobs with the time stamp of the last
    * received job event. The insert order is preserved through a LinkedHashMap.
@@ -70,41 +71,45 @@ class MemoryArchivist(private val max_entries: Int)
   var canceledCnt: Int = 0
   var failedCnt: Int = 0
 
-  override def receiveWithLogMessages: Receive = {
+  override def handleMessage: Receive = {
     
     /* Receive Execution Graph to archive */
     case ArchiveExecutionGraph(jobID, graph) => 
       // wrap graph inside a soft reference
       graphs.update(jobID, graph)
+
       // update job counters
       graph.getState match {
         case JobStatus.FINISHED => finishedCnt += 1
         case JobStatus.CANCELED => canceledCnt += 1
         case JobStatus.FAILED => failedCnt += 1
+          // ignore transitional states, e.g. Cancelling, Running, Failing, etc.
+        case _ =>
       }
+
       trimHistory()
 
     case RequestArchivedJob(jobID: JobID) =>
       val graph = graphs.get(jobID)
-      sender ! ArchivedJob(graph)
+      sender ! decorateMessage(ArchivedJob(graph))
 
     case RequestArchivedJobs =>
-      sender ! ArchivedJobs(graphs.values)
+      sender ! decorateMessage(ArchivedJobs(graphs.values))
 
     case RequestJob(jobID) =>
       graphs.get(jobID) match {
-        case Some(graph) => sender ! JobFound(jobID, graph)
-        case None => sender ! JobNotFound(jobID)
+        case Some(graph) => sender ! decorateMessage(JobFound(jobID, graph))
+        case None => sender ! decorateMessage(JobNotFound(jobID))
       }
 
     case RequestJobStatus(jobID) =>
       graphs.get(jobID) match {
-        case Some(graph) => sender ! CurrentJobStatus(jobID, graph.getState)
-        case None => sender ! JobNotFound(jobID)
+        case Some(graph) => sender ! decorateMessage(CurrentJobStatus(jobID, graph.getState))
+        case None => sender ! decorateMessage(JobNotFound(jobID))
       }
 
     case RequestJobCounts =>
-      sender ! (finishedCnt, canceledCnt, failedCnt)
+      sender ! decorateMessage((finishedCnt, canceledCnt, failedCnt))
 
     case _ : RequestJobsOverview =>
       try {

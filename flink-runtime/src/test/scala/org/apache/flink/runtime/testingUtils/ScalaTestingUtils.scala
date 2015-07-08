@@ -18,27 +18,20 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import org.apache.flink.runtime.{FlinkActor}
-import org.apache.flink.runtime.jobmanager.MemoryArchivist
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound, RequestExecutionGraph}
+import akka.actor.ActorRef
+import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
 
-/**
- * Mixin for the [[MemoryArchivist]] to support testing messages
- */
-trait TestingMemoryArchivist extends FlinkActor {
-  self: MemoryArchivist =>
+/** Mixing for testing utils
+  *
+  */
+trait ScalaTestingUtils {
 
-  abstract override def handleMessage: Receive = {
-    handleTestingMessage orElse super.handleMessage
-  }
-
-  def handleTestingMessage: Receive = {
-    case RequestExecutionGraph(jobID) =>
-      val executionGraph = graphs.get(jobID)
-      
-      executionGraph match {
-        case Some(graph) => sender ! decorateMessage(ExecutionGraphFound(jobID, graph))
-        case None => sender ! decorateMessage(ExecutionGraphNotFound(jobID))
-      }
+  /** Converts an [[ActorRef]] into a new [[AkkaActorGateway]] with None leader session ID
+    *
+    * @param actor ActorRef for which the ActorGateway is constructed
+    * @return [[ActorGateway]] encapsulating the given [[ActorRef]]
+    */
+  implicit def actorRef2InstanceGateway(actor: ActorRef): ActorGateway = {
+    new AkkaActorGateway(actor, None)
   }
 }

@@ -24,18 +24,17 @@ import static org.mockito.Mockito.spy;
 
 import java.lang.reflect.Field;
 import java.net.InetAddress;
-import java.util.LinkedList;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.BaseTestingInstanceGateway;
+import org.apache.flink.runtime.instance.BaseTestingActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
-import org.apache.flink.runtime.instance.InstanceGateway;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -101,11 +100,11 @@ public class ExecutionGraphTestUtils {
 	//  utility mocking methods
 	// --------------------------------------------------------------------------------------------
 
-	public static Instance getInstance(final InstanceGateway gateway) throws Exception {
+	public static Instance getInstance(final ActorGateway gateway) throws Exception {
 		return getInstance(gateway, 1);
 	}
 
-	public static Instance getInstance(final InstanceGateway gateway, final int numberOfSlots) throws Exception {
+	public static Instance getInstance(final ActorGateway gateway, final int numberOfSlots) throws Exception {
 		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 		InetAddress address = InetAddress.getByName("127.0.0.1");
 		InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
@@ -113,10 +112,10 @@ public class ExecutionGraphTestUtils {
 		return new Instance(gateway, connection, new InstanceID(), hardwareDescription, numberOfSlots);
 	}
 
-	public static class SimpleInstanceGateway extends BaseTestingInstanceGateway {
+	public static class SimpleActorGateway extends BaseTestingActorGateway {
 		public TaskDeploymentDescriptor lastTDD;
 
-		public SimpleInstanceGateway(ExecutionContext executionContext){
+		public SimpleActorGateway(ExecutionContext executionContext){
 			super(executionContext);
 		}
 
@@ -140,8 +139,8 @@ public class ExecutionGraphTestUtils {
 		}
 	}
 
-	public static class SimpleFailingInstanceGateway extends BaseTestingInstanceGateway {
-		public SimpleFailingInstanceGateway(ExecutionContext executionContext) {
+	public static class SimpleFailingActorGateway extends BaseTestingActorGateway {
+		public SimpleFailingActorGateway(ExecutionContext executionContext) {
 			super(executionContext);
 		}
 

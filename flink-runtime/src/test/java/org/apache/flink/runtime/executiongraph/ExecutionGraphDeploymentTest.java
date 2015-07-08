@@ -92,7 +92,7 @@ public class ExecutionGraphDeploymentTest {
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jid2);
 			ExecutionVertex vertex = ejv.getTaskVertices()[3];
 
-			ExecutionGraphTestUtils.SimpleInstanceGateway instanceGateway = new ExecutionGraphTestUtils.SimpleInstanceGateway(TestingUtils.directExecutionContext());
+			ExecutionGraphTestUtils.SimpleActorGateway instanceGateway = new ExecutionGraphTestUtils.SimpleActorGateway(TestingUtils.directExecutionContext());
 
 			final Instance instance = getInstance(instanceGateway);
 
@@ -295,7 +295,7 @@ public class ExecutionGraphDeploymentTest {
 		for (int i = 0; i < dop1 + dop2; i++) {
 			scheduler.newInstanceAvailable(
 					ExecutionGraphTestUtils.getInstance(
-							new ExecutionGraphTestUtils.SimpleInstanceGateway(
+							new ExecutionGraphTestUtils.SimpleActorGateway(
 									TestingUtils.directExecutionContext())));
 		}
 		assertEquals(dop1 + dop2, scheduler.getNumberOfAvailableSlots());

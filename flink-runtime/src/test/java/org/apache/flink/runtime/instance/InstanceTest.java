@@ -38,7 +38,7 @@ public class InstanceTest {
 			InetAddress address = InetAddress.getByName("127.0.0.1");
 			InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
 
-			Instance instance = new Instance(DummyInstanceGateway.INSTANCE, connection, new InstanceID(), hardwareDescription, 4);
+			Instance instance = new Instance(DummyActorGateway.INSTANCE, connection, new InstanceID(), hardwareDescription, 4);
 
 			assertEquals(4, instance.getTotalNumberOfSlots());
 			assertEquals(4, instance.getNumberOfAvailableSlots());
@@ -99,7 +99,7 @@ public class InstanceTest {
 			InetAddress address = InetAddress.getByName("127.0.0.1");
 			InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
 
-			Instance instance = new Instance(DummyInstanceGateway.INSTANCE, connection, new InstanceID(), hardwareDescription, 3);
+			Instance instance = new Instance(DummyActorGateway.INSTANCE, connection, new InstanceID(), hardwareDescription, 3);
 
 			assertEquals(3, instance.getNumberOfAvailableSlots());
 
@@ -129,7 +129,7 @@ public class InstanceTest {
 			InetAddress address = InetAddress.getByName("127.0.0.1");
 			InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
 
-			Instance instance = new Instance(DummyInstanceGateway.INSTANCE, connection, new InstanceID(), hardwareDescription, 3);
+			Instance instance = new Instance(DummyActorGateway.INSTANCE, connection, new InstanceID(), hardwareDescription, 3);
 
 			assertEquals(3, instance.getNumberOfAvailableSlots());
 

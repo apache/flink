@@ -28,7 +28,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
-import org.apache.flink.runtime.instance.InstanceGateway;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -469,7 +469,7 @@ public class ExecutionVertex implements Serializable {
 			
 			// send only if we actually have a target
 			if (slot != null) {
-				InstanceGateway gateway = slot.getInstance().getInstanceGateway();
+				ActorGateway gateway = slot.getInstance().getActorGateway();
 				if (gateway != null) {
 					gateway.tell(message);
 				}

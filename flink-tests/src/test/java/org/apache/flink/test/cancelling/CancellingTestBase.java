@@ -21,7 +21,6 @@ package org.apache.flink.test.cancelling;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-import akka.actor.ActorRef;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobCancellationException;
@@ -115,7 +114,7 @@ public abstract class CancellingTestBase {
 				public void run() {
 					try {
 						Thread.sleep(msecsTillCanceling);
-						executor.getJobManager().tell(new JobManagerMessages.CancelJob(jobGraph.getJobID()), ActorRef.noSender());
+						executor.getJobManagerGateway().tell(new JobManagerMessages.CancelJob(jobGraph.getJobID()));
 					}
 					catch (Throwable t) {
 						error.set(t);

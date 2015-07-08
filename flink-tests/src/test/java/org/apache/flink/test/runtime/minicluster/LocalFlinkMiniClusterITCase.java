@@ -18,18 +18,22 @@
 
 package org.apache.flink.test.runtime.minicluster;
 
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.instance.AkkaActorGateway;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import scala.Option;
+
+import java.util.UUID;
 
 public class LocalFlinkMiniClusterITCase {
 
@@ -59,19 +63,24 @@ public class LocalFlinkMiniClusterITCase {
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);
 			miniCluster = new LocalFlinkMiniCluster(config, true);
 
-			final ActorRef jm = miniCluster.getJobManager();
+			final ActorGateway jmGateway = miniCluster.getJobManagerGateway();
 
 			new JavaTestKit(system) {{
+				final ActorGateway selfGateway = new AkkaActorGateway(getRef(), Option.<UUID>empty());
+
 				new Within(TestingUtils.TESTING_DURATION()) {
 
 					@Override
 					protected void run() {
-						jm.tell(JobManagerMessages.getRequestNumberRegisteredTaskManager(),
-								getRef());
+						jmGateway.tell(
+								JobManagerMessages.getRequestNumberRegisteredTaskManager(),
+								selfGateway);
 
 						expectMsgEquals(TestingUtils.TESTING_DURATION(), numTMs);
 
-						jm.tell(JobManagerMessages.getRequestTotalNumberOfSlots(), getRef());
+						jmGateway.tell(
+								JobManagerMessages.getRequestTotalNumberOfSlots(),
+								selfGateway);
 
 						expectMsgEquals(TestingUtils.TESTING_DURATION(), numTMs*numSlots);
 					}

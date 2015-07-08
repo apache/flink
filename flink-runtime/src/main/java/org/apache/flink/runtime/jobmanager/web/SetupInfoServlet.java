@@ -146,7 +146,7 @@ public class SetupInfoServlet extends HttpServlet {
 				long time = new Date().getTime() - instance.getLastHeartBeat();
 
 				try {
-					objInner.put("path", instance.getInstanceGateway().path());
+					objInner.put("path", instance.getActorGateway().path());
 					objInner.put("dataPort", instance.getInstanceConnectionInfo().dataPort());
 					objInner.put("timeSinceLastHeartbeat", time / 1000);
 					objInner.put("slotsNumber", instance.getTotalNumberOfSlots());

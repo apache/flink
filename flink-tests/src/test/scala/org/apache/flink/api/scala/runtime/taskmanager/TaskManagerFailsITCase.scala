@@ -32,7 +32,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, R
 import org.apache.flink.runtime.messages.TaskManagerMessages.{RegisteredAtJobManager, NotifyWhenRegisteredAtJobManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
-import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.apache.flink.test.util.ForkableFlinkMiniCluster
 
 import org.junit.runner.RunWith
@@ -40,8 +40,13 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 @RunWith(classOf[JUnitRunner])
-class TaskManagerFailsITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender
-with WordSpecLike with Matchers with BeforeAndAfterAll {
+class TaskManagerFailsITCase(_system: ActorSystem)
+  extends TestKit(_system)
+  with ImplicitSender
+  with WordSpecLike
+  with Matchers
+  with BeforeAndAfterAll
+  with ScalaTestingUtils {
 
   def this() = this(ActorSystem("TestingActorSystem", AkkaUtils.getDefaultAkkaConfig))
 
@@ -57,22 +62,22 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       val cluster = startDeathwatchCluster(num_slots, 2)
 
       val taskManagers = cluster.getTaskManagers
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
-      jm ! DisableDisconnect
+      jmGateway.tell(DisableDisconnect)
 
       try{
         within(TestingUtils.TESTING_DURATION){
-          jm ! RequestNumberRegisteredTaskManager
+          jmGateway.tell(RequestNumberRegisteredTaskManager, self)
           expectMsg(2)
 
-          jm ! NotifyWhenTaskManagerTerminated(taskManagers(0))
+          jmGateway.tell(NotifyWhenTaskManagerTerminated(taskManagers(0)), self)
 
           taskManagers(0) ! PoisonPill
 
           val TaskManagerTerminated(tm) = expectMsgClass(classOf[TaskManagerTerminated])
 
-          jm ! RequestNumberRegisteredTaskManager
+          jmGateway.tell(RequestNumberRegisteredTaskManager, self)
           expectMsg(1)
         }
       }
@@ -97,18 +102,18 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
       val cluster = ForkableFlinkMiniCluster.startCluster(num_tasks, 2)
 
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
 
-          jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
+          jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), self)
 
           expectMsg(AllVerticesRunning(jobID))
 
-          jm ! RequestWorkingTaskManager(jobID)
+          jmGateway.tell(RequestWorkingTaskManager(jobID), self)
 
           val gatewayOption = expectMsgType[WorkingTaskManager].gatewayOption
 
@@ -150,14 +155,14 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       val cluster = ForkableFlinkMiniCluster.startCluster(num_tasks, 2)
 
       val taskManagers = cluster.getTaskManagers
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
 
-          jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
+          jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), self)
           expectMsg(AllVerticesRunning(jobID))
 
           // kill one task manager
@@ -193,11 +198,11 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       val cluster = startDeathwatchCluster(num_slots/2, 2)
 
       var tm = cluster.getTaskManagers(0)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try{
         within(TestingUtils.TESTING_DURATION){
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
 
           tm ! PoisonPill
@@ -219,7 +224,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
           expectMsg(RegisteredAtJobManager)
 
-          jm ! SubmitJob(jobGraph2, false)
+          jmGateway.tell(SubmitJob(jobGraph2, false), self)
 
           expectMsgType[Success]
 

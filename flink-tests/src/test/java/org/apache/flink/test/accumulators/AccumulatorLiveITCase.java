@@ -44,6 +44,8 @@ import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
@@ -79,7 +81,7 @@ public class AccumulatorLiveITCase {
 	private static final Logger LOG = LoggerFactory.getLogger(AccumulatorLiveITCase.class);
 
 	private static ActorSystem system;
-	private static ActorRef jobManager;
+	private static ActorGateway jobManagerGateway;
 	private static ActorRef taskManager;
 	private static JobID jobID;
 
@@ -104,7 +106,7 @@ public class AccumulatorLiveITCase {
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
 		TestingCluster testingCluster = new TestingCluster(config, false, true);
 
-		jobManager = testingCluster.getJobManager();
+		jobManagerGateway = testingCluster.getJobManagerGateway();
 		taskManager = testingCluster.getTaskManagersAsJava().get(0);
 
 		// generate test data
@@ -135,12 +137,15 @@ public class AccumulatorLiveITCase {
 			JobGraph jobGraph = getOptimizedPlan(((PlanExtractor) env).plan);
 			jobID = jobGraph.getJobID();
 
+			ActorGateway selfGateway = new AkkaActorGateway(getRef(), jobManagerGateway.leaderSessionID());
+
 			// register for accumulator changes
-			jobManager.tell(new TestingJobManagerMessages.NotifyWhenAccumulatorChange(jobID), getRef());
+			jobManagerGateway.tell(new TestingJobManagerMessages.NotifyWhenAccumulatorChange(jobID), selfGateway);
 			expectMsgEquals(TIMEOUT, true);
 
 			// submit job
-			jobManager.tell(new JobManagerMessages.SubmitJob(jobGraph, false), getRef());
+
+			jobManagerGateway.tell(new JobManagerMessages.SubmitJob(jobGraph, false), selfGateway);
 			expectMsgClass(TIMEOUT, Status.Success.class);
 
 
