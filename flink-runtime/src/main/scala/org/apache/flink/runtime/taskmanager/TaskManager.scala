@@ -1033,7 +1033,7 @@ object TaskManager {
     EnvironmentInformation.checkJavaVersion()
 
     val maxOpenFileHandles = EnvironmentInformation.getOpenFileHandlesLimit()
-    if (maxOpenFileHandles == -1) {
+    if (maxOpenFileHandles != -1) {
       LOG.info(s"Maximum number of open file descriptors is $maxOpenFileHandles")
     } else {
       LOG.info("Cannot determine the maximum number of open file descriptors")
