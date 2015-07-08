@@ -21,10 +21,10 @@ package org.apache.flink.api.common.functions.util;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -53,32 +53,34 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final ExecutionConfig executionConfig;
 
-	private final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
-	
+	private final Map<String, Accumulator<?, ?>> accumulators;
+
 	private final DistributedCache distributedCache;
-	
-	
-	public AbstractRuntimeUDFContext(String name,
-										int numParallelSubtasks, int subtaskIndex,
-										ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig)
-	{
-		this(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig,
-				Collections.<String, Future<Path>>emptyMap());
-	}
-	
+
+
 	public AbstractRuntimeUDFContext(String name,
 										int numParallelSubtasks, int subtaskIndex,
 										ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig,
-										Map<String, Future<Path>> cpTasks)
+										Map<String, Accumulator<?,?>> accumulators)
 	{
+		this(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig,
+				accumulators, Collections.<String, Future<Path>>emptyMap());
+	}
+
+	public AbstractRuntimeUDFContext(String name,
+										int numParallelSubtasks, int subtaskIndex,
+										ClassLoader userCodeClassLoader,
+										ExecutionConfig executionConfig,
+										Map<String, Accumulator<?,?>> accumulators,
+										Map<String, Future<Path>> cpTasks) {
 		this.name = name;
 		this.numParallelSubtasks = numParallelSubtasks;
 		this.subtaskIndex = subtaskIndex;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
 		this.distributedCache = new DistributedCache(cpTasks);
+		this.accumulators = Preconditions.checkNotNull(accumulators);
 	}
 
 	@Override
@@ -137,8 +139,8 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	}
 
 	@Override
-	public HashMap<String, Accumulator<?, ?>> getAllAccumulators() {
-		return this.accumulators;
+	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
+		return Collections.unmodifiableMap(this.accumulators);
 	}
 	
 	@Override

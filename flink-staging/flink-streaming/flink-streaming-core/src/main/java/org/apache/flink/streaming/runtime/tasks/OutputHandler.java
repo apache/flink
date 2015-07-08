@@ -24,7 +24,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Preconditions;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -59,7 +62,14 @@ public class OutputHandler<OUT> {
 	private Map<Integer, StreamConfig> chainedConfigs;
 	private List<StreamEdge> outEdgesInOrder;
 
-	public OutputHandler(StreamTask<OUT, ?> vertex) {
+	/**
+	 * Counters for the number of records emitted and bytes written.
+	 */
+	protected AccumulatorRegistry.Reporter reporter;
+
+
+	public OutputHandler(StreamTask<OUT, ?> vertex, Map<String, Accumulator<?,?>> accumulatorMap,
+						AccumulatorRegistry.Reporter reporter) {
 
 		// Initialize some fields
 		this.vertex = vertex;
@@ -75,6 +85,8 @@ public class OutputHandler<OUT> {
 
 		this.outEdgesInOrder = configuration.getOutEdgesInOrder(cl);
 
+		this.reporter = reporter;
+
 		// We iterate through all the out edges from this job vertex and create
 		// a stream output
 		for (StreamEdge outEdge : outEdgesInOrder) {
@@ -82,13 +94,14 @@ public class OutputHandler<OUT> {
 					outEdge,
 					outEdge.getTargetId(),
 					chainedConfigs.get(outEdge.getSourceId()),
-					outEdgesInOrder.indexOf(outEdge));
+					outEdgesInOrder.indexOf(outEdge),
+					reporter);
 			outputMap.put(outEdge, streamOutput);
 		}
 
 		// We create the outer output that will be passed to the first task
 		// in the chain
-		this.outerOutput = createChainedCollector(configuration);
+		this.outerOutput = createChainedCollector(configuration, accumulatorMap);
 		
 		// Add the head operator to the end of the list
 		this.chainedOperators.add(vertex.streamOperator);
@@ -121,7 +134,8 @@ public class OutputHandler<OUT> {
 	 * config
 	 */
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	private <X> Output<X> createChainedCollector(StreamConfig chainedTaskConfig) {
+	private <X> Output<X> createChainedCollector(StreamConfig chainedTaskConfig, Map<String, Accumulator<?,?>> accumulatorMap) {
+		Preconditions.checkNotNull(accumulatorMap);
 
 
 		// We create a wrapper that will encapsulate the chained operators and
@@ -141,7 +155,7 @@ public class OutputHandler<OUT> {
 		for (StreamEdge outputEdge : chainedTaskConfig.getChainedOutputs(cl)) {
 			Integer output = outputEdge.getTargetId();
 
-			Collector<?> outCollector = createChainedCollector(chainedConfigs.get(output));
+			Collector<?> outCollector = createChainedCollector(chainedConfigs.get(output), accumulatorMap);
 
 			wrapper.addCollector(outCollector, outputEdge);
 		}
@@ -155,8 +169,8 @@ public class OutputHandler<OUT> {
 			// operator which will be returned and set it up using the wrapper
 			OneInputStreamOperator chainableOperator =
 					chainedTaskConfig.getStreamOperator(vertex.getUserCodeClassLoader());
-			
-			StreamingRuntimeContext chainedContext = vertex.createRuntimeContext(chainedTaskConfig);
+
+			StreamingRuntimeContext chainedContext = vertex.createRuntimeContext(chainedTaskConfig, accumulatorMap);
 			vertex.contexts.add(chainedContext);
 			
 			chainableOperator.setup(wrapper, chainedContext);
@@ -188,7 +202,7 @@ public class OutputHandler<OUT> {
 	 * @return The created StreamOutput
 	 */
 	private <T> StreamOutput<T> createStreamOutput(StreamEdge edge, Integer outputVertex,
-			StreamConfig upStreamConfig, int outputIndex) {
+			StreamConfig upStreamConfig, int outputIndex, AccumulatorRegistry.Reporter reporter) {
 
 		StreamRecordSerializer<T> outSerializer = upStreamConfig
 				.getTypeSerializerOut1(vertex.userClassLoader);
@@ -206,6 +220,8 @@ public class OutputHandler<OUT> {
 
 		RecordWriter<SerializationDelegate<StreamRecord<T>>> output =
 				RecordWriterFactory.createRecordWriter(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
+
+		output.setReporter(reporter);
 
 		StreamOutput<T> streamOutput = new StreamOutput<T>(output, outSerializationDelegate);
 

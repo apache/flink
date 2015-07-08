@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import java.io.IOException;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.task.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.api.reader.ReaderBase;
@@ -57,6 +58,7 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 
 	private final BarrierBuffer barrierBuffer;
 
+
 	@SuppressWarnings("unchecked")
 	protected StreamingAbstractRecordReader(InputGate inputGate) {
 		super(inputGate);
@@ -80,7 +82,8 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 				DeserializationResult result = currentRecordDeserializer.getNextRecord(target);
 
 				if (result.isBufferConsumed()) {
-					currentRecordDeserializer.getCurrentBuffer().recycle();
+					Buffer currentBuffer = currentRecordDeserializer.getCurrentBuffer();
+					currentBuffer.recycle();
 					currentRecordDeserializer = null;
 				}
 
@@ -130,4 +133,12 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 	public void cleanup() throws IOException {
 		barrierBuffer.cleanup();
 	}
+
+	@Override
+	public void setReporter(AccumulatorRegistry.Reporter reporter) {
+		for (RecordDeserializer<?> deserializer : recordDeserializers) {
+			deserializer.setReporter(reporter);
+		}
+	}
+
 }
