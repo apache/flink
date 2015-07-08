@@ -1032,6 +1032,13 @@ object TaskManager {
     EnvironmentInformation.logEnvironmentInfo(LOG.logger, "TaskManager", args)
     EnvironmentInformation.checkJavaVersion()
 
+    val maxOpenFileHandles = EnvironmentInformation.getOpenFileHandlesLimit()
+    if (maxOpenFileHandles == -1) {
+      LOG.info(s"Maximum number of open file descriptors is $maxOpenFileHandles")
+    } else {
+      LOG.info("Cannot determine the maximum number of open file descriptors")
+    }
+    
     // try to parse the command line arguments
     val (configuration: Configuration,
          mode: StreamingMode) = try {

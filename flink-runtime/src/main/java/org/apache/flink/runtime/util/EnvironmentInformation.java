@@ -21,6 +21,7 @@ package org.apache.flink.runtime.util;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Properties;
 
@@ -201,6 +202,34 @@ public class EnvironmentInformation {
 		return System.getProperty("java.io.tmpdir");
 	}
 
+	/**
+	 * Tries to retrieve the maximum number of open file handles. This method will only work on
+	 * UNIX-based operating systems with Sun/Oracle Java versions.
+	 * 
+	 * <p>If the number of max open file handles cannot be determined, this method returns {@code -1}.</p>
+	 * 
+	 * @return The limit of open file handles, or {@code -1}, if the limit could not be determined.
+	 */
+	public static long getOpenFileHandlesLimit() {
+		Class<?> sunBeanClass;
+		try {
+			sunBeanClass = Class.forName("com.sun.management.UnixOperatingSystemMXBean");
+		}
+		catch (ClassNotFoundException e) {
+			return -1L;
+		}
+		
+		try {
+			Method fhLimitMethod = sunBeanClass.getMethod("getMaxFileDescriptorCount");
+			Object result = fhLimitMethod.invoke(ManagementFactory.getOperatingSystemMXBean());
+			return (Long) result;
+		}
+		catch (Throwable t) {
+			LOG.warn("Unexpected error when accessing file handle limit", t);
+			return -1L;
+		}
+	}
+	
 	/**
 	 * Logs a information about the environment, like code revision, current user, java version,
 	 * and JVM parameters.
