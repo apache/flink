@@ -36,7 +36,7 @@ import java.util.HashSet;
  * to the Adamic Acard similarity coefficient which is given as
  * Summation of weights of common neighbors of the source and destination vertex
  *The weights are given as 1/log(nK) nK is the degree  or the vertex
- * See <a href="http://social.cs.uiuc.edu/class/cs591kgk/friendsadamic.pdf">Friends and neighbors on the Web</a>
+ *@see <a href="http://social.cs.uiuc.edu/class/cs591kgk/friendsadamic.pdf">Friends and neighbors on the Web</a>
  *
  * <p>
  * Input files are plain text files and must be formatted as follows:
@@ -70,7 +70,7 @@ public class AdamicAdarSimilarityMeasure implements ProgramDescription {
 		and second field is the weight of that neighbor
 		*/
 		Graph<Long, Tuple2<Double, HashSet<Tuple2<Long, Double>>>, Double> graph =
-				Graph.fromDataSet(edges,new mapVertices(), env);
+				Graph.fromDataSet(edges,new MapVertices(), env);
 
 		DataSet<Tuple2<Long, Long>> degrees = graph.getDegrees();
 
@@ -119,8 +119,10 @@ public class AdamicAdarSimilarityMeasure implements ProgramDescription {
 		}
 	}
 
-	//mapfunction to initialise Vertex values from edge dataset
-	private static class mapVertices implements MapFunction<Long, Tuple2<Double, HashSet<Tuple2<Long, Double>>>> {
+	/**
+	 * mapfunction to initialise Vertex values from edge dataset
+	 */
+	private static class MapVertices implements MapFunction<Long, Tuple2<Double, HashSet<Tuple2<Long, Double>>>> {
 		@Override
 		public Tuple2<Double, HashSet<Tuple2<Long, Double>>> map(Long value) {
 			HashSet<Tuple2<Long, Double>> neighbors = new HashSet<Tuple2<Long, Double>>();
@@ -130,7 +132,9 @@ public class AdamicAdarSimilarityMeasure implements ProgramDescription {
 		}
 	}
 
-	//mapfunction to assign weight for each vertex as 1/log(kn) where kn is the degree of the vertex
+	/**
+	 * mapfunction to assign weight for each vertex as 1/log(kn) where kn is the degree of the vertex
+	 */
 	private static class AssignWeightToVertices implements
 			MapFunction<Tuple2<Tuple2<Double, HashSet<Tuple2<Long, Double>>>, Long>,
 					Tuple2<Double, HashSet<Tuple2<Long, Double>>>> {
@@ -149,7 +153,9 @@ public class AdamicAdarSimilarityMeasure implements ProgramDescription {
 		}
 	}
 
-	//mapfunction to update values of vertices in the Graph
+	/**
+	 * mapfunction to update values of vertices in the Graph
+	 */
 	private static class UpdateGraphVertices implements MapFunction<Tuple2<Tuple2<Double, HashSet<Tuple2<Long, Double>>>,
 			Tuple2<Double, HashSet<Tuple2<Long, Double>>>>, Tuple2<Double, HashSet<Tuple2<Long, Double>>>> {
 		@Override
