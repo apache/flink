@@ -21,13 +21,17 @@ package org.apache.flink.streaming.api.functions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.ExceptionUtils;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -118,6 +122,76 @@ public class FromElementsFunctionTest {
 			catch (IOException e) {
 				assertTrue(ExceptionUtils.stringifyException(e).contains("user-defined serialization"));
 			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testCheckpointAndRestore() {
+		try {
+			final int NUM_ELEMENTS = 10000;
+			
+			List<Integer> data = new ArrayList<Integer>(NUM_ELEMENTS);
+			List<Integer> result = new ArrayList<Integer>(NUM_ELEMENTS);
+			
+			for (int i = 0; i < NUM_ELEMENTS; i++) {
+				data.add(i);
+			}
+			
+			final FromElementsFunction<Integer> source = new FromElementsFunction<Integer>(IntSerializer.INSTANCE, data);
+			final FromElementsFunction<Integer> sourceCopy = CommonTestUtils.createCopySerializable(source);
+			
+			final SourceFunction.SourceContext<Integer> ctx = new ListSourceContext<Integer>(result, 2L);
+			
+			final Throwable[] error = new Throwable[1];
+			
+			// run the source asynchronously
+			Thread runner = new Thread() {
+				@Override
+				public void run() {
+					try {
+						source.run(ctx);
+					}
+					catch (Throwable t) {
+						error[0] = t;
+					}
+				}
+			};
+			runner.start();
+			
+			// wait for a bit 
+			Thread.sleep(1000);
+			
+			// make a checkpoint
+			int count;
+			List<Integer> checkpointData = new ArrayList<Integer>(NUM_ELEMENTS);
+			
+			synchronized (ctx.getCheckpointLock()) {
+				count = source.snapshotState(566, System.currentTimeMillis());
+				checkpointData.addAll(result);
+			}
+			
+			// cancel the source
+			source.cancel();
+			runner.join();
+			
+			// check for errors
+			if (error[0] != null) {
+				System.err.println("Error in asynchronous source runner");
+				error[0].printStackTrace();
+				fail("Error in asynchronous source runner");
+			}
+			
+			// recovery run
+			SourceFunction.SourceContext<Integer> newCtx = new ListSourceContext<Integer>(checkpointData);
+			sourceCopy.restoreState(count);
+			
+			sourceCopy.run(newCtx);
+			
+			assertEquals(data, checkpointData);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
