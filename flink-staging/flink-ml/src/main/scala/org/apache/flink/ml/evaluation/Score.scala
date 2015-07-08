@@ -53,6 +53,7 @@ abstract class MeanScore[PredictionType: TypeInformation: ClassTag](
     scoringFct: (PredictionType, PredictionType) => Double)
     (implicit yyt: TypeInformation[(PredictionType, PredictionType)])
   extends Score[PredictionType] with Serializable {
+
   def evaluate(trueAndPredicted: DataSet[(PredictionType, PredictionType)]): DataSet[Double] = {
     trueAndPredicted.map(yy => scoringFct(yy._1, yy._2)).mean()
   }
@@ -76,8 +77,8 @@ object RegressionScores {
    * @return a Loss object
    */
   def zeroOneSignumLoss = new MeanScore[Double]({ (y1, y2) =>
-    val sy1 = scala.math.signum(y1)
-    val sy2 = scala.math.signum(y2)
+    val sy1 = y1.signum
+    val sy2 = y2.signum
     if (sy1 == sy2) 0 else 1
   }) with Loss
 

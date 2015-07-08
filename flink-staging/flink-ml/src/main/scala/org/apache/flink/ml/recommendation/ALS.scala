@@ -33,7 +33,6 @@ import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner,
   GroupReduceFunction, CoGroupFunction}
 
-// TODO: Use only one BLAS interface
 import com.github.fommil.netlib.BLAS.{ getInstance => blas }
 import com.github.fommil.netlib.LAPACK.{ getInstance => lapack }
 import org.netlib.util.intW
@@ -438,13 +437,14 @@ object ALS {
     override def evaluateDataSet(
         instance: ALS,
         evaluateParameters: ParameterMap,
-        testing: DataSet[(Int, Int, Double)]): DataSet[(Double, Double)] = {
+        testing: DataSet[(Int, Int, Double)])
+      : DataSet[(Double, Double)] = {
       instance.factorsOption match {
         case Some((userFactors, itemFactors)) => {
           testing.join(userFactors, JoinHint.REPARTITION_HASH_SECOND).where(0).equalTo(0)
             .join(itemFactors, JoinHint.REPARTITION_HASH_SECOND).where("_1._2").equalTo(0).map {
             tuple => {
-              val (((uID, iID, truth), uFactors), iFactors) = tuple
+              val (((_, _, truth), uFactors), iFactors) = tuple
 
               val uFactorsVector = uFactors.factors
               val iFactorsVector = iFactors.factors

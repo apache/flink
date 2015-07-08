@@ -70,8 +70,10 @@ package object ml {
       dataSet.map(new BroadcastSingleElementMapperWithIteration[T, B, O](dataSet.clean(fun)))
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
     }
+  }
 
-    /** Calculates the mean value of a DataSet[T <\: Numeric[T]]
+  implicit class RichNumericDataSet[T : Numeric](dataSet: DataSet[T]) {
+    /** Calculates the mean value of a DataSet[T <: Numeric[T] ]
       *
       * @return A DataSet[Double] with the mean value as its only element
       */

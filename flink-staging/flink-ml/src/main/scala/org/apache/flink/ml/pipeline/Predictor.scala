@@ -209,17 +209,15 @@ object Predictor {
     * @tparam Model The model that the calling [[Predictor]] uses for predictions
     * @return An EvaluateDataSetOperation for LabeledVector
     */
-  implicit def LabeledVectorEvaluateDataSetOperation[
-  Instance <: Predictor[Instance],
-  Model](
-      implicit predictOperation: PredictOperation[Instance, Model, FlinkVector, Double])
+  implicit def LabeledVectorEvaluateDataSetOperation[Instance <: Predictor[Instance],Model]
+      (implicit predictOperation: PredictOperation[Instance, Model, FlinkVector, Double])
     : EvaluateDataSetOperation[Instance, LabeledVector, Double] = {
     new EvaluateDataSetOperation[Instance, LabeledVector, Double] {
       override def evaluateDataSet(
           instance: Instance,
           evaluateParameters: ParameterMap,
           testing: DataSet[LabeledVector])
-      : DataSet[(Double,  Double)] = {
+        : DataSet[(Double,  Double)] = {
         val resultingParameters = instance.parameters ++ evaluateParameters
         val model = predictOperation.getModel(instance, resultingParameters)
 
@@ -233,7 +231,7 @@ object Predictor {
   }
 }
 
-/** Trait for the predict operation of [[Predictor]]. This predict operation works on DataSets.
+/** Type class for the predict operation of [[Predictor]]. This predict operation works on DataSets.
   *
   * [[Predictor]]s either have to implement this trait or the [[PredictOperation]] trait. The
   * implementation has to be made available as an implicit value or function in the scope of
@@ -295,7 +293,7 @@ trait PredictOperation[Instance, Model, Testing, Prediction] extends Serializabl
   def predict(value: Testing, model: Model): Prediction
 }
 
-/** Trait for the evaluate operation of [[Predictor]]. This evaluate operation works on
+/** Type class  for the evaluate operation of [[Predictor]]. This evaluate operation works on
   * DataSets.
   *
   * It takes a [[DataSet]] of some type. For each element of this [[DataSet]] the evaluate method

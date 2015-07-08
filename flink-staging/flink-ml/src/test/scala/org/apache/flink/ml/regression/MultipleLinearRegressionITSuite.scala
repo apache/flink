@@ -18,6 +18,7 @@
 
 package org.apache.flink.ml.regression
 
+import org.apache.flink.ml._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.ml.common.{LabeledVector, WeightVector, ParameterMap}
 import org.apache.flink.ml.preprocessing.PolynomialFeatures
@@ -145,7 +146,7 @@ class MultipleLinearRegressionITSuite
 
     parameters.add(MultipleLinearRegression.Stepsize, 10.0)
     parameters.add(MultipleLinearRegression.Iterations, 100)
-//    parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.0001)
+    parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.0001)
 
     val inputDS = env.fromCollection(data)
     val evaluationDS = inputDS
@@ -154,6 +155,6 @@ class MultipleLinearRegressionITSuite
 
     val r2Score = mlr.score(evaluationDS).collect().head
 
-    r2Score should be (expectedR2 +- 0.1)
+    r2Score should be (expectedR2 +- 0.01)
   }
 }

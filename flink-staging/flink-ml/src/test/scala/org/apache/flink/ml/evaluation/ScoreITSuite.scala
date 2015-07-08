@@ -24,10 +24,7 @@ import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
 
-class ScoreTest
-  extends FlatSpec
-   with Matchers
-   with FlinkTestBase {
+class ScoreITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   behavior of "Evaluation Score functions"
 
@@ -88,7 +85,7 @@ class ScoreTest
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     // List of 50 (i, i + 1.0) tuples, where i the index
-    val valueList = Range.Double(0.0, 50.0, 1.0).toList zip Range.Double(0.0, 50.0, 1.0).map(_ + 1)
+    val valueList = Range.Double(0.0, 50.0, 1.0) zip Range.Double(0.0, 50.0, 1.0).map(_ + 1)
 
     val yy = env.fromCollection(valueList)
 
@@ -97,13 +94,13 @@ class ScoreTest
     val result = r2.evaluate(yy).collect()
 
     result.length shouldBe 1
-    result.head shouldBe (0.995 +- 1e9)
+    result.head shouldBe (0.99519807923169268 +- 1e9)
   }
 
   it should "calculate the R2 score correctly for edge cases" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    // List of 50 (i, i + 1.0) tuples, where i the index
+    // List of 50 (0.0, 1.0) tuples
     val valueList = Array.ofDim[Double](50) zip Array.ofDim[Double](50).map(_ + 1.0)
 
     val yy = env.fromCollection(valueList)

@@ -25,7 +25,6 @@ import org.apache.flink.ml.regression.MultipleLinearRegression
 import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
-
 class ScorerITSuite  extends FlatSpec with Matchers with FlinkTestBase {
 
   behavior of "the Scorer class"
