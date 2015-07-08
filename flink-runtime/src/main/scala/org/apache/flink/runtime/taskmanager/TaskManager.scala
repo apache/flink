@@ -22,7 +22,7 @@ import java.io.{File, IOException}
 import java.net.{InetAddress, InetSocketAddress}
 import java.util.concurrent.TimeUnit
 import java.lang.reflect.Method
-import java.lang.management.ManagementFactory
+import java.lang.management.{OperatingSystemMXBean, ManagementFactory}
 
 import akka.actor._
 import akka.pattern.ask
@@ -35,7 +35,7 @@ import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, GarbageCollectorMetricSet}
 import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 
-import org.apache.flink.configuration._
+import org.apache.flink.configuration.{Configuration, ConfigConstants, GlobalConfiguration, IllegalConfigurationException}
 import org.apache.flink.runtime.messages.checkpoint.{ConfirmCheckpoint, TriggerCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.{StreamingMode, ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
@@ -1752,40 +1752,35 @@ object TaskManager {
         ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()
     })
 
-    // Preprocessing steps for registering cpuLoad
-    val fetchCPULoad = getMethodToFetchCPULoad()
-
-    // Log getProcessCpuLoad unavailable for Java 6
-    if(fetchCPULoad.isEmpty){
-      LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
-        "implementation for this Java runtime environment\n" +
-        Thread.currentThread().getStackTrace)
-    }
+    // Pre-processing steps for registering cpuLoad
+    val osBean: OperatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean()
+        
+    val fetchCPULoadMethod: Option[Method] = 
+      try {
+        Class.forName("com.sun.management.OperatingSystemMXBean")
+          .getMethods()
+          .find( _.getName() == "getProcessCpuLoad" )
+      }
+      catch {
+        case t: Throwable =>
+          LOG.warn("Cannot access com.sun.management.OperatingSystemMXBean.getProcessCpuLoad()" +
+            " - CPU load metrics will not be available.")
+          None
+      }
 
     metricRegistry.register("cpuLoad", new Gauge[Double] {
       override def getValue: Double = {
         try{
-          fetchCPULoad.map(_.invoke(ManagementFactory.getOperatingSystemMXBean().
-            asInstanceOf[com.sun.management.OperatingSystemMXBean]).
-            asInstanceOf[Double]).getOrElse(-1)
-        } catch {
+          fetchCPULoadMethod.map(_.invoke(osBean).asInstanceOf[Double]).getOrElse(-1.0)
+        }
+        catch {
           case t: Throwable => {
             LOG.warn("Error retrieving CPU Load through OperatingSystemMXBean", t)
-            -1
+            -1.0
           }
         }
       }
     })
     metricRegistry
-  }
-
-  /**
-   * Fetches getProcessCpuLoad method if available in the
-   *  OperatingSystemMXBean implementation else returns None
-   * @return
-   */
-  private def getMethodToFetchCPULoad(): Option[Method] = {
-    val methodsList = classOf[com.sun.management.OperatingSystemMXBean].getMethods()
-    methodsList.filter(_.getName == "getProcessCpuLoad").headOption
   }
 }
