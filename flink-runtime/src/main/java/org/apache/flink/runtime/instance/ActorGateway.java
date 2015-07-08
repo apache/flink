@@ -19,16 +19,19 @@
 package org.apache.flink.runtime.instance;
 
 import akka.actor.ActorRef;
+import scala.Option;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.util.UUID;
+
 /**
- * Interface to abstract the communication with an Instance.
+ * Interface to abstract the communication with an actor.
  *
  * It allows to avoid direct interaction with an ActorRef.
  */
-public interface InstanceGateway {
+public interface ActorGateway {
 
 	/**
 	 * Sends a message asynchronously and returns its response. The response to the message is
@@ -48,13 +51,21 @@ public interface InstanceGateway {
 	void tell(Object message);
 
 	/**
+	 * Sends a message asynchronously without a result with sender being the sender.
+	 *
+	 * @param message Message to be sent
+	 * @param sender Sender of the message
+	 */
+	void tell(Object message, ActorGateway sender);
+
+	/**
 	 * Forwards a message. For the receiver of this message it looks as if sender has sent the
 	 * message.
 	 *
 	 * @param message Message to be sent
 	 * @param sender Sender of the forwarded message
 	 */
-	void forward(Object message, ActorRef sender);
+	void forward(Object message, ActorGateway sender);
 
 	/**
 	 * Retries to send asynchronously a message up to numberRetries times. The response to this
@@ -79,4 +90,18 @@ public interface InstanceGateway {
 	 * @return Path of the remote instance.
 	 */
 	String path();
+
+	/**
+	 * Returns the underlying actor with which is communicated
+	 *
+	 * @return ActorRef of the target actor
+	 */
+	ActorRef actor();
+
+	/**
+	 * Returns the leaderSessionID associated with the remote actor or None.
+	 *
+	 * @return Leader session ID if its associated with this gateway, otherwise None
+	 */
+	Option<UUID> leaderSessionID();
 }

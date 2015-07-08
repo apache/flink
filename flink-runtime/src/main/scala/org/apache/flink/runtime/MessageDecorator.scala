@@ -18,14 +18,15 @@
 
 package org.apache.flink.runtime
 
-import _root_.akka.actor.Actor
-import grizzled.slf4j.Logger
-
-/** Adds a logger to an [[akka.actor.Actor]] implementation
+/** Base trait for message decorators
   *
   */
-trait ActorSynchronousLogging {
-  self: Actor =>
+trait MessageDecorator {
 
-  lazy val log = Logger(getClass)
+  /** Decorates a message
+    *
+    * @param message Message to decorate
+    * @return Decorated message
+    */
+  def decorate(message: Any): Any
 }

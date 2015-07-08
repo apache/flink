@@ -52,6 +52,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -375,22 +376,35 @@ public class Client {
 			throw new ProgramInvocationException("Could start client actor system.", e);
 		}
 
+		FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
+
 		LOG.info("Looking up JobManager");
-		ActorRef jobManager;
+		ActorGateway jobManagerGateway;
+		ActorRef jobManagerActorRef;
 		try {
-			jobManager = JobManager.getJobManagerRemoteReference(jobManagerAddress, actorSystem, configuration);
-		}
-		catch (IOException e) {
+			jobManagerActorRef = JobManager.getJobManagerRemoteReference(
+					jobManagerAddress,
+					actorSystem,
+					configuration);
+
+
+		} catch (IOException e) {
 			throw new ProgramInvocationException("Failed to resolve JobManager", e);
 		}
-		LOG.info("JobManager runs at " + jobManager.path());
 
-		FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
+		try{
+			jobManagerGateway = JobManager.getJobManagerGateway(jobManagerActorRef, timeout);
+		} catch (Exception e) {
+			throw new ProgramInvocationException("Failed to retrieve the JobManager gateway.", e);
+		}
+
+		LOG.info("JobManager runs at " + jobManagerGateway.path());
+
 		LOG.info("Communication between client and JobManager will have a timeout of " + timeout);
 
 		LOG.info("Checking and uploading JAR files");
 		try {
-			JobClient.uploadJarFiles(jobGraph, jobManager, timeout);
+			JobClient.uploadJarFiles(jobGraph, jobManagerGateway, timeout);
 		}
 		catch (IOException e) {
 			throw new ProgramInvocationException("Could not upload the program's JAR files to the JobManager.", e);
@@ -399,7 +413,7 @@ public class Client {
 		try{
 			if (wait) {
 				SerializedJobExecutionResult result = JobClient.submitJobAndWait(actorSystem, 
-						jobManager, jobGraph, timeout, printStatusDuringExecution);
+						jobManagerGateway, jobGraph, timeout, printStatusDuringExecution);
 				try {
 					return result.toJobExecutionResult(this.userCodeClassLoader);
 				}
@@ -409,7 +423,7 @@ public class Client {
 				}
 			}
 			else {
-				JobClient.submitJobDetached(jobManager, jobGraph, timeout);
+				JobClient.submitJobDetached(jobManagerGateway, jobGraph, timeout);
 				// return a dummy execution result with the JobId
 				return new JobSubmissionResult(jobGraph.getJobID());
 			}

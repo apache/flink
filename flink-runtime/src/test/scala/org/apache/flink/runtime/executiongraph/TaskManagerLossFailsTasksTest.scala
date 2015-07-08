@@ -21,7 +21,7 @@ package org.apache.flink.runtime.executiongraph
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleInstanceGateway
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
@@ -34,9 +34,9 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
     "fail the assigned tasks" in {
       try {
         val instance1 = ExecutionGraphTestUtils.getInstance(
-          new SimpleInstanceGateway(TestingUtils.defaultExecutionContext), 10)
+          new SimpleActorGateway(TestingUtils.defaultExecutionContext), 10)
         val instance2 = ExecutionGraphTestUtils.getInstance(
-          new SimpleInstanceGateway(TestingUtils.defaultExecutionContext), 10)
+          new SimpleActorGateway(TestingUtils.defaultExecutionContext), 10)
 
         val scheduler = new Scheduler(TestingUtils.defaultExecutionContext)
         scheduler.newInstanceAvailable(instance1)

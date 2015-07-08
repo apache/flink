@@ -19,34 +19,30 @@
 package org.apache.flink.runtime
 
 import _root_.akka.actor.Actor
+import grizzled.slf4j.Logger
 
-/**
- * Mixin to add debug message logging
- */
-trait ActorLogMessages {
-  that: Actor with ActorSynchronousLogging =>
+/** Base trait for Flink's actors.
+  *
+  * The message handling logic is defined in the handleMessage method. This allows to mixin
+  * stackable traits which change the message receiving behaviour.
+  */
+trait FlinkActor extends Actor {
+  val log: Logger
 
-  override def receive: Receive = new Actor.Receive {
-    private val _receiveWithLogMessages = receiveWithLogMessages
+  override def receive: Receive = handleMessage
 
-    override def isDefinedAt(x: Any): Boolean = _receiveWithLogMessages.isDefinedAt(x)
+  /** Handle incoming messages
+    *
+    * @return
+    */
+  def handleMessage: Receive
 
-    override def apply(x: Any): Unit = {
-      if (!log.isDebugEnabled) {
-        _receiveWithLogMessages(x)
-      }
-      else {
-        log.debug(s"Received message $x at ${that.self.path} from ${that.sender()}.")
-
-        val start = System.nanoTime()
-
-        _receiveWithLogMessages(x)
-
-        val duration = (System.nanoTime() - start) / 1000000
-        log.debug(s"Handled message $x in $duration ms from ${that.sender()}.")
-      }
-    }
+  /** Factory method for messages. This method can be used by mixins to decorate messages
+    *
+    * @param message The message to decorate
+    * @return The decorated message
+    */
+  def decorateMessage(message: Any): Any = {
+    message
   }
-
-  def receiveWithLogMessages: Receive
 }

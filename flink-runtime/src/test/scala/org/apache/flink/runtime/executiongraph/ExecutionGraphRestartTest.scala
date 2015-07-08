@@ -21,7 +21,7 @@ package org.apache.flink.runtime.executiongraph
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleInstanceGateway
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
@@ -36,7 +36,7 @@ class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
     "be manually restartable" in {
       try {
         val instance = ExecutionGraphTestUtils.getInstance(
-          new SimpleInstanceGateway(TestingUtils.directExecutionContext))
+          new SimpleActorGateway(TestingUtils.directExecutionContext))
 
         val scheduler = new Scheduler(TestingUtils.defaultExecutionContext)
         scheduler.newInstanceAvailable(instance)
@@ -83,7 +83,7 @@ class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
     "restart itself automatically" in {
       try {
         val instance = ExecutionGraphTestUtils.getInstance(
-          new SimpleInstanceGateway(TestingUtils.directExecutionContext))
+          new SimpleActorGateway(TestingUtils.directExecutionContext))
 
         val scheduler = new Scheduler(TestingUtils.defaultExecutionContext)
         scheduler.newInstanceAvailable(instance)

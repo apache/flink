@@ -39,7 +39,7 @@ object Messages {
    *
    * @param reason The reason for disconnecting, to be displayed in log and error messages.
    */
-  case class Disconnect(reason: String)
+  case class Disconnect(reason: String) extends RequiresLeaderSessionID
 
   /**
    * Accessor for the case object instance, to simplify Java interoperability.

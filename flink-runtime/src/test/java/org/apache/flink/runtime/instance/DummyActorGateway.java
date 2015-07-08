@@ -18,40 +18,51 @@
 
 package org.apache.flink.runtime.instance;
 
-import akka.actor.ActorPath;
 import akka.actor.ActorRef;
+import scala.Option;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.util.UUID;
+
 /**
- * Dummy {@link InstanceGateway} implementation used for testing.
+ * Dummy {@link ActorGateway} implementation used for testing.
  */
-public class DummyInstanceGateway implements InstanceGateway {
-	public static final DummyInstanceGateway INSTANCE = new DummyInstanceGateway();
+public class DummyActorGateway implements ActorGateway {
+	public static final DummyActorGateway INSTANCE = new DummyActorGateway();
 
 	@Override
 	public Future<Object> ask(Object message, FiniteDuration timeout) {
-		throw new UnsupportedOperationException();
+		return null;
 	}
 
 	@Override
-	public void tell(Object message) {
-		throw new UnsupportedOperationException();
-	}
+	public void tell(Object message) {}
 
 	@Override
-	public void forward(Object message, ActorRef sender) {
-		throw new UnsupportedOperationException();
-	}
+	public void tell(Object message, ActorGateway sender) {}
+
+	@Override
+	public void forward(Object message, ActorGateway sender) {}
 
 	@Override
 	public Future<Object> retry(Object message, int numberRetries, FiniteDuration timeout, ExecutionContext executionContext) {
-		throw new UnsupportedOperationException();
+		return null;
 	}
 
 	@Override
 	public String path() {
 		return "DummyInstanceGateway";
+	}
+
+	@Override
+	public ActorRef actor() {
+		return ActorRef.noSender();
+	}
+
+	@Override
+	public Option<UUID> leaderSessionID() {
+		return Option.<UUID>empty();
 	}
 }

@@ -25,14 +25,19 @@ import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGra
 import org.apache.flink.runtime.jobmanager.Tasks.{Sender, AgnosticBinaryReceiver, Receiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
 import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, SubmitJob}
-import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 @RunWith(classOf[JUnitRunner])
-class SlotSharingITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
-WordSpecLike with Matchers with BeforeAndAfterAll {
+class SlotSharingITCase(_system: ActorSystem)
+  extends TestKit(_system)
+  with ImplicitSender
+  with WordSpecLike
+  with Matchers
+  with BeforeAndAfterAll
+  with ScalaTestingUtils {
   def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
 
   override def afterAll(): Unit = {
@@ -61,11 +66,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
 
@@ -105,10 +110,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Bipartite job", sender1, sender2, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
+
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
         }

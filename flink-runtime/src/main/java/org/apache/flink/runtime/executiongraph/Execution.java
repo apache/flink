@@ -30,7 +30,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
-import org.apache.flink.runtime.instance.InstanceGateway;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -361,7 +361,7 @@ public class Execution implements Serializable {
 			vertex.getExecutionGraph().registerExecution(this);
 
 			final Instance instance = slot.getInstance();
-			final InstanceGateway gateway = instance.getInstanceGateway();
+			final ActorGateway gateway = instance.getActorGateway();
 
 			final Future<Object> deployAction = gateway.ask(new SubmitTask(deployment), timeout);
 
@@ -848,7 +848,7 @@ public class Execution implements Serializable {
 
 		if (slot != null) {
 
-			final InstanceGateway gateway = slot.getInstance().getInstanceGateway();
+			final ActorGateway gateway = slot.getInstance().getActorGateway();
 
 			Future<Object> cancelResult = gateway.retry(
 				new CancelTask(attemptId),
@@ -881,7 +881,7 @@ public class Execution implements Serializable {
 			final Instance instance = slot.getInstance();
 
 			if (instance.isAlive()) {
-				final InstanceGateway gateway = instance.getInstanceGateway();
+				final ActorGateway gateway = instance.getActorGateway();
 
 				// TODO For some tests this could be a problem when querying too early if all resources were released
 				gateway.tell(new FailIntermediateResultPartitions(attemptId));
@@ -901,7 +901,7 @@ public class Execution implements Serializable {
 
 		if (consumerSlot != null) {
 			final Instance instance = consumerSlot.getInstance();
-			final InstanceGateway gateway = instance.getInstanceGateway();
+			final ActorGateway gateway = instance.getActorGateway();
 
 			Future<Object> futureUpdate = gateway.ask(updatePartitionInfo, timeout);
 

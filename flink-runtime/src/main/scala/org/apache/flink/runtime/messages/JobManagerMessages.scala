@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.messages
 
+import java.util.UUID
+
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.client.{SerializedJobExecutionResult, JobStatusMessage}
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
@@ -32,6 +34,8 @@ import scala.collection.JavaConverters._
  */
 object JobManagerMessages {
 
+  case class LeaderSessionMessage(leaderSessionID: Option[UUID], message: Any)
+
   /**
    * Submits a job to the job manager. If [[registerForEvents]] is true,
    * then the sender will be registered as listener for the state change messages.
@@ -41,6 +45,7 @@ object JobManagerMessages {
    * @param registerForEvents if true, then register for state change events
    */
   case class SubmitJob(jobGraph: JobGraph, registerForEvents: Boolean)
+    extends RequiresLeaderSessionID
 
   /**
    * Cancels a job with the given [[jobID]] at the JobManager. The result of the cancellation is
@@ -48,19 +53,22 @@ object JobManagerMessages {
    *
    * @param jobID
    */
-  case class CancelJob(jobID: JobID)
+  case class CancelJob(jobID: JobID) extends RequiresLeaderSessionID
 
   /**
    * Requesting next input split for the
    * [[org.apache.flink.runtime.executiongraph.ExecutionJobVertex]]
    * of the job specified by [[jobID]]. The next input split is sent back to the sender as a
-   * [[org.apache.flink.runtime.messages.TaskManagerMessages.NextInputSplit]] message.
+   * [[NextInputSplit]] message.
    *
    * @param jobID
    * @param vertexID
    */
-  case class RequestNextInputSplit(jobID: JobID, vertexID: JobVertexID, executionAttempt:
-  ExecutionAttemptID)
+  case class RequestNextInputSplit(
+      jobID: JobID,
+      vertexID: JobVertexID,
+      executionAttempt: ExecutionAttemptID)
+    extends RequiresLeaderSessionID
 
   /**
    * Contains the next input split for a task. This message is a response to
@@ -80,10 +88,12 @@ object JobManagerMessages {
    * @param taskExecutionId The execution attempt ID of the task requesting the partition state.
    * @param taskResultId The input gate ID of the task requesting the partition state.
    */
-  case class RequestPartitionState(jobId: JobID,
-                                   partitionId: ResultPartitionID,
-                                   taskExecutionId: ExecutionAttemptID,
-                                   taskResultId: IntermediateDataSetID)
+  case class RequestPartitionState(
+      jobId: JobID,
+      partitionId: ResultPartitionID,
+      taskExecutionId: ExecutionAttemptID,
+      taskResultId: IntermediateDataSetID)
+    extends RequiresLeaderSessionID
 
   /**
    * Notifies the [[org.apache.flink.runtime.jobmanager.JobManager]] about available data for a
@@ -101,8 +111,7 @@ object JobManagerMessages {
    * @see [[org.apache.flink.runtime.io.network.partition.ResultPartition]]
    */
   case class ScheduleOrUpdateConsumers(jobId: JobID, partitionId: ResultPartitionID)
-
-  case class ConsumerNotificationResult(success: Boolean, error: Option[Throwable] = None)
+    extends RequiresLeaderSessionID
 
   /**
    * Requests the current [[JobStatus]] of the job identified by [[jobID]]. This message triggers
@@ -141,6 +150,17 @@ object JobManagerMessages {
    * sender as an [[Int]].
    */
   case object RequestBlobManagerPort
+
+  /** Requests the current leader session ID of the job manager. The result is sent back to the
+    * sender as an [[ResponseLeaderSessionID]]
+    */
+  case object RequestLeaderSessionID
+
+  /** Response to the [[RequestLeaderSessionID]] message.
+    *
+    * @param leaderSessionID
+    */
+  case class ResponseLeaderSessionID(leaderSessionID: Option[UUID])
 
   /**
    * Denotes a successful job execution.
@@ -299,5 +319,9 @@ object JobManagerMessages {
   
   def getJobManagerStatusAlive : AnyRef = {
     JobManagerStatusAlive
+  }
+
+  def getRequestLeaderSessionID: AnyRef = {
+    RequestLeaderSessionID
   }
 }

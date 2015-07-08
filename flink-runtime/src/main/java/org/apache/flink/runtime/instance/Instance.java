@@ -42,7 +42,7 @@ public class Instance {
 	private final Object instanceLock = new Object();
 
 	/** The instacne gateway to communicate with the instance */
-	private final InstanceGateway instanceGateway;
+	private final ActorGateway actorGateway;
 
 	/** The instance connection information for the data transfer. */
 	private final InstanceConnectionInfo connectionInfo;
@@ -79,19 +79,19 @@ public class Instance {
 	/**
 	 * Constructs an instance reflecting a registered TaskManager.
 	 *
-	 * @param instanceGateway The instance gateway to communicate with the remote instance
+	 * @param actorGateway The actor gateway to communicate with the remote instance
 	 * @param connectionInfo The remote connection where the task manager receives requests.
 	 * @param id The id under which the taskManager is registered.
 	 * @param resources The resources available on the machine.
 	 * @param numberOfSlots The number of task slots offered by this taskManager.
 	 */
 	public Instance(
-			InstanceGateway instanceGateway,
+			ActorGateway actorGateway,
 			InstanceConnectionInfo connectionInfo,
 			InstanceID id,
 			HardwareDescription resources,
 			int numberOfSlots) {
-		this.instanceGateway = instanceGateway;
+		this.actorGateway = actorGateway;
 		this.connectionInfo = connectionInfo;
 		this.instanceId = id;
 		this.resources = resources;
@@ -335,8 +335,8 @@ public class Instance {
 	 *
 	 * @return InstanceGateway associated with this instance
 	 */
-	public InstanceGateway getInstanceGateway() {
-		return instanceGateway;
+	public ActorGateway getActorGateway() {
+		return actorGateway;
 	}
 
 	public InstanceConnectionInfo getInstanceConnectionInfo() {
@@ -390,6 +390,6 @@ public class Instance {
 	@Override
 	public String toString() {
 		return String.format("%s @ %s - %d slots - URL: %s", instanceId, connectionInfo.getHostname(),
-				numberOfSlots, (instanceGateway != null ? instanceGateway.path() : "No instance gateway"));
+				numberOfSlots, (actorGateway != null ? actorGateway.path() : "No instance gateway"));
 	}
 }

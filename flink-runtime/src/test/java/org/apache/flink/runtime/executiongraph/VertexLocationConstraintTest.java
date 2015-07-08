@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.flink.runtime.instance.DummyInstanceGateway;
+import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -403,7 +403,7 @@ public class VertexLocationConstraintTest {
 			
 			ExecutionVertex ev = eg.getAllVertices().get(vertex.getID()).getTaskVertices()[0];
 			
-			Instance instance = ExecutionGraphTestUtils.getInstance(DummyInstanceGateway.INSTANCE);
+			Instance instance = ExecutionGraphTestUtils.getInstance(DummyActorGateway.INSTANCE);
 			ev.setLocationConstraintHosts(Collections.singletonList(instance));
 			
 			assertNotNull(ev.getPreferredLocations());
@@ -435,7 +435,7 @@ public class VertexLocationConstraintTest {
 		when(connection.getFQDNHostname()).thenReturn(hostname);
 		
 		return new Instance(
-				new ExecutionGraphTestUtils.SimpleInstanceGateway(
+				new ExecutionGraphTestUtils.SimpleActorGateway(
 						TestingUtils.defaultExecutionContext()),
 				connection,
 				new InstanceID(),

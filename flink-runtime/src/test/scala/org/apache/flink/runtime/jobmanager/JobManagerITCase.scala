@@ -21,14 +21,13 @@ package org.apache.flink.runtime.jobmanager
 import Tasks._
 import akka.actor.ActorSystem
 import akka.actor.Status.{Success, Failure}
-import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph, ScheduleMode}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
-import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -40,8 +39,13 @@ import scala.language.postfixOps
 import scala.util.Random
 
 @RunWith(classOf[JUnitRunner])
-class JobManagerITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
-WordSpecLike with Matchers with BeforeAndAfterAll {
+class JobManagerITCase(_system: ActorSystem)
+  extends TestKit(_system)
+  with ImplicitSender
+  with WordSpecLike
+  with Matchers
+  with BeforeAndAfterAll
+  with ScalaTestingUtils {
   implicit val duration = 1 minute
   implicit val timeout = Timeout.durationToTimeout(duration)
 
@@ -61,17 +65,17 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Test Job", vertex)
 
       val cluster = TestingUtils.startTestingCluster(1)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
-        val response = (jm ? RequestTotalNumberOfSlots).mapTo[Int]
+        val response = (jmGateway.ask(RequestTotalNumberOfSlots, timeout.duration)).mapTo[Int]
 
         val availableSlots = Await.result(response, duration)
 
         availableSlots should equal(1)
 
         within(2 second) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
 
           val success = expectMsgType[Success]
 
@@ -89,7 +93,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       }
       finally {
@@ -106,17 +110,17 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Test Job", vertex)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
-        val response = (jm ? RequestTotalNumberOfSlots).mapTo[Int]
+        val response = (jmGateway.ask(RequestTotalNumberOfSlots, timeout.duration)).mapTo[Int]
 
         val availableSlots = Await.result(response, duration)
 
         availableSlots should equal(num_tasks)
 
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
 
           expectMsg(Success(jobGraph.getJobID))
           val result = expectMsgType[JobResultSuccess]
@@ -124,7 +128,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           result.result.getJobId() should equal(jobGraph.getJobID)
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -142,11 +146,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       jobGraph.setAllowQueuedScheduling(true)
 
       val cluster = TestingUtils.startTestingCluster(10)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
 
           expectMsg(Success(jobGraph.getJobID))
 
@@ -154,7 +158,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           result.result.getJobId() should equal(jobGraph.getJobID)
         }
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -177,11 +181,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
 
           expectMsg(Success(jobGraph.getJobID))
 
@@ -189,7 +193,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           result.result.getJobId() should equal(jobGraph.getJobID)
         }
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -212,17 +216,17 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Bipartite Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
 
           expectMsg(Success(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
         }
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -249,11 +253,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 
       val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
 
           expectMsg(Success(jobGraph.getJobID))
           val failure = expectMsgType[Failure]
@@ -266,7 +270,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -293,17 +297,17 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 
       val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -337,17 +341,17 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       jobGraph.setScheduleMode(ScheduleMode.ALL)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks, 1)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
 
           expectMsg(Success(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
 
-          jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+          jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
           expectMsg(true)
         }
       } finally {
@@ -371,16 +375,16 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! RequestTotalNumberOfSlots
+          jmGateway.tell(RequestTotalNumberOfSlots, self)
           expectMsg(num_tasks)
         }
 
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
 
           val failure = expectMsgType[Failure]
@@ -393,7 +397,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -419,16 +423,16 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! RequestTotalNumberOfSlots
+          jmGateway.tell(RequestTotalNumberOfSlots, self)
           expectMsg(num_tasks)
         }
 
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
           val failure = expectMsgType[Failure]
 
@@ -440,7 +444,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -463,11 +467,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
           val failure = expectMsgType[Failure]
 
@@ -479,7 +483,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -502,14 +506,14 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! RequestTotalNumberOfSlots
+          jmGateway.tell(RequestTotalNumberOfSlots, self)
           expectMsg(num_tasks)
 
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
           val failure = expectMsgType[Failure]
 
@@ -521,7 +525,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
 
         expectMsg(true)
       } finally {
@@ -549,14 +553,14 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! RequestTotalNumberOfSlots
+          jmGateway.tell(RequestTotalNumberOfSlots, self)
           expectMsg(num_tasks)
 
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
           val failure = expectMsgType[Failure]
 
@@ -568,7 +572,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -591,11 +595,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("SubtaskInFinalStateRaceCondition", source, sink)
 
       val cluster = TestingUtils.startTestingCluster(2*num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try{
         within(TestingUtils.TESTING_DURATION){
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
 
           expectMsg(Success(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
@@ -603,7 +607,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
         sink.finished should equal(true)
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally{
         cluster.stop()
