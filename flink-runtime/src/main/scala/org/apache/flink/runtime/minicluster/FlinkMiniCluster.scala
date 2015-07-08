@@ -28,8 +28,11 @@ import org.apache.flink.api.common.JobSubmissionResult
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.client.{JobExecutionException, JobClient, SerializedJobExecutionResult}
+import org.apache.flink.runtime.client.{JobExecutionException, JobClient,
+SerializedJobExecutionResult}
+import org.apache.flink.runtime.instance.ActorGateway
 import org.apache.flink.runtime.jobgraph.JobGraph
+import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.slf4j.LoggerFactory
 
@@ -132,8 +135,9 @@ abstract class FlinkMiniCluster(
     AkkaUtils.createActorSystem(config)
   }
 
-  def getJobManager: ActorRef = {
-    jobManagerActor
+  def getJobManagerGateway(): ActorGateway = {
+    // create ActorGateway from the JobManager's ActorRef
+    JobManager.getJobManagerGateway(jobManagerActor, timeout)
   }
 
   def getTaskManagers = {
@@ -206,12 +210,17 @@ abstract class FlinkMiniCluster(
     val clientActorSystem = if (singleActorSystem) jobManagerActorSystem
     else JobClient.startJobClientActorSystem(configuration)
 
-    JobClient.submitJobAndWait(clientActorSystem, jobManagerActor, jobGraph, timeout, printUpdates)
+    JobClient.submitJobAndWait(
+      clientActorSystem,
+      getJobManagerGateway(),
+      jobGraph,
+      timeout,
+      printUpdates)
   }
 
   @throws(classOf[JobExecutionException])
   def submitJobDetached(jobGraph: JobGraph) : JobSubmissionResult = {
-    JobClient.submitJobDetached(jobManagerActor, jobGraph, timeout)
+    JobClient.submitJobDetached(getJobManagerGateway(), jobGraph, timeout)
     new JobSubmissionResult(jobGraph.getJobID)
   }
 }

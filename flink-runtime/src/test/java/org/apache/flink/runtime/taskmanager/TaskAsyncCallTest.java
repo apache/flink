@@ -18,13 +18,8 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.UntypedActor;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -34,6 +29,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.filecache.FileCache;
+import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -44,9 +40,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointNotificationOperator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -65,25 +59,8 @@ public class TaskAsyncCallTest {
 
 	private static final int NUM_CALLS = 1000;
 	
-	private static ActorSystem actorSystem;
-	
 	private static OneShotLatch awaitLatch;
 	private static OneShotLatch triggerLatch;
-
-	// ------------------------------------------------------------------------
-	//  Init & Shutdown
-	// ------------------------------------------------------------------------
-
-	@BeforeClass
-	public static void startActorSystem() {
-		actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
-	}
-
-	@AfterClass
-	public static void shutdown() {
-		actorSystem.shutdown();
-		actorSystem.awaitTermination();
-	}
 
 	@Before
 	public void createQueuesAndActors() {
@@ -176,8 +153,8 @@ public class TaskAsyncCallTest {
 				mock(IOManager.class),
 				networkEnvironment,
 				mock(BroadcastVariableManager.class),
-				actorSystem.actorOf(Props.create(BlackHoleActor.class)),
-				actorSystem.actorOf(Props.create(BlackHoleActor.class)),
+				DummyActorGateway.INSTANCE,
+				DummyActorGateway.INSTANCE,
 				new FiniteDuration(60, TimeUnit.SECONDS),
 				libCache,
 				mock(FileCache.class));
@@ -235,11 +212,5 @@ public class TaskAsyncCallTest {
 				}
 			}
 		}
-	}
-	
-	public static class BlackHoleActor extends UntypedActor {
-
-		@Override
-		public void onReceive(Object message) {}
 	}
 }

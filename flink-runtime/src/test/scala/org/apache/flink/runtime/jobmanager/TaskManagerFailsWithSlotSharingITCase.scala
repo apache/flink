@@ -27,14 +27,19 @@ import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
-import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 @RunWith(classOf[JUnitRunner])
-class TaskManagerFailsWithSlotSharingITCase(_system: ActorSystem) extends TestKit(_system) with
-ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
+class TaskManagerFailsWithSlotSharingITCase(_system: ActorSystem)
+  extends TestKit(_system)
+  with ImplicitSender
+  with WordSpecLike
+  with Matchers
+  with BeforeAndAfterAll
+  with ScalaTestingUtils {
 
   def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
 
@@ -64,15 +69,15 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobID = jobGraph.getJobID
 
       val cluster = TestingUtils.startTestingCluster(num_tasks/2, 2)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
       val taskManagers = cluster.getTaskManagers
 
       try{
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
 
-          jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
+          jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), self)
 
           expectMsg(AllVerticesRunning(jobID))
 
@@ -113,15 +118,15 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobID = jobGraph.getJobID
 
       val cluster = TestingUtils.startTestingCluster(num_tasks/2, 2)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
       val taskManagers = cluster.getTaskManagers
 
       try{
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
 
-          jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
+          jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), self)
           expectMsg(AllVerticesRunning(jobID))
 
           //kill task manager

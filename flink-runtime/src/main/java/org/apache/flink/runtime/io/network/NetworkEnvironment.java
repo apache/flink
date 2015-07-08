@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.io.network;
 
-import akka.actor.ActorRef;
 import akka.dispatch.OnFailure;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -164,16 +162,17 @@ public class NetworkEnvironment {
 	 * This associates the network environment with a TaskManager and JobManager.
 	 * This will actually start the network components.
 	 *
-	 * @param jobManagerRef The JobManager actor reference.
-	 * @param taskManagerRef The TaskManager actor reference.
+	 * @param jobManagerGateway Gateway to the JobManager.
+	 * @param taskManagerGateway Gateway to the TaskManager.
 	 *
 	 * @throws IOException Thrown if the network subsystem (Netty) cannot be properly started.
 	 */
-	public void associateWithTaskManagerAndJobManager(ActorRef jobManagerRef, ActorRef taskManagerRef)
-			throws IOException
+	public void associateWithTaskManagerAndJobManager(
+			ActorGateway jobManagerGateway,
+			ActorGateway taskManagerGateway) throws IOException
 	{
-		checkNotNull(jobManagerRef);
-		checkNotNull(taskManagerRef);
+		checkNotNull(jobManagerGateway);
+		checkNotNull(taskManagerGateway);
 
 		synchronized (lock) {
 			if (isShutdown) {
@@ -192,12 +191,12 @@ public class NetworkEnvironment {
 				this.taskEventDispatcher = new TaskEventDispatcher();
 				this.partitionConsumableNotifier = new JobManagerResultPartitionConsumableNotifier(
 					executionContext,
-					jobManagerRef,
-					taskManagerRef,
-					new Timeout(jobManagerTimeout));
+					jobManagerGateway,
+					taskManagerGateway,
+					jobManagerTimeout);
 
 				this.partitionStateChecker = new JobManagerPartitionStateChecker(
-						jobManagerRef, taskManagerRef);
+						jobManagerGateway, taskManagerGateway);
 
 				// -----  Network connections  -----
 				final Option<NettyConfig> nettyConfig = configuration.nettyConfig();
@@ -432,17 +431,17 @@ public class NetworkEnvironment {
 		 */
 		private final ExecutionContext executionContext;
 
-		private final ActorRef jobManager;
+		private final ActorGateway jobManager;
 
-		private final ActorRef taskManager;
+		private final ActorGateway taskManager;
 
-		private final Timeout jobManagerMessageTimeout;
+		private final FiniteDuration jobManagerMessageTimeout;
 
 		public JobManagerResultPartitionConsumableNotifier(
 			ExecutionContext executionContext,
-			ActorRef jobManager,
-			ActorRef taskManager,
-			Timeout jobManagerMessageTimeout) {
+			ActorGateway jobManager,
+			ActorGateway taskManager,
+			FiniteDuration jobManagerMessageTimeout) {
 
 			this.executionContext = executionContext;
 			this.jobManager = jobManager;
@@ -455,7 +454,7 @@ public class NetworkEnvironment {
 
 			final ScheduleOrUpdateConsumers msg = new ScheduleOrUpdateConsumers(jobId, partitionId);
 
-			Future<Object> futureResponse = Patterns.ask(jobManager, msg, jobManagerMessageTimeout);
+			Future<Object> futureResponse = jobManager.ask(msg, jobManagerMessageTimeout);
 
 			futureResponse.onFailure(new OnFailure() {
 				@Override
@@ -468,7 +467,7 @@ public class NetworkEnvironment {
 							new RuntimeException("Could not notify JobManager to schedule or update consumers",
 									failure));
 
-					taskManager.tell(failMsg, ActorRef.noSender());
+					taskManager.tell(failMsg);
 				}
 			}, executionContext);
 		}
@@ -476,11 +475,11 @@ public class NetworkEnvironment {
 
 	private static class JobManagerPartitionStateChecker implements PartitionStateChecker {
 
-		private final ActorRef jobManager;
+		private final ActorGateway jobManager;
 
-		private final ActorRef taskManager;
+		private final ActorGateway taskManager;
 
-		public JobManagerPartitionStateChecker(ActorRef jobManager, ActorRef taskManager) {
+		public JobManagerPartitionStateChecker(ActorGateway jobManager, ActorGateway taskManager) {
 			this.jobManager = jobManager;
 			this.taskManager = taskManager;
 		}

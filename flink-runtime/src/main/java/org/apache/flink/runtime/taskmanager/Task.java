@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import akka.actor.ActorRef;
-import akka.util.Timeout;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -37,6 +35,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.filecache.FileCache;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -163,17 +162,17 @@ public class Task implements Runnable {
 
 	private final Map<IntermediateDataSetID, SingleInputGate> inputGatesById;
 
-	/** The TaskManager actor that spawned this task */
-	private final ActorRef taskManager;
+	/** Gateway to the TaskManager that spawned this task */
+	private final ActorGateway taskManager;
 
-	/** The JobManager actor */
-	private final ActorRef jobManager;
+	/** Gateway to the JobManager */
+	private final ActorGateway jobManager;
 
 	/** All actors that want to be notified about changes in the task's execution state */
-	private final List<ActorRef> executionListenerActors;
+	private final List<ActorGateway> executionListenerActors;
 
 	/** The timeout for all ask operations on actors */
-	private final Timeout actorAskTimeout;
+	private final FiniteDuration actorAskTimeout;
 
 	/** The library cache, from which the task can request its required JAR files */
 	private final LibraryCacheManager libraryCache;
@@ -224,8 +223,8 @@ public class Task implements Runnable {
 				IOManager ioManager,
 				NetworkEnvironment networkEnvironment,
 				BroadcastVariableManager bcVarManager,
-				ActorRef taskManagerActor,
-				ActorRef jobManagerActor,
+				ActorGateway taskManagerActor,
+				ActorGateway jobManagerActor,
 				FiniteDuration actorAskTimeout,
 				LibraryCacheManager libraryCache,
 				FileCache fileCache)
@@ -254,13 +253,13 @@ public class Task implements Runnable {
 
 		this.jobManager = checkNotNull(jobManagerActor);
 		this.taskManager = checkNotNull(taskManagerActor);
-		this.actorAskTimeout = new Timeout(checkNotNull(actorAskTimeout));
+		this.actorAskTimeout = checkNotNull(actorAskTimeout);
 
 		this.libraryCache = checkNotNull(libraryCache);
 		this.fileCache = checkNotNull(fileCache);
 		this.network = checkNotNull(networkEnvironment);
 
-		this.executionListenerActors = new CopyOnWriteArrayList<ActorRef>();
+		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
 
 		// create the reader and writer structures
 
@@ -568,7 +567,7 @@ public class Task implements Runnable {
 			// to know this!
 			notifyObservers(ExecutionState.RUNNING, null);
 			taskManager.tell(new TaskMessages.UpdateTaskExecutionState(
-					new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING)), ActorRef.noSender());
+					new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING)));
 
 			// make sure the user code classloader is accessible thread-locally
 			executingThread.setContextClassLoader(userCodeClassLoader);
@@ -750,11 +749,11 @@ public class Task implements Runnable {
 	}
 
 	private void notifyFinalState() {
-		taskManager.tell(new TaskInFinalState(executionId), ActorRef.noSender());
+		taskManager.tell(new TaskInFinalState(executionId));
 	}
 
 	private void notifyFatalError(String message, Throwable cause) {
-		taskManager.tell(new FatalError(message, cause), ActorRef.noSender());
+		taskManager.tell(new FatalError(message, cause));
 	}
 
 	// ----------------------------------------------------------------------------------------------------------------
@@ -839,12 +838,8 @@ public class Task implements Runnable {
 	//  State Listeners
 	// ------------------------------------------------------------------------
 
-	public void registerExecutionListener(ActorRef listener) {
+	public void registerExecutionListener(ActorGateway listener) {
 		executionListenerActors.add(listener);
-	}
-
-	public void unregisterExecutionListener(ActorRef listener) {
-		executionListenerActors.remove(listener);
 	}
 
 	private void notifyObservers(ExecutionState newState, Throwable error) {
@@ -859,8 +854,8 @@ public class Task implements Runnable {
 		TaskMessages.UpdateTaskExecutionState actorMessage = new
 				TaskMessages.UpdateTaskExecutionState(stateUpdate);
 
-		for (ActorRef listener : executionListenerActors) {
-			listener.tell(actorMessage, ActorRef.noSender());
+		for (ActorGateway listener : executionListenerActors) {
+			listener.tell(actorMessage);
 		}
 	}
 

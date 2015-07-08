@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
@@ -28,12 +27,15 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.instance.AkkaActorGateway;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -44,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -94,7 +97,7 @@ public class CheckpointCoordinator {
 	
 	private TimerTask periodicScheduler;
 	
-	private ActorRef jobStatusListener;
+	private ActorGateway jobStatusListener;
 	
 	private ClassLoader userClassLoader;
 	
@@ -102,11 +105,14 @@ public class CheckpointCoordinator {
 	
 	// --------------------------------------------------------------------------------------------
 
-	public CheckpointCoordinator(JobID job, int numSuccessfulCheckpointsToRetain, long checkpointTimeout,
-								ExecutionVertex[] tasksToTrigger,
-								ExecutionVertex[] tasksToWaitFor,
-								ExecutionVertex[] tasksToCommitTo,
-								ClassLoader userClassLoader) {
+	public CheckpointCoordinator(
+			JobID job,
+			int numSuccessfulCheckpointsToRetain,
+			long checkpointTimeout,
+			ExecutionVertex[] tasksToTrigger,
+			ExecutionVertex[] tasksToWaitFor,
+			ExecutionVertex[] tasksToCommitTo,
+			ClassLoader userClassLoader) {
 		
 		// some sanity checks
 		if (job == null || tasksToTrigger == null ||
@@ -157,7 +163,7 @@ public class CheckpointCoordinator {
 			
 			// make sure that the actor does not linger
 			if (jobStatusListener != null) {
-				jobStatusListener.tell(PoisonPill.getInstance(), ActorRef.noSender());
+				jobStatusListener.tell(PoisonPill.getInstance());
 				jobStatusListener = null;
 			}
 			
@@ -521,16 +527,28 @@ public class CheckpointCoordinator {
 		}
 	}
 	
-	public ActorRef createJobStatusListener(ActorSystem actorSystem, long checkpointInterval) {
+	public ActorGateway createJobStatusListener(
+			ActorSystem actorSystem,
+			long checkpointInterval,
+			Option<UUID> leaderSessionID) {
 		synchronized (lock) {
 			if (shutdown) {
 				throw new IllegalArgumentException("Checkpoint coordinator is shut down");
 			}
 
 			if (jobStatusListener == null) {
-				Props props = Props.create(CheckpointCoordinatorDeActivator.class, this, checkpointInterval);
-				jobStatusListener = actorSystem.actorOf(props);
+				Props props = Props.create(
+						CheckpointCoordinatorDeActivator.class,
+						this,
+						checkpointInterval,
+						leaderSessionID);
+
+				// wrap the ActorRef in a AkkaActorGateway to support message decoration
+				jobStatusListener = new AkkaActorGateway(
+						actorSystem.actorOf(props),
+						leaderSessionID);
 			}
+
 			return jobStatusListener;
 		}
 	}

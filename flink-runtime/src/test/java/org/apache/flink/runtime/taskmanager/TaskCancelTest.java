@@ -25,6 +25,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -108,7 +109,7 @@ public class TaskCancelTest {
 
 			// Run test
 			JobClient.submitJobDetached(
-					flink.jobManagerActor(), jobGraph, TestingUtils.TESTING_DURATION());
+					flink.getJobManagerGateway(), jobGraph, TestingUtils.TESTING_DURATION());
 
 			// Wait for the job to make some progress and then cancel
 			awaitRunning(
@@ -117,7 +118,7 @@ public class TaskCancelTest {
 			Thread.sleep(5000);
 
 			cancelJob(
-					flink.jobManagerActor(), jobGraph.getJobID(), TestingUtils.TESTING_DURATION());
+					flink.getJobManagerGateway(), jobGraph.getJobID(), TestingUtils.TESTING_DURATION());
 
 			// Wait for the job to be cancelled
 			JobStatus status = awaitTermination(
@@ -147,16 +148,14 @@ public class TaskCancelTest {
 	 * @param jobId The JobID of the job to cancel.
 	 * @param timeout Duration in which the JobManager must have responded.
 	 */
-	public static void cancelJob(ActorRef jobManager, JobID jobId, FiniteDuration timeout)
+	public static void cancelJob(ActorGateway jobManager, JobID jobId, FiniteDuration timeout)
 			throws Exception {
 
 		checkNotNull(jobManager);
 		checkNotNull(jobId);
 		checkNotNull(timeout);
 
-		Future<Object> ask = Patterns.ask(jobManager,
-				new CancelJob(jobId),
-				new Timeout(timeout));
+		Future<Object> ask = jobManager.ask(new CancelJob(jobId), timeout);
 
 		Object result = Await.result(ask, timeout);
 

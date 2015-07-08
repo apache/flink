@@ -21,21 +21,35 @@ package org.apache.flink.runtime.instance;
 import akka.actor.ActorRef;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+import org.apache.flink.runtime.LeaderSessionMessageDecorator;
+import org.apache.flink.runtime.MessageDecorator;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import scala.Option;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.util.UUID;
+
 /**
- * InstanceGateway implementation which uses Akka to communicate with remote instances.
+ * Concrete {@link ActorGateway} implementation which uses Akka to communicate with remote actors.
  */
-public class AkkaInstanceGateway implements InstanceGateway {
+public class AkkaActorGateway implements ActorGateway {
 
-	/** ActorRef of the remote instance */
-	private final ActorRef taskManager;
+	// ActorRef of the remote instance
+	private final ActorRef actor;
 
-	public AkkaInstanceGateway(ActorRef taskManager) {
-		this.taskManager = taskManager;
+	// Associated leader session ID, which is used for RequiresLeaderSessionID messages
+	private final Option<UUID> leaderSessionID;
+
+	// Decorator for messages
+	private final MessageDecorator decorator;
+
+	public AkkaActorGateway(ActorRef actor, Option<UUID> leaderSessionID) {
+		this.actor = actor;
+		this.leaderSessionID = leaderSessionID;
+		// we want to wrap RequiresLeaderSessionID messages in a LeaderSessionMessage
+		this.decorator = new LeaderSessionMessageDecorator(leaderSessionID);
 	}
 
 	/**
@@ -48,7 +62,8 @@ public class AkkaInstanceGateway implements InstanceGateway {
 	 */
 	@Override
 	public Future<Object> ask(Object message, FiniteDuration timeout) {
-		return Patterns.ask(taskManager, message, new Timeout(timeout));
+		Object newMessage = decorator.decorate(message);
+		return Patterns.ask(actor, newMessage, new Timeout(timeout));
 	}
 
 	/**
@@ -58,7 +73,20 @@ public class AkkaInstanceGateway implements InstanceGateway {
 	 */
 	@Override
 	public void tell(Object message) {
-		taskManager.tell(message, ActorRef.noSender());
+		Object newMessage = decorator.decorate(message);
+		actor.tell(newMessage, ActorRef.noSender());
+	}
+
+	/**
+	 * Sends a message asynchronously without a result with sender being the sender.
+	 *
+	 * @param message Message to be sent
+	 * @param sender Sender of the message
+	 */
+	@Override
+	public void tell(Object message, ActorGateway sender) {
+		Object newMessage = decorator.decorate(message);
+		actor.tell(newMessage, sender.actor());
 	}
 
 	/**
@@ -69,8 +97,9 @@ public class AkkaInstanceGateway implements InstanceGateway {
 	 * @param sender Sender of the forwarded message
 	 */
 	@Override
-	public void forward(Object message, ActorRef sender) {
-		taskManager.tell(message, sender);
+	public void forward(Object message, ActorGateway sender) {
+		Object newMessage = decorator.decorate(message);
+		actor.tell(newMessage, sender.actor());
 	}
 
 	/**
@@ -91,9 +120,11 @@ public class AkkaInstanceGateway implements InstanceGateway {
 			FiniteDuration timeout,
 			ExecutionContext executionContext) {
 
+		Object newMessage = decorator.decorate(message);
+
 		return AkkaUtils.retry(
-			taskManager,
-			message,
+			actor,
+			newMessage,
 			numberRetries,
 			executionContext,
 			timeout);
@@ -106,6 +137,21 @@ public class AkkaInstanceGateway implements InstanceGateway {
 	 */
 	@Override
 	public String path() {
-		return taskManager.path().toString();
+		return actor.path().toString();
+	}
+
+	/**
+	 * Returns {@link ActorRef} of the target actor
+	 *
+	 * @return ActorRef of the target actor
+	 */
+	@Override
+	public ActorRef actor() {
+		return actor;
+	}
+
+	@Override
+	public Option<UUID> leaderSessionID() {
+		return leaderSessionID;
 	}
 }

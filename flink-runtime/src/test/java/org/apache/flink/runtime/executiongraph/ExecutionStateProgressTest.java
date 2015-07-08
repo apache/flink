@@ -63,7 +63,7 @@ public class ExecutionStateProgressTest {
 			// mock resources and mock taskmanager
 			for (ExecutionVertex ee : ejv.getTaskVertices()) {
 				SimpleSlot slot = getInstance(
-						new SimpleInstanceGateway(
+						new SimpleActorGateway(
 								TestingUtils.defaultExecutionContext())
 				).allocateSimpleSlot(jid);
 				ee.deployToSlot(slot);

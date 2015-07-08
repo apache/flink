@@ -25,10 +25,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import akka.actor.ActorRef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 
 /**
  * Simple manager that keeps track of which TaskManager are available and alive.
@@ -125,7 +127,23 @@ public class InstanceManager {
 		}
 	}
 
-	public InstanceID registerTaskManager(ActorRef taskManager, InstanceConnectionInfo connectionInfo, HardwareDescription resources, int numberOfSlots){
+	/**
+	 * Registers a task manager. Registration of a task manager makes it available to be used
+	 * for the job execution.
+	 *
+	 * @param taskManager ActorRef to the TaskManager which wants to be registered
+	 * @param connectionInfo ConnectionInfo of the TaskManager
+	 * @param resources Hardware description of the TaskManager
+	 * @param numberOfSlots Number of available slots on the TaskManager
+	 * @param leaderSessionID The current leader session ID of the JobManager
+	 * @return
+	 */
+	public InstanceID registerTaskManager(
+			ActorRef taskManager,
+			InstanceConnectionInfo connectionInfo,
+			HardwareDescription resources,
+			int numberOfSlots,
+			Option<UUID> leaderSessionID){
 		synchronized(this.lock){
 			if (this.isShutdown) {
 				throw new IllegalStateException("InstanceManager is shut down.");
@@ -149,9 +167,9 @@ public class InstanceManager {
 				id = new InstanceID();
 			} while (registeredHostsById.containsKey(id));
 
-			InstanceGateway instanceGateway = new AkkaInstanceGateway(taskManager);
+			ActorGateway actorGateway = new AkkaActorGateway(taskManager, leaderSessionID);
 
-			Instance host = new Instance(instanceGateway, connectionInfo, id, resources, numberOfSlots);
+			Instance host = new Instance(actorGateway, connectionInfo, id, resources, numberOfSlots);
 
 			registeredHostsById.put(id, host);
 			registeredHostsByConnection.put(taskManager, host);

@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.accumulators.Accumulator
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
-import org.apache.flink.runtime.instance.InstanceGateway
+import org.apache.flink.runtime.instance.ActorGateway
 import org.apache.flink.runtime.jobgraph.JobStatus
 import java.util.Map
 
@@ -47,7 +47,7 @@ object TestingJobManagerMessages {
   case class NotifyWhenJobRemoved(jobID: JobID)
 
   case class RequestWorkingTaskManager(jobID: JobID)
-  case class WorkingTaskManager(gatewayOption: Option[InstanceGateway])
+  case class WorkingTaskManager(gatewayOption: Option[ActorGateway])
 
   case class NotifyWhenJobStatus(jobID: JobID, state: JobStatus)
   case class JobStatusIs(jobID: JobID, state: JobStatus)

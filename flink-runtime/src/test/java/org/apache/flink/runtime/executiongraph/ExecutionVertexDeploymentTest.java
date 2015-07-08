@@ -43,7 +43,7 @@ public class ExecutionVertexDeploymentTest {
 
 			// mock taskmanager to simply accept the call
 			Instance instance = getInstance(
-					new SimpleInstanceGateway(TestingUtils.directExecutionContext()));
+					new SimpleActorGateway(TestingUtils.directExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
@@ -81,7 +81,7 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
 
 			final Instance instance = getInstance(
-					new SimpleInstanceGateway(TestingUtils.directExecutionContext()));
+					new SimpleActorGateway(TestingUtils.directExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
@@ -124,7 +124,7 @@ public class ExecutionVertexDeploymentTest {
 					AkkaUtils.getDefaultTimeout());
 
 			final Instance instance = getInstance(
-					new SimpleInstanceGateway(TestingUtils.defaultExecutionContext()));
+					new SimpleActorGateway(TestingUtils.defaultExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
@@ -171,7 +171,7 @@ public class ExecutionVertexDeploymentTest {
 					AkkaUtils.getDefaultTimeout());
 
 			final Instance instance = getInstance(
-					new SimpleFailingInstanceGateway(TestingUtils.directExecutionContext()));
+					new SimpleFailingActorGateway(TestingUtils.directExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
@@ -201,7 +201,7 @@ public class ExecutionVertexDeploymentTest {
 					AkkaUtils.getDefaultTimeout());
 
 			final Instance instance = getInstance(
-					new SimpleFailingInstanceGateway(TestingUtils.directExecutionContext()));
+					new SimpleFailingActorGateway(TestingUtils.directExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
@@ -244,7 +244,7 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			final Instance instance = getInstance(new SimpleInstanceGateway(TestingUtils.directExecutionContext()));
+			final Instance instance = getInstance(new SimpleActorGateway(TestingUtils.directExecutionContext()));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
@@ -286,7 +286,7 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionAttemptID eid = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 			final Instance instance = getInstance(
-					new ExecutionVertexCancelTest.CancelSequenceInstanceGateway(
+					new ExecutionVertexCancelTest.CancelSequenceActorGateway(
 							context,
 							new TaskOperationResult(eid, false),
 							new TaskOperationResult(eid, true)));
