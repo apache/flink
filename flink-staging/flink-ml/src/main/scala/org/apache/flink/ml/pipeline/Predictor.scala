@@ -80,30 +80,6 @@ trait Predictor[Self] extends Estimator[Self] with WithParameters {
     FlinkMLTools.registerFlinkMLTypes(testing.getExecutionEnvironment)
     evaluator.evaluateDataSet(this, evaluateParameters, testing)
   }
-
-  /** Calculates a numerical score for the [[Predictor]]
-    *
-    * By convention, higher scores are considered better, so even if a loss is used as a performance
-    * measure, it will be negated, so that that higher is better.
-    * @param testing The evaluation DataSet, that contains the features and the true value
-    * @param evaluateOperation An EvaluateDataSetOperation that produces Double results
-    * @tparam Testing The type of the features and true value, for example [[LabeledVector]]
-    * @return A DataSet containing one Double that indicates the score of the predictor
-    */
-  def score[Testing](testing: DataSet[Testing])
-           (implicit evaluateOperation: EvaluateDataSetOperation[Self, Testing, Double]):
-    DataSet[Double] = {
-    // TODO: Generalized so that we don't necessarily expect Double prediction values
-    calculateScore(this.evaluate[Testing, Double](testing))
-  }
-
-  /** Calculates the performance score for the algorithm, given a DataSet of (truth, prediction)
-    * tuples
-    *
-    * @param input A DataSet of (truth, prediction) tuples
-    * @return A DataSet containing one Double that indicates the score of the predictor
-    */
-  private[ml] def calculateScore(input: DataSet[(Double, Double)]): DataSet[Double]
 }
 
 object Predictor {

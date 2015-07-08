@@ -256,16 +256,6 @@ class ALS extends Predictor[ALS] {
         "Prior to predicting values, it has to be trained on data.")
     }
   }
-
-  /** Calculates the RMSE for the algorithm, given a DataSet of (truth, prediction) tuples
-    *
-    * @param input A DataSet of (truth, prediction) tuples
-    * @return A DataSet containing one Double that indicates the RMSE score of the predictor
-    */
-  override def calculateScore(input: DataSet[(Double, Double)]): DataSet[Double] = {
-    // TODO: Move function to a Recommender trait?
-    RegressionScores.squaredLoss.evaluate(input).map(Math.sqrt(_))
-  }
 }
 
 object ALS {

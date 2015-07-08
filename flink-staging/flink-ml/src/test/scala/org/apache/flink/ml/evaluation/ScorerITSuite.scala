@@ -75,21 +75,4 @@ class ScorerITSuite  extends FlatSpec with Matchers with FlinkTestBase {
 
     mse should be < 2.0
   }
-
-  it should "be possible to call score on a chained predictor" in {
-    val f = fixture
-
-    val scaler = StandardScaler()
-
-    val chainedMLR = scaler.chainPredictor(f.mlr)
-
-    chainedMLR.fit(f.inputDS, f.parameters)
-
-    val evaluationDS = f.inputDS
-
-    val mse = chainedMLR.score(evaluationDS).collect().head
-
-    mse should be < 2.0
-  }
-
 }

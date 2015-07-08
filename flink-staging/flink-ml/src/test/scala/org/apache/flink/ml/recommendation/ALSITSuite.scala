@@ -80,12 +80,4 @@ class ALSITSuite
 
     risk should be (expectedEmpiricalRisk +- 1)
   }
-
-  it should "provide a score for the factorization" in {
-    val f =  fixture
-
-    val rmse = f.als.score(f.evaluationData).collect().head
-
-    rmse should be < 0.01
-  }
 }

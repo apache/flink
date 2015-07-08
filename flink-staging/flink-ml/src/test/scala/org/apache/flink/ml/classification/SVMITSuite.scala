@@ -96,14 +96,4 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     rawPrediction should be (15.0 +- 1e-9)    
   }
-
-  it should "correctly calculate its score" in {
-    val f = fixture
-
-    val test = f.trainingDS
-
-    val score = f.svm.score(test).collect().head
-
-    score should be > 0.9
-  }
 }

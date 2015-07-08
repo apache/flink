@@ -29,13 +29,4 @@ import org.apache.flink.ml.pipeline.Predictor
 trait Classifier[Self] extends Predictor[Self]{
   that: Self =>
 
-  /** Calculates the performance score for the algorithm, given a DataSet of (truth, prediction)
-    * tuples
-    *
-    * @param input A DataSet of (truth, prediction) tuples
-    * @return A DataSet containing one Double that indicates the score of the predictor
-    */
-  override def calculateScore(input: DataSet[(Double, Double)]): DataSet[Double] = {
-    ClassificationScores.accuracyScore.evaluate(input)
-  }
 }
