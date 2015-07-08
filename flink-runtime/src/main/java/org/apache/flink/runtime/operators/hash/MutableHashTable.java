@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -1090,7 +1092,11 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		this.buckets = table;
 		this.numBuckets = numBuckets;
 		
-		initBloomFilter(numBuckets);
+		boolean enableBloomFilter = GlobalConfiguration.getBoolean(
+			ConfigConstants.HASHJOIN_ENABLE_BLOOMFILTER, ConfigConstants.DEAFULT_HASHJOIN_ENABLE_BLOOMFILTER);
+		if (enableBloomFilter) {
+			initBloomFilter(numBuckets);
+		}
 	}
 	
 	/**
@@ -1132,7 +1138,11 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 		final HashPartition<BT, PT> p = partitions.get(largestPartNum);
 		
-		buildBloomFilterForBucketsInPartition(largestPartNum, p);
+		boolean enableBloomFilter = GlobalConfiguration.getBoolean(
+			ConfigConstants.HASHJOIN_ENABLE_BLOOMFILTER, ConfigConstants.DEAFULT_HASHJOIN_ENABLE_BLOOMFILTER);
+		if (enableBloomFilter) {
+			buildBloomFilterForBucketsInPartition(largestPartNum, p);
+		}
 		
 		// spill the partition
 		int numBuffersFreed = p.spillPartition(this.availableMemory, this.ioManager, 
@@ -1192,6 +1202,10 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		long forwardPointer = bucket.getLong(bucketInSegmentPos + HEADER_FORWARD_OFFSET);
 		while (forwardPointer != BUCKET_FORWARD_POINTER_NOT_SET) {
 			final int overflowSegNum = (int) (forwardPointer >>> 32);
+			if (overflowSegNum < 0 || overflowSegNum >= p.numOverflowSegments) {
+				skip = true;
+				break;
+			}
 			MemorySegment overflowSegment = p.overflowSegments[overflowSegNum];
 			int bucketInOverflowSegmentOffset = (int) (forwardPointer & 0xffffffff);
 			
