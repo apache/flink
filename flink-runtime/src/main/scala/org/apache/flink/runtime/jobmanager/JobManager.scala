@@ -1000,34 +1000,40 @@ object JobManager {
       configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, configDir + "/..")
     }
 
-    // HA mode
-    val (hostname, port) = if (ZooKeeperUtil.isJobManagerHighAvailabilityEnabled(configuration)) {
-      // TODO @removeme @tillrohrmann This is the place where the host and random port for JM is
-      // chosen.  For the FlinkMiniCluster you have to choose it on your own.
-      LOG.info("HA mode.")
-
-      if (config.getHost == null) {
-        throw new Exception("Missing parameter '--host'.")
+    // high availability mode
+    val (hostname: String, port: Int ) = 
+      if (ZooKeeperUtil.isJobManagerHighAvailabilityEnabled(configuration)) {
+        // TODO @removeme @tillrohrmann This is the place where the host and random port for JM is
+        // chosen.  For the FlinkMiniCluster you have to choose it on your own.
+        LOG.info("Starting JobManager in High-Availability Mode")
+  
+        if (config.getHost() == null) {
+          throw new Exception("Missing parameter '--host'. Parameter is required when " +
+            "running in high-availability mode")
+        }
+  
+        // Let web server listen on random port
+        configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0)
+  
+        (config.getHost(), 0)
       }
-
-      // Let web server listen on random port
-      configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
-
-      (config.getHost, NetUtils.getAvailablePort)
-    }
-    else {
-      if (config.getHost != null) {
-        throw new IllegalStateException("Specified explicit address for JobManager communication " +
-          "via CLI, but no ZooKeeper quorum has been configured. The task managers will not be " +
-          "able to find the correct JobManager to connect to. Please configure ZooKeeper or " +
-          "don't set the address explicitly (this will fallback to the address configured in " +
-          "in 'conf/flink-conf.yaml'.")
+      else {
+        LOG.info("Staring JobManager without high-availability")
+        
+        if (config.getHost() != null) {
+          throw new Exception("Found an explicit address for JobManager communication " +
+            "via the CLI option '--host'.\n" +
+            "This parameter must only be set if the JobManager is started in high-availability " +
+            "mode and connects to a ZooKeeper quorum.\n" +
+            "Please configure ZooKeeper or don't set the '--host' option, so that the JobManager " +
+            "uses the address configured under 'conf/flink-conf.yaml'.")
+        }
+  
+        val host = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+        val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+            ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+        (host, port)
       }
-
-      (configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null),
-        configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT))
-    }
 
     (configuration, config.getJobManagerMode(), config.getStreamingMode(), hostname, port)
   }

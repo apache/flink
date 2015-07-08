@@ -21,20 +21,22 @@ package org.apache.flink.runtime.zookeeper;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.zookeeper.server.ServerConfig;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
 import org.apache.zookeeper.server.quorum.QuorumPeer;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
 import org.apache.zookeeper.server.quorum.QuorumPeerMain;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
@@ -49,6 +51,10 @@ public class FlinkZooKeeperQuorumPeer {
 
 	public static void main(String[] args) {
 		try {
+			// startup checks and logging
+			EnvironmentInformation.logEnvironmentInfo(LOG, "ZooKeeper Quorum Peer", args);
+			EnvironmentInformation.checkJavaVersion();
+			
 			final ParameterTool params = ParameterTool.fromArgs(args);
 			final String zkConfigFile = params.getRequired("zkConfigFile");
 			final int peerId = params.getInt("peerId");
@@ -57,7 +63,7 @@ public class FlinkZooKeeperQuorumPeer {
 			runFlinkZkQuorumPeer(zkConfigFile, peerId);
 		}
 		catch (Throwable t) {
-			t.printStackTrace();
+			LOG.error("Error running ZooKeeper quorum peer: " + t.getMessage(), t);
 			System.exit(-1);
 		}
 	}
@@ -210,18 +216,16 @@ public class FlinkZooKeeperQuorumPeer {
 
 		dataDir.deleteOnExit();
 
-		// Write myid to file
-		PrintWriter writer = null;
+		LOG.info("Writing {} to myid file in 'dataDir'.", id);
+		
+		// Write myid to file. We use a File Writer, because that properly propagates errors,
+		// while the PrintWriter swallows errors
+		FileWriter writer = new FileWriter(new File(dataDir, "myid"));
 		try {
-			LOG.info("Writing {} to myid file in 'dataDir'.", id);
-
-			writer = new PrintWriter(new File(dataDir, "myid"));
-			writer.println(id);
+			writer.write(String.valueOf(id));
 		}
 		finally {
-			if (writer != null) {
-				writer.close();
-			}
+			writer.close();
 		}
 	}
 }
