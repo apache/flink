@@ -27,8 +27,8 @@ import scala.reflect.ClassTag
 /**
  * Evaluation score
  *
- * Takes a whole data set and then computes the evaluation score on them (obviously, again encoded
- * in a DataSet)
+ * Can be used to calculate a performance score for an algorithm, when provided with a DataSet
+ * of (truth, prediction) tuples
  *
  * @tparam PredictionType output type
  */
@@ -59,20 +59,23 @@ abstract class MeanScore[PredictionType: TypeInformation: ClassTag](
   }
 }
 
+/** Scores aimed at evaluating the performance of regression algorithms
+  *
+  */
 object RegressionScores {
   /**
-   * Squared loss function
+   * Mean Squared loss function
    *
-   * returns (y1 - y2)'
+   * Calculates (y1 - y2)^2^ and returns the mean.
    *
    * @return a Loss object
    */
   def squaredLoss = new MeanScore[Double]((y1,y2) => (y1 - y2) * (y1 - y2)) with Loss
 
   /**
-   * Zero One Loss Function also usable for score information
+   * Mean Zero One Loss Function also usable for score information
    *
-   * returns 1 if sign of outputs differ and 0 if the signs are equal
+   * Assigns 1 if sign of outputs differ and 0 if the signs are equal, and returns the mean
    *
    * @return a Loss object
    */
@@ -115,6 +118,9 @@ object RegressionScores {
   }
 }
 
+/** Scores aimed at evaluating the performance of classification algorithms
+  *
+  */
 object ClassificationScores {
   /** Calculates the fraction of correct predictions
     *
@@ -125,16 +131,13 @@ object ClassificationScores {
   }
 
   /**
-   * Zero One Loss Function
+   * Mean Zero One Loss Function
    *
-   * returns 1 if outputs differ and 0 if they are equal
+   * Assigns 1 if outputs differ and 0 if they are equal, and returns the mean.
    *
    * @return a Loss object
    */
   def zeroOneLoss = {
-    // TODO: If T == Double, == comparison could be problematic
-    // Also, if we plan to use LabeledVector for all classification tasks, the type parameter can be
-    // removed
     new MeanScore[Double]((y1, y2) => if (y1.approximatelyEquals(y2)) 0 else 1) with Loss
   }
 }
