@@ -37,6 +37,7 @@ import grizzled.slf4j.Logger
 
 import org.apache.flink.configuration.{Configuration, ConfigConstants, GlobalConfiguration, IllegalConfigurationException}
 import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
+import org.apache.flink.runtime.accumulators.{AccumulatorSnapshot, AccumulatorRegistry}
 import org.apache.flink.runtime.{StreamingMode, ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobService, BlobCache}
@@ -68,6 +69,7 @@ import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.util.{Failure, Success}
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 import scala.language.postfixOps
 
@@ -328,7 +330,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
               network.getPartitionManager.releasePartitionsProducedBy(executionID)
             } catch {
               case t: Throwable => killTaskManagerFatal(
-                "Fatal leak: Unable to release intermediate result partition data", t)
+              "Fatal leak: Unable to release intermediate result partition data", t)
             }
           }
 
@@ -389,7 +391,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
           } else {
             log.debug(s"Cannot find task to cancel for execution ${executionID})")
             sender ! new TaskOperationResult(executionID, false,
-              "No task with that execution ID was found.")
+            "No task with that execution ID was found.")
           }
 
         case PartitionState(taskExecutionId, taskResultId, partitionId, state) =>
@@ -400,7 +402,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
               log.debug(s"Cannot find task $taskExecutionId to respond with partition state.")
           }
       }
-    }
+      }
   }
 
   /**
@@ -793,12 +795,12 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
       // create the task. this does not grab any TaskManager resources or download
       // and libraries - the operation does not block
-      val execId = tdd.getExecutionId
       val task = new Task(tdd, memoryManager, ioManager, network, bcVarManager,
                           self, jobManagerActor, config.timeout, libCache, fileCache)
 
       log.info(s"Received task ${task.getTaskNameWithSubtasks}")
-      
+
+      val execId = tdd.getExecutionId
       // add the task to the map
       val prevTask = runningTasks.put(execId, task)
       if (prevTask != null) {
@@ -898,22 +900,28 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
     val task = runningTasks.remove(executionID)
     if (task != null) {
-      
-        // the task must be in a terminal state
-        if (!task.getExecutionState.isTerminal) {
-          try {
-            task.failExternally(new Exception("Task is being removed from TaskManager"))
-          } catch {
-            case e: Exception => log.error("Could not properly fail task", e)
-          }
+
+      // the task must be in a terminal state
+      if (!task.getExecutionState.isTerminal) {
+        try {
+          task.failExternally(new Exception("Task is being removed from TaskManager"))
+        } catch {
+          case e: Exception => log.error("Could not properly fail task", e)
         }
+      }
 
-        log.info(s"Unregistering task and sending final execution state " +
-          s"${task.getExecutionState} to JobManager for task ${task.getTaskName} " +
-          s"(${task.getExecutionId})")
+      log.info(s"Unregistering task and sending final execution state " +
+        s"${task.getExecutionState} to JobManager for task ${task.getTaskName} " +
+        s"(${task.getExecutionId})")
 
-        self ! UpdateTaskExecutionState(new TaskExecutionState(
-          task.getJobID, task.getExecutionId, task.getExecutionState, task.getFailureCause))
+      val accumulators = {
+        val registry = task.getAccumulatorRegistry
+        registry.getSnapshot
+      }
+
+      self ! UpdateTaskExecutionState(new TaskExecutionState(
+        task.getJobID, task.getExecutionId, task.getExecutionState, task.getFailureCause,
+        accumulators))
     }
     else {
       log.error(s"Cannot find task with ID $executionID to unregister.")
@@ -931,9 +939,20 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
   private def sendHeartbeatToJobManager(): Unit = {
     try {
       log.debug("Sending heartbeat to JobManager")
-      val report: Array[Byte] = metricRegistryMapper.writeValueAsBytes(metricRegistry)
-      currentJobManager foreach {
-        jm => jm ! Heartbeat(instanceID, report)
+      val metricsReport: Array[Byte] = metricRegistryMapper.writeValueAsBytes(metricRegistry)
+
+      val accumulatorEvents =
+        scala.collection.mutable.Buffer[AccumulatorSnapshot]()
+
+      runningTasks foreach {
+        case (execID, task) =>
+          val registry = task.getAccumulatorRegistry
+          val accumulators = registry.getSnapshot
+          accumulatorEvents.append(accumulators)
+      }
+
+       currentJobManager foreach {
+        jm => jm ! Heartbeat(instanceID, metricsReport, accumulatorEvents)
       }
     }
     catch {

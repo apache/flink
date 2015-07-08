@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -82,6 +83,8 @@ public class StreamMockEnvironment implements Environment {
 
 	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
 
+	private final AccumulatorRegistry accumulatorRegistry;
+
 	private final int bufferSize;
 
 	public StreamMockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
@@ -94,6 +97,8 @@ public class StreamMockEnvironment implements Environment {
 		this.ioManager = new IOManagerAsync();
 		this.inputSplitProvider = inputSplitProvider;
 		this.bufferSize = bufferSize;
+
+		this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
 	}
 
 	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
@@ -262,8 +267,8 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
-	public void reportAccumulators(Map<String, Accumulator<?, ?>> accumulators) {
-		// discard, this is only for testing
+	public AccumulatorRegistry getAccumulatorRegistry() {
+		return accumulatorRegistry;
 	}
 
 	@Override

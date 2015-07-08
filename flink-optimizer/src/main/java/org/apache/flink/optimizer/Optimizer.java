@@ -545,7 +545,7 @@ public class Optimizer {
 	// ------------------------------------------------------------------------
 	
 	private OptimizerPostPass getPostPassFromPlan(Plan program) {
-		final String className =  program.getPostPassClassName();
+		final String className = program.getPostPassClassName();
 		if (className == null) {
 			throw new CompilerException("Optimizer Post Pass class description is null");
 		}

@@ -20,10 +20,12 @@ package org.apache.flink.streaming.util;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -105,7 +107,7 @@ public class MockContext<IN, OUT> {
 		MockContext<IN, OUT> mockContext = new MockContext<IN, OUT>(inputs);
 		StreamingRuntimeContext runtimeContext = new StreamingRuntimeContext("MockTask",
 				new MockEnvironment(3 * 1024 * 1024, new MockInputSplitProvider(), 1024), null,
-				new ExecutionConfig(), null, null);
+				new ExecutionConfig(), null, null, new HashMap<String, Accumulator<?, ?>>());
 
 		operator.setup(mockContext.output, runtimeContext);
 		try {

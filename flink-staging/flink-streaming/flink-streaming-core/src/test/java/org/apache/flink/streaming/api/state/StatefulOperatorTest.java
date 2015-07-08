@@ -25,11 +25,13 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -138,7 +140,7 @@ public class StatefulOperatorTest {
 
 		StreamingRuntimeContext context = new StreamingRuntimeContext("MockTask", new MockEnvironment(3 * 1024 * 1024,
 				new MockInputSplitProvider(), 1024), null, new ExecutionConfig(), partitioner,
-				new LocalStateHandleProvider<Serializable>());
+				new LocalStateHandleProvider<Serializable>(), new HashMap<String, Accumulator<?, ?>>());
 
 		StreamMap<Integer, String> op = new StreamMap<Integer, String>(new StatefulMapper());
 

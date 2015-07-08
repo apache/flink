@@ -114,12 +114,17 @@ public class Utils {
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			this.accumulator = new SerializedListAccumulator<T>();
-			getRuntimeContext().addAccumulator(id, accumulator);
 		}
 
 		@Override
 		public void flatMap(T value, Collector<T> out) throws Exception {
 			accumulator.add(value, serializer);
+		}
+
+		@Override
+		public void close() throws Exception {
+			// Important: should only be added in close method to minimize traffic of accumulators
+			getRuntimeContext().addAccumulator(id, accumulator);
 		}
 	}
 

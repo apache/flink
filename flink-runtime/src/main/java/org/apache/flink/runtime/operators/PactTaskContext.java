@@ -50,7 +50,7 @@ public interface PactTaskContext<S, OT> {
 	MemoryManager getMemoryManager();
 	
 	IOManager getIOManager();
-	
+
 	<X> MutableObjectIterator<X> getInput(int index);
 	
 	<X> TypeSerializerFactory<X> getInputSerializer(int index);

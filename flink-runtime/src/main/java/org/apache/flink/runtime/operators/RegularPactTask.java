@@ -20,18 +20,17 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.Partitioner;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -71,7 +70,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -114,7 +112,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	protected List<RecordWriter<?>> eventualOutputs;
 
 	/**
-	 * The input readers to this task.
+	 * The input readers of this task.
 	 */
 	protected MutableReader<?>[] inputReaders;
 
@@ -212,7 +210,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	protected volatile boolean running = true;
 
-	
+	/**
+	 * The accumulator map used in the RuntimeContext.
+	 */
+	protected Map<String, Accumulator<?,?>> accumulatorMap;
+
 	// --------------------------------------------------------------------------------------------
 	//                                  Task Interface
 	// --------------------------------------------------------------------------------------------
@@ -273,7 +275,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			LOG.debug(formatLogString("Start task code."));
 		}
 
-		this.runtimeUdfContext = createRuntimeContext(getEnvironment().getTaskName());
+		Environment env = getEnvironment();
+
+		this.runtimeUdfContext = createRuntimeContext(env.getTaskName());
 
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
@@ -367,6 +371,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 			clearReaders(inputReaders);
 			clearWriters(eventualOutputs);
+
 		}
 
 		if (this.running) {
@@ -505,18 +510,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 			// close all chained tasks letting them report failure
 			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
-
-			// Collect the accumulators of all involved UDFs and send them to the
-			// JobManager. close() has been called earlier for all involved UDFs
-			// (using this.stub.close() and closeChainedTasks()), so UDFs can no longer
-			// modify accumulators;
-
-			// collect the counters from the udf in the core driver
-			Map<String, Accumulator<?, ?>> accumulators =
-					FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
-			
-			// collect accumulators from chained tasks and report them
-			reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
@@ -554,60 +547,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		}
 		finally {
 			this.driver.cleanup();
-		}
-	}
-
-	/**
-	 * This method is called at the end of a task, receiving the accumulators of
-	 * the task and the chained tasks. It merges them into a single map of
-	 * accumulators and sends them to the JobManager.
-	 *
-	 * @param chainedTasks
-	 *          Each chained task might have accumulators which will be merged
-	 *          with the accumulators of the stub.
-	 */
-	protected static void reportAndClearAccumulators(Environment env,
-													Map<String, Accumulator<?, ?>> accumulators,
-													ArrayList<ChainedDriver<?, ?>> chainedTasks) {
-
-		// We can merge here the accumulators from the stub and the chained
-		// tasks. Type conflicts can occur here if counters with same name but
-		// different type were used.
-		
-		if (!chainedTasks.isEmpty()) {
-			if (accumulators == null) {
-				accumulators = new HashMap<String, Accumulator<?, ?>>();
-			}
-			
-			for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-				RuntimeContext rc = FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null);
-				if (rc != null) {
-					Map<String, Accumulator<?, ?>> chainedAccumulators = rc.getAllAccumulators();
-					if (chainedAccumulators != null) {
-						AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
-					}
-				}
-			}
-		}
-
-		// Don't report if the UDF didn't collect any accumulators
-		if (accumulators == null || accumulators.size() == 0) {
-			return;
-		}
-
-		// Report accumulators to JobManager
-		env.reportAccumulators(accumulators);
-
-		// We also clear the accumulators, since stub instances might be reused
-		// (e.g. in iterations) and we don't want to count twice. This may not be
-		// done before sending
-		AccumulatorHelper.resetAndClearAccumulators(accumulators);
-		
-		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			RuntimeContext rc = FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null);
-			if (rc != null) {
-				AccumulatorHelper.resetAndClearAccumulators(rc.getAllAccumulators());
-			}
 		}
 	}
 
@@ -725,6 +664,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 		int currentReaderOffset = 0;
 
+		AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
+		AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
+
 		for (int i = 0; i < numInputs; i++) {
 			//  ---------------- create the input readers ---------------------
 			// in case where a logical input unions multiple physical inputs, create a union reader
@@ -743,6 +685,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			} else {
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
+
+			inputReaders[i].setReporter(reporter);
 
 			currentReaderOffset += groupSize;
 		}
@@ -1073,14 +1017,21 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
-		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs, this.getExecutionConfig());
+		AccumulatorRegistry accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
+		AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
+
+		this.accumulatorMap = accumulatorRegistry.getUserMap();
+
+		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs,
+				this.getExecutionConfig(), reporter, this.accumulatorMap);
 	}
 
 	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
+
 		return new DistributedRuntimeUDFContext(taskName, env.getNumberOfSubtasks(),
 				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
-				env.getDistributedCacheEntries());
+				env.getDistributedCacheEntries(), this.accumulatorMap);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1257,7 +1208,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
 	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl,
-			List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs) throws Exception
+			List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs, AccumulatorRegistry.Reporter reporter) throws Exception
 	{
 		if (numOutputs == 0) {
 			return null;
@@ -1286,11 +1237,15 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 					}
 					final DataDistribution distribution = config.getOutputDataDistribution(i, cl);
 					final Partitioner<?> partitioner = config.getOutputPartitioner(i, cl);
-					
+
 					oe = new RecordOutputEmitter(strategy, comparator, partitioner, distribution);
 				}
 
-				writers.add(new RecordWriter<Record>(task.getEnvironment().getWriter(outputOffset + i), oe));
+				// setup accumulator counters
+				final RecordWriter<Record> recordWriter = new RecordWriter<Record>(task.getEnvironment().getWriter(outputOffset + i), oe);
+				recordWriter.setReporter(reporter);
+
+				writers.add(recordWriter);
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
@@ -1318,12 +1273,18 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				else {
 					final DataDistribution dataDist = config.getOutputDataDistribution(i, cl);
 					final Partitioner<?> partitioner = config.getOutputPartitioner(i, cl);
-					
+
 					final TypeComparator<T> comparator = compFactory.createComparator();
 					oe = new OutputEmitter<T>(strategy, comparator, partitioner, dataDist);
 				}
 
-				writers.add(new RecordWriter<SerializationDelegate<T>>(task.getEnvironment().getWriter(outputOffset + i), oe));
+				final RecordWriter<SerializationDelegate<T>> recordWriter =
+						new RecordWriter<SerializationDelegate<T>>(task.getEnvironment().getWriter(outputOffset + i), oe);
+
+				// setup live accumulator counters
+				recordWriter.setReporter(reporter);
+
+				writers.add(recordWriter);
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
@@ -1338,7 +1299,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config,
-					List<ChainedDriver<?, ?>> chainedTasksTarget, List<RecordWriter<?>> eventualOutputs, ExecutionConfig executionConfig)
+										List<ChainedDriver<?, ?>> chainedTasksTarget,
+										List<RecordWriter<?>> eventualOutputs,
+										ExecutionConfig executionConfig,
+										AccumulatorRegistry.Reporter reporter,
+										Map<String, Accumulator<?,?>> accumulatorMap)
 	throws Exception
 	{
 		final int numOutputs = config.getNumOutputs();
@@ -1370,12 +1335,12 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				final TaskConfig chainedStubConf = config.getChainedStubConfig(i);
 				final String taskName = config.getChainedTaskName(i);
 
-				if (i == numChained -1) {
+				if (i == numChained - 1) {
 					// last in chain, instantiate the output collector for this task
-					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs());
+					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs(), reporter);
 				}
 
-				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl, executionConfig);
+				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl, executionConfig, accumulatorMap);
 				chainedTasksTarget.add(0, ct);
 
 				previous = ct;
@@ -1386,7 +1351,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// else
 
 		// instantiate the output collector the default way from this configuration
-		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, 0, numOutputs);
+		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, 0, numOutputs, reporter);
 	}
 	
 	// --------------------------------------------------------------------------------------------

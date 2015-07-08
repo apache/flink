@@ -21,10 +21,9 @@ package org.apache.flink.runtime.taskmanager;
 import akka.actor.ActorRef;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -34,12 +33,10 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.messages.accumulators.ReportAccumulatorResult;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.SerializedValue;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -76,7 +73,9 @@ public class RuntimeEnvironment implements Environment {
 	private final InputGate[] inputGates;
 	
 	private final ActorRef jobManagerActor;
-	
+
+	private final AccumulatorRegistry accumulatorRegistry;
+
 	// ------------------------------------------------------------------------
 
 	public RuntimeEnvironment(JobID jobId, JobVertexID jobVertexId, ExecutionAttemptID executionId,
@@ -86,6 +85,7 @@ public class RuntimeEnvironment implements Environment {
 								ClassLoader userCodeClassLoader,
 								MemoryManager memManager, IOManager ioManager,
 								BroadcastVariableManager bcVarManager,
+								AccumulatorRegistry accumulatorRegistry,
 								InputSplitProvider splitProvider,
 								Map<String, Future<Path>> distCacheEntries,
 								ResultPartitionWriter[] writers,
@@ -93,7 +93,7 @@ public class RuntimeEnvironment implements Environment {
 								ActorRef jobManagerActor) {
 		
 		checkArgument(parallelism > 0 && subtaskIndex >= 0 && subtaskIndex < parallelism);
-		
+
 		this.jobId = checkNotNull(jobId);
 		this.jobVertexId = checkNotNull(jobVertexId);
 		this.executionId = checkNotNull(executionId);
@@ -107,6 +107,7 @@ public class RuntimeEnvironment implements Environment {
 		this.memManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
 		this.bcVarManager = checkNotNull(bcVarManager);
+		this.accumulatorRegistry = checkNotNull(accumulatorRegistry);
 		this.splitProvider = checkNotNull(splitProvider);
 		this.distCacheEntries = checkNotNull(distCacheEntries);
 		this.writers = checkNotNull(writers);
@@ -183,6 +184,11 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
+	public AccumulatorRegistry getAccumulatorRegistry() {
+		return accumulatorRegistry;
+	}
+
+	@Override
 	public InputSplitProvider getInputSplitProvider() {
 		return splitProvider;
 	}
@@ -210,20 +216,6 @@ public class RuntimeEnvironment implements Environment {
 	@Override
 	public InputGate[] getAllInputGates() {
 		return inputGates;
-	}
-
-	@Override
-	public void reportAccumulators(Map<String, Accumulator<?, ?>> accumulators) {
-		AccumulatorEvent evt;
-		try {
-			evt = new AccumulatorEvent(getJobID(), accumulators);
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Cannot serialize accumulators to send them to JobManager", e);
-		}
-
-		ReportAccumulatorResult accResult = new ReportAccumulatorResult(jobId, executionId, evt);
-		jobManagerActor.tell(accResult, ActorRef.noSender());
 	}
 
 	@Override
