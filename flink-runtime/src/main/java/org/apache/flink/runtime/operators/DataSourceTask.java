@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -39,9 +40,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
@@ -187,25 +188,22 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 					format.close();
 				}
 			} // end for all input splits
-			
+
 			// close the collector. if it is a chaining task collector, it will close its chained tasks
 			this.output.close();
-			
+
 			// close all chained tasks letting them report failure
 			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
-			
-			// Merge and report accumulators
-			RegularPactTask.reportAndClearAccumulators(getEnvironment(),
-					new HashMap<String, Accumulator<?,?>>(), chainedTasks);
+
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
 			try {
 				this.format.close();
 			} catch (Throwable ignored) {}
-			
+
 			RegularPactTask.cancelChainedTasks(this.chainedTasks);
-			
+
 			ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
 
 			if (ex instanceof CancelTaskException) {
@@ -275,7 +273,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		catch (Throwable t) {
 			throw new RuntimeException("The user defined 'configure()' method caused an error: " + t.getMessage(), t);
 		}
-		
+
 		// get the factory for the type serializer
 		this.serializerFactory = this.config.getOutputSerializer(userCodeClassLoader);
 	}
@@ -287,7 +285,14 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	private void initOutputs(ClassLoader cl) throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.eventualOutputs = new ArrayList<RecordWriter<?>>();
-		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs, getExecutionConfig());
+
+		final AccumulatorRegistry accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
+		final AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
+
+		Map<String, Accumulator<?, ?>> accumulatorMap = accumulatorRegistry.getUserMap();
+
+		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs,
+				getExecutionConfig(), reporter, accumulatorMap);
 	}
 
 	// ------------------------------------------------------------------------

@@ -22,6 +22,7 @@ import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
@@ -253,6 +254,16 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycle();
 			}
+		}
+	}
+
+	@Override
+	public void setReporter(AccumulatorRegistry.Reporter reporter) {
+		for (AdaptiveSpanningRecordDeserializer serializer : reader1RecordDeserializers) {
+			serializer.setReporter(reporter);
+		}
+		for (AdaptiveSpanningRecordDeserializer serializer : reader2RecordDeserializers) {
+			serializer.setReporter(reporter);
 		}
 	}
 

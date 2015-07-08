@@ -408,14 +408,16 @@ public abstract class DataSet<T> {
 		JobExecutionResult res = getExecutionEnvironment().execute();
 
 		ArrayList<byte[]> accResult = res.getAccumulatorResult(id);
-		try {
-			return SerializedListAccumulator.deserializeList(accResult, serializer);
-		}
-		catch (ClassNotFoundException e) {
-			throw new RuntimeException("Cannot find type class of collected data type.", e);
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Serialization error while deserializing collected data", e);
+		if (accResult != null) {
+			try {
+				return SerializedListAccumulator.deserializeList(accResult, serializer);
+			} catch (ClassNotFoundException e) {
+				throw new RuntimeException("Cannot find type class of collected data type.", e);
+			} catch (IOException e) {
+				throw new RuntimeException("Serialization error while deserializing collected data", e);
+			}
+		} else {
+			throw new RuntimeException("The call to collect() could not retrieve the DataSet.");
 		}
 	}
 

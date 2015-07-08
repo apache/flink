@@ -20,10 +20,12 @@ package org.apache.flink.streaming.util;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -157,7 +159,7 @@ public class MockCoContext<IN1, IN2, OUT> {
 		MockCoContext<IN1, IN2, OUT> mockContext = new MockCoContext<IN1, IN2, OUT>(input1, input2);
 		StreamingRuntimeContext runtimeContext = new StreamingRuntimeContext("CoMockTask",
 				new MockEnvironment(3 * 1024 * 1024, new MockInputSplitProvider(), 1024), null,
-				new ExecutionConfig(), null, null);
+				new ExecutionConfig(), null, null, new HashMap<String, Accumulator<?, ?>>());
 
 		operator.setup(mockContext.collector, runtimeContext);
 

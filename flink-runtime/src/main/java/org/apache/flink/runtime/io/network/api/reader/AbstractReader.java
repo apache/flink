@@ -147,4 +147,5 @@ public abstract class AbstractReader implements ReaderBase {
 
 		return ++currentNumberOfEndOfSuperstepEvents == inputGate.getNumberOfInputChannels();
 	}
+
 }

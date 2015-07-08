@@ -25,10 +25,12 @@ import java.util.Map;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.functors.NotNullPredicate;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -87,13 +89,19 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 		streamOperator = configuration.getStreamOperator(userClassLoader);
 
-		outputHandler = new OutputHandler<OUT>(this);
+		// Create and register Accumulators
+		Environment env = getEnvironment();
+		AccumulatorRegistry accumulatorRegistry = env.getAccumulatorRegistry();
+		Map<String, Accumulator<?, ?>> accumulatorMap = accumulatorRegistry.getUserMap();
+		AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
+
+		outputHandler = new OutputHandler<OUT>(this, accumulatorMap, reporter);
 
 		if (streamOperator != null) {
 			// IterationHead and IterationTail don't have an Operator...
 
 			//Create context of the head operator
-			headContext = createRuntimeContext(configuration);
+			headContext = createRuntimeContext(configuration, accumulatorMap);
 			this.contexts.add(headContext);
 			streamOperator.setup(outputHandler.getOutput(), headContext);
 		}
@@ -105,14 +113,14 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		return getEnvironment().getTaskName();
 	}
 
-	public StreamingRuntimeContext createRuntimeContext(StreamConfig conf) {
+	public StreamingRuntimeContext createRuntimeContext(StreamConfig conf, Map<String, Accumulator<?,?>> accumulatorMap) {
 		Environment env = getEnvironment();
 		String operatorName = conf.getStreamOperator(userClassLoader).getClass().getSimpleName();
 
 		KeySelector<?,Serializable> statePartitioner = conf.getStatePartitioner(userClassLoader);
 
 		return new StreamingRuntimeContext(operatorName, env, getUserCodeClassLoader(),
-				getExecutionConfig(), statePartitioner, getStateHandleProvider());
+				getExecutionConfig(), statePartitioner, getStateHandleProvider(), accumulatorMap);
 	}
 
 	private StateHandleProvider<Serializable> getStateHandleProvider() {

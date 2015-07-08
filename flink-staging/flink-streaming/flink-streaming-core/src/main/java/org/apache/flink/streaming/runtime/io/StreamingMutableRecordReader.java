@@ -40,4 +40,5 @@ public class StreamingMutableRecordReader<T extends IOReadableWritable> extends
 	public void clearBuffers() {
 		super.clearBuffers();
 	}
+
 }

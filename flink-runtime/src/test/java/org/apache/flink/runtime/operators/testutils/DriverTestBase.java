@@ -61,7 +61,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	private final IOManager ioManager;
 	
 	private final MemoryManager memManager;
-	
+
 	private final List<MutableObjectIterator<Record>> inputs;
 	
 	private final List<TypeComparator<Record>> comparators;
@@ -105,7 +105,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		this.perSortFractionMem = (double)perSortMemory/totalMem;
 		this.ioManager = new IOManagerAsync();
 		this.memManager = totalMem > 0 ? new DefaultMemoryManager(totalMem,1) : null;
-		
+
 		this.inputs = new ArrayList<MutableObjectIterator<Record>>();
 		this.comparators = new ArrayList<TypeComparator<Record>>();
 		this.sorters = new ArrayList<UnilateralSortMerger<Record>>();
@@ -295,7 +295,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	public IOManager getIOManager() {
 		return this.ioManager;
 	}
-	
+
 	@Override
 	public MemoryManager getMemoryManager() {
 		return this.memManager;
