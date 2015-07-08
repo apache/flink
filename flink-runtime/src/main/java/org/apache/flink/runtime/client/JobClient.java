@@ -26,14 +26,19 @@ import akka.actor.Props;
 import akka.actor.Status;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobClient;
+import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobServerProtocol;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 
+import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,10 +49,17 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -174,6 +186,26 @@ public class JobClient {
 		}
 	}
 
+	public static JobExecutionResult returnFinalJobExecutionResult(
+			ActorRef jobManager, SerializedJobExecutionResult partialResult,
+			ClassLoader userCodeClassLoader, FiniteDuration timeout)
+			throws IOException, ClassNotFoundException {
+
+		if (jobManager == null || partialResult == null || userCodeClassLoader == null || timeout == null) {
+			throw new NullPointerException();
+		}
+
+		Map<String, List<BlobKey>> blobsToFetch = partialResult.getBlobKeysToLargeAccumulators();
+
+		Map<String, List<SerializedValue<Object>>> accumulatorBlobs;
+		try {
+			accumulatorBlobs = getLargeAccumulatorBlobs(jobManager, blobsToFetch, timeout);
+		} catch (IOException e) {
+			throw new IOException("Failed to fetch the oversized accumulators from the BlobCache", e);
+		}
+		return partialResult.mergeToJobExecutionResult(userCodeClassLoader, accumulatorBlobs);
+	}
+
 	/**
 	 * Submits a job in detached mode. The method sends the JobGraph to the
 	 * JobManager and waits for the answer whether teh job could be started or not.
@@ -229,29 +261,90 @@ public class JobClient {
 	public static void uploadJarFiles(JobGraph jobGraph, ActorRef jobManager, FiniteDuration timeout)
 			throws IOException {
 		if (jobGraph.hasUsercodeJarFiles()) {
-			Timeout tOut = new Timeout(timeout);
-			Future<Object> futureBlobPort = Patterns.ask(jobManager,
-					JobManagerMessages.getRequestBlobManagerPort(),
-					tOut);
-
-			int port;
-			try {
-				Object result = Await.result(futureBlobPort, timeout);
-				if (result instanceof Integer) {
-					port = (Integer) result;
-				} else {
-					throw new Exception("Expected port number (int) as answer, received " + result);
-				}
-			}
-			catch (Exception e) {
-				throw new IOException("Could not retrieve the JobManager's blob port.", e);
-			}
-
-			Option<String> jmHost = jobManager.path().address().host();
-			String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
-			InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, port);
-
+			InetSocketAddress serverAddress = getBlobServerAddress(jobManager, timeout);
 			jobGraph.uploadRequiredJarFiles(serverAddress);
 		}
+	}
+
+	/**
+	 * If the result of the job contained oversized (i.e. bigger that the akka.framesize) accumulators
+	 * then these are put in the BlobCache for the client to fetch and merge. This method gets
+	 * them from the BlobCache (if there was any). If the list of blobs to fetch is empty, then
+	 * an empty result is returned, as all (partial) accumulators were small enough to be sent
+	 * directly to the JobManager and be merged there.
+	 * 
+	 * @param jobManager the reference to the jobManager actor.
+	 * @param keys the accumulators to fetch (based on their name) along with their associated BlobKeys.
+	 * @param timeout the timeout to wait for the connection to the blob server.
+	 * @return the serialized accumulators, grouped by name.
+	 * */
+	private static Map<String, List<SerializedValue<Object>>> getLargeAccumulatorBlobs(
+			ActorRef jobManager, Map<String, List<BlobKey>> keys, FiniteDuration timeout) throws IOException {
+
+		if (keys.isEmpty()) {
+			return Collections.emptyMap();
+		}
+
+		Map<String, List<SerializedValue<Object>>> accumulatorBlobs =
+				new HashMap<String, List<SerializedValue<Object>>>();
+
+		InetSocketAddress serverAddress = getBlobServerAddress(jobManager, timeout);
+		BlobClient bc = new BlobClient(serverAddress);
+
+		final byte[] buf = new byte[BlobServerProtocol.BUFFER_SIZE];
+		for(String accName: keys.keySet()) {
+			List<BlobKey> accBlobKeys = keys.get(accName);
+			List<SerializedValue<Object>> accBlobs = new ArrayList<SerializedValue<Object>>();
+
+			for(BlobKey bk: accBlobKeys) {
+				long startTime = System.nanoTime();
+				InputStream is = bc.get(bk);
+				ByteArrayOutputStream os = new ByteArrayOutputStream();
+				while (true) {
+					final int read = is.read(buf);
+					if (read < 0) {
+						break;
+					}
+					os.write(buf, 0, read);
+				}
+				os.flush();
+				byte[] blob = os.toByteArray();
+				accBlobs.add(new SerializedValue<Object>(blob));
+				is.close();
+				os.close();
+
+				// after getting them, clean up and delete the blobs from the BlobCache.
+				bc.delete(bk);
+
+				LOG.info("Fetched and Deleted Blob: " + bk + " for Accumulator "+ accName +" @ "+
+						((10E9 * blob.length) / (1024.0 * (System.nanoTime() - startTime))) +" Kbps.");
+			}
+			accumulatorBlobs.put(accName, accBlobs);
+		}
+		bc.close();
+		return accumulatorBlobs;
+	}
+
+	private static InetSocketAddress getBlobServerAddress(ActorRef jobManager, FiniteDuration timeout) throws IOException {
+		Timeout tOut = new Timeout(timeout);
+		Future<Object> futureBlobPort = Patterns.ask(jobManager,
+				JobManagerMessages.getRequestBlobManagerPort(),
+				tOut);
+
+		int port;
+		try {
+			Object result = Await.result(futureBlobPort, timeout);
+			if (result instanceof Integer) {
+				port = (Integer) result;
+			} else {
+				throw new Exception("Expected port number (int) as answer, received " + result);
+			}
+		} catch (Exception e) {
+			throw new IOException("Could not retrieve the JobManager's blob port.", e);
+		}
+
+		Option<String> jmHost = jobManager.path().address().host();
+		String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
+		return new InetSocketAddress(jmHostname, port);
 	}
 }

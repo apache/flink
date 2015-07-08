@@ -19,24 +19,47 @@
 package org.apache.flink.runtime.jobmanager.accumulators;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.runtime.blob.BlobKey;
 
 /**
- * Simple class wrapping a map of accumulators for a single job. Just for better
- * handling.
+ * Simple class wrapping a map of accumulators for a single job.
+ * Just for better handling.
  */
 public class JobAccumulators {
 
 	private final Map<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
 
+	private final Map<String, List<BlobKey>> largeAccumulators = new HashMap<String, List<BlobKey>>();
+
 	public Map<String, Accumulator<?, ?>> getAccumulators() {
 		return this.accumulators;
 	}
 
-	public void processNew(Map<String, Accumulator<?, ?>> newAccumulators) {
+	public Map<String, List<BlobKey>> getLargeAccumulatorRefs() {
+		return this.largeAccumulators;
+	}
+
+	public void processNewAccumulator(Map<String, Accumulator<?, ?>> newAccumulators) {
 		AccumulatorHelper.mergeInto(this.accumulators, newAccumulators);
+	}
+
+	public void processNewBlobRefs(Map<String, List<BlobKey>> accumulatorBlobRefs) {
+		if(accumulatorBlobRefs.isEmpty()) {
+			return;
+		}
+
+		for (Map.Entry<String, List<BlobKey>> otherEntry : accumulatorBlobRefs.entrySet()) {
+			List<BlobKey> ownAccumulator = largeAccumulators.get(otherEntry.getKey());
+			if (ownAccumulator == null) {
+				largeAccumulators.put(otherEntry.getKey(), otherEntry.getValue());
+			} else {
+				ownAccumulator.addAll(otherEntry.getValue());
+			}
+		}
 	}
 }

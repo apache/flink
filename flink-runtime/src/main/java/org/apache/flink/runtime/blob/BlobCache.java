@@ -196,6 +196,11 @@ public final class BlobCache implements BlobService {
 	}
 
 	@Override
+	public InetSocketAddress getBlobServerAddress() {
+		return this.serverAddress;
+	}
+
+	@Override
 	public int getPort() {
 		return serverAddress.getPort();
 	}

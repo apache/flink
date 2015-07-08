@@ -19,12 +19,15 @@
 package org.apache.flink.runtime.blob;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URL;
 
 /**
  * A simple store and retrieve binary large objects (BLOBs).
  */
 public interface BlobService {
+
+	InetSocketAddress getBlobServerAddress();
 
 	/**
 	 * This method returns the URL of the file associated with the provided blob key.

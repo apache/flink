@@ -25,6 +25,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -203,6 +204,8 @@ public class Task implements Runnable {
 	 * initialization, to be memory friendly */
 	private volatile SerializedValue<StateHandle<?>> operatorState;
 
+	private BlobService blobCache;
+
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to 
 	 * be undone in the case of a failing task deployment.</p>
@@ -216,7 +219,8 @@ public class Task implements Runnable {
 				ActorRef jobManagerActor,
 				FiniteDuration actorAskTimeout,
 				LibraryCacheManager libraryCache,
-				FileCache fileCache)
+				FileCache fileCache,
+				BlobService blobCache)
 	{
 		checkArgument(tdd.getNumberOfSubtasks() > 0);
 		checkArgument(tdd.getIndexInSubtaskGroup() >= 0);
@@ -242,7 +246,8 @@ public class Task implements Runnable {
 		this.jobManager = checkNotNull(jobManagerActor);
 		this.taskManager = checkNotNull(taskManagerActor);
 		this.actorAskTimeout = new Timeout(checkNotNull(actorAskTimeout));
-		
+
+		this.blobCache = checkNotNull(blobCache);
 		this.libraryCache = checkNotNull(libraryCache);
 		this.fileCache = checkNotNull(fileCache);
 		this.network = checkNotNull(networkEnvironment);
@@ -493,7 +498,7 @@ public class Task implements Runnable {
 					jobConfiguration, taskConfiguration,
 					userCodeClassLoader, memoryManager, ioManager, broadcastVariableManager,
 					splitProvider, distributedCacheEntries,
-					writers, inputGates, jobManager);
+					writers, inputGates, jobManager, blobCache);
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);

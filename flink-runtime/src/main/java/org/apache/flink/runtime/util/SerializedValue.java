@@ -47,6 +47,9 @@ public class SerializedValue<T> implements java.io.Serializable {
 		this.serializedData = value == null ? null : InstantiationUtil.serializeObject(value);
 	}
 
+	public SerializedValue(byte[] data) {
+		this.serializedData = data == null ? null : data;
+	}
 
 	@SuppressWarnings("unchecked")
 	public T deserializeValue(ClassLoader loader) throws IOException, ClassNotFoundException {

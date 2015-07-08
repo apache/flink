@@ -393,10 +393,13 @@ public class Client {
 
 		try{
 			if (wait) {
-				SerializedJobExecutionResult result = JobClient.submitJobAndWait(actorSystem, 
+				// this result is partial because it may contain blobKeys to oversized accumulators that
+				// have to be fetched from the BlobCache and merged before the final result is ready.
+				SerializedJobExecutionResult partialResult = JobClient.submitJobAndWait(actorSystem,
 						jobManager, jobGraph, timeout, printStatusDuringExecution);
 				try {
-					return result.toJobExecutionResult(this.userCodeClassLoader);
+					return JobClient.returnFinalJobExecutionResult(jobManager, partialResult,
+							this.userCodeClassLoader, timeout);
 				}
 				catch (Exception e) {
 					throw new ProgramInvocationException(

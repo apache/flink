@@ -21,6 +21,7 @@ package org.apache.flink.runtime.execution;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -42,6 +43,11 @@ import java.util.concurrent.Future;
  * memory manager, I/O manager, ...
  */
 public interface Environment {
+
+	/**
+	 * @return the BlobCache service assigned to the environment.
+	 * */
+	BlobService getBlobCache();
 
 	/**
 	 * Returns the ID of the job that the task belongs to.

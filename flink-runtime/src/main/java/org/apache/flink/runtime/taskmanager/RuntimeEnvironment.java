@@ -24,7 +24,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.accumulators.SmallAccumulatorEvent;
+import org.apache.flink.runtime.accumulators.LargeAccumulatorEvent;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobClient;
+import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -34,13 +39,19 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.messages.accumulators.ReportAccumulatorResult;
+import org.apache.flink.runtime.messages.accumulators.ReportSmallAccumulatorResult;
+import org.apache.flink.runtime.messages.accumulators.ReportLargeAccumulatorResult;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.SerializedValue;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Collections;
 import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -76,6 +87,8 @@ public class RuntimeEnvironment implements Environment {
 	private final InputGate[] inputGates;
 	
 	private final ActorRef jobManagerActor;
+
+	private final BlobService blobCache;
 	
 	// ------------------------------------------------------------------------
 
@@ -90,7 +103,7 @@ public class RuntimeEnvironment implements Environment {
 								Map<String, Future<Path>> distCacheEntries,
 								ResultPartitionWriter[] writers,
 								InputGate[] inputGates,
-								ActorRef jobManagerActor) {
+								ActorRef jobManagerActor, BlobService blobCache) {
 		
 		checkArgument(parallelism > 0 && subtaskIndex >= 0 && subtaskIndex < parallelism);
 		
@@ -112,6 +125,7 @@ public class RuntimeEnvironment implements Environment {
 		this.writers = checkNotNull(writers);
 		this.inputGates = checkNotNull(inputGates);
 		this.jobManagerActor = checkNotNull(jobManagerActor);
+		this.blobCache = checkNotNull(blobCache);
 	}
 
 
@@ -168,6 +182,11 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
+	public BlobService getBlobCache() {
+		return this.blobCache;
+	}
+
+	@Override
 	public MemoryManager getMemoryManager() {
 		return memManager;
 	}
@@ -214,16 +233,109 @@ public class RuntimeEnvironment implements Environment {
 
 	@Override
 	public void reportAccumulators(Map<String, Accumulator<?, ?>> accumulators) {
-		AccumulatorEvent evt;
+		Map<String, byte[]> ser;
 		try {
-			evt = new AccumulatorEvent(getJobID(), accumulators);
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Cannot serialize accumulators to send them to JobManager", e);
+			ser = serializeAccumulators(accumulators);
+		} catch (IOException e) {
+			throw new RuntimeException("Cannot serialize accumulators", e);
 		}
 
-		ReportAccumulatorResult accResult = new ReportAccumulatorResult(jobId, executionId, evt);
-		jobManagerActor.tell(accResult, ActorRef.noSender());
+		// todo I have to define a parameter in the configuration file different from the akka.framesize
+		// and put there the threshold value, above which an Accumulator will be considered oversized
+		// and be sent through the BlobCache.
+		// Here the threshold should be the minimum between the two, i.e. akka.framesize and that
+		// parameter.
+
+		if(isAccumulatorTooLarge(ser, (long) (0.75 * AkkaUtils.getFramesize(jobConfiguration)))) {
+
+			Map<String, List<BlobKey>> accumulatorsToBlobRefs;
+			try {
+				accumulatorsToBlobRefs = putAccumulatorBlobsToBlobCache(this, ser);
+			} catch (IOException e) {
+				throw new RuntimeException("Error while sending the Accumulators to the BlobCache: "+ e.getMessage());
+			}
+
+			LargeAccumulatorEvent evt;
+			try {
+				evt = new LargeAccumulatorEvent(getJobID(), accumulatorsToBlobRefs);
+			} catch (IOException e) {
+				throw new RuntimeException("Cannot serialize large accumulator references to send them to JobManager", e);
+			}
+
+			ReportLargeAccumulatorResult largeResult = new ReportLargeAccumulatorResult(jobId, executionId, evt);
+			jobManagerActor.tell(largeResult, ActorRef.noSender());
+		} else {
+
+			SmallAccumulatorEvent evt;
+			try {
+				evt = new SmallAccumulatorEvent(getJobID(), accumulators);
+			} catch (IOException e) {
+				throw new RuntimeException("Cannot serialize accumulator contents to send them to JobManager", e);
+			}
+
+			ReportSmallAccumulatorResult accResult = new ReportSmallAccumulatorResult(jobId, executionId, evt);
+			jobManagerActor.tell(accResult, ActorRef.noSender());
+		}
+	}
+
+	/**
+	 * Checks if the serialized Accumulators are larger then <code>thresholdInBytes</code>.
+	 * @param serializedAccums the blobs refering to the accumulators to be sent.
+	 * @param threshold the threshold above which a message is considered oversized (in Bytes).
+	 * @return <code>true</code> if the message is oversized, <code>false</code> otherwise.
+	 * */
+	private boolean isAccumulatorTooLarge(Map<String, byte[]> serializedAccums, long threshold) {
+		int totalSize = 0;
+		for(byte[] msg : serializedAccums.values())
+			totalSize += msg.length;
+		return  totalSize > threshold;
+	}
+
+	/**
+	 * Puts the blobs of the large accumulators on the BlobCache.
+	 * @param env the context in which the task is executed.
+	 * @param accumulatorBlobs the blobs to be stored in the cache.
+	 * @return the name of each accumulator with the BlobKey that identifies its blob in the BlobCache.
+	 * @throws IOException if there is an error when connecting to the BlobServer or when sending the data.
+	 * */
+	private static Map<String, List<BlobKey>> putAccumulatorBlobsToBlobCache(Environment env, Map<String, byte[]> accumulatorBlobs) throws IOException {
+		if (accumulatorBlobs.isEmpty()) {
+			return Collections.emptyMap();
+		}
+
+		Map<String, List<BlobKey>> keys = new HashMap<String, List<BlobKey>>();
+		BlobClient bc = new BlobClient(env.getBlobCache().getBlobServerAddress());
+		for(String key: accumulatorBlobs.keySet()) {
+			BlobKey blobKey = bc.put(accumulatorBlobs.get(key));
+			List<BlobKey> accKeys = keys.get(key);
+			if(accKeys == null){
+				accKeys = new ArrayList<BlobKey>();
+			}
+			accKeys.add(blobKey);
+			keys.put(key, accKeys);
+		}
+		bc.close();
+		return keys;
+	}
+
+	/**
+	 * Serializes the Accumulator (the Object, not only the local value). The result will be stored in
+	 * the BlobCache. We serialize the full object, as this will have to fetched by the Client from the
+	 * BlobCache, and merged with the rest of the (partial) Accumulators.
+	 *
+	 * @param accumulators the accumulators to be serialized.
+	 *
+	 * @return the blobs containing the serialized accumulators with their keys.
+	 * */
+	private Map<String, byte[]> serializeAccumulators(Map<String, Accumulator<?, ?>> accumulators) throws IOException {
+		Map<String, byte[]> blobs = new HashMap<String, byte[]>();
+		for(Map.Entry<String, Accumulator<?, ?>> entry : accumulators.entrySet()) {
+			String key = entry.getKey();
+			Accumulator<?, ?> accumulator = entry.getValue();
+			byte[] serAcc = InstantiationUtil.serializeObject(accumulator);
+			blobs.put(key, serAcc);
+		}
+		return blobs;
 	}
 
 	@Override

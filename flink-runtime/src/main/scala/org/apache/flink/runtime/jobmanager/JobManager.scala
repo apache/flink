@@ -28,7 +28,7 @@ import org.apache.flink.api.common.{JobID, ExecutionConfig}
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult
-import org.apache.flink.runtime.blob.BlobServer
+import org.apache.flink.runtime.blob.{BlobKey, BlobServer}
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
@@ -296,14 +296,14 @@ class JobManager(protected val flinkConfiguration: Configuration,
             newJobStatus match {
               case JobStatus.FINISHED =>
                 val accumulatorResults: java.util.Map[String, SerializedValue[AnyRef]] = try {
-                  accumulatorManager.getJobAccumulatorResultsSerialized(jobID)
+                  accumulatorManager.getJobSmallAccumulatorsSerialized(jobID)
                 } catch {
                   case e: Exception =>
                     log.error(s"Cannot fetch serialized accumulators for job $jobID", e)
                     Collections.emptyMap()
                 }
                 val result = new SerializedJobExecutionResult(jobID, jobInfo.duration,
-                                                              accumulatorResults)
+                  accumulatorResults, accumulatorManager.getJobLargeAccumulatorRefs(jobID))
                 jobInfo.client ! JobResultSuccess(result)
 
               case JobStatus.CANCELED =>
@@ -668,7 +668,7 @@ class JobManager(protected val flinkConfiguration: Configuration,
   private def handleAccumulatorMessage(message: AccumulatorMessage): Unit = {
 
     message match {
-      case ReportAccumulatorResult(jobId, _, accumulatorEvent) =>
+      case ReportSmallAccumulatorResult(jobId, _, accumulatorEvent) =>
         val classLoader = try {
           libraryCacheManager.getClassLoader(jobId)
         } catch {
@@ -680,7 +680,28 @@ class JobManager(protected val flinkConfiguration: Configuration,
         if (classLoader != null) {
           try {
             val accumulators = accumulatorEvent.deserializeValue(classLoader)
-            accumulatorManager.processIncomingAccumulators(jobId, accumulators)
+            accumulatorManager.processIncomingSmallAccumulators(jobId, accumulators)
+          }
+          catch {
+            case e: Exception => log.error("Cannot update accumulators for job " + jobId, e)
+          }
+        } else {
+          log.error("Dropping accumulators. No class loader available for job " + jobId)
+        }
+
+      case ReportLargeAccumulatorResult(jobId, _, largeAccumulatorEvent) =>
+        val classLoader = try {
+          libraryCacheManager.getClassLoader(jobId)
+        } catch {
+          case e: Exception =>
+            log.error("Dropping accumulators. No class loader available for job " + jobId, e)
+            return
+        }
+
+        if (classLoader != null) {
+          try {
+            val accumulatorRefs = largeAccumulatorEvent.deserializeValue(classLoader)
+            accumulatorManager.processIncomingLargeAccumulatorRefs(jobId, accumulatorRefs)
           }
           catch {
             case e: Exception => log.error("Cannot update accumulators for job " + jobId, e)
@@ -691,10 +712,15 @@ class JobManager(protected val flinkConfiguration: Configuration,
 
       case RequestAccumulatorResults(jobID) =>
         try {
+          // contains the accumulators that were sent directly to the jobManager
           val accumulatorValues: java.util.Map[String, SerializedValue[Object]] =
-            accumulatorManager.getJobAccumulatorResultsSerialized(jobID)
+            accumulatorManager.getJobSmallAccumulatorsSerialized(jobID)
 
-          sender() ! AccumulatorResultsFound(jobID, accumulatorValues)
+          // contains the BlobKeys to the BlobCache entries holding the oversized accumulators
+          val accumulatorRefs: java.util.Map[String, java.util.List[BlobKey]] =
+            accumulatorManager.getJobLargeAccumulatorRefs(jobID)
+
+          sender() ! AccumulatorResultsFound(jobID, accumulatorValues, accumulatorRefs)
         }
         catch {
           case e: Exception =>

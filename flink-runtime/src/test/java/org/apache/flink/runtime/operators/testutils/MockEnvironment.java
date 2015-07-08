@@ -22,6 +22,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -174,6 +175,11 @@ public class MockEnvironment implements Environment {
 	@Override
 	public IOManager getIOManager() {
 		return this.ioManager;
+	}
+
+	@Override
+	public BlobService getBlobCache() {
+		return null;
 	}
 
 	@Override
