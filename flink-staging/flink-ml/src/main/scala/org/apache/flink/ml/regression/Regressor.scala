@@ -18,8 +18,6 @@
 
 package org.apache.flink.ml.regression
 
-import org.apache.flink.api.scala._
-import org.apache.flink.ml.evaluation.RegressionScores
 import org.apache.flink.ml.pipeline.Predictor
 
 /** Trait that regression algorithms should implement

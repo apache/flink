@@ -23,8 +23,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.ml._
 import org.apache.flink.ml.common.{LabeledVector, FlinkMLTools, ParameterMap, WithParameters}
-import org.apache.flink.ml.evaluation.ClassificationScores
+import org.apache.flink.ml.evaluation.{Scorer, ClassificationScores}
 import org.apache.flink.ml.math.{Vector => FlinkVector}
+
+import scala.reflect.ClassTag
 
 /** Predictor trait for Flink's pipeline operators.
   *
@@ -69,16 +71,24 @@ trait Predictor[Self] extends Estimator[Self] with WithParameters {
     * @param evaluateParameters
     * @param evaluator
     * @tparam Testing
-    * @tparam PredictionValue
+    * @tparam Prediction
     * @return
     */
-  def evaluate[Testing, PredictionValue](
+  def evaluate[Testing, Prediction](
       testing: DataSet[Testing],
       evaluateParameters: ParameterMap = ParameterMap.Empty)
-      (implicit evaluator: EvaluateDataSetOperation[Self, Testing, PredictionValue])
-    : DataSet[(PredictionValue, PredictionValue)] = {
+      (implicit evaluator: EvaluateDataSetOperation[Self, Testing, Prediction])
+    : DataSet[(Prediction, Prediction)] = {
     FlinkMLTools.registerFlinkMLTypes(testing.getExecutionEnvironment)
     evaluator.evaluateDataSet(this, evaluateParameters, testing)
+  }
+
+  def score[Testing, Prediction](
+      testing: DataSet[Testing],
+      scorer: Scorer[Prediction])
+      (implicit dataSetScorer: ScoreDataSetOperation[Self, Testing, Prediction])
+    : DataSet[Double] = {
+    dataSetScorer.scoreDataSet(this, scorer, testing)
   }
 }
 
@@ -205,6 +215,19 @@ object Predictor {
       }
     }
   }
+
+  implicit def LabeledVectorScoreDataSetOperation[Instance <: Predictor[Instance]]
+      (implicit evaluateOperation: EvaluateDataSetOperation[Instance, LabeledVector, Double])
+    : ScoreDataSetOperation[Instance, LabeledVector, Double] = {
+    new ScoreDataSetOperation[Instance, LabeledVector, Double] {
+      override def scoreDataSet(
+          instance: Instance,
+          scorer: Scorer[Double],
+          testing: DataSet[LabeledVector]): DataSet[Double] = {
+        scorer.evaluate(testing, instance)
+      }
+    }
+  }
 }
 
 /** Type class for the predict operation of [[Predictor]]. This predict operation works on DataSets.
@@ -287,4 +310,13 @@ trait EvaluateDataSetOperation[Instance, Testing, Prediction] extends Serializab
       evaluateParameters: ParameterMap,
       testing: DataSet[Testing])
     : DataSet[(Prediction, Prediction)]
+}
+
+trait ScoreDataSetOperation[Instance, Testing, Prediction] extends
+Serializable {
+  def scoreDataSet(
+      instance: Instance,
+      scorer: Scorer[Prediction],
+      testing: DataSet[Testing])
+    : DataSet[Double]
 }

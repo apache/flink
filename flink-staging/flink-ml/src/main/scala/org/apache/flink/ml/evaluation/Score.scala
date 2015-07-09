@@ -32,7 +32,7 @@ import scala.reflect.ClassTag
  *
  * @tparam PredictionType output type
  */
-trait Score[PredictionType] {
+trait Score[PredictionType] extends Serializable{
   def evaluate(trueAndPredicted: DataSet[(PredictionType, PredictionType)]): DataSet[Double]
 }
 
@@ -52,7 +52,7 @@ trait PerformanceScore
 abstract class MeanScore[PredictionType: TypeInformation: ClassTag](
     scoringFct: (PredictionType, PredictionType) => Double)
     (implicit yyt: TypeInformation[(PredictionType, PredictionType)])
-  extends Score[PredictionType] with Serializable {
+  extends Score[PredictionType] {
 
   def evaluate(trueAndPredicted: DataSet[(PredictionType, PredictionType)]): DataSet[Double] = {
     trueAndPredicted.map(yy => scoringFct(yy._1, yy._2)).mean()

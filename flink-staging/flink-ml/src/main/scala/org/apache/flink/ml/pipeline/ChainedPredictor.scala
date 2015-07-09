@@ -21,6 +21,7 @@ package org.apache.flink.ml.pipeline
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.ml.common.ParameterMap
+import org.apache.flink.ml.evaluation.Scorer
 
 /** [[Predictor]] which represents a pipeline of possibly multiple [[Transformer]] and a trailing
   * [[Predictor]].
@@ -133,6 +134,28 @@ object ChainedPredictor{
         : DataSet[(PredictionValue, PredictionValue)] = {
         val intermediate = instance.transformer.transform(testing, evaluateParameters)
         instance.predictor.evaluate(intermediate, evaluateParameters)
+      }
+    }
+  }
+
+  implicit def chainedScoreOperation[
+      T <: Transformer[T],
+      P <: Predictor[P],
+      Testing,
+      Intermediate,
+      Prediction](
+      implicit transformOperation: TransformDataSetOperation[T, Testing, Intermediate],
+      scoreOperation: ScoreDataSetOperation[P, Intermediate, Prediction],
+      testingTypeInformation: TypeInformation[Testing],
+      predictionValueTypeInformation: TypeInformation[Prediction])
+    : ScoreDataSetOperation[ChainedPredictor[T, P], Testing, Prediction] = {
+    new ScoreDataSetOperation[ChainedPredictor[T, P], Testing, Prediction] {
+      override def scoreDataSet(
+          instance: ChainedPredictor[T, P],
+          scorer: Scorer[Prediction],
+          testing: DataSet[Testing]): DataSet[Double] = {
+        val intermediate = instance.transformer.transform(testing)
+        instance.predictor.score(intermediate, scorer)
       }
     }
   }

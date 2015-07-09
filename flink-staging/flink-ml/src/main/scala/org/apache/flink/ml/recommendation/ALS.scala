@@ -392,6 +392,8 @@ object ALS {
 
   // ===================================== Operations ==============================================
 
+  // TODO: Add score operation
+
   /** Predict operation which calculates the matrix entry for the given indices  */
   implicit val predictRating = new PredictDataSetOperation[ALS, (Int, Int), (Int ,Int, Double)] {
     override def predictDataSet(

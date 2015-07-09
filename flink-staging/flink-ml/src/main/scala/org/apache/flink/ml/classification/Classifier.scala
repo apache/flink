@@ -18,8 +18,6 @@
 
 package org.apache.flink.ml.classification
 
-import org.apache.flink.api.scala._
-import org.apache.flink.ml.evaluation.ClassificationScores
 import org.apache.flink.ml.pipeline.Predictor
 
 /** Trait that classification algorithms should implement
@@ -28,5 +26,4 @@ import org.apache.flink.ml.pipeline.Predictor
   */
 trait Classifier[Self] extends Predictor[Self]{
   that: Self =>
-
 }

@@ -24,18 +24,22 @@ import org.apache.flink.ml.pipeline.Predictor
 import org.apache.flink.ml.pipeline.EvaluateDataSetOperation
 
 //TODO: Need to generalize type of Score (and evaluateOperation)
-class Scorer(val score: Score[Double]) extends WithParameters {
+class Scorer[Prediction](val score: Score[Prediction]) extends WithParameters {
 
   def evaluate[Testing, PredictorInstance <: Predictor[PredictorInstance]](
       testing: DataSet[Testing],
       predictorInstance: PredictorInstance,
       evaluateParameters: ParameterMap = ParameterMap.Empty)
-      (implicit evaluateOperation: EvaluateDataSetOperation[PredictorInstance, Testing, Double]):
-    DataSet[Double] = {
+      (implicit evaluateOperation: EvaluateDataSetOperation[PredictorInstance, Testing,
+        Prediction]): DataSet[Double] = {
 
     val resultingParameters = predictorInstance.parameters ++ evaluateParameters
-    val predictions = predictorInstance.evaluate[Testing, Double](testing, resultingParameters)
+    val predictions = predictorInstance.evaluate[Testing, Prediction](testing, resultingParameters)
     score.evaluate(predictions)
   }
 
+}
+
+object Scorer {
+  def apply[T](score: Score[T]) = new Scorer(score)
 }
