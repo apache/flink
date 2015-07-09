@@ -60,6 +60,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def getType(): TypeInformation[T] = javaStream.getType()
 
   /**
+   * Returns the execution environment associated with the current DataStream.
+   *
+   * @return associated execution environment
+   */
+  def getExecutionEnvironment: StreamExecutionEnvironment =
+    new StreamExecutionEnvironment(javaStream.getExecutionEnvironment)
+
+  /**
    * Sets the parallelism of this operation. This must be at least 1.
    */
   def setParallelism(parallelism: Int): DataStream[T] = {

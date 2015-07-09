@@ -19,16 +19,21 @@ package org.apache.flink.api.table.expressions.analysis
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.api.table.plan.PlanNode
 import org.apache.flink.api.table.trees.Analyzer
 
 /**
  * This analyzes selection expressions.
  */
-class SelectionAnalyzer(inputFields: Seq[(String, TypeInformation[_])])
-  extends Analyzer[Expression] {
+class SelectionAnalyzer(inputFields: Seq[(String, TypeInformation[_])], inputOperation: PlanNode)
+    extends Analyzer[Expression] {
+
+  def this(inputOperation: PlanNode) = this(inputOperation.outputFields, inputOperation)
+
+  def this(inputFields: Seq[(String, TypeInformation[_])]) = this(inputFields, null)
 
   def rules = Seq(
-    new ResolveFieldReferences(inputFields),
+    new ResolveFieldReferences(inputFields, inputOperation, false),
     new VerifyNoNestedAggregates,
     new InsertAutoCasts,
     new TypeCheck)

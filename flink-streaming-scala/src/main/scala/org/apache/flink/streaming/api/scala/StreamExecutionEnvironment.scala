@@ -22,6 +22,7 @@ import java.util.Objects
 import java.util.Objects._
 
 import com.esotericsoftware.kryo.Serializer
+import org.apache.flink.api.common.AbstractExecutionEnvironment
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -40,7 +41,15 @@ import scala.reflect.ClassTag
 
 import _root_.scala.language.implicitConversions
 
-class StreamExecutionEnvironment(javaEnv: JavaEnv) {
+class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AbstractExecutionEnvironment {
+
+  /**
+   * Returns the enclosed Java StreamExecutionEnvironment for special use cases.
+   *
+   * @return reference to the StreamExecutionEnvironment of the Java API
+   */
+  @Override
+  def getJavaEnv: JavaEnv = javaEnv
 
   /**
    * Gets the config object.

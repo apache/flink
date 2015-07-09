@@ -22,12 +22,14 @@ import java.lang.reflect.Modifier
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.table.input.{StaticTableSource, AdaptiveTableSource, TableSource}
 import org.apache.flink.api.table.plan._
 import org.apache.flink.api.table.runtime.{ExpressionFilterFunction, ExpressionSelectFunction}
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import org.apache.flink.api.table.{ExpressionException, Row, Table}
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.operators.StreamMap
 
 /**
@@ -38,7 +40,7 @@ import org.apache.flink.streaming.api.operators.StreamMap
  * operations must be extended to allow windowing operations.
  */
 
-class JavaStreamingTranslator extends PlanTranslator {
+class JavaStreamingTranslator(env: StreamExecutionEnvironment = null) extends PlanTranslator {
 
   type Representation[A] = DataStream[A]
 
@@ -51,6 +53,21 @@ class JavaStreamingTranslator extends PlanTranslator {
     val rowDataStream = createSelect(expressions, repr, inputType)
 
     new Table(Root(rowDataStream, resultFields))
+  }
+
+  override def createTable(tableSource: TableSource): Table = {
+    // a TableSource requires an StreamExecutionEnvironment
+    if (env == null) {
+      throw new ExpressionException("This operation requires a StreamExecutionEnvironment.")
+    }
+    tableSource match {
+      case adaptive: AdaptiveTableSource => Table(Root(adaptive, adaptive.getOutputFields()))
+
+      case static: StaticTableSource =>
+        createTable(static.createStaticDataStream(env), static.getOutputFieldNames().mkString(","))
+
+      case _ => throw new ExpressionException("Unknown TableSource type.")
+    }
   }
 
   override def translate[A](op: PlanNode)(implicit tpe: TypeInformation[A]): DataStream[A] = {
@@ -113,8 +130,14 @@ class JavaStreamingTranslator extends PlanTranslator {
 
   private def translateInternal(op: PlanNode): DataStream[Row] = {
     op match {
-      case Root(dataSet: DataStream[Row], resultFields) =>
-        dataSet
+      case Root(dataStream: DataStream[Row], resultFields) =>
+        dataStream
+
+      case Root(tableSource: AdaptiveTableSource, resultFields) =>
+        if (env == null) {
+          throw new ExpressionException("This operation requires a TableEnvironment.")
+        }
+        tableSource.createAdaptiveDataStream(env)
 
       case Root(_, _) =>
         throw new ExpressionException("Invalid Root for JavaStreamingTranslator: " + op + ". " +

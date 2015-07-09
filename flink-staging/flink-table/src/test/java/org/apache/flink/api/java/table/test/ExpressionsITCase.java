@@ -64,7 +64,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple2<Integer, Integer>> input =
 				env.fromElements(new Tuple2<Integer, Integer>(5, 10));
@@ -86,7 +86,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testLogic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple2<Integer, Boolean>> input =
 				env.fromElements(new Tuple2<Integer, Boolean>(5, true));
@@ -108,7 +108,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testComparisons() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple3<Integer, Integer, Integer>> input =
 				env.fromElements(new Tuple3<Integer, Integer, Integer>(5, 5, 4));
@@ -130,7 +130,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testBitwiseOperation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple2<Byte, Byte>> input =
 				env.fromElements(new Tuple2<Byte, Byte>((byte) 3, (byte) 5));
@@ -152,7 +152,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testBitwiseWithAutocast() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple2<Integer, Byte>> input =
 				env.fromElements(new Tuple2<Integer, Byte>(3, (byte) 5));
@@ -174,7 +174,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testBitwiseWithNonWorkingAutocast() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple2<Float, Byte>> input =
 				env.fromElements(new Tuple2<Float, Byte>(3.0f, (byte) 5));

@@ -47,7 +47,7 @@ public class PojoGroupingITCase extends MultipleProgramsTestBase {
 			new Tuple3<String, Double, String>("A", 24.0, "Y"),
 			new Tuple3<String, Double, String>("B", 1.0, "Z"));
 
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		Table table = tableEnv
 			.fromDataSet(data, "groupMe, value, name")

@@ -17,10 +17,13 @@
  */
 package org.apache.flink.api.table.expressions.analysis
 
+import org.apache.flink.api.table.expressions.analysis.FieldBacktracker
+.resolveFieldNameAndTableSource
 import org.apache.flink.api.table.expressions.{ResolvedFieldReference,
 UnresolvedFieldReference, Expression}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table._
+import org.apache.flink.api.table.plan.PlanNode
 
 import scala.collection.mutable
 
@@ -30,21 +33,42 @@ import org.apache.flink.api.table.trees.Rule
  * Rule that resolved field references. This rule verifies that field references point to existing
  * fields of the input operation and creates [[ResolvedFieldReference]]s that hold the field
  * [[TypeInformation]] in addition to the field name.
+ * 
+ * @param inputOperation is optional but required if resolved fields should be pushed to underlying
+ *                       table sources.
+ * @param filtering defines if the field is resolved as a part of filtering operation or not
  */
-class ResolveFieldReferences(inputFields: Seq[(String, TypeInformation[_])])
-  extends Rule[Expression] {
+class ResolveFieldReferences(inputFields: Seq[(String, TypeInformation[_])],
+    inputOperation: PlanNode,
+    filtering: Boolean) extends Rule[Expression] {
+
+  def this(inputOperation: PlanNode, filtering: Boolean) = this(inputOperation.outputFields,
+    inputOperation, filtering)
+
+  def this(inputFields: Seq[(String, TypeInformation[_])], filtering: Boolean) = this(inputFields,
+    null, filtering)
 
   def apply(expr: Expression) = {
     val errors = mutable.MutableList[String]()
 
     val result = expr.transformPost {
       case fe@UnresolvedFieldReference(fieldName) =>
-        inputFields.find { _._1 == fieldName } match {
-          case Some((_, tpe)) => ResolvedFieldReference(fieldName, tpe)
+        inputOperation.outputFields.find { _._1 == fieldName } match {
+          case Some((_, tpe)) =>
+
+            val resolvedField = resolveFieldNameAndTableSource(inputOperation, fieldName)
+
+            // notify AdaptiveTableSource about field access
+            if (resolvedField != null) {
+              resolvedField._1.notifyResolvedField(resolvedField._2, filtering)
+            }
+
+            ResolvedFieldReference(fieldName, tpe)
 
           case None =>
             errors +=
-              s"Field '$fieldName' is not valid for input fields ${inputFields.mkString(",")}"
+              s"Field '$fieldName' is not valid for input " +
+                s"fields ${inputOperation.outputFields.mkString(",")}"
             fe
         }
     }

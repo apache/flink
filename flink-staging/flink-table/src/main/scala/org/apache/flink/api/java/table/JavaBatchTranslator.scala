@@ -27,8 +27,9 @@ import org.apache.flink.api.java.aggregation.AggregationFunction
 import org.apache.flink.api.java.operators.JoinOperator.EquiJoin
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators.{GroupReduceOperator, Keys, MapOperator, UnsortedGrouping}
-import org.apache.flink.api.java.{DataSet => JavaDataSet}
+import org.apache.flink.api.java.{DataSet => JavaDataSet, ExecutionEnvironment}
 import org.apache.flink.api.table.expressions.analysis.ExtractEquiJoinFields
+import org.apache.flink.api.table.input.{StaticTableSource, AdaptiveTableSource, TableSource}
 import org.apache.flink.api.table.plan._
 import org.apache.flink.api.table.runtime.{ExpressionAggregateFunction, ExpressionFilterFunction, ExpressionJoinFunction, ExpressionSelectFunction}
 import org.apache.flink.api.table.expressions._
@@ -39,7 +40,7 @@ import org.apache.flink.api.table.{ExpressionException, Row, Table}
  * [[PlanTranslator]] for creating [[Table]]s from Java [[org.apache.flink.api.java.DataSet]]s and
  * translating them back to Java [[org.apache.flink.api.java.DataSet]]s.
  */
-class JavaBatchTranslator extends PlanTranslator {
+class JavaBatchTranslator(env: ExecutionEnvironment = null) extends PlanTranslator {
 
   type Representation[A] = JavaDataSet[A]
 
@@ -52,6 +53,21 @@ class JavaBatchTranslator extends PlanTranslator {
     val rowDataSet = createSelect(expressions, repr, inputType)
 
     Table(Root(rowDataSet, resultFields))
+  }
+
+  override def createTable(tableSource: TableSource): Table = {
+    // a TableSource requires an ExecutionEnvironment
+    if (env == null) {
+      throw new ExpressionException("This operation requires an ExecutionEnvironment.")
+    }
+    tableSource match {
+      case adaptive: AdaptiveTableSource => Table(Root(adaptive, adaptive.getOutputFields()))
+
+      case static: StaticTableSource =>
+        createTable(static.createStaticDataSet(env), static.getOutputFieldNames().mkString(","))
+
+      case _ => throw new ExpressionException("Unknown TableSource type.")
+    }
   }
 
   override def translate[A](op: PlanNode)(implicit tpe: TypeInformation[A]): JavaDataSet[A] = {
@@ -117,6 +133,12 @@ class JavaBatchTranslator extends PlanTranslator {
     op match {
       case Root(dataSet: JavaDataSet[Row], resultFields) =>
         dataSet
+
+      case Root(tableSource: AdaptiveTableSource, resultFields) =>
+        if (env == null) {
+          throw new ExpressionException("This operation requires a TableEnvironment.")
+        }
+        tableSource.createAdaptiveDataSet(env)
 
       case Root(_, _) =>
         throw new ExpressionException("Invalid Root for JavaBatchTranslator: " + op + ". " +

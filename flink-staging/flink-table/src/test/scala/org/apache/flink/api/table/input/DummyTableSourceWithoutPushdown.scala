@@ -15,22 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.expressions.analysis
 
-import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.plan.PlanNode
-import org.apache.flink.api.table.trees.Analyzer
+package org.apache.flink.api.table.input
 
-/**
- * Analyzer for predicates, i.e. filter operations and where clauses of joins.
- */
-class PredicateAnalyzer(inputOperation: PlanNode)
-  extends Analyzer[Expression] {
-  def rules = Seq(
-    new ResolveFieldReferences(inputOperation, true),
-    new InsertAutoCasts,
-    new TypeCheck,
-    new VerifyNoAggregates,
-    new VerifyBoolean,
-    new PredicatePushdown(inputOperation))
+import org.apache.flink.api.java.tuple.Tuple1
+import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+
+class DummyTableSourceWithoutPushdown extends StaticTableSource {
+
+  override def getOutputFieldNames(): Seq[String] = Seq("field")
+
+  override def createStaticDataStream(env: StreamExecutionEnvironment): DataStream[_] = null
+
+  override def createStaticDataSet(env: ExecutionEnvironment): DataSet[_] = {
+    env.fromElements(
+      new Tuple1[String]("A"),
+      new Tuple1[String]("B"),
+      new Tuple1[String]("C"),
+      new Tuple1[String]("D"))
+  }
+
 }
