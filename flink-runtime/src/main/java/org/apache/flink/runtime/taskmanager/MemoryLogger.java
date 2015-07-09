@@ -53,12 +53,16 @@ public class MemoryLogger extends Thread {
 	private final ActorSystem monitored;
 	
 	private volatile boolean running = true;
-
 	
-	public MemoryLogger(Logger logger, long interval) {
-		this(logger, interval, null);
-	}
-		
+	/**
+	 * Creates a new memory logger that logs in the given interval and lives as long as the
+	 * given actor system.
+	 * 
+	 * @param logger The logger to use for outputting the memory statistics.
+	 * @param interval The interval in which the thread logs.
+	 * @param monitored The actor system to whose life the thread is bound. The thread terminates
+	 *                  once the actor system terminates.   
+	 */
 	public MemoryLogger(Logger logger, long interval, ActorSystem monitored) {
 		super("Memory Logger");
 		setDaemon(true);
