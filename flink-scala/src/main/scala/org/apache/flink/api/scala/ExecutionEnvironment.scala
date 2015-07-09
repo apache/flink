@@ -22,7 +22,7 @@ import java.util.UUID
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult}
+import org.apache.flink.api.common.{AbstractExecutionEnvironment, ExecutionConfig, JobExecutionResult}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -44,7 +44,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 /**
- * The ExecutionEnviroment is the context in which a program is executed. A local environment will
+ * The ExecutionEnvironment is the context in which a program is executed. A local environment will
  * cause execution in the current JVM, a remote environment will cause execution on a remote
  * cluster installation.
  *
@@ -58,16 +58,19 @@ import scala.reflect.ClassTag
  *  - [[ExecutionEnvironment.createRemoteEnvironment]]
  *
  *  Use [[ExecutionEnvironment.getExecutionEnvironment]] to get the correct environment depending
- *  on where the program is executed. If it is run inside an IDE a loca environment will be
+ *  on where the program is executed. If it is run inside an IDE a local environment will be
  *  created. If the program is submitted to a cluster a remote execution environment will
  *  be created.
  */
-class ExecutionEnvironment(javaEnv: JavaEnv) {
+class ExecutionEnvironment(val javaEnv: JavaEnv) extends AbstractExecutionEnvironment {
 
   /**
-   * @return the Java Execution environment.
+   * Returns the enclosed Java ExecutionEnvironment for special use cases.
+   *
+   * @return reference to the ExecutionEnvironment of the Java API
    */
   def getJavaEnv: JavaEnv = javaEnv
+
   /**
    * Gets the config object.
    */

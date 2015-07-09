@@ -50,7 +50,7 @@ public class JavaTableExample {
 
 	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<WC> input = env.fromElements(
 				new WC("Hello", 1),

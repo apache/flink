@@ -63,7 +63,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testGroupingOnNonExistentField() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
@@ -84,7 +84,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testGroupedAggregate() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
@@ -109,7 +109,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 		// if we don't want the key in the output
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 

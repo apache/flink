@@ -20,6 +20,7 @@ package org.apache.flink.api.java.table
 
 import java.lang.reflect.Modifier
 
+import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -27,8 +28,9 @@ import org.apache.flink.api.java.aggregation.AggregationFunction
 import org.apache.flink.api.java.operators.JoinOperator.EquiJoin
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators.{GroupReduceOperator, Keys, MapOperator, UnsortedGrouping}
-import org.apache.flink.api.java.{DataSet => JavaDataSet}
+import org.apache.flink.api.java.{DataSet => JavaDataSet, ExecutionEnvironment}
 import org.apache.flink.api.table.expressions.analysis.ExtractEquiJoinFields
+import org.apache.flink.api.table.input.{StaticTableSource, AdaptiveTableSource, TableSource}
 import org.apache.flink.api.table.plan._
 import org.apache.flink.api.table.runtime.{ExpressionAggregateFunction, ExpressionFilterFunction, ExpressionJoinFunction, ExpressionSelectFunction}
 import org.apache.flink.api.table.expressions._
@@ -39,7 +41,7 @@ import org.apache.flink.api.table.{ExpressionException, Row, Table}
  * [[PlanTranslator]] for creating [[Table]]s from Java [[org.apache.flink.api.java.DataSet]]s and
  * translating them back to Java [[org.apache.flink.api.java.DataSet]]s.
  */
-class JavaBatchTranslator extends PlanTranslator {
+class JavaBatchTranslator(val env: ExecutionEnvironment = null) extends PlanTranslator {
 
   type Representation[A] = JavaDataSet[A]
 
@@ -52,6 +54,26 @@ class JavaBatchTranslator extends PlanTranslator {
     val rowDataSet = createSelect(expressions, repr, inputType)
 
     Table(Root(rowDataSet, resultFields))
+  }
+
+  override def createTable(tableSource: TableSource): Table = {
+    // a TableSource requires an ExecutionEnvironment
+    if (env == null) {
+      throw new InvalidProgramException("This operation requires an ExecutionEnvironment.")
+    }
+    if (tableSource.isInstanceOf[AdaptiveTableSource]) {
+      val adaptiveTs = tableSource.asInstanceOf[AdaptiveTableSource]
+      if (adaptiveTs.supportsResolvedFieldPushdown || adaptiveTs.supportsPredicatePushdown) {
+        Table(Root(adaptiveTs, adaptiveTs.getOutputFields()))
+      }
+      else {
+        Table(Root(adaptiveTs.createAdaptiveDataSet(env), adaptiveTs.getOutputFields()))
+      }
+    }
+    else {
+      val staticTs = tableSource.asInstanceOf[StaticTableSource]
+      createTable(staticTs.createStaticDataSet(env), staticTs.getOutputFieldNames().mkString(","))
+    }
   }
 
   override def translate[A](op: PlanNode)(implicit tpe: TypeInformation[A]): JavaDataSet[A] = {
@@ -117,6 +139,12 @@ class JavaBatchTranslator extends PlanTranslator {
     op match {
       case Root(dataSet: JavaDataSet[Row], resultFields) =>
         dataSet
+
+      case Root(tableSource: AdaptiveTableSource, resultFields) =>
+        if (env == null) {
+          throw new InvalidProgramException("This operation requires an TableEnvironment.");
+        }
+        tableSource.createAdaptiveDataSet(env)
 
       case Root(_, _) =>
         throw new ExpressionException("Invalid Root for JavaBatchTranslator: " + op + ". " +

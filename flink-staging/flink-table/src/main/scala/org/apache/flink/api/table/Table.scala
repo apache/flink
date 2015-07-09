@@ -55,7 +55,7 @@ case class Table(private[flink] val operation: PlanNode) {
    * }}}
    */
   def select(fields: Expression*): Table = {
-    val analyzer = new SelectionAnalyzer(operation.outputFields)
+    val analyzer = new SelectionAnalyzer(operation)
     val analyzedFields = fields.map(analyzer.analyze)
     val fieldNames = analyzedFields map(_.name)
     if (fieldNames.toSet.size != fieldNames.size) {
@@ -126,7 +126,7 @@ case class Table(private[flink] val operation: PlanNode) {
    * }}}
    */
   def filter(predicate: Expression): Table = {
-    val analyzer = new PredicateAnalyzer(operation.outputFields)
+    val analyzer = new PredicateAnalyzer(operation)
     val analyzedPredicate = analyzer.analyze(predicate)
     this.copy(operation = Filter(operation, analyzedPredicate))
   }
@@ -185,7 +185,7 @@ case class Table(private[flink] val operation: PlanNode) {
    * }}}
    */
   def groupBy(fields: Expression*): Table = {
-    val analyzer = new GroupByAnalyzer(operation.outputFields)
+    val analyzer = new GroupByAnalyzer(operation)
     val analyzedFields = fields.map(analyzer.analyze)
 
     val illegalKeys = analyzedFields filter {

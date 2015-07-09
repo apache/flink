@@ -248,6 +248,13 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 		return this.outputSchema;
 	}
 
+	/**
+	 * Returns the partitioning columns as {@link org.apache.hive.hcatalog.data.schema.HCatSchema}.
+	 */
+	public HCatSchema getPartitionColumns() throws IOException {
+		return org.apache.hive.hcatalog.mapreduce.HCatInputFormat.getPartitionColumns(this.configuration);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  InputFormat
 	// --------------------------------------------------------------------------------------------

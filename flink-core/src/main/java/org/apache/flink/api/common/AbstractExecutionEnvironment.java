@@ -15,27 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.expressions.analysis
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.plan.PlanNode
-import org.apache.flink.api.table.trees.Analyzer
+package org.apache.flink.api.common;
 
 /**
- * This analyzes selection expressions.
+ * The AbstractExecutionEnvironment is the context in which a program is executed. The context can be a
+ * ExecutionEnvironment for working with DataSets or a StreamExecutionEnvironment for working
+ * with DataStreams.
  */
-class SelectionAnalyzer(inputFields: Seq[(String, TypeInformation[_])], inputOperation: PlanNode)
-  extends Analyzer[Expression] {
+public interface AbstractExecutionEnvironment {
 
-  def this(inputOperation: PlanNode) = this(inputOperation.outputFields, inputOperation)
-
-  def this(inputFields: Seq[(String, TypeInformation[_])]) = this(inputFields, null)
-
-  def rules = Seq(
-    new ResolveFieldReferences(inputFields, inputOperation, false),
-    new VerifyNoNestedAggregates,
-    new InsertAutoCasts,
-    new TypeCheck)
-
+	/**
+	 * Gets the config object.
+	 */
+	public ExecutionConfig getConfig();
 }
