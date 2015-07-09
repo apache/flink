@@ -1177,7 +1177,7 @@ object TaskManager {
       LOG.info("Trying to select the network interface and address to use " +
         "by connecting to the configured JobManager.")
 
-      LOG.info(s"TaskManager will try to connect for $MAX_STARTUP_CONNECT_TIME seconds before " +
+      LOG.info(s"TaskManager will try to connect for $MAX_STARTUP_CONNECT_TIME milliseconds before " +
         "falling back to heuristics")
 
       val jobManagerAddress = new InetSocketAddress(jobManagerHostname, jobManagerPort)
