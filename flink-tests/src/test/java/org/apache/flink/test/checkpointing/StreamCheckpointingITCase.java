@@ -62,8 +62,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("serial")
 public class StreamCheckpointingITCase {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StreamCheckpointingITCase.class);
-
 	private static final int NUM_TASK_MANAGERS = 2;
 	private static final int NUM_TASK_SLOTS = 3;
 	private static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;

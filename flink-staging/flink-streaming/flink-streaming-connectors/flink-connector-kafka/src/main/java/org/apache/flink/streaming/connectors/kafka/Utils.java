@@ -63,7 +63,7 @@ public class Utils {
 		@Override
 		public byte[] serialize(T element) {
 			if(dos == null) {
-				dos = new DataOutputSerializer(1);
+				dos = new DataOutputSerializer(16);
 			}
 			try {
 				serializer.serialize(element, dos);
