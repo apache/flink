@@ -87,7 +87,7 @@ The Flink web client allows to submit Flink programs using a graphical user inte
 
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/run-webclient.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/run-webclient.png" /></a>
+		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/webclient_job_view.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/webclient_job_view.png" /></a>
 	</div>
 	<div class="col-md-6">
 		1. Open web client on  <a href="http://localhost:8080/launch.html">localhost:8080</a> <br>
@@ -96,7 +96,8 @@ The Flink web client allows to submit Flink programs using a graphical user inte
 			./examples/flink-java-examples-*-KMeans.jar
 			{% endhighlight %} </br>
 		3. Select it in the left box to see how the operators in the plan are connected to each other. <br>
-		4. Enter the arguments in the lower left box:
+		4. Enter the arguments and options in the lower left box: <br>
+            Arguments: <br>
 			{% highlight bash %}
 			file://<pathToFlink>/kmeans/points file://<pathToFlink>/kmeans/centers file://<pathToFlink>/kmeans/result 10
 			{% endhighlight %}
@@ -104,12 +105,16 @@ The Flink web client allows to submit Flink programs using a graphical user inte
 			{% highlight bash %}
 			file:///tmp/flink/kmeans/points file:///tmp/flink/kmeans/centers file:///tmp/flink/kmeans/result 10
 			{% endhighlight %}
+            Options (optional): (set the default parallelims, e.g., to 4) <br>
+			{% highlight bash %}
+            -p 4
+			{% endhighlight %}
 	</div>
 </div>
 <hr>
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/compiler-webclient-new.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/compiler-webclient-new.png" /></a>
+		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/webclient_plan_view.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/webclient_plan_view.png" /></a>
 	</div>
 
 	<div class="col-md-6">
@@ -120,7 +125,7 @@ The Flink web client allows to submit Flink programs using a graphical user inte
 <hr>
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/jobmanager-running-new.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/jobmanager-running-new.png" /></a>
+		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/jobmanager.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/jobmanager.png" /></a>
 	</div>
 	<div class="col-md-6">
 		1. Press the <b>Continue</b> button to start executing the job. <br>
@@ -153,3 +158,4 @@ The following three pictures show the results for the sample input above. Play a
 |relative stddev = 0.03|relative stddev = 0.08|relative stddev = 0.15|
 |:--------------------:|:--------------------:|:--------------------:|
 |<img src="{{ site.baseurl }}/page/img/quickstart-example/result003.png" alt="example1" style="width: 275px;"/>|<img src="{{ site.baseurl }}/page/img/quickstart-example/result008.png" alt="example2" style="width: 275px;"/>|<img src="{{ site.baseurl }}/page/img/quickstart-example/result015.png" alt="example3" style="width: 275px;"/>|
+

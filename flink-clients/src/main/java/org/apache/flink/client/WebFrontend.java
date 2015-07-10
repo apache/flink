@@ -66,7 +66,8 @@ public class WebFrontend {
 										ConfigConstants.DEFAULT_WEBCLIENT_PORT);
 
 			// start the server
-			WebInterfaceServer server = new WebInterfaceServer(config, port);
+			CliFrontend.webFrontend = true;
+			WebInterfaceServer server = new WebInterfaceServer(args[1], config, port);
 			LOG.info("Starting web frontend server on port " + port + '.');
 			server.start();
 			server.join();

@@ -25,6 +25,7 @@ import java.net.URL;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -59,15 +60,17 @@ public class WebInterfaceServer {
 	 * It serves the asynchronous requests for the plans and all other static resources, like
 	 * static web pages, stylesheets or javascript files.
 	 * 
+	 * @param configDir
+	 *        The path to the configuration directory.
 	 * @param config
 	 *        The configuration for the JobManager. All jobs will be sent
 	 *        to the JobManager described by this configuration.
 	 * @param port
 	 *        The port to launch the server on.
-	 * @throws IOException
-	 *         Thrown, if the server setup failed for an I/O related reason.
+	 * @throws Exception
+	 *         Thrown, if the server setup failed.
 	 */
-	public WebInterfaceServer(Configuration config, int port) throws IOException {
+	public WebInterfaceServer(String configDir, Configuration config, int port) throws Exception {
 		// if no explicit configuration is given, use the global configuration
 		if (config == null) {
 			config = GlobalConfiguration.getConfiguration();
@@ -138,12 +141,13 @@ public class WebInterfaceServer {
 												ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
 
 		// ----- the handlers for the servlets -----
+		CliFrontend cli = new CliFrontend(configDir);
 		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
 		servletContext.setContextPath("/");
 		servletContext.addServlet(new ServletHolder(new PactJobJSONServlet(uploadDir)), "/pactPlan");
 		servletContext.addServlet(new ServletHolder(new PlanDisplayServlet(jobManagerWebPort)), "/showPlan");
 		servletContext.addServlet(new ServletHolder(new JobsServlet(uploadDir, tmpDir, "launch.html")), "/jobs");
-		servletContext.addServlet(new ServletHolder(new JobSubmissionServlet(config, uploadDir, planDumpDir)), "/runJob");
+		servletContext.addServlet(new ServletHolder(new JobSubmissionServlet(cli, uploadDir, planDumpDir)), "/runJob");
 
 		// ----- the hander serving the written pact plans -----
 		ResourceHandler pactPlanHandler = new ResourceHandler();

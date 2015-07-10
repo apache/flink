@@ -51,15 +51,22 @@ The interface starts serving the job view.
 You can **upload** a Flink program as a jar file. To **execute** an uploaded program:
 
 * select it from the job list on the left, 
-* enter the program arguments in the *"Arguments"* field (bottom left), and 
+* enter (optional) execution options in the *"Flink Options"* field (bottom left),
+* enter (optional) program arguments in the *"Program Arguments"* field (bottom left), and
 * click on the *"Run Job"* button (bottom right).
 
 If the *“Show optimizer plan”* option is enabled (default), the *plan view* is display next, otherwise the job is directly submitted to the JobManager for execution.
 
-The web interface can also handle multiple Flink jobs within a single jar file. To use this feature, package all required class files of all jobs into a single jar and specify the entry classes for each job as comma-separated-values in *program-class* argument within the jar's manifest file. The job view displays each entry class and you can pick any of them to preview the plan and/or submit the job to the JobManager. In case the jar's manifest file does not specify any entry class, you can specify it before the argument list as:
+The web interface can also handle multiple Flink jobs within a single jar file. To use this feature, package all required class files of all jobs into a single jar and specify the entry classes for each job as comma-separated-values in *program-class* argument within the jar's manifest file. The job view displays each entry class and you can pick any of them to preview the plan and/or submit the job to the JobManager. In case the jar's manifest file does not specify any entry class, you can specify it in the options field as:
 
 ```
--c <assemblerClass> <programArgs...>
+-c <assemblerClass>
+```
+
+It is also possible to set the default parallelism for the execution in options field as:
+
+```
+-p <dop>
 ```
 
 Furthermore, for each entry class implementing ```ProgramDescription``` interface, the provided description is shown as tooltip for the job (see {% gh_link flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/wordcount/WordCountMeta.java  "WordCountMeta example" %}).
