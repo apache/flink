@@ -48,12 +48,12 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 		super.registerInputOutput();
 		outputHandler = new OutputHandler<OUT>(this);
 
-		Integer iterationId = configuration.getIterationId();
+		String iterationId = configuration.getIterationId();
 		iterationWaitTime = configuration.getIterationWaitTime();
 		shouldWait = iterationWaitTime > 0;
 
 		try {
-			BlockingQueueBroker.instance().handIn(iterationId.toString()+"-" 
+			BlockingQueueBroker.instance().handIn(iterationId+"-" 
 					+getEnvironment().getIndexInSubtaskGroup(), dataChannel);
 		} catch (Exception e) {
 			throw new RuntimeException(e);

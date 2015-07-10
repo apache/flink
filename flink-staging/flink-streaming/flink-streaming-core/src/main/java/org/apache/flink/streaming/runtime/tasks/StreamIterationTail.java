@@ -30,7 +30,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationTail.class);
 
-	private Integer iterationId;
+	private String iterationId;
 
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
@@ -47,7 +47,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 			iterationId = configuration.getIterationId();
 			iterationWaitTime = configuration.getIterationWaitTime();
 			shouldWait = iterationWaitTime > 0;
-			dataChannel = BlockingQueueBroker.instance().get(iterationId.toString()+"-"
+			dataChannel = BlockingQueueBroker.instance().get(iterationId+"-"
 					+getEnvironment().getIndexInSubtaskGroup());
 		} catch (Exception e) {
 			throw new StreamTaskException(String.format(
