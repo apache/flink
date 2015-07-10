@@ -29,10 +29,26 @@ bin=`cd "$bin"; pwd`
 . "$bin"/config.sh
 
 if [[ $STARTSTOP == "start" ]]; then
+
     # Use batch mode as default
     if [ -z $STREAMINGMODE ]; then
         echo "Missing streaming mode (batch|streaming). Using 'batch'."
         STREAMINGMODE="batch"
+    fi
+    
+    # if mode is streaming and no other JVM options are set, set the 'Concurrent Mark Sweep GC'
+    if [[ $STREAMINGMODE == "streaming" ]] && [ -z $FLINK_ENV_JAVA_OPTS ]; then
+    
+        JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
+    
+        # set the GC to G1 in Java 8 and to CMS in Java 7
+        if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
+            if [ "$JAVA_VERSION" -lt 18 ]; then
+                export JVM_ARGS="$JVM_ARGS -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled"
+            else
+                export JVM_ARGS="$JVM_ARGS -XX:+UseG1GC"
+            fi
+        fi
     fi
 
     if [[ ! ${FLINK_TM_HEAP} =~ ${IS_NUMBER} ]]; then
