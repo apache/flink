@@ -21,7 +21,8 @@ import breeze.linalg
 import breeze.numerics.sqrt
 import breeze.numerics.sqrt._
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.math.{Vector, DenseVector}
+import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
 import org.apache.flink.test.util.FlinkTestBase
 import org.apache.flink.ml.math.Breeze._
 import org.scalatest._
@@ -36,15 +37,10 @@ class StandardScalerITSuite
 
   import StandardScalerData._
 
-  it should "scale the vectors to have mean equal to 0 and std equal to 1" in {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
-    val dataSet = env.fromCollection(data)
-    val scaler = StandardScaler()
-    scaler.fit(dataSet)
-    val scaledVectors = scaler.transform(dataSet).collect
-
+  def checkVectors(
+      scaledVectors: Seq[FlinkVector],
+      expectedMean: Double,
+      expectedStd: Double): Unit = {
     scaledVectors.length should equal(data.length)
 
     val numberOfFeatures = scaledVectors(0).size
@@ -64,9 +60,21 @@ class StandardScalerITSuite
     scaledStd = sqrt(scaledStd)
 
     for (i <- 0 until numberOfFeatures) {
-      scaledMean(i) should be(0.0 +- (0.0000000000001))
-      scaledStd(i) should be(1.0 +- (0.0000000000001))
+      scaledMean(i) should be(expectedMean +- 1e-9)
+      scaledStd(i) should be(expectedStd +- 1e-9)
     }
+  }
+
+  it should "scale the vectors to have mean equal to 0 and std equal to 1" in {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val dataSet = env.fromCollection(data)
+    val scaler = StandardScaler()
+    scaler.fit(dataSet)
+    val scaledVectors = scaler.transform(dataSet).collect()
+
+    checkVectors(scaledVectors, 0.0, 1.0)
   }
 
   it should "scale the vectors to have mean equal to 10 and standard deviation equal to 2" in {
@@ -76,37 +84,38 @@ class StandardScalerITSuite
     val dataSet = env.fromCollection(data)
     val scaler = StandardScaler().setMean(10.0).setStd(2.0)
     scaler.fit(dataSet)
-    val scaledVectors = scaler.transform(dataSet).collect
+    val scaledVectors = scaler.transform(dataSet).collect()
 
-    scaledVectors.length should equal(data.length)
+    checkVectors(scaledVectors, 10.0, 2.0)
+  }
 
-    val numberOfFeatures = scaledVectors(0).size
-    var scaledMean: linalg.Vector[Double] = linalg.DenseVector.zeros(numberOfFeatures)
-    var scaledStd: linalg.Vector[Double] = linalg.DenseVector.zeros(numberOfFeatures)
+  it should "work with LabeledVector" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
-    for (vector <- scaledVectors) {
-      scaledMean += vector.asBreeze
-    }
+    val dataSet = env.fromCollection(data).map(v => LabeledVector(1.0, v))
+    val scaler = StandardScaler()
+    scaler.fit(dataSet)
+    val scaledVectors = scaler.transform(dataSet).map(lv => lv.vector).collect()
 
-    scaledMean /= scaledVectors.size.asInstanceOf[Double]
+    checkVectors(scaledVectors, 0.0, 1.0)
+  }
 
-    for (vector <- scaledVectors) {
-      val temp = vector.asBreeze - scaledMean
-      scaledStd += temp :* temp
-    }
-    scaledStd /= scaledVectors.size.asInstanceOf[Double]
-    scaledStd = sqrt(scaledStd)
+  it should "work with (FlinkVector, Double) tuples" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
-    for (i <- 0 until numberOfFeatures) {
-      scaledMean(i) should be(10.0 +- (0.0000000000001))
-      scaledStd(i) should be(2.0 +- (0.0000000000001))
-    }
+    val dataSet = env.fromCollection(data).map(v => (v, 1.0))
+    val scaler = StandardScaler()
+    scaler.fit(dataSet)
+    val scaledVectors = scaler.transform(dataSet).map(vl => vl._1).collect()
+
+    checkVectors(scaledVectors, 0.0, 1.0)
   }
 }
 
 object StandardScalerData {
 
-  val data: Seq[Vector] = List(DenseVector(Array(2104.00, 3.00)),
+  val data: Seq[FlinkVector] = List(
+    DenseVector(Array(2104.00, 3.00)),
     DenseVector(Array(1600.00, 3.00)),
     DenseVector(Array(2400.00, 3.00)),
     DenseVector(Array(1416.00, 2.00)),

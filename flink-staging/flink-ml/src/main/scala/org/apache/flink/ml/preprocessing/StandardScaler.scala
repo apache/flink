@@ -145,6 +145,27 @@ object StandardScaler {
     }
   }
 
+  /** Trains the [[StandardScaler]] by learning the mean and standard deviation of the training
+    * data which is of type ([[Vector]], Double). The mean and standard deviation are used to
+    * transform the given input data.
+    *
+    */
+  implicit def fitLabelVectorTupleStandardScaler
+  [T <: Vector: BreezeVectorConverter: TypeInformation: ClassTag] = {
+    new FitOperation[StandardScaler, (T, Double)] {
+      override def fit(
+          instance: StandardScaler,
+          fitParameters: ParameterMap,
+          input: DataSet[(T, Double)])
+      : Unit = {
+        val vectorDS = input.map(_._1)
+        val metrics = extractFeatureMetrics(vectorDS)
+
+        instance.metricsOption = Some(metrics)
+      }
+    }
+  }
+
   /** Calculates in one pass over the data the features' mean and standard deviation.
     * For the calculation of the Standard deviation with one pass over the data,
     * the Youngs & Cramer algorithm was used:
@@ -240,8 +261,8 @@ object StandardScaler {
   implicit def transformVectors[T <: Vector: BreezeVectorConverter: TypeInformation: ClassTag] = {
     new StandardScalerTransformOperation[T]() {
       override def transform(
-            vector: T,
-            model: (linalg.Vector[Double], linalg.Vector[Double]))
+          vector: T,
+          model: (linalg.Vector[Double], linalg.Vector[Double]))
         : T = {
         scale(vector, model)
       }
@@ -277,30 +298,5 @@ object StandardScaler {
 
       LabeledVector(label, scale(vector, model))
     }
-  }
-
-  /** Scales the given vector such that it has the given mean and std
-    *
-    * @param vector Vector to be scaled
-    * @param dataMean Mean of the training data
-    * @param dataStd Standard deviation of the training data
-    * @param mean Mean of the scaled data
-    * @param std Standard deviation of the scaled data
-    * @tparam T Type of [[Vector]]
-    * @return Scaled vector
-    */
-  private def scaleVector[T <: Vector: BreezeVectorConverter](
-      vector: T,
-      dataMean: linalg.Vector[Double],
-      dataStd: linalg.Vector[Double],
-      mean: Double,
-      std: Double)
-    : T = {
-    var myVector = vector.asBreeze
-
-    myVector -= dataMean
-    myVector :/= dataStd
-    myVector = (myVector :* std) + mean
-    myVector.fromBreeze
   }
 }
