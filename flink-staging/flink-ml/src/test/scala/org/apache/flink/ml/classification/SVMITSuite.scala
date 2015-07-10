@@ -48,7 +48,7 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
     svm.fit(trainingDS)
   }
 
-  it should "train a SVM" in {
+  it should "train an SVM" in {
 
     val f = fixture
 

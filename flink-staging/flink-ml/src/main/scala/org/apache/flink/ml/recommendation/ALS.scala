@@ -25,7 +25,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.evaluation.RegressionScores
+import org.apache.flink.ml.evaluation.{Scorer, RegressionScores}
 import org.apache.flink.ml.math.{DenseVector, BLAS}
 import org.apache.flink.ml.pipeline._
 import org.apache.flink.types.Value
@@ -392,7 +392,18 @@ object ALS {
 
   // ===================================== Operations ==============================================
 
-  // TODO: Add score operation
+  implicit def ALSSimpleScoreDataSetOperation
+      (implicit evaluateOperation: EvaluateDataSetOperation[ALS, (Int, Int, Double), Double])
+    : SimpleScoreDataSetOperation[ALS, (Int, Int, Double), Double] = {
+    new SimpleScoreDataSetOperation[ALS, (Int, Int, Double), Double] {
+      override def simpleScoreDataSet(
+          instance: ALS,
+          testing: DataSet[(Int, Int, Double)]): DataSet[Double] = {
+        val scorer = Scorer(RegressionScores.r2Score)
+        scorer.evaluate(testing, instance).map(math.sqrt(_))
+      }
+    }
+  }
 
   /** Predict operation which calculates the matrix entry for the given indices  */
   implicit val predictRating = new PredictDataSetOperation[ALS, (Int, Int), (Int ,Int, Double)] {

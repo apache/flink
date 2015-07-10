@@ -46,6 +46,7 @@ class ALSITSuite
       .setLambda(lambda)
       .setBlocks(4)
       .setNumFactors(numFactors)
+      .setSeed(0L)
 
     val inputDS = env.fromCollection(data)
 
@@ -79,5 +80,13 @@ class ALSITSuite
     val risk = f.als.empiricalRisk(f.inputDS).collect().head
 
     risk should be (expectedEmpiricalRisk +- 1)
+  }
+
+  it should "be possible to get a score for the factorization" in {
+    val f = fixture
+
+    val rmse: Double = f.als.score(f.evaluationData).collect().head
+
+    rmse should be < 2.0
   }
 }
