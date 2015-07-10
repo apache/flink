@@ -45,4 +45,9 @@ public abstract class StreamPartitioner<T> implements
 	public StreamPartitioner<T> copy() {
 		return this;
 	}
+	
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName();
+	}
 }
