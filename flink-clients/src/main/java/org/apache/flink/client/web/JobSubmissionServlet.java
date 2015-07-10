@@ -36,15 +36,16 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.flink.client.CliFrontend;
+import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.program.Client;
-import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +70,8 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	private static final String ACTION_BACK_VALUE = "back";
 
+	private static final String OPTIONS_PARAM_NAME = "options";
+
 	private static final String JOB_PARAM_NAME = "job";
 
 	private static final String CLASS_PARAM_NAME = "assemblerClass";
@@ -91,11 +94,12 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	private final Random rand;							// random number generator for UID
 
-	private final Configuration config;
+	private final CliFrontend cli;
 
 
-	public JobSubmissionServlet(Configuration config, File jobDir, File planDir) {
-		this.config = config;
+
+	public JobSubmissionServlet(CliFrontend cli, File jobDir, File planDir) {
+		this.cli = cli;
 		this.jobStoreDirectory = jobDir;
 		this.planDumpDirectory = planDir;
 
@@ -116,16 +120,17 @@ public class JobSubmissionServlet extends HttpServlet {
 			// --------------- submit a job -------------------
 
 			// get the parameters
+			String options = req.getParameter(OPTIONS_PARAM_NAME);
 			String jobName = req.getParameter(JOB_PARAM_NAME);
 			String assemblerClass = req.getParameter(CLASS_PARAM_NAME);
-			String args = req.getParameter(ARGUMENTS_PARAM_NAME);
+			String arguments = req.getParameter(ARGUMENTS_PARAM_NAME);
 			String showPlan = req.getParameter(SHOW_PLAN_PARAM_NAME);
 			String suspendPlan = req.getParameter(SUSPEND_PARAM_NAME);
 
-			// check that all parameters are set
-			// do NOT check 'assemblerClass' -> it is OK if it is not set
+			// check that parameters are set
+			// do NOT check 'options' or 'assemblerClass' -> it is OK if not set
 			if (checkParameterSet(resp, jobName, JOB_PARAM_NAME)
-				|| checkParameterSet(resp, args, ARGUMENTS_PARAM_NAME)
+				|| checkParameterSet(resp, arguments, ARGUMENTS_PARAM_NAME)
 				|| checkParameterSet(resp, showPlan, SHOW_PLAN_PARAM_NAME)
 				|| checkParameterSet(resp, suspendPlan, SUSPEND_PARAM_NAME))
 			{
@@ -135,106 +140,92 @@ public class JobSubmissionServlet extends HttpServlet {
 			boolean show = Boolean.parseBoolean(showPlan);
 			boolean suspend = Boolean.parseBoolean(suspendPlan);
 
-			// check, if the jar exists
-			File jarFile = new File(jobStoreDirectory, jobName);
-			if (!jarFile.exists()) {
-				showErrorPage(resp, "The jar file + '" + jarFile.getPath() + "' does not exist.");
-				return;
-			}
-
-			// parse the arguments
-			List<String> params;
+			List<String> cliOptions;
 			try {
-				params = tokenizeArguments(args);
+				cliOptions = tokenizeArguments(options);
 			} catch (IllegalArgumentException iaex) {
-				showErrorPage(resp, "The arguments contain an unterminated quoted string.");
+				showErrorPage(resp, "Flink options contain an unterminated quoted string.");
 				return;
 			}
 
-			int parallelism = -1;
-			while(params.size() >= 2) {
-				if (params.get(0).equals("-c")) {
-					assemblerClass = params.get(1);
-					params.remove(0);
-					params.remove(0);
-				}
-				else if (params.get(0).equals("-p")) {
-					parallelism = Integer.parseInt(params.get(1));
-					params.remove(0);
-					params.remove(0);
-				}
-				else {
-					break;
-				}
-			}
-
-			// create the plan
-			String[] options = params.isEmpty() ? new String[0] : params.toArray(new String[params.size()]);
-			PackagedProgram program;
-			FlinkPlan optPlan;
-			Client client;
-
+			List<String> cliArguments;
 			try {
-				if (assemblerClass == null) {
-					program = new PackagedProgram(jarFile, options);
-				} else {
-					program = new PackagedProgram(jarFile, assemblerClass, options);
-				}
+				cliArguments = tokenizeArguments(arguments);
+			} catch (IllegalArgumentException iaex) {
+				showErrorPage(resp, "Program arguments contain an unterminated quoted string.");
+				return;
+			}
 
-				client = new Client(config, program.getUserCodeClassLoader());
+			String[] args = new String[1 + (assemblerClass == null ? 0 : 2) + cliOptions.size() + 1 + cliArguments.size()];
 
-				optPlan = client.getOptimizedPlan(program, parallelism);
+			List<String> parameters = new ArrayList<String>(args.length);
+			parameters.add(CliFrontend.ACTION_INFO);
+			parameters.addAll(cliOptions);
+			if (assemblerClass != null) {
+				parameters.add("-" + CliFrontendParser.CLASS_OPTION.getOpt());
+				parameters.add(assemblerClass);
+			}
+			parameters.add(jobStoreDirectory + File.separator + jobName);
+			parameters.addAll(cliArguments);
 
+			FlinkPlan optPlan;
+			try {
+				this.cli.parseParameters(parameters.toArray(args));
+
+				optPlan = this.cli.getFlinkPlan();
 				if (optPlan == null) {
-					throw new Exception("The optimized plan could not be produced.");
+					// wrapping hack to get this exception handled correctly by following catch block
+					throw new RuntimeException(new Exception("The optimized plan could not be produced."));
 				}
 			}
-			catch (ProgramInvocationException e) {
-				// collect the stack trace
-				StringWriter sw = new StringWriter();
-				PrintWriter w = new PrintWriter(sw);
+			catch (RuntimeException e) {
+				Throwable t = e.getCause();
 
-				if (e.getCause() == null) {
-					e.printStackTrace(w);
+				if(t instanceof ProgramInvocationException) {
+					// collect the stack trace
+					StringWriter sw = new StringWriter();
+					PrintWriter w = new PrintWriter(sw);
+
+					if (t.getCause() == null) {
+						t.printStackTrace(w);
+					} else {
+						t.getCause().printStackTrace(w);
+					}
+
+					String message = sw.toString();
+					message = StringEscapeUtils.escapeHtml4(message);
+
+					showErrorPage(resp, "An error occurred while invoking the program:<br/><br/>"
+							+ t.getMessage() + "<br/>"
+							+ "<br/><br/><pre>" + message + "</pre>");
+					return;
+				} else if (t instanceof CompilerException) {
+					// collect the stack trace
+					StringWriter sw = new StringWriter();
+					PrintWriter w = new PrintWriter(sw);
+					t.printStackTrace(w);
+
+					String message = sw.toString();
+					message = StringEscapeUtils.escapeHtml4(message);
+
+					showErrorPage(resp, "An error occurred in the compiler:<br/><br/>"
+							+ t.getMessage() + "<br/>"
+							+ (t.getCause() != null ? "Caused by: " + t.getCause().getMessage():"")
+							+ "<br/><br/><pre>" + message + "</pre>");
+					return;
 				} else {
-					e.getCause().printStackTrace(w);
+					// collect the stack trace
+					StringWriter sw = new StringWriter();
+					PrintWriter w = new PrintWriter(sw);
+					t.printStackTrace(w);
+
+					String message = sw.toString();
+					message = StringEscapeUtils.escapeHtml4(message);
+
+					showErrorPage(resp, "An unexpected error occurred:<br/><br/>" + t.getMessage() + "<br/><br/><pre>"
+							+ message + "</pre>");
+					return;
 				}
-
-				String message = sw.toString();
-				message = StringEscapeUtils.escapeHtml4(message);
-
-				showErrorPage(resp, "An error occurred while invoking the program:<br/><br/>"
-					+ e.getMessage() + "<br/>"
-					+ "<br/><br/><pre>" + message + "</pre>");
-				return;
-			}
-			catch (CompilerException cex) {
-				// collect the stack trace
-				StringWriter sw = new StringWriter();
-				PrintWriter w = new PrintWriter(sw);
-				cex.printStackTrace(w);
-
-				String message = sw.toString();
-				message = StringEscapeUtils.escapeHtml4(message);
-
-				showErrorPage(resp, "An error occurred in the compiler:<br/><br/>"
-					+ cex.getMessage() + "<br/>"
-					+ (cex.getCause() != null ? "Caused by: " + cex.getCause().getMessage():"")
-					+ "<br/><br/><pre>" + message + "</pre>");
-				return;
-			}
-			catch (Throwable t) {
-				// collect the stack trace
-				StringWriter sw = new StringWriter();
-				PrintWriter w = new PrintWriter(sw);
-				t.printStackTrace(w);
-
-				String message = sw.toString();
-				message = StringEscapeUtils.escapeHtml4(message);
-
-				showErrorPage(resp, "An unexpected error occurred:<br/><br/>" + t.getMessage() + "<br/><br/><pre>"
-					+ message + "</pre>");
-				return;
 			}
 
 			// redirect according to our options
@@ -262,37 +253,17 @@ public class JobSubmissionServlet extends HttpServlet {
 
 				// submit the job only, if it should not be suspended
 				if (!suspend) {
-					if (optPlan instanceof OptimizedPlan) {
-						try {
-							client.run(program, (OptimizedPlan) optPlan, false);
-						}
-						catch (Throwable t) {
-							LOG.error("Error submitting job to the job-manager.", t);
-							showErrorPage(resp, t.getMessage());
-							return;
-						}
-						finally {
-							program.deleteExtractedLibraries();
-						}
-					}
-					else {
-						throw new RuntimeException("Not implemented for Streaming Job plans");
+					parameters.set(0, CliFrontend.ACTION_RUN);
+					try {
+						this.cli.parseParameters(parameters.toArray(args));
+					} catch(RuntimeException e) {
+						LOG.error("Error submitting job to the job-manager.", e.getCause());
+						showErrorPage(resp, e.getCause().getMessage());
+						return;
 					}
 				}
 				else {
-					try {
-						this.submittedJobs.put(uid, client.getJobGraph(program, optPlan));
-					}
-					catch (ProgramInvocationException piex) {
-						LOG.error("Error creating JobGraph from optimized plan.", piex);
-						showErrorPage(resp, piex.getMessage());
-						return;
-					}
-					catch (Throwable t) {
-						LOG.error("Error creating JobGraph from optimized plan.", t);
-						showErrorPage(resp, t.getMessage());
-						return;
-					}
+					this.submittedJobs.put(uid, this.cli.getJobGraph());
 				}
 
 				// redirect to the plan display page
@@ -301,18 +272,16 @@ public class JobSubmissionServlet extends HttpServlet {
 			else {
 				// don't show any plan. directly submit the job and redirect to the
 				// runtime monitor
+				parameters.set(0, CliFrontend.ACTION_RUN);
 				try {
-					client.run(program, parallelism, false);
+					this.cli.parseParameters(parameters.toArray(args));
 				}
-				catch (Exception ex) {
-					LOG.error("Error submitting job to the job-manager.", ex);
+				catch (RuntimeException e) {
+					LOG.error("Error submitting job to the job-manager.", e.getCause());
 					// HACK: Is necessary because Message contains whole stack trace
-					String errorMessage = ex.getMessage().split("\n")[0];
+					String errorMessage = e.getCause().getMessage().split("\n")[0];
 					showErrorPage(resp, errorMessage);
 					return;
-				}
-				finally {
-					program.deleteExtractedLibraries();
 				}
 				resp.sendRedirect(START_PAGE_URL);
 			}
@@ -344,7 +313,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// submit the job
 			try {
-				Client client = new Client(config, getClass().getClassLoader());
+				Client client = new Client(GlobalConfiguration.getConfiguration(), getClass().getClassLoader());
 				client.run(job, false);
 			}
 			catch (Exception ex) {
@@ -402,8 +371,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 		PrintWriter writer = resp.getWriter();
 
-		writer
-			.println("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"\n        \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">");
+		writer.println("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"\n        \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">");
 		writer.println("<html>");
 		writer.println("<head>");
 		writer.println("  <title>Launch Job - Error</title>");
