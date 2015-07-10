@@ -78,6 +78,10 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Returns the parallelism of this operation.
    */
   def getParallelism = javaStream.getParallelism
+  
+  def getPartitioner = javaStream.getPartitioner
+  
+  def getSelectedNames = javaStream.getSelectedNames
 
   /**
    * Returns the execution config.

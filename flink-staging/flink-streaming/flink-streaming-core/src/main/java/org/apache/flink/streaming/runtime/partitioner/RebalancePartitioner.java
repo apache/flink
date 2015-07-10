@@ -49,4 +49,9 @@ public class RebalancePartitioner<T> extends StreamPartitioner<T> {
 	public StreamPartitioner<T> copy() {
 		return new RebalancePartitioner<T>(forward);
 	}
+	
+	@Override
+	public String toString() {
+		return forward ? "ForwardPartitioner" : "RebalancePartitioner";
+	}
 }

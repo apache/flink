@@ -95,11 +95,11 @@ public class DataStream<OUT> {
 	protected final StreamExecutionEnvironment environment;
 	protected final Integer id;
 	protected int parallelism;
-	protected List<String> userDefinedNames;
+	protected List<String> selectedNames;
 	protected StreamPartitioner<OUT> partitioner;
 	@SuppressWarnings("rawtypes")
 	protected TypeInformation typeInfo;
-	protected List<DataStream<OUT>> unionizedStreams;
+	protected List<DataStream<OUT>> unionedStreams;
 	
 	protected Integer iterationID = null;
 	protected Long iterationWaitTime = null;
@@ -126,11 +126,11 @@ public class DataStream<OUT> {
 		this.environment = environment;
 		this.parallelism = environment.getParallelism();
 		this.streamGraph = environment.getStreamGraph();
-		this.userDefinedNames = new ArrayList<String>();
+		this.selectedNames = new ArrayList<String>();
 		this.partitioner = new RebalancePartitioner<OUT>(true);
 		this.typeInfo = typeInfo;
-		this.unionizedStreams = new ArrayList<DataStream<OUT>>();
-		this.unionizedStreams.add(this);
+		this.unionedStreams = new ArrayList<DataStream<OUT>>();
+		this.unionedStreams.add(this);
 	}
 
 	/**
@@ -143,17 +143,17 @@ public class DataStream<OUT> {
 		this.environment = dataStream.environment;
 		this.id = dataStream.id;
 		this.parallelism = dataStream.parallelism;
-		this.userDefinedNames = new ArrayList<String>(dataStream.userDefinedNames);
+		this.selectedNames = new ArrayList<String>(dataStream.selectedNames);
 		this.partitioner = dataStream.partitioner.copy();
 		this.streamGraph = dataStream.streamGraph;
 		this.typeInfo = dataStream.typeInfo;
 		this.iterationID = dataStream.iterationID;
 		this.iterationWaitTime = dataStream.iterationWaitTime;
-		this.unionizedStreams = new ArrayList<DataStream<OUT>>();
-		this.unionizedStreams.add(this);
-		if (dataStream.unionizedStreams.size() > 1) {
-			for (int i = 1; i < dataStream.unionizedStreams.size(); i++) {
-				this.unionizedStreams.add(new DataStream<OUT>(dataStream.unionizedStreams.get(i)));
+		this.unionedStreams = new ArrayList<DataStream<OUT>>();
+		this.unionedStreams.add(this);
+		if (dataStream.unionedStreams.size() > 1) {
+			for (int i = 1; i < dataStream.unionedStreams.size(); i++) {
+				this.unionedStreams.add(new DataStream<OUT>(dataStream.unionedStreams.get(i)));
 			}
 		}
 
@@ -175,6 +175,14 @@ public class DataStream<OUT> {
 	 */
 	public int getParallelism() {
 		return this.parallelism;
+	}
+	
+	public StreamPartitioner<OUT> getPartitioner() {
+		return this.partitioner;
+	}
+	
+	public List<String> getSelectedNames(){
+		return selectedNames;
 	}
 
 	/**
@@ -248,9 +256,9 @@ public class DataStream<OUT> {
 		DataStream<OUT> returnStream = this.copy();
 
 		for (DataStream<OUT> stream : streams) {
-			for (DataStream<OUT> ds : stream.unionizedStreams) {
+			for (DataStream<OUT> ds : stream.unionedStreams) {
 				validateUnion(ds.getId());
-				returnStream.unionizedStreams.add(ds.copy());
+				returnStream.unionedStreams.add(ds.copy());
 			}
 		}
 		return returnStream;
@@ -268,7 +276,7 @@ public class DataStream<OUT> {
 	 * @return The {@link SplitDataStream}
 	 */
 	public SplitDataStream<OUT> split(OutputSelector<OUT> outputSelector) {
-		for (DataStream<OUT> ds : this.unionizedStreams) {
+		for (DataStream<OUT> ds : this.unionedStreams) {
 			streamGraph.addOutputSelector(ds.getId(), clean(outputSelector));
 		}
 
@@ -1103,9 +1111,7 @@ public class DataStream<OUT> {
 	}
 	
 	protected <X> void addIterationSource(DataStream<X> dataStream, TypeInformation<?> feedbackType) {
-		Integer id = ++counter;
-		streamGraph.addIterationHead(id, dataStream.getId(), iterationID, iterationWaitTime, feedbackType);
-		streamGraph.setParallelism(id, dataStream.getParallelism());
+		streamGraph.addIterationHead(dataStream.getId(), iterationID, iterationWaitTime, feedbackType);
 	}
 
 	/**
@@ -1118,7 +1124,7 @@ public class DataStream<OUT> {
 	protected DataStream<OUT> setConnectionType(StreamPartitioner<OUT> partitioner) {
 		DataStream<OUT> returnStream = this.copy();
 
-		for (DataStream<OUT> stream : returnStream.unionizedStreams) {
+		for (DataStream<OUT> stream : returnStream.unionedStreams) {
 			stream.partitioner = partitioner;
 		}
 
@@ -1139,9 +1145,9 @@ public class DataStream<OUT> {
 	 *            Number of the type (used at co-functions)
 	 */
 	protected <X> void connectGraph(DataStream<X> inputStream, Integer outputID, int typeNumber) {
-		for (DataStream<X> stream : inputStream.unionizedStreams) {
+		for (DataStream<X> stream : inputStream.unionedStreams) {
 			streamGraph.addEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
-					inputStream.userDefinedNames);
+					inputStream.selectedNames);
 		}
 
 	}
@@ -1170,7 +1176,7 @@ public class DataStream<OUT> {
 	}
 
 	private void validateUnion(Integer id) {
-		for (DataStream<OUT> ds : this.unionizedStreams) {
+		for (DataStream<OUT> ds : this.unionedStreams) {
 			if (ds.getId().equals(id)) {
 				throw new RuntimeException("A DataStream cannot be merged with itself");
 			}
