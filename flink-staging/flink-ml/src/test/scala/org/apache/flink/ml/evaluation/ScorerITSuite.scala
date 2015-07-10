@@ -18,6 +18,7 @@
 package org.apache.flink.ml.evaluation
 
 import org.apache.flink.api.scala._
+import org.apache.flink.ml.classification.{Classification, SVM}
 import org.apache.flink.ml.common.ParameterMap
 import org.apache.flink.ml.preprocessing.StandardScaler
 import org.apache.flink.ml.regression.RegressionData._
@@ -60,7 +61,7 @@ class ScorerITSuite  extends FlatSpec with Matchers with FlinkTestBase {
     mse should be < 2.0
   }
 
-  it should "be possible to obtain scores for a chained predictor" in {
+  it should "be possible to obtain custom scores for a chained predictor" in {
     val f = fixture
 
     val scaler = StandardScaler()
@@ -69,10 +70,55 @@ class ScorerITSuite  extends FlatSpec with Matchers with FlinkTestBase {
 
     chainedMLR.fit(f.inputDS, f.parameters)
 
-    val evaluationDS = f.inputDS.map(x => (x.vector, x.label))
+    val evaluationDS = f.inputDS
 
-    val mse = f.scorer.evaluate(evaluationDS, chainedMLR).collect().head
+    val mse = chainedMLR.score(evaluationDS, f.scorer).collect().head
 
     mse should be < 2.0
   }
+
+  it should "be possible to call simple score on a chained regressor" in {
+    val f = fixture
+
+    val scaler = StandardScaler()
+
+    val chainedMLR = scaler.chainPredictor(f.mlr)
+
+    chainedMLR.fit(f.inputDS, f.parameters)
+
+    val evaluationDS = f.inputDS
+
+    val mse = chainedMLR.score(evaluationDS).collect().head
+
+    mse should be < 2.0
+  }
+
+  it should "be possible to call simple score on a chained classifier" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val svm = SVM().
+      setBlocks(env.getParallelism).
+      setIterations(100).
+      setLocalIterations(100).
+      setRegularization(0.002).
+      setStepsize(0.1).
+      setSeed(0)
+
+    val scaler = StandardScaler()
+
+    val trainingDS = env.fromCollection(Classification.trainingData)
+
+    val evaluationDS = trainingDS
+
+    val chainedSVM = scaler.chainPredictor(svm)
+
+    chainedSVM.fit(trainingDS)
+
+    val accuracy = chainedSVM.score(evaluationDS).collect().head
+
+    accuracy should be > 0.9
+  }
+
+
+
 }

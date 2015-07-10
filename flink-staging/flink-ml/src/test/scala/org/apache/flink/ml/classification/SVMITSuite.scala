@@ -18,6 +18,7 @@
 
 package org.apache.flink.ml.classification
 
+import org.apache.flink.ml.evaluation.{Scorer, ClassificationScores}
 import org.scalatest.{FlatSpec, Matchers}
 import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
 
@@ -95,5 +96,15 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val rawPrediction = svm.predict(test).map(vectorLabel => vectorLabel._2).collect().head
 
     rawPrediction should be (15.0 +- 1e-9)    
+  }
+
+  it should "correctly calculate its score" in {
+    val f = fixture
+
+    val test = f.trainingDS
+
+    val score = f.svm.score(test).collect().head
+
+    score should be > 0.9
   }
 }

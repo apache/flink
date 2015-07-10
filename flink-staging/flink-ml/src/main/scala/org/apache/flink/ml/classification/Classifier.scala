@@ -18,7 +18,10 @@
 
 package org.apache.flink.ml.classification
 
-import org.apache.flink.ml.pipeline.Predictor
+import org.apache.flink.api.scala._
+import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.evaluation.{Scorer, ClassificationScores}
+import org.apache.flink.ml.pipeline.{SimpleScoreDataSetOperation, EvaluateDataSetOperation, Predictor}
 
 /** Trait that classification algorithms should implement
   *
@@ -26,4 +29,21 @@ import org.apache.flink.ml.pipeline.Predictor
   */
 trait Classifier[Self] extends Predictor[Self]{
   that: Self =>
+
+}
+
+object Classifier {
+
+  implicit def ClassifierSimpleScoreDataSetOperation[Instance <: Classifier[Instance]]
+      (implicit evaluateOperation: EvaluateDataSetOperation[Instance, LabeledVector, Double])
+    : SimpleScoreDataSetOperation[Instance, LabeledVector, Double] = {
+    new SimpleScoreDataSetOperation[Instance, LabeledVector, Double] {
+      override def simpleScoreDataSet(
+          instance: Instance,
+          testing: DataSet[LabeledVector]): DataSet[Double] = {
+        val scorer = Scorer(ClassificationScores.accuracyScore)
+        scorer.evaluate(testing, instance)
+      }
+    }
+  }
 }

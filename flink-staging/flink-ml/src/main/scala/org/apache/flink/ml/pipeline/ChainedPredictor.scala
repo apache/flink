@@ -38,7 +38,10 @@ import org.apache.flink.ml.evaluation.Scorer
   * @tparam P Type of the trailing [[Predictor]]
   */
 case class ChainedPredictor[T <: Transformer[T], P <: Predictor[P]](transformer: T, predictor: P)
-  extends Predictor[ChainedPredictor[T, P]] {}
+  extends Predictor[ChainedPredictor[T, P]] {
+
+
+}
 
 object ChainedPredictor{
 
@@ -138,24 +141,45 @@ object ChainedPredictor{
     }
   }
 
-  implicit def chainedScoreOperation[
+  implicit def chainedCustomScoreOperation[
       T <: Transformer[T],
       P <: Predictor[P],
       Testing,
       Intermediate,
       Prediction](
       implicit transformOperation: TransformDataSetOperation[T, Testing, Intermediate],
-      scoreOperation: ScoreDataSetOperation[P, Intermediate, Prediction],
+      scoreOperation: CustomScoreDataSetOperation[P, Intermediate, Prediction],
       testingTypeInformation: TypeInformation[Testing],
-      predictionValueTypeInformation: TypeInformation[Prediction])
-    : ScoreDataSetOperation[ChainedPredictor[T, P], Testing, Prediction] = {
-    new ScoreDataSetOperation[ChainedPredictor[T, P], Testing, Prediction] {
-      override def scoreDataSet(
+      predictionTypeInformation: TypeInformation[Prediction])
+    : CustomScoreDataSetOperation[ChainedPredictor[T, P], Testing, Prediction] = {
+    new CustomScoreDataSetOperation[ChainedPredictor[T, P], Testing, Prediction] {
+      override def customScoreDataSet(
           instance: ChainedPredictor[T, P],
           scorer: Scorer[Prediction],
           testing: DataSet[Testing]): DataSet[Double] = {
         val intermediate = instance.transformer.transform(testing)
         instance.predictor.score(intermediate, scorer)
+      }
+    }
+  }
+
+  implicit def chainedSimpleScoreOperation[
+      T <: Transformer[T],
+      P <: Predictor[P],
+      Testing,
+      Intermediate,
+      Prediction](
+      implicit transformOperation: TransformDataSetOperation[T, Testing, Intermediate],
+      scoreOperation: SimpleScoreDataSetOperation[P, Intermediate, Prediction],
+      testingTypeInformation: TypeInformation[Testing],
+      predictionTypeInformation: TypeInformation[Prediction])
+    : SimpleScoreDataSetOperation[ChainedPredictor[T, P], Testing, Prediction] = {
+    new SimpleScoreDataSetOperation[ChainedPredictor[T, P], Testing, Prediction] {
+      override def simpleScoreDataSet(
+          instance: ChainedPredictor[T, P],
+          testing: DataSet[Testing]): DataSet[Double] = {
+        val intermediate = instance.transformer.transform(testing)
+        instance.predictor.score(intermediate)
       }
     }
   }

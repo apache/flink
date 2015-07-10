@@ -23,10 +23,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.ml._
 import org.apache.flink.ml.common.{LabeledVector, FlinkMLTools, ParameterMap, WithParameters}
-import org.apache.flink.ml.evaluation.{Scorer, ClassificationScores}
+import org.apache.flink.ml.evaluation.Scorer
 import org.apache.flink.ml.math.{Vector => FlinkVector}
 
-import scala.reflect.ClassTag
 
 /** Predictor trait for Flink's pipeline operators.
   *
@@ -86,10 +85,17 @@ trait Predictor[Self] extends Estimator[Self] with WithParameters {
   def score[Testing, Prediction](
       testing: DataSet[Testing],
       scorer: Scorer[Prediction])
-      (implicit dataSetScorer: ScoreDataSetOperation[Self, Testing, Prediction])
+      (implicit dataSetScorer: CustomScoreDataSetOperation[Self, Testing, Prediction])
     : DataSet[Double] = {
-    dataSetScorer.scoreDataSet(this, scorer, testing)
+    dataSetScorer.customScoreDataSet(this, scorer, testing)
   }
+
+  def score[Testing, Prediction](testing: DataSet[Testing])
+      (implicit simpleDataSetScorer: SimpleScoreDataSetOperation[Self, Testing, Prediction])
+    : DataSet[Double] = {
+    simpleDataSetScorer.simpleScoreDataSet(this, testing)
+  }
+
 }
 
 object Predictor {
@@ -218,9 +224,9 @@ object Predictor {
 
   implicit def LabeledVectorScoreDataSetOperation[Instance <: Predictor[Instance]]
       (implicit evaluateOperation: EvaluateDataSetOperation[Instance, LabeledVector, Double])
-    : ScoreDataSetOperation[Instance, LabeledVector, Double] = {
-    new ScoreDataSetOperation[Instance, LabeledVector, Double] {
-      override def scoreDataSet(
+    : CustomScoreDataSetOperation[Instance, LabeledVector, Double] = {
+    new CustomScoreDataSetOperation[Instance, LabeledVector, Double] {
+      override def customScoreDataSet(
           instance: Instance,
           scorer: Scorer[Double],
           testing: DataSet[LabeledVector]): DataSet[Double] = {
@@ -312,11 +318,17 @@ trait EvaluateDataSetOperation[Instance, Testing, Prediction] extends Serializab
     : DataSet[(Prediction, Prediction)]
 }
 
-trait ScoreDataSetOperation[Instance, Testing, Prediction] extends
-Serializable {
-  def scoreDataSet(
+trait CustomScoreDataSetOperation[Instance, Testing, Prediction] extends Serializable {
+  def customScoreDataSet(
       instance: Instance,
       scorer: Scorer[Prediction],
       testing: DataSet[Testing])
     : DataSet[Double]
+}
+
+trait SimpleScoreDataSetOperation[Instance, Testing, Prediction] extends Serializable {
+  def simpleScoreDataSet(
+      instance: Instance,
+      testing: DataSet[Testing])
+  : DataSet[Double]
 }

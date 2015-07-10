@@ -23,7 +23,6 @@ import org.apache.flink.ml.pipeline.Predictor
 
 import org.apache.flink.ml.pipeline.EvaluateDataSetOperation
 
-//TODO: Need to generalize type of Score (and evaluateOperation)
 class Scorer[Prediction](val score: Score[Prediction]) extends WithParameters {
 
   def evaluate[Testing, PredictorInstance <: Predictor[PredictorInstance]](
@@ -34,8 +33,8 @@ class Scorer[Prediction](val score: Score[Prediction]) extends WithParameters {
         Prediction]): DataSet[Double] = {
 
     val resultingParameters = predictorInstance.parameters ++ evaluateParameters
-    val predictions = predictorInstance.evaluate[Testing, Prediction](testing, resultingParameters)
-    score.evaluate(predictions)
+    val truthPredictionPairs = predictorInstance.evaluate(testing, resultingParameters)
+    score.evaluate(truthPredictionPairs)
   }
 
 }

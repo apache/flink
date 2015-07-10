@@ -21,9 +21,11 @@ package org.apache.flink.ml.pipeline
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.classification.SVM
 import org.apache.flink.ml.common.{ParameterMap, LabeledVector}
+import org.apache.flink.ml.evaluation.{Scorer, RegressionScores}
 import org.apache.flink.ml.math._
 import org.apache.flink.ml.preprocessing.{PolynomialFeatures, StandardScaler}
 import org.apache.flink.ml.regression.MultipleLinearRegression
+import org.apache.flink.ml.regression.RegressionData._
 import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{Matchers, FlatSpec}
 
@@ -207,5 +209,43 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
     intercept[RuntimeException] {
       svm.predict(doubleData)
     }
+  }
+
+  def fixture =  new {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val loss = RegressionScores.squaredLoss
+
+    val scorer = new Scorer(loss)
+
+    val mlr = MultipleLinearRegression()
+
+    val parameters = ParameterMap()
+
+    parameters.add(MultipleLinearRegression.Stepsize, 1.0)
+    parameters.add(MultipleLinearRegression.Iterations, 10)
+    parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.001)
+
+    val inputDS = env.fromCollection(data)
+  }
+
+  it should "be possible to call evaluate on a chained predictor" in {
+    val f = fixture
+
+    val scaler = StandardScaler()
+
+    val chainedMLR = scaler.chainPredictor(f.mlr)
+
+    chainedMLR.fit(f.inputDS, f.parameters)
+
+    val evaluationDS = f.inputDS
+
+    val interm = scaler.transform(evaluationDS)
+
+    val mseDS = f.mlr.evaluate(evaluationDS)
+
+    val mse = chainedMLR.evaluate(evaluationDS)
+
+//    mse should be < 2.0
   }
 }

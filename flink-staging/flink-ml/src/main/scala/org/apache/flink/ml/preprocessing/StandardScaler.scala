@@ -268,7 +268,8 @@ object StandardScaler {
   /** [[TransformOperation]] to transform [[LabeledVector]].
     *
     */
-  implicit val transformLabeledVector = new StandardScalerTransformOperation[LabeledVector] {
+  implicit def transformLabeledVector =
+    new StandardScalerTransformOperation[LabeledVector] {
     override def transform(
         element: LabeledVector,
         model: (linalg.Vector[Double], linalg.Vector[Double]))

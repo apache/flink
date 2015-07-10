@@ -18,7 +18,10 @@
 
 package org.apache.flink.ml.regression
 
-import org.apache.flink.ml.pipeline.Predictor
+import org.apache.flink.api.scala._
+import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.evaluation.{Scorer, RegressionScores}
+import org.apache.flink.ml.pipeline.{EvaluateDataSetOperation, SimpleScoreDataSetOperation, Predictor}
 
 /** Trait that regression algorithms should implement
   *
@@ -27,4 +30,21 @@ import org.apache.flink.ml.pipeline.Predictor
 trait Regressor[Self] extends Predictor[Self]{
   that: Self =>
 
+
+}
+
+object Regressor {
+
+  implicit def RegressorSimpleScoreDataSetOperation[Instance <: Regressor[Instance]]
+      (implicit evaluateOperation: EvaluateDataSetOperation[Instance, LabeledVector, Double])
+    : SimpleScoreDataSetOperation[Instance, LabeledVector, Double] = {
+    new SimpleScoreDataSetOperation[Instance, LabeledVector, Double] {
+      override def simpleScoreDataSet(
+          instance: Instance,
+          testing: DataSet[LabeledVector]): DataSet[Double] = {
+        val scorer = Scorer(RegressionScores.r2Score)
+        scorer.evaluate(testing, instance)
+      }
+    }
+  }
 }
