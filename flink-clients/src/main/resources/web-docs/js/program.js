@@ -80,7 +80,6 @@ function toggleCheckboxes(box)
     var assemblerClass = box.attr('id');
 
     $('#mainCanvas').html('');
-    $('#planDescription').html('');
     pactPlanRequested = id;
 
     $.ajax({
@@ -92,7 +91,6 @@ function toggleCheckboxes(box)
   }
   else {
     $('#mainCanvas').html('');
-    $('#planplanDescription').html('');
   }
 }
 
@@ -101,20 +99,6 @@ function toggleCheckboxes(box)
  */
 function showPreviewPlan(data)
 {
-	//TODO check again the stuff below
-//  // check whether this one is still selected
-//  var active = $('.jobItemCheckbox:checked');
-//  var id = active.parentsUntil('.JobListItems').parent().attr('id').substr(4);
-//  
-//  if (pactPlanRequested == id) {
-//    if (data == undefined || data.jobname == undefined || data.jobname != pactPlanRequested || data.plan == undefined) {
-//      pactPlanRequested = 0;
-//    }
-//
-//	if(data.description != undefined) {
-//		$('#planDescription').html(data.description);
-//	}
-	
 	$("#mainCanvas").empty();
     var svgElement = "<div id=\"attach\"><svg id=\"svg-main\" width=500 height=500><g transform=\"translate(20, 20)\"/></svg></div>";
     $("#mainCanvas").append(svgElement);
@@ -216,13 +200,14 @@ function runJob ()
    
    var showPlan = $('#showPlanCheck').is(':checked');
    var suspendPlan = $('#suspendJobDuringPlanCheck').is(':checked');
+   var options = $('#commandLineOptionsField').attr('value'); //TODO? Replace with .val() ?
    var args = $('#commandLineArgsField').attr('value'); //TODO? Replace with .val() ?
    
    var url;
    if (assemblerClass == "<em>no entry class specified</em>") {
-      url = "runJob?" + $.param({ action: "submit", job: jobName, arguments: args, show_plan: showPlan, suspend: suspendPlan});
+      url = "runJob?" + $.param({ action: "submit", options: options, job: jobName, arguments: args, show_plan: showPlan, suspend: suspendPlan});
    } else {
-      url = "runJob?" + $.param({ action: "submit", job: jobName, assemblerClass: assemblerClass, arguments: args, show_plan: showPlan, suspend: suspendPlan});
+      url = "runJob?" + $.param({ action: "submit", options: options, job: jobName, assemblerClass: assemblerClass, arguments: args, show_plan: showPlan, suspend: suspendPlan});
    }
    
    window.location = url;
