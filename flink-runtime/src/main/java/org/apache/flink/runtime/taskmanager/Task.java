@@ -982,7 +982,7 @@ public class Task implements Runnable {
 	private void executeAsyncCallRunnable(Runnable runnable, String callName) {
 		// make sure the executor is initialized. lock against concurrent calls to this function
 		synchronized (this) {
-			if (isCanceledOrFailed()) {
+			if (executionState != ExecutionState.RUNNING) {
 				return;
 			}
 			
@@ -996,7 +996,7 @@ public class Task implements Runnable {
 				
 				// double-check for execution state, and make sure we clean up after ourselves
 				// if we created the dispatcher while the task was concurrently canceled
-				if (isCanceledOrFailed()) {
+				if (executionState != ExecutionState.RUNNING) {
 					executor.shutdown();
 					asyncCallDispatcher = null;
 					return;
@@ -1009,9 +1009,10 @@ public class Task implements Runnable {
 				executor.submit(runnable);
 			}
 			catch (RejectedExecutionException e) {
-				// may be that we are concurrently canceled. if not, report that something is fishy
-				if (!isCanceledOrFailed()) {
-					throw new RuntimeException("Async call was rejected, even though the task was not canceled.", e);
+				// may be that we are concurrently finished or canceled.
+				// if not, report that something is fishy
+				if (executionState == ExecutionState.RUNNING) {
+					throw new RuntimeException("Async call was rejected, even though the task is running.", e);
 				}
 			}
 		}
