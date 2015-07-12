@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -37,8 +38,7 @@ import java.io.OutputStreamWriter;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.types.Record;
-import org.apache.flink.types.StringValue;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,7 +49,7 @@ public class DelimitedInputFormatTest {
 	
 	protected File tempFile;
 	
-	private final DelimitedInputFormat<Record> format = new MyTextInputFormat();
+	private final DelimitedInputFormat<String> format = new MyTextInputFormat();
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -90,7 +90,7 @@ public class DelimitedInputFormatTest {
 		final int LINE_LENGTH_LIMIT = 12345;
 		final int BUFFER_SIZE = 178;
 		
-		DelimitedInputFormat<Record> format = new MyTextInputFormat();
+		DelimitedInputFormat<String> format = new MyTextInputFormat();
 		format.setDelimiter(DELIMITER);
 		format.setNumLineSamples(NUM_LINE_SAMPLES);
 		format.setLineLengthLimit(LINE_LENGTH_LIMIT);
@@ -104,7 +104,7 @@ public class DelimitedInputFormatTest {
 		
 		ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
 		@SuppressWarnings("unchecked")
-		DelimitedInputFormat<Record> deserialized = (DelimitedInputFormat<Record>) ois.readObject();
+		DelimitedInputFormat<String> deserialized = (DelimitedInputFormat<String>) ois.readObject();
 		
 		assertEquals(NUM_LINE_SAMPLES, deserialized.getNumLineSamples());
 		assertEquals(LINE_LENGTH_LIMIT, deserialized.getLineLengthLimit());
@@ -115,7 +115,7 @@ public class DelimitedInputFormatTest {
 	@Test
 	public void testOpen() throws IOException {
 		final String myString = "my mocked line 1\nmy mocked line 2\n";
-		final FileInputSplit split = createTempFile(myString);	
+		final FileInputSplit split = createTempFile(myString);
 		
 		int bufferSize = 5;
 		format.setBufferSize(bufferSize);
@@ -125,35 +125,42 @@ public class DelimitedInputFormatTest {
 		assertEquals(bufferSize, format.getBufferSize());
 	}
 
+	/**
+	 * Tests simple delimited parsing with a custom delimiter.
+	 */
 	@Test
-	public void testRead() throws IOException {
-		final String myString = "my key|my val$$$my key2\n$$ctd.$$|my value2";
-		final FileInputSplit split = createTempFile(myString);
-		
-		final Configuration parameters = new Configuration();
-		
-		format.setDelimiter("$$$");
-		format.configure(parameters);
-		format.open(split);
-		
-		Record theRecord = new Record();
+	public void testRead() {
+		try {
+			final String myString = "my key|my val$$$my key2\n$$ctd.$$|my value2";
+			final FileInputSplit split = createTempFile(myString);
+			
+			final Configuration parameters = new Configuration();
+			
+			format.setDelimiter("$$$");
+			format.configure(parameters);
+			format.open(split);
+	
+			String first = format.nextRecord(null);
+			assertNotNull(first);
+			assertEquals("my key|my val", first);
 
-		assertNotNull(format.nextRecord(theRecord));
-		assertEquals("my key", theRecord.getField(0, StringValue.class).getValue());
-		assertEquals("my val", theRecord.getField(1, StringValue.class).getValue());
-		
-		assertNotNull(format.nextRecord(theRecord));
-		assertEquals("my key2\n$$ctd.$$", theRecord.getField(0, StringValue.class).getValue());
-		assertEquals("my value2", theRecord.getField(1, StringValue.class).getValue());
-		
-		assertNull(format.nextRecord(theRecord));
-		assertTrue(format.reachedEnd());
+			String second = format.nextRecord(null);
+			assertNotNull(second);
+			assertEquals("my key2\n$$ctd.$$|my value2", second);
+			
+			assertNull(format.nextRecord(null));
+			assertTrue(format.reachedEnd());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 	
 	@Test
 	public void testRead2() throws IOException {
 		// 2. test case
-		final String myString = "my key|my val$$$my key2\n$$ctd.$$|my value2";
+		final String myString = "my key|my val$$$my key2\n$$ctd.$$|my value2\n";
 		final FileInputSplit split = createTempFile(myString);
 		
 		final Configuration parameters = new Configuration();
@@ -162,19 +169,19 @@ public class DelimitedInputFormatTest {
 		format.configure(parameters);
 		format.open(split);
 
-		Record theRecord = new Record();
-
-		assertNotNull(format.nextRecord(theRecord));
-		assertEquals("my key", theRecord.getField(0, StringValue.class).getValue());
-		assertEquals("my val$$$my key2", theRecord.getField(1, StringValue.class).getValue());
+		String first = format.nextRecord(null);
+		String second = format.nextRecord(null);
 		
-		assertNotNull(format.nextRecord(theRecord));
-		assertEquals("$$ctd.$$", theRecord.getField(0, StringValue.class).getValue());
-		assertEquals("my value2", theRecord.getField(1, StringValue.class).getValue());
+		assertNotNull(first);
+		assertNotNull(second);
 		
-		assertNull(format.nextRecord(theRecord));
+		assertEquals("my key|my val$$$my key2", first);
+		assertEquals("$$ctd.$$|my value2", second);
+		
+		assertNull(format.nextRecord(null));
 		assertTrue(format.reachedEnd());
 	}
+	
 	
 	private FileInputSplit createTempFile(String contents) throws IOException {
 		this.tempFile = File.createTempFile("test_contents", "tmp");
@@ -187,22 +194,13 @@ public class DelimitedInputFormatTest {
 		return new FileInputSplit(0, new Path(this.tempFile.toURI().toString()), 0, this.tempFile.length(), new String[] {"localhost"});
 	}
 	
-	protected static final class MyTextInputFormat extends org.apache.flink.api.common.io.DelimitedInputFormat<Record> {
+	
+	protected static final class MyTextInputFormat extends DelimitedInputFormat<String> {
 		private static final long serialVersionUID = 1L;
 		
-		private final StringValue str1 = new StringValue();
-		private final StringValue str2 = new StringValue();
-		
 		@Override
-		public Record readRecord(Record reuse, byte[] bytes, int offset, int numBytes) {
-			String theRecord = new String(bytes, offset, numBytes);
-			
-			str1.setValue(theRecord.substring(0, theRecord.indexOf('|')));
-			str2.setValue(theRecord.substring(theRecord.indexOf('|') + 1));
-			
-			reuse.setField(0, str1);
-			reuse.setField(1, str2);
-			return reuse;
+		public String readRecord(String reuse, byte[] bytes, int offset, int numBytes) {
+			return new String(bytes, offset, numBytes);
 		}
 	}
 }
