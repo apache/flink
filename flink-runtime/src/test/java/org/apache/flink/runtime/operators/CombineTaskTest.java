@@ -19,23 +19,21 @@
 package org.apache.flink.runtime.operators;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.operators.testutils.*;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
-import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
-import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
-import org.apache.flink.runtime.operators.testutils.DriverTestBase;
-import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
-import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
-import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.runtime.operators.testutils.TestData.Generator;
 import org.junit.Test;
 
 public class CombineTaskTest extends DriverTestBase<RichGroupReduceFunction<Record, ?>>
@@ -65,7 +63,7 @@ public class CombineTaskTest extends DriverTestBase<RichGroupReduceFunction<Reco
 		addDriverComparator(this.comparator);
 		addDriverComparator(this.comparator);
 		setOutput(this.outList);
-		
+
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
 		getTaskConfig().setRelativeMemoryDriver(combine_frac);
 		getTaskConfig().setFilehandlesDriver(2);
@@ -92,7 +90,39 @@ public class CombineTaskTest extends DriverTestBase<RichGroupReduceFunction<Reco
 		
 		this.outList.clear();
 	}
-	
+
+	@Test
+	public void testOversizedRecordCombineTask() {
+		int tenMil = 10000000;
+		Generator g = new Generator(561349061987311L, 1, tenMil);
+		//generate 10 records each of size 10MB
+		final TestData.GeneratorIterator gi = new TestData.GeneratorIterator(g, 10);
+		List<MutableObjectIterator<Record>> inputs = new ArrayList<MutableObjectIterator<Record>>();
+		inputs.add(gi);
+
+		addInput(new UnionIterator<Record>(inputs));
+		addDriverComparator(this.comparator);
+		addDriverComparator(this.comparator);
+		setOutput(this.outList);
+
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
+		getTaskConfig().setRelativeMemoryDriver(combine_frac);
+		getTaskConfig().setFilehandlesDriver(2);
+
+		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<Record, Record>();
+
+		try {
+			testDriver(testTask, MockCombiningReduceStub.class);
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("Invoke method caused exception.");
+		}
+
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+10, this.outList.size() == 10);
+
+		this.outList.clear();
+	}
+
 	@Test
 	public void testFailingCombineTask() {
 		int keyCnt = 100;
@@ -119,7 +149,7 @@ public class CombineTaskTest extends DriverTestBase<RichGroupReduceFunction<Reco
 			Assert.fail("Test failed due to an exception.");
 		}
 	}
-	
+
 	@Test
 	public void testCancelCombineTaskSorting()
 	{
