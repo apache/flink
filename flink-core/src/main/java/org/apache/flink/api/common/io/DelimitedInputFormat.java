@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
 
 import java.io.IOException;
@@ -40,8 +39,8 @@ import com.google.common.base.Charsets;
  * Base implementation for input formats that split the input at a delimiter into records.
  * The parsing of the record bytes into the record has to be implemented in the
  * {@link #readRecord(Object, byte[], int, int)} method.
- * <p>
- * The default delimiter is the newline character {@code '\n'}.
+ * 
+ * <p>The default delimiter is the newline character {@code '\n'}.</p>
  */
 public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	
@@ -495,7 +494,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 			}
 
 			int startPos = this.readPos;
-			int count = 0;
+			int count;
 
 			while (this.readPos < this.limit && i < this.delimiter.length) {
 				if ((this.readBuffer[this.readPos++]) == this.delimiter[i]) {
@@ -559,7 +558,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 
 	private boolean fillBuffer() throws IOException {
 		// special case for reading the whole split.
-		if(this.splitLength == FileInputFormat.READ_WHOLE_SPLIT_FLAG) {
+		if (this.splitLength == FileInputFormat.READ_WHOLE_SPLIT_FLAG) {
 			int read = this.stream.read(this.readBuffer, 0, readBuffer.length);
 			if (read == -1) {
 				this.stream.close();
