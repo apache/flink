@@ -118,8 +118,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 
 				if (data == '\r') // ignore carriage return
 					continue;
-
-                buffer.append((char)data);
+				buffer.append((char)data);
 
 				int delimiterIndex = buffer.indexOf(delimiter);
 				if (delimiterIndex != -1) {
