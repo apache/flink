@@ -171,12 +171,8 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 
 			// write the value again
 			if (!this.sorter.write(value)) {
-				if (oversizedRecordCount == Long.MAX_VALUE) {
-					LOG.debug("Number of oversized record has exceeded MAX Long");
-				} else {
-					++oversizedRecordCount;
-					LOG.debug("Cannot write record to fresh sort buffer. Record too large. Oversized record count: {}", oversizedRecordCount);
-				}
+				++oversizedRecordCount;
+				LOG.debug("Cannot write record to fresh sort buffer. Record too large. Oversized record count: {}", oversizedRecordCount);
 				// simply forward the record
 				this.output.collect((OUT)value);
 			}
