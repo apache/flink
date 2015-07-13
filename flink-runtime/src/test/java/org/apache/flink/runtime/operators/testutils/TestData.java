@@ -226,7 +226,7 @@ public final class TestData {
 				length = valueLength - random.nextInt(valueLength / 3);
 			}
 
-			StringBuffer sb = new StringBuffer();
+			StringBuilder sb = new StringBuilder();
 			for (int i = 0; i < length; i++) {
 				sb.append(alpha[random.nextInt(alpha.length)]);
 			}

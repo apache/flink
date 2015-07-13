@@ -16,13 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -33,10 +29,15 @@ import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
+import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
 import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -44,11 +45,12 @@ import java.util.List;
  * the user supplied a RichGroupReduceFunction with a combine method. The combining is performed in memory with a
  * lazy approach which only combines elements which currently fit in the sorter. This may lead to a partial solution.
  * In the case of the RichGroupReduceFunction this partial result is transformed into a proper deterministic result.
- * The CombineGroup uses the GroupCombineFunction interface which allows to combine values of type <IN> to any type
- * of type <OUT>. In contrast, the RichGroupReduceFunction requires the combine method to have the same input and
- * output type to be able to reduce the elements after the combine from <IN> to <OUT>.
+ * The CombineGroup uses the GroupCombineFunction interface which allows to combine values of type {@code IN} 
+ * to any type of type {@code OUT}. In contrast, the RichGroupReduceFunction requires the combine method
+ * to have the same input and output type to be able to reduce the elements after the combine from 
+ * {@code IN} to {@code OUT}.
  *
- * The CombineTask uses a combining iterator over its input. The output of the iterator is emitted.
+ * <p>The CombineTask uses a combining iterator over its input. The output of the iterator is emitted.</p>
  * 
  * @param <IN> The data type consumed by the combiner.
  * @param <OUT> The data type produced by the combiner.
@@ -67,8 +69,6 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 	private GroupCombineFunction<IN, OUT> combiner;
 
 	private TypeSerializer<IN> serializer;
-
-	private TypeComparator<IN> sortingComparator;
 	
 	private TypeComparator<IN> groupingComparator;
 
@@ -78,7 +78,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 
 	private Collector<OUT> output;
 
-	private long oversizedRecordCount = 0L;
+	private long oversizedRecordCount;
 
 	private volatile boolean running = true;
 
@@ -112,9 +112,8 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 	@Override
 	public void prepare() throws Exception {
 		final DriverStrategy driverStrategy = this.taskContext.getTaskConfig().getDriverStrategy();
-		if(driverStrategy != DriverStrategy.SORTED_GROUP_COMBINE){
-			throw new Exception("Invalid strategy " + driverStrategy + " for " +
-					"group reduce combinder.");
+		if (driverStrategy != DriverStrategy.SORTED_GROUP_COMBINE){
+			throw new Exception("Invalid strategy " + driverStrategy + " for group reduce combiner.");
 		}
 
 		this.memManager = this.taskContext.getMemoryManager();
@@ -122,7 +121,9 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 
 		final TypeSerializerFactory<IN> serializerFactory = this.taskContext.getInputSerializer(0);
 		this.serializer = serializerFactory.getSerializer();
-		this.sortingComparator = this.taskContext.getDriverComparator(0);
+
+		final TypeComparator<IN> sortingComparator = this.taskContext.getDriverComparator(0);
+		
 		this.groupingComparator = this.taskContext.getDriverComparator(1);
 		this.combiner = this.taskContext.getStub();
 		this.output = this.taskContext.getOutputCollector();
@@ -131,12 +132,12 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 				numMemoryPages);
 
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-		if (this.sortingComparator.supportsSerializationWithKeyNormalization() &&
+		if (sortingComparator.supportsSerializationWithKeyNormalization() &&
 				this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
 		{
-			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, this.sortingComparator, memory);
+			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, sortingComparator, memory);
 		} else {
-			this.sorter = new NormalizedKeySorter<IN>(this.serializer, this.sortingComparator.duplicate(), memory);
+			this.sorter = new NormalizedKeySorter<IN>(this.serializer, sortingComparator.duplicate(), memory);
 		}
 
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
@@ -171,10 +172,14 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 
 			// write the value again
 			if (!this.sorter.write(value)) {
+				
 				++oversizedRecordCount;
-				LOG.debug("Cannot write record to fresh sort buffer. Record too large. Oversized record count: {}", oversizedRecordCount);
-				// simply forward the record
-				this.output.collect((OUT)value);
+				LOG.debug("Cannot write record to fresh sort buffer, record is too large. " +
+								"Oversized record count: {}", oversizedRecordCount);
+				
+				// simply forward the record. We need to pass it through the combine function to convert it
+				Iterable<IN> input = Collections.singleton(value);
+				this.combiner.combine(input, this.output);
 			}
 		}
 
@@ -210,7 +215,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 
 	@Override
 	public void cleanup() throws Exception {
-		if(this.sorter != null) {
+		if (this.sorter != null) {
 			this.memManager.release(this.sorter.dispose());
 		}
 	}
@@ -218,8 +223,17 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 	@Override
 	public void cancel() {
 		this.running = false;
-		if(this.sorter != null) {
+		if (this.sorter != null) {
 			this.memManager.release(this.sorter.dispose());
 		}
+	}
+
+	/**
+	 * Gets the number of oversized records handled by this combiner.
+	 * 
+	 * @return The number of oversized records handled by this combiner.
+	 */
+	public long getOversizedRecordCount() {
+		return oversizedRecordCount;
 	}
 }

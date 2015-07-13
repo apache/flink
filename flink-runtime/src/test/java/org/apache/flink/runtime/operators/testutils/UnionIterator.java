@@ -16,26 +16,30 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.util.MutableObjectIterator;
 
-
 /**
  * An iterator that returns the union of a given set of iterators.
  */
-public class UnionIterator<E> implements MutableObjectIterator<E>
-{
+public class UnionIterator<E> implements MutableObjectIterator<E> {
+	
 	private MutableObjectIterator<E> currentSource;
 	
 	private List<MutableObjectIterator<E>> nextSources;
+
+
+	public UnionIterator(MutableObjectIterator<E>... iterators) {
+		this(new ArrayList<MutableObjectIterator<E>>(Arrays.asList(iterators)));
+	}
 	
-	public UnionIterator(List<MutableObjectIterator<E>> sources)
-	{
+	public UnionIterator(List<MutableObjectIterator<E>> sources) {
 		this.currentSource = sources.remove(0);
 		this.nextSources = sources;
 	}
