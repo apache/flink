@@ -60,16 +60,34 @@ class TestingCluster(userConfiguration: Configuration,
 
   override def startJobManager(actorSystem: ActorSystem): ActorRef = {
 
-    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager,
-    executionRetries, delayBetweenRetries,
-    timeout, archiveCount) = JobManager.createJobManagerComponents(configuration)
+    val (executionContext,
+      instanceManager,
+      scheduler,
+      libraryCacheManager,
+      _,
+      accumulatorManager,
+      executionRetries,
+      delayBetweenRetries,
+      timeout,
+      archiveCount) = JobManager.createJobManagerComponents(configuration)
     
     val testArchiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
     val archive = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
     
-    val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
-      libraryCacheManager, archive, accumulatorManager, executionRetries,
-      delayBetweenRetries, timeout, streamingMode) with TestingJobManager)
+    val jobManagerProps = Props(
+      new JobManager(
+        configuration,
+        executionContext,
+        instanceManager,
+        scheduler,
+        libraryCacheManager,
+        archive,
+        accumulatorManager,
+        executionRetries,
+        delayBetweenRetries,
+        timeout,
+        streamingMode)
+      with TestingJobManager)
 
     actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
   }

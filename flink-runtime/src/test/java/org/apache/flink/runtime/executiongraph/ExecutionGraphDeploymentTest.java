@@ -30,12 +30,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-import akka.actor.Actor;
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.testkit.JavaTestKit;
-import akka.testkit.TestActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -51,29 +45,13 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ExecutionGraphDeploymentTest {
 
-	private static ActorSystem system;
-
-	@BeforeClass
-	public static void setup() {
-		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
-	}
-
-	@AfterClass
-	public static void teardown() {
-		JavaTestKit.shutdownActorSystem(system);
-		system = null;
-	}
-
 	@Test
 	public void testBuildDeploymentDescriptor() {
 		try {
-			TestingUtils.setCallingThreadDispatcher(system);
 			final JobID jobId = new JobID();
 
 			final JobVertexID jid1 = new JobVertexID();
@@ -100,7 +78,11 @@ public class ExecutionGraphDeploymentTest {
 			v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 
-			ExecutionGraph eg = new ExecutionGraph(jobId, "some job", new Configuration(),
+			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
+					jobId,
+					"some job",
+					new Configuration(),
 					AkkaUtils.getDefaultTimeout());
 
 			List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
@@ -110,15 +92,9 @@ public class ExecutionGraphDeploymentTest {
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jid2);
 			ExecutionVertex vertex = ejv.getTaskVertices()[3];
 
-			// create synchronous task manager
-			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system,
-					Props.create(ExecutionGraphTestUtils
-							.SimpleAcknowledgingTaskManager.class));
+			ExecutionGraphTestUtils.SimpleInstanceGateway instanceGateway = new ExecutionGraphTestUtils.SimpleInstanceGateway(TestingUtils.directExecutionContext());
 
-			ExecutionGraphTestUtils.SimpleAcknowledgingTaskManager tm = (ExecutionGraphTestUtils
-					.SimpleAcknowledgingTaskManager) simpleTaskManager.underlyingActor();
-
-			final Instance instance = getInstance(simpleTaskManager);
+			final Instance instance = getInstance(instanceGateway);
 
 			final SimpleSlot slot = instance.allocateSimpleSlot(jobId);
 
@@ -128,7 +104,7 @@ public class ExecutionGraphDeploymentTest {
 
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 
-			TaskDeploymentDescriptor descr = tm.lastTDD;
+			TaskDeploymentDescriptor descr = instanceGateway.lastTDD;
 			assertNotNull(descr);
 
 			assertEquals(jobId, descr.getJobID());
@@ -151,9 +127,6 @@ public class ExecutionGraphDeploymentTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			TestingUtils.setGlobalExecutionContext();
 		}
 	}
 
@@ -307,19 +280,23 @@ public class ExecutionGraphDeploymentTest {
 		v2.setInvokableClass(RegularPactTask.class);
 
 		// execution graph that executes actions synchronously
-		ExecutionGraph eg = new ExecutionGraph(jobId, "some job", new Configuration(),
+		ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.directExecutionContext(),
+				jobId,
+				"some job",
+				new Configuration(),
 				AkkaUtils.getDefaultTimeout());
 		eg.setQueuedSchedulingAllowed(false);
 
 		List<JobVertex> ordered = Arrays.asList(v1, v2);
 		eg.attachJobGraph(ordered);
 
-		// create a mock taskmanager that accepts deployment calls
-		ActorRef tm = system.actorOf(Props.create(ExecutionGraphTestUtils.SimpleAcknowledgingTaskManager.class));
-
-		Scheduler scheduler = new Scheduler();
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		for (int i = 0; i < dop1 + dop2; i++) {
-			scheduler.newInstanceAvailable(ExecutionGraphTestUtils.getInstance(tm));
+			scheduler.newInstanceAvailable(
+					ExecutionGraphTestUtils.getInstance(
+							new ExecutionGraphTestUtils.SimpleInstanceGateway(
+									TestingUtils.directExecutionContext())));
 		}
 		assertEquals(dop1 + dop2, scheduler.getNumberOfAvailableSlots());
 

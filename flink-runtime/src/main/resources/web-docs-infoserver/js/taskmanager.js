@@ -224,7 +224,7 @@ function processTMdata(json) {
                                "</div>";
 
             var content = "<tr id=\""+tmRowIdCssName+"\">" +
-		                "<td style=\"width:20%\">"+tm.inetAdress+" <br> IPC Port: "+tm.ipcPort+", Data Port: "+tm.dataPort+"</td>" + // first row: TaskManager
+		                "<td style=\"width:20%\">"+tm.path+" <br> Data Port: "+tm.dataPort+"</td>" + // first row: TaskManager
 		                "<td id=\""+tmRowIdCssName+"-memory\">"+tmMemoryBox+"</td>" + // second row: memory statistics
 		                "<td id=\""+tmRowIdCssName+"-info\"><i>Loading Information</i></td>" + // Information
 		                "</tr>";

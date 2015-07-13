@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 import org.mockito.Mockito;
 import scala.Some;
@@ -58,7 +59,10 @@ public class NetworkEnvironmentTest {
 					NUM_BUFFERS, BUFFER_SIZE, IOManager.IOMode.SYNC, new Some<NettyConfig>(nettyConf),
 					new Tuple2<Integer, Integer>(0, 0));
 
-			NetworkEnvironment env = new NetworkEnvironment(new FiniteDuration(30, TimeUnit.SECONDS), config);
+			NetworkEnvironment env = new NetworkEnvironment(
+				TestingUtils.defaultExecutionContext(),
+				new FiniteDuration(30, TimeUnit.SECONDS),
+				config);
 
 			assertFalse(env.isShutdown());
 			assertFalse(env.isAssociated());

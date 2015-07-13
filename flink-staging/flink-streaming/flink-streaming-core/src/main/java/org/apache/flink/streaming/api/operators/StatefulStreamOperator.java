@@ -36,5 +36,5 @@ public interface StatefulStreamOperator<OUT> extends StreamOperator<OUT> {
 
 	Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>> getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception;
 
-	void confirmCheckpointCompleted(long checkpointId, String stateName, StateHandle<Serializable> checkpointedState) throws Exception;
+	void notifyCheckpointComplete(long checkpointId) throws Exception;
 }

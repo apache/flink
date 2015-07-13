@@ -20,6 +20,7 @@ package org.apache.flink.runtime.util;
 
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -88,10 +89,14 @@ public class EnvironmentInformation {
 		try {
 			return UserGroupInformation.getCurrentUser().getShortUserName();
 		}
+		catch (LinkageError e) {
+			// hadoop classes are not in the classpath
+			LOG.debug("Cannot determine user/group information using Hadoop utils. " +
+					"Hadoop classes not loaded or compatible", e);
+		}
 		catch (Throwable t) {
-			if (LOG.isDebugEnabled() && !(t instanceof ClassNotFoundException)) {
-				LOG.debug("Cannot determine user/group information using Hadoop utils.", t);
-			}
+			// some other error occurred that we should log and make known
+			LOG.warn("Error while accessing user/group information via Hadoop utils.", t);
 		}
 		
 		String user = System.getProperty("user.name");
@@ -138,7 +143,23 @@ public class EnvironmentInformation {
 	 */
 	public static long getSizeOfFreeHeapMemory() {
 		Runtime r = Runtime.getRuntime();
-		return r.maxMemory() - r.totalMemory() + r.freeMemory();
+		long maxMemory = r.maxMemory();
+
+		if (maxMemory == Long.MAX_VALUE) {
+			// amount of free memory unknown
+			try {
+				// workaround for Oracle JDK
+				OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
+				Class<?> clazz = Class.forName("com.sun.management.OperatingSystemMXBean");
+				Method method = clazz.getMethod("getTotalPhysicalMemorySize");
+				maxMemory = (Long) method.invoke(operatingSystemMXBean) / 4;
+			} catch (Throwable e) {
+				throw new RuntimeException("Could not determine the amount of free memory.\n" +
+						"Please set the maximum memory for the JVM, e.g. -Xmx512M for 512 megabytes.");
+			}
+		}
+
+		return maxMemory - r.totalMemory() + r.freeMemory();
 	}
 
 	/**

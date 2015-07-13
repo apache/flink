@@ -103,7 +103,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
 
       instanceManager.getAllRegisteredInstances.asScala foreach {
         instance =>
-          instance.getTaskManager ! StopYarnSession(status, diag)
+          instance.getInstanceGateway.tell(StopYarnSession(status, diag))
       }
 
       rmClientOption foreach {

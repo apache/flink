@@ -30,12 +30,20 @@ public class EnvironmentInformationTest {
 	public void testJavaMemory() {
 		try {
 			long fullHeap = EnvironmentInformation.getMaxJvmHeapMemory();
-			long free = EnvironmentInformation.getSizeOfFreeHeapMemory();
 			long freeWithGC = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag();
 			
 			assertTrue(fullHeap > 0);
-			assertTrue(free >= 0);
 			assertTrue(freeWithGC >= 0);
+
+			try {
+				long free = EnvironmentInformation.getSizeOfFreeHeapMemory();
+				assertTrue(free >= 0);
+			}
+			catch (RuntimeException e) {
+				// this may only occur if the Xmx is not set
+				assertEquals(Long.MAX_VALUE, EnvironmentInformation.getMaxJvmHeapMemory());
+			}
+			
 			
 			// we cannot make these assumptions, because the test JVM may grow / shrink during the GC
 			// assertTrue(free <= fullHeap);

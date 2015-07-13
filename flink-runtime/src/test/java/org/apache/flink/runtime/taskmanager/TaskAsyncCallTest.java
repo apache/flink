@@ -40,12 +40,10 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNo
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointCommittingOperator;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointNotificationOperator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.util.SerializedValue;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -134,7 +132,7 @@ public class TaskAsyncCallTest {
 
 			for (int i = 1; i <= NUM_CALLS; i++) {
 				task.triggerCheckpointBarrier(i, 156865867234L);
-				task.confirmCheckpoint(i, null);
+				task.notifyCheckpointComplete(i);
 			}
 
 			triggerLatch.await();
@@ -186,7 +184,7 @@ public class TaskAsyncCallTest {
 	}
 	
 	public static class CheckpointsInOrderInvokable extends AbstractInvokable
-			implements CheckpointedOperator, CheckpointCommittingOperator {
+			implements CheckpointedOperator, CheckpointNotificationOperator {
 
 		private volatile long lastCheckpointId = 0;
 		
@@ -213,7 +211,7 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void triggerCheckpoint(long checkpointId, long timestamp) throws Exception {
+		public void triggerCheckpoint(long checkpointId, long timestamp) {
 			lastCheckpointId++;
 			if (checkpointId == lastCheckpointId) {
 				if (lastCheckpointId == NUM_CALLS) {
@@ -229,7 +227,7 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void confirmCheckpoint(long checkpointId, SerializedValue<StateHandle<?>> state) throws Exception {
+		public void notifyCheckpointComplete(long checkpointId) {
 			if (checkpointId != lastCheckpointId && this.error == null) {
 				this.error = new Exception("calls out of order");
 				synchronized (this) {

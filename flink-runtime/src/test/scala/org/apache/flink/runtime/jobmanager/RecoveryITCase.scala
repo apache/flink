@@ -177,12 +177,12 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           jm ! NotifyWhenJobStatus(jobGraph.getJobID, JobStatus.RESTARTING)
           jm ! RequestWorkingTaskManager(jobGraph.getJobID)
 
-          val WorkingTaskManager(tm) = expectMsgType[WorkingTaskManager]
+          val WorkingTaskManager(gatewayOption) = expectMsgType[WorkingTaskManager]
 
-          tm match {
-            case ActorRef.noSender => fail("There has to be at least one task manager on which" +
+          gatewayOption match {
+            case None => fail("There has to be at least one task manager on which" +
               "the tasks are running.")
-            case t => t ! PoisonPill
+            case Some(gateway) => gateway.tell(PoisonPill)
           }
 
           expectMsg(JobStatusIs(jobGraph.getJobID, JobStatus.RESTARTING))

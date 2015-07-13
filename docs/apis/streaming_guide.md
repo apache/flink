@@ -1319,6 +1319,9 @@ Another way of exposing user defined operator state for the Flink runtime for ch
 
 When the user defined function implements the `Checkpointed` interface, the `snapshotState(…)` and `restoreState(…)` methods will be executed to draw and restore function state.
 
+In addition to that, user functions can also implement the `CheckpointNotifier` interface to receive notifications on completed checkpoints via the `notifyCheckpointComplete(long checkpointId)` method.
+Note that there is no guarantee for the user function to receive a notification if a failure happens between checkpoint completion and notification. The notifications should hence be treated in a way that notifications from later checkpoints can subsume missing notifications.
+
 For example the same counting, reduce function shown for `OperatorState`s by using the `Checkpointed` interface instead:
 
 {% highlight java %}

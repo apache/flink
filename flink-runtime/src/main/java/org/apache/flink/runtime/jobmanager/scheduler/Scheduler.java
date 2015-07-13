@@ -37,7 +37,6 @@ import akka.dispatch.Futures;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.instance.SharedSlot;
@@ -50,6 +49,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.ExecutionContext;
 
 /**
  * The scheduler is responsible for distributing the ready-to-run tasks among instances and slots.
@@ -95,12 +95,17 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	/** The number of slot allocations where locality could not be respected */
 	private int nonLocalizedAssignments;
 
+	/** The ExecutionContext which is used to execute newSlotAvailable futures. */
+	private final ExecutionContext executionContext;
+
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a new scheduler.
 	 */
-	public Scheduler() {}
+	public Scheduler(ExecutionContext executionContext) {
+		this.executionContext = executionContext;
+	}
 	
 	/**
 	 * Shuts the scheduler down. After shut down no more tasks can be added to the scheduler.
@@ -519,7 +524,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				handleNewSlot();
 				return null;
 			}
-		}, AkkaUtils.globalExecutionContext());
+		}, executionContext);
 	}
 	
 	private void handleNewSlot() {

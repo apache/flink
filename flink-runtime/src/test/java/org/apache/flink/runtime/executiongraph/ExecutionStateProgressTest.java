@@ -24,10 +24,6 @@ import static org.mockito.Mockito.mock;
 
 import java.util.Arrays;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -37,23 +33,9 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ExecutionStateProgressTest {
-
-	private static ActorSystem system;
-
-	@BeforeClass
-	public static void setup(){
-		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
-	}
-
-	@AfterClass
-	public static void teardown(){
-		JavaTestKit.shutdownActorSystem(system);
-	}
 
 	@Test
 	public void testAccumulatedStateFinished() {
@@ -65,8 +47,13 @@ public class ExecutionStateProgressTest {
 			ajv.setParallelism(3);
 			ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 
-			ExecutionGraph graph = new ExecutionGraph(jid, "test job", new Configuration(),
+			ExecutionGraph graph = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
+					jid,
+					"test job",
+					new Configuration(),
 					AkkaUtils.getDefaultTimeout());
+
 			graph.attachJobGraph(Arrays.asList(ajv));
 
 			setGraphStatus(graph, JobStatus.RUNNING);
@@ -74,9 +61,11 @@ public class ExecutionStateProgressTest {
 			ExecutionJobVertex ejv = graph.getJobVertex(vid);
 
 			// mock resources and mock taskmanager
-			ActorRef taskManager = system.actorOf(Props.create(SimpleAcknowledgingTaskManager.class));
 			for (ExecutionVertex ee : ejv.getTaskVertices()) {
-				SimpleSlot slot = getInstance(taskManager).allocateSimpleSlot(jid);
+				SimpleSlot slot = getInstance(
+						new SimpleInstanceGateway(
+								TestingUtils.defaultExecutionContext())
+				).allocateSimpleSlot(jid);
 				ee.deployToSlot(slot);
 			}
 
