@@ -29,9 +29,11 @@ import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
@@ -47,28 +49,31 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 	private final Keys<T> keys;
 	
 	private final String distinctLocationName;
-	
+
+	private static class AutoSelector<T> implements KeySelector<T, T> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public T getKey(T t) {
+			return t;
+		}
+	}
+
 	public DistinctOperator(DataSet<T> input, Keys<T> keys, String distinctLocationName) {
 		super(input, input.getType());
 
 		this.distinctLocationName = distinctLocationName;
-		
+		System.out.println(input.getType());
 		// if keys is null distinction is done on all tuple fields
 		if (keys == null) {
 			if (input.getType() instanceof CompositeType) {
 				keys = new Keys.ExpressionKeys<T>(new String[] {Keys.ExpressionKeys.SELECT_ALL_CHAR }, input.getType());
 			}
 			else {
-				throw new InvalidProgramException("Distinction on all fields is only possible on composite (pojo / tuple) data types.");
+				keys = new Keys.SelectorFunctionKeys<T,T>(new AutoSelector<T>(), input.getType(), input.getType());
 			}
 		}
-		
-		
-		// FieldPositionKeys can only be applied on Tuples and POJOs
-		if (keys instanceof Keys.ExpressionKeys && !(input.getType() instanceof CompositeType)) {
-			throw new InvalidProgramException("Distinction on field positions is only possible on composite type DataSets.");
-		}
-		
+
 		this.keys = keys;
 	}
 
