@@ -28,6 +28,7 @@ import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobConfigurable;
 
 /**
  * A wrapper that represents an input split from the Hadoop mapred API as
@@ -112,6 +113,9 @@ public class HadoopInputSplit extends LocatableInputSplit {
 
 		if (hadoopInputSplit instanceof Configurable) {
 			((Configurable) hadoopInputSplit).setConf(this.jobConf);
+		}
+		else if (hadoopInputSplit instanceof JobConfigurable) {
+			((JobConfigurable) hadoopInputSplit).configure(this.jobConf);
 		}
 		hadoopInputSplit.readFields(in);
 	}
