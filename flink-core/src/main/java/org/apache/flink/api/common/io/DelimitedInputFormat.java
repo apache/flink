@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
 
 import java.io.IOException;
@@ -40,8 +39,8 @@ import com.google.common.base.Charsets;
  * Base implementation for input formats that split the input at a delimiter into records.
  * The parsing of the record bytes into the record has to be implemented in the
  * {@link #readRecord(Object, byte[], int, int)} method.
- * <p>
- * The default delimiter is the newline character {@code '\n'}.
+ * 
+ * <p>The default delimiter is the newline character {@code '\n'}.</p>
  */
 public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	
@@ -81,7 +80,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	
 	static { loadGloablConfigParams(); }
 	
-	protected static final void loadGloablConfigParams() {
+	protected static void loadGloablConfigParams() {
 		int maxSamples = GlobalConfiguration.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
 				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
 		int minSamples = GlobalConfiguration.getInteger(ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
@@ -495,7 +494,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 			}
 
 			int startPos = this.readPos;
-			int count = 0;
+			int count;
 
 			while (this.readPos < this.limit && i < this.delimiter.length) {
 				if ((this.readBuffer[this.readPos++]) == this.delimiter[i]) {
@@ -559,7 +558,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 
 	private boolean fillBuffer() throws IOException {
 		// special case for reading the whole split.
-		if(this.splitLength == FileInputFormat.READ_WHOLE_SPLIT_FLAG) {
+		if (this.splitLength == FileInputFormat.READ_WHOLE_SPLIT_FLAG) {
 			int read = this.stream.read(this.readBuffer, 0, readBuffer.length);
 			if (read == -1) {
 				this.stream.close();
@@ -571,9 +570,19 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 				return true;
 			}
 		}
+		
 		// else ..
-		int toRead = this.splitLength > this.readBuffer.length ? this.readBuffer.length : (int) this.splitLength;
-		if (this.splitLength <= 0) {
+		int toRead;
+		if (this.splitLength > 0) {
+			// if we have more data, read that
+			toRead = this.splitLength > this.readBuffer.length ? this.readBuffer.length : (int) this.splitLength;
+		}
+		else {
+			// if we have exhausted our split, we need to complete the current record, or read one
+			// more across the next split.
+			// the reason is that the next split will skip over the beginning until it finds the first
+			// delimiter, discarding it as an incomplete chunk of data that belongs to the last record in the
+			// previous split.
 			toRead = this.readBuffer.length;
 			this.overLimit = true;
 		}
@@ -593,7 +602,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	}
 	
 	// ============================================================================================
-	//  Parameterization via configuration
+	//  Parametrization via configuration
 	// ============================================================================================
 	
 	// ------------------------------------- Config Keys ------------------------------------------

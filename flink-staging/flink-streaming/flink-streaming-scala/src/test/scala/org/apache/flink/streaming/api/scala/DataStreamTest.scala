@@ -20,11 +20,12 @@ package org.apache.flink.streaming.api.scala
 
 import java.lang
 
-import org.apache.flink.api.common.functions._
+import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction,
+  Partitioner, FoldFunction, Function}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
-import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph, StreamNode}
+import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
 import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator}
 import org.apache.flink.streaming.api.windowing.helper.Count
 import org.apache.flink.streaming.runtime.partitioner._
@@ -104,6 +105,36 @@ class DataStreamTest {
     assert(isPartitioned(graph.getStreamEdge(group2.getId, createDownStreamId(group2))))
     assert(isPartitioned(graph.getStreamEdge(group3.getId, createDownStreamId(group3))))
     assert(isPartitioned(graph.getStreamEdge(group4.getId, createDownStreamId(group4))))
+
+    //Testing DataStream partitioning
+    val partition1: DataStream[_] = src1.partitionByHash(0)
+    val partition2: DataStream[_] = src1.partitionByHash(1, 0)
+    val partition3: DataStream[_] = src1.partitionByHash("_1")
+    val partition4: DataStream[_] = src1.partitionByHash((x : (Long, Long)) => x._1);
+
+    assert(isPartitioned(graph.getStreamEdge(partition1.getId, createDownStreamId(partition1))))
+    assert(isPartitioned(graph.getStreamEdge(partition2.getId, createDownStreamId(partition2))))
+    assert(isPartitioned(graph.getStreamEdge(partition3.getId, createDownStreamId(partition3))))
+    assert(isPartitioned(graph.getStreamEdge(partition4.getId, createDownStreamId(partition4))))
+
+    // Testing DataStream custom partitioning
+    val longPartitioner: Partitioner[Long] = new Partitioner[Long] {
+      override def partition(key: Long, numPartitions: Int): Int = 0
+    }
+
+    val customPartition1: DataStream[_] =
+      src1.partitionCustom(longPartitioner, 0)
+    val customPartition3: DataStream[_] =
+      src1.partitionCustom(longPartitioner, "_1")
+    val customPartition4: DataStream[_] =
+      src1.partitionCustom(longPartitioner, (x : (Long, Long)) => x._1)
+
+    assert(isCustomPartitioned(
+      graph.getStreamEdge(customPartition1.getId, createDownStreamId(customPartition1))))
+    assert(isCustomPartitioned(
+      graph.getStreamEdge(customPartition3.getId, createDownStreamId(customPartition3))))
+    assert(isCustomPartitioned(
+      graph.getStreamEdge(customPartition4.getId, createDownStreamId(customPartition4))))
 
     //Testing ConnectedDataStream grouping
     val connectedGroup1: ConnectedDataStream[_, _] = connected.groupBy(0, 0)
@@ -463,6 +494,10 @@ class DataStreamTest {
 
   private def isPartitioned(edge: StreamEdge): Boolean = {
     return edge.getPartitioner.isInstanceOf[FieldsPartitioner[_]]
+  }
+
+  private def isCustomPartitioned(edge: StreamEdge): Boolean = {
+    return edge.getPartitioner.isInstanceOf[CustomPartitionerWrapper[_, _]]
   }
 
   private def createDownStreamId(dataStream: DataStream[_]): Integer = {

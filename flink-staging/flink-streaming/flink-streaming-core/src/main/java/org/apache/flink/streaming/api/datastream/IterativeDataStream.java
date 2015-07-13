@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import java.util.List;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -32,6 +34,8 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
  */
 public class IterativeDataStream<IN> extends
 		SingleOutputStreamOperator<IN, IterativeDataStream<IN>> {
+	
+	protected boolean closed = false;
 
 	static Integer iterationCount = 0;
 	
@@ -60,20 +64,18 @@ public class IterativeDataStream<IN> extends
 	 * @return The feedback stream.
 	 * 
 	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public DataStream<IN> closeWith(DataStream<IN> iterationTail, boolean keepPartitioning) {
-		DataStream<IN> iterationSink = new DataStreamSink<IN>(environment, "Iteration Sink", null,
-				null);
-
-		// We add an iteration sink to the tail which will send tuples to the
-		// iteration head
-		streamGraph.addIterationTail(iterationSink.getId(), iterationTail.getId(), iterationID,
-				iterationWaitTime);
-
-		if (keepPartitioning) {
-			connectGraph(iterationTail, iterationSink.getId(), 0);
-		} else {
-			connectGraph(iterationTail.forward(), iterationSink.getId(), 0);
+		
+		if (closed) {
+			throw new IllegalStateException(
+					"An iterative data stream can only be closed once. Use union to close with multiple stream.");
 		}
+		closed = true;
+		
+		streamGraph.addIterationTail((List) iterationTail.unionedStreams, iterationID,
+				keepPartitioning);
+
 		return iterationTail;
 	}
 	
@@ -138,7 +140,8 @@ public class IterativeDataStream<IN> extends
 	 * @return A {@link ConnectedIterativeDataStream}.
 	 */
 	public <F> ConnectedIterativeDataStream<IN, F> withFeedbackType(TypeInformation<F> feedbackType) {
-		return new ConnectedIterativeDataStream<IN, F>(this, feedbackType);
+		return new ConnectedIterativeDataStream<IN, F>(new IterativeDataStream<IN>(this,
+				iterationWaitTime), feedbackType);
 	}
 	
 	/**
@@ -201,14 +204,16 @@ public class IterativeDataStream<IN> extends
 		 * @return The feedback stream.
 		 * 
 		 */
+		@SuppressWarnings({ "rawtypes", "unchecked" })
 		public DataStream<F> closeWith(DataStream<F> feedbackStream) {
-			DataStream<F> iterationSink = new DataStreamSink<F>(input.environment, "Iteration Sink",
-					null, null);
+			if (input.closed) {
+				throw new IllegalStateException(
+						"An iterative data stream can only be closed once. Use union to close with multiple stream.");
+			}
+			input.closed = true;
 			
-			input.streamGraph.addIterationTail(iterationSink.getId(), feedbackStream.getId(), input.iterationID,
-					input.iterationWaitTime);
-
-			input.connectGraph(feedbackStream, iterationSink.getId(), 0);
+			input.streamGraph.addIterationTail((List) feedbackStream.unionedStreams,
+					input.iterationID, true);
 			return feedbackStream;
 		}
 		

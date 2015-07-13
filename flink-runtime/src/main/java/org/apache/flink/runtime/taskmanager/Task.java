@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorRef;
 import akka.util.Timeout;
+
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
@@ -64,7 +65,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -188,6 +192,7 @@ public class Task implements Runnable {
 	//  proper happens-before semantics on parallel modification
 	// ------------------------------------------------------------------------
 
+	/** atomic flag that makes sure the invokable is canceled exactly once upon error */
 	private final AtomicBoolean invokableHasBeenCanceled;
 	
 	/** The invokable of this task, if initialized */
@@ -199,6 +204,9 @@ public class Task implements Runnable {
 	/** The observed exception, in case the task execution failed */
 	private volatile Throwable failureCause;
 
+	/** Serial executor for asynchronous calls (checkpoints, etc), lazily initialized */
+	private volatile ExecutorService asyncCallDispatcher;
+	
 	/** The handle to the state that the operator was initialized with. Will be set to null after the
 	 * initialization, to be memory friendly */
 	private volatile SerializedValue<StateHandle<?>> operatorState;
@@ -290,11 +298,11 @@ public class Task implements Runnable {
 			this.inputGates[i] = gate;
 			inputGatesById.put(gate.getConsumedResultId(), gate);
 		}
+
+		invokableHasBeenCanceled = new AtomicBoolean(false);
 		
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
-		
-		invokableHasBeenCanceled = new AtomicBoolean(false);
 	}
 
 	// ------------------------------------------------------------------------
@@ -646,9 +654,17 @@ public class Task implements Runnable {
 			try {
 				LOG.info("Freeing task resources for " + taskNameWithSubtask);
 				
+				// stop the async dispatcher.
+				// copy dispatcher reference to stack, against concurrent release
+				ExecutorService dispatcher = this.asyncCallDispatcher;
+				if (dispatcher != null && !dispatcher.isShutdown()) {
+					dispatcher.shutdownNow();
+				}
+				
 				// free the network resources
 				network.unregisterTask(this);
 
+				// free memory resources
 				if (invokable != null) {
 					memoryManager.releaseAll(invokable);
 				}
@@ -797,6 +813,7 @@ public class Task implements Runnable {
 						Runnable canceler = new TaskCanceler(LOG, invokable, executingThread, taskNameWithSubtask);
 						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,
 								"Canceler for " + taskNameWithSubtask);
+						cancelThread.setDaemon(true);
 						cancelThread.start();
 					}
 					return;
@@ -955,11 +972,50 @@ public class Task implements Runnable {
 			LOG.debug("Ignoring partition state notification for not running task.");
 		}
 	}
-	
+
+	/**
+	 * Utility method to dispatch an asynchronous call on the invokable.
+	 * 
+	 * @param runnable The async call runnable.
+	 * @param callName The name of the call, for logging purposes.
+	 */
 	private void executeAsyncCallRunnable(Runnable runnable, String callName) {
-		Thread thread = new Thread(runnable, callName);
-		thread.setDaemon(true);
-		thread.start();
+		// make sure the executor is initialized. lock against concurrent calls to this function
+		synchronized (this) {
+			if (executionState != ExecutionState.RUNNING) {
+				return;
+			}
+			
+			// get ourselves a reference on the stack that cannot be concurrently modified
+			ExecutorService executor = this.asyncCallDispatcher;
+			if (executor == null) {
+				// first time use, initialize
+				executor = Executors.newSingleThreadExecutor(
+						new DispatherThreadFactory(TASK_THREADS_GROUP, "Async calls on " + taskNameWithSubtask));
+				this.asyncCallDispatcher = executor;
+				
+				// double-check for execution state, and make sure we clean up after ourselves
+				// if we created the dispatcher while the task was concurrently canceled
+				if (executionState != ExecutionState.RUNNING) {
+					executor.shutdown();
+					asyncCallDispatcher = null;
+					return;
+				}
+			}
+
+			LOG.debug("Invoking async call {} on task {}", callName, taskNameWithSubtask);
+
+			try {
+				executor.submit(runnable);
+			}
+			catch (RejectedExecutionException e) {
+				// may be that we are concurrently finished or canceled.
+				// if not, report that something is fishy
+				if (executionState == ExecutionState.RUNNING) {
+					throw new RuntimeException("Async call was rejected, even though the task is running.", e);
+				}
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -1051,7 +1107,7 @@ public class Task implements Runnable {
 
 					executer.interrupt();
 					try {
-						executer.join(5000);
+						executer.join(10000);
 					}
 					catch (InterruptedException e) {
 						// we can ignore this

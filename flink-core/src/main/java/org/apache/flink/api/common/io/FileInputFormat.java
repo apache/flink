@@ -47,12 +47,12 @@ import org.apache.flink.core.fs.Path;
 
 /**
  * The base class for {@link InputFormat}s that read from files. For specific input types the 
- * <tt>nextRecord()</tt> and <tt>reachedEnd()</tt> methods need to be implemented.
+ * {@link #nextRecord(Object)} and {@link #reachedEnd()} methods need to be implemented.
  * Additionally, one may override {@link #open(FileInputSplit)} and {@link #close()} to
  * change the life cycle behavior.
- * <p>
- * After the {@link #open(FileInputSplit)} method completed, the file input data is available
- * from the {@link #stream} field.
+ * 
+ * <p>After the {@link #open(FileInputSplit)} method completed, the file input data is available
+ * from the {@link #stream} field.</p>
  */
 public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSplit> {
 	
@@ -245,6 +245,8 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		// TODO The job-submission web interface passes empty args (and thus empty
 		// paths) to compute the preview graph. The following is a workaround for
 		// this situation and we should fix this.
+		
+		// comment (Stephan Ewen) this should be no longer relevant with the current Java/Scalal APIs.
 		if (filePath.isEmpty()) {
 			setFilePath(new Path());
 			return;
@@ -609,7 +611,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * The method may be overridden. Hadoop's FileInputFormat has a similar mechanism and applies the
 	 * same filters by default.
 	 * 
-	 * @param fileStatus
+	 * @param fileStatus The file status to check.
 	 * @return true, if the given file or directory is accepted
 	 */
 	protected boolean acceptFile(FileStatus fileStatus) {

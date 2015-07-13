@@ -22,7 +22,7 @@ import java.io.{File, IOException}
 import java.net.{InetAddress, InetSocketAddress}
 import java.util.concurrent.TimeUnit
 import java.lang.reflect.Method
-import java.lang.management.ManagementFactory
+import java.lang.management.{OperatingSystemMXBean, ManagementFactory}
 
 import akka.actor._
 import akka.pattern.ask
@@ -35,7 +35,7 @@ import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, GarbageCollectorMetricSet}
 import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 
-import org.apache.flink.configuration._
+import org.apache.flink.configuration.{Configuration, ConfigConstants, GlobalConfiguration, IllegalConfigurationException}
 import org.apache.flink.runtime.messages.checkpoint.{ConfirmCheckpoint, TriggerCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.{StreamingMode, ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
@@ -61,7 +61,7 @@ import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
-import org.apache.flink.runtime.util.{MathUtils, EnvironmentInformation}
+import org.apache.flink.runtime.util.{ZooKeeperUtil, MathUtils, EnvironmentInformation}
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -1032,6 +1032,13 @@ object TaskManager {
     EnvironmentInformation.logEnvironmentInfo(LOG.logger, "TaskManager", args)
     EnvironmentInformation.checkJavaVersion()
 
+    val maxOpenFileHandles = EnvironmentInformation.getOpenFileHandlesLimit()
+    if (maxOpenFileHandles != -1) {
+      LOG.info(s"Maximum number of open file descriptors is $maxOpenFileHandles")
+    } else {
+      LOG.info("Cannot determine the maximum number of open file descriptors")
+    }
+    
     // try to parse the command line arguments
     val (configuration: Configuration,
          mode: StreamingMode) = try {
@@ -1170,8 +1177,8 @@ object TaskManager {
       LOG.info("Trying to select the network interface and address to use " +
         "by connecting to the configured JobManager.")
 
-      LOG.info(s"TaskManager will try to connect for $MAX_STARTUP_CONNECT_TIME seconds before " +
-        "falling back to heuristics")
+      LOG.info(s"TaskManager will try to connect for $MAX_STARTUP_CONNECT_TIME milliseconds " +
+        s"before falling back to heuristics")
 
       val jobManagerAddress = new InetSocketAddress(jobManagerHostname, jobManagerPort)
       val taskManagerAddress = try {
@@ -1434,6 +1441,11 @@ object TaskManager {
 
     // start the I/O manager last, it will create some temp directories.
     val ioManager: IOManager = new IOManagerAsync(taskManagerConfig.tmpDirPaths)
+
+    if (ZooKeeperUtil.isJobManagerHighAvailabilityEnabled(configuration)) {
+      // TODO @removeme @tillrohrmann Setup leader retrieval service
+      LOG.info("HA mode.")
+    }
 
     // create the actor properties (which define the actor constructor parameters)
     val tmProps = Props(taskManagerClass,
@@ -1752,40 +1764,35 @@ object TaskManager {
         ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()
     })
 
-    // Preprocessing steps for registering cpuLoad
-    val fetchCPULoad = getMethodToFetchCPULoad()
-
-    // Log getProcessCpuLoad unavailable for Java 6
-    if(fetchCPULoad.isEmpty){
-      LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
-        "implementation for this Java runtime environment\n" +
-        Thread.currentThread().getStackTrace)
-    }
+    // Pre-processing steps for registering cpuLoad
+    val osBean: OperatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean()
+        
+    val fetchCPULoadMethod: Option[Method] = 
+      try {
+        Class.forName("com.sun.management.OperatingSystemMXBean")
+          .getMethods()
+          .find( _.getName() == "getProcessCpuLoad" )
+      }
+      catch {
+        case t: Throwable =>
+          LOG.warn("Cannot access com.sun.management.OperatingSystemMXBean.getProcessCpuLoad()" +
+            " - CPU load metrics will not be available.")
+          None
+      }
 
     metricRegistry.register("cpuLoad", new Gauge[Double] {
       override def getValue: Double = {
         try{
-          fetchCPULoad.map(_.invoke(ManagementFactory.getOperatingSystemMXBean().
-            asInstanceOf[com.sun.management.OperatingSystemMXBean]).
-            asInstanceOf[Double]).getOrElse(-1)
-        } catch {
+          fetchCPULoadMethod.map(_.invoke(osBean).asInstanceOf[Double]).getOrElse(-1.0)
+        }
+        catch {
           case t: Throwable => {
             LOG.warn("Error retrieving CPU Load through OperatingSystemMXBean", t)
-            -1
+            -1.0
           }
         }
       }
     })
     metricRegistry
-  }
-
-  /**
-   * Fetches getProcessCpuLoad method if available in the
-   *  OperatingSystemMXBean implementation else returns None
-   * @return
-   */
-  private def getMethodToFetchCPULoad(): Option[Method] = {
-    val methodsList = classOf[com.sun.management.OperatingSystemMXBean].getMethods()
-    methodsList.filter(_.getName == "getProcessCpuLoad").headOption
   }
 }

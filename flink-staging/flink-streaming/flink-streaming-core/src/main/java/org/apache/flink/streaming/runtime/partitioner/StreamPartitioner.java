@@ -27,7 +27,7 @@ public abstract class StreamPartitioner<T> implements
 
 	public enum PartitioningStrategy {
 
-		FORWARD, DISTRIBUTE, SHUFFLE, BROADCAST, GLOBAL, GROUPBY
+		FORWARD, DISTRIBUTE, SHUFFLE, BROADCAST, GLOBAL, GROUPBY, CUSTOM
 
 	}
 
@@ -44,5 +44,10 @@ public abstract class StreamPartitioner<T> implements
 
 	public StreamPartitioner<T> copy() {
 		return this;
+	}
+	
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName();
 	}
 }

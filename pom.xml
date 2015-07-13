@@ -86,6 +86,8 @@ under the License.
 		<chill.version>0.5.2</chill.version>
 		<asm.version>5.0.4</asm.version>
 		<tez.version>0.6.1</tez.version>
+		<zookeeper.version>3.4.6</zookeeper.version>
+		<curatorrecipes.version>2.8.0</curatorrecipes.version>
 	</properties>
 
 	<dependencies>
@@ -321,6 +323,18 @@ under the License.
 						<artifactId>scala-library</artifactId>
 					</exclusion>
 				</exclusions>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.zookeeper</groupId>
+				<artifactId>zookeeper</artifactId>
+				<version>${zookeeper.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.curator</groupId>
+				<artifactId>curator-recipes</artifactId>
+				<version>${curatorrecipes.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -730,6 +744,8 @@ under the License.
 						<exclude>flink-staging/flink-language-binding/flink-python/src/main/python/org/apache/flink/languagebinding/api/python/dill/**</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
+						<exclude>**/flink-bin/conf/masters</exclude>
+						<exclude>**/flink-bin/conf/zoo.cfg</exclude>
                         <exclude>flink-contrib/docker-flink/flink/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>

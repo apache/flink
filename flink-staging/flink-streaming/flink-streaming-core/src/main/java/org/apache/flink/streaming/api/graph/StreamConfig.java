@@ -206,12 +206,12 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setIterationId(Integer iterationId) {
-		config.setInteger(ITERATION_ID, iterationId);
+	public void setIterationId(String iterationId) {
+		config.setString(ITERATION_ID, iterationId);
 	}
 
-	public Integer getIterationId() {
-		return config.getInteger(ITERATION_ID, 0);
+	public String getIterationId() {
+		return config.getString(ITERATION_ID, "");
 	}
 
 	public void setIterationWaitTime(long time) {

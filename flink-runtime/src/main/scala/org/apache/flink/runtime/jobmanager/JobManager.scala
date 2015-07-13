@@ -18,49 +18,49 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import java.io.{IOException, File}
+import java.io.{File, IOException}
 import java.net.InetSocketAddress
 import java.util.Collections
 
-import akka.actor.Status.{Success, Failure}
+import akka.actor.Status.{Failure, Success}
+import akka.actor._
 import grizzled.slf4j.Logger
-import org.apache.flink.api.common.{JobID, ExecutionConfig}
-import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
+import org.apache.flink.api.common.{ExecutionConfig, JobID}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult
+import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.client._
-import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
+import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
+import org.apache.flink.runtime.instance.InstanceManager
+import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
+import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
+import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
-import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
+import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
+import org.apache.flink.runtime.messages.RegistrationMessages._
+import org.apache.flink.runtime.messages.TaskManagerMessages.{Heartbeat, SendStackTrace}
 import org.apache.flink.runtime.messages.TaskMessages.{PartitionState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.messages.accumulators._
-import org.apache.flink.runtime.messages.checkpoint.{AcknowledgeCheckpoint, AbstractCheckpointMessage}
+import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint}
+import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.util.{SerializedValue, EnvironmentInformation}
-import org.apache.flink.runtime.{StreamingMode, ActorSynchronousLogging, ActorLogMessages}
-import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
-import org.apache.flink.runtime.instance.InstanceManager
-import org.apache.flink.runtime.jobgraph.{JobVertexID, JobGraph, JobStatus}
-import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
-import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
-import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.messages.RegistrationMessages._
-import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, Heartbeat}
+import org.apache.flink.runtime.util.{EnvironmentInformation, SerializedValue, ZooKeeperUtil}
+import org.apache.flink.runtime.{ActorLogMessages, ActorSynchronousLogging, StreamingMode}
 import org.apache.flink.util.{ExceptionUtils, InstantiationUtil}
 
-import akka.actor._
-
+import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.collection.JavaConverters._
 
 /**
  * The job manager is responsible for receiving Flink jobs, scheduling the tasks, gathering the
@@ -969,6 +969,13 @@ object JobManager {
       } text {
         "The streaming mode of the JobManager (STREAMING / BATCH)"
       }
+
+      opt[String]("host").optional().action { (arg, conf) =>
+        conf.setHost(arg)
+        conf
+      } text {
+        "Network address for communication with the job manager"
+      }
     }
 
     val config = parser.parse(args, new JobManagerCliOptions()).getOrElse {
@@ -993,9 +1000,40 @@ object JobManager {
       configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, configDir + "/..")
     }
 
-    val hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
-    val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+    // high availability mode
+    val (hostname: String, port: Int ) = 
+      if (ZooKeeperUtil.isJobManagerHighAvailabilityEnabled(configuration)) {
+        // TODO @removeme @tillrohrmann This is the place where the host and random port for JM is
+        // chosen.  For the FlinkMiniCluster you have to choose it on your own.
+        LOG.info("Starting JobManager in High-Availability Mode")
+  
+        if (config.getHost() == null) {
+          throw new Exception("Missing parameter '--host'. Parameter is required when " +
+            "running in high-availability mode")
+        }
+  
+        // Let web server listen on random port
+        configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0)
+  
+        (config.getHost(), 0)
+      }
+      else {
+        LOG.info("Staring JobManager without high-availability")
+        
+        if (config.getHost() != null) {
+          throw new Exception("Found an explicit address for JobManager communication " +
+            "via the CLI option '--host'.\n" +
+            "This parameter must only be set if the JobManager is started in high-availability " +
+            "mode and connects to a ZooKeeper quorum.\n" +
+            "Please configure ZooKeeper or don't set the '--host' option, so that the JobManager " +
+            "uses the address configured under 'conf/flink-conf.yaml'.")
+        }
+  
+        val host = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+        val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+            ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+        (host, port)
+      }
 
     (configuration, config.getJobManagerMode(), config.getStreamingMode(), hostname, port)
   }

@@ -39,6 +39,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
+import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
@@ -64,6 +65,7 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 	private final SumFunction<VV, EV, M> sum;
 	private final ApplyFunction<K, VV, M> apply;
 	private final int maximumNumberOfIterations;
+	private EdgeDirection direction = EdgeDirection.OUT;
 
 	private GSAConfiguration configuration;
 
@@ -163,9 +165,34 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 		}
 
 		// Prepare the neighbors
-		DataSet<Tuple2<K, Neighbor<VV, EV>>> neighbors = iteration
+		if(this.configuration != null) {
+			direction = this.configuration.getDirection();
+		}
+		DataSet<Tuple2<K, Neighbor<VV, EV>>> neighbors;
+		switch(direction) {
+			case OUT:
+				neighbors = iteration
 				.getWorkset().join(edgeDataSet)
-				.where(0).equalTo(0).with(new ProjectKeyWithNeighbor<K, VV, EV>());
+				.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<K, VV, EV>());
+				break;
+			case IN:
+				neighbors = iteration
+				.getWorkset().join(edgeDataSet)
+				.where(0).equalTo(1).with(new ProjectKeyWithNeighborIN<K, VV, EV>());
+				break;
+			case ALL:
+				neighbors =  iteration
+						.getWorkset().join(edgeDataSet)
+						.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<K, VV, EV>()).union(iteration
+								.getWorkset().join(edgeDataSet)
+								.where(0).equalTo(1).with(new ProjectKeyWithNeighborIN<K, VV, EV>()));
+				break;
+			default:
+				neighbors = iteration
+						.getWorkset().join(edgeDataSet)
+						.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<K, VV, EV>());
+				break;
+		}
 
 		// Gather, sum and apply
 		MapOperator<Tuple2<K, Neighbor<VV, EV>>, Tuple2<K, M>> gatherMapOperator = neighbors.map(gatherUdf);
@@ -358,7 +385,7 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 
 	@SuppressWarnings("serial")
 	@ForwardedFieldsSecond("f1->f0")
-	private static final class ProjectKeyWithNeighbor<K, VV, EV> implements FlatJoinFunction<
+	private static final class ProjectKeyWithNeighborOUT<K, VV, EV> implements FlatJoinFunction<
 			Vertex<K, VV>, Edge<K, EV>, Tuple2<K, Neighbor<VV, EV>>> {
 
 		public void join(Vertex<K, VV> vertex, Edge<K, EV> edge, Collector<Tuple2<K, Neighbor<VV, EV>>> out) {
@@ -366,6 +393,20 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 					edge.getTarget(), new Neighbor<VV, EV>(vertex.getValue(), edge.getValue())));
 		}
 	}
+
+	@SuppressWarnings("serial")
+	@ForwardedFieldsSecond({"f0"})
+	private static final class ProjectKeyWithNeighborIN<K, VV, EV> implements FlatJoinFunction<
+			Vertex<K, VV>, Edge<K, EV>, Tuple2<K, Neighbor<VV, EV>>> {
+
+		public void join(Vertex<K, VV> vertex, Edge<K, EV> edge, Collector<Tuple2<K, Neighbor<VV, EV>>> out) {
+			out.collect(new Tuple2<K, Neighbor<VV, EV>>(
+					edge.getSource(), new Neighbor<VV, EV>(vertex.getValue(), edge.getValue())));
+		}
+	}
+
+
+
 
 	/**
 	 * Configures this gather-sum-apply iteration with the provided parameters.

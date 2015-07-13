@@ -65,6 +65,8 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.util.SplittableIterator;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -432,7 +434,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Creates a new data stream that contains a sequence of numbers. This is a parallel source,
 	 * if you manually set the parallelism to {@code 1}
-	 * (using {@link org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.setParallelism()})
+	 * (using {@link org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#setParallelism(int)})
 	 * the generated sequence of elements is in order.
 	 *
 	 * @param from
@@ -467,35 +469,38 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public <OUT> DataStreamSource<OUT> fromElements(OUT... data) {
 		if (data.length == 0) {
-			throw new IllegalArgumentException(
-					"fromElements needs at least one element as argument");
+			throw new IllegalArgumentException("fromElements needs at least one element as argument");
 		}
 
-		TypeInformation<OUT> typeInfo = TypeExtractor.getForObject(data[0]);
-
-		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
-
-		return addSource(function, "Elements source").returns(typeInfo);
+		TypeInformation<OUT> typeInfo;
+		try {
+			typeInfo = TypeExtractor.getForObject(data[0]);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Could not create TypeInformation for type " + data[0].getClass().getName()
+				+ "; please specify the TypeInformation manually via "
+				+ "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)");
+		}
+		return fromCollection(Arrays.asList(data), typeInfo);
 	}
 
 	/**
 	 * Creates a data stream from the given non-empty collection. The type of the data stream is that of the
 	 * elements in the collection.
 	 *
-	 * <p>
-	 * The framework will try and determine the exact type from the collection elements. In case of generic
+	 * <p>The framework will try and determine the exact type from the collection elements. In case of generic
 	 * elements, it may be necessary to manually supply the type information via
-	 * {@link #fromCollection(java.util.Collection, org.apache.flink.api.common.typeinfo.TypeInformation)}.
-	 * <p>
+	 * {@link #fromCollection(java.util.Collection, org.apache.flink.api.common.typeinfo.TypeInformation)}.</p>
 	 *
-	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
-	 * degree of parallelism one.
+	 * <p>Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
+	 * parallelism one.</p>
 	 *
 	 * @param data
-	 * 		The collection of elements to create the data stream from
+	 * 		The collection of elements to create the data stream from.
 	 * @param <OUT>
-	 * 		The type of the returned data stream
-	 * @return The data stream representing the given collection
+	 *     The generic type of the returned data stream.
+	 * @return
+	 *     The data stream representing the given collection
 	 */
 	public <OUT> DataStreamSource<OUT> fromCollection(Collection<OUT> data) {
 		Preconditions.checkNotNull(data, "Collection must not be null");
@@ -503,16 +508,28 @@ public abstract class StreamExecutionEnvironment {
 			throw new IllegalArgumentException("Collection must not be empty");
 		}
 
-		TypeInformation<OUT> typeInfo = TypeExtractor.getForObject(data.iterator().next());
-		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
-		checkCollection(data, typeInfo.getTypeClass());
+		OUT first = data.iterator().next();
+		if (first == null) {
+			throw new IllegalArgumentException("Collection must not contain null elements");
+		}
 
-		return addSource(function, "Collection Source").returns(typeInfo);
+		TypeInformation<OUT> typeInfo;
+		try {
+			typeInfo = TypeExtractor.getForObject(first);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Could not create TypeInformation for type " + first.getClass()
+					+ "; please specify the TypeInformation manually via "
+					+ "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)");
+		}
+		return fromCollection(data, typeInfo);
 	}
 
 	/**
-	 * Creates a data stream from the given non-empty collection.Note that this operation will result in
-	 * a non-parallel data stream source, i.e. a data stream source with a degree of parallelism one.
+	 * Creates a data stream from the given non-empty collection.
+	 * 
+	 * <p>Note that this operation will result in a non-parallel data stream source,
+	 * i.e., a data stream source with a parallelism one.</p>
 	 *
 	 * @param data
 	 * 		The collection of elements to create the data stream from
@@ -522,26 +539,31 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream representing the given collection
 	 */
-	public <OUT> DataStreamSource<OUT> fromCollection(Collection<OUT> data, TypeInformation<OUT>
-			typeInfo) {
+	public <OUT> DataStreamSource<OUT> fromCollection(Collection<OUT> data, TypeInformation<OUT> typeInfo) {
 		Preconditions.checkNotNull(data, "Collection must not be null");
-		if (data.isEmpty()) {
-			throw new IllegalArgumentException("Collection must not be empty");
+		
+		// must not have null elements and mixed elements
+		FromElementsFunction.checkCollection(data, typeInfo.getTypeClass());
+		
+		SourceFunction<OUT> function;
+		try {
+			function = new FromElementsFunction<OUT>(typeInfo.createSerializer(getConfig()), data);
 		}
-
-		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
-		checkCollection(data, typeInfo.getTypeClass());
-
-		return addSource(function, "Collection Source").returns(typeInfo);
+		catch (IOException e) {
+			throw new RuntimeException(e.getMessage(), e);
+		}
+		return addSource(function, "Collection Source", typeInfo);
 	}
 
 	/**
-	 * Creates a data stream from the given iterator. Because the iterator will remain unmodified until the actual
-	 * execution happens, the type of data returned by the iterator must be given explicitly in the form of the type
-	 * class (this is due to the fact that the Java compiler erases the generic type information).
-	 * <p>
-	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
-	 * degree of parallelism of one.
+	 * Creates a data stream from the given iterator.
+	 * 
+	 * <p>Because the iterator will remain unmodified until the actual execution happens,
+	 * the type of data returned by the iterator must be given explicitly in the form of the type
+	 * class (this is due to the fact that the Java compiler erases the generic type information).</p>
+	 * 
+	 * <p>Note that this operation will result in a non-parallel data stream source, i.e.,
+	 * a data stream source with a parallelism of one.</p>
 	 *
 	 * @param data
 	 * 		The iterator of elements to create the data stream from
@@ -557,14 +579,16 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a data stream from the given iterator. Because the iterator will remain unmodified until the actual
-	 * execution happens, the type of data returned by the iterator must be given explicitly in the form of the type
-	 * information. This method is useful for cases where the type is generic. In that case, the type class (as
-	 * given in
-	 * {@link #fromCollection(java.util.Iterator, Class)} does not supply all type information.
-	 * <p>
-	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
-	 * degree of parallelism one.
+	 * Creates a data stream from the given iterator.
+	 * 
+	 * <p>Because the iterator will remain unmodified until the actual execution happens,
+	 * the type of data returned by the iterator must be given explicitly in the form of the type
+	 * information. This method is useful for cases where the type is generic.
+	 * In that case, the type class (as given in
+	 * {@link #fromCollection(java.util.Iterator, Class)} does not supply all type information.</p>
+	 * 
+	 * <p>Note that this operation will result in a non-parallel data stream source, i.e.,
+	 * a data stream source with a parallelism one.</p>
 	 *
 	 * @param data
 	 * 		The iterator of elements to create the data stream from
@@ -574,27 +598,20 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream representing the elements in the iterator
 	 */
-	public <OUT> DataStreamSource<OUT> fromCollection(Iterator<OUT> data, TypeInformation<OUT>
-			typeInfo) {
+	public <OUT> DataStreamSource<OUT> fromCollection(Iterator<OUT> data, TypeInformation<OUT> typeInfo) {
 		Preconditions.checkNotNull(data, "The iterator must not be null");
 
 		SourceFunction<OUT> function = new FromIteratorFunction<OUT>(data);
-		return addSource(function, "Collection Source").returns(typeInfo);
-	}
-
-	// private helper for passing different names
-	private <OUT> DataStreamSource<OUT> fromCollection(Iterator<OUT> iterator, TypeInformation<OUT>
-			typeInfo, String operatorName) {
-		return addSource(new FromIteratorFunction<OUT>(iterator), operatorName).returns(typeInfo);
+		return addSource(function, "Collection Source", typeInfo);
 	}
 
 	/**
 	 * Creates a new data stream that contains elements in the iterator. The iterator is splittable, allowing the
 	 * framework to create a parallel data stream source that returns the elements in the iterator.
-	 * <p>
-	 * Because the iterator will remain unmodified until the actual execution happens, the type of data returned by the
+	 * 
+	 * <p>Because the iterator will remain unmodified until the actual execution happens, the type of data returned by the
 	 * iterator must be given explicitly in the form of the type class (this is due to the fact that the Java compiler
-	 * erases the generic type information).
+	 * erases the generic type information).</p>
 	 *
 	 * @param iterator
 	 * 		The iterator that produces the elements of the data stream
@@ -1192,19 +1209,6 @@ public abstract class StreamExecutionEnvironment {
 
 	protected static void initializeFromFactory(StreamExecutionEnvironmentFactory eef) {
 		currentEnvironment = eef.createExecutionEnvironment();
-	}
-
-	private static <OUT> void checkCollection(Collection<OUT> elements, Class<OUT> viewedAs) {
-		Preconditions.checkNotNull(viewedAs);
-
-		for (OUT elem : elements) {
-			Preconditions.checkNotNull(elem, "The collection must not contain null elements.");
-
-			if (!viewedAs.isAssignableFrom(elem.getClass())) {
-				throw new IllegalArgumentException("The elements in the collection are not all subclasses of " +
-						viewedAs.getCanonicalName());
-			}
-		}
 	}
 
 	/**

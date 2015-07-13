@@ -25,7 +25,7 @@ public class SimpleOutputFormatter implements OutputFormatter {
 
 	@Override
 	public String format(final Tuple input) {
-		return input.getValue(0).toString();
+		return input.getValues().toString();
 	}
 
 }

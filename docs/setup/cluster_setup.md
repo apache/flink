@@ -153,6 +153,9 @@ environments with the following commands:
 ~~~bash
 echo "PermitUserEnvironment yes" >> /etc/ssh/sshd_config
 /etc/init.d/ssh restart
+
+# on some system you might need to replace the above line with
+/etc/init.d/sshd restart
 ~~~
 
 ## Hadoop Distributed Filesystem (HDFS) Setup

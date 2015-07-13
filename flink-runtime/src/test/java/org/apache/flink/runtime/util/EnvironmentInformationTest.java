@@ -56,6 +56,7 @@ public class EnvironmentInformationTest {
 			assertNotNull(EnvironmentInformation.getRevisionInformation());
 			assertNotNull(EnvironmentInformation.getVersion());
 			assertNotNull(EnvironmentInformation.getUserRunning());
+			assertTrue(EnvironmentInformation.getOpenFileHandlesLimit() >= -1);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
