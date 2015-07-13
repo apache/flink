@@ -606,13 +606,13 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using expression keys.
+	 * Returns a distinct set of a {@link DataSet} using expression keys.
 	 * <p>
-	 * The field position keys specify the fields of Tuples or Pojos on which the decision is made if two elements are distinct or
-	 * not.
-	 * <p>
+	 * The field expression keys specify the fields of a {@link org.apache.flink.api.common.typeutils.CompositeType}
+	 * (e.g., Tuple or Pojo type) on which the decision is made if two elements are distinct or not.
+	 * In case of a {@link org.apache.flink.api.common.typeinfo.AtomicType}, only the wildcard expression ("*") is valid.
 	 *
-	 * @param fields One or more field positions on which the distinction of the DataSet is decided. 
+	 * @param fields One or more field expressions on which the distinction of the DataSet is decided.
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public DistinctOperator<T> distinct(String... fields) {
@@ -620,9 +620,10 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using all fields of the tuple.
+	 * Returns a distinct set of a {@link DataSet}.
 	 * <p>
-	 * Note: This operator can only be applied to Tuple DataSets.
+	 * If the input is a {@link org.apache.flink.api.common.typeutils.CompositeType} (Tuple or Pojo type),
+	 * distinct is performed on all fields and each field must be a key type
 	 * 
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
