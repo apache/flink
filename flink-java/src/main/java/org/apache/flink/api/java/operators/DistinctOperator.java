@@ -49,16 +49,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 	private final Keys<T> keys;
 	
 	private final String distinctLocationName;
-
-	private static class AutoSelector<T> implements KeySelector<T, T> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public T getKey(T t) {
-			return t;
-		}
-	}
-
+	
 	public DistinctOperator(DataSet<T> input, Keys<T> keys, String distinctLocationName) {
 		super(input, input.getType());
 
