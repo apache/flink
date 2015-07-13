@@ -53,6 +53,11 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.clearspring.analytics</groupId>
+			<artifactId>stream</artifactId>
+			<version>2.9.0</version>
+		</dependency>
 	</dependencies>
 
 </project>

@@ -526,6 +526,25 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Creates a data stream from the given non-empty array. The type of the data stream is that of the
+	 * elements in the array.
+	 *
+	 * <p>Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
+	 * parallelism one.</p>
+	 *
+	 * @param data
+	 * 		The array to create the data stream from.
+	 * @param <OUT>
+	 *     The generic type of the returned data stream.
+	 * @return
+	 *     The data stream representing the given array
+	 */
+	public <OUT> DataStreamSource<OUT> fromArray(OUT[] data) {
+		Preconditions.checkNotNull(data, "Array must not be null");
+		return fromCollection(Arrays.asList(data));
+	}
+
+	/**
 	 * Creates a data stream from the given non-empty collection.
 	 * 
 	 * <p>Note that this operation will result in a non-parallel data stream source,
