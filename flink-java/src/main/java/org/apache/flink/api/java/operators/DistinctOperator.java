@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
@@ -25,6 +26,7 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
+import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -61,14 +63,14 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		super(input, input.getType());
 
 		this.distinctLocationName = distinctLocationName;
-		
+
 		// if keys is null distinction is done on all tuple fields
 		if (keys == null) {
-			if (input.getType() instanceof CompositeType) {
+			if (input.getType() instanceof CompositeType || (input.getType() instanceof AtomicType && input.getType().isKeyType())) {
 				keys = new Keys.ExpressionKeys<T>(new String[] {Keys.ExpressionKeys.SELECT_ALL_CHAR }, input.getType());
 			}
 			else {
-				keys = new Keys.SelectorFunctionKeys<T,T>(new AutoSelector<T>(), input.getType(), input.getType());
+				throw new InvalidProgramException("Distinction is not possible on " + input.getType() + " data type");
 			}
 		}
 
