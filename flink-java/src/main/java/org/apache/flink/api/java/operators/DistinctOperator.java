@@ -61,7 +61,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		super(input, input.getType());
 
 		this.distinctLocationName = distinctLocationName;
-		System.out.println(input.getType());
+		
 		// if keys is null distinction is done on all tuple fields
 		if (keys == null) {
 			if (input.getType() instanceof CompositeType) {
