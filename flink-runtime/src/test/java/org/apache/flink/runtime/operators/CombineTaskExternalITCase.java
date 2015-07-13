@@ -16,17 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
+import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
-import org.apache.flink.runtime.operators.CombineTaskTest.MockCombiningReduceStub;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.IntValue;
@@ -45,7 +46,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 	
 	@SuppressWarnings("unchecked")
 	private final RecordComparator comparator = new RecordComparator(
-		new int[]{0}, (Class<? extends Key<?>>[])new Class[]{ IntValue.class });
+		new int[]{0}, (Class<? extends Key<?>>[])new Class<?>[]{ IntValue.class });
 
 	public CombineTaskExternalITCase(ExecutionConfig config) {
 		super(config, COMBINE_MEM, 0);
@@ -160,5 +161,85 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		}
 		
 		this.outList.clear();
+	}
+	
+	// ------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
+
+	@ReduceOperator.Combinable
+	public static class MockCombiningReduceStub extends RichGroupReduceFunction<Record, Record> {
+		private static final long serialVersionUID = 1L;
+
+		private final IntValue theInteger = new IntValue();
+
+		@Override
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
+			Record element = null;
+			int sum = 0;
+
+			for (Record next : records) {
+				element = next;
+				element.getField(1, this.theInteger);
+
+				sum += this.theInteger.getValue();
+			}
+			this.theInteger.setValue(sum);
+			element.setField(1, this.theInteger);
+			out.collect(element);
+		}
+
+		@Override
+		public void combine(Iterable<Record> records, Collector<Record> out) throws Exception {
+			reduce(records, out);
+		}
+	}
+
+	@ReduceOperator.Combinable
+	public static final class MockFailingCombiningReduceStub extends RichGroupReduceFunction<Record, Record> {
+		private static final long serialVersionUID = 1L;
+
+		private int cnt = 0;
+
+		private final IntValue key = new IntValue();
+		private final IntValue value = new IntValue();
+		private final IntValue combineValue = new IntValue();
+
+		@Override
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
+			Record element = null;
+			int sum = 0;
+
+			for (Record next : records) {
+				element = next;
+				element.getField(1, this.value);
+
+				sum += this.value.getValue();
+			}
+			element.getField(0, this.key);
+			this.value.setValue(sum - this.key.getValue());
+			element.setField(1, this.value);
+			out.collect(element);
+		}
+
+		@Override
+		public void combine(Iterable<Record> records, Collector<Record> out) {
+			Record element = null;
+			int sum = 0;
+
+			for (Record next : records) {
+				element = next;
+				element.getField(1, this.combineValue);
+
+				sum += this.combineValue.getValue();
+			}
+
+			if (++this.cnt >= 10) {
+				throw new ExpectedTestException();
+			}
+
+			this.combineValue.setValue(sum);
+			element.setField(1, this.combineValue);
+			out.collect(element);
+		}
 	}
 }

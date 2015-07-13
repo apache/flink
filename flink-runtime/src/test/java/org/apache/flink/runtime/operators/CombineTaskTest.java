@@ -18,254 +18,244 @@
 
 package org.apache.flink.runtime.operators;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.runtime.operators.testutils.*;
-import org.junit.Assert;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.typeutils.record.RecordComparator;
-import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Key;
-import org.apache.flink.types.Record;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntComparator;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
+import org.apache.flink.runtime.operators.testutils.DelayingIterator;
+import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
+import org.apache.flink.runtime.operators.testutils.InfiniteIntTupleIterator;
+import org.apache.flink.runtime.operators.testutils.UnaryOperatorTestBase;
+import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
+
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator;
+
 import org.junit.Test;
 
-public class CombineTaskTest extends DriverTestBase<RichGroupReduceFunction<Record, ?>>
-{
+import java.util.ArrayList;
+
+import static org.junit.Assert.*;
+
+public class CombineTaskTest
+		extends UnaryOperatorTestBase<RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>, 
+		Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
+	
 	private static final long COMBINE_MEM = 3 * 1024 * 1024;
 
 	private final double combine_frac;
 	
-	private final ArrayList<Record> outList = new ArrayList<Record>();
-	
-	@SuppressWarnings("unchecked")
-	private final RecordComparator comparator = new RecordComparator(
-		new int[]{0}, (Class<? extends Key<?>>[])new Class[]{ IntValue.class });
+	private final ArrayList<Tuple2<Integer, Integer>> outList = new ArrayList<Tuple2<Integer, Integer>>();
 
+	private final TypeSerializer<Tuple2<Integer, Integer>> serializer = new TupleSerializer<Tuple2<Integer, Integer>>(
+			(Class<Tuple2<Integer, Integer>>) (Class<?>) Tuple2.class,
+			new TypeSerializer<?>[] { IntSerializer.INSTANCE, IntSerializer.INSTANCE });
+	
+	private final TypeComparator<Tuple2<Integer, Integer>> comparator = new TupleComparator<Tuple2<Integer, Integer>>(
+			new int[]{0},
+			new TypeComparator<?>[] { new IntComparator(true) },
+			new TypeSerializer<?>[] { IntSerializer.INSTANCE });
+
+	
 	public CombineTaskTest(ExecutionConfig config) {
 		super(config, COMBINE_MEM, 0);
 
-		combine_frac = (double)COMBINE_MEM/this.getMemoryManager().getMemorySize();
+		combine_frac = (double)COMBINE_MEM / this.getMemoryManager().getMemorySize();
 	}
+	
 	
 	@Test
 	public void testCombineTask() {
-		int keyCnt = 100;
-		int valCnt = 20;
-		
-		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		addDriverComparator(this.comparator);
-		addDriverComparator(this.comparator);
-		setOutput(this.outList);
-
-		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
-		getTaskConfig().setRelativeMemoryDriver(combine_frac);
-		getTaskConfig().setFilehandlesDriver(2);
-		
-		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<Record, Record>();
-		
 		try {
+			int keyCnt = 100;
+			int valCnt = 20;
+			
+			setInput(new UniformIntTupleGenerator(keyCnt, valCnt, false), serializer);
+			addDriverComparator(this.comparator);
+			addDriverComparator(this.comparator);
+			setOutput(this.outList, serializer);
+	
+			getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
+			getTaskConfig().setRelativeMemoryDriver(combine_frac);
+			getTaskConfig().setFilehandlesDriver(2);
+			
+			final GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testTask =
+					new GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>();
+			
 			testDriver(testTask, MockCombiningReduceStub.class);
-		} catch (Exception e) {
+			
+			int expSum = 0;
+			for (int i = 1;i < valCnt; i++) {
+				expSum += i;
+			}
+			
+			assertTrue(this.outList.size() == keyCnt);
+			
+			for (Tuple2<Integer, Integer> record : this.outList) {
+				assertTrue(record.f1 == expSum);
+			}
+			
+			this.outList.clear();
+		}
+		catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail("Invoke method caused exception.");
+			fail(e.getMessage());
 		}
-		
-		int expSum = 0;
-		for (int i = 1;i < valCnt; i++) {
-			expSum += i;
-		}
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
-		
-		for(Record record : this.outList) {
-			Assert.assertTrue("Incorrect result", record.getField(1, IntValue.class).getValue() == expSum);
-		}
-		
-		this.outList.clear();
-	}
-
-	@Test
-	public void testOversizedRecordCombineTask() {
-		int tenMil = 10000000;
-		Generator g = new Generator(561349061987311L, 1, tenMil);
-		//generate 10 records each of size 10MB
-		final TestData.GeneratorIterator gi = new TestData.GeneratorIterator(g, 10);
-		List<MutableObjectIterator<Record>> inputs = new ArrayList<MutableObjectIterator<Record>>();
-		inputs.add(gi);
-
-		addInput(new UnionIterator<Record>(inputs));
-		addDriverComparator(this.comparator);
-		addDriverComparator(this.comparator);
-		setOutput(this.outList);
-
-		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
-		getTaskConfig().setRelativeMemoryDriver(combine_frac);
-		getTaskConfig().setFilehandlesDriver(2);
-
-		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<Record, Record>();
-
-		try {
-			testDriver(testTask, MockCombiningReduceStub.class);
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("Invoke method caused exception.");
-		}
-
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+10, this.outList.size() == 10);
-
-		this.outList.clear();
 	}
 
 	@Test
 	public void testFailingCombineTask() {
-		int keyCnt = 100;
-		int valCnt = 20;
-		
-		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		addDriverComparator(this.comparator);
-		addDriverComparator(this.comparator);
-		setOutput(new DiscardingOutputCollector<Record>());
-		
-		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
-		getTaskConfig().setRelativeMemoryDriver(combine_frac);
-		getTaskConfig().setFilehandlesDriver(2);
-		
-		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<Record, Record>();
-		
 		try {
-			testDriver(testTask, MockFailingCombiningReduceStub.class);
-			Assert.fail("Exception not forwarded.");
-		} catch (ExpectedTestException etex) {
-			// good!
-		} catch (Exception e) {
+			int keyCnt = 100;
+			int valCnt = 20;
+			
+			setInput(new UniformIntTupleGenerator(keyCnt, valCnt, false), serializer);
+			addDriverComparator(this.comparator);
+			addDriverComparator(this.comparator);
+			setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
+			
+			getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
+			getTaskConfig().setRelativeMemoryDriver(combine_frac);
+			getTaskConfig().setFilehandlesDriver(2);
+			
+			final GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testTask = 
+					new GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>();
+			
+			try {
+				testDriver(testTask, MockFailingCombiningReduceStub.class);
+				fail("Exception not forwarded.");
+			}
+			catch (ExpectedTestException etex) {
+				// good!
+			}
+		}
+		catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail("Test failed due to an exception.");
+			fail(e.getMessage());
 		}
 	}
 
 	@Test
-	public void testCancelCombineTaskSorting()
-	{
-		addInput(new DelayingInfinitiveInputIterator(100));
-		addDriverComparator(this.comparator);
-		addDriverComparator(this.comparator);
-		setOutput(new DiscardingOutputCollector<Record>());
-		
-		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
-		getTaskConfig().setRelativeMemoryDriver(combine_frac);
-		getTaskConfig().setFilehandlesDriver(2);
-		
-		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<Record, Record>();
-		
-		final AtomicBoolean success = new AtomicBoolean(false);
-		
-		Thread taskRunner = new Thread() {
-			@Override
-			public void run() {
-				try {
-					testDriver(testTask, MockFailingCombiningReduceStub.class);
-					success.set(true);
-				} catch (Exception ie) {
-					ie.printStackTrace();
-				}
-			}
-		};
-		taskRunner.start();
-		
-		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, this);
-		tct.start();
-		
+	public void testCancelCombineTaskSorting()  {
 		try {
-			tct.join();
-			taskRunner.join();		
-		} catch(InterruptedException ie) {
-			Assert.fail("Joining threads failed");
+			MutableObjectIterator<Tuple2<Integer, Integer>> slowInfiniteInput =
+					new DelayingIterator<Tuple2<Integer, Integer>>(new InfiniteIntTupleIterator(), 1);
+			
+			setInput(slowInfiniteInput, serializer);
+			addDriverComparator(this.comparator);
+			addDriverComparator(this.comparator);
+			setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
+			
+			getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
+			getTaskConfig().setRelativeMemoryDriver(combine_frac);
+			getTaskConfig().setFilehandlesDriver(2);
+			
+			final GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testTask = 
+					new GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>();
+			
+			Thread taskRunner = new Thread() {
+				@Override
+				public void run() {
+					try {
+						testDriver(testTask, MockFailingCombiningReduceStub.class);
+					}
+					catch (Exception e) {
+						// exceptions may happen during canceling
+					}
+				}
+			};
+			taskRunner.start();
+			
+			// give the task some time
+			Thread.sleep(500);
+			
+			// cancel
+			testTask.cancel();
+			
+			// make sure it reacts to the canceling in some time
+			taskRunner.join(5000);
+			
+			assertFalse("Task did not cancel properly within in 5 seconds.", taskRunner.isAlive());
 		}
-		
-		Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 	
-	@Combinable
-	public static class MockCombiningReduceStub extends RichGroupReduceFunction<Record, Record> {
+	// ------------------------------------------------------------------------
+	//  Test Combiners
+	// ------------------------------------------------------------------------
+	
+	@RichGroupReduceFunction.Combinable
+	public static class MockCombiningReduceStub extends 
+			RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+	{
 		private static final long serialVersionUID = 1L;
-		
-		private final IntValue theInteger = new IntValue();
 
 		@Override
-		public void reduce(Iterable<Record> records, Collector<Record> out) {
-			Record element = null;
+		public void reduce(Iterable<Tuple2<Integer, Integer>> records, Collector<Tuple2<Integer, Integer>> out) {
+			int key = 0;
 			int sum = 0;
-			
-			for (Record next : records) {
-				element = next;
-				element.getField(1, this.theInteger);
-				
-				sum += this.theInteger.getValue();
+
+			for (Tuple2<Integer, Integer> next : records) {
+				key = next.f0;
+				sum += next.f1;
 			}
-			this.theInteger.setValue(sum);
-			element.setField(1, this.theInteger);
-			out.collect(element);
+			
+			out.collect(new Tuple2<Integer, Integer>(key, sum));
 		}
 		
 		@Override
-		public void combine(Iterable<Record> records, Collector<Record> out) throws Exception {
+		public void combine(Iterable<Tuple2<Integer, Integer>> records, Collector<Tuple2<Integer, Integer>> out) {
 			reduce(records, out);
 		}
 	}
 	
-	@Combinable
-	public static final class MockFailingCombiningReduceStub extends RichGroupReduceFunction<Record, Record> {
+	@RichGroupReduceFunction.Combinable
+	public static final class MockFailingCombiningReduceStub extends 
+			RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+	{
 		private static final long serialVersionUID = 1L;
 		
-		private int cnt = 0;
-		
-		private final IntValue key = new IntValue();
-		private final IntValue value = new IntValue();
-		private final IntValue combineValue = new IntValue();
+		private int cnt;
 
 		@Override
-		public void reduce(Iterable<Record> records, Collector<Record> out) {
-			Record element = null;
+		public void reduce(Iterable<Tuple2<Integer, Integer>> records, Collector<Tuple2<Integer, Integer>> out) {
+			int key = 0;
 			int sum = 0;
 			
-			for (Record next : records) {
-				element = next;
-				element.getField(1, this.value);
-				
-				sum += this.value.getValue();
+			for (Tuple2<Integer, Integer> next : records) {
+				key = next.f0;
+				sum += next.f1;
 			}
-			element.getField(0, this.key);
-			this.value.setValue(sum - this.key.getValue());
-			element.setField(1, this.value);
-			out.collect(element);
+			
+			int resultValue = sum - key;
+			out.collect(new Tuple2<Integer, Integer>(key, resultValue));
 		}
 		
 		@Override
-		public void combine(Iterable<Record> records, Collector<Record> out) {
-			Record element = null;
+		public void combine(Iterable<Tuple2<Integer, Integer>> records, Collector<Tuple2<Integer, Integer>> out) {
+			int key = 0;
 			int sum = 0;
-			
-			for (Record next : records) {
-				element = next;
-				element.getField(1, this.combineValue);
-				
-				sum += this.combineValue.getValue();
+
+			for (Tuple2<Integer, Integer> next : records) {
+				key = next.f0;
+				sum += next.f1;
 			}
 			
 			if (++this.cnt >= 10) {
 				throw new ExpectedTestException();
 			}
-			
-			this.combineValue.setValue(sum);
-			element.setField(1, this.combineValue);
-			out.collect(element);
+
+			int resultValue = sum - key;
+			out.collect(new Tuple2<Integer, Integer>(key, resultValue));
 		}
 	}
 }
