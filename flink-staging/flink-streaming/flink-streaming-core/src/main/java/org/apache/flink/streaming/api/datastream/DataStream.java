@@ -51,6 +51,7 @@ import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
@@ -99,9 +100,10 @@ public class DataStream<OUT> {
 	@SuppressWarnings("rawtypes")
 	protected TypeInformation typeInfo;
 	protected List<DataStream<OUT>> unionizedStreams;
-	
+
 	protected Integer iterationID = null;
 	protected Long iterationWaitTime = null;
+	protected EndOfIterationPredicate<OUT> endOfIterationPredicate = null;
 
 	protected final StreamGraph streamGraph;
 	private boolean typeUsed;
@@ -148,6 +150,7 @@ public class DataStream<OUT> {
 		this.typeInfo = dataStream.typeInfo;
 		this.iterationID = dataStream.iterationID;
 		this.iterationWaitTime = dataStream.iterationWaitTime;
+		this.endOfIterationPredicate = dataStream.endOfIterationPredicate;
 		this.unionizedStreams = new ArrayList<DataStream<OUT>>();
 		this.unionizedStreams.add(this);
 		if (dataStream.unionizedStreams.size() > 1) {
@@ -584,6 +587,35 @@ public class DataStream<OUT> {
 	 */
 	public IterativeDataStream<OUT> iterate(long maxWaitTimeMillis) {
 		return new IterativeDataStream<OUT>(this, maxWaitTimeMillis);
+	}
+
+	/**
+	 * Initiates an iterative part of the program that feeds back data streams.
+	 * The iterative part needs to be closed by calling
+	 * {@link IterativeDataStream#closeWith(DataStream)}. The transformation of
+	 * this IterativeDataStream will be the iteration head. The data stream
+	 * given to the {@link IterativeDataStream#closeWith(DataStream)} method is
+	 * the data stream that will be fed back and used as the input for the
+	 * iteration head. A common usage pattern for streaming iterations is to use
+	 * output splitting to send a part of the closing data stream to the head.
+	 * Refer to {@link #split(OutputSelector)} for more information.
+	 * <p>
+	 * The iteration edge will be partitioned the same way as the first input of
+	 * the iteration head.
+	 * <p>
+	 * By default a DataStream with iteration will never terminate, but the user
+	 * can use the endOfIterationPredicate parameter to define the end of the iteration.
+	 * If the endOfIterationPredicate returns true for a value at the iteration head
+	 * the instance of that iteration head will terminate. The last value that triggers
+	 * the end will not be fed to the iteration.
+	 *
+	 * @param endOfIterationPredicate
+	 *            Predicate that determines the end of the iteration.
+	 *
+	 * @return The iterative data stream created.
+	 */
+	public IterativeDataStream<OUT> iterate(EndOfIterationPredicate<OUT> endOfIterationPredicate) {
+		return new IterativeDataStream<OUT>(this, 0, endOfIterationPredicate);
 	}
 
 	/**
@@ -1043,7 +1075,7 @@ public class DataStream<OUT> {
 	
 	protected <X> void addIterationSource(DataStream<X> dataStream, TypeInformation<?> feedbackType) {
 		Integer id = ++counter;
-		streamGraph.addIterationHead(id, dataStream.getId(), iterationID, iterationWaitTime, feedbackType);
+		streamGraph.addIterationHead(id, dataStream.getId(), iterationID, iterationWaitTime, endOfIterationPredicate, feedbackType);
 		streamGraph.setParallelism(id, dataStream.getParallelism());
 	}
 

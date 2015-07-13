@@ -28,8 +28,8 @@ public class StreamProject<IN, OUT extends Tuple>
 	private static final long serialVersionUID = 1L;
 
 	private TypeSerializer<OUT> outSerializer;
-	private int[] fields;
-	private int numFields;
+	private final int[] fields;
+	private final int numFields;
 
 	private transient OUT outTuple;
 
@@ -54,5 +54,9 @@ public class StreamProject<IN, OUT extends Tuple>
 	public void open(Configuration config) throws Exception {
 		super.open(config);
 		outTuple = outSerializer.createInstance();
+	}
+
+	public int[] getFields() {
+		return fields;
 	}
 }

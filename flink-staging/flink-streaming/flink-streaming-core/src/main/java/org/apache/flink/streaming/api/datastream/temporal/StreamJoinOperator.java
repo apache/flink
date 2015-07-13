@@ -132,8 +132,8 @@ public class StreamJoinOperator<I1, I2> extends
 	public static class JoinPredicate<I1, I2> {
 
 		private StreamJoinOperator<I1, I2> op;
-		private KeySelector<I1, ?> keys1;
-		private KeySelector<I2, ?> keys2;
+		KeySelector<I1, ?> keys1;
+		KeySelector<I2, ?> keys2;
 		private TypeInformation<I2> type2;
 
 		private JoinPredicate(StreamJoinOperator<I1, I2> operator, KeySelector<I1, ?> keys1) {
@@ -223,7 +223,7 @@ public class StreamJoinOperator<I1, I2> extends
 
 	public static class JoinedStream<I1, I2> extends
 			SingleOutputStreamOperator<Tuple2<I1, I2>, JoinedStream<I1, I2>> {
-		private final JoinPredicate<I1, I2> predicate;
+		final JoinPredicate<I1, I2> predicate;
 
 		private JoinedStream(JoinPredicate<I1, I2> predicate, DataStream<Tuple2<I1, I2>> ds) {
 			super(ds);

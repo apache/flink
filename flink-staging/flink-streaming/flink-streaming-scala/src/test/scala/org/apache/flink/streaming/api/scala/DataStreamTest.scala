@@ -22,10 +22,14 @@ import java.lang
 
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph, StreamNode}
-import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator}
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate
+import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamCounter, StreamOperator}
+import org.apache.flink.streaming.api.scala.windowing.Delta
 import org.apache.flink.streaming.api.windowing.helper.Count
 import org.apache.flink.streaming.runtime.partitioner._
 import org.apache.flink.util.Collector
@@ -378,6 +382,48 @@ class DataStreamTest {
     }
   }
 
+  // TODO test grouped aggregations
+
+  // TODO window test
+
+  @Test
+  def iterationTest {
+    val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism)
+    val streamGraph = env.getStreamGraph
+    val src: DataStream[Long] = env.generateSequence(0, 0)
+
+    def predicate = (x: Long) => x == 42
+    val iterateMap: DataStream[Long] = src.iterate(predicate)((ds: DataStream[Long]) => {
+      val mapInside = ds.map((x: Long) => x)
+      (mapInside, mapInside)
+    })
+
+    assert(1 == streamGraph.getStreamLoops.size)
+    val streamLoop: StreamGraph.StreamLoop = streamGraph.getStreamLoops.iterator.next
+
+    val endOfIterationPredicate =
+      streamLoop.getEndOfIterationPredicate.asInstanceOf[EndOfIterationPredicate[Long]]
+
+    assert(endOfIterationPredicate.isEndOfIteration(42))
+    assert(!endOfIterationPredicate.isEndOfIteration(40))
+
+
+    val iterationHead: StreamNode = streamLoop.getSource
+    val iterationTail: StreamNode = streamLoop.getSink
+
+
+    try {
+      streamGraph.getStreamEdge(src.getId, iterateMap.getId)
+      streamGraph.getStreamEdge(iterationHead.getId, iterateMap.getId)
+      streamGraph.getStreamEdge(iterateMap.getId, iterationTail.getId)
+    }
+    catch {
+      case e: RuntimeException => {
+        fail(e.getMessage)
+      }
+    }
+  }
+
   @Test
   def testChannelSelectors {
     val env = StreamExecutionEnvironment.createLocalEnvironment(parallelism)
@@ -448,7 +494,7 @@ class DataStreamTest {
   /////////////////////////////////////////////////////////////
   // Utilities
   /////////////////////////////////////////////////////////////
-
+  
   private def getFunctionForDataStream(dataStream: DataStream[_]): Function = {
     val operator = getOperatorForDataStream(dataStream)
       .asInstanceOf[AbstractUdfStreamOperator[_, _]]

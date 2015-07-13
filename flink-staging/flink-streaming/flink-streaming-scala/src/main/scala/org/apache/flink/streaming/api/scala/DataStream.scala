@@ -22,6 +22,8 @@ import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
 import org.apache.flink.core.fs.{FileSystem, Path}
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -390,6 +392,41 @@ class DataStream[T](javaStream: JavaStream[T]) {
 
     val (feedback, output) = stepFunction(connectedIterativeStream)
     connectedIterativeStream.closeWith(feedback.getJavaStream)
+    output
+  }
+
+
+  /**
+   * Initiates an iterative part of the program that creates a loop by feeding
+   * back data streams. To create a streaming iteration the user needs to define
+   * a transformation that creates two DataStreams. The first one is the output
+   * that will be fed back to the start of the iteration and the second is the output
+   * stream of the iterative part.
+   * <p>
+   * stepfunction: initialStream => (feedback, output)
+   * <p>
+   * A common pattern is to use output splitting to create feedback and output DataStream.
+   * Please refer to the .split(...) method of the DataStream
+   * <p>
+   * By default a DataStream with iteration will never terminate, but the user
+   * can define a predicate for ending the iteration. If the predicate returns true
+   * for a value at the iteration head the instance of that iteration head will terminate.
+   * The last value that triggers the end will not be fed to the iteration.
+   *
+   *
+   */
+  def iterate[R](fun: T => Boolean)
+                (stepFunction: DataStream[T] => (DataStream[T], DataStream[R])) : DataStream[R] = {
+
+    val endOfIterationPredicate = new EndOfIterationPredicate[T] {
+      val cleanFun = clean(fun)
+      override def isEndOfIteration(nextElement: T): Boolean = cleanFun(nextElement)
+    }
+
+    val iterativeStream = javaStream.iterate(endOfIterationPredicate)
+
+    val (feedback, output) = stepFunction(new DataStream[T](iterativeStream))
+    iterativeStream.closeWith(feedback.getJavaStream)
     output
   }  
 

@@ -15,14 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.streaming.api.datastream;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -30,33 +32,40 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.datastream.ConnectedDataStream;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.GroupedDataStream;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.datastream.SplitDataStream;
-import org.apache.flink.streaming.api.datastream.WindowedDataStream;
+import org.apache.flink.streaming.api.datastream.temporal.StreamCrossOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.WindowMapFunction;
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamProject;
+import org.apache.flink.streaming.api.windowing.deltafunction.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.helper.Count;
+import org.apache.flink.streaming.api.windowing.helper.Delta;
+import org.apache.flink.streaming.api.windowing.helper.FullStream;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
+import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
+import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.FieldsPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.util.CustomPOJO;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
@@ -64,7 +73,7 @@ import org.junit.Test;
 public class DataStreamTest {
 
 	private static final long MEMORYSIZE = 32;
-	private static int PARALLELISM = 1;
+	private static int PARALLELISM = 3;
 
 	/**
 	 * Tests {@link SingleOutputStreamOperator#name(String)} functionality.
@@ -350,6 +359,7 @@ public class DataStreamTest {
 
 		DataStreamSource<Long> src = env.generateSequence(0, 0);
 
+		// map
 		MapFunction<Long, Integer> mapFunction = new MapFunction<Long, Integer>() {
 			@Override
 			public Integer map(Long value) throws Exception {
@@ -359,7 +369,7 @@ public class DataStreamTest {
 		DataStream<Integer> map = src.map(mapFunction);
 		assertEquals(mapFunction, getFunctionForDataStream(map));
 
-
+		// flatmap
 		FlatMapFunction<Long, Integer> flatMapFunction = new FlatMapFunction<Long, Integer>() {
 			@Override
 			public void flatMap(Long value, Collector<Integer> out) throws Exception {
@@ -368,6 +378,7 @@ public class DataStreamTest {
 		DataStream<Integer> flatMap = src.flatMap(flatMapFunction);
 		assertEquals(flatMapFunction, getFunctionForDataStream(flatMap));
 
+		// filter
 		FilterFunction<Integer> filterFunction = new FilterFunction<Integer>() {
 			@Override
 			public boolean filter(Integer value) throws Exception {
@@ -375,6 +386,7 @@ public class DataStreamTest {
 			}
 		};
 
+		// union
 		DataStream<Integer> unionFilter = map
 				.union(flatMap)
 				.filter(filterFunction);
@@ -393,6 +405,7 @@ public class DataStreamTest {
 			fail(e.getMessage());
 		}
 
+		// splitting
 		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
 			@Override
 			public Iterable<String> select(Integer value) {
@@ -411,19 +424,20 @@ public class DataStreamTest {
 		StreamEdge splitEdge = streamGraph.getStreamEdge(select.getId(), sink.getId());
 		assertEquals("a", splitEdge.getSelectedNames().get(0));
 
+		// coMap
 		ConnectedDataStream<Integer, Integer> connect = map.connect(flatMap);
-		CoMapFunction<Integer, Integer, String> coMapper = new CoMapFunction<Integer, Integer, String>() {
+		CoMapFunction<Integer, Integer, Integer> coMapper = new CoMapFunction<Integer, Integer, Integer>() {
 			@Override
-			public String map1(Integer value) {
+			public Integer map1(Integer value) {
 				return null;
 			}
 
 			@Override
-			public String map2(Integer value) {
+			public Integer map2(Integer value) {
 				return null;
 			}
 		};
-		DataStream<String> coMap = connect.map(coMapper);
+		DataStream<Integer> coMap = connect.map(coMapper);
 		assertEquals(coMapper, getFunctionForDataStream(coMap));
 
 		try {
@@ -437,6 +451,205 @@ public class DataStreamTest {
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}
+
+		DataStream<Tuple3<Integer, Integer, Integer>> tuples = map.map(new MapFunction<Integer, Tuple3<Integer, Integer, Integer>>() {
+			@Override
+			public Tuple3<Integer, Integer, Integer> map(Integer value) throws Exception {
+				return null;
+			}
+		});
+
+		// project
+		int[] projectedFields = {0, 2};
+		DataStream<Tuple> project = tuples.project(projectedFields);
+		StreamProject projectOperator = (StreamProject) getOperatorForDataStream(project);
+		assertArrayEquals(projectedFields, projectOperator.getFields());
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testAggregations() {
+		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+
+		GroupedDataStream<CustomPOJO> src = env.fromElements(new CustomPOJO()).groupBy(new KeySelector<CustomPOJO, Integer>() {
+			@Override
+			public Integer getKey(CustomPOJO value) throws Exception {
+				return null;
+			}
+		});
+		GroupedDataStream<Tuple2<Integer, Integer>> tuples = env
+				.fromElements(new Tuple2<Integer, Integer>(0, 2), new Tuple2<Integer, Integer>(0, 3))
+				.groupBy(0);
+
+		// sum
+		DataStream<Tuple2<Integer, Integer>> sum = tuples.sum(1);
+		AggregationFunction<Tuple2<Integer, Integer>> sumAggregationFunction =
+				(AggregationFunction<Tuple2<Integer, Integer>>) getFunctionForDataStream(sum);
+		assertEquals(1, sumAggregationFunction.position);
+
+		// min
+		DataStream<Tuple2<Integer, Integer>> min = tuples.min(1);
+		AggregationFunction<Tuple2<Integer, Integer>> minAggregationFunction =
+				(AggregationFunction<Tuple2<Integer, Integer>>) getFunctionForDataStream(min);
+		assertEquals(1, minAggregationFunction.position);
+
+		// max
+		DataStream<Tuple2<Integer, Integer>> max = tuples.max(1);
+		AggregationFunction<Tuple2<Integer, Integer>> maxAggregationFunction =
+				(AggregationFunction<Tuple2<Integer, Integer>>) getFunctionForDataStream(max);
+		assertEquals(1, maxAggregationFunction.position);
+
+		DataStream<CustomPOJO> fieldSum = src.sum("i");
+		AggregationFunction<CustomPOJO> sumFieldFunction =
+				(AggregationFunction<CustomPOJO>) getFunctionForDataStream(fieldSum);
+		assertEquals(0, sumFieldFunction.position);
+
+		// maxBy
+		DataStream<Tuple2<Integer, Integer>> maxBy = tuples.maxBy(1);
+		AggregationFunction<Tuple2<Integer, Integer>> maxByAggregationFunction =
+				(AggregationFunction<Tuple2<Integer, Integer>>) getFunctionForDataStream(maxBy);
+		assertEquals(1, maxByAggregationFunction.position);
+
+		// minBy
+		DataStream<Tuple2<Integer, Integer>> minBy = tuples.minBy(1);
+		AggregationFunction<Tuple2<Integer, Integer>> minByAggregationFunction =
+				(AggregationFunction<Tuple2<Integer, Integer>>) getFunctionForDataStream(minBy);
+		assertEquals(1, minByAggregationFunction.position);
+
+		// maxBy last
+		DataStream<Tuple2<Integer, Integer>> lastMaxBy = tuples.maxBy(1, false);
+		AggregationFunction<Tuple2<Integer, Integer>> lastMaxByAggregationFunction =
+				(AggregationFunction<Tuple2<Integer, Integer>>) getFunctionForDataStream(lastMaxBy);
+		assertEquals(1, lastMaxByAggregationFunction.position);
+
+		// minBy last
+		DataStream<Tuple2<Integer, Integer>> lastMinBy = tuples.minBy(1, false);
+		AggregationFunction<Tuple2<Integer, Integer>> lastMinByAggregationFunction =
+				(AggregationFunction<Tuple2<Integer, Integer>>) getFunctionForDataStream(lastMinBy);
+		assertEquals(1, lastMinByAggregationFunction.position);
+
+		Tuple2<Integer, Integer> tupleVal3 = new Tuple2<Integer, Integer>(-1, 3);
+		Tuple2<Integer, Integer> tupleVal2 = new Tuple2<Integer, Integer>(1, 2);
+		Tuple2<Integer, Integer> tupleVal3Last = new Tuple2<Integer, Integer>(30, 3);
+
+		CustomPOJO pojo3 = new CustomPOJO();
+		pojo3.setI(3);
+		CustomPOJO pojo2 = new CustomPOJO();
+		pojo2.setI(2);
+
+		try {
+			assertEquals(new Integer(5), sumAggregationFunction.reduce(tupleVal2.copy(), tupleVal3.copy()).f1);
+			assertEquals(new Integer(2), minAggregationFunction.reduce(tupleVal2.copy(), tupleVal3.copy()).f1);
+			assertEquals(new Integer(3), maxAggregationFunction.reduce(tupleVal2.copy(), tupleVal3.copy()).f1);
+			assertEquals(5, sumFieldFunction.reduce(pojo2, pojo3).getI());
+
+			assertEquals(tupleVal2.copy(), minByAggregationFunction.reduce(tupleVal2.copy(), tupleVal3.copy()));
+			assertEquals(tupleVal3.copy(), minByAggregationFunction.reduce(tupleVal3.copy(), tupleVal3Last.copy()));
+
+			assertEquals(tupleVal3.copy(), maxByAggregationFunction.reduce(tupleVal2.copy(), tupleVal3.copy()));
+			assertEquals(tupleVal3.copy(), maxByAggregationFunction.reduce(tupleVal3.copy(), tupleVal3Last.copy()));
+
+			assertEquals(tupleVal2.copy(), lastMinByAggregationFunction.reduce(tupleVal2.copy(), tupleVal3.copy()));
+			assertEquals(tupleVal3Last.copy(), lastMinByAggregationFunction.reduce(tupleVal3.copy(), tupleVal3Last.copy()));
+
+			assertEquals(tupleVal3.copy(), lastMaxByAggregationFunction.reduce(tupleVal2.copy(), tupleVal3.copy()));
+			assertEquals(tupleVal3Last.copy(), lastMaxByAggregationFunction.reduce(tupleVal3.copy(), tupleVal3Last.copy()));
+		} catch (Exception e) {
+			fail(e.getMessage());
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void windowTest() {
+		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+
+		DataStreamSource<CustomPOJO> src = env.fromElements(new CustomPOJO());
+		DataStreamSource<String> stringSrc = env.fromElements("a");
+
+		Count count = Count.of(5);
+
+		DeltaFunction<Long> deltaFunction = new DeltaFunction<Long>() {
+			@Override
+			public double getDelta(Long oldDataPoint, Long newDataPoint) {
+				return 0;
+			}
+		};
+		Delta<Long> delta = Delta.of(0.1, deltaFunction, 0L);
+
+		Timestamp<CustomPOJO> timestamp1 = new Timestamp<CustomPOJO>() {
+			@Override
+			public long getTimestamp(CustomPOJO value) {
+				return 0;
+			}
+		};
+		Timestamp<String> timestamp2 = new Timestamp<String>() {
+			@Override
+			public long getTimestamp(String value) {
+				return 0;
+			}
+		};
+
+		// default policies
+		WindowedDataStream<CustomPOJO> window = src.window(count);
+		WindowingHelper<CustomPOJO> trigger = window.triggerHelper;
+		WindowingHelper<CustomPOJO> eviction = window.evictionHelper;
+
+		assertTrue(trigger instanceof Count);
+		assertEquals(null, eviction);
+
+		WindowedDataStream<CustomPOJO> every = window.every(delta);
+		WindowingHelper<CustomPOJO> trigger2 = every.triggerHelper;
+		WindowingHelper<CustomPOJO> eviction2 = every.evictionHelper;
+
+		assertEquals(trigger, eviction2);
+		assertTrue(trigger2 instanceof Delta);
+
+		// custom policies
+		WindowingHelper policyHelper = new WindowingHelper() {
+			@Override
+			public EvictionPolicy toEvict() {
+				return null;
+			}
+
+			@Override
+			public TriggerPolicy toTrigger() {
+				return null;
+			}
+		};
+
+		WindowedDataStream<CustomPOJO> windowWithCustomPolicy = src.window(policyHelper);
+		WindowingHelper<CustomPOJO> triggerHelper = windowWithCustomPolicy.triggerHelper;
+		WindowingHelper<CustomPOJO> evictionHelper = windowWithCustomPolicy.evictionHelper;
+
+		assertEquals(policyHelper, triggerHelper);
+		assertEquals(null, evictionHelper);
+
+		WindowedDataStream<CustomPOJO> everyCustomPolicy = windowWithCustomPolicy.every(policyHelper);
+		triggerHelper = everyCustomPolicy.triggerHelper;
+		evictionHelper = everyCustomPolicy.evictionHelper;
+
+		assertEquals(policyHelper, triggerHelper);
+		assertEquals(policyHelper, evictionHelper);
+
+		// cross
+		StreamCrossOperator<CustomPOJO, String> cross = src.cross(stringSrc);
+		assertEquals(src.getId(), cross.input1.getId());
+		assertEquals(stringSrc.getId(), cross.input2.getId());
+
+		WindowedDataStream<Tuple2<CustomPOJO, String>> windowCross = cross
+				.onWindow(12L, TimeUnit.MILLISECONDS)
+				.every(policyHelper);
+
+		WindowingHelper<Tuple2<CustomPOJO, String>> crossTrigger = windowCross.triggerHelper;
+		WindowingHelper<Tuple2<CustomPOJO, String>> crossEviction = windowCross.evictionHelper;
+
+		assertEquals(policyHelper, crossTrigger);
+		assertTrue(crossEviction instanceof FullStream);
 	}
 
 	@Test
@@ -478,6 +691,47 @@ public class DataStreamTest {
 		assertTrue(globalPartitioner instanceof GlobalPartitioner);
 	}
 
+	@Test
+	public void iterationTest() {
+		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+
+		DataStream<Long> src = env.generateSequence(0, 0);
+
+		EndOfIterationPredicate<Long> endOfIterationPredicate = new EndOfIterationPredicate<Long>() {
+			@Override
+			public boolean isEndOfIteration(Long nextElement) {
+				return false;
+			}
+		};
+		IterativeDataStream<Long> iterate = src.iterate(endOfIterationPredicate);
+		DataStream<Long> iterationMap = iterate.map(new MapFunction<Long, Long>() {
+			@Override
+			public Long map(Long value) throws Exception {
+				return null;
+			}
+		});
+
+		iterate.closeWith(iterationMap);
+
+		assertEquals(1, streamGraph.getStreamLoops().size());
+		StreamGraph.StreamLoop streamLoop = streamGraph.getStreamLoops().iterator().next();
+
+		assertEquals(endOfIterationPredicate, streamLoop.getEndOfIterationPredicate());
+
+		StreamNode iterationHead = streamLoop.getSource();
+		StreamNode iterationTail = streamLoop.getSink();
+
+		try {
+			streamGraph.getStreamEdge(src.getId(), iterationMap.getId());
+			streamGraph.getStreamEdge(iterationHead.getId(), iterationMap.getId());
+			streamGraph.getStreamEdge(iterationMap.getId(), iterationTail.getId());
+		} catch (RuntimeException e) {
+			fail(e.getMessage());
+		}
+	}
+
 	/////////////////////////////////////////////////////////////
 	// Utilities
 	/////////////////////////////////////////////////////////////
@@ -488,7 +742,7 @@ public class DataStreamTest {
 		return streamGraph.getStreamNode(dataStream.getId()).getOperator();
 	}
 
-	private static Function getFunctionForDataStream(DataStream<?> dataStream) {
+	public static Function getFunctionForDataStream(DataStream<?> dataStream) {
 		AbstractUdfStreamOperator<?, ?> operator =
 				(AbstractUdfStreamOperator<?, ?>) getOperatorForDataStream(dataStream);
 		return operator.getUserFunction();
@@ -531,27 +785,4 @@ public class DataStreamTest {
 		}
 	}
 
-	public static class CustomPOJO {
-		private String s;
-		private int i;
-
-		public CustomPOJO() {
-		}
-
-		public void setS(String s) {
-			this.s = s;
-		}
-
-		public void setI(int i) {
-			this.i = i;
-		}
-
-		public String getS() {
-			return s;
-		}
-
-		public int getI() {
-			return i;
-		}
-	}
 }

@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate;
+import org.apache.flink.streaming.util.ContinousIterationPredicate;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -34,13 +37,18 @@ public class IterativeDataStream<IN> extends
 		SingleOutputStreamOperator<IN, IterativeDataStream<IN>> {
 
 	static Integer iterationCount = 0;
-	
+
 	protected IterativeDataStream(DataStream<IN> dataStream, long maxWaitTime) {
+		this(dataStream, maxWaitTime, new ContinousIterationPredicate<IN>());
+	}
+
+	protected IterativeDataStream(DataStream<IN> dataStream, long maxWaitTime, EndOfIterationPredicate<IN> endOfIterationPredicate) {
 		super(dataStream);
 		setBufferTimeout(dataStream.environment.getBufferTimeout());
 		iterationID = iterationCount;
 		iterationCount++;
 		iterationWaitTime = maxWaitTime;
+		this.endOfIterationPredicate = endOfIterationPredicate;
 	}
 
 	/**

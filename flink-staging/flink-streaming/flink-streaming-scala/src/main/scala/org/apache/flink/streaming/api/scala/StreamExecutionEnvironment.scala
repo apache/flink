@@ -264,6 +264,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * a parallelism of one.
    */
   def fromElements[T: ClassTag: TypeInformation](data: T*): DataStream[T] = {
+    require(data != null, "Data must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
     fromCollection(data)(implicitly[ClassTag[T]], typeInfo)
   }

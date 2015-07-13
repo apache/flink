@@ -1122,6 +1122,7 @@ In this case, all values passing the `isFeedback` filter will be fed back to the
 
 Because iterative streaming programs do not have a set number of iterations for each data element, the streaming program has no information on the end of its input. As a consequence iterative streaming programs run until the user manually stops the program. While this is acceptable under normal circumstances, a method is provided to allow iterative programs to shut down automatically if no input is received by the iteration head for a predefined number of milliseconds.
 To use this functionality the user needs to add the maxWaitTimeMillis parameter to the `dataStream.iterate(…)` call to control the max wait time.
+Another way to end the iteration is to provide a predicate also to the `dataStream.iterate(…)`. Using this causes the iteration instance to terminate if the predicate returns true for a value at the iteration head.
 
 By default the partitioning of the feedback stream will be automatically set to be the same as the input of the iteration head. To override this the user can set an optional boolean flag in the `closeWith` method. 
 

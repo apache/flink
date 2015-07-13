@@ -23,6 +23,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.streaming.api.collector.StreamOutput;
+import org.apache.flink.streaming.api.iteration.EndOfIterationPredicate;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.slf4j.Logger;
@@ -32,11 +33,12 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationHead.class);
 
-
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
 	private long iterationWaitTime;
 	private boolean shouldWait;
+	private EndOfIterationPredicate<OUT> endOfIterationPredicate;
+	private ClassLoader cl;
 
 	@SuppressWarnings("rawtypes")
 	public StreamIterationHead() {
@@ -48,13 +50,16 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 		super.registerInputOutput();
 		outputHandler = new OutputHandler<OUT>(this);
 
+		cl = getUserCodeClassLoader();
+
 		Integer iterationId = configuration.getIterationId();
 		iterationWaitTime = configuration.getIterationWaitTime();
+		endOfIterationPredicate = configuration.getEndOfIterationPredicate(cl);
 		shouldWait = iterationWaitTime > 0;
 
 		try {
-			BlockingQueueBroker.instance().handIn(iterationId.toString()+"-" 
-					+getEnvironment().getIndexInSubtaskGroup(), dataChannel);
+			BlockingQueueBroker.instance().handIn(iterationId.toString() + "-"
+					+ getEnvironment().getIndexInSubtaskGroup(), dataChannel);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -80,6 +85,11 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 				} else {
 					nextRecord = dataChannel.take();
 				}
+
+				if (nextRecord != null && endOfIterationPredicate.isEndOfIteration(nextRecord.getObject())) {
+					break;
+				}
+
 				if (nextRecord == null) {
 					break;
 				}
@@ -88,13 +98,11 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 				}
 			}
 
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			LOG.error("Iteration Head " + getEnvironment().getTaskNameWithSubtasks() + " failed", e);
-			
+
 			throw e;
-		}
-		finally {
+		} finally {
 			// Cleanup
 			isRunning = false;
 			outputHandler.flushOutputs();
