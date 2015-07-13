@@ -89,10 +89,14 @@ public class EnvironmentInformation {
 		try {
 			return UserGroupInformation.getCurrentUser().getShortUserName();
 		}
+		catch (LinkageError e) {
+			// hadoop classes are not in the classpath
+			LOG.debug("Cannot determine user/group information using Hadoop utils. " +
+					"Hadoop classes not loaded or compatible", e);
+		}
 		catch (Throwable t) {
-			if (LOG.isDebugEnabled() && !(t instanceof ClassNotFoundException)) {
-				LOG.debug("Cannot determine user/group information using Hadoop utils.", t);
-			}
+			// some other error occurred that we should log and make known
+			LOG.warn("Error while accessing user/group information via Hadoop utils.", t);
 		}
 		
 		String user = System.getProperty("user.name");
