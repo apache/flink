@@ -18,8 +18,11 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.avro.generic.GenericData;
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -273,5 +276,46 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 		public Integer map(POJO value) throws Exception {
 			return (int) value.nestedPojo.longNumber;
 		}
+	}
+
+	@Test
+	public void testCorrectnessOfDistinctOnAtomic() throws Exception {
+		/*
+		 * check correctness of distinct on Integers
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds = CollectionDataSets.getIntegerDataSet(env);
+		DataSet<Integer> reduceDs = ds.distinct();
+
+		List<Integer> result = reduceDs.collect();
+
+		String expected = "1\n2\n3\n4\n5";
+
+		compareResultAsText(result, expected);
+	}
+
+	@Test
+	public void testCorrectnessOfDistinctOnAtomicWithSelectAllChar() throws Exception {
+		/*
+		 * check correctness of distinct on Strings, using Keys.ExpressionKeys.SELECT_ALL_CHAR
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<String> ds = CollectionDataSets.getStringDataSet(env);
+		DataSet<String> reduceDs = ds.union(ds).distinct("*");
+
+		List<String> result = reduceDs.collect();
+
+		String expected = "I am fine.\n" +
+				"Luke Skywalker\n" +
+				"LOL\n" +
+				"Hello world, how are you?\n" +
+				"Hi\n" +
+				"Hello world\n" +
+				"Hello\n" +
+				"Random comment\n";
+
+		compareResultAsText(result, expected);
 	}
 }
