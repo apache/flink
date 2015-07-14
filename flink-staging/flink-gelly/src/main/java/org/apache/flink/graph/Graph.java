@@ -137,7 +137,7 @@ public class Graph<K, VV, EV> {
 	 * @return the newly created graph.
 	 */
 	public static <K, VV, EV> Graph<K, VV, EV> fromCollection(Collection<Edge<K, EV>> edges,
-			final MapFunction<K, VV> mapper,ExecutionEnvironment context) {
+			final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
 
 		return fromDataSet(context.fromCollection(edges), mapper, context);
 	}
@@ -292,8 +292,8 @@ public class Graph<K, VV, EV> {
 	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , on which calling typesEdges() and typesVertices() methods to specify types of the
 	*Vertex ID, Vertex Value and Edge value returns a Graph
 	*/
-	public static  GraphCsvReader fromCsvReader(String verticesPath, String edgesPath, ExecutionEnvironment context) {
-		return new GraphCsvReader(verticesPath, edgesPath, context);
+	public static  <K, VV, EV> GraphCsvReader<K, VV, EV> fromCsvReader(String verticesPath, String edgesPath, ExecutionEnvironment context) {
+		return new GraphCsvReader<K, VV, EV>(verticesPath, edgesPath, context);
 	}
 	/** Creates a graph from a CSV file for Edges.Vertices are
 	* induced from the edges.
@@ -306,8 +306,8 @@ public class Graph<K, VV, EV> {
 	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , on which calling typesEdges() and typesVertices() methods to specify types of the
 	* Vertex ID, Vertex Value and Edge value returns a Graph
 	*/
-	public static GraphCsvReader fromCsvReader(String edgesPath, ExecutionEnvironment context) {
-		return new GraphCsvReader(edgesPath, context);
+	public static <K, VV, EV> GraphCsvReader<K, VV, EV> fromCsvReader(String edgesPath, ExecutionEnvironment context) {
+		return new GraphCsvReader<K, VV, EV>(edgesPath, context);
 	}
 
 	/**
@@ -323,8 +323,9 @@ public class Graph<K, VV, EV> {
 	 * @return An instance of {@link org.apache.flink.graph.GraphCsvReader} ,on which calling typesEdges() and typesVertices() methods to specify types of the
 	 * Vertex ID, Vertex Value and Edge value returns a Graph
 	 */
-	public static GraphCsvReader fromCsvReader(String edgesPath, final MapFunction mapper, ExecutionEnvironment context) {
-		return new GraphCsvReader(edgesPath, mapper, context);
+	public static <K, VV, EV> GraphCsvReader<K, VV, EV> fromCsvReader(String edgesPath,
+			final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
+		return new GraphCsvReader<K, VV, EV>(edgesPath, mapper, context);
 	}
 
 	/**
