@@ -68,7 +68,7 @@ of it. Barriers do not interrupt the flow of the stream and are hence very light
 the stream at the same time, which means that various snapshots may happen concurrently.
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/internals/fig/stream_barriers.png" alt="Checkpoint barriers in data streams" style="width:60%; padding-top:10px; padding-bottom:10px;" />
+  <img src="{{ site.baseurl }}/internals/fig/stream_barriers.svg" alt="Checkpoint barriers in data streams" style="width:60%; padding-top:10px; padding-bottom:10px;" />
 </div>
 
 Stream barriers are injected into the parallel data flow at the stream sources. The point where the barriers for snapshot *n* are injected
@@ -83,7 +83,7 @@ When snapshot *n* is completed, it is certain that no records from before <i>S<s
 their descendant records) have passed through the entire data flow topology.
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/internals/fig/stream_aligning.png" alt="Aligning data streams at operators with multiple inputs" style="width:100%; padding-top:10px; padding-bottom:10px;" />
+  <img src="{{ site.baseurl }}/internals/fig/stream_aligning.svg" alt="Aligning data streams at operators with multiple inputs" style="width:100%; padding-top:10px; padding-bottom:10px;" />
 </div>
 
 Operators that receive more than one input stream need to *align* the input streams on the snapshot barriers. The figure above illutrates this:
@@ -110,7 +110,7 @@ The resulting snapshot now contains:
   - For each operator, a pointer to the state that was stored as part of the snapshot
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/internals/fig/checkpointing.png" alt="Illustration of the Checkpointing Mechanism" style="width:100%; padding-top:10px; padding-bottom:10px;" />
+  <img src="{{ site.baseurl }}/internals/fig/checkpointing.svg" alt="Illustration of the Checkpointing Mechanism" style="width:100%; padding-top:10px; padding-bottom:10px;" />
 </div>
 
 <!--
