@@ -158,7 +158,7 @@ public class CoGroupOperatorCollectionTest implements Serializable {
 				sumF1 += input.f1;
 			}
 
-			out.collect(new Tuple2<String, Integer>(f0, sumF1));
+			out.collect(Tuple2.of(f0, sumF1));
 		}
 
 		@Override
