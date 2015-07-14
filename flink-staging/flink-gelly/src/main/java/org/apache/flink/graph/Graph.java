@@ -137,7 +137,7 @@ public class Graph<K, VV, EV> {
 	 * @return the newly created graph.
 	 */
 	public static <K, VV, EV> Graph<K, VV, EV> fromCollection(Collection<Edge<K, EV>> edges,
-			final MapFunction<K, VV> mapper,ExecutionEnvironment context) {
+			final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
 
 		return fromDataSet(context.fromCollection(edges), mapper, context);
 	}
@@ -282,48 +282,57 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	* Creates a graph from CSV files.
-	*
-	* Vertices with value are created from a CSV file with 2 fields
-	* Edges with value are created from a CSV file with 3 fields
-	* @param verticesPath path to a CSV file with the Vertices data.
-	* @param edgesPath path to a CSV file with the Edges data
-	* @param context the flink execution environment.
-	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , on which calling typesEdges() and typesVertices() methods to specify types of the
-	*Vertex ID, Vertex Value and Edge value returns a Graph
+	* Creates a Graph from a CSV file of vertices and a CSV file of edges.
+	* 
+	* @param verticesPath path to a CSV file with the Vertex data.
+	* @param edgesPath path to a CSV file with the Edge data
+	* @param context the Flink execution environment.
+	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader}, 
+	* on which calling methods to specify types of the Vertex ID, Vertex value and Edge value returns a Graph.
+	* 
+	* @see {@link org.apache.flink.graph.GraphCsvReader#types(Class, Class, Class)},
+	* {@link org.apache.flink.graph.GraphCsvReader#vertexTypes(Class, Class)},
+	* {@link org.apache.flink.graph.GraphCsvReader#edgeTypes(Class, Class)} and
+	* {@link org.apache.flink.graph.GraphCsvReader#keyType(Class)}.
 	*/
-	public static  GraphCsvReader fromCsvReader(String verticesPath, String edgesPath, ExecutionEnvironment context) {
+	public static GraphCsvReader fromCsvReader(String verticesPath, String edgesPath, ExecutionEnvironment context) {
 		return new GraphCsvReader(verticesPath, edgesPath, context);
 	}
-	/** Creates a graph from a CSV file for Edges.Vertices are
-	* induced from the edges.
-	*
-	* Edges with value are created from a CSV file with 3 fields. Vertices are created
-	* automatically and their values are set to NullValue.
+
+	/** 
+	* Creates a graph from a CSV file of edges. Vertices will be created automatically.
 	*
 	* @param edgesPath a path to a CSV file with the Edges data
-	* @param context the flink execution environment.
-	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , on which calling typesEdges() and typesVertices() methods to specify types of the
-	* Vertex ID, Vertex Value and Edge value returns a Graph
+	* @param context the execution environment.
+	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader},
+	* on which calling methods to specify types of the Vertex ID, Vertex value and Edge value returns a Graph.
+	* 
+	* @see {@link org.apache.flink.graph.GraphCsvReader#types(Class, Class, Class)},
+	* {@link org.apache.flink.graph.GraphCsvReader#vertexTypes(Class, Class)},
+	* {@link org.apache.flink.graph.GraphCsvReader#edgeTypes(Class, Class)} and
+	* {@link org.apache.flink.graph.GraphCsvReader#keyType(Class)}.
 	*/
 	public static GraphCsvReader fromCsvReader(String edgesPath, ExecutionEnvironment context) {
 		return new GraphCsvReader(edgesPath, context);
 	}
 
-	/**
-	 *Creates a graph from a CSV file for Edges., Vertices are
-	 * induced from the edges and vertex values are calculated by a mapper
-	 * function.  Edges with value are created from a CSV file with 3 fields.
-	 * Vertices are created automatically and their values are set by applying the provided map
-	 * function to the vertex ids.
+	/** 
+	 * Creates a graph from a CSV file of edges. Vertices will be created automatically and
+	 * Vertex values are set by the provided mapper.
 	 *
-	 * @param edgesPath a path to a CSV file with the Edges data
+	 * @param edgesPath a path to a CSV file with the Edge data
 	 * @param mapper the mapper function.
-	 * @param context the flink execution environment.
-	 * @return An instance of {@link org.apache.flink.graph.GraphCsvReader} ,on which calling typesEdges() and typesVertices() methods to specify types of the
-	 * Vertex ID, Vertex Value and Edge value returns a Graph
+	 * @param context the execution environment.
+	 * @return An instance of {@link org.apache.flink.graph.GraphCsvReader},
+	 * on which calling methods to specify types of the Vertex ID, Vertex Value and Edge value returns a Graph.
+	 * 
+	 * @see {@link org.apache.flink.graph.GraphCsvReader#types(Class, Class, Class)},
+	 * {@link org.apache.flink.graph.GraphCsvReader#vertexTypes(Class, Class)},
+	 * {@link org.apache.flink.graph.GraphCsvReader#edgeTypes(Class, Class)} and
+	 * {@link org.apache.flink.graph.GraphCsvReader#keyType(Class)}.
 	 */
-	public static GraphCsvReader fromCsvReader(String edgesPath, final MapFunction mapper, ExecutionEnvironment context) {
+	public static <K, VV> GraphCsvReader fromCsvReader(String edgesPath,
+			final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
 		return new GraphCsvReader(edgesPath, mapper, context);
 	}
 
@@ -411,7 +420,6 @@ public class Graph<K, VV, EV> {
 					tripletWithSrcValSet.f2, vertex.getValue(), tripletWithSrcValSet.f3));
 		}
 	}
-
 
 	/**
 	 * Apply a function to the attribute of each vertex in the graph.
@@ -1898,7 +1906,7 @@ public class Graph<K, VV, EV> {
 	 *            the function to apply to the neighborhood
 	 * @param direction
 	 *            the edge direction (in-, out-, all-)
-	 * @return a Dataset containing one value per vertex(vertex key, aggegate edge value)
+	 * @return a Dataset containing one value per vertex(vertex key, aggregate edge value)
 	 * @throws IllegalArgumentException
 	 */
 	public DataSet<Tuple2<K, EV>> reduceOnEdges(ReduceEdgesFunction<EV> reduceEdgesFunction,

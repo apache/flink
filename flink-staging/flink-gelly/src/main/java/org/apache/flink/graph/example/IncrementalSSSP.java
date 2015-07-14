@@ -33,8 +33,11 @@ import org.apache.flink.graph.spargel.VertexCentricConfiguration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
 /**
- * This example illustrates the usage of vertex-centric iteration's
- * messaging direction configuration option.
+ * This example illustrates how to 
+ * <ul>
+ *  <li> create a Graph directly from CSV files
+ *  <li> use the vertex-centric iteration's messaging direction configuration option
+ * </ul>
  * 
  * Incremental Single Sink Shortest Paths Example. Shortest Paths are incrementally updated
  * upon edge removal.
@@ -102,20 +105,18 @@ public class IncrementalSSSP implements ProgramDescription {
 			// Emit results
 			if(fileOutput) {
 				resultedVertices.writeAsCsv(outputPath, "\n", ",");
+				env.execute("Incremental SSSP Example");
 			} else {
 				resultedVertices.print();
 			}
-
-			env.execute("Incremental SSSP Example");
 		} else {
 			// print the vertices
 			if(fileOutput) {
 				graph.getVertices().writeAsCsv(outputPath, "\n", ",");
+				env.execute("Incremental SSSP Example");
 			} else {
 				graph.getVertices().print();
 			}
-
-			env.execute("Incremental SSSP Example");
 		}
 	}
 
@@ -239,30 +240,20 @@ public class IncrementalSSSP implements ProgramDescription {
 		return true;
 	}
 
-	@SuppressWarnings("unchecked")
 	private static Graph<Long, Double, Double> getGraph(ExecutionEnvironment env) {
 		if(fileOutput) {
 			return Graph.fromCsvReader(verticesInputPath, edgesInputPath, env).lineDelimiterEdges("\n")
-					.typesEdges(Long.class, Double.class)
-					.typesVertices(Long.class, Double.class);
+					.types(Long.class, Double.class, Double.class);
 		} else {
-			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
-					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
-					"<output path> <max iterations>");
 			return Graph.fromDataSet(IncrementalSSSPData.getDefaultVertexDataSet(env), IncrementalSSSPData.getDefaultEdgeDataSet(env), env);
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	private static Graph<Long, Double, Double> getSSSPGraph(ExecutionEnvironment env) {
 		if(fileOutput) {
 			return Graph.fromCsvReader(verticesInputPath, edgesInSSSPInputPath, env).lineDelimiterEdges("\n")
-					.typesEdges(Long.class, Double.class)
-					.typesVertices(Long.class, Double.class);
+					.types(Long.class, Double.class, Double.class);
 		} else {
-			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
-					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
-					"<output path> <max iterations>");
 			return Graph.fromDataSet(IncrementalSSSPData.getDefaultVertexDataSet(env), IncrementalSSSPData.getDefaultEdgesInSSSP(env), env);
 		}
 	}
@@ -271,9 +262,6 @@ public class IncrementalSSSP implements ProgramDescription {
 		if (fileOutput) {
 			return new Edge<Long, Double>(srcEdgeToBeRemoved, trgEdgeToBeRemoved, valEdgeToBeRemoved);
 		} else {
-			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
-					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
-					"<output path> <max iterations>");
 			return IncrementalSSSPData.getDefaultEdgeToBeRemoved();
 		}
 	}

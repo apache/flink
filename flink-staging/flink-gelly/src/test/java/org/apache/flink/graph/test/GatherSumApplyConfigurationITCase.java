@@ -401,6 +401,4 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 			}
 		}
 	}
-
-
 }

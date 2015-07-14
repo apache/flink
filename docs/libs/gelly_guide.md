@@ -104,20 +104,24 @@ DataSet<Tuple3<String, String, Double>> edgeTuples = env.readCsvFile("path/to/ed
 Graph<String, Long, Double> graph = Graph.fromTupleDataSet(vertexTuples, edgeTuples, env);
 {% endhighlight %}
 
-* from a CSV file with three fields and an optional CSV file with 2 fields. In this case, Gelly will convert each row from the CSV file containing edges data to an `Edge`, where the first field will be the source ID, the second field will be the target ID and the third field will be the edge value. Equivalently, each row from the optional CSV file containing vertices will be converted to a `Vertex`, where the first field will be the vertex ID and the second field will be the vertex value. A `typesEdges()` method is called on the GraphCsvReader object returned by `fromCsvReader()` to inform the CsvReader of the types of the  fields for Edges. If Edge doesn't have a value only type of Vertex Key is passed. `typesEdges()` method returns a GraphCsvReader on calling calling `typesVertices()` or `typesVerticesNullEdge()` returns the instance of Graph:
+* from a CSV file of Edge data and an optional CSV file of Vertex data. In this case, Gelly will convert each row from the Edge CSV file to an `Edge`, where the first field will be the source ID, the second field will be the target ID and the third field (if present) will be the edge value. Equivalently, each row from the optional Vertex CSV file will be converted to a `Vertex`, where the first field will be the vertex ID and the second field (if present) will be the vertex value. In order to get a `Graph` from a `GraphCsvReader` one has to specify the types, using one of the following methods:
+
+- `types(Class<K> vertexKey, Class<VV> vertexValue,Class<EV> edgeValue)`: both vertex and edge values are present.
+- `edgeTypes(Class<K> vertexKey, Class<EV> edgeValue)`: the Graph has edge values, but no vertex values.
+- `vertexTypes(Class<K> vertexKey, Class<VV> vertexValue)`: the Graph has vertex values, but no edge values.
+- `keyType(Class<K> vertexKey)`: the Graph has no vertex values and no edge values.
+
 
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-Graph<String, Long, NullValue> graph = Graph.fromCsvReader("path/to/vertex/input", "path/to/edge/input", env).typesEdges(String.class).typesVerticesNullEdge(String.class, Long.class);
-{% endhighlight %}
+// create a Graph with String Vertex IDs, Long Vertex values and Double Edge values
+Graph<String, Long, Double> graph = Graph.fromCsvReader("path/to/vertex/input", "path/to/edge/input", env)
+					.types(String.class, Long.class, Double.class);
 
-If Vertices don't have a value, overloaded `typesVerticesNullEdge()` or `typesVertices()` Method should be used.
 
-{% highlight java %}
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-Graph<String, NullValue, Long> graph = Graph.fromCsvReader("path/to/vertex/input", "path/to/edge/input", env).typesEdges(String.class, Long.class).typesVerticesNullEdge(String.class);
+// create a Graph with no Vertex or Edge values
+Graph<Long, NullValue, NullValue> simpleGraph = Graph.fromCsvReader("path/to/edge/input", env).keyType(Long.class);
 {% endhighlight %}
 
 
