@@ -114,12 +114,25 @@ public class DistinctOperatorTest {
 	
 	@Test(expected = IllegalArgumentException.class)
 	public void testDistinctByKeyFields6() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
 		// should not work, negative field position
 		tupleDs.distinct(-1);
+	}
+
+	@Test
+	public void testDistinctByKeyFields7(){
+		final ExecutionEnvironment env  = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
+
+		// should work
+		try {
+			longDs.distinct("*");
+		} catch (Exception e){
+			Assert.fail();
+		}
 	}
 	
 	@Test
@@ -145,7 +158,18 @@ public class DistinctOperatorTest {
 		}
 		
 	}
-	
+
+	@Test
+	public void  testDistinctByKeyIndices1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		try {
+			DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
+			// should work
+			longDs.distinct();
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
 
 	public static class CustomType implements Serializable {
 		

@@ -194,13 +194,13 @@ class DistinctITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(m
   @Test
   def testCorrectnessOfDistinctOnAtomicWithSelectAllChar(): Unit = {
     /*
-     * check correctness of distinct on Integers
+     * check correctness of distinct on Strings, using Keys.ExpressionKeys.SELECT_ALL_CHAR
      */
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getStringDataSet(env)
-    val reduceDs = ds.distinct("_")
-    
+    val reduceDs = ds.union(ds).distinct("_")
+
     reduceDs.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "I am fine.\n" +

@@ -90,6 +90,19 @@ class DistinctOperatorTest {
   }
 
   @Test
+  def testDistinctByKeyIndices7(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val longDs = env.fromCollection(emptyLongData)
+
+    // should work
+    try {
+      longDs.distinct
+    } catch {
+      case e: Exception => Assert.fail()
+    }
+  }
+
+  @Test
   def testDistinctByKeyFields1(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tupleDs = env.fromCollection(emptyTupleData)
@@ -137,6 +150,19 @@ class DistinctOperatorTest {
 
     // should work
     customDs.distinct("myInt")
+  }
+
+  @Test
+  def testDistinctByKeyFields6(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val longDs = env.fromCollection(emptyLongData)
+
+    // should work
+    try {
+      longDs.distinct("_")
+    } catch {
+      case e: Exception => Assert.fail()
+    }
   }
 
   @Test

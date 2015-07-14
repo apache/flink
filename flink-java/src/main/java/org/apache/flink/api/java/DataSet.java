@@ -609,6 +609,8 @@ public abstract class DataSet<T> {
 	 * The field position keys specify the fields of Tuples or Pojos on which the decision is made if two elements are distinct or
 	 * not.
 	 * <p>
+	 * In the case of {@link  org.apache.flink.api.common.typeinfo.AtomicType}, only "*" can be used as parameter.
+	 * <p>
 	 *
 	 * @param fields One or more field positions on which the distinction of the DataSet is decided. 
 	 * @return A DistinctOperator that represents the distinct DataSet.
@@ -618,9 +620,9 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using all fields of the tuple.
+	 * Returns a distinct set of a {@link DataSet} using all fields of the tuple.
 	 * <p>
-	 * Note: This operator can only be applied to Tuple DataSets.
+	 * If the input is a {@link Tuple} {@link DataSet}, uses all fields of the tuple.
 	 * 
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
