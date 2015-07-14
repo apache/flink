@@ -54,14 +54,12 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 
 		this.distinctLocationName = distinctLocationName;
 
-		// if keys is null distinction is done on all tuple fields
+		if (!(input.getType() instanceof CompositeType || input.getType() instanceof AtomicType) || !input.getType().isKeyType()){
+			throw new InvalidProgramException("This type " + input.getType() + " cannot be used as key.");
+		}
+		// if keys is null distinction is done on all fields
 		if (keys == null) {
-			if (input.getType() instanceof CompositeType || (input.getType() instanceof AtomicType && input.getType().isKeyType())) {
-				keys = new Keys.ExpressionKeys<T>(new String[] {Keys.ExpressionKeys.SELECT_ALL_CHAR }, input.getType());
-			}
-			else {
-				throw new InvalidProgramException("Distinction is not possible on " + input.getType() + " data type");
-			}
+			keys = new Keys.ExpressionKeys<T>(new String[] {Keys.ExpressionKeys.SELECT_ALL_CHAR }, input.getType());
 		}
 
 		this.keys = keys;
