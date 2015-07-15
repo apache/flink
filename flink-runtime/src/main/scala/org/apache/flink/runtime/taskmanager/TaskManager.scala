@@ -307,99 +307,99 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
     if (!isConnected) {
       log.debug(s"Dropping message $message because the TaskManager is currently " +
         "not connected to a JobManager.")
-    }
+    } else {
+      // we order the messages by frequency, to make sure the code paths for matching
+      // are as short as possible
+      message match {
 
-    // we order the messages by frequency, to make sure the code paths for matching
-    // are as short as possible
-    message match {
+        // tell the task about the availability of a new input partition
+        case UpdateTaskSinglePartitionInfo(executionID, resultID, partitionInfo) =>
+          updateTaskInputPartitions(executionID, List((resultID, partitionInfo)))
 
-      // tell the task about the availability of a new input partition
-      case UpdateTaskSinglePartitionInfo(executionID, resultID, partitionInfo) =>
-        updateTaskInputPartitions(executionID, List((resultID, partitionInfo)))
+        // tell the task about the availability of some new input partitions
+        case UpdateTaskMultiplePartitionInfos(executionID, partitionInfos) =>
+          updateTaskInputPartitions(executionID, partitionInfos)
 
-      // tell the task about the availability of some new input partitions
-      case UpdateTaskMultiplePartitionInfos(executionID, partitionInfos) =>
-        updateTaskInputPartitions(executionID, partitionInfos)
-
-      // discards intermediate result partitions of a task execution on this TaskManager
-      case FailIntermediateResultPartitions(executionID) =>
-        log.info("Discarding the results produced by task execution " + executionID)
-        if (network.isAssociated) {
-          try {
-            network.getPartitionManager.releasePartitionsProducedBy(executionID)
-          } catch {
-            case t: Throwable => killTaskManagerFatal(
+        // discards intermediate result partitions of a task execution on this TaskManager
+        case FailIntermediateResultPartitions(executionID) =>
+          log.info("Discarding the results produced by task execution " + executionID)
+          if (network.isAssociated) {
+            try {
+              network.getPartitionManager.releasePartitionsProducedBy(executionID)
+            } catch {
+              case t: Throwable => killTaskManagerFatal(
                 "Fatal leak: Unable to release intermediate result partition data", t)
+            }
           }
-        }
 
-      // notifies the TaskManager that the state of a task has changed.
-      // the TaskManager informs the JobManager and cleans up in case the transition
-      // was into a terminal state, or in case the JobManager cannot be informed of the
-      // state transition
+        // notifies the TaskManager that the state of a task has changed.
+        // the TaskManager informs the JobManager and cleans up in case the transition
+        // was into a terminal state, or in case the JobManager cannot be informed of the
+        // state transition
 
-      case updateMsg @ UpdateTaskExecutionState(taskExecutionState: TaskExecutionState) =>
-        
-        // we receive these from our tasks and forward them to the JobManager
-        currentJobManager foreach {
-          jobManager => {
-            val futureResponse = (jobManager ? updateMsg)(askTimeout)
+        case updateMsg@UpdateTaskExecutionState(taskExecutionState: TaskExecutionState) =>
 
-            val executionID = taskExecutionState.getID
+          // we receive these from our tasks and forward them to the JobManager
+          currentJobManager foreach {
+            jobManager => {
+              val futureResponse = (jobManager ? updateMsg)(askTimeout)
 
-            futureResponse.mapTo[Boolean].onComplete {
-              // IMPORTANT: In the future callback, we cannot directly modify state
-              //            but only send messages to the TaskManager to do those changes
-              case Success(result) =>
-                if (!result) {
-                  self ! FailTask(executionID,
-                    new Exception("Task has been cancelled on the JobManager."))
-                }
-                
-              case Failure(t) =>
-                self ! FailTask(executionID, new Exception(
-                  "Failed to send ExecutionStateChange notification to JobManager"))
-            }(context.dispatcher)
+              val executionID = taskExecutionState.getID
+
+              futureResponse.mapTo[Boolean].onComplete {
+                // IMPORTANT: In the future callback, we cannot directly modify state
+                //            but only send messages to the TaskManager to do those changes
+                case Success(result) =>
+                  if (!result) {
+                    self ! FailTask(executionID,
+                      new Exception("Task has been cancelled on the JobManager."))
+                  }
+
+                case Failure(t) =>
+                  self ! FailTask(executionID, new Exception(
+                    "Failed to send ExecutionStateChange notification to JobManager"))
+              }(context.dispatcher)
+            }
           }
-        }
 
-      // removes the task from the TaskManager and frees all its resources
-      case TaskInFinalState(executionID) =>
-        unregisterTaskAndNotifyFinalState(executionID)
+        // removes the task from the TaskManager and frees all its resources
+        case TaskInFinalState(executionID) =>
+          unregisterTaskAndNotifyFinalState(executionID)
 
-      // starts a new task on the TaskManager
-      case SubmitTask(tdd) =>
-        submitTask(tdd)
+        // starts a new task on the TaskManager
+        case SubmitTask(tdd) =>
+          submitTask(tdd)
 
-      // marks a task as failed for an external reason
-      // external reasons are reasons other than the task code itself throwing an exception
-      case FailTask(executionID, cause) =>
-        val task = runningTasks.get(executionID)
-        if (task != null) {
-          task.failExternally(cause)
-        } else {
-          log.debug(s"Cannot find task to fail for execution ${executionID})")
-        }
+        // marks a task as failed for an external reason
+        // external reasons are reasons other than the task code itself throwing an exception
+        case FailTask(executionID, cause) =>
+          val task = runningTasks.get(executionID)
+          if (task != null) {
+            task.failExternally(cause)
+          } else {
+            log.debug(s"Cannot find task to fail for execution ${executionID})")
+          }
 
-      // cancels a task
-      case CancelTask(executionID) =>
-        val task = runningTasks.get(executionID)
-        if (task != null) {
-          task.cancelExecution()
-          sender ! new TaskOperationResult(executionID, true)
-        } else {
-          log.debug(s"Cannot find task to cancel for execution ${executionID})")
-          sender ! new TaskOperationResult(executionID, false,
+        // cancels a task
+        case CancelTask(executionID) =>
+          val task = runningTasks.get(executionID)
+          if (task != null) {
+            task.cancelExecution()
+            sender ! new TaskOperationResult(executionID, true)
+          } else {
+            log.debug(s"Cannot find task to cancel for execution ${executionID})")
+            sender ! new TaskOperationResult(executionID, false,
               "No task with that execution ID was found.")
-        }
+          }
 
-      case PartitionState(taskExecutionId, taskResultId, partitionId, state) =>
-        Option(runningTasks.get(taskExecutionId)) match {
-          case Some(task) =>
-            task.onPartitionStateUpdate(taskResultId, partitionId, state)
-          case None =>
-            log.debug(s"Cannot find task $taskExecutionId to respond with partition state.")
-        }
+        case PartitionState(taskExecutionId, taskResultId, partitionId, state) =>
+          Option(runningTasks.get(taskExecutionId)) match {
+            case Some(task) =>
+              task.onPartitionStateUpdate(taskResultId, partitionId, state)
+            case None =>
+              log.debug(s"Cannot find task $taskExecutionId to respond with partition state.")
+          }
+      }
     }
   }
 
