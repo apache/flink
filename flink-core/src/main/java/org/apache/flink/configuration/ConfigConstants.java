@@ -18,6 +18,13 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.flink.util.StringUtils;
+
+import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+
 /**
  * This class contains all constants for the configuration. That includes the configuration keys and
  * the default values.
@@ -744,4 +751,25 @@ public final class ConfigConstants {
 	 * Not instantiable.
 	 */
 	private ConfigConstants() {}
+
+
+	/**
+	 * Config constants completeness checker utility
+	 */
+	public static void main(String[] args) throws Exception {
+		String configFileContents = FileUtils.readFileToString(new File("docs/setup/config.md"));
+		Field[] fields = ConfigConstants.class.getFields();
+		for(Field field : fields) {
+			if(Modifier.isStatic(field.getModifiers()) && field.getType().equals(String.class) && !field.getName().startsWith("DEFAULT")) {
+
+
+				Object val = field.get(ConfigConstants.class);
+
+				System.out.println("Found static field "+field+" = "+val);
+				if(!configFileContents.contains((String)val)) {
+					System.out.println("++++ "+val+" is not mentioned in the configuration file!!!");
+				}
+			}
+		}
+	}
 }
