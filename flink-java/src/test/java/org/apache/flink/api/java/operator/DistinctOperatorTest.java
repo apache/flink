@@ -138,7 +138,7 @@ public class DistinctOperatorTest {
 	@Test
 	@SuppressWarnings("serial")
 	public void testDistinctByKeySelector1() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		this.customTypeData.add(new CustomType());
 		
@@ -169,6 +169,41 @@ public class DistinctOperatorTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testDistinctOnNotKeyDataType() throws Exception {
+    	/*
+     	* should not work. NotComparable data type cannot be used as key
+     	*/
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		NotComparable a = new NotComparable();
+		List<NotComparable> l = new ArrayList<NotComparable>();
+		l.add(a);
+
+		DataSet<NotComparable> ds = env.fromCollection(l);
+		DataSet<NotComparable> reduceDs = ds.distinct();
+
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testDistinctOnNotKeyDataTypeOnSelectAllChar() throws Exception {
+    	/*
+     	* should not work. NotComparable data type cannot be used as key
+     	*/
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		NotComparable a = new NotComparable();
+		List<NotComparable> l = new ArrayList<NotComparable>();
+		l.add(a);
+
+		DataSet<NotComparable> ds = env.fromCollection(l);
+		DataSet<NotComparable> reduceDs = ds.distinct("*");
+	}
+
+	class NotComparable {
+		public List<Integer> myInts;
 	}
 
 	public static class CustomType implements Serializable {

@@ -318,40 +318,4 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 
 		compareResultAsText(result, expected);
 	}
-
-	@Test(expected = InvalidProgramException.class)
-	public void testDistinctOnNotKeyDataType() throws Exception {
-    	/*
-     	* should not work. NotComparable data type cannot be used as key
-     	*/
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		NotComparable a = new NotComparable();
-		List<NotComparable> l = new ArrayList<NotComparable>();
-		l.add(a);
-
-		DataSet<NotComparable> ds = env.fromCollection(l);
-		DataSet<NotComparable> reduceDs = ds.distinct();
-
-	}
-
-	@Test(expected = InvalidProgramException.class)
-	public void testDistinctOnNotKeyDataTypeOnSelectAllChar() throws Exception {
-    	/*
-     	* should not work. NotComparable data type cannot be used as key
-     	*/
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		NotComparable a = new NotComparable();
-		List<NotComparable> l = new ArrayList<NotComparable>();
-		l.add(a);
-
-		DataSet<NotComparable> ds = env.fromCollection(l);
-		DataSet<NotComparable> reduceDs = ds.distinct("*");
-
-	}
-
-	class NotComparable {
-		public List<Integer> myInts;
-	}
 }

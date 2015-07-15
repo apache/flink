@@ -620,9 +620,9 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Returns a distinct set of a {@link DataSet} using all fields of the tuple.
+	 * Returns a distinct set of a {@link DataSet}.
 	 * <p>
-	 * If the input is a {@link Tuple} {@link DataSet}, uses all fields of the tuple.
+	 * If the input is a composite type (Tuple or Pojo type), distinct is performed on all fields and each field must be a key type
 	 * 
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
