@@ -20,7 +20,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This page explains what happens when you execute a Flink program (streaming or streaming).
+This page explains what happens when you execute a Flink program (streaming or batch).
 It covers the complete life cycle, from <emph>client-side pre-flight</emph>, to <emph>JobManager</emph>,
 and <emph>TaskManager</emph>.
 
@@ -49,15 +49,15 @@ execution attempts
 
 The *{% gh_link flink-runtime/src/main/scala/org/apache/flink/runtime/taskmanager/TaskManager.scala "TaskManager" %}*
 is the worker process in Flink. It runs the *{% gh_link flink-runtime/src/main/java/org/apache/flink/runtime/taskmanager/Task.java "Tasks" %}*,
-which execute a parallel operator instance.
+which execute parallel operator instances.
 
 The TaskManager itself is an Akka actor and has many utility components, such as:
 
- - The *{% gh_link flink-runtime/src/main/java/org/apache/flink/runtime/io/network/NetworkEnvironment.java "NetworkEnvironment" %}*, which takes care of all data exchanges (streamed and batched) between TaskManagers. Cached data sets in Flink are also cached streams, to the network environment is responsible for that as well.
+ - The *{% gh_link flink-runtime/src/main/java/org/apache/flink/runtime/io/network/NetworkEnvironment.java "NetworkEnvironment" %}*, which takes care of all data exchanges (streamed and batched) between TaskManagers. The NetworkEnvironment is also responsible for caching DataSets, since cased DataSets in Flink are simply persistent streams.
 
  - The *{% gh_link flink-runtime/src/main/java/org/apache/flink/runtime/memorymanager/MemoryManager.java "MemoryManager" %}*, which governs the memory for sorting, hashing, and in-operator data caching.
 
- - The *{% gh_link flink-runtime/src/main/java/org/apache/flink/runtime/io/disk/iomanager/IOManager.java "I/O Manager" %}*, which governs the memory for sorting, hashing, and in-operator data caching.
+ - The *{% gh_link flink-runtime/src/main/java/org/apache/flink/runtime/io/disk/iomanager/IOManager.java "I/O Manager" %}*, which provides asynchronous disk I/O.
 
  - The *{% gh_link flink-runtime/src/main/java/org/apache/flink/runtime/execution/librarycache/LibraryCacheManager.java "Library Cache" %}*, which gives access to JAR files needed by tasks.
 
@@ -93,7 +93,7 @@ The Task executes in the following stages:
 
  6. The Task invokes the executable code that was configured. This code is usually generic and only differentiates between coarse classes of operations (e.g., {% gh_link flink-runtime/src/main/java/org/apache/flink/runtime/operators/RegularPactTask.java "Plain Batch Task" %} , {% gh_link flink-staging/flink-streaming/flink-streaming-core/src/main/java/org/apache/flink/streaming/runtime/tasks/StreamTask.java "Streaming Operator" %}, or {% gh_link flink-runtime/src/main/java/org/apache/flink/runtime/iterative/task/IterationIntermediatePactTask.java "Iterative Batch Task" %}). Internally, these generic operators instantiate the specific operator code (e.g., map task, join task, window reducer, ...) and the user functions and executes them.
 
- 7. If the Task was deployed before all iof its inputs were available (early deployment), the Task receives updates on those newly available streams.
+ 7. If the Task was deployed before all of its inputs were available (early deployment), the Task receives updates on those newly available streams.
 
  8. The Task execution updates *accumulators*. These accumulators track system statistics (number of processed records) or user-defined statistics (created in a user-defined function). Periodically, these are reported to the JobManager in a heartbeat fashion, via actor messages.
 
