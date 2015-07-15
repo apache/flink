@@ -38,6 +38,7 @@ Prerequisites for building Flink:
 * Java 6, 7 or 8 (Note that Oracle's JDK 6 library will fail to build Flink, but is able to run a pre-compiled package without problem)
 
 ```
+git config --global http.proxy http://user:pwd@proxyserver.com:port # set network proxy if have
 git clone https://github.com/apache/flink.git
 cd flink
 mvn clean package -DskipTests # this will take up to 5 minutes
