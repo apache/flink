@@ -184,8 +184,8 @@ public class CollectionExecutor {
 		// build the runtime context and compute broadcast variables, if necessary
 		RuntimeUDFContext ctx;
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, getClass().getClassLoader(), executionConfig) :
-					new IterationRuntimeUDFContext(operator.getName(), 1, 0, classLoader, executionConfig);
+			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, getClass().getClassLoader(), executionConfig, accumulators) :
+					new IterationRuntimeUDFContext(operator.getName(), 1, 0, classLoader, executionConfig, accumulators);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -197,9 +197,6 @@ public class CollectionExecutor {
 		
 		List<OUT> result = typedOp.executeOnCollections(inputData, ctx, executionConfig);
 		
-		if (ctx != null) {
-			AccumulatorHelper.mergeInto(this.accumulators, ctx.getAllAccumulators());
-		}
 		return result;
 	}
 	
@@ -226,8 +223,8 @@ public class CollectionExecutor {
 		// build the runtime context and compute broadcast variables, if necessary
 		RuntimeUDFContext ctx;
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, classLoader, executionConfig) :
-				new IterationRuntimeUDFContext(operator.getName(), 1, 0, classLoader, executionConfig);
+			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, classLoader, executionConfig, accumulators) :
+				new IterationRuntimeUDFContext(operator.getName(), 1, 0, classLoader, executionConfig, accumulators);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -239,9 +236,6 @@ public class CollectionExecutor {
 		
 		List<OUT> result = typedOp.executeOnCollections(inputData1, inputData2, ctx, executionConfig);
 		
-		if (ctx != null) {
-			AccumulatorHelper.mergeInto(this.accumulators, ctx.getAllAccumulators());
-		}
 		return result;
 	}
 	
@@ -485,8 +479,9 @@ public class CollectionExecutor {
 	
 	private class IterationRuntimeUDFContext extends RuntimeUDFContext implements IterationRuntimeContext {
 
-		public IterationRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader classloader, ExecutionConfig executionConfig) {
-			super(name, numParallelSubtasks, subtaskIndex, classloader, executionConfig);
+		public IterationRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader classloader,
+										ExecutionConfig executionConfig, Map<String, Accumulator<?,?>> accumulators) {
+			super(name, numParallelSubtasks, subtaskIndex, classloader, executionConfig, accumulators);
 		}
 
 		@Override

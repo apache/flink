@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.state.OperatorState;
@@ -55,9 +56,9 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	@SuppressWarnings("unchecked")
 	public StreamingRuntimeContext(String name, Environment env, ClassLoader userCodeClassLoader,
 			ExecutionConfig executionConfig, KeySelector<?, ?> statePartitioner,
-			StateHandleProvider<?> provider) {
+			StateHandleProvider<?> provider, Map<String, Accumulator<?, ?>> accumulatorMap) {
 		super(name, env.getNumberOfSubtasks(), env.getIndexInSubtaskGroup(), userCodeClassLoader,
-				executionConfig, env.getDistributedCacheEntries());
+				executionConfig, env.getDistributedCacheEntries(), accumulatorMap);
 		this.env = env;
 		this.statePartitioner = statePartitioner;
 		this.states = new HashMap<String, StreamOperatorState>();

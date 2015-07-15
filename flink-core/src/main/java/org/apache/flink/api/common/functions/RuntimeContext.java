@@ -20,8 +20,8 @@ package org.apache.flink.api.common.functions;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -100,10 +100,12 @@ public interface RuntimeContext {
 	<V, A extends Serializable> Accumulator<V, A> getAccumulator(String name);
 
 	/**
-	 * For system internal usage only. Use getAccumulator(...) to obtain a
-	 * accumulator. Use this as read-only.
+	 * Returns a map of all registered accumulators for this task.
+	 * The returned map must not be modified.
+	 * @deprecated Use getAccumulator(..) to obtain the value of an accumulator.
 	 */
-	HashMap<String, Accumulator<?, ?>> getAllAccumulators();
+	@Deprecated
+	Map<String, Accumulator<?, ?>> getAllAccumulators();
 
 	/**
 	 * Convenience function to create a counter object for integers.

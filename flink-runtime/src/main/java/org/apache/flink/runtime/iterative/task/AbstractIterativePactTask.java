@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -52,6 +53,8 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.Map;
 
 /**
  * The abstract base class for all tasks able to participate in an iteration.
@@ -166,7 +169,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new IterativeRuntimeUdfContext(taskName, env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig());
+				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(), this.accumulatorMap);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -356,8 +359,10 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 
 	private class IterativeRuntimeUdfContext extends DistributedRuntimeUDFContext implements IterationRuntimeContext {
 
-		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig) {
-			super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig);
+		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
+										ExecutionConfig executionConfig,
+										Map<String, Accumulator<?,?>> accumulatorMap) {
+			super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, accumulatorMap);
 		}
 
 		@Override
@@ -374,6 +379,14 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		@SuppressWarnings("unchecked")
 		public <T extends Value> T getPreviousIterationAggregate(String name) {
 			return (T) getIterationAggregators().getPreviousGlobalAggregate(name);
+		}
+
+		@Override
+		public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> newAccumulator) {
+			// only add accumulator on first iteration
+			if (inFirstIteration()) {
+				super.addAccumulator(name, newAccumulator);
+			}
 		}
 	}
 

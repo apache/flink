@@ -127,8 +127,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 			// Add built-in accumulator without convenience function
 			getRuntimeContext().addAccumulator("open-close-counter", this.openCloseCounter);
 
-			// Add custom counter. Didn't find a way to do this with
-			// getAccumulator()
+			// Add custom counter
 			this.distinctWords = new SetAccumulator<StringValue>();
 			this.getRuntimeContext().addAccumulator("distinct-words", distinctWords);
 

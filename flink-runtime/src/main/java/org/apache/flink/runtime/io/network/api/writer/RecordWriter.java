@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.task.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
@@ -48,6 +49,12 @@ public class RecordWriter<T extends IOReadableWritable> {
 	private final ChannelSelector<T> channelSelector;
 
 	private final int numChannels;
+
+	/**
+	 * Counter for the number of records emitted and for the number of bytes written.
+	 * @param counter
+	 */
+	private AccumulatorRegistry.Reporter reporter;
 
 	/** {@link RecordSerializer} per outgoing channel */
 	private final RecordSerializer<T>[] serializers;
@@ -81,6 +88,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 			synchronized (serializer) {
 				SerializationResult result = serializer.addRecord(record);
+
 				while (result.isFullBuffer()) {
 					Buffer buffer = serializer.getCurrentBuffer();
 
@@ -90,7 +98,17 @@ public class RecordWriter<T extends IOReadableWritable> {
 					}
 
 					buffer = writer.getBufferProvider().requestBufferBlocking();
+					if (reporter != null) {
+						// increase the number of written bytes by the memory segment's size
+						reporter.reportNumBytesOut(buffer.getSize());
+					}
+
 					result = serializer.setNextBuffer(buffer);
+				}
+
+				if(reporter != null) {
+					// count number of emitted records
+					reporter.reportNumRecordsOut(1);
 				}
 			}
 		}
@@ -173,4 +191,14 @@ public class RecordWriter<T extends IOReadableWritable> {
 			}
 		}
 	}
+
+	/**
+	 * Counter for the number of records emitted and the records processed.
+	 */
+	public void setReporter(AccumulatorRegistry.Reporter reporter) {
+		for(RecordSerializer<?> serializer : serializers) {
+			serializer.setReporter(reporter);
+		}
+	}
+
 }

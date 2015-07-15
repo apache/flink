@@ -147,6 +147,16 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
         case None => sender ! WorkingTaskManager(None)
       }
 
+    case RequestAccumulatorValues(jobID) =>
+
+      val (flinkAccumulators, userAccumulators) = currentJobs.get(jobID) match {
+        case Some((graph, jobInfo)) =>
+          (graph.getFlinkAccumulators, graph.aggregateUserAccumulators)
+        case None => null
+      }
+
+      sender ! RequestAccumulatorValuesResponse(jobID, flinkAccumulators, userAccumulators)
+
     case NotifyWhenJobStatus(jobID, state) =>
       val jobStatusListener = waitForJobStatus.getOrElseUpdate(jobID,
         scala.collection.mutable.HashMap[JobStatus, Set[ActorRef]]())

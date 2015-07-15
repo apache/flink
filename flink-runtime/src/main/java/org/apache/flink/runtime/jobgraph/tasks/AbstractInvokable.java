@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This is the abstract base class for every task that can be executed ba a TaskManager.
+ * This is the abstract base class for every task that can be executed by a TaskManager.
  * Concrete tasks like the stream vertices of the batch tasks
  * (see {@link org.apache.flink.runtime.operators.RegularPactTask}) inherit from this class.
  *
