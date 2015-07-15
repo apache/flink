@@ -75,7 +75,7 @@ public class GroupedProcessingTimeWindowExample {
 				});
 		
 		stream
-//				.groupBy(new FirstFieldKeyExtractor<Tuple2<Long, Long>, Long>())
+				.groupBy(new FirstFieldKeyExtractor<Tuple2<Long, Long>, Long>())
 //				.window(Time.of(2500, TimeUnit.MILLISECONDS)).every(Time.of(500, TimeUnit.MILLISECONDS))
 //				.reduceWindow(new SummingReducer())
 //				.flatten()

@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction<T>> implements StreamOperator<T> {
 
 	private static final long serialVersionUID = 1L;
+	private transient SourceFunction.SourceContext<T> ctx;
 
 	public StreamSource(SourceFunction<T> sourceFunction) {
 		super(sourceFunction);
@@ -41,9 +42,7 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
-	public void run(Object lockingObject, Output<StreamRecord<T>> collector) throws Exception {
-
-		SourceFunction.SourceContext<T> ctx;
+	public void run(final Object lockingObject, final Output<StreamRecord<T>> collector) throws Exception {
 
 		if (userFunction instanceof EventTimeSourceFunction) {
 			ctx = new ManualWatermarkContext<T>(lockingObject, collector);
@@ -64,6 +63,7 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 
 	public void cancel() {
 		userFunction.cancel();
+		ctx.close();
 	}
 
 	/**
@@ -190,9 +190,9 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 					// don't have watermarks that creep along at different intervals because
 					// the machine clocks are out of sync
 					long watermarkTime = currentTime - (currentTime % watermarkInterval);
-					if (watermarkTime - lastWatermarkTime >= watermarkInterval) {
+					if (currentTime > watermarkTime && watermarkTime - lastWatermarkTime >= watermarkInterval) {
 						synchronized (lockingObject) {
-							if (watermarkTime - lastWatermarkTime >= watermarkInterval) {
+							if (currentTime > watermarkTime && watermarkTime - lastWatermarkTime >= watermarkInterval) {
 								output.emitWatermark(new Watermark(watermarkTime));
 								lastWatermarkTime = watermarkTime;
 							}
@@ -210,7 +210,7 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 				output.collect(reuse.replace(element, currentTime));
 
 				long watermarkTime = currentTime - (currentTime % watermarkInterval);
-				if (watermarkTime - lastWatermarkTime >= watermarkInterval) {
+				if (currentTime > watermarkTime && watermarkTime - lastWatermarkTime >= watermarkInterval) {
 					output.emitWatermark(new Watermark(watermarkTime));
 					lastWatermarkTime = watermarkTime;
 				}

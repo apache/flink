@@ -47,8 +47,14 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 /**
  * Input reader for {@link org.apache.flink.streaming.runtime.tasks.OneInputStreamTask}.
  *
- * <p>This also keeps track of {@link Watermark} events and forwards them to event subscribers
- * once the {@link Watermark} from all inputs advances.</p>
+ * <p>
+ * This also keeps track of {@link Watermark} events and forwards them to event subscribers
+ * once the {@link Watermark} from all inputs advances.
+ *
+ * <p>
+ * Forwarding elements or watermarks must be protected by synchronizing on the given lock
+ * object. This ensures that we don't call methods on a {@link OneInputStreamOperator} concurrently
+ * with the timer callback or other things.
  * 
  * @param <IN> The type of the record that can be read with this record reader.
  */
@@ -118,9 +124,9 @@ public class StreamInputProcessor<IN> {
 		}
 		lastEmittedWatermark = Long.MIN_VALUE;
 	}
-	
-	
-	public boolean processInput(OneInputStreamOperator<IN, ?> streamOperator) throws Exception {
+
+	@SuppressWarnings("unchecked")
+	public boolean processInput(OneInputStreamOperator<IN, ?> streamOperator, Object lock) throws Exception {
 		if (isFinished) {
 			return false;
 		}
@@ -147,19 +153,22 @@ public class StreamInputProcessor<IN> {
 							}
 							if (newMinWatermark > lastEmittedWatermark) {
 								lastEmittedWatermark = newMinWatermark;
-								streamOperator.processWatermark(new Watermark(lastEmittedWatermark));
+								synchronized (lock) {
+									streamOperator.processWatermark(new Watermark(lastEmittedWatermark));
+								}
 							}
 						}
 						continue;
-					}
-					else {
+					} else {
 						// now we can do the actual processing
 						StreamRecord<IN> record = recordOrWatermark.asRecord();
 						StreamingRuntimeContext ctx = streamOperator.getRuntimeContext();
-						if (ctx != null) {
-							ctx.setNextInput(record);
+						synchronized (lock) {
+							if (ctx != null) {
+								ctx.setNextInput(record);
+							}
+							streamOperator.processElement(record);
 						}
-						streamOperator.processElement(record);
 						return true;
 					}
 				}

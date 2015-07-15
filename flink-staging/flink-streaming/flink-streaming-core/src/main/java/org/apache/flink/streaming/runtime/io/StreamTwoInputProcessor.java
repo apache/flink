@@ -52,6 +52,11 @@ import java.util.Collection;
  * This also keeps track of {@link org.apache.flink.streaming.api.watermark.Watermark} events and forwards them to event subscribers
  * once the {@link org.apache.flink.streaming.api.watermark.Watermark} from all inputs advances.
  *
+ * <p>
+ * Forwarding elements or watermarks must be protected by synchronizing on the given lock
+ * object. This ensures that we don't call methods on a {@link TwoInputStreamOperator} concurrently
+ * with the timer callback or other things.
+ *
  * @param <IN1> The type of the records that arrive on the first input
  * @param <IN2> The type of the records that arrive on the second input
  */
@@ -151,8 +156,9 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		Arrays.fill(watermarks2, Long.MIN_VALUE);
 		lastEmittedWatermark2 = Long.MIN_VALUE;
 	}
-	
-	public boolean processInput(TwoInputStreamOperator<IN1, IN2, ?> streamOperator) throws Exception {
+
+	@SuppressWarnings("unchecked")
+	public boolean processInput(TwoInputStreamOperator<IN1, IN2, ?> streamOperator, Object lock) throws Exception {
 		if (isFinished) {
 			return false;
 		}
@@ -175,11 +181,13 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 					if (currentChannel < numInputChannels1) {
 						StreamElement recordOrWatermark = deserializationDelegate1.getInstance();
 						if (recordOrWatermark.isWatermark()) {
-							handleWatermark(streamOperator, (Watermark) recordOrWatermark, currentChannel);
+							handleWatermark(streamOperator, (Watermark) recordOrWatermark, currentChannel, lock);
 							continue;
 						}
 						else {
-							streamOperator.processElement1(recordOrWatermark.<IN1>asRecord());
+							synchronized (lock) {
+								streamOperator.processElement1(recordOrWatermark.<IN1>asRecord());
+							}
 							return true;
 
 						}
@@ -187,11 +195,13 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 					else {
 						StreamElement recordOrWatermark = deserializationDelegate2.getInstance();
 						if (recordOrWatermark.isWatermark()) {
-							handleWatermark(streamOperator, recordOrWatermark.asWatermark(), currentChannel);
+							handleWatermark(streamOperator, recordOrWatermark.asWatermark(), currentChannel, lock);
 							continue;
 						}
 						else {
-							streamOperator.processElement2(recordOrWatermark.<IN2>asRecord());
+							synchronized (lock) {
+								streamOperator.processElement2(recordOrWatermark.<IN2>asRecord());
+							}
 							return true;
 						}
 					}
@@ -224,7 +234,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		}
 	}
 
-	private void handleWatermark(TwoInputStreamOperator<IN1, IN2, ?> operator, Watermark mark, int channelIndex) throws Exception {
+	private void handleWatermark(TwoInputStreamOperator<IN1, IN2, ?> operator, Watermark mark, int channelIndex, Object lock) throws Exception {
 		if (channelIndex < numInputChannels1) {
 			long watermarkMillis = mark.getTimestamp();
 			if (watermarkMillis > watermarks1[channelIndex]) {
@@ -235,7 +245,9 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 				}
 				if (newMinWatermark > lastEmittedWatermark1) {
 					lastEmittedWatermark1 = newMinWatermark;
-					operator.processWatermark1(new Watermark(lastEmittedWatermark1));
+					synchronized (lock) {
+						operator.processWatermark1(new Watermark(lastEmittedWatermark1));
+					}
 				}
 			}
 		} else {
@@ -249,7 +261,9 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 				}
 				if (newMinWatermark > lastEmittedWatermark2) {
 					lastEmittedWatermark2 = newMinWatermark;
-					operator.processWatermark2(new Watermark(lastEmittedWatermark2));
+					synchronized (lock) {
+						operator.processWatermark2(new Watermark(lastEmittedWatermark2));
+					}
 				}
 			}
 		}

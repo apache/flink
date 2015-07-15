@@ -47,7 +47,8 @@ public class SourceFunctionUtil<T> {
 					new ExecutionConfig(), 
 					null, 
 					new LocalStateHandle.LocalStateHandleProvider<Serializable>(),
-					new HashMap<String, Accumulator<?, ?>>());
+					new HashMap<String, Accumulator<?, ?>>(),
+					null);
 			
 			((RichFunction) sourceFunction).setRuntimeContext(runtimeContext);
 

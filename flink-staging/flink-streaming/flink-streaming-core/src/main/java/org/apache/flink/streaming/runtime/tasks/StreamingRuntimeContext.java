@@ -39,6 +39,7 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.state.PartitionedStreamOperatorState;
 import org.apache.flink.streaming.api.state.StreamOperatorState;
+import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
@@ -52,16 +53,21 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	private final List<PartitionedStreamOperatorState<?, ?, ?>> partitionedStates;
 	private final KeySelector<?, ?> statePartitioner;
 	private final StateHandleProvider<Serializable> provider;
-	
-	
+
+	/**
+	 * We need access to the {@link StreamTask} to register timer callbacks.
+	 */
+	private final StreamTask<?, ?> streamTask;
+
 	@SuppressWarnings("unchecked")
 	public StreamingRuntimeContext(
 			Environment env,
 			ExecutionConfig executionConfig,
 			KeySelector<?, ?> statePartitioner,
 			StateHandleProvider<?> provider,
-			Map<String, Accumulator<?, ?>> accumulatorMap) {
-		
+			Map<String, Accumulator<?, ?>> accumulatorMap,
+			StreamTask<?, ?> streamTask) {
+
 		super(env.getTaskName(), env.getNumberOfSubtasks(), env.getIndexInSubtaskGroup(),
 				env.getUserClassLoader(), executionConfig,
 				env.getDistributedCacheEntries(), accumulatorMap);
@@ -71,6 +77,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 		this.states = new HashMap<>();
 		this.partitionedStates = new LinkedList<>();
 		this.provider = (StateHandleProvider<Serializable>) provider;
+		this.streamTask = streamTask;
 	}
 
 	/**
@@ -164,6 +171,18 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	 */
 	public Map<String, StreamOperatorState<?, ?>> getOperatorStates() {
 		return states;
+	}
+
+	/**
+	 * Register a timer callback. At the specified time the
+	 * {@code Triggerable } will be invoked. This call is guaranteed to not happen
+	 * concurrently with method calls on the operator.
+	 *
+	 * @param time The absolute time in milliseconds.
+	 * @param target The target to be triggered.
+	 */
+	public void registerTimer(long time, Triggerable target) {
+		streamTask.registerTimer(time, target);
 	}
 
 	/**

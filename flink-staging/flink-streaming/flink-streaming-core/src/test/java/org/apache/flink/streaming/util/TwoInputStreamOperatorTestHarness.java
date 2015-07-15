@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -63,8 +64,9 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 				new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
 				new ExecutionConfig(),
 				null,
-				new LocalStateHandle.LocalStateHandleProvider<Serializable>(),
-				new HashMap<String, Accumulator<?, ?>>());
+				new LocalStateHandle.LocalStateHandleProvider<>(),
+				new HashMap<String, Accumulator<?, ?>>(),
+				new TwoInputStreamTask());
 
 		operator.setup(new MockOutput(), runtimeContext);
 	}
@@ -134,7 +136,7 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 			if (outputSerializer == null) {
 				outputSerializer = TypeExtractor.getForObject(element.getValue()).createSerializer(executionConfig);
 			}
-			outputList.add(new StreamRecord<OUT>(outputSerializer.copy(element.getValue()),
+			outputList.add(new StreamRecord<>(outputSerializer.copy(element.getValue()),
 					element.getTimestamp()));
 		}
 
