@@ -732,7 +732,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Returns a distinct set of a {@link DataSet}.
    * <p>
-   * If the input is a composite type (Tuple or Pojo type), distinct is performed on all fields and each field must be a key type.
+   * If the input is a composite type (Tuple or Pojo type), distinct is performed on all fields
+   * and each field must be a key type.
    */
   def distinct: DataSet[T] = {
     wrap(new DistinctOperator[T](javaSet, null, getCallLocationName()))
@@ -741,8 +742,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Returns a distinct set of a {@link Tuple} {@link DataSet} using field position keys.
    * <p>
-   * The field position keys specify the fields of Tuples on which the decision is made if two Tuples are distinct or
-   * not.
+   * The field position keys specify the fields of Tuples on which the decision is made if
+   * two Tuples are distinct or not.
    * <p>
    * Note: Field position keys can only be specified for Tuple DataSets.
    *
@@ -758,8 +759,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Returns a distinct set of a {@link Tuple} {@link DataSet} using expression keys.
    * <p>
-   * The field position keys specify the fields of Tuples or Pojos on which the decision is made if two elements are distinct or
-   * not.
+   * The field position keys specify the fields of Tuples or Pojos on which the decision is made
+   * if two elements are distinct or not.
    * <p>
    * In the case of {@link  AtomicType}, only "_" can be used as parameter.
    * <p>
