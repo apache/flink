@@ -24,12 +24,10 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.MathUtils;
-import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.operators.TriggerTimer;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -41,9 +39,6 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT> 
 	
 	private static final long MIN_SLIDE_TIME = 50;
 	
-	
-	private final SerializableObject lock = new SerializableObject();
-
 	// ----- fields for operator parametrization -----
 	
 	private final Function function;
@@ -60,13 +55,8 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT> 
 	
 	private transient TimestampedCollector<OUT> out;
 	
-	private transient TriggerTimer triggerTimer;
-	
 	private transient long nextEvaluationTime;
 	private transient long nextSlideTime;
-	
-	private transient volatile Throwable asyncError;
-	
 	
 	protected AbstractAlignedProcessingTimeWindowOperator(
 			Function function,
@@ -123,47 +113,31 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT> 
 		nextEvaluationTime = now + windowSlide - (now % windowSlide);
 		nextSlideTime = now + paneSize - (now % paneSize);
 		
-		// start the trigger timer
-		triggerTimer = new TriggerTimer("Trigger for " + getRuntimeContext().getTaskName());
-		
-		// schedule the first trigger
-		triggerTimer.scheduleTriggerAt(this, Math.min(nextEvaluationTime, nextSlideTime));
+		getRuntimeContext().registerTimer(Math.min(nextEvaluationTime, nextSlideTime), this);
 	}
 
 	@Override
 	public void close() throws Exception {
-		// acquire the lock during shutdown, to prevent trigger calls at the same time
-		synchronized (lock) {
-			final long finalWindowTimestamp = nextEvaluationTime;
-			
-			// early stop the triggering thread, so it does not attempt to return any more data
-			stopTriggers();
+		final long finalWindowTimestamp = nextEvaluationTime;
 
-			// make sure we had no asynchronous error so far
-			checkErroneous();
-			
-			// emit the remaining data
-			computeWindow(finalWindowTimestamp);
-		}
+		// early stop the triggering thread, so it does not attempt to return any more data
+		stopTriggers();
+
+		// emit the remaining data
+		computeWindow(finalWindowTimestamp);
 	}
 
 	@Override
 	public void dispose() {
 		// acquire the lock during shutdown, to prevent trigger calls at the same time
-		synchronized (lock) {
-			// fail-safe stop of the triggering thread (in case of an error)
-			stopTriggers();
-			
-			// release the panes
-			panes.dispose();
-		}
+		// fail-safe stop of the triggering thread (in case of an error)
+		stopTriggers();
+
+		// release the panes
+		panes.dispose();
 	}
 	
 	private void stopTriggers() {
-		if (triggerTimer != null) {
-			triggerTimer.shutdown();
-		}
-
 		// reset the action timestamps. this makes sure any pending triggers will not evaluate
 		nextEvaluationTime = -1L;
 		nextSlideTime = -1L;
@@ -175,10 +149,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT> 
 	
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		synchronized (lock) {
-			checkErroneous();
-			panes.addElementToLatestPane(element.getValue());
-		}
+		panes.addElementToLatestPane(element.getValue());
 	}
 
 	@Override
@@ -187,42 +158,24 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT> 
 	}
 
 	@Override
-	public void trigger(long timestamp) {
-		synchronized (lock) {
-			// first we check if we actually trigger the window function
-			if (timestamp == nextEvaluationTime) {
-				// compute and output the results
-				try {
-					computeWindow(timestamp);
-				}
-				catch (Throwable t) {
-					this.asyncError = t;
-				}
+	public void trigger(long timestamp) throws Exception {
+		// first we check if we actually trigger the window function
+		if (timestamp == nextEvaluationTime) {
+			// compute and output the results
+			computeWindow(timestamp);
 
-				nextEvaluationTime += windowSlide;
-			}
-			
-			// check if we slide the panes by one. this may happen in addition to the
-			// window computation, or just by itself
-			if (timestamp == nextSlideTime) {
-				try {
-					panes.slidePanes(numPanesPerWindow);
-				}
-				catch (Throwable t) {
-					this.asyncError = t;
-				}
-				nextSlideTime += paneSize;
-			}
-			
-			long nextTriggerTime = Math.min(nextEvaluationTime, nextSlideTime);
-			triggerTimer.scheduleTriggerAt(this, nextTriggerTime);
+			nextEvaluationTime += windowSlide;
 		}
-	}
-	
-	private void checkErroneous() throws Exception {
-		if (asyncError != null) {
-			throw new Exception("Error while computing and producing window result", asyncError);
+
+		// check if we slide the panes by one. this may happen in addition to the
+		// window computation, or just by itself
+		if (timestamp == nextSlideTime) {
+			panes.slidePanes(numPanesPerWindow);
+			nextSlideTime += paneSize;
 		}
+
+		long nextTriggerTime = Math.min(nextEvaluationTime, nextSlideTime);
+		getRuntimeContext().registerTimer(nextTriggerTime, this);
 	}
 	
 	private void computeWindow(long timestamp) throws Exception {

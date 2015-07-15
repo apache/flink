@@ -30,7 +30,6 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	
 	private volatile boolean running = true;
 
-	
 	@Override
 	public void init() throws Exception {
 		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
@@ -53,7 +52,11 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 	@Override
 	protected void run() throws Exception {
-		while (running && inputProcessor.processInput(streamOperator));
+		while (running && inputProcessor.processInput(streamOperator, lock)) {
+			if (timerException != null) {
+				throw timerException;
+			}
+		}
 	}
 
 	@Override

@@ -22,22 +22,33 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.runtime.operators.TriggerTimer;
+import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -70,7 +81,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 	public void checkNoTriggerThreadsRunning() {
 		// make sure that all the threads we trigger are shut down
 		long deadline = System.currentTimeMillis() + 5000;
-		while (TriggerTimer.TRIGGER_THREADS_GROUP.activeCount() > 0 && System.currentTimeMillis() < deadline) {
+		while (StreamTask.TRIGGER_THREAD_GROUP.activeCount() > 0 && System.currentTimeMillis() < deadline) {
 			try {
 				Thread.sleep(10);
 			}
@@ -78,7 +89,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		}
 
 		assertTrue("Not all trigger threads where properly shut down",
-				TriggerTimer.TRIGGER_THREADS_GROUP.activeCount() == 0);
+				StreamTask.TRIGGER_THREAD_GROUP.activeCount() == 0);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -222,13 +233,38 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 	}
 
 	@Test
-	public void testTumblingWindowDuplicateElements() {
+	public void  testTumblingWindowDuplicateElements() {
+
+		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
+
 		try {
 			final int windowSize = 50;
 			final CollectingOutput<Integer> out = new CollectingOutput<>(windowSize);
 
 			final StreamingRuntimeContext mockContext = mock(StreamingRuntimeContext.class);
 			when(mockContext.getTaskName()).thenReturn("Test task name");
+
+			final Object lock = new Object();
+			doAnswer(new Answer() {
+				@Override
+				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+					final Long timestamp = (Long) invocationOnMock.getArguments()[0];
+					final Triggerable target = (Triggerable) invocationOnMock.getArguments()[1];
+					timerService.schedule(
+							new Callable<Object>() {
+								@Override
+								public Object call() throws Exception {
+									synchronized (lock) {
+										target.trigger(timestamp);
+									}
+									return null;
+								}
+							},
+							timestamp - System.currentTimeMillis(),
+							TimeUnit.MILLISECONDS);
+					return null;
+				}
+			}).when(mockContext).registerTimer(anyLong(), any(Triggerable.class));
 			
 			AggregatingProcessingTimeWindowOperator<Integer, Integer> op =
 					new AggregatingProcessingTimeWindowOperator<>(
@@ -245,8 +281,10 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			while (window <= numWindows) {
 				long nextTime = op.getNextEvaluationTime();
 				int val = ((int) nextTime) ^ ((int) (nextTime >>> 32));
-				
-				op.processElement(new StreamRecord<Integer>(val));
+
+				synchronized (lock) {
+					op.processElement(new StreamRecord<Integer>(val));
+				}
 				
 				if (nextTime != previousNextTime) {
 					window++;
@@ -272,6 +310,8 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			timerService.shutdown();
 		}
 	}
 
@@ -332,11 +372,35 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 	@Test
 	public void testSlidingWindowSingleElements() {
+		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
+
 		try {
 			final CollectingOutput<Integer> out = new CollectingOutput<>(50);
 
 			final StreamingRuntimeContext mockContext = mock(StreamingRuntimeContext.class);
 			when(mockContext.getTaskName()).thenReturn("Test task name");
+
+			final Object lock = new Object();
+			doAnswer(new Answer() {
+				@Override
+				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+					final Long timestamp = (Long) invocationOnMock.getArguments()[0];
+					final Triggerable target = (Triggerable) invocationOnMock.getArguments()[1];
+					timerService.schedule(
+							new Callable<Object>() {
+								@Override
+								public Object call() throws Exception {
+									synchronized (lock) {
+										target.trigger(timestamp);
+									}
+									return null;
+								}
+							},
+							timestamp - System.currentTimeMillis(),
+							TimeUnit.MILLISECONDS);
+					return null;
+				}
+			}).when(mockContext).registerTimer(anyLong(), any(Triggerable.class));
 
 			// tumbling window that triggers every 20 milliseconds
 			AggregatingProcessingTimeWindowOperator<Integer, Integer> op =
@@ -344,9 +408,11 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			op.setup(out, mockContext);
 			op.open(new Configuration());
-			
-			op.processElement(new StreamRecord<Integer>(1));
-			op.processElement(new StreamRecord<Integer>(2));
+
+			synchronized (lock) {
+				op.processElement(new StreamRecord<Integer>(1));
+				op.processElement(new StreamRecord<Integer>(2));
+			}
 
 			// each element should end up in the output three times
 			// wait until the elements have arrived 6 times in the output
@@ -364,6 +430,8 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			timerService.shutdown();
 		}
 	}
 	
@@ -395,51 +463,6 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			List<Integer> result = out.getElements();
 			Collections.sort(result);
 			assertEquals(data, result);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testPropagateExceptionsFromTrigger() {
-		try {
-			final CollectingOutput<Integer> out = new CollectingOutput<>();
-
-			final StreamingRuntimeContext mockContext = mock(StreamingRuntimeContext.class);
-			when(mockContext.getTaskName()).thenReturn("Test task name");
-
-			ReduceFunction<Integer> failingFunction = new FailingFunction(100);
-
-			AggregatingProcessingTimeWindowOperator<Integer, Integer> op =
-					new AggregatingProcessingTimeWindowOperator<>(failingFunction, identitySelector, 200, 50);
-
-			op.setup(out, mockContext);
-			op.open(new Configuration());
-
-			try {
-				long nextWindowTime = op.getNextEvaluationTime();
-				int val = 0;
-				for (int num = 0; num < Integer.MAX_VALUE; num++) {
-					op.processElement(new StreamRecord<Integer>(val++));
-					Thread.sleep(1);
-					
-					// when the window has advanced, reset the value, to generate the same values
-					// in the next pane again. This causes the aggregation on trigger to reduce values
-					if (op.getNextEvaluationTime() != nextWindowTime) {
-						nextWindowTime = op.getNextEvaluationTime();
-						val = 0;
-					}
-				}
-				fail("This should really have failed with an exception quite a while ago...");
-			}
-			catch (Exception e) {
-				assertNotNull(e.getCause());
-				assertTrue(e.getCause().getMessage().contains("Artificial Test Exception"));
-			}
-			
-			op.dispose();
 		}
 		catch (Exception e) {
 			e.printStackTrace();

@@ -171,7 +171,8 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 				new ExecutionConfig(),
 				partitioner,
 				new LocalStateHandleProvider<Serializable>(),
-				new HashMap<String, Accumulator<?, ?>>());
+				new HashMap<String, Accumulator<?, ?>>(),
+				null);
 
 		StreamMap<Integer, String> op = new StreamMap<Integer, String>(new StatefulMapper());
 

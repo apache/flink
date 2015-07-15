@@ -61,7 +61,8 @@ public class MockContext<IN, OUT> {
 				new MockEnvironment("MockTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
 				new ExecutionConfig(), 
 				null, null, 
-				new HashMap<String, Accumulator<?, ?>>());
+				new HashMap<String, Accumulator<?, ?>>(),
+				null);
 
 		operator.setup(mockContext.output, runtimeContext);
 		try {

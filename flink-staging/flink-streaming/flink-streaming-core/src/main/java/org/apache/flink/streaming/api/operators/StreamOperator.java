@@ -29,8 +29,14 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
  * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator} to create operators
  * that process elements.
  * 
+ * <p>
  * The class {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}
  * offers default implementation for the lifecycle and properties methods.
+ *
+ * <p>
+ * Methods of {@code StreamOperator} are guaranteed not to be called concurrently. Also, if using
+ * the timer service, timer callbacks are also guaranteed not to be called concurrently with
+ * methods on {@code StreamOperator}.
  * 
  * @param <OUT> The output type of the operator
  */
@@ -58,6 +64,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * {@link org.apache.flink.streaming.api.operators.OneInputStreamOperator#processElement(StreamRecord)}, or
 	 * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator#processElement1(StreamRecord)} and
 	 * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator#processElement2(StreamRecord)}.
+
 	 * <p>
 	 * The method is expected to flush all remaining buffered data. Exceptions during this flushing
 	 * of buffered should be propagated, in order to cause the operation to be recognized asa failed,
@@ -81,6 +88,11 @@ public interface StreamOperator<OUT> extends Serializable {
 	//  Context and chaining properties
 	// ------------------------------------------------------------------------
 	
+	/**
+	 * Returns a context that allows the operator to query information about the execution and also
+	 * to interact with systems such as broadcast variables and managed state. This also allows
+	 * to register timers.
+	 */
 	StreamingRuntimeContext getRuntimeContext();
 
 	/**

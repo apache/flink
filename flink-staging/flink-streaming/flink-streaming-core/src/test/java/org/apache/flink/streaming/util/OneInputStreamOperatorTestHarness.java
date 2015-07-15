@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 import java.io.Serializable;
@@ -64,7 +65,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				executionConfig,
 				null,
 				new LocalStateHandle.LocalStateHandleProvider<Serializable>(),
-				new HashMap<String, Accumulator<?, ?>>());
+				new HashMap<String, Accumulator<?, ?>>(),
+				new OneInputStreamTask());
 
 		operator.setup(new MockOutput(), runtimeContext);
 	}
