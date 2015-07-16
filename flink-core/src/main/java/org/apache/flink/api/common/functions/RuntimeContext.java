@@ -58,10 +58,10 @@ public interface RuntimeContext {
 	int getNumberOfParallelSubtasks();
 
 	/**
-	 * Gets the number of the parallel subtask. The numbering starts from 1 and goes up to the parallelism,
-	 * as returned by {@link #getNumberOfParallelSubtasks()}.
+	 * Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
+	 * parallelism-1 (parallelism as returned by {@link #getNumberOfParallelSubtasks()}).
 	 * 
-	 * @return The number of the parallel subtask.
+	 * @return The index of the parallel subtask.
 	 */
 	int getIndexOfThisSubtask();
 
