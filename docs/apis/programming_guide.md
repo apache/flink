@@ -606,6 +606,16 @@ DataSet<Tuple3<Integer, String, Double>> output = input.sum(0).andMin(2);
       </td>
     </tr>
 
+    <tr>
+      <td><strong>Distinct</strong></td>
+      <td>
+        <p>Returns the distinct elements of a data set.</p>
+    {% highlight java %}
+        data.distinct(); 
+    {% endhighlight %}
+      </td>
+    </tr>
+
     </tr>
       <td><strong>Join</strong></td>
       <td>
@@ -870,7 +880,17 @@ val output: DataSet[(Int, String, Doublr)] = input.sum(0).min(2)
 {% endhighlight %}
       </td>
     </tr>
-
+    
+    <tr>
+          <td><strong>Distinct</strong></td>
+          <td>
+            <p>Returns the distinct elements of a data set.</p>
+    {% highlight scala %}
+    data.distinct 
+    {% endhighlight %}
+          </td>
+    </tr>
+    
     </tr>
       <td><strong>Join</strong></td>
       <td>
