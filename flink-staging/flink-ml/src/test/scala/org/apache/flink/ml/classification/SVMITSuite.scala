@@ -37,13 +37,15 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
     setLocalIterations(100).
     setRegularization(0.002).
     setStepsize(0.1).
-    setSeed(0)
+    setSeed(0).
+    setConvergenceCriteria(new SVMConvergenceWeights)
 
     val trainingDS = env.fromCollection(Classification.trainingData)
 
     svm.fit(trainingDS)
 
     val weightVector = svm.weightsOption.get.collect().head
+
 
     weightVector.valueIterator.zip(Classification.expectedWeightVector.valueIterator).foreach {
       case (weight, expectedWeight) =>

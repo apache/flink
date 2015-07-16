@@ -224,6 +224,16 @@ class SVM extends Predictor[SVM] {
     parameters.add(OutputDecisionFunction, outputDecisionFunction)
     this
   }
+
+  /** Adds a convergence critieria to the algorithm. This will be used to evaluate whether we
+    * should terminate training after every iteration.
+    * @param convergence The convergence class with a isConverged function defined
+    *
+    */
+  def setConvergenceCriteria(convergence: Convergence[LabeledVector, DenseVector]): SVM = {
+    parameters.add(ConvergenceCriteria, convergence)
+    this
+  }
 }
 
 /** Companion object of SVM. Contains convenience functions and the parameter type definitions
@@ -265,6 +275,10 @@ object SVM{
 
   case object OutputDecisionFunction extends Parameter[Boolean] {
     val defaultValue = Some(false)
+  }
+
+  case object ConvergenceCriteria extends Parameter[Convergence[LabeledVector, DenseVector]]{
+    val defaultValue = None
   }
 
   // ========================================== Factory methods ====================================
@@ -357,7 +371,13 @@ object SVM{
           cross(numberVectors).
           map { x => x }
 
-        val resultingWeights = initialWeights.iterate(iterations) {
+        val convergenceDefined = resultingParameters.get(ConvergenceCriteria) match{
+          case Some(value) => true
+          case None => false
+        }
+        val converger = resultingParameters.get(ConvergenceCriteria)
+
+        val resultingWeights = initialWeights.iterateWithTermination(iterations) {
           weights => {
             // compute the local SDCA to obtain the weight vector updates
             val deltaWs = localDualMethod(
@@ -368,7 +388,6 @@ object SVM{
               scaling,
               seed
             )
-
             // scale the weight vectors
             val weightedDeltaWs = deltaWs map {
               deltaW => {
@@ -378,7 +397,15 @@ object SVM{
 
             // calculate the new weight vector by adding the weight vector updates to the weight
             // vector value
-            weights.union(weightedDeltaWs).reduce { _ + _ }
+            val newWeights = weights.union(weightedDeltaWs).reduce { _ + _ }
+            if(convergenceDefined){
+              (newWeights, converger.get.converged(
+                input,
+                weights.map(_.fromBreeze[DenseVector]),
+                newWeights.map(_.fromBreeze[DenseVector])))
+            } else {
+              (newWeights, weights.filter(x => true))
+            }
           }
         }
 
@@ -547,4 +574,18 @@ object SVM{
     }
   }
 
+}
+// An example convergence criteria which checks if the successive iterations don't lead to a
+// change of more than 1e-9 in the absoulte difference of solutions.
+
+class SVMConvergenceWeights extends Convergence[LabeledVector, DenseVector]{
+
+  override def isConverged(prev: DataSet[DenseVector], curr: DataSet[DenseVector]): DataSet[_] = {
+    prev.filterWithBcVariable(curr){
+      (prev,curr) => {
+        val diff = prev.asBreeze - curr.asBreeze
+        diff.dot(diff) > 1e-9
+      }
+    }
+  }
 }
