@@ -157,7 +157,6 @@ public class AccumulatorLiveITCase {
 				}
 			}
 
-//			expectMsgClass(new FiniteDuration(10, TimeUnit.SECONDS), JobManagerMessages.JobResultSuccess.class);
 		}};
 	}
 
@@ -169,7 +168,6 @@ public class AccumulatorLiveITCase {
 	private static boolean checkFlinkAccumulators(boolean lastRound, int expectedRecords, int expectedBytes,
 												  Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?,?>>> accumulatorMap) {
 //		System.out.println("checking flink accumulators");
-		boolean returnValue = false;
 
 		for(Map<AccumulatorRegistry.Metric, Accumulator<?,?>> taskMap : accumulatorMap.values()) {
 			if (taskMap != null) {
@@ -180,14 +178,16 @@ public class AccumulatorLiveITCase {
 						 */
 						case NUM_RECORDS_OUT:
 							if (!lastRound) {
-								assertTrue(((LongCounter) entry.getValue()).getLocalValue() == expectedRecords);
-								returnValue = true;
+								if(((LongCounter) entry.getValue()).getLocalValue() != expectedRecords) {
+									return false;
+								}
 							}
 							break;
 						case NUM_BYTES_OUT:
 							if (!lastRound) {
-								assertTrue(((LongCounter) entry.getValue()).getLocalValue() == expectedBytes);
-								returnValue = true;
+								if (((LongCounter) entry.getValue()).getLocalValue() != expectedBytes) {
+									return false;
+								}
 							}
 							break;
 						/**
@@ -196,14 +196,16 @@ public class AccumulatorLiveITCase {
 						case NUM_RECORDS_IN:
 							// check if we are in last round and in current task accumulator map
 							if (lastRound && ((LongCounter)taskMap.get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT)).getLocalValue() == 0) {
-								assertTrue(((LongCounter) entry.getValue()).getLocalValue() == expectedRecords);
-								returnValue = true;
+								if (((LongCounter) entry.getValue()).getLocalValue() != expectedRecords) {
+									return false;
+								}
 							}
 							break;
 						case NUM_BYTES_IN:
 							if (lastRound && ((LongCounter)taskMap.get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT)).getLocalValue() == 0) {
-								assertTrue(((LongCounter) entry.getValue()).getLocalValue() == expectedBytes);
-								returnValue = true;
+								if (((LongCounter) entry.getValue()).getLocalValue() != expectedBytes) {
+									return false;
+								}
 							}
 							break;
 						default:
@@ -212,7 +214,7 @@ public class AccumulatorLiveITCase {
 				}
 			}
 		}
-		return returnValue;
+		return true;
 	}
 
 
