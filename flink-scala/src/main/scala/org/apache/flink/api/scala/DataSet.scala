@@ -765,8 +765,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * In the case of {@link  AtomicType}, only "_" can be used as parameter.
    * <p>
    * @param firstField First field position on which the distinction of the DataSet is decided
-   * @param otherFields Zero or more field positions on which the distinction of the
-   *                    DataSet is decided
+   * @param otherFields Zero or more field positions on which the distinction of the DataSet is decided
    */
   def distinct(firstField: String, otherFields: String*): DataSet[T] = {
     wrap(new DistinctOperator[T](
