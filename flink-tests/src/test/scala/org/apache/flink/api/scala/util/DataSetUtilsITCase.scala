@@ -18,11 +18,15 @@
 
 package org.apache.flink.api.scala.util
 
+import java.io.{FileWriter, PrintWriter, File}
+
 import org.apache.flink.api.scala._
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.{After, Before, Rule, Test}
 import org.apache.flink.api.scala.DataSetUtils.utilsToDataSet
 
@@ -71,6 +75,28 @@ MultipleProgramsTestBase(mode){
     env.execute()
 
     expectedResult = "0,A\n" + "2,B\n" + "4,C\n" + "6,D\n" + "8,E\n" + "10,F"
+  }
+
+  @Test
+  @throws(classOf[Exception])
+  def testRandomSplit(): Unit = {
+    val tempFile = File.createTempFile("flinkTmpFile", "randomSplitTest")
+    val writer = new PrintWriter(new FileWriter(tempFile))
+    for (i <- 1 to 600) {
+      writer.write(i + "\n")
+    }
+    writer.close()
+    val data = ExecutionEnvironment.getExecutionEnvironment
+      .readTextFile(tempFile.toString).setParallelism(2)
+      .map(_.toInt)
+
+    val splits = data.randomSplit(List(0.1, 0.3, 0.6))
+
+    assertEquals(data.collect().sorted.toList, splits.flatMap(_.collect()).sorted)
+    assertTrue(math.abs(splits.head.count() - 60) < 15) // std =  2.45
+    assertTrue(math.abs(splits(1).count() - 180) < 30) // std =  7.35
+    assertTrue(math.abs(splits(2).count() - 360) < 50) // std =  14.7
+    expectedResult = ""
   }
 
   @After

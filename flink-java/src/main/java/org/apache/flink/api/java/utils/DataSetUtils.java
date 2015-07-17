@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.utils;
 
+import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.java.sampling.IntermediateSampleData;
 import org.apache.flink.api.java.DataSet;
@@ -27,12 +28,16 @@ import org.apache.flink.api.java.functions.SampleInPartition;
 import org.apache.flink.api.java.functions.SampleWithFraction;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
+import org.apache.flink.api.java.sampling.MultinomialSampler;
+import org.apache.flink.api.java.sampling.RandomSampler;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -236,6 +241,42 @@ public class DataSetUtils {
 			input.getType(), sampleInCoordinator, callLocation);
 	}
 
+	/**
+	 * Method that splits a data set randomly  into partitions based on the given list of fractions
+	 *
+	 * @param input     Input Data set
+	 * @param fractions List of fraction of points required in each split
+	 * @param seed      Seed value for the random selection
+	 * @return List of split data sets
+	 */
+	public static <T> List<DataSet<T>> randomSplit(DataSet<T> input, final List<Double> fractions, final long seed) {
+		ArrayList<DataSet<T>> result = new ArrayList<>();
+		for (int i = 0; i < fractions.size(); i++) {
+			final int eventId = i;
+			result.add(input.mapPartition(new MapPartitionFunction<T, T>() {
+				@Override
+				public void mapPartition(Iterable<T> values, Collector<T> out) throws Exception {
+					RandomSampler<T> sampler = new MultinomialSampler<T>(fractions, eventId, seed);
+					Iterator<T> sampled = sampler.sample(values.iterator());
+					while (sampled.hasNext()) {
+						out.collect(sampled.next());
+					}
+				}
+			}));
+		}
+		return result;
+	}
+
+	/**
+	 * Method that splits a data set randomly  into partitions based on the given list of fractions
+	 *
+	 * @param input     Input Data set
+	 * @param fractions List of fraction of points required in each split
+	 * @return List of split data sets
+	 */
+	public static <T> List<DataSet<T>> randomSplit(DataSet<T> input, List<Double> fractions) {
+		return randomSplit(input, fractions, Utils.RNG.nextLong());
+	}
 
 	// *************************************************************************
 	//     UTIL METHODS
