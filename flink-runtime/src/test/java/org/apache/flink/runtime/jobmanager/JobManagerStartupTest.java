@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.net.InetAddress;
@@ -31,6 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.net.NetUtils;
 
+import org.apache.flink.util.OperatingSystem;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,6 +51,8 @@ public class JobManagerStartupTest {
 	public void before() {
 		// Prepare test directory
 		blobStorageDirectory = Files.createTempDir();
+
+		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
 		assertTrue(blobStorageDirectory.setExecutable(true, false));
 		assertTrue(blobStorageDirectory.setReadable(true, false));
