@@ -924,6 +924,183 @@ Not supported.
 
 **Note:** Extending the set of supported aggregation functions is on our roadmap.
 
+### Distinct
+
+The Distinct transformation computes the DataSet of the distinct elements of the source DataSet.
+The following code removes all duplicate elements from the DataSet:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<Tuple2<Integer, Double>> input = // [...]
+DataSet<Tuple2<Integer, Double>> output = input.distinct();
+                                     
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input: DataSet[(Int, String, Double)] = // [...]
+val output = input.distinct()
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
+It is also possible to change how the distinction of the elements in the DataSet is decided, using:
+
+- one or more field position keys (Tuple DataSets only),
+- a key-selector function, or
+- a key expression.
+
+#### Distinct with field position keys
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<Tuple2<Integer, Double, String>> input = // [...]
+DataSet<Tuple2<Integer, Double, String>> output = input.distinct(0,2);
+                                     
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input: DataSet[(Int, Double, String)] = // [...]
+val output = input.distinct(0,2)
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
+#### Distinct with KeySelector function
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+private static class AbsSelector implements KeySelector<Integer, Integer> {
+private static final long serialVersionUID = 1L;
+	@Override
+	public Integer getKey(Integer t) {
+    	return Math.abs(t);
+	}
+}
+DataSet<Integer> input = // [...]
+DataSet<Integer> output = input.distinct(new AbsSelector());
+                                     
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input: DataSet[Int] = // [...]
+val output = input.distinct {x => Math.abs(x)}
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
+#### Distinct with key expression
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+// some ordinary POJO
+public class CustomType {
+  public String aName;
+  public int aNumber;
+  // [...]
+}
+
+DataSet<CustomType> input = // [...]
+DataSet<CustomType> output = input.distinct("aName", "aNumber");
+                                     
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+// some ordinary POJO
+case class CustomType(aName : String, aNumber : Int) { }
+
+val input: DataSet[CustomType] = // [...]
+val output = input.distinct("aName", "aNumber")
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
+It is also possible to indicate to use all the fields by the wildcard character:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<CustomType> input = // [...]
+DataSet<CustomType> output = input.distinct("*");
+                                     
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+// some ordinary POJO
+val input: DataSet[CustomType] = // [...]
+val output = input.distinct("_")
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
 ### Join
 
 The Join transformation joins two DataSets into one DataSet. The elements of both DataSets are joined on one or more keys which can be specified using

@@ -606,7 +606,18 @@ DataSet<Tuple3<Integer, String, Double>> output = input.sum(0).andMin(2);
       </td>
     </tr>
 
+    <tr>
+      <td><strong>Distinct</strong></td>
+      <td>
+        <p>Returns the distinct elements of a data set. It removes the duplicate entries 
+        from the input DataSet, with respect to all fields of the elements, or a subset of fields.</p>
+    {% highlight java %}
+        data.distinct(); 
+    {% endhighlight %}
+      </td>
     </tr>
+    
+    <tr>
       <td><strong>Join</strong></td>
       <td>
         Joins two data sets by creating all pairs of elements that are equal on their keys.
@@ -869,6 +880,17 @@ val input: DataSet[(Int, String, Double)] = // [...]
 val output: DataSet[(Int, String, Doublr)] = input.sum(0).min(2)
 {% endhighlight %}
       </td>
+    </tr>
+    
+    <tr>
+      <td><strong>Distinct</strong></td>
+      <td>
+        <p>Returns the distinct elements of a data set. It removes the duplicate entries 
+        from the input DataSet, with respect to all fields of the elements, or a subset of fields.</p>
+      {% highlight scala %}
+         data.distinct() 
+      {% endhighlight %}
+      </td> 
     </tr>
 
     </tr>
