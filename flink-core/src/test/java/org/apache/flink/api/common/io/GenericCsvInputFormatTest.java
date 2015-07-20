@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
 
 import static org.junit.Assert.assertEquals;
@@ -41,7 +40,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
-import org.jets3t.service.io.GZipDeflatingInputStream;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
