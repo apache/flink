@@ -40,9 +40,9 @@ public class AccumulatorSnapshot implements Serializable {
 	private final ExecutionAttemptID executionAttemptID;
 
 	/**
-	 * Flink internal accumulators which can be serialized using the system class loader.
+	 * Flink internal accumulators which can be deserialized using the system class loader.
 	 */
-	private final Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
+	private final SerializedValue<Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators;
 
 	/**
 	 * Serialized user accumulators which may require the custom user class loader.
@@ -54,7 +54,7 @@ public class AccumulatorSnapshot implements Serializable {
 							Map<String, Accumulator<?, ?>> userAccumulators) throws IOException {
 		this.jobID = jobID;
 		this.executionAttemptID = executionAttemptID;
-		this.flinkAccumulators = flinkAccumulators;
+		this.flinkAccumulators = new SerializedValue<Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>>(flinkAccumulators);
 		this.userAccumulators = new SerializedValue<Map<String, Accumulator<?, ?>>>(userAccumulators);
 	}
 
@@ -70,8 +70,8 @@ public class AccumulatorSnapshot implements Serializable {
 	 * Gets the Flink (internal) accumulators values.
 	 * @return the serialized map
 	 */
-	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getFlinkAccumulators() {
-		return flinkAccumulators;
+	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> deserializeFlinkAccumulators() throws IOException, ClassNotFoundException {
+		return flinkAccumulators.deserializeValue(ClassLoader.getSystemClassLoader());
 	}
 
 	/**

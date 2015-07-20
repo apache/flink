@@ -155,7 +155,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
   private var blobService: Option[BlobService] = None
   private var libraryCacheManager: Option[LibraryCacheManager] = None
-  private var currentJobManager: Option[ActorRef] = None
+  protected var currentJobManager: Option[ActorRef] = None
 
   private var instanceID: InstanceID = null
 
@@ -936,7 +936,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
    * Sends a heartbeat message to the JobManager (if connected) with the current
    * metrics report.
    */
-  private def sendHeartbeatToJobManager(): Unit = {
+  protected def sendHeartbeatToJobManager(): Unit = {
     try {
       log.debug("Sending heartbeat to JobManager")
       val metricsReport: Array[Byte] = metricRegistryMapper.writeValueAsBytes(metricRegistry)
