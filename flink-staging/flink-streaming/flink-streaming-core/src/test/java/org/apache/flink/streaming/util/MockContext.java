@@ -17,34 +17,25 @@
 
 package org.apache.flink.streaming.util;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-import org.apache.flink.util.Collector;
-import org.apache.flink.util.MutableObjectIterator;
 
 public class MockContext<IN, OUT> {
 	private Collection<IN> inputs;
 	private List<OUT> outputs;
 
 	private MockOutput<OUT> output;
-	private StreamRecordSerializer<IN> inDeserializer;
-	private IndexedReaderIterator<StreamRecord<IN>> iterator;
 
 	public MockContext(Collection<IN> inputs) {
 		this.inputs = inputs;
@@ -52,58 +43,19 @@ public class MockContext<IN, OUT> {
 			throw new RuntimeException("Inputs must not be empty");
 		}
 
-		TypeInformation<IN> inTypeInfo = TypeExtractor.getForObject(inputs.iterator().next());
-		inDeserializer = new StreamRecordSerializer<IN>(inTypeInfo, new ExecutionConfig());
-
-		iterator = new IndexedInputIterator();
 		outputs = new ArrayList<OUT>();
 		output = new MockOutput<OUT>(outputs);
-	}
-
-	private class IndexedInputIterator extends IndexedReaderIterator<StreamRecord<IN>> {
-		Iterator<IN> listIterator;
-
-		public IndexedInputIterator() {
-			super(null, null);
-			listIterator = inputs.iterator();
-		}
-
-		@Override
-		public StreamRecord<IN> next(StreamRecord<IN> reuse) throws IOException {
-			if (listIterator.hasNext()) {
-				reuse.setObject(listIterator.next());
-			} else {
-				reuse = null;
-			}
-			return reuse;
-		}
-
-		@Override
-		public StreamRecord<IN> next() throws IOException {
-			if (listIterator.hasNext()) {
-				StreamRecord<IN> result = inDeserializer.createInstance();
-				result.setObject(listIterator.next());
-				return result;
-			} else {
-				return null;
-			}
-		}
 	}
 
 	public List<OUT> getOutputs() {
 		return outputs;
 	}
 
-	public Collector<OUT> getOutput() {
+	public Output<StreamRecord<OUT>> getOutput() {
 		return output;
 	}
 
-	public MutableObjectIterator<StreamRecord<IN>> getIterator() {
-		return iterator;
-	}
-
-	public static <IN, OUT> List<OUT> createAndExecute(OneInputStreamOperator<IN, OUT> operator,
-			List<IN> inputs) {
+	public static <IN, OUT> List<OUT> createAndExecute(OneInputStreamOperator<IN, OUT> operator, List<IN> inputs) {
 		MockContext<IN, OUT> mockContext = new MockContext<IN, OUT>(inputs);
 		StreamingRuntimeContext runtimeContext = new StreamingRuntimeContext("MockTask",
 				new MockEnvironment(3 * 1024 * 1024, new MockInputSplitProvider(), 1024), null,
@@ -114,8 +66,8 @@ public class MockContext<IN, OUT> {
 			operator.open(null);
 
 			StreamRecord<IN> nextRecord;
-			while ((nextRecord = mockContext.getIterator().next()) != null) {
-				operator.processElement(nextRecord.getObject());
+			for (IN in: inputs) {
+				operator.processElement(new StreamRecord<IN>(in));
 			}
 
 			operator.close();

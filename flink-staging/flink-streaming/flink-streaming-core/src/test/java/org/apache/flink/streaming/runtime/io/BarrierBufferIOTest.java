@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.event.EventListener;
-import org.apache.flink.streaming.runtime.io.BarrierBuffer;
 import org.junit.Test;
 
 public class BarrierBufferIOTest {
@@ -55,7 +54,7 @@ public class BarrierBufferIOTest {
 				if (boe.isBuffer()) {
 					boe.getBuffer().recycle();
 				} else {
-					barrierBuffer.processSuperstep(boe);
+					barrierBuffer.processBarrier(boe);
 				}
 			}
 			// System.out.println("Ran for " + (System.currentTimeMillis() -
@@ -101,14 +100,14 @@ public class BarrierBufferIOTest {
 
 		private int numChannels;
 		private BufferPool[] bufferPools;
-		private int[] currentSupersteps;
+		private int[] currentBarriers;
 		BarrierGenerator[] barrierGens;
 		int currentChannel = 0;
 		long c = 0;
 
 		public MockInputGate(BufferPool[] bufferPools, BarrierGenerator[] barrierGens) {
 			this.numChannels = bufferPools.length;
-			this.currentSupersteps = new int[numChannels];
+			this.currentBarriers = new int[numChannels];
 			this.bufferPools = bufferPools;
 			this.barrierGens = barrierGens;
 		}
@@ -132,7 +131,7 @@ public class BarrierBufferIOTest {
 			currentChannel = (currentChannel + 1) % numChannels;
 
 			if (barrierGens[currentChannel].isNextBarrier()) {
-				return BarrierBufferTest.createSuperstep(++currentSupersteps[currentChannel],
+				return BarrierBufferTest.createBarrier(++currentBarriers[currentChannel],
 						currentChannel);
 			} else {
 				Buffer buffer = bufferPools[currentChannel].requestBuffer();

@@ -31,11 +31,11 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
-import org.apache.flink.streaming.api.operators.windowing.WindowIntegrationTest;
+import org.apache.flink.streaming.api.operators.windowing.WindowingITCase;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
-import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestCollector;
+import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestOutput;
 import org.junit.Test;
 
 public class SlidingTimeGroupedPreReducerTest {
@@ -48,7 +48,7 @@ public class SlidingTimeGroupedPreReducerTest {
 	ReduceFunction<Tuple2<Integer, Integer>> tupleReducer = new TupleSumReducer();
 
 
-	KeySelector<Integer, ?> key = new WindowIntegrationTest.ModKey(2);
+	KeySelector<Integer, ?> key = new WindowingITCase.ModKey(2);
 	KeySelector<Tuple2<Integer, Integer>, ?> tupleKey = new TupleModKey(2);
 
 	@Test
@@ -58,7 +58,7 @@ public class SlidingTimeGroupedPreReducerTest {
 		// replaying the same sequence of elements with a later timestamp and expecting the same
 		// result.
 
-		TestCollector<StreamWindow<Tuple2<Integer, Integer>>> collector = new TestCollector<StreamWindow<Tuple2<Integer, Integer>>>();
+		TestOutput<StreamWindow<Tuple2<Integer, Integer>>> collector = new TestOutput<StreamWindow<Tuple2<Integer, Integer>>>();
 
 		SlidingTimeGroupedPreReducer<Tuple2<Integer, Integer>> preReducer = new SlidingTimeGroupedPreReducer<Tuple2<Integer, Integer>>(tupleReducer,
 				tupleType.createSerializer(new ExecutionConfig()), tupleKey, 3, 2, new TimestampWrapper<Tuple2<Integer, Integer>>(new Timestamp<Tuple2<Integer, Integer>>() {
@@ -190,7 +190,7 @@ public class SlidingTimeGroupedPreReducerTest {
 
 	@Test
 	public void testPreReduce2() throws Exception {
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 
 		SlidingTimeGroupedPreReducer<Integer> preReducer = new SlidingTimeGroupedPreReducer<Integer>(
 				reducer, serializer, key, 5, 2, new TimestampWrapper<Integer>(
@@ -241,7 +241,7 @@ public class SlidingTimeGroupedPreReducerTest {
 
 	@Test
 	public void testPreReduce3() throws Exception {
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 
 		SlidingTimeGroupedPreReducer<Integer> preReducer = new SlidingTimeGroupedPreReducer<Integer>(
 				reducer, serializer, key, 6, 3, new TimestampWrapper<Integer>(
@@ -287,7 +287,7 @@ public class SlidingTimeGroupedPreReducerTest {
 
 	@Test
 	public void testPreReduce4() throws Exception {
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 
 		SlidingTimeGroupedPreReducer<Integer> preReducer = new SlidingTimeGroupedPreReducer<Integer>(
 				reducer, serializer, key, 3, 2, new TimestampWrapper<Integer>(

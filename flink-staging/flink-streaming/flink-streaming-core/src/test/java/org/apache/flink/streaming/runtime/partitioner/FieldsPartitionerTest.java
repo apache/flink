@@ -21,34 +21,28 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.partitioner.FieldsPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.junit.Before;
 import org.junit.Test;
 
 public class FieldsPartitionerTest {
 
-	private FieldsPartitioner<Tuple> fieldsPartitioner;
-	private StreamRecord<Tuple> streamRecord1 = new StreamRecord<Tuple>()
-			.setObject(new Tuple2<String, Integer>("test", 0));
-	private StreamRecord<Tuple> streamRecord2 = new StreamRecord<Tuple>()
-			.setObject(new Tuple2<String, Integer>("test", 42));
-	private SerializationDelegate<StreamRecord<Tuple>> sd1 = new SerializationDelegate<StreamRecord<Tuple>>(
-			null);
-	private SerializationDelegate<StreamRecord<Tuple>> sd2 = new SerializationDelegate<StreamRecord<Tuple>>(
-			null);
+	private FieldsPartitioner<Tuple2<String, Integer>> fieldsPartitioner;
+	private StreamRecord<Tuple2<String, Integer>> streamRecord1 = new StreamRecord<Tuple2<String, Integer>>(new Tuple2<String, Integer>("test", 0));
+	private StreamRecord<Tuple2<String, Integer>> streamRecord2 = new StreamRecord<Tuple2<String, Integer>>(new Tuple2<String, Integer>("test", 42));
+	private SerializationDelegate<StreamRecord<Tuple2<String, Integer>>> sd1 = new SerializationDelegate<StreamRecord<Tuple2<String, Integer>>>(null);
+	private SerializationDelegate<StreamRecord<Tuple2<String, Integer>>> sd2 = new SerializationDelegate<StreamRecord<Tuple2<String, Integer>>>(null);
 
 	@Before
 	public void setPartitioner() {
-		fieldsPartitioner = new FieldsPartitioner<Tuple>(new KeySelector<Tuple, String>() {
+		fieldsPartitioner = new FieldsPartitioner<Tuple2<String, Integer>>(new KeySelector<Tuple2<String, Integer>, String>() {
 
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public String getKey(Tuple value) throws Exception {
+			public String getKey(Tuple2<String, Integer> value) throws Exception {
 				return value.getField(0);
 			}
 		});

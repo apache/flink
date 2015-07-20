@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.state.StreamOperatorState;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
@@ -57,7 +58,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 	}
 
 	@Override
-	public void setup(Output<OUT> output, StreamingRuntimeContext runtimeContext) {
+	public final void setup(Output<StreamRecord<OUT>> output, StreamingRuntimeContext runtimeContext) {
 		super.setup(output, runtimeContext);
 		FunctionUtils.setFunctionRuntimeContext(userFunction, runtimeContext);
 	}

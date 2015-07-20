@@ -20,7 +20,9 @@ package org.apache.flink.streaming.api.operators.windowing;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * This operator applies either split or key partitioning depending on the
@@ -48,23 +50,30 @@ public class WindowPartitioner<T> extends AbstractStreamOperator<StreamWindow<T>
 	}
 
 	@Override
-	public void processElement(StreamWindow<T> currentWindow) throws Exception {
+	public void processElement(StreamRecord<StreamWindow<T>> currentWindow) throws Exception {
 
 		if (keySelector == null) {
 			if (numberOfSplits <= 1) {
 				output.collect(currentWindow);
 			} else {
-				for (StreamWindow<T> window : StreamWindow.split(currentWindow, numberOfSplits)) {
-					output.collect(window);
+				StreamWindow<T> unpackedWindow = currentWindow.getValue();
+				for (StreamWindow<T> window : StreamWindow.split(unpackedWindow, numberOfSplits)) {
+					currentWindow.replace(window);
+					output.collect(currentWindow);
 				}
 			}
 		} else {
 
 			for (StreamWindow<T> window : StreamWindow
-					.partitionBy(currentWindow, keySelector, true)) {
-				output.collect(window);
+					.partitionBy(currentWindow.getValue(), keySelector, true)) {
+				output.collect(new StreamRecord<StreamWindow<T>>(window));
 			}
 
 		}
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
 	}
 }

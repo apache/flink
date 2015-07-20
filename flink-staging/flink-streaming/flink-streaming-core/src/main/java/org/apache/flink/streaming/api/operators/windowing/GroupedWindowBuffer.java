@@ -26,6 +26,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.WindowEvent;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * This operator flattens the results of the window transformations by
@@ -51,9 +52,9 @@ public class GroupedWindowBuffer<T> extends StreamWindowBuffer<T> {
 	}
 
 	@Override
-	public void processElement(WindowEvent<T> event) throws Exception {
-		if (event.getElement() != null) {
-			Object key = keySelector.getKey(event.getElement());
+	public void processElement(StreamRecord<WindowEvent<T>> event) throws Exception {
+		if (event.getValue().getElement() != null) {
+			Object key = keySelector.getKey(event.getValue().getElement());
 			WindowBuffer<T> currentWindow = windowMap.get(key);
 
 			if (currentWindow == null) {
@@ -61,7 +62,7 @@ public class GroupedWindowBuffer<T> extends StreamWindowBuffer<T> {
 				windowMap.put(key, currentWindow);
 			}
 
-			handleWindowEvent(event, currentWindow);
+			handleWindowEvent(event.getValue(), currentWindow);
 		}
 	}
 

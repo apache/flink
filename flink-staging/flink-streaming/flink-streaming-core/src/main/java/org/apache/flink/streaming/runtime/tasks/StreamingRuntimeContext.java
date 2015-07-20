@@ -39,6 +39,7 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.state.PartitionedStreamOperatorState;
 import org.apache.flink.streaming.api.state.StreamOperatorState;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * Implementation of the {@link RuntimeContext}, created by runtime stream UDF
@@ -167,10 +168,10 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	 *            Next input of the operator.
 	 */
 	@SuppressWarnings("unchecked")
-	public void setNextInput(Object nextRecord) {
+	public void setNextInput(StreamRecord<?> nextRecord) {
 		if (statePartitioner != null) {
 			for (PartitionedStreamOperatorState state : partitionedStates) {
-				state.setCurrentInput(nextRecord);
+				state.setCurrentInput(nextRecord.getValue());
 			}
 		}
 	}

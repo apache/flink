@@ -114,6 +114,32 @@ public class RecordWriter<T extends IOReadableWritable> {
 		}
 	}
 
+	/**
+	 * This is used to broadcast Streaming Watermarks in-band with records. This ignores
+	 * the {@link ChannelSelector}.
+	 */
+	public void broadcastEmit(T record) throws IOException, InterruptedException {
+		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
+			// serialize with corresponding serializer and send full buffer
+			RecordSerializer<T> serializer = serializers[targetChannel];
+
+			synchronized (serializer) {
+				SerializationResult result = serializer.addRecord(record);
+				while (result.isFullBuffer()) {
+					Buffer buffer = serializer.getCurrentBuffer();
+
+					if (buffer != null) {
+						writer.writeBuffer(buffer, targetChannel);
+						serializer.clearCurrentBuffer();
+					}
+
+					buffer = writer.getBufferProvider().requestBufferBlocking();
+					result = serializer.setNextBuffer(buffer);
+				}
+			}
+		}
+	}
+
 	public void broadcastEvent(AbstractEvent event) throws IOException, InterruptedException {
 		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
 			RecordSerializer<T> serializer = serializers[targetChannel];

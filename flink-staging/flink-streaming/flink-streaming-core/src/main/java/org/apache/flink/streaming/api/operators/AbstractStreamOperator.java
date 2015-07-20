@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 /**
@@ -35,7 +36,7 @@ public abstract class AbstractStreamOperator<OUT> implements StreamOperator<OUT>
 
 	protected transient ExecutionConfig executionConfig;
 
-	public transient Output<OUT> output;
+	public transient Output<StreamRecord<OUT>> output;
 
 	protected boolean inputCopyDisabled = false;
 
@@ -43,7 +44,7 @@ public abstract class AbstractStreamOperator<OUT> implements StreamOperator<OUT>
 	protected ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;
 
 	@Override
-	public void setup(Output<OUT> output, StreamingRuntimeContext runtimeContext) {
+	public void setup(Output<StreamRecord<OUT>> output, StreamingRuntimeContext runtimeContext) {
 		this.output = output;
 		this.executionConfig = runtimeContext.getExecutionConfig();
 		this.runtimeContext = runtimeContext;

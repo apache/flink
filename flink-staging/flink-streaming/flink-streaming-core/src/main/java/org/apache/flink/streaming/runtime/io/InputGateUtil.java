@@ -17,15 +17,25 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 
-public class InputGateFactory {
+/**
+ * Utility for dealing with input gates. This will either just return
+ * the single {@link InputGate} that was passed in or create a {@link UnionInputGate} if several
+ * {@link InputGate input gates} are given.
+ */
+public class InputGateUtil {
 
-	public static InputGate createInputGate(Collection<InputGate> inputGates) {
-		return createInputGate(inputGates.toArray(new InputGate[inputGates.size()]));
+	public static InputGate createInputGate(Collection<InputGate> inputGates1, Collection<InputGate> inputGates2) {
+		List<InputGate> gates = new ArrayList<InputGate>(inputGates1.size() + inputGates2.size());
+		gates.addAll(inputGates1);
+		gates.addAll(inputGates2);
+		return createInputGate(gates.toArray(new InputGate[gates.size()]));
 	}
 
 	public static InputGate createInputGate(InputGate[] inputGates) {
