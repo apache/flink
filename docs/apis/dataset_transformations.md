@@ -927,7 +927,7 @@ Not supported.
 ### Distinct
 
 The Distinct transformation computes the DataSet of the distinct elements of the source DataSet.
-The following code removes from the DataSet the duplicate elements:
+The following code removes duplicate elements from the DataSet:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
