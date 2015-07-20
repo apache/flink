@@ -306,7 +306,6 @@ public class PersistentKafkaSource<OUT> extends RichParallelSourceFunction<OUT> 
 		// synchronize because notifyCheckpointComplete is called using asynchronous worker threads (= multiple checkpoints might be confirmed concurrently)
 		synchronized (commitedOffsets) {
 			if(commitedOffsets[partition] < offset) {
-				LOG.info("Committed offsets {}, partition={}, offset={}, locking on {}", Arrays.toString(commitedOffsets), partition, offset, commitedOffsets.hashCode());
 				setOffset(zkClient, consumerConfig.groupId(), topicName, partition, offset);
 				commitedOffsets[partition] = offset;
 			} else {
