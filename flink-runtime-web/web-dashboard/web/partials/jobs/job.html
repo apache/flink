@@ -1,0 +1,30 @@
+
+<nav ng-if="job" class="navbar navbar-default navbar-fixed-top navbar-main">
+  <div id="fold-button" ng-click="showSidebar()" class="btn btn-default navbar-btn pull-left"><i class="fa fa-navicon"></i></div>
+  <div class="navbar-title">
+    <indicator-primary status="{{job.state}}"></indicator-primary>{{ job.name }}
+  </div>
+  <div class="navbar-info first last hidden-xs hidden-sm">{{ job.jid }}</div>
+  <div class="navbar-info first last">
+    <div class="label-group">
+      <bs-label status="{{status}}" ng-repeat="(status, value) in job.operators">{{value}}</bs-label>
+    </div>
+  </div>
+  <div class="navbar-info first last hidden-xs hidden-sm">
+    {{ job['start-time'] }}
+    - 
+    {{ job['end-time'] }}
+  </div>
+  <div class="navbar-info last first">{{job.duration}}</div>
+</nav>
+<nav ng-if="job" class="navbar navbar-default navbar-fixed-top navbar-main-additional">
+  <ul class="nav nav-tabs">
+    <li ui-sref-active="active"><a ui-sref=".plan">Plan</a></li>
+    <li ui-sref-active="active"><a ui-sref=".statistics">Job Accumulators / Statistics</a></li>
+    <li ui-sref-active="active"><a ui-sref=".timeline">Timeline</a></li>
+    <li ui-sref-active="active"><a ui-sref=".exceptions">Exceptions</a></li>
+  </ul>
+</nav>
+<div id="content-inner" class="has-navbar-main-additional">
+  <div ui-view="details"></div>
+</div>

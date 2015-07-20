@@ -1,0 +1,129 @@
+
+<nav class="navbar navbar-default navbar-fixed-top navbar-main">
+  <div id="fold-button" ng-click="showSidebar()" class="btn btn-default navbar-btn pull-left"><i class="fa fa-navicon"></i></div>
+  <div class="navbar-title">Overview</div>
+</nav>
+<div id="content-inner">
+  <div class="row">
+    <div class="col-md-6">
+      <div class="panel panel-default panel-dashboard">
+        <div class="panel-heading">
+          <div class="row">
+            <div class="col-xs-3"><i class="fa fa-tasks fa-3x"></i></div>
+            <div class="col-xs-9 text-right">
+              <div class="huge">3</div>
+              <div>Task Managers</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-heading">
+          <div class="row">
+            <div class="col-xs-3"><i class="fa fa-folder fa-3x"></i></div>
+            <div class="col-xs-9 text-right">
+              <div class="huge">5</div>
+              <div>Task Slots</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-heading">
+          <div class="row">
+            <div class="col-xs-3"><i class="fa fa-folder-o fa-3x"></i></div>
+            <div class="col-xs-9 text-right">
+              <div class="huge">2</div>
+              <div>Available Task Slots</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="panel panel-default panel-lg">
+        <div class="panel-heading">Total Jobs</div>
+        <div class="list-group">
+          <div class="list-group-item">
+            <div class="badge badge-primary">3</div>Running
+          </div>
+          <div class="list-group-item">
+            <div class="badge badge-success">6</div>Finished
+          </div>
+          <div class="list-group-item">
+            <div class="badge badge-info">0</div>Canceled
+          </div>
+          <div class="list-group-item">
+            <div class="badge badge-danger">2</div>Failed
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">Running Jobs</h3>
+    </div>
+    <div class="panel-body">
+      <table class="table table-hover table-clickable">
+        <thead>
+          <tr>
+            <th>Start Time</th>
+            <th>End Time</th>
+            <th>Duration</th>
+            <th>Job Name</th>
+            <th>Job ID</th>
+            <th>Tasks</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="job in runningJobs" ui-sref="single-job.plan({ jobid: job.jid })">
+            <td>{{job['start-time']}}</td>
+            <td>{{job['end-time']}}</td>
+            <td>{{job.duration}}</td>
+            <td>{{job.jobname}}</td>
+            <td>{{job.jid}}</td>
+            <td class="label-group">
+              <bs-label status="{{status}}" ng-repeat="(status, value) in job.operators">{{value}}</bs-label>
+            </td>
+            <td> 
+              <bs-label status="{{job.state}}">{{job.state}}</bs-label>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">Completed Jobs</h3>
+    </div>
+    <div class="panel-body">
+      <table class="table table-hover table-clickable">
+        <thead>
+          <tr>
+            <th>Start Time</th>
+            <th>End Time</th>
+            <th>Duration</th>
+            <th>Job Name</th>
+            <th>Job ID</th>
+            <th>Tasks</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="job in finishedJobs" ui-sref="single-job.plan({ jobid: job.jid })">
+            <td>{{job['start-time']}}</td>
+            <td>{{job['end-time']}}</td>
+            <td>{{job.duration}}</td>
+            <td>{{job.jobname}}</td>
+            <td>{{job.jid}}</td>
+            <td class="label-group">
+              <bs-label status="{{status}}" ng-repeat="(status, value) in job.operators">{{value}}</bs-label>
+            </td>
+            <td> 
+              <bs-label status="{{job.state}}">{{job.state}}</bs-label>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Apache Flink Web Dashboard</title>
+    <link rel="stylesheet" href="css/vendor.css" type="text/css">
+    <link rel="stylesheet" href="css/index.css" type="text/css">
+    <script src="js/vendor.js"></script>
+    <script src="js/index.js"></script>
+  </head>
+  <body ng-app="flinkApp" ng-strict-di>
+    <div id="sidebar" ng-class="{ 'sidebar-visible': sidebarVisible }">
+      <nav class="navbar navbar-inverse navbar-static-top">
+        <div class="navbar-header"><a ui-sref="overview" class="navbar-brand"><img alt="Apache Flink Dashboard" src="images/flink-logo.png" class="logo"></a><a ui-sref="overview" class="navbar-brand navbar-brand-text">Apache Flink Dashboard</a></div>
+      </nav>
+      <div class="navbar navbar-sidebar">
+        <ul class="nav">
+          <li><a ui-sref="overview" ui-sref-active="active"><i class="fa fa-dashboard fa-fw"></i> 
+              Overview</a></li>
+          <li><a ui-sref="running-jobs" ui-sref-active="active"><i class="fa fa-tasks fa-fw"></i> 
+              Running Jobs</a></li>
+          <li><a ui-sref="completed-jobs" ui-sref-active="active"><i class="fa fa-server fa-fw"></i> 
+              Completed Jobs</a></li>
+        </ul>
+      </div>
+    </div>
+    <div id="content" ng-class="{ 'sidebar-visible': sidebarVisible }">
+      <div ui-view="main"></div>
+    </div>
+  </body>
+</html>

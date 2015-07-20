@@ -1,0 +1,157 @@
+
+<div ng-if="node" class="panel panel-default panel-multi">
+  <div class="panel-heading clearfix">
+    <div class="panel-title">{{ node.pact }}</div>
+    <div class="panel-info first">ID: {{ node.id }}</div>
+    <div ng-if="node.contents" class="panel-info">
+      <div class="label-group">
+        <bs-label status="{{status}}" ng-repeat="(index, status) in stateList">{{node.vertex.groupvertex[status]}}</bs-label>
+      </div>
+    </div>
+  </div>
+  <div class="panel-heading clearfix">
+    <div ng-if="node.contents" class="panel-info first last"><span>{{ node.contents }}</span></div>
+  </div>
+  <div class="panel-body">
+    <table class="table table-hover table-clickable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr colspan="2">
+          <td>
+            <center><i>WARNING! This is a sample</i></center>
+          </td>
+        </tr>
+        <tr ng-repeat="vertex in node.vertex.groupvertex.groupmembers">
+          <td>{{vertex.vertexname}}</td>
+          <td> 
+            <bs-label status="{{vertex.vertexstatus}}">{{vertex.vertexstatus}}</bs-label>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div ng-if="node" class="row">
+  <div class="col-sm-6 col-md-4">
+    <table ng-if="node.global_properties" class="table table-properties">
+      <thead>
+        <tr>
+          <th colspan="2">Global Data Properties</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="property in node.global_properties">
+          <td>{{property.name}}</td>
+          <td table-property="table-property" value="property.value"></td>
+        </tr>
+      </tbody>
+    </table>
+    <table ng-if="node.local_properties" class="table table-properties">
+      <thead>
+        <tr>
+          <th colspan="2">Local Data Properties</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="property in node.local_properties">
+          <td>{{property.name}}</td>
+          <td table-property="table-property" value="property.value"></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="visible-xs visible-sm">
+      <table class="table table-properties">
+        <thead>
+          <tr>
+            <th colspan="2">Pact Properties</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Operator</td>
+            <td table-property="table-property" value="node.driver_strategy"></td>
+          </tr>
+          <tr>
+            <td>Parallelism</td>
+            <td table-property="table-property" value="node.parallelism"></td>
+          </tr>
+          <tr>
+            <td>Subtasks-per-instance</td>
+            <td table-property="table-property" value="node.subtasks_per_instance"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="hidden-sm col-md-4">
+    <table class="table table-properties">
+      <thead>
+        <tr>
+          <th colspan="2">Pact Properties</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Operator</td>
+          <td table-property="table-property" value="node.driver_strategy"></td>
+        </tr>
+        <tr>
+          <td>Parallelism</td>
+          <td table-property="table-property" value="node.parallelism"></td>
+        </tr>
+        <tr>
+          <td>Subtasks-per-instance</td>
+          <td table-property="table-property" value="node.subtasks_per_instance"></td>
+        </tr>
+      </tbody>
+    </table>
+    <table ng-if="node.estimates" class="table table-properties">
+      <thead>
+        <tr>
+          <th colspan="2">Size Estimates</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="property in node.estimates">
+          <td>{{property.name}}</td>
+          <td table-property="table-property" value="property.value"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col-sm-6 col-md-4">
+    <div class="visible-xs visible-sm">
+      <table ng-if="node.estimates" class="table table-properties">
+        <thead>
+          <tr>
+            <th colspan="2">Size Estimates</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="property in node.estimates">
+            <td>{{property.name}}</td>
+            <td table-property="table-property" value="property.value"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <table ng-if="node.costs" class="table table-properties">
+      <thead>
+        <tr>
+          <th colspan="2">Cost Estimates</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="property in node.costs">
+          <td>{{property.name}}</td>
+          <td table-property="table-property" value="property.value"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

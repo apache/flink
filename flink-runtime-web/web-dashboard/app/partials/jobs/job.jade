@@ -1,0 +1,39 @@
+nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="job")
+  #fold-button.btn.btn-default.navbar-btn.pull-left(ng-click='showSidebar()')
+    i.fa.fa-navicon
+
+  .navbar-title
+    indicator-primary(status="{{job.state}}")
+    | {{ job.name }}
+
+  .navbar-info.first.last.hidden-xs.hidden-sm
+    | {{ job.jid }}
+
+  .navbar-info.first.last
+    .label-group
+      bs-label(status="{{status}}" ng-repeat="(status, value) in job.operators") {{value}}
+
+  .navbar-info.first.last.hidden-xs.hidden-sm
+    | {{ job['start-time'] }}
+    | - 
+    | {{ job['end-time'] }}
+  
+  .navbar-info.last.first
+    | {{job.duration}}
+
+nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional(ng-if="job")
+  ul.nav.nav-tabs
+    li(ui-sref-active='active')
+      a(ui-sref=".plan") Plan
+
+    li(ui-sref-active='active')
+      a(ui-sref=".statistics") Job Accumulators / Statistics
+
+    li(ui-sref-active='active')
+      a(ui-sref=".timeline") Timeline
+
+    li(ui-sref-active='active')
+      a(ui-sref=".exceptions") Exceptions
+
+#content-inner.has-navbar-main-additional
+  div(ui-view="details")

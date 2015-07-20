@@ -1,0 +1,35 @@
+
+<nav class="navbar navbar-default navbar-fixed-top navbar-main">
+  <div id="fold-button" ng-click="showSidebar()" class="btn btn-default navbar-btn pull-left"><i class="fa fa-navicon"></i></div>
+  <div class="navbar-title">Running Jobs</div>
+</nav>
+<div id="content-inner">
+  <table class="table table-hover table-clickable">
+    <thead>
+      <tr>
+        <th>Start Time</th>
+        <th>End Time</th>
+        <th>Duration</th>
+        <th>Job Name</th>
+        <th>Job ID</th>
+        <th>Tasks</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="job in jobs" ui-sref="single-job.plan({ jobid: job.jid })">
+        <td>{{job['start-time']}}</td>
+        <td>{{job['end-time']}}</td>
+        <td>{{job.duration}}</td>
+        <td>{{job.name}}</td>
+        <td>{{job.jid}}</td>
+        <td class="label-group">
+          <bs-label status="{{status}}" ng-repeat="(status, value) in job.operators">{{value}}</bs-label>
+        </td>
+        <td> 
+          <bs-label status="{{job.state}}">{{job.state}}</bs-label>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

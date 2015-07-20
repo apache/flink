@@ -1,0 +1,253 @@
+@import 'nib'
+
+sidebar-width = 250px
+
+#sidebar
+  overflow: hidden
+  position: fixed
+  left: - sidebar-width
+  top: 0
+  bottom: 0
+  height: 100%
+  width: sidebar-width
+  background: rgba(21,21,21,1)
+  // background: linear-gradient(200deg, 0% rgba(31,31,31,1), 100% rgba(0,0,0,1))
+  transition(400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all)
+  box-shadow(inset -10px 0px 10px rgba(0,0,0,0.2))
+
+  &.sidebar-visible
+    left: 0
+
+  .logo
+    width: auto
+    height: 22px
+
+  .navbar-brand.navbar-brand-text
+    font-size: 14px
+    font-weight: bold
+    color: #ffffff
+    padding-left: 0
+    
+  .nav > li > a
+    color: #aaaaaa
+    margin-bottom: 1px
+    
+    &:hover, &:focus
+      background-color: rgba(40, 40, 40, 0.5)
+    &.active
+      background-color: rgba(100, 100, 100, 0.5)
+
+#content
+  background-color: #ffffff
+  overflow: hidden
+  margin-left: 0
+  padding-top: 70px
+
+  transition(400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all)
+
+  .navbar-main, .navbar-main-additional
+    transition(400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all)
+
+  .navbar-main-additional
+    margin-top: 51px
+    border-bottom: none
+    padding: 0 20px
+    .nav-tabs
+      margin: 0 -20px
+      padding: 0 20px
+
+  &.sidebar-visible
+    margin-left: sidebar-width
+
+    .navbar-main, .navbar-main-additional
+      left: sidebar-width
+
+  #fold-button
+    display: inline-block
+    margin-left: 20px
+
+  #content-inner
+    padding: 0px 20px 20px 20px
+    &.has-navbar-main-additional
+      padding-top: 42px
+
+.page-header
+  margin: 0 0 20px 0
+
+.nav
+  > li
+    > a, > a:hover, > a:focus
+      color: #aaaaaa
+      background-color: transparent
+      border-bottom: 2px solid transparent
+      
+    &.active
+      > a, > a:hover, > a:focus
+        color: #000000
+        border-bottom: 2px solid #000000
+
+  &.nav-tabs
+    margin-bottom: 20px
+
+.table
+  th
+    font-weight: normal
+    color: #999999
+
+  &.table-clickable
+    tr
+      cursor: pointer
+
+.panel
+  &.panel-dashboard
+    .huge
+      font-size: 28px
+
+  &.panel-lg
+    font-size: 16px
+    .badge
+      font-size: 14px
+
+.navbar-secondary
+  overflow: auto
+
+.navbar-main, .navbar-secondary, .navbar-main-additional, .panel.panel-multi
+  .navbar-title, .panel-title
+    float: left
+    font-size: 18px
+    padding: 12px 20px 13px 10px
+    color: #333333
+    display: inline-block
+
+  .navbar-info, .panel-info
+    float: left
+    font-size: 14px
+    padding: 15px 15px 15px 15px
+    color: #999999
+    display: inline-block
+    border-right: 1px solid #e7e7e7
+    overflow: hidden
+    
+    .overflow
+      position: absolute
+      display: block
+      text-overflow: ellipsis
+      overflow: hidden
+      height: 22px
+      line-height: 22px
+      vertical-align: middle
+
+    &.first
+      border-left: 1px solid #e7e7e7
+    &.last
+      border-right: none
+
+.panel.panel-multi
+  .panel-heading
+    padding: 0
+
+  .panel-body
+    padding: 10px
+    background-color: #fdfdfd
+    color: #999
+    font-size: 13px
+
+.navbar-main-additional
+  min-height: 40px
+  background-color: #fdfdfd
+
+  .navbar-info
+    font-size: 13px
+    padding: 10px 15px 10px 15px
+
+.nav-top-affix
+  &.affix
+    width: 100%
+    top: 50px
+    margin-left: -20px
+    padding-left: 20px
+    margin-right: -20px
+    padding-right: 20px
+    background-color: #fff
+    z-index: 1
+    
+
+.badge-default[href]:hover,
+.badge-default[href]:focus
+  background-color #808080
+
+.badge-primary
+  background-color #428bca
+
+.badge-primary[href]:hover,
+.badge-primary[href]:focus
+  background-color #3071a9
+
+.badge-success
+  background-color #5cb85c
+
+.badge-success[href]:hover,
+.badge-success[href]:focus
+  background-color #449d44
+
+.badge-info
+  background-color #5bc0de
+
+.badge-info[href]:hover,
+.badge-info[href]:focus
+  background-color #31b0d5
+
+.badge-warning
+  background-color #f0ad4e
+
+.badge-warning[href]:hover,
+.badge-warning[href]:focus
+  background-color #ec971f
+
+.badge-danger
+  background-color #d9534f
+
+.badge-danger[href]:hover,
+.badge-danger[href]:focus
+  background-color #c9302c
+
+
+.indicator
+  display: inline-block
+  margin-right: 15px
+  &.indicator-primary
+    color: #428bca
+
+  &.indicator-success
+    color: #5cb85c
+
+  &.indicator-info
+    color: #5bc0de
+
+  &.indicator-warning
+    color: #f0ad4e
+
+  &.indicator-danger
+    color: #d9534f
+
+
+@import './job'
+@import './graph'
+@import './timeline'
+
+@media (min-width: 768px)
+  #sidebar
+    left: 0
+
+  #content
+    margin-left: sidebar-width
+
+    #fold-button
+      display: none
+
+    .navbar-main, .navbar-main-additional
+      left: sidebar-width
+
+  .navbar-main, .navbar-secondary, .navbar-main-additional
+    .navbar-title
+      padding: 12px 20px 13px 20px

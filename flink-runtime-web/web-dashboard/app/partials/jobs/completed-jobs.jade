@@ -1,0 +1,30 @@
+nav.navbar.navbar-default.navbar-fixed-top.navbar-main
+  #fold-button.btn.btn-default.navbar-btn.pull-left(ng-click='showSidebar()')
+    i.fa.fa-navicon
+
+  .navbar-title
+    | Completed Jobs
+
+#content-inner
+  table.table.table-hover.table-clickable
+    thead
+      tr
+        th Start Time
+        th End Time
+        th Duration
+        th Job Name
+        th Job ID
+        th Tasks
+        th Status
+
+    tbody
+      tr(ng-repeat="job in jobs" ui-sref="single-job.plan({ jobid: job.jid })")
+        td {{job['start-time']}}
+        td {{job['end-time']}}
+        td {{job.duration}}
+        td {{job.name}}
+        td {{job.jid}}
+        td.label-group
+          bs-label(status="{{status}}" ng-repeat="(status, value) in job.operators") {{value}}
+        td 
+          bs-label(status="{{job.state}}") {{job.state}}
