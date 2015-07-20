@@ -731,6 +731,26 @@ under the License.
 						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/d3.layout.min.js</exclude>
 						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/rickshaw.*</exclude>
 						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/css/rickshaw.*</exclude>
+
+						<!-- web dashboard config JSON files -->
+						<exclude>flink-runtime-web/web-dashboard/package.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/bower.json</exclude>
+
+						<!-- web dashboard files under 3rd party license -->
+						<exclude>flink-runtime-web/web-dashboard/vendor-local/d3-timeline.js</exclude>
+						<exclude>flink-runtime-web/web-dashboard/assets/fonts/FontAwesome.otf</exclude>
+						<exclude>flink-runtime-web/web-dashboard/assets/fonts/fontawesome*</exclude>
+						<exclude>flink-runtime-web/web-dashboard/web/css/vendor.css</exclude>
+						<exclude>flink-runtime-web/web-dashboard/web/fonts/FontAwesome.otf</exclude>
+						<exclude>flink-runtime-web/web-dashboard/web/fonts/fontawesome*</exclude>
+						<exclude>flink-runtime-web/web-dashboard/web/js/index.js</exclude>
+                        <exclude>flink-runtime-web/web-dashboard/web/js/vendor.js</exclude>
+
+						<!-- downloaded and generated web libraries. -->
+						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>
+						<exclude>flink-runtime-web/web-dashboard/bower_components/**</exclude>
+						<exclude>flink-runtime-web/web-dashboard/tmp/**</exclude>
+
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
 						<exclude>flink-staging/flink-avro/src/test/resources/avro/*.avsc</exclude>
