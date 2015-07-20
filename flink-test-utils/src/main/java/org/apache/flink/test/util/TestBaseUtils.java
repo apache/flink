@@ -250,6 +250,7 @@ public class TestBaseUtils {
 			while ((s = reader.readLine()) != null) {
 				target.add(s);
 			}
+			reader.close();
 		}
 	}
 
