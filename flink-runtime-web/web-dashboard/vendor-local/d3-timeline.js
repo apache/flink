@@ -1,3 +1,10 @@
+// ----------------------------------------------------------------------------
+//  D3 timeline
+//  
+//  (C) 2015, Jia Huang, published under MIT license
+//  https://github.com/jiahuang/d3-timeline
+// ----------------------------------------------------------------------------
+
 // vim: ts=2 sw=2
 (function () {
   d3.timeline = function() {

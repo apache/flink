@@ -292,11 +292,24 @@ The Apache Flink project bundles the following components under the MIT License:
  - jCanvas 13.11.21 (http://calebevans.me/projects/jcanvas/) - Copyright 2014 Caleb Evans
  - Bootstrap 3.1.0 (http://getbootstrap.com) - Copyright (c) 2011-2014 Twitter, Inc
  - normalize.css v3.0.0 (http://git.io/normalize) - Copyright (c) Nicolas Gallagher and Jonathan Neal
- - Font Awesome - Code (http://fortawesome.github.io/Font-Awesome/) - Copyright (c) 2014 Dave Gandy
  - D3 dagre renderer (https://github.com/cpettitt/dagre-d3) - Copyright (c) 2012-2013 Chris Pettitt
  - Rickshaw (https://github.com/shutterstock/rickshaw) - Copyright (C) 2011-2013 by Shutterstock Images, LLC
  - Scopt (com.github.scopt:scopt_2.10:3.2.0 - https://github.com/scopt/scopt) - Copyright (c) scopt contributors
  - Objenesis (org.objenesis:objenesis:2.1 - https://github.com/easymock/objenesis) - Copyright (c) 2006-2015 the original author and authors
+
+ - Angular.JS v1.3.17 (http://angularjs.org) - Copyright (c) 2010-2015 Google, Inc.
+ - Angular Moment v0.9.2 (http://www.momentjs.com) - Copyright (C) 2013, 2014, 2015, Uri Shaked <uri@urish.org>
+ - Angular UI Router v0.2.15 (http://angular-ui.github.io) - Copyright (c) 2013-2015 The AngularUI Team, Karsten Sperling
+ - Bootstrap v3.3.5 (http://getbootstrap.com) - Copyright (c) 2011-2015 Twitter, Inc
+ - D3 timeline (https://github.com/jiahuang/d3-timeline) - Copyright (c) 2012-2015 Jia Huang
+ - dagre v0.7.3 (https://github.com/cpettitt/dagre) - Copyright (c) 2012-2014 Chris Pettitt
+ - dagre-d3 v0.4.10 (https://github.com/cpettitt/dagre-d3) - Copyright (c) 2013 Chris Pettitt
+ - Font Awesome (code) v4.3.0 (http://fontawesome.io) - Copyright (c) 2014 Dave Gandy
+ - graphlib v1.0.7 (https://github.com/cpettitt/graphlib) - Copyright (c) 2012-2014 Chris Pettitt
+ - JQuery v2.1.4 (http://jquery.com/) - Copyright 2014 jQuery Foundation and other contributors
+ - lodash v3.10.0 (http://dojofoundation.org) - Copyright 2012-2015 The Dojo Foundation
+ - moment.js v2.9.0 (http://momentjs.com/docs/) - Copyright (c) 2011-2014 Tim Wood, Iskren Chernev, Moment.js contributors
+ - moment-duration-format v1.3.0 (https://github.com/jsmreese/moment-duration-format) - Copyright (c) 2013 John Madhavan-Reese
 
 
 All rights reserved.
@@ -330,7 +343,7 @@ BSD-style licenses:
 [3-clause BSD license]
  - Kryo (com.esotericsoftware.kryo:kryo:2.24.0 - https://github.com/EsotericSoftware/kryo) - Copyright (c) 2008, Nathan Sweet
  - MinLog (com.esotericsoftware.minlog:minlog:1.2 - https://github.com/EsotericSoftware/minlog) - Copyright (c) 2008, Nathan Sweet
- - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
+ - D3 v3.5.6 (http://d3js.org/) - Copyright (c) 2010-2015, Michael Bostock
 
 [BSD-like License]
  - Scala Library (org.scala-lang:scala-library:2.10.4 - http://www.scala-lang.org/) - Copyright (c) 2002-2015 EPFL, Copyright (c) 2011-2015 Typesafe, Inc.
