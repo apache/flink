@@ -20,12 +20,12 @@ package org.apache.flink.runtime.testingUtils
 
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
+import org.apache.flink.api.common.accumulators.Accumulator
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.InstanceGateway
 import org.apache.flink.runtime.jobgraph.JobStatus
 import java.util.Map
-import org.apache.flink.api.common.accumulators.Accumulator
 
 object TestingJobManagerMessages {
 
@@ -57,8 +57,18 @@ object TestingJobManagerMessages {
   case class NotifyWhenTaskManagerTerminated(taskManager: ActorRef)
   case class TaskManagerTerminated(taskManager: ActorRef)
 
-  case class RequestAccumulatorValues(jobID: JobID)
-  case class RequestAccumulatorValuesResponse(jobID: JobID,
+  /* Registers a listener to receive a message when accumulators changed.
+   * The change must be explicitly triggered by the TestingTaskManager which can receive an
+   * [[AccumulatorChanged]] message by a task that changed the accumulators. This message is then
+   * forwarded to the JobManager which will send the accumulators in the [[UpdatedAccumulators]]
+   * message when the next Heartbeat occurs.
+   * */
+  case class NotifyWhenAccumulatorChange(jobID: JobID)
+
+  /**
+   * Reports updated accumulators back to the listener.
+   */
+  case class UpdatedAccumulators(jobID: JobID,
     flinkAccumulators: Map[ExecutionAttemptID, Map[AccumulatorRegistry.Metric, Accumulator[_,_]]],
     userAccumulators: Map[String, Accumulator[_,_]])
 }

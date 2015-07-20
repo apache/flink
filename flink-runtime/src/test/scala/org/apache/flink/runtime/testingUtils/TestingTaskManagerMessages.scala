@@ -51,7 +51,14 @@ object TestingTaskManagerMessages {
   case class NotifyWhenJobManagerTerminated(jobManager: ActorRef)
 
   case class JobManagerTerminated(jobManager: ActorRef)
-  
+
+  /**
+   * Message to give a hint to the task manager that accumulator values were updated in the task.
+   * This message is forwarded to the job manager which knows that it needs to notify listeners
+   * of accumulator updates.
+   */
+  case class AccumulatorsChanged(jobID: JobID)
+
   // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
