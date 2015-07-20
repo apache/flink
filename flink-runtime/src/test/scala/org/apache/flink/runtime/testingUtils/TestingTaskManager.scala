@@ -94,7 +94,7 @@ class TestingTaskManager(config: TaskManagerConfiguration,
               waitForRemoval += (executionID -> (set + sender))
           }
       }
-      
+
     case TaskInFinalState(executionID) =>
       super.receiveWithLogMessages(TaskInFinalState(executionID))
       waitForRemoval.remove(executionID) match {
@@ -143,6 +143,21 @@ class TestingTaskManager(config: TaskManagerConfiguration,
     case NotifyWhenJobManagerTerminated(jobManager) =>
       val waiting = waitForJobManagerToBeTerminated.getOrElse(jobManager.path.name, Set())
       waitForJobManagerToBeTerminated += jobManager.path.name -> (waiting + sender)
+
+    /**
+     * Message from task manager that accumulator values changed and need to be reported immediately
+     * instead of lazily through the
+     * [[org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat]] message. We forward this
+     * message to the job manager that it knows it should report to the listeners.
+     */
+    case msg: AccumulatorsChanged =>
+      currentJobManager match {
+        case Some(jobManager) =>
+          jobManager.forward(msg)
+          sendHeartbeatToJobManager()
+          sender ! true
+        case None =>
+      }
 
     case msg@Terminated(jobManager) =>
       super.receiveWithLogMessages(msg)
