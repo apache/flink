@@ -18,9 +18,19 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.util.ClusterUtil;
 
 public class LocalStreamEnvironment extends StreamExecutionEnvironment {
+
+	private final Configuration conf;
+
+	public LocalStreamEnvironment() {
+		conf = null;
+	}
+	public LocalStreamEnvironment(Configuration conf) {
+		this.conf = conf;
+	}
 
 	/**
 	 * Executes the JobGraph of the on a mini cluster of CLusterUtil with a
@@ -43,7 +53,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		JobExecutionResult result = ClusterUtil.runOnMiniCluster(getStreamGraph().getJobGraph(), getParallelism(), getConfig().isSysoutLoggingEnabled());
+		JobExecutionResult result = ClusterUtil.runOnMiniCluster(getStreamGraph().getJobGraph(), getParallelism(), -1, getConfig().isSysoutLoggingEnabled());
 		transformations.clear();
 		return result;
 	}
