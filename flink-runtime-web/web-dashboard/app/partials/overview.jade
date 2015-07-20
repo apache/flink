@@ -1,0 +1,118 @@
+nav.navbar.navbar-default.navbar-fixed-top.navbar-main
+  #fold-button.btn.btn-default.navbar-btn.pull-left(ng-click='showSidebar()')
+    i.fa.fa-navicon
+
+  .navbar-title
+    | Overview
+
+#content-inner
+  .row
+    .col-md-6
+      .panel.panel-default.panel-dashboard
+        .panel-heading
+          .row
+            .col-xs-3
+              i.fa.fa-tasks.fa-3x
+            .col-xs-9.text-right
+              .huge 3
+              div Task Managers
+
+        .panel-heading
+          .row
+            .col-xs-3
+              i.fa.fa-folder.fa-3x
+            .col-xs-9.text-right
+              .huge 5
+              div Task Slots
+
+        .panel-heading
+          .row
+            .col-xs-3
+              i.fa.fa-folder-o.fa-3x
+            .col-xs-9.text-right
+              .huge 2
+              div Available Task Slots
+
+    .col-md-6
+      .panel.panel-default.panel-lg
+        .panel-heading
+          | Total Jobs
+        .list-group
+          .list-group-item
+            .badge.badge-primary 3
+            | Running
+          .list-group-item
+            .badge.badge-success 6
+            | Finished
+          .list-group-item
+            .badge.badge-info 0
+            | Canceled
+          .list-group-item
+            .badge.badge-danger 2
+            | Failed
+
+  //- .row
+  //-   .col-sm-12
+  //-     .progress
+  //-       .progress-bar.progress-bar-success(style='width: 35%')
+  //-         span.sr-only 35% Complete (success)
+  //-       .progress-bar.progress-bar-warning.progress-bar-striped(style='width: 20%')
+  //-         span.sr-only 20% Complete (warning)
+  //-       .progress-bar.progress-bar-danger(style='width: 10%')
+  //-         span.sr-only 10% Complete (danger)
+
+  .panel.panel-default
+    .panel-heading
+      h3.panel-title Running Jobs
+    .panel-body
+
+      table.table.table-hover.table-clickable
+        thead
+          tr
+            th Start Time
+            th End Time
+            th Duration
+            th Job Name
+            th Job ID
+            th Tasks
+            th Status
+
+        tbody
+          tr(ng-repeat="job in runningJobs" ui-sref="single-job.plan({ jobid: job.jid })")
+            td {{job['start-time']}}
+            td {{job['end-time']}}
+            td {{job.duration}}
+            td {{job.jobname}}
+            td {{job.jid}}
+            td.label-group
+              bs-label(status="{{status}}" ng-repeat="(status, value) in job.operators") {{value}}
+            td 
+              bs-label(status="{{job.state}}") {{job.state}}
+
+  .panel.panel-default
+    .panel-heading
+      h3.panel-title Completed Jobs
+    .panel-body
+
+      table.table.table-hover.table-clickable
+        thead
+          tr
+            th Start Time
+            th End Time
+            th Duration
+            th Job Name
+            th Job ID
+            th Tasks
+            th Status
+
+        tbody
+          tr(ng-repeat="job in finishedJobs" ui-sref="single-job.plan({ jobid: job.jid })")
+            td {{job['start-time']}}
+            td {{job['end-time']}}
+            td {{job.duration}}
+            td {{job.jobname}}
+            td {{job.jid}}
+            td.label-group
+              bs-label(status="{{status}}" ng-repeat="(status, value) in job.operators") {{value}}
+            td 
+              bs-label(status="{{job.state}}") {{job.state}}

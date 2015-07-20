@@ -1,0 +1,52 @@
+
+<pre>org.apache.flink.client.program.ProgramInvocationException: The
+program execution failed: java.lang.Exception: The data preparation
+for task 'Reduce (SUM(2))' , caused an error: Error obtaining the
+sorted input: Thread 'SortMerger spilling thread' terminated due to an
+exception: The user-defined combiner failed in its 'open()' method.
+  at org.apache.flink.runtime.operators.RegularPactTask.run(RegularPactTask.java:472)
+  at org.apache.flink.runtime.operators.RegularPactTask.invoke(RegularPactTask.java:360)
+  at org.apache.flink.runtime.execution.RuntimeEnvironment.run(RuntimeEnvironment.java:204)
+  at java.lang.Thread.run(Thread.java:745)
+Caused by: java.lang.RuntimeException: Error obtaining the sorted
+input: Thread 'SortMerger spilling thread' terminated due to an
+exception: The user-defined combiner failed in its 'open()' method.
+  at org.apache.flink.runtime.operators.sort.UnilateralSortMerger.getIterator(UnilateralSortMerger.java:607)
+  at org.apache.flink.runtime.operators.RegularPactTask.getInput(RegularPactTask.java:1133)
+  at org.apache.flink.runtime.operators.GroupReduceDriver.prepare(GroupReduceDriver.java:94)
+  at org.apache.flink.runtime.operators.RegularPactTask.run(RegularPactTask.java:466)
+  ... 3 more
+Caused by: java.io.IOException: Thread 'SortMerger spilling thread'
+terminated due to an exception: The user-defined combiner failed in
+its 'open()' method.
+  at org.apache.flink.runtime.operators.sort.UnilateralSortMerger$ThreadBase.run(UnilateralSortMerger.java:785)
+Caused by: java.io.IOException: The user-defined combiner failed in
+its 'open()' method.
+  at org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger$CombiningSpillingThread.go(CombiningUnilateralSortMerger.java:264)
+  at org.apache.flink.runtime.operators.sort.UnilateralSortMerger$ThreadBase.run(UnilateralSortMerger.java:781)
+Caused by: java.lang.IllegalStateException: The runtime context has
+not been initialized.
+  at org.apache.flink.api.common.functions.AbstractRichFunction.getRuntimeContext(AbstractRichFunction.java:49)
+  at org.apache.flink.api.scala.operators.ScalaAggregateOperator$AggregatingUdf.open(ScalaAggregateOperator.java:261)
+  at org.apache.flink.api.common.functions.util.FunctionUtils.openFunction(FunctionUtils.java:33)
+  at org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger$CombiningSpillingThread.go(CombiningUnilateralSortMerger.java:261)
+  ... 1 more
+ 
+  at org.apache.flink.client.program.Client.run(Client.java:345)
+  at org.apache.flink.client.program.Client.run(Client.java:304)
+  at org.apache.flink.client.program.Client.run(Client.java:298)
+  at org.apache.flink.client.program.ContextEnvironment.execute(ContextEnvironment.java:55)
+  at org.apache.flink.api.scala.ExecutionEnvironment.execute(ExecutionEnvironment.scala:530)
+  at com.gmp.MyJob$.main(MyJob.scala:33)
+  at com.gmp.MyJob.main(MyJob.scala)
+  at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+  at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+  at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+  at java.lang.reflect.Method.invoke(Method.java:483)
+  at org.apache.flink.client.program.PackagedProgram.callMainMethod(PackagedProgram.java:437)
+  at org.apache.flink.client.program.PackagedProgram.invokeInteractiveModeForExecution(PackagedProgram.java:353)
+  at org.apache.flink.client.program.Client.run(Client.java:250)
+  at org.apache.flink.client.CliFrontend.executeProgram(CliFrontend.java:374)
+  at org.apache.flink.client.CliFrontend.run(CliFrontend.java:347)
+  at org.apache.flink.client.CliFrontend.parseParameters(CliFrontend.java:1088)
+  at org.apache.flink.client.CliFrontend.main(CliFrontend.java:1115)</pre>

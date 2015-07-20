@@ -1,0 +1,44 @@
+doctype html
+html(lang='en')
+  head
+    meta(charset='utf-8')
+    meta(http-equiv='X-UA-Compatible', content='IE=edge')
+    meta(name='viewport', content='width=device-width, initial-scale=1')
+
+    title Apache Flink Web Dashboard
+
+    link(rel='stylesheet', href='css/vendor.css', type='text/css')
+    link(rel='stylesheet', href='css/index.css', type='text/css')
+
+    script(src="js/vendor.js")
+    script(src="js/index.js")
+
+  body(ng-app="flinkApp" ng-strict-di)
+    #sidebar(ng-class="{ 'sidebar-visible': sidebarVisible }")
+      nav.navbar.navbar-inverse.navbar-static-top
+        .navbar-header
+          a.navbar-brand(ui-sref="overview")
+            img.logo(alt="Apache Flink Dashboard" src="images/flink-logo.png")
+          a.navbar-brand.navbar-brand-text(ui-sref="overview")
+            | Apache Flink Dashboard
+
+      .navbar.navbar-sidebar
+        ul.nav
+          li
+            a(ui-sref="overview" ui-sref-active='active')
+              i.fa.fa-dashboard.fa-fw
+              | 
+              | Overview
+          li
+            a(ui-sref="running-jobs" ui-sref-active='active')
+              i.fa.fa-tasks.fa-fw
+              | 
+              | Running Jobs
+          li
+            a(ui-sref="completed-jobs" ui-sref-active='active')
+              i.fa.fa-server.fa-fw
+              | 
+              | Completed Jobs
+
+    #content(ng-class="{ 'sidebar-visible': sidebarVisible }")
+      div(ui-view='main')

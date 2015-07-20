@@ -1,0 +1,156 @@
+var gulp = require('gulp');
+var gutil = require('gulp-util');
+var jade = require('gulp-jade');
+var livereload = require('gulp-livereload');
+var plumber = require('gulp-plumber');
+var stylus = require('gulp-stylus');
+var browserify = require('gulp-browserify');
+var concat = require('gulp-concat');
+var uglify = require('gulp-uglify');
+var ngAnnotate = require('gulp-ng-annotate');
+var minify = require('gulp-minify-css');
+var serve = require('gulp-serve');
+var nib = require('nib');
+var coffee = require('gulp-coffee');
+var sourcemaps = require('gulp-sourcemaps');
+var filter = require('gulp-filter');
+var mainBowerFiles = require('main-bower-files');
+var less = require('gulp-less');
+var path = require('path');
+
+var environment = 'development';
+var paths = {
+  src: './app/',
+  dest: './web/',
+  vendor: './vendor/',
+  vendorLocal: './vendor-local/',
+  assets: './assets/',
+  tmp: './tmp/'
+}
+
+gulp.task('set-production', function() {
+  environment = 'production';
+});
+
+gulp.task('fonts', function() {
+ gulp.src(paths.vendor + "font-awesome/fonts/*")
+    .pipe(plumber())
+    .pipe(gulp.dest(paths.assets + 'fonts'));
+});
+
+gulp.task('assets', function() {
+ gulp.src(paths.assets + "**")
+    .pipe(plumber())
+    .pipe(gulp.dest(paths.dest));
+});
+
+
+gulp.task('bootstrap', function () {
+  return gulp.src(paths.src + 'styles/bootstrap_custom.less')
+    .pipe(less({
+      paths: [ path.join(__dirname, 'less', 'includes') ]
+    }))
+    .pipe(gulp.dest(paths.tmp + 'css/'));
+});
+
+gulp.task('vendor-styles', [ 'bootstrap' ], function() {
+  stream = gulp.src(mainBowerFiles().concat([paths.tmp + 'css/bootstrap_custom.css']))
+    .pipe(filter(['*.css', '!bootstrap.css']))
+    .pipe(sourcemaps.init())
+    .pipe(concat("vendor.css"))
+    .pipe(sourcemaps.write());
+
+  if (environment == 'production') {
+    stream.pipe(minify())
+  }
+
+  stream.pipe(gulp.dest(paths.dest + 'css/'))
+ });
+
+gulp.task('vendor-scripts', function() {
+  stream = gulp.src(mainBowerFiles({
+      env: 'development'
+    }).concat([paths.vendorLocal + '*.js']))
+    .pipe(filter('*.js'))
+    .pipe(sourcemaps.init())
+    .pipe(concat("vendor.js"))
+    .pipe(sourcemaps.write());
+
+  if (environment == 'production') {
+    stream.pipe(uglify())
+  }
+
+  stream.pipe(gulp.dest(paths.dest + 'js/'))
+ });
+
+gulp.task('scripts', function() {
+  stream = gulp.src([ paths.src + 'scripts/config.js', paths.src + 'scripts/**/*.coffee'] )
+    .pipe(plumber())
+    .pipe(sourcemaps.init())
+    .pipe(coffee({ bare: true }))
+    .pipe(ngAnnotate())
+    .pipe(concat('index.js'))
+    .pipe(sourcemaps.write());
+
+  if (environment == 'production') {
+    stream.pipe(uglify())
+  }
+
+  stream.pipe(gulp.dest(paths.dest + 'js/'))
+});
+
+gulp.task('html', function() {
+  gulp.src(paths.src + 'index.jade')
+    .pipe(plumber())
+    .pipe(jade({
+      pretty: true
+    }))
+    .pipe(gulp.dest(paths.dest))
+});
+
+gulp.task('partials', function() {
+  gulp.src(paths.src + 'partials/**/*.jade')
+    .pipe(plumber())
+    .pipe(jade({
+      pretty: true
+    }))
+    .pipe(gulp.dest(paths.dest + 'partials/'))
+});
+
+gulp.task('styles', function () {
+  stream = gulp.src(paths.src + 'styles/index.styl')
+    .pipe(plumber())
+    .pipe(stylus({ use: [nib()] }))
+  
+  if (environment == 'production') {
+    stream.pipe(minify());
+  }
+
+  stream.pipe(gulp.dest(paths.dest + 'css/'))
+});
+
+gulp.task('watch', function () {
+  livereload.listen();
+
+  gulp.watch(paths.src + 'partials/**', ['partials']);
+  gulp.watch(paths.src + 'scripts/**', ['scripts']);
+  gulp.watch(paths.src + 'styles/**/*.styl', ['styles']);
+  gulp.watch(paths.src + 'index.jade', ['html']);
+
+  gulp.watch([
+      paths.dest + 'js/*.js',
+      paths.dest + 'css/*.css',
+      paths.dest + '**/*.html'
+    ], livereload.changed);
+});
+
+gulp.task('serve', serve({
+  root: 'web',
+  port: 3001
+}));
+
+gulp.task('vendor', ['vendor-styles', 'vendor-scripts']);
+gulp.task('compile', ['html', 'partials','styles', 'scripts']);
+
+gulp.task('default', ['fonts', 'assets', 'vendor', 'compile']);
+gulp.task('production', ['set-production', 'default']);

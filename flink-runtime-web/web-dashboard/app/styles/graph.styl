@@ -1,0 +1,74 @@
+svg.graph
+  overflow hidden
+
+  g
+    &.type-TK
+      & > rect
+        fill #00ffd0
+
+  text
+    font-weight 300
+    font-size 14px
+
+  .node
+    > rect
+      stroke #999
+      stroke-width 5px
+      fill #fff
+      margin: 0
+      
+    &[active]
+      > rect
+        fill #eeeeee
+
+    &.node-mirror
+      > rect
+        stroke: #a8a8a8
+
+    &.node-iteration
+      > rect
+        stroke: #cd3333
+
+    &.node-source
+      > rect
+        stroke: #4ce199
+
+    &.node-sink
+      > rect
+        stroke: #e6ec8b
+
+    &.node-normal
+      > rect
+        stroke: #3fb6d8
+
+    h4
+      color: #000
+    h5
+      color: #999
+
+  .edgeLabel
+    rect
+      fill #fff
+
+  .edgePath
+    path
+      stroke #333
+      stroke-width 2px
+      fill #333
+
+  .label
+    color: #777
+    margin: 0
+
+  .edge-label
+    padding: 5px
+    font-size: 14px
+    // border: 2px solid
+    
+  .node-label
+    display: block
+    // border-width: 4px
+    // border-style: solid
+    // padding: 10px
+    margin: 0
+    text-decoration: none

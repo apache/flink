@@ -1,0 +1,134 @@
+.panel.panel-default.panel-multi(ng-if="node")
+  .panel-heading.clearfix
+    .panel-title
+      | {{ node.pact }}
+
+    .panel-info.first
+      | ID: {{ node.id }}
+
+    .panel-info(ng-if="node.contents")
+      .label-group
+        bs-label(status="{{status}}" ng-repeat="(index, status) in stateList") {{node.vertex.groupvertex[status]}}
+
+  .panel-heading.clearfix
+    .panel-info.first.last(ng-if="node.contents")
+      span {{ node.contents }}
+
+  .panel-body
+    table.table.table-hover.table-clickable
+      thead
+        tr
+          th Name
+          th Status
+
+      tbody
+        tr(colspan="2")
+          td
+            center
+              i WARNING! This is a sample
+        tr(ng-repeat="vertex in node.vertex.groupvertex.groupmembers")
+          td {{vertex.vertexname}}
+          td 
+            bs-label(status="{{vertex.vertexstatus}}") {{vertex.vertexstatus}}
+
+//-----------------------------------------------------------------
+
+.row(ng-if="node")
+  .col-sm-6.col-md-4
+    table.table.table-properties(ng-if="node.global_properties")
+      thead
+        tr
+          th(colspan="2")
+            | Global Data Properties
+
+      tbody
+        tr(ng-repeat="property in node.global_properties")
+          td {{property.name}}
+          td(table-property value="property.value")
+
+    table.table.table-properties(ng-if="node.local_properties")
+      thead
+        tr
+          th(colspan="2")
+            | Local Data Properties
+
+      tbody
+        tr(ng-repeat="property in node.local_properties")
+          td {{property.name}}
+          td(table-property value="property.value")
+
+    .visible-xs.visible-sm
+      table.table.table-properties
+        thead
+          tr
+            th(colspan="2")
+              | Pact Properties
+
+        tbody
+          tr
+            td Operator
+            td(table-property value="node.driver_strategy")
+
+          tr
+            td Parallelism
+            td(table-property value="node.parallelism")
+
+          tr
+            td Subtasks-per-instance
+            td(table-property value="node.subtasks_per_instance")
+
+
+  .hidden-sm.col-md-4
+    table.table.table-properties
+      thead
+        tr
+          th(colspan="2")
+            | Pact Properties
+
+      tbody
+        tr
+          td Operator
+          td(table-property value="node.driver_strategy")
+
+        tr
+          td Parallelism
+          td(table-property value="node.parallelism")
+
+        tr
+          td Subtasks-per-instance
+          td(table-property value="node.subtasks_per_instance")
+
+    table.table.table-properties(ng-if="node.estimates")
+      thead
+        tr
+          th(colspan="2")
+            | Size Estimates
+
+      tbody
+        tr(ng-repeat="property in node.estimates")
+          td {{property.name}}
+          td(table-property value="property.value")
+
+  .col-sm-6.col-md-4
+    .visible-xs.visible-sm
+      table.table.table-properties(ng-if="node.estimates")
+        thead
+          tr
+            th(colspan="2")
+              | Size Estimates
+
+        tbody
+          tr(ng-repeat="property in node.estimates")
+            td {{property.name}}
+            td(table-property value="property.value")
+
+    table.table.table-properties(ng-if="node.costs")
+      thead
+        tr
+          th(colspan="2")
+            | Cost Estimates
+
+      tbody
+        tr(ng-repeat="property in node.costs")
+          td {{property.name}}
+          td(table-property value="property.value")

@@ -1,0 +1,43 @@
+.canvas-wrapper
+  border: 1px solid #ddd
+  position: relative
+  margin-bottom: 20px
+  
+  .main-canvas
+    height: 400px
+    overflow: hidden
+
+    .zoom-buttons
+      position: absolute
+      top: 10px
+      right: 10px
+
+.table
+  &.table-properties
+    table-layout: fixed
+    white-space: nowrap
+    td
+      width: 50%
+      white-space: nowrap
+      overflow: hidden
+      text-overflow: ellipsis
+
+
+.label-group
+  .label
+    display: inline-block
+    width: 2em
+    padding-left: 0.1em
+    padding-right: 0.1em
+    margin: 0
+    border-right: 1px solid #ffffff
+    border-radius(0)
+    
+    &.label-black
+      background-color: #000000
+
+    // &:first-child
+    //   border-radius(4px 0 0 4px)
+
+    // &:last-child
+    //   border-radius(0 4px 4px 0)

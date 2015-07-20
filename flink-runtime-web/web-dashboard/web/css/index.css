@@ -1,0 +1,410 @@
+#sidebar {
+  overflow: hidden;
+  position: fixed;
+  left: -250px;
+  top: 0;
+  bottom: 0;
+  height: 100%;
+  width: 250px;
+  background: #151515;
+  -webkit-transition: 400ms;
+  -moz-transition: 400ms;
+  -o-transition: 400ms;
+  -ms-transition: 400ms;
+  transition: 400ms;
+  -webkit-box-shadow: inset -10px 0px 10px rgba(0,0,0,0.2);
+  box-shadow: inset -10px 0px 10px rgba(0,0,0,0.2);
+}
+#sidebar.sidebar-visible {
+  left: 0;
+}
+#sidebar .logo {
+  width: auto;
+  height: 22px;
+}
+#sidebar .navbar-brand.navbar-brand-text {
+  font-size: 14px;
+  font-weight: bold;
+  color: #fff;
+  padding-left: 0;
+}
+#sidebar .nav > li > a {
+  color: #aaa;
+  margin-bottom: 1px;
+}
+#sidebar .nav > li > a:hover,
+#sidebar .nav > li > a:focus {
+  background-color: rgba(40,40,40,0.5);
+}
+#sidebar .nav > li > a.active {
+  background-color: rgba(100,100,100,0.5);
+}
+#content {
+  background-color: #fff;
+  overflow: hidden;
+  margin-left: 0;
+  padding-top: 70px;
+  -webkit-transition: 400ms;
+  -moz-transition: 400ms;
+  -o-transition: 400ms;
+  -ms-transition: 400ms;
+  transition: 400ms;
+}
+#content .navbar-main,
+#content .navbar-main-additional {
+  -webkit-transition: 400ms;
+  -moz-transition: 400ms;
+  -o-transition: 400ms;
+  -ms-transition: 400ms;
+  transition: 400ms;
+}
+#content .navbar-main-additional {
+  margin-top: 51px;
+  border-bottom: none;
+  padding: 0 20px;
+}
+#content .navbar-main-additional .nav-tabs {
+  margin: 0 -20px;
+  padding: 0 20px;
+}
+#content.sidebar-visible {
+  margin-left: 250px;
+}
+#content.sidebar-visible .navbar-main,
+#content.sidebar-visible .navbar-main-additional {
+  left: 250px;
+}
+#content #fold-button {
+  display: inline-block;
+  margin-left: 20px;
+}
+#content #content-inner {
+  padding: 0px 20px 20px 20px;
+}
+#content #content-inner.has-navbar-main-additional {
+  padding-top: 42px;
+}
+.page-header {
+  margin: 0 0 20px 0;
+}
+.nav > li > a,
+.nav > li > a:hover,
+.nav > li > a:focus {
+  color: #aaa;
+  background-color: transparent;
+  border-bottom: 2px solid transparent;
+}
+.nav > li.active > a,
+.nav > li.active > a:hover,
+.nav > li.active > a:focus {
+  color: #000;
+  border-bottom: 2px solid #000;
+}
+.nav.nav-tabs {
+  margin-bottom: 20px;
+}
+.table th {
+  font-weight: normal;
+  color: #999;
+}
+.table.table-clickable tr {
+  cursor: pointer;
+}
+.panel.panel-dashboard .huge {
+  font-size: 28px;
+}
+.panel.panel-lg {
+  font-size: 16px;
+}
+.panel.panel-lg .badge {
+  font-size: 14px;
+}
+.navbar-secondary {
+  overflow: auto;
+}
+.navbar-main .navbar-title,
+.navbar-secondary .navbar-title,
+.navbar-main-additional .navbar-title,
+.panel.panel-multi .navbar-title,
+.navbar-main .panel-title,
+.navbar-secondary .panel-title,
+.navbar-main-additional .panel-title,
+.panel.panel-multi .panel-title {
+  float: left;
+  font-size: 18px;
+  padding: 12px 20px 13px 10px;
+  color: #333;
+  display: inline-block;
+}
+.navbar-main .navbar-info,
+.navbar-secondary .navbar-info,
+.navbar-main-additional .navbar-info,
+.panel.panel-multi .navbar-info,
+.navbar-main .panel-info,
+.navbar-secondary .panel-info,
+.navbar-main-additional .panel-info,
+.panel.panel-multi .panel-info {
+  float: left;
+  font-size: 14px;
+  padding: 15px 15px 15px 15px;
+  color: #999;
+  display: inline-block;
+  border-right: 1px solid #e7e7e7;
+  overflow: hidden;
+}
+.navbar-main .navbar-info .overflow,
+.navbar-secondary .navbar-info .overflow,
+.navbar-main-additional .navbar-info .overflow,
+.panel.panel-multi .navbar-info .overflow,
+.navbar-main .panel-info .overflow,
+.navbar-secondary .panel-info .overflow,
+.navbar-main-additional .panel-info .overflow,
+.panel.panel-multi .panel-info .overflow {
+  position: absolute;
+  display: block;
+  -o-text-overflow: ellipsis;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  height: 22px;
+  line-height: 22px;
+  vertical-align: middle;
+}
+.navbar-main .navbar-info.first,
+.navbar-secondary .navbar-info.first,
+.navbar-main-additional .navbar-info.first,
+.panel.panel-multi .navbar-info.first,
+.navbar-main .panel-info.first,
+.navbar-secondary .panel-info.first,
+.navbar-main-additional .panel-info.first,
+.panel.panel-multi .panel-info.first {
+  border-left: 1px solid #e7e7e7;
+}
+.navbar-main .navbar-info.last,
+.navbar-secondary .navbar-info.last,
+.navbar-main-additional .navbar-info.last,
+.panel.panel-multi .navbar-info.last,
+.navbar-main .panel-info.last,
+.navbar-secondary .panel-info.last,
+.navbar-main-additional .panel-info.last,
+.panel.panel-multi .panel-info.last {
+  border-right: none;
+}
+.panel.panel-multi .panel-heading {
+  padding: 0;
+}
+.panel.panel-multi .panel-body {
+  padding: 10px;
+  background-color: #fdfdfd;
+  color: #999;
+  font-size: 13px;
+}
+.navbar-main-additional {
+  min-height: 40px;
+  background-color: #fdfdfd;
+}
+.navbar-main-additional .navbar-info {
+  font-size: 13px;
+  padding: 10px 15px 10px 15px;
+}
+.nav-top-affix.affix {
+  width: 100%;
+  top: 50px;
+  margin-left: -20px;
+  padding-left: 20px;
+  margin-right: -20px;
+  padding-right: 20px;
+  background-color: #fff;
+  z-index: 1;
+}
+.badge-default[href]:hover,
+.badge-default[href]:focus {
+  background-color: #808080;
+}
+.badge-primary {
+  background-color: #428bca;
+}
+.badge-primary[href]:hover,
+.badge-primary[href]:focus {
+  background-color: #3071a9;
+}
+.badge-success {
+  background-color: #5cb85c;
+}
+.badge-success[href]:hover,
+.badge-success[href]:focus {
+  background-color: #449d44;
+}
+.badge-info {
+  background-color: #5bc0de;
+}
+.badge-info[href]:hover,
+.badge-info[href]:focus {
+  background-color: #31b0d5;
+}
+.badge-warning {
+  background-color: #f0ad4e;
+}
+.badge-warning[href]:hover,
+.badge-warning[href]:focus {
+  background-color: #ec971f;
+}
+.badge-danger {
+  background-color: #d9534f;
+}
+.badge-danger[href]:hover,
+.badge-danger[href]:focus {
+  background-color: #c9302c;
+}
+.indicator {
+  display: inline-block;
+  margin-right: 15px;
+}
+.indicator.indicator-primary {
+  color: #428bca;
+}
+.indicator.indicator-success {
+  color: #5cb85c;
+}
+.indicator.indicator-info {
+  color: #5bc0de;
+}
+.indicator.indicator-warning {
+  color: #f0ad4e;
+}
+.indicator.indicator-danger {
+  color: #d9534f;
+}
+.canvas-wrapper {
+  border: 1px solid #ddd;
+  position: relative;
+  margin-bottom: 20px;
+}
+.canvas-wrapper .main-canvas {
+  height: 400px;
+  overflow: hidden;
+}
+.canvas-wrapper .main-canvas .zoom-buttons {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+.table.table-properties {
+  table-layout: fixed;
+  white-space: nowrap;
+}
+.table.table-properties td {
+  width: 50%;
+  white-space: nowrap;
+  overflow: hidden;
+  -o-text-overflow: ellipsis;
+  text-overflow: ellipsis;
+}
+.label-group .label {
+  display: inline-block;
+  width: 2em;
+  padding-left: 0.1em;
+  padding-right: 0.1em;
+  margin: 0;
+  border-right: 1px solid #fff;
+  -webkit-border-radius: 0;
+  border-radius: 0;
+}
+.label-group .label.label-black {
+  background-color: #000;
+}
+svg.graph {
+  overflow: hidden;
+}
+svg.graph g.type-TK > rect {
+  fill: #00ffd0;
+}
+svg.graph text {
+  font-weight: 300;
+  font-size: 14px;
+}
+svg.graph .node > rect {
+  stroke: #999;
+  stroke-width: 5px;
+  fill: #fff;
+  margin: 0;
+}
+svg.graph .node[active] > rect {
+  fill: #eee;
+}
+svg.graph .node.node-mirror > rect {
+  stroke: #a8a8a8;
+}
+svg.graph .node.node-iteration > rect {
+  stroke: #cd3333;
+}
+svg.graph .node.node-source > rect {
+  stroke: #4ce199;
+}
+svg.graph .node.node-sink > rect {
+  stroke: #e6ec8b;
+}
+svg.graph .node.node-normal > rect {
+  stroke: #3fb6d8;
+}
+svg.graph .node h4 {
+  color: #000;
+}
+svg.graph .node h5 {
+  color: #999;
+}
+svg.graph .edgeLabel rect {
+  fill: #fff;
+}
+svg.graph .edgePath path {
+  stroke: #333;
+  stroke-width: 2px;
+  fill: #333;
+}
+svg.graph .label {
+  color: #777;
+  margin: 0;
+}
+svg.graph .edge-label {
+  padding: 5px;
+  font-size: 14px;
+}
+svg.graph .node-label {
+  display: block;
+  margin: 0;
+  text-decoration: none;
+}
+.timeline-canvas {
+  overflow: hidden;
+  padding: 10px;
+}
+svg.timeline {
+  overflow: hidden;
+}
+svg.timeline .timeline-insidelabel,
+svg.timeline .timeline-series {
+  cursor: pointer;
+}
+svg.timeline.secondary .timeline-insidelabel,
+svg.timeline.secondary .timeline-series {
+  cursor: auto;
+}
+@media (min-width: 768px) {
+  #sidebar {
+    left: 0;
+  }
+  #content {
+    margin-left: 250px;
+  }
+  #content #fold-button {
+    display: none;
+  }
+  #content .navbar-main,
+  #content .navbar-main-additional {
+    left: 250px;
+  }
+  .navbar-main .navbar-title,
+  .navbar-secondary .navbar-title,
+  .navbar-main-additional .navbar-title {
+    padding: 12px 20px 13px 20px;
+  }
+}
