@@ -65,6 +65,7 @@ under the License.
 		<module>flink-quickstart</module>
 		<module>flink-contrib</module>
 		<module>flink-dist</module>
+		<module>flink-mesos</module>
 	</modules>
 
 	<properties>
