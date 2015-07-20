@@ -609,7 +609,8 @@ DataSet<Tuple3<Integer, String, Double>> output = input.sum(0).andMin(2);
     <tr>
       <td><strong>Distinct</strong></td>
       <td>
-        <p>Returns the distinct elements of a data set.</p>
+        <p>Returns the distinct elements of a data set. It removes the duplicate entries 
+        from the input DataSet and returns unique values. </p>
     {% highlight java %}
         data.distinct(); 
     {% endhighlight %}
