@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{ActorRef, Props, ActorSystem}
+import akka.testkit.CallingThreadDispatcher
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
@@ -36,14 +37,22 @@ import org.apache.flink.runtime.taskmanager.TaskManager
  */
 class TestingCluster(userConfiguration: Configuration,
                      singleActorSystem: Boolean,
+                     synchronousDispatcher: Boolean,
                      streamingMode: StreamingMode)
-  extends FlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
+  extends FlinkMiniCluster(userConfiguration,
+                           singleActorSystem,
+                           streamingMode) {
   
 
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean) 
-        = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
+  def this(userConfiguration: Configuration,
+           singleActorSystem: Boolean,
+           synchronousDispatcher: Boolean)
+       = this(userConfiguration, singleActorSystem, synchronousDispatcher, StreamingMode.BATCH_ONLY)
 
-  def this(userConfiguration: Configuration) = this(userConfiguration, true)
+  def this(userConfiguration: Configuration, singleActorSystem: Boolean)
+       = this(userConfiguration, singleActorSystem, false)
+
+  def this(userConfiguration: Configuration) = this(userConfiguration, true, false)
   
   // --------------------------------------------------------------------------
   
@@ -87,7 +96,14 @@ class TestingCluster(userConfiguration: Configuration,
         streamingMode)
       with TestingJobManager)
 
-    actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
+    val dispatcherJobManagerProps = if (synchronousDispatcher) {
+      // disable asynchronous futures (e.g. accumulator update in Heartbeat)
+      jobManagerProps.withDispatcher(CallingThreadDispatcher.Id)
+    } else {
+      jobManagerProps
+    }
+
+    actorSystem.actorOf(dispatcherJobManagerProps, JobManager.JOB_MANAGER_NAME)
   }
 
   override def startTaskManager(index: Int, system: ActorSystem) = {
