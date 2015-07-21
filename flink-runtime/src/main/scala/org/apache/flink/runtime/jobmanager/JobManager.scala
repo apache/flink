@@ -28,7 +28,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.io.InputSplitAssigner
-import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult
+import org.apache.flink.runtime.accumulators.{AccumulatorSnapshot, StringifiedAccumulatorResult}
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
@@ -404,15 +404,7 @@ class JobManager(
       log.debug(s"Received hearbeat message from $instanceID.")
 
       Future {
-        accumulators foreach {
-          case accumulators =>
-              currentJobs.get(accumulators.getJobID) match {
-                case Some((jobGraph, jobInfo)) =>
-                  jobGraph.updateAccumulators(accumulators)
-                case None =>
-                  // ignore accumulator values for old job
-              }
-        }
+        updateAccumulators(accumulators)
       }(context.dispatcher)
 
       instanceManager.reportHeartBeat(instanceID, metricsReport)
@@ -768,6 +760,22 @@ class JobManager(
     } catch {
       case t: Throwable =>
         log.error(s"Could not properly unregister job $jobID form the library cache.", t)
+    }
+  }
+
+  /**
+   * Updates the accumulators reported from a task manager via the Heartbeat message.
+   * @param accumulators list of accumulator snapshots
+   */
+  private def updateAccumulators(accumulators : Seq[AccumulatorSnapshot]) = {
+    accumulators foreach {
+      case accumulatorEvent =>
+        currentJobs.get(accumulatorEvent.getJobID) match {
+          case Some((jobGraph, jobInfo)) =>
+            jobGraph.updateAccumulators(accumulatorEvent)
+          case None =>
+          // ignore accumulator values for old job
+        }
     }
   }
 }
