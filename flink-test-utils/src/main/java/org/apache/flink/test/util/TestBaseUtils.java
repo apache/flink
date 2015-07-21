@@ -262,6 +262,7 @@ public class TestBaseUtils {
 					// ignore, this is best-effort cleanup
 				}
 			}
+			reader.close();
 		}
 	}
 
