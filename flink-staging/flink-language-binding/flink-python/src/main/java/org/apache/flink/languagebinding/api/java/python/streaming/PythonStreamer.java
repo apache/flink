@@ -13,10 +13,10 @@
 package org.apache.flink.languagebinding.api.java.python.streaming;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.reflect.Field;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import static org.apache.flink.languagebinding.api.java.common.PlanBinder.DEBUG;
-import static org.apache.flink.languagebinding.api.java.python.PythonPlanBinder.FLINK_PYTHON_EXECUTOR_NAME;
 import static org.apache.flink.languagebinding.api.java.python.PythonPlanBinder.FLINK_PYTHON_DC_ID;
 import static org.apache.flink.languagebinding.api.java.python.PythonPlanBinder.FLINK_PYTHON_PLAN_NAME;
 import static org.apache.flink.languagebinding.api.java.common.PlanBinder.FLINK_TMP_DATA_DIR;
@@ -30,24 +30,22 @@ import static org.apache.flink.languagebinding.api.java.python.PythonPlanBinder.
  * This streamer is used by functions to send/receive data to/from an external python process.
  */
 public class PythonStreamer extends Streamer {
-	private final byte[] operator;
 	private Process process;
-	private final String metaInformation;
 	private final int id;
 	private final boolean usePython3;
 	private final boolean debug;
 	private Thread shutdownThread;
+	private final String planArguments;
 
 	private String inputFilePath;
 	private String outputFilePath;
 
-	public PythonStreamer(AbstractRichFunction function, int id, byte[] operator, String metaInformation) {
+	public PythonStreamer(AbstractRichFunction function, int id) {
 		super(function);
-		this.operator = operator;
-		this.metaInformation = metaInformation;
 		this.id = id;
 		this.usePython3 = PythonPlanBinder.usePython3;
 		this.debug = DEBUG;
+		planArguments = PythonPlanBinder.arguments.toString();
 	}
 
 	/**
@@ -67,21 +65,8 @@ public class PythonStreamer extends Streamer {
 		sender.open(inputFilePath);
 		receiver.open(outputFilePath);
 
-		ProcessBuilder pb = new ProcessBuilder();
-
 		String path = function.getRuntimeContext().getDistributedCache().getFile(FLINK_PYTHON_DC_ID).getAbsolutePath();
-		String executorPath = path + FLINK_PYTHON_EXECUTOR_NAME;
-		String[] frag = metaInformation.split("\\|");
-		StringBuilder importString = new StringBuilder();
-		if (frag[0].contains("__main__")) {
-			importString.append("from ");
-			importString.append(FLINK_PYTHON_PLAN_NAME.substring(1, FLINK_PYTHON_PLAN_NAME.length() - 3));
-			importString.append(" import ");
-			importString.append(frag[1]);
-		} else {
-			importString.append("import ");
-			importString.append(FLINK_PYTHON_PLAN_NAME.substring(1, FLINK_PYTHON_PLAN_NAME.length() - 3));
-		}
+		String planPath = path + FLINK_PYTHON_PLAN_NAME;
 
 		String pythonBinaryPath = usePython3 ? FLINK_PYTHON3_BINARY_PATH : FLINK_PYTHON2_BINARY_PATH;
 
@@ -90,14 +75,13 @@ public class PythonStreamer extends Streamer {
 		} catch (IOException ex) {
 			throw new RuntimeException(pythonBinaryPath + " does not point to a valid python binary.");
 		}
-		pb.command(pythonBinaryPath, "-O", "-B", executorPath, "" + server.getLocalPort());
 
 		if (debug) {
 			socket.setSoTimeout(0);
 			LOG.info("Waiting for Python Process : " + function.getRuntimeContext().getTaskName()
-					+ " Run python /tmp/flink" + FLINK_PYTHON_EXECUTOR_NAME + " " + server.getLocalPort());
+					+ " Run python " + planPath + planArguments);
 		} else {
-			process = pb.start();
+			process = Runtime.getRuntime().exec(pythonBinaryPath + " -O -B " + planPath + planArguments);
 			new StreamPrinter(process.getInputStream()).start();
 			new StreamPrinter(process.getErrorStream(), true, msg).start();
 		}
@@ -114,31 +98,13 @@ public class PythonStreamer extends Streamer {
 
 		Runtime.getRuntime().addShutdownHook(shutdownThread);
 
-		socket = server.accept();
-		in = socket.getInputStream();
-		out = socket.getOutputStream();
-
-		byte[] opSize = new byte[4];
-		putInt(opSize, 0, operator.length);
-		out.write(opSize, 0, 4);
-		out.write(operator, 0, operator.length);
-
-		byte[] meta = importString.toString().getBytes("utf-8");
-		putInt(opSize, 0, meta.length);
-		out.write(opSize, 0, 4);
-		out.write(meta, 0, meta.length);
-
-		byte[] input = inputFilePath.getBytes("utf-8");
-		putInt(opSize, 0, input.length);
-		out.write(opSize, 0, 4);
-		out.write(input, 0, input.length);
-
-		byte[] output = outputFilePath.getBytes("utf-8");
-		putInt(opSize, 0, output.length);
-		out.write(opSize, 0, 4);
-		out.write(output, 0, output.length);
-
-		out.flush();
+		OutputStream processOutput = process.getOutputStream();
+		processOutput.write("operator\n".getBytes());
+		processOutput.write(("" + server.getLocalPort() + "\n").getBytes());
+		processOutput.write((id + "\n").getBytes());
+		processOutput.write((inputFilePath + "\n").getBytes());
+		processOutput.write((outputFilePath + "\n").getBytes());
+		processOutput.flush();
 
 		try { // wait a bit to catch syntax errors
 			Thread.sleep(2000);
@@ -151,6 +117,10 @@ public class PythonStreamer extends Streamer {
 			} catch (IllegalThreadStateException ise) { //process still active -> start receiving data
 			}
 		}
+
+		socket = server.accept();
+		in = socket.getInputStream();
+		out = socket.getOutputStream();
 	}
 
 	/**

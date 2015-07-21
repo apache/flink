@@ -52,7 +52,6 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 
 	public static final String FLINK_PYTHON_DC_ID = "flink";
 	public static final String FLINK_PYTHON_PLAN_NAME = "/plan.py";
-	public static final String FLINK_PYTHON_EXECUTOR_NAME = "/executor.py";
 
 	public static final String FLINK_PYTHON2_BINARY_KEY = "python.binary.python2";
 	public static final String FLINK_PYTHON3_BINARY_KEY = "python.binary.python3";
@@ -63,6 +62,8 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 	protected static final String FLINK_PYTHON_REL_LOCAL_PATH = "/resources/python";
 	protected static final String FLINK_DIR = System.getenv("FLINK_ROOT_DIR");
 	protected static String FULL_PATH;
+
+	public static StringBuilder arguments = new StringBuilder();
 
 	private Process process;
 
@@ -172,12 +173,11 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 	}
 
 	private void startPython(String[] args) throws IOException {
-		StringBuilder argsBuilder = new StringBuilder();
 		for (String arg : args) {
-			argsBuilder.append(" ").append(arg);
+			arguments.append(" ").append(arg);
 		}
 		receiver = new Receiver(null);
-		receiver.open(null);
+		receiver.open(FLINK_TMP_DATA_DIR + "/output");
 
 		String pythonBinaryPath = usePython3 ? FLINK_PYTHON3_BINARY_PATH : FLINK_PYTHON2_BINARY_PATH;
 
@@ -186,7 +186,7 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 		} catch (IOException ex) {
 			throw new RuntimeException(pythonBinaryPath + " does not point to a valid python binary.");
 		}
-		process = Runtime.getRuntime().exec(pythonBinaryPath + " -B " + FLINK_PYTHON_FILE_PATH + FLINK_PYTHON_PLAN_NAME + argsBuilder.toString());
+		process = Runtime.getRuntime().exec(pythonBinaryPath + " -B " + FLINK_PYTHON_FILE_PATH + FLINK_PYTHON_PLAN_NAME + arguments.toString());
 
 		new StreamPrinter(process.getInputStream()).start();
 		new StreamPrinter(process.getErrorStream()).start();
@@ -201,8 +201,15 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 			if (value != 0) {
 				throw new RuntimeException("Plan file caused an error. Check log-files for details.");
 			}
+			if (value == 0) {
+				throw new RuntimeException("Plan file exited prematurely without an error.");
+			}
 		} catch (IllegalThreadStateException ise) {//Process still running
 		}
+
+		process.getOutputStream().write("plan\n".getBytes());
+		process.getOutputStream().write((FLINK_TMP_DATA_DIR + "/output\n").getBytes());
+		process.getOutputStream().flush();
 	}
 
 	private void close() {
@@ -231,10 +238,7 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 
 	//=====Plan Binding=================================================================================================
 	protected class PythonOperationInfo extends OperationInfo {
-		protected byte[] operator;
-		protected String meta;
 		protected boolean combine;
-		protected byte[] combineOperator;
 		protected String name;
 
 		@Override
@@ -244,11 +248,8 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 			sb.append("ParentID: ").append(parentID).append("\n");
 			sb.append("OtherID: ").append(otherID).append("\n");
 			sb.append("Name: ").append(name).append("\n");
-			sb.append("Operator: ").append(operator == null ? null : "<operator>").append("\n");
-			sb.append("Meta: ").append(meta).append("\n");
 			sb.append("Types: ").append(types).append("\n");
 			sb.append("Combine: ").append(combine).append("\n");
-			sb.append("CombineOP: ").append(combineOperator == null ? null : "<combineop>").append("\n");
 			sb.append("Keys1: ").append(Arrays.toString(keys1)).append("\n");
 			sb.append("Keys2: ").append(Arrays.toString(keys2)).append("\n");
 			sb.append("Projections: ").append(Arrays.toString(projections)).append("\n");
@@ -264,8 +265,6 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 					otherID = (Integer) receiver.getRecord(true);
 					keys1 = tupleToIntArray((Tuple) receiver.getRecord(true));
 					keys2 = tupleToIntArray((Tuple) receiver.getRecord(true));
-					operator = (byte[]) receiver.getRecord();
-					meta = (String) receiver.getRecord();
 					tmpType = receiver.getRecord();
 					types = tmpType == null ? null : getForObject(tmpType);
 					name = (String) receiver.getRecord();
@@ -274,8 +273,6 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 				case CROSS_H:
 				case CROSS_T:
 					otherID = (Integer) receiver.getRecord(true);
-					operator = (byte[]) receiver.getRecord();
-					meta = (String) receiver.getRecord();
 					tmpType = receiver.getRecord();
 					types = tmpType == null ? null : getForObject(tmpType);
 					int cProjectCount = (Integer) receiver.getRecord(true);
@@ -289,9 +286,6 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 					break;
 				case REDUCE:
 				case GROUPREDUCE:
-					operator = (byte[]) receiver.getRecord();
-					combineOperator = (byte[]) receiver.getRecord();
-					meta = (String) receiver.getRecord();
 					tmpType = receiver.getRecord();
 					types = tmpType == null ? null : getForObject(tmpType);
 					combine = (Boolean) receiver.getRecord();
@@ -303,8 +297,6 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 					keys1 = tupleToIntArray((Tuple) receiver.getRecord(true));
 					keys2 = tupleToIntArray((Tuple) receiver.getRecord(true));
 					otherID = (Integer) receiver.getRecord(true);
-					operator = (byte[]) receiver.getRecord();
-					meta = (String) receiver.getRecord();
 					tmpType = receiver.getRecord();
 					types = tmpType == null ? null : getForObject(tmpType);
 					int jProjectCount = (Integer) receiver.getRecord(true);
@@ -320,8 +312,6 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 				case FLATMAP:
 				case MAP:
 				case FILTER:
-					operator = (byte[]) receiver.getRecord();
-					meta = (String) receiver.getRecord();
 					tmpType = receiver.getRecord();
 					types = tmpType == null ? null : getForObject(tmpType);
 					name = (String) receiver.getRecord();
@@ -344,7 +334,7 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 				op2,
 				new Keys.ExpressionKeys(firstKeys, op1.getType()),
 				new Keys.ExpressionKeys(secondKeys, op2.getType()),
-				new PythonCoGroup(info.setID, info.operator, info.types, info.meta),
+				new PythonCoGroup(info.setID, info.types),
 				info.types, info.name);
 	}
 
@@ -353,13 +343,13 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 		switch (mode) {
 			case NONE:
 				return op1.cross(op2).name("PythonCrossPreStep")
-						.mapPartition(new PythonMapPartition(info.setID, info.operator, info.types, info.meta)).name(info.name);
+						.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
 			case HUGE:
 				return op1.crossWithHuge(op2).name("PythonCrossPreStep")
-						.mapPartition(new PythonMapPartition(info.setID, info.operator, info.types, info.meta)).name(info.name);
+						.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
 			case TINY:
 				return op1.crossWithTiny(op2).name("PythonCrossPreStep")
-						.mapPartition(new PythonMapPartition(info.setID, info.operator, info.types, info.meta)).name(info.name);
+						.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
 			default:
 				throw new IllegalArgumentException("Invalid Cross mode specified: " + mode);
 		}
@@ -367,25 +357,25 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 
 	@Override
 	protected DataSet applyFilterOperation(DataSet op1, PythonOperationInfo info) {
-		return op1.mapPartition(new PythonMapPartition(info.setID, info.operator, info.types, info.meta)).name(info.name);
+		return op1.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
 	}
 
 	@Override
 	protected DataSet applyFlatMapOperation(DataSet op1, PythonOperationInfo info) {
-		return op1.mapPartition(new PythonMapPartition(info.setID, info.operator, info.types, info.meta)).name(info.name);
+		return op1.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
 	}
 
 	@Override
 	protected DataSet applyGroupReduceOperation(DataSet op1, PythonOperationInfo info) {
 		if (info.combine) {
-			return op1.reduceGroup(new PythonCombineIdentity(info.setID, info.combineOperator, info.meta))
+			return op1.reduceGroup(new PythonCombineIdentity(info.setID * -1))
 					.setCombinable(true).name("PythonCombine")
-					.mapPartition(new PythonMapPartition(info.setID * -1, info.operator, info.types, info.meta))
+					.mapPartition(new PythonMapPartition(info.setID, info.types))
 					.name(info.name);
 		} else {
 			return op1.reduceGroup(new PythonCombineIdentity())
 					.setCombinable(false).name("PythonGroupReducePreStep")
-					.mapPartition(new PythonMapPartition(info.setID * -1, info.operator, info.types, info.meta))
+					.mapPartition(new PythonMapPartition(info.setID, info.types))
 					.name(info.name);
 		}
 	}
@@ -393,14 +383,14 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 	@Override
 	protected DataSet applyGroupReduceOperation(UnsortedGrouping op1, PythonOperationInfo info) {
 		if (info.combine) {
-			return op1.reduceGroup(new PythonCombineIdentity(info.setID, info.combineOperator, info.meta))
+			return op1.reduceGroup(new PythonCombineIdentity(info.setID * -1))
 					.setCombinable(true).name("PythonCombine")
-					.mapPartition(new PythonMapPartition(info.setID * -1, info.operator, info.types, info.meta))
+					.mapPartition(new PythonMapPartition(info.setID, info.types))
 					.name(info.name);
 		} else {
 			return op1.reduceGroup(new PythonCombineIdentity())
 					.setCombinable(false).name("PythonGroupReducePreStep")
-					.mapPartition(new PythonMapPartition(info.setID * -1, info.operator, info.types, info.meta))
+					.mapPartition(new PythonMapPartition(info.setID, info.types))
 					.name(info.name);
 		}
 	}
@@ -408,14 +398,14 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 	@Override
 	protected DataSet applyGroupReduceOperation(SortedGrouping op1, PythonOperationInfo info) {
 		if (info.combine) {
-			return op1.reduceGroup(new PythonCombineIdentity(info.setID, info.combineOperator, info.meta))
+			return op1.reduceGroup(new PythonCombineIdentity(info.setID * -1))
 					.setCombinable(true).name("PythonCombine")
-					.mapPartition(new PythonMapPartition(info.setID * -1, info.operator, info.types, info.meta))
+					.mapPartition(new PythonMapPartition(info.setID, info.types))
 					.name(info.name);
 		} else {
 			return op1.reduceGroup(new PythonCombineIdentity())
 					.setCombinable(false).name("PythonGroupReducePreStep")
-					.mapPartition(new PythonMapPartition(info.setID * -1, info.operator, info.types, info.meta))
+					.mapPartition(new PythonMapPartition(info.setID, info.types))
 					.name(info.name);
 		}
 	}
@@ -425,13 +415,13 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 		switch (mode) {
 			case NONE:
 				return op1.join(op2).where(firstKeys).equalTo(secondKeys).name("PythonJoinPreStep")
-						.mapPartition(new PythonMapPartition(info.setID, info.operator, info.types, info.meta)).name(info.name);
+						.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
 			case HUGE:
 				return op1.joinWithHuge(op2).where(firstKeys).equalTo(secondKeys).name("PythonJoinPreStep")
-						.mapPartition(new PythonMapPartition(info.setID, info.operator, info.types, info.meta)).name(info.name);
+						.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
 			case TINY:
 				return op1.joinWithTiny(op2).where(firstKeys).equalTo(secondKeys).name("PythonJoinPreStep")
-						.mapPartition(new PythonMapPartition(info.setID, info.operator, info.types, info.meta)).name(info.name);
+						.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
 			default:
 				throw new IllegalArgumentException("Invalid join mode specified.");
 		}
@@ -439,33 +429,33 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 
 	@Override
 	protected DataSet applyMapOperation(DataSet op1, PythonOperationInfo info) {
-		return op1.mapPartition(new PythonMapPartition(info.setID, info.operator, info.types, info.meta)).name(info.name);
+		return op1.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
 	}
 
 	@Override
 	protected DataSet applyMapPartitionOperation(DataSet op1, PythonOperationInfo info) {
-		return op1.mapPartition(new PythonMapPartition(info.setID, info.operator, info.types, info.meta)).name(info.name);
+		return op1.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
 	}
 
 	@Override
 	protected DataSet applyReduceOperation(DataSet op1, PythonOperationInfo info) {
 		return op1.reduceGroup(new PythonCombineIdentity())
 				.setCombinable(false).name("PythonReducePreStep")
-				.mapPartition(new PythonMapPartition(info.setID * -1, info.operator, info.types, info.meta))
+				.mapPartition(new PythonMapPartition(info.setID, info.types))
 				.name(info.name);
 	}
 
 	@Override
 	protected DataSet applyReduceOperation(UnsortedGrouping op1, PythonOperationInfo info) {
 		if (info.combine) {
-			return op1.reduceGroup(new PythonCombineIdentity(info.setID, info.combineOperator, info.meta))
+			return op1.reduceGroup(new PythonCombineIdentity(info.setID * -1))
 					.setCombinable(true).name("PythonCombine")
-					.mapPartition(new PythonMapPartition(info.setID * -1, info.operator, info.types, info.meta))
+					.mapPartition(new PythonMapPartition(info.setID, info.types))
 					.name(info.name);
 		} else {
 			return op1.reduceGroup(new PythonCombineIdentity())
 					.setCombinable(false).name("PythonReducePreStep")
-					.mapPartition(new PythonMapPartition(info.setID * -1, info.operator, info.types, info.meta))
+					.mapPartition(new PythonMapPartition(info.setID, info.types))
 					.name(info.name);
 		}
 	}

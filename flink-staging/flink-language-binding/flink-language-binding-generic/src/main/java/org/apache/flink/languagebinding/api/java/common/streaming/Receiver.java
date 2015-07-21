@@ -50,11 +50,7 @@ public class Receiver implements Serializable {
 		setupMappedFile(path);
 	}
 
-	private void setupMappedFile(String path) throws FileNotFoundException, IOException {
-		String inputFilePath = function == null
-				? FLINK_TMP_DATA_DIR + "/" + "output"
-				: path;
-
+	private void setupMappedFile(String inputFilePath) throws FileNotFoundException, IOException {
 		File x = new File(FLINK_TMP_DATA_DIR);
 		x.mkdirs();
 
@@ -100,7 +96,7 @@ public class Receiver implements Serializable {
 			count++;
 		}
 		if (fileBuffer.get(0) == 0) {
-			throw new RuntimeException("External process not respoonding.");
+			throw new RuntimeException("External process not responding.");
 		}
 		fileBuffer.position(1);
 	}

@@ -65,11 +65,7 @@ public class Sender implements Serializable {
 		setupMappedFile(path);
 	}
 
-	private void setupMappedFile(String path) throws FileNotFoundException, IOException {
-		String outputFilePath = function == null
-				? FLINK_TMP_DATA_DIR + "/" + "input"
-				: path;
-
+	private void setupMappedFile(String outputFilePath) throws FileNotFoundException, IOException {
 		File x = new File(FLINK_TMP_DATA_DIR);
 		x.mkdirs();
 
