@@ -54,10 +54,9 @@ object TaskManagerMessages {
    * @param instanceID The instance ID of the reporting TaskManager.
    * @param metricsReport utf-8 encoded JSON metrics report from the metricRegistry.
    * @param accumulators Accumulators of tasks serialized as Tuple2[internal, user-defined]
-   * @param asyncAccumulatorUpdate Update accumulators asynchronously (set to false in testing)
    */
   case class Heartbeat(instanceID: InstanceID, metricsReport: Array[Byte],
-     accumulators: Seq[AccumulatorSnapshot], asyncAccumulatorUpdate : Boolean = true)
+     accumulators: Seq[AccumulatorSnapshot])
 
 
   // --------------------------------------------------------------------------

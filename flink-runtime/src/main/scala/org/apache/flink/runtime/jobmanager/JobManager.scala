@@ -400,16 +400,12 @@ class JobManager(
       import scala.collection.JavaConverters._
       sender ! RegisteredTaskManagers(instanceManager.getAllRegisteredInstances.asScala)
 
-    case Heartbeat(instanceID, metricsReport, accumulators, asyncAccumulatorUpdate) =>
+    case Heartbeat(instanceID, metricsReport, accumulators) =>
       log.debug(s"Received hearbeat message from $instanceID.")
 
-      if (asyncAccumulatorUpdate) {
-        Future {
-          updateAccumulators(accumulators)
-        }(context.dispatcher)
-      } else {
+      Future {
         updateAccumulators(accumulators)
-      }
+      }(context.dispatcher)
 
       instanceManager.reportHeartBeat(instanceID, metricsReport)
 
@@ -767,6 +763,10 @@ class JobManager(
     }
   }
 
+  /**
+   * Updates the accumulators reported from a task manager via the Heartbeat message.
+   * @param accumulators list of accumulator snapshots
+   */
   private def updateAccumulators(accumulators : Seq[AccumulatorSnapshot]) = {
     accumulators foreach {
       case accumulatorEvent =>

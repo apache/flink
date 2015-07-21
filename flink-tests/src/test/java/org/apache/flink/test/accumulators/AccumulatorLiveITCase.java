@@ -30,12 +30,12 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -46,7 +46,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
@@ -98,7 +97,13 @@ public class AccumulatorLiveITCase {
 	@Before
 	public void before() throws Exception {
 		system = AkkaUtils.createLocalActorSystem(new Configuration());
-		TestingCluster testingCluster = TestingUtils.startTestingCluster(1, 1, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
+
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1);
+		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
+		TestingCluster testingCluster = new TestingCluster(config, false, true);
+
 		jobManager = testingCluster.getJobManager();
 		taskManager = testingCluster.getTaskManagersAsJava().get(0);
 
@@ -132,11 +137,11 @@ public class AccumulatorLiveITCase {
 
 			// register for accumulator changes
 			jobManager.tell(new TestingJobManagerMessages.NotifyWhenAccumulatorChange(jobID), getRef());
-			expectMsgEquals(true);
+			expectMsgEquals(TIMEOUT, true);
 
 			// submit job
 			jobManager.tell(new JobManagerMessages.SubmitJob(jobGraph, false), getRef());
-			expectMsgClass(Status.Success.class);
+			expectMsgClass(TIMEOUT, Status.Success.class);
 
 
 			ExecutionAttemptID mapperTaskID = null;
@@ -220,7 +225,7 @@ public class AccumulatorLiveITCase {
 				}
 			}
 
-			expectMsgClass(JobManagerMessages.JobResultSuccess.class);
+			expectMsgClass(TIMEOUT, JobManagerMessages.JobResultSuccess.class);
 
 		}};
 	}

@@ -157,12 +157,11 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
      * we previously received an [[AccumulatorsChanged]] message.
      */
     case msg : Heartbeat =>
-      val newMsg = msg.copy(asyncAccumulatorUpdate = false)
-      super.receiveWithLogMessages(newMsg)
+      super.receiveWithLogMessages(msg)
 
       waitForAccumulatorUpdate foreach {
         case (jobID, (updated, actors)) if updated =>
-          val accumulators = currentJobs.get(jobID) match {
+          currentJobs.get(jobID) match {
             case Some((graph, jobInfo)) =>
               val flinkAccumulators = graph.getFlinkAccumulators
               val userAccumulators = graph.aggregateUserAccumulators
