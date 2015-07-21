@@ -36,7 +36,7 @@ import java.util.Collection;
  * 
  * <p>Upon construction, this source function serializes the elements using Flink's type information.
  * That way, any object transport using Java serialization will not be affected by the serializability
- * if the elements.</p>
+ * of the elements.</p>
  * 
  * @param <T> The type of elements returned by this function.
  */
