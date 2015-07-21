@@ -32,6 +32,7 @@ import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Value;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -114,12 +115,14 @@ public final class UdfAnalyzerUtils {
 	 */
 	@SuppressWarnings("unchecked")
 	public static Object[] findMethodNode(String internalClassName, String name, String desc) {
+		InputStream stream = null;
 		try {
 			// iterate through hierarchy and search for method node /
 			// class that really implements the method
 			while (internalClassName != null) {
-				ClassReader cr = new ClassReader(Thread.currentThread().getContextClassLoader()
-						.getResourceAsStream(internalClassName.replace('.', '/') + ".class"));
+				stream = Thread.currentThread().getContextClassLoader()
+						.getResourceAsStream(internalClassName.replace('.', '/') + ".class");
+				ClassReader cr = new ClassReader(stream);
 				final ClassNode cn = new ClassNode();
 				cr.accept(cn, 0);
 				for (MethodNode mn : (List<MethodNode>) cn.methods) {
@@ -129,8 +132,18 @@ public final class UdfAnalyzerUtils {
 				}
 				internalClassName = cr.getSuperName();
 			}
-		} catch (IOException e) {
+		}
+		catch (IOException e) {
 			throw new IllegalStateException("Method '" + name + "' could not be found", e);
+		}
+		finally {
+			if (stream != null) {
+				try {
+					stream.close();
+				} catch (IOException e) { 
+					// best effort cleanup
+				}
+			}
 		}
 		throw new IllegalStateException("Method '" + name + "' could not be found");
 	}
