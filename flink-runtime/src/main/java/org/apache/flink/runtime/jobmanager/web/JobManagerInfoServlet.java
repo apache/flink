@@ -436,7 +436,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 			if(ec != null) {
 				wrt.write("\"executionConfig\": {");
 				wrt.write("\"Execution Mode\": \""+ec.getExecutionMode()+"\",");
-				wrt.write("\"Number of execution retries\": \""+ec.getNumberOfExecutionRetries()+"\",");
+				wrt.write("\"Max. number of execution retries\": \""+ec.getNumberOfExecutionRetries()+"\",");
 				wrt.write("\"Job parallelism\": \""+ec.getParallelism()+"\",");
 				wrt.write("\"Object reuse mode\": \""+ec.isObjectReuseEnabled()+"\"");
 				ExecutionConfig.GlobalJobParameters uc = ec.getGlobalJobParameters();
