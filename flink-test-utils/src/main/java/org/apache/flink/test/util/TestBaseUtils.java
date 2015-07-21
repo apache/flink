@@ -241,20 +241,32 @@ public class TestBaseUtils {
 		readAllResultLines(target, resultPath, excludePrefixes, false);
 	}
 
-	public static void readAllResultLines(List<String> target, String resultPath, String[]
-			excludePrefixes, boolean inOrderOfFiles) throws IOException {
-		for (BufferedReader reader : getResultReader(resultPath, excludePrefixes, inOrderOfFiles)) {
-			String s;
-			while ((s = reader.readLine()) != null) {
-				target.add(s);
+	public static void readAllResultLines(List<String> target, String resultPath, 
+											String[] excludePrefixes, boolean inOrderOfFiles) throws IOException {
+
+		final BufferedReader[] readers = getResultReader(resultPath, excludePrefixes, inOrderOfFiles);
+		try {
+			for (BufferedReader reader : readers) {
+				String s;
+				while ((s = reader.readLine()) != null) {
+					target.add(s);
+				}
 			}
-			reader.close();
+		}
+		finally {
+			for (BufferedReader reader : readers) {
+				try {
+					reader.close();
+				}
+				catch (Exception e) {
+					// ignore, this is best-effort cleanup
+				}
+			}
 		}
 	}
 
-	public static void compareResultsByLinesInMemory(String expectedResultStr, String
-			resultPath) throws Exception {
-		compareResultsByLinesInMemory(expectedResultStr, resultPath, new String[]{});
+	public static void compareResultsByLinesInMemory(String expectedResultStr, String resultPath) throws Exception {
+		compareResultsByLinesInMemory(expectedResultStr, resultPath, new String[0]);
 	}
 
 	public static void compareResultsByLinesInMemory(String expectedResultStr, String resultPath,
@@ -273,8 +285,7 @@ public class TestBaseUtils {
 	}
 
 	public static void compareResultsByLinesInMemoryWithStrictOrder(String expectedResultStr,
-																	String resultPath) throws
-			Exception {
+																	String resultPath) throws Exception {
 		compareResultsByLinesInMemoryWithStrictOrder(expectedResultStr, resultPath, new String[]{});
 	}
 
