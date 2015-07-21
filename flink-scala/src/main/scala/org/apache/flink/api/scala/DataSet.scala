@@ -88,7 +88,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Returns the TypeInformation for the elements of this DataSet.
    */
-  def getType(): TypeInformation[T] = set.getType
+  def getType(): TypeInformation[T] = set.getType()
 
   /**
    * Returns the execution environment associated with the current DataSet.
@@ -730,22 +730,22 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Returns a distinct set of a {@link DataSet}.
-   * <p>
-   * If the input is a composite type (Tuple or Pojo type), distinct is performed on all fields
-   * and each field must be a key type.
+   * Returns a distinct set of this DataSet.
+   * 
+   * <p>If the input is a composite type (Tuple or Pojo type), distinct is performed on all fields
+   * and each field must be a key type.</p>
    */
-  def distinct: DataSet[T] = {
+  def distinct(): DataSet[T] = {
     wrap(new DistinctOperator[T](javaSet, null, getCallLocationName()))
   }
 
   /**
-   * Returns a distinct set of a {@link Tuple} {@link DataSet} using field position keys.
-   * <p>
-   * The field position keys specify the fields of Tuples on which the decision is made if
-   * two Tuples are distinct or not.
-   * <p>
-   * Note: Field position keys can only be specified for Tuple DataSets.
+   * Returns a distinct set of a tuple DataSet using field position keys.
+   * 
+   * <p>The field position keys specify the fields of Tuples on which the decision is made if
+   * two Tuples are distinct or not.</p>
+   * 
+   * <p>Note: Field position keys can only be specified for Tuple DataSets.</p>
    *
    * @param fields One or more field positions on which the distinction of the DataSet is decided.
    */
@@ -757,16 +757,16 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Returns a distinct set of a {@link Tuple} {@link DataSet} using expression keys.
-   * <p>
-   * The field position keys specify the fields of Tuples or Pojos on which the decision is made
-   * if two elements are distinct or not.
+   * Returns a distinct set of this DataSet using expression keys.
+   * 
+   * <p>The field position keys specify the fields of Tuples or Pojos on which the decision is made
+   * if two elements are distinct or not.</p>
    *
-   * The field expression keys specify the fields of a
-   * {@link org.apache.flink.api.common.typeutils.CompositeType}
-   * (e.g., Tuple or Pojo type) on which the decision is made if two elements are distinct or not.
-   * In case of a {@link org.apache.flink.api.common.typeinfo.AtomicType}, only the
-   * wildcard expression ("_") is valid.
+   * <p>The field expression keys specify the fields of a
+   * [[org.apache.flink.api.common.typeutils.CompositeType]] (e.g., Tuple or Pojo type)
+   * on which the decision is made if two elements are distinct or not.
+   * In case of a [[org.apache.flink.api.common.typeinfo.AtomicType]], only the
+   * wildcard expression ("_") is valid.</p>
    *
    * @param firstField First field position on which the distinction of the DataSet is decided
    * @param otherFields Zero or more field positions on which the distinction of the DataSet
