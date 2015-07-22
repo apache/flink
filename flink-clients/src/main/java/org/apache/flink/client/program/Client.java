@@ -412,10 +412,11 @@ public class Client {
 
 		try{
 			if (wait) {
-				SerializedJobExecutionResult result = JobClient.submitJobAndWait(actorSystem, 
+				SerializedJobExecutionResult partialResult = JobClient.submitJobAndWait(actorSystem,
 						jobManagerGateway, jobGraph, timeout, printStatusDuringExecution);
 				try {
-					return result.toJobExecutionResult(this.userCodeClassLoader);
+					return JobClient.returnFinalJobExecutionResult(jobManagerGateway, partialResult,
+							this.userCodeClassLoader, timeout);
 				}
 				catch (Exception e) {
 					throw new ProgramInvocationException(

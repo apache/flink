@@ -20,7 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import java.util.Arrays;
 
-import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
+import org.apache.flink.runtime.accumulators.BaseAccumulatorSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
@@ -54,7 +54,7 @@ public class TaskExecutionState implements java.io.Serializable {
 	private transient Throwable cachedError;
 
 	/** Serialized flink and user-defined accumulators */
-	private final AccumulatorSnapshot accumulators;
+	private final BaseAccumulatorSnapshot accumulators;
 
 	/**
 	 * Creates a new task execution state update, with no attached exception and no accumulators.
@@ -102,7 +102,7 @@ public class TaskExecutionState implements java.io.Serializable {
 	 */
 	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId,
 			ExecutionState executionState, Throwable error,
-			AccumulatorSnapshot accumulators) {
+			BaseAccumulatorSnapshot accumulators) {
 
 
 			if (jobID == null || executionId == null || executionState == null) {
@@ -205,7 +205,7 @@ public class TaskExecutionState implements java.io.Serializable {
 	/**
 	 * Gets flink and user-defined accumulators in serialized form.
 	 */
-	public AccumulatorSnapshot getAccumulators() {
+	public BaseAccumulatorSnapshot getAccumulators() {
 		return accumulators;
 	}
 

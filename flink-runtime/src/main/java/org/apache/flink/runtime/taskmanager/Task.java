@@ -59,8 +59,10 @@ import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.FiniteDuration;
+import scala.runtime.AbstractFunction0;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -249,7 +251,6 @@ public class Task implements Runnable {
 		this.memoryManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
 		this.broadcastVariableManager = checkNotNull(bcVarManager);
-		this.accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
 
 		this.jobManager = checkNotNull(jobManagerActor);
 		this.taskManager = checkNotNull(taskManagerActor);
@@ -258,6 +259,10 @@ public class Task implements Runnable {
 		this.libraryCache = checkNotNull(libraryCache);
 		this.fileCache = checkNotNull(fileCache);
 		this.network = checkNotNull(networkEnvironment);
+
+
+		this.accumulatorRegistry = new AccumulatorRegistry(tdd.getJobConfiguration(),
+				jobId, executionId, getBlobCacheServerAddress());
 
 		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
 
@@ -307,6 +312,27 @@ public class Task implements Runnable {
 		
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
+	}
+
+	/**
+	 * Gets the address where the blobCache is listening to.
+	 * @return the address where the blobCache is listening to.
+	 * */
+	private InetSocketAddress getBlobCacheServerAddress() {
+		if(jobManager == null || libraryCache == null) {
+			throw new RuntimeException("TaskManager not associated to JobManager.");
+		}
+
+		String jmHost = this.jobManager.actor().path().address().host().getOrElse(
+				new AbstractFunction0<String>() {
+					@Override
+					public String apply() {
+						return "localhost";
+					}
+		});
+
+		int blobPort = this.libraryCache.getBlobServerPort();
+		return new InetSocketAddress(jmHost, blobPort);
 	}
 
 	// ------------------------------------------------------------------------

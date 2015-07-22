@@ -181,7 +181,7 @@ trait TestingJobManager extends FlinkActor {
           currentJobs.get(jobID) match {
             case Some((graph, jobInfo)) =>
               val flinkAccumulators = graph.getFlinkAccumulators
-              val userAccumulators = graph.aggregateUserAccumulators
+              val userAccumulators = graph.aggregateSmallUserAccumulators
               actors foreach {
                 actor => actor ! UpdatedAccumulators(jobID, flinkAccumulators, userAccumulators)
               }

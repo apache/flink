@@ -28,11 +28,10 @@ import java.io.Serializable;
 import java.util.Map;
 
 /**
- * This class encapsulates a map of accumulators for a single task. It is used
- * for the transfer from TaskManagers to the JobManager and from the JobManager
- * to the Client.
+ * LICENSE SHOULD GO HERE.
+ * Created by kkloudas on 7/23/15.
  */
-public class AccumulatorSnapshot implements Serializable {
+public class BaseAccumulatorSnapshot implements Serializable {
 
 	private static final long serialVersionUID = 42L;
 
@@ -44,18 +43,11 @@ public class AccumulatorSnapshot implements Serializable {
 	 */
 	private final SerializedValue<Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators;
 
-	/**
-	 * Serialized user accumulators which may require the custom user class loader.
-	 */
-	private final SerializedValue<Map<String, Accumulator<?, ?>>> userAccumulators;
-
-	public AccumulatorSnapshot(JobID jobID, ExecutionAttemptID executionAttemptID,
-							Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
-							Map<String, Accumulator<?, ?>> userAccumulators) throws IOException {
+	public BaseAccumulatorSnapshot(JobID jobID, ExecutionAttemptID executionAttemptID,
+			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators) throws IOException {
 		this.jobID = jobID;
 		this.executionAttemptID = executionAttemptID;
 		this.flinkAccumulators = new SerializedValue<Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>>(flinkAccumulators);
-		this.userAccumulators = new SerializedValue<Map<String, Accumulator<?, ?>>>(userAccumulators);
 	}
 
 	public JobID getJobID() {
@@ -72,13 +64,5 @@ public class AccumulatorSnapshot implements Serializable {
 	 */
 	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> deserializeFlinkAccumulators() throws IOException, ClassNotFoundException {
 		return flinkAccumulators.deserializeValue(ClassLoader.getSystemClassLoader());
-	}
-
-	/**
-	 * Gets the user-defined accumulators values.
-	 * @return the serialized map
-	 */
-	public Map<String, Accumulator<?, ?>> deserializeUserAccumulators(ClassLoader classLoader) throws IOException, ClassNotFoundException {
-		return userAccumulators.deserializeValue(classLoader);
 	}
 }

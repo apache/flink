@@ -47,7 +47,7 @@ public class SerializedJobExecutionResultTest {
 			origMap.put("name1", new SerializedValue<Object>(723L));
 			origMap.put("name2", new SerializedValue<Object>("peter"));
 
-			SerializedJobExecutionResult result = new SerializedJobExecutionResult(origJobId, origTime, origMap);
+			SerializedJobExecutionResult result = new SerializedJobExecutionResult(origJobId, origTime, origMap, null);
 
 			// serialize and deserialize the object
 			SerializedJobExecutionResult cloned = CommonTestUtils.createCopySerializable(result);
@@ -84,12 +84,13 @@ public class SerializedJobExecutionResultTest {
 	@Test
 	public void testSerializationWithNullValues() {
 		try {
-			SerializedJobExecutionResult result = new SerializedJobExecutionResult(null, 0L, null);
+			SerializedJobExecutionResult result = new SerializedJobExecutionResult(null, 0L, null, null);
 			SerializedJobExecutionResult cloned = CommonTestUtils.createCopySerializable(result);
 
 			assertNull(cloned.getJobId());
 			assertEquals(0L, cloned.getNetRuntime());
 			assertNull(cloned.getSerializedAccumulatorResults());
+			assertNull(cloned.getBlobKeysToLargeAccumulators());
 
 			JobExecutionResult jResult = result.toJobExecutionResult(getClass().getClassLoader());
 			assertNull(jResult.getJobID());
