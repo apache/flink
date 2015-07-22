@@ -32,14 +32,22 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.io.InputSplitAssigner
-import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
-import org.apache.flink.runtime.blob.BlobServer
+import org.apache.flink.runtime.accumulators.{AccumulatorSnapshot, LargeAccumulatorHelper}
+import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.blob.{BlobKey, BlobServer}
 import org.apache.flink.runtime.client._
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
+import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway, InstanceManager}
+import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
+import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
+import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
+import org.apache.flink.runtime.messages.RegistrationMessages._
+import org.apache.flink.runtime.messages.TaskManagerMessages.{Heartbeat, SendStackTrace}
 import org.apache.flink.runtime.messages.TaskMessages.{PartitionState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint}
@@ -48,28 +56,16 @@ import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.util.ZooKeeperUtil
-import org.apache.flink.runtime.util.{SerializedValue, EnvironmentInformation}
+import org.apache.flink.runtime.util.{EnvironmentInformation, SerializedValue, ZooKeeperUtil}
 import org.apache.flink.runtime.webmonitor.WebMonitor
-import org.apache.flink.runtime.{FlinkActor, StreamingMode, LeaderSessionMessages}
-import org.apache.flink.runtime.{LogMessages}
-import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
-import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway, InstanceManager}
-import org.apache.flink.runtime.jobgraph.{JobVertexID, JobGraph, JobStatus}
-import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
-import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.messages.RegistrationMessages._
-import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, Heartbeat}
+import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessages, LogMessages, StreamingMode}
 import org.apache.flink.util.{ExceptionUtils, InstantiationUtil}
 
-import _root_.akka.pattern.ask
+import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.language.postfixOps
-import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
 
 /**
  * The job manager is responsible for receiving Flink jobs, scheduling the tasks, gathering the
@@ -338,16 +334,51 @@ class JobManager(
             // is the client waiting for the job result?
             newJobStatus match {
               case JobStatus.FINISHED =>
-                val accumulatorResults: java.util.Map[String, SerializedValue[AnyRef]] = try {
-                  executionGraph.getAccumulatorsSerialized
+
+                val jobConfig = currentJobs.getOrElse(jobID,
+                  throw new RuntimeException("Unknown Job: " + jobID))._1.getJobConfiguration
+
+                val smallAccumulatorResults: java.util.Map[String, SerializedValue[AnyRef]] = try {
+                  executionGraph.getSmallAccumulatorsContentSerialized
                 } catch {
                   case e: Exception =>
                     log.error(s"Cannot fetch serialized accumulators for job $jobID", e)
                     Collections.emptyMap()
                 }
-                val result = new SerializedJobExecutionResult(jobID, jobInfo.duration,
-                                                              accumulatorResults)
-                jobInfo.client ! decorateMessage(JobResultSuccess(result))
+
+                var largeAccumulatorResults: java.util.Map[String, java.util.List[BlobKey]] =
+                  executionGraph.aggregateLargeUserAccumulatorBlobKeys()
+
+                /*
+                * The following covers the case where partial accumulator results are small, but
+                * when aggregated, they become big. In this case, this happens at the JobManager,
+                * and this code is responsible for detecting it, storing the oversized result in
+                * the BlobCache, and informing the Client accordingly.
+                * */
+                
+                val totalSize: Long = smallAccumulatorResults.asScala.map(_._2.getSizeInBytes).sum
+                if (totalSize > AkkaUtils.getLargeAccumulatorThreshold(jobConfig)) {
+
+                  // given that the client is going to do the final merging, we serialize and
+                  // store the accumulator objects, not only the content
+                  val serializedSmallAccumulators = executionGraph.getSmallAccumulatorsSerialized
+
+                  // store the accumulators in the blobCache and get the keys.
+                  val newBlobKeys = LargeAccumulatorHelper.storeSerializedAccumulatorsToBlobCache(
+                    getBlobCacheServerAddress, serializedSmallAccumulators)
+
+                  // given that the result is going to be sent through the BlobCache, clear its
+                  // in-memory version.
+                  smallAccumulatorResults.clear()
+
+                  // and update the blobKeys to send to the client.
+                  largeAccumulatorResults = executionGraph.
+                    addLargeUserAccumulatorBlobKeys(largeAccumulatorResults, newBlobKeys)
+                }
+                
+                val result = new SerializedJobExecutionResult(jobID,
+                  jobInfo.duration, smallAccumulatorResults, largeAccumulatorResults)
+                jobInfo.client ! JobResultSuccess(result)
 
               case JobStatus.CANCELED =>
                 jobInfo.client ! decorateMessage(
@@ -513,6 +544,18 @@ class JobManager(
 
     case RequestLeaderSessionID =>
       sender() ! ResponseLeaderSessionID(leaderSessionID)
+  }
+
+  /**
+   * Gets the address where the blobCache is listening to.
+   * @return the address where the blobCache is listening to.
+   **/
+  private def getBlobCacheServerAddress: InetSocketAddress = {
+    if (libraryCacheManager == null) {
+      throw new RuntimeException("LibraryCacheManager is not initialized yet.")
+    }
+    val blobPort: Int = this.libraryCacheManager.getBlobServerPort
+    return new InetSocketAddress("localhost", blobPort)
   }
 
   /**
@@ -770,15 +813,15 @@ class JobManager(
           try {
             currentJobs.get(jobID) match {
               case Some((graph, jobInfo)) =>
-                val accumulatorValues = graph.getAccumulatorsSerialized()
-          sender() ! decorateMessage(AccumulatorResultsFound(jobID, accumulatorValues))
+                val accumulatorValues = graph.getSmallAccumulatorsContentSerialized
+                sender() ! decorateMessage(AccumulatorResultsFound(jobID, accumulatorValues))
               case None =>
                 archive.forward(message)
             }
           } catch {
-          case e: Exception =>
-            log.error("Cannot serialize accumulator result.", e)
-            sender() ! decorateMessage(AccumulatorResultsErroneous(jobID, e))
+            case e: Exception =>
+              log.error("Cannot serialize accumulator result.", e)
+              sender() ! decorateMessage(AccumulatorResultsErroneous(jobID, e))
           }
 
         case RequestAccumulatorResultsStringified(jobId) =>
@@ -888,7 +931,7 @@ class JobManager(
     val finished = new java.util.ArrayList[JobID]()
     val canceled = new java.util.ArrayList[JobID]()
     val failed = new java.util.ArrayList[JobID]()
-    
+
     currentJobs.values.foreach { case (graph, _) =>
       graph.getState() match {
         case JobStatus.FINISHED => finished.add(graph.getJobID)
@@ -1575,10 +1618,10 @@ object JobManager {
   /**
    * Starts the web runtime monitor. Because the actual implementation of the
    * runtime monitor is in another project, we load the runtime monitor dynamically.
-   * 
+   *
    * Because failure to start the web runtime monitor is not considered fatal,
    * this method does not throw any exceptions, but only logs them.
-   * 
+   *
    * @param config The configuration for the runtime monitor.
    * @param jobManager The JobManager actor gateway.
    * @param archiver The execution graph archive actor.

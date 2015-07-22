@@ -52,6 +52,23 @@ public class AccumulatorHelper {
 	}
 
 	/**
+	 * Checks the two accumulators for type safety and merges them.
+	 * The second will be merged into the first.
+	 * @param name
+	 * 			the name of the Accumulators.
+	 * @param target
+	 * 			the accumulator that will integrate the other.
+	 * @param toMerge
+	 * 			the accumulator to be integrated to the target one.
+	 * */
+	public static void mergeAccumulators(String name, Accumulator<?, ?> target, Accumulator<?, ?> toMerge) {
+		// Both should have the same type
+		AccumulatorHelper.compareAccumulatorTypes(name, target.getClass(), toMerge.getClass());
+		// Merge counter from chained task into counter from stub
+		mergeSingle(target, toMerge);
+	}
+
+	/**
 	 * Workaround method for type safety
 	 */
 	private static final <V, R extends Serializable> void mergeSingle(Accumulator<?, ?> target,

@@ -21,13 +21,19 @@ package org.apache.flink.runtime.accumulators;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -38,6 +44,8 @@ public class AccumulatorRegistry {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(AccumulatorRegistry.class);
 
+	protected final Configuration jobConfiguration;
+	protected final InetSocketAddress blobServerAddress;
 	protected final JobID jobID;
 	protected final ExecutionAttemptID taskID;
 
@@ -62,22 +70,47 @@ public class AccumulatorRegistry {
 		NUM_BYTES_OUT
 	}
 
-
 	public AccumulatorRegistry(JobID jobID, ExecutionAttemptID taskID) {
+		this(null, jobID, taskID, null);
+	}
+
+	public AccumulatorRegistry(Configuration jobConfig, JobID jobID, ExecutionAttemptID taskID, InetSocketAddress blobServerAddress) {
+		this.jobConfiguration = jobConfig;
 		this.jobID = jobID;
 		this.taskID = taskID;
+		this.blobServerAddress = blobServerAddress;
 		this.reporter = new ReadWriteReporter(flinkAccumulators);
 	}
 
 	/**
-	 * Creates a snapshot of this accumulator registry.
+	 * Creates a snapshot of this accumulator registry. If they are <b>oversized</b> (i.e. bigger than
+	 * <code>akka.framesize</code>), this method stores them in the BlobCache and sends only the
+	 * corresponding BlobKeys in the final snapshot. If they are <b>not</b>, it sends the actual
+	 * accumulators in the accumulator snapshot.
+	 *
 	 * @return a serialized accumulator map
 	 */
 	public AccumulatorSnapshot getSnapshot() {
+		AccumulatorSnapshot snapshot;
+		Map<String, List<BlobKey>> largeAccumulatorBlobKeys;
+		SerializedValue<Map<String, Accumulator<?, ?>>> serializedAccumulators;
+
 		try {
-			return new AccumulatorSnapshot(jobID, taskID, flinkAccumulators, userAccumulators);
+			serializedAccumulators = new SerializedValue<Map<String, Accumulator<?, ?>>>(userAccumulators);
+
+			if (serializedAccumulators.getSizeInBytes() > AkkaUtils.getLargeAccumulatorThreshold(jobConfiguration)) {
+				largeAccumulatorBlobKeys = LargeAccumulatorHelper.
+						storeAccumulatorsToBlobCache(blobServerAddress, userAccumulators);
+
+				snapshot = new AccumulatorSnapshot(jobID, taskID,
+						flinkAccumulators, largeAccumulatorBlobKeys);
+			} else {
+				snapshot = new AccumulatorSnapshot(jobID, taskID,
+						flinkAccumulators, serializedAccumulators);
+			}
+			return snapshot;
 		} catch (IOException e) {
-			LOG.warn("Failed to serialize accumulators for task.", e);
+			LOG.warn("Error while creating a snapshot of current results: "+ e.getMessage());
 			return null;
 		}
 	}
@@ -143,5 +176,4 @@ public class AccumulatorRegistry {
 			numBytesOut.add(value);
 		}
 	}
-
 }

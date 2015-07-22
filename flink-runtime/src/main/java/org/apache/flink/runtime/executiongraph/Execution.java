@@ -23,6 +23,7 @@ import akka.dispatch.OnFailure;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -140,7 +141,10 @@ public class Execution implements Serializable {
 	private final Object accumulatorLock = new Object();
 
 	/* Continuously updated map of user-defined accumulators */
-	private volatile Map<String, Accumulator<?, ?>> userAccumulators;
+	private volatile Map<String, Accumulator<?, ?>> smallUserAccumulators;
+
+	/* Keep track of the large accumulators that are stored in the BlobCache */
+	private volatile Map<String, List<BlobKey>> largeUserAccumulators;
 
 	/* Continuously updated map of internal accumulators */
 	private volatile Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
@@ -605,12 +609,14 @@ public class Execution implements Serializable {
 	}
 
 	void markFinished() {
-		markFinished(null, null);
+		markFinished(null, null, null);
 	}
 
-	void markFinished(Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators, Map<String, Accumulator<?, ?>> userAccumulators) {
+	void markFinished(Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
+					Map<String, Accumulator<?, ?>> userAccumulators,
+					Map<String, List<BlobKey>> userLargeAccumulators) {
 
-		// this call usually comes during RUNNING, but may also come while still in deploying (very fast tasks!)
+		// this call usually comes during RUNNING, but may also come while still in DEPLOYING (very fast tasks!)
 		while (true) {
 			ExecutionState current = this.state;
 
@@ -631,7 +637,8 @@ public class Execution implements Serializable {
 
 						synchronized (accumulatorLock) {
 							this.flinkAccumulators = flinkAccumulators;
-							this.userAccumulators = userAccumulators;
+							this.smallUserAccumulators = userAccumulators;
+							this.largeUserAccumulators = userLargeAccumulators;
 						}
 
 						assignedResource.releaseSlot();
@@ -865,8 +872,7 @@ public class Execution implements Serializable {
 					} else {
 						TaskOperationResult result = (TaskOperationResult) success;
 						if (!result.success()) {
-							LOG.debug("Cancel task call did not find task. Probably akka message call" +
-									" race.");
+							LOG.debug("Cancel task call did not find task. Probably akka message call race.");
 						}
 					}
 				}
@@ -959,19 +965,28 @@ public class Execution implements Serializable {
 	/**
 	 * Update accumulators (discarded when the Execution has already been terminated).
 	 * @param flinkAccumulators the flink internal accumulators
-	 * @param userAccumulators the user accumulators
+	 * @param smallUserAccumulators the user accumulators
+	 * @param largeUserAccumulatorBlobKeys the keys to the blobs storing the oversized accumulators sent by
+	 *                                     (some) tasks.
 	 */
 	public void setAccumulators(Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
-								Map<String, Accumulator<?, ?>> userAccumulators) {
+								Map<String, Accumulator<?, ?>> smallUserAccumulators,
+								Map<String, List<BlobKey>> largeUserAccumulatorBlobKeys) {
 		synchronized (accumulatorLock) {
 			if (!state.isTerminal()) {
 				this.flinkAccumulators = flinkAccumulators;
-				this.userAccumulators = userAccumulators;
+				this.smallUserAccumulators = smallUserAccumulators;
+				this.largeUserAccumulators = largeUserAccumulatorBlobKeys;
 			}
 		}
 	}
-	public Map<String, Accumulator<?, ?>> getUserAccumulators() {
-		return userAccumulators;
+
+	public Map<String, Accumulator<?, ?>> getSmallUserAccumulators() {
+		return smallUserAccumulators;
+	}
+
+	public Map<String, List<BlobKey>> getLargeUserAccumulatorBlobKeys() {
+		return largeUserAccumulators;
 	}
 
 	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getFlinkAccumulators() {
