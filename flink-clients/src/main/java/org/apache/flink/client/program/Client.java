@@ -58,9 +58,6 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.Option;
-import scala.Some;
-import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -429,57 +426,47 @@ public class Client {
 		}
 	}
 
-
 	/**
-	 * Executes the CANCEL action.
+	 * Executes the CANCEL action through Client API.
 	 *
-	 * @param args Command line arguments for the cancel action.
+	 * @param Accepts job id and cancels the job
+	 *
 	 */
 
 
-	protected int cancel(JobID jobId){
+	public int cancel(JobID jobId) throws ProgramInvocationException {
 		LOG.info("Executing 'cancel' command.");
-
 		final FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
-
+		//String address = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		ActorSystem actorSystem;
 		try {
-			String address = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-			Option<Tuple2<String, Object>> remoting =
-					new Some<Tuple2<String, Object>>(new Tuple2<String, Object>("", 0));
-
-			// start a remote actor system to listen on an arbitrary port
-			ActorSystem actorSystem = AkkaUtils.createActorSystem(configuration, remoting);
-
-
-			ActorRef jobManager = JobManager.getJobManagerRemoteReference(address, actorSystem, timeout);
-			Future<Object> response = Patterns.ask(jobManager, new JobManagerMessages.CancelJob(jobId), new Timeout(AkkaUtils.INF_TIMEOUT()));
-
-			try {
-				Await.result(response, timeout);
-				return 0;
-			}
-			catch (Exception e) {
-				throw new Exception("Canceling the job with ID " + jobId + " failed.", e);
-			}
+			actorSystem = JobClient.startJobClientActorSystem(configuration);
+		} catch (Exception e) {
+			throw new ProgramInvocationException("Could start client actor system.", e);
 		}
-		catch (Throwable t) {
-			return handleError(t);
+		ActorRef jobManager;
+		try {
+			jobManager = JobManager.getJobManagerRemoteReference(jobManagerAddress, actorSystem, timeout);
+		} catch (Exception e) {
+			LOG.error("Error in getting the remote reference for the job manager", e);
+			throw new ProgramInvocationException("Failed to resolve JobManager", e);
 		}
-	}
-
-	/**
-	 * Displays an exception message.
-	 *
-	 * @param t The exception to display.
-	 * @return The return code for the process.
-	 */
-	private int handleError(Throwable t) {
-		LOG.error("Error while running the command.", t);
-
-		t.printStackTrace();
-		System.err.println();
-		System.err.println("The exception above occurred while trying to run your command.");
-		return 1;
+		Future<Object> response = Patterns.ask(jobManager, new JobManagerMessages.CancelJob(jobId), new Timeout(timeout));
+		Object result=null;
+		try {
+			result = Await.result(response, timeout);
+		}
+		catch (Exception e) {
+			LOG.error("Canceling the job with ID " + jobId + " failed.", e);
+		}
+		if (result instanceof JobManagerMessages.CancellationSuccess) {
+			LOG.info("Job cancellation with ID " + jobId + " Success.");
+			return 0;
+		} else {
+			Throwable t = ((JobManagerMessages.CancellationFailure) result).cause();
+			LOG.error("Job cancellation with ID " + jobId + " Failed.", t);
+			return 1;
+		}
 	}
 
 
