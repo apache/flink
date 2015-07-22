@@ -117,7 +117,7 @@ public class FlinkTopologyBuilder {
 				final IRichBolt userBolt = bolt.getValue();
 
 				final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
-				userBolt.declareOutputFields(declarer);
+				//userBolt.declareOutputFields(declarer);
 
 				final ComponentCommon common = stormTopolgoy.get_bolts().get(boltId).get_common();
 
@@ -138,6 +138,21 @@ public class FlinkTopologyBuilder {
 					DataStream<?> inputDataStream = availableOperators.get(producerId);
 
 					if (inputDataStream != null) {
+						// get upstream operator
+						IRichSpout upStmSpout = this.spouts.get(producerId);
+						IRichBolt upStmBolt  = this.bolts.get(producerId);
+
+						// upstream operator is spout
+						if (upStmSpout != null)
+						{
+							upStmSpout.declareOutputFields(declarer);
+						}
+						// upstream operator is bout
+						else
+						{
+							upStmBolt.declareOutputFields(declarer);
+						}
+
 						// if producer was processed already
 						final Grouping grouping = inputStream.getValue();
 						if (grouping.is_set_shuffle()) {
