@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -578,6 +579,34 @@ public class ExecutionGraph implements Serializable {
 		}
 
 		return result;
+	}
+
+	/**
+	 * Returns the a stringified version of the user-defined accumulators.
+	 * @return an Array containing the StringifiedAccumulatorResult objects
+	 */
+	public StringifiedAccumulatorResult[] getAccumulatorResultsStringified() {
+
+		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
+
+		int num = accumulatorMap.size();
+		StringifiedAccumulatorResult[] resultStrings = new StringifiedAccumulatorResult[num];
+
+		int i = 0;
+		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
+
+			StringifiedAccumulatorResult result;
+			Accumulator<?, ?> value = entry.getValue();
+			if (value != null) {
+				result = new StringifiedAccumulatorResult(entry.getKey(), value.getClass().getSimpleName(), value.toString());
+			} else {
+				result = new StringifiedAccumulatorResult(entry.getKey(), "null", "null");
+			}
+
+			resultStrings[i++] = result;
+		}
+
+		return resultStrings;
 	}
 
 	// --------------------------------------------------------------------------------------------

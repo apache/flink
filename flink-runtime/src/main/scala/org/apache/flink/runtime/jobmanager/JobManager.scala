@@ -32,7 +32,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.io.InputSplitAssigner
-import org.apache.flink.runtime.accumulators.{AccumulatorSnapshot, StringifiedAccumulatorResult}
+import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
@@ -684,65 +684,31 @@ class JobManager(
    * @param message The accumulator message.
    */
   private def handleAccumulatorMessage(message: AccumulatorMessage): Unit = {
-    message match {
-
-      case RequestAccumulatorResults(jobID) =>
-        try {
-          val accumulatorValues: java.util.Map[String, SerializedValue[Object]] = {
+      message match {
+        case RequestAccumulatorResults(jobID) =>
+          try {
             currentJobs.get(jobID) match {
               case Some((graph, jobInfo)) =>
-                graph.getAccumulatorsSerialized
+                val accumulatorValues = graph.getAccumulatorsSerialized()
+                sender() ! AccumulatorResultsFound(jobID, accumulatorValues)
               case None =>
-                null // TODO check also archive
+                archive.forward(message)
             }
-          }
-
-          sender() ! AccumulatorResultsFound(jobID, accumulatorValues)
-        }
-        catch {
+          } catch {
           case e: Exception =>
-            log.error("Cannot serialize accumulator result", e)
+            log.error("Cannot serialize accumulator result.", e)
             sender() ! AccumulatorResultsErroneous(jobID, e)
-        }
-
-      case RequestAccumulatorResultsStringified(jobId) =>
-        try {
-          val accumulatorValues: Array[StringifiedAccumulatorResult] = {
-            currentJobs.get(jobId) match {
-              case Some((graph, jobInfo)) =>
-                val accumulators = graph.aggregateUserAccumulators()
-
-                val result: Array[StringifiedAccumulatorResult] = new
-                    Array[StringifiedAccumulatorResult](accumulators.size)
-
-                var i = 0
-                accumulators foreach {
-                  case (name, accumulator) =>
-                    val (typeString, valueString) =
-                      if (accumulator != null) {
-                        (accumulator.getClass.getSimpleName, accumulator.toString)
-                      } else {
-                        (null, null)
-                      }
-                    result(i) = new StringifiedAccumulatorResult(name, typeString, valueString)
-                    i += 1
-                }
-                result
-              case None =>
-                null // TODO check also archive
-            }
           }
 
-          sender() ! AccumulatorResultStringsFound(jobId, accumulatorValues)
-        }
-        catch {
-          case e: Exception =>
-            log.error("Cannot fetch accumulator result", e)
-            sender() ! AccumulatorResultsErroneous(jobId, e)
-        }
-
-      case x => unhandled(x)
-    }
+        case RequestAccumulatorResultsStringified(jobId) =>
+          currentJobs.get(jobId) match {
+            case Some((graph, jobInfo)) =>
+              val stringifiedAccumulators = graph.getAccumulatorResultsStringified()
+              sender() ! AccumulatorResultStringsFound(jobId, stringifiedAccumulators)
+            case None =>
+              archive.forward(message)
+          }
+      }
   }
 
   /**

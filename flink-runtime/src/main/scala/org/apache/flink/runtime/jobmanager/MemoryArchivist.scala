@@ -24,6 +24,7 @@ import akka.actor.Actor
 
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.jobgraph.JobStatus
+import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.messages.webmonitor._
 import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
@@ -120,6 +121,31 @@ class MemoryArchivist(private val max_entries: Int)
       catch {
         case t: Throwable => log.error("Exception while creating the jobs overview", t)
       }
+
+
+    case RequestAccumulatorResults(jobID) =>
+      try {
+        graphs.get(jobID) match {
+          case Some(graph) =>
+            val accumulatorValues = graph.getAccumulatorsSerialized()
+            sender() ! AccumulatorResultsFound(jobID, accumulatorValues)
+          case None =>
+            sender() ! AccumulatorResultsNotFound(jobID)
+        }
+      } catch {
+        case e: Exception =>
+          log.error("Cannot serialize accumulator result.", e)
+          sender() ! AccumulatorResultsErroneous(jobID, e)
+      }
+
+      case RequestAccumulatorResultsStringified(jobID) =>
+        graphs.get(jobID) match {
+          case Some(graph) =>
+            val accumulatorValues = graph.getAccumulatorResultsStringified()
+            sender() ! AccumulatorResultStringsFound(jobID, accumulatorValues)
+          case None =>
+            sender() ! AccumulatorResultsNotFound(jobID)
+        }
   }
 
   /**
