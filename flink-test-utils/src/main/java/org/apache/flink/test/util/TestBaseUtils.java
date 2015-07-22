@@ -19,11 +19,14 @@
 package org.apache.flink.test.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import akka.actor.ActorRef;
 import akka.dispatch.Futures;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -449,6 +452,34 @@ public class TestBaseUtils extends TestLogger {
 		
 		for (int i = 0; i < extectedStrings.length; i++) {
 			assertEquals(extectedStrings[i], resultStrings[i]);
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Comparison methods for tests using sample
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * The expected string contains all expected results separate with line break, check whether all elements in result
+	 * are contained in the expected string.
+	 * @param result The test result.
+	 * @param expected The expected string value combination.
+	 * @param <T> The result type.
+	 */
+	public static <T> void containsResultAsText(List<T> result, String expected) {
+		String[] expectedStrings = expected.split("\n");
+		List<String> resultStrings = Lists.newLinkedList();
+
+		for (int i = 0; i < result.size(); i++) {
+			T val = result.get(i);
+			String str = (val == null) ? "null" : val.toString();
+			resultStrings.add(str);
+		}
+
+		List<String> expectedStringList = Arrays.asList(expectedStrings);
+
+		for (String element : resultStrings) {
+			assertTrue(expectedStringList.contains(element));
 		}
 	}
 

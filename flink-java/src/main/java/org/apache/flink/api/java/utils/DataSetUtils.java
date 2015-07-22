@@ -19,7 +19,14 @@
 package org.apache.flink.api.java.utils;
 
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
+import org.apache.flink.api.java.sampling.IntermediateSampleData;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.functions.SampleInCoordinator;
+import org.apache.flink.api.java.functions.SampleInPartition;
+import org.apache.flink.api.java.functions.SampleWithFraction;
+import org.apache.flink.api.java.operators.GroupReduceOperator;
+import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
@@ -141,6 +148,94 @@ public class DataSetUtils {
 			}
 		});
 	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Sample
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Generate a sample of DataSet by the probability fraction of each element.
+	 *
+	 * @param withReplacement Whether element can be selected more than once.
+	 * @param fraction        Probability that each element is chosen, should be [0,1] without replacement,
+	 *                        and [0, ∞) with replacement. While fraction is larger than 1, the elements are
+	 *                        expected to be selected multi times into sample on average.
+	 * @return The sampled DataSet
+	 */
+	public static <T> MapPartitionOperator<T, T> sample(
+		DataSet <T> input,
+		final boolean withReplacement,
+		final double fraction) {
+
+		return sample(input, withReplacement, fraction, Utils.RNG.nextLong());
+	}
+
+	/**
+	 * Generate a sample of DataSet by the probability fraction of each element.
+	 *
+	 * @param withReplacement Whether element can be selected more than once.
+	 * @param fraction        Probability that each element is chosen, should be [0,1] without replacement,
+	 *                        and [0, ∞) with replacement. While fraction is larger than 1, the elements are
+	 *                        expected to be selected multi times into sample on average.
+	 * @param seed            random number generator seed.
+	 * @return The sampled DataSet
+	 */
+	public static <T> MapPartitionOperator<T, T> sample(
+		DataSet <T> input,
+		final boolean withReplacement,
+		final double fraction,
+		final long seed) {
+
+		return input.mapPartition(new SampleWithFraction<T>(withReplacement, fraction, seed));
+	}
+
+	/**
+	 * Generate a sample of DataSet which contains fixed size elements.
+	 * <p>
+	 * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
+	 * fraction unless you need exact precision.
+	 * <p/>
+	 *
+	 * @param withReplacement Whether element can be selected more than once.
+	 * @param numSample       The expected sample size.
+	 * @return The sampled DataSet
+	 */
+	public static <T> DataSet<T> sampleWithSize(
+		DataSet <T> input,
+		final boolean withReplacement,
+		final int numSample) {
+
+		return sampleWithSize(input, withReplacement, numSample, Utils.RNG.nextLong());
+	}
+
+	/**
+	 * Generate a sample of DataSet which contains fixed size elements.
+	 * <p>
+	 * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
+	 * fraction unless you need exact precision.
+	 * <p/>
+	 *
+	 * @param withReplacement Whether element can be selected more than once.
+	 * @param numSample       The expected sample size.
+	 * @param seed            Random number generator seed.
+	 * @return The sampled DataSet
+	 */
+	public static <T> DataSet<T> sampleWithSize(
+		DataSet <T> input,
+		final boolean withReplacement,
+		final int numSample,
+		final long seed) {
+
+		SampleInPartition sampleInPartition = new SampleInPartition<T>(withReplacement, numSample, seed);
+		MapPartitionOperator mapPartitionOperator = input.mapPartition(sampleInPartition);
+
+		// There is no previous group, so the parallelism of GroupReduceOperator is always 1.
+		String callLocation = Utils.getCallLocationName();
+		SampleInCoordinator<T> sampleInCoordinator = new SampleInCoordinator<T>(withReplacement, numSample, seed);
+		return new GroupReduceOperator<IntermediateSampleData<T>, T>(mapPartitionOperator,
+			input.getType(), sampleInCoordinator, callLocation);
+	}
+
 
 	// *************************************************************************
 	//     UTIL METHODS

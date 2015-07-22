@@ -19,7 +19,7 @@
 package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.{utils => jutils}
+import org.apache.flink.api.java.{Utils, utils => jutils}
 
 import _root_.scala.language.implicitConversions
 import _root_.scala.reflect.ClassTag
@@ -52,6 +52,44 @@ class DataSetUtils[T](val self: DataSet[T]) extends AnyVal {
                       ct: ClassTag[(Long, T)]): DataSet[(Long, T)] = {
     wrap(jutils.DataSetUtils.zipWithUniqueId(self.javaSet))
       .map { t => (t.f0.toLong, t.f1) }
+  }
+
+  // --------------------------------------------------------------------------------------------
+  //  Sample
+  // --------------------------------------------------------------------------------------------
+  /**
+   * Generate a sample of DataSet by the probability fraction of each element.
+   *
+   * @param withReplacement Whether element can be selected more than once.
+   * @param fraction        Probability that each element is chosen, should be [0,1] without
+   *                        replacement, and [0, ∞) with replacement. While fraction is larger
+   *                        than 1, the elements are expected to be selected multi times into
+   *                        sample on average.
+   * @param seed            Random number generator seed.
+   * @return The sampled DataSet
+   */
+  def sample(withReplacement: Boolean, fraction: Double, seed: Long = Utils.RNG.nextLong())
+            (implicit ti: TypeInformation[T], ct: ClassTag[T]): DataSet[T] = {
+
+    wrap(jutils.DataSetUtils.sample(self.javaSet, withReplacement, fraction, seed))
+  }
+
+  /**
+   * Generate a sample of DataSet with fixed sample size.
+   * <p>
+   * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction,
+   * use sample with fraction unless you need exact precision.
+   * <p/>
+   *
+   * @param withReplacement Whether element can be selected more than once.
+   * @param numSample       The expected sample size.
+   * @param seed            Random number generator seed.
+   * @return The sampled DataSet
+   */
+  def sampleWithSize(withReplacement: Boolean, numSample: Int, seed: Long = Utils.RNG.nextLong())
+                    (implicit ti: TypeInformation[T], ct: ClassTag[T]): DataSet[T] = {
+
+    wrap(jutils.DataSetUtils.sampleWithSize(self.javaSet, withReplacement, numSample, seed))
   }
 }
 

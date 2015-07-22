@@ -1057,7 +1057,7 @@ public abstract class DataSet<T> {
 	public UnionOperator<T> union(DataSet<T> other){
 		return new UnionOperator<T>(this, other, Utils.getCallLocationName());
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Partitioning
 	// --------------------------------------------------------------------------------------------

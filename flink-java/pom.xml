@@ -92,6 +92,12 @@ under the License.
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-math3</artifactId>
+			<!-- managed version -->
+		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
