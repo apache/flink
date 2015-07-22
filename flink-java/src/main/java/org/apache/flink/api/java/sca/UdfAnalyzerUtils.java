@@ -130,8 +130,6 @@ public final class UdfAnalyzerUtils {
 					}
 				}
 				internalClassName = cr.getSuperName();
-        stream.close();
-        stream = null;
 			}
 		} catch (IOException e) {
 			throw new IllegalStateException("Method '" + name + "' could not be found", e);
