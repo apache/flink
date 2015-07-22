@@ -47,6 +47,9 @@ public class SerializedValue<T> implements java.io.Serializable {
 		this.serializedData = value == null ? null : InstantiationUtil.serializeObject(value);
 	}
 
+	public SerializedValue(byte[] data) {
+		this.serializedData = data == null ? null : data;
+	}
 
 	@SuppressWarnings("unchecked")
 	public T deserializeValue(ClassLoader loader) throws IOException, ClassNotFoundException {
@@ -55,6 +58,17 @@ public class SerializedValue<T> implements java.io.Serializable {
 		}
 
 		return serializedData == null ? null : (T) InstantiationUtil.deserializeObject(serializedData, loader);
+	}
+
+	/**
+	 * Gets the size of the serialized content.
+	 * @return the size in bytes of the data stored in the blob.
+	 * */
+	public long getSizeInBytes() {
+		if(serializedData == null) {
+			throw new RuntimeException("No data in this Blob.");
+		}
+		return serializedData.length;
 	}
 
 	// --------------------------------------------------------------------------------------------

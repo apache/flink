@@ -421,4 +421,9 @@ object AkkaUtils {
     val duration = Duration(ConfigConstants.DEFAULT_AKKA_LOOKUP_TIMEOUT)
     new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
   }
+
+  def getFramesize(config: Configuration): Long = config.getString(
+    ConfigConstants.AKKA_FRAMESIZE,
+    ConfigConstants.DEFAULT_AKKA_FRAMESIZE).replaceAll("[^\\d.]", "").toLong
+
 }

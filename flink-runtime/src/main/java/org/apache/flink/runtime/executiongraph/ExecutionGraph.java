@@ -24,8 +24,10 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.accumulators.BaseAccumulatorSnapshot;
+import org.apache.flink.runtime.accumulators.LargeAccumulatorSnapshot;
+import org.apache.flink.runtime.accumulators.SmallAccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -60,6 +62,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -142,17 +146,25 @@ public class ExecutionGraph implements Serializable {
 	 * through the UpdateTaskExecutionState message.
 	 * @param accumulatorSnapshot The serialized flink and user-defined accumulators
 	 */
-	public void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
+	public void updateAccumulators(BaseAccumulatorSnapshot accumulatorSnapshot) {
 		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
-		Map<String, Accumulator<?, ?>> userAccumulators;
+		Map<String, Accumulator<?, ?>> smallUserAccumulators = null;
+		Map<String, List<BlobKey>> largeUserAccumulators = null;
 		try {
 			flinkAccumulators = accumulatorSnapshot.deserializeFlinkAccumulators();
-			userAccumulators = accumulatorSnapshot.deserializeUserAccumulators(userClassLoader);
+
+			if(accumulatorSnapshot instanceof SmallAccumulatorSnapshot) {
+				smallUserAccumulators = ((SmallAccumulatorSnapshot) accumulatorSnapshot).
+						deserializeSmallUserAccumulators(userClassLoader);
+			} else if(accumulatorSnapshot instanceof LargeAccumulatorSnapshot) {
+				largeUserAccumulators = ((LargeAccumulatorSnapshot) accumulatorSnapshot).
+						getLargeAccumulatorBlobKeys();
+			}
 
 			ExecutionAttemptID execID = accumulatorSnapshot.getExecutionAttemptID();
 			Execution execution = currentExecutions.get(execID);
 			if (execution != null) {
-				execution.setAccumulators(flinkAccumulators, userAccumulators);
+				execution.setAccumulators(flinkAccumulators, smallUserAccumulators, largeUserAccumulators);
 			} else {
 				LOG.warn("Received accumulator result for unknown execution {}.", execID);
 			}
@@ -563,18 +575,42 @@ public class ExecutionGraph implements Serializable {
 	 * Merges all accumulator results from the tasks previously executed in the Executions.
 	 * @return The accumulator map
 	 */
-	public Map<String, Accumulator<?,?>> aggregateUserAccumulators() {
+	public Map<String, Accumulator<?,?>> aggregateSmallUserAccumulators() {
 
-		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<String, Accumulator<?, ?>>();
+		Map<String, Accumulator<?, ?>> smallUserAccumulators = new HashMap<String, Accumulator<?, ?>>();
 
 		for (ExecutionVertex vertex : getAllExecutionVertices()) {
-			Map<String, Accumulator<?, ?>> next = vertex.getCurrentExecutionAttempt().getUserAccumulators();
+			Map<String, Accumulator<?, ?>> next = vertex.getCurrentExecutionAttempt().getSmallUserAccumulators();
 			if (next != null) {
-				AccumulatorHelper.mergeInto(userAccumulators, next);
+				AccumulatorHelper.mergeInto(smallUserAccumulators, next);
 			}
 		}
+		return smallUserAccumulators;
+	}
 
-		return userAccumulators;
+	/**
+	 * Merges all blobKeys referring to blobs of large accumulators. These refer to blobs in the
+	 * blobCache holding accumulators (results of tasks) that did not fit in an akka frame,
+	 * thus had to be sent through the BlobCache.
+	 * @return The accumulator map
+	 */
+	public Map<String, List<BlobKey>> aggregateLargeUserAccumulatorBlobKeys() {
+		Map<String, List<BlobKey>> largeUserAccumulatorRefs = new HashMap<String, List<BlobKey>>();
+
+		for (ExecutionVertex vertex : getAllExecutionVertices()) {
+			Map<String, List<BlobKey>> next = vertex.getCurrentExecutionAttempt().getLargeUserAccumulatorBlobKeys();
+			if (next != null) {
+				for (Map.Entry<String, List<BlobKey>> otherEntry : next.entrySet()) {
+					List<BlobKey> existing = largeUserAccumulatorRefs.get(otherEntry.getKey());
+					if (existing == null) {
+						largeUserAccumulatorRefs.put(otherEntry.getKey(), otherEntry.getValue());
+					} else {
+						existing.addAll(otherEntry.getValue());
+					}
+				}
+			}
+		}
+		return largeUserAccumulatorRefs;
 	}
 
 	/**
@@ -582,9 +618,9 @@ public class ExecutionGraph implements Serializable {
 	 * @return The accumulator map with serialized accumulator values.
 	 * @throws IOException
 	 */
-	public Map<String, SerializedValue<Object>> getAccumulatorsSerialized() throws IOException {
+	public Map<String, SerializedValue<Object>> getSmallAccumulatorsSerialized() throws IOException {
 
-		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
+		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateSmallUserAccumulators();
 
 		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
 		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
@@ -599,14 +635,18 @@ public class ExecutionGraph implements Serializable {
 	 * @return an Array containing the StringifiedAccumulatorResult objects
 	 */
 	public StringifiedAccumulatorResult[] getAccumulatorResultsStringified() {
+		Map<String, Accumulator<?, ?>> smallAccumulatorMap = aggregateSmallUserAccumulators();
+		Map<String, List<BlobKey>> largeAccumulatorMap = aggregateLargeUserAccumulatorBlobKeys();
 
-		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
+		// get the total number of (unique) accumulators
+		Set<String> uniqAccumulators = new HashSet<String>();
+		uniqAccumulators.addAll(smallAccumulatorMap.keySet());
+		uniqAccumulators.addAll(largeAccumulatorMap.keySet());
+		int num = uniqAccumulators.size();
 
-		int num = accumulatorMap.size();
 		StringifiedAccumulatorResult[] resultStrings = new StringifiedAccumulatorResult[num];
-
 		int i = 0;
-		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
+		for (Map.Entry<String, Accumulator<?, ?>> entry : smallAccumulatorMap.entrySet()) {
 
 			StringifiedAccumulatorResult result;
 			Accumulator<?, ?> value = entry.getValue();
@@ -619,6 +659,21 @@ public class ExecutionGraph implements Serializable {
 			resultStrings[i++] = result;
 		}
 
+		for (Map.Entry<String, List<BlobKey>> entry : largeAccumulatorMap.entrySet()) {
+
+			if(!smallAccumulatorMap.containsKey(entry.getKey())) {
+				StringBuilder str = new StringBuilder();
+				str.append("BlobKeys=[ ");
+				for (BlobKey bk : entry.getValue()) {
+					str.append(bk + " ");
+				}
+				str.append("]");
+
+				StringifiedAccumulatorResult result =
+						new StringifiedAccumulatorResult(entry.getKey(), "Blob/Serialized", str.toString());
+				resultStrings[i++] = result;
+			}
+		}
 		return resultStrings;
 	}
 
@@ -941,18 +996,27 @@ public class ExecutionGraph implements Serializable {
 				case RUNNING:
 					return attempt.switchToRunning();
 				case FINISHED:
+					BaseAccumulatorSnapshot accumulatorSnapshot = state.getAccumulators();
+
 					Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators = null;
-					Map<String, Accumulator<?, ?>> userAccumulators = null;
+					Map<String, Accumulator<?, ?>> smallUserAccumulators = null;
+					Map<String, List<BlobKey>> largeUserAccumulators = null;
 					try {
-						AccumulatorSnapshot accumulators = state.getAccumulators();
-						flinkAccumulators = accumulators.deserializeFlinkAccumulators();
-						userAccumulators = accumulators.deserializeUserAccumulators(userClassLoader);
+						flinkAccumulators = accumulatorSnapshot.deserializeFlinkAccumulators();
+
+						if(accumulatorSnapshot instanceof SmallAccumulatorSnapshot) {
+							smallUserAccumulators = ((SmallAccumulatorSnapshot) accumulatorSnapshot).
+									deserializeSmallUserAccumulators(userClassLoader);
+						} else if(accumulatorSnapshot instanceof LargeAccumulatorSnapshot) {
+							largeUserAccumulators = ((LargeAccumulatorSnapshot) accumulatorSnapshot).
+									getLargeAccumulatorBlobKeys();
+						}
 					} catch (Exception e) {
 						// Exceptions would be thrown in the future here
 						LOG.error("Failed to deserialize final accumulator results.", e);
 					}
 
-					attempt.markFinished(flinkAccumulators, userAccumulators);
+					attempt.markFinished(flinkAccumulators, smallUserAccumulators, largeUserAccumulators);
 					return true;
 				case CANCELED:
 					attempt.cancelingComplete();

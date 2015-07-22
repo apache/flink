@@ -33,6 +33,11 @@ public class FallbackLibraryCacheManager implements LibraryCacheManager {
 	private static Logger LOG = LoggerFactory.getLogger(FallbackLibraryCacheManager.class);
 
 	@Override
+	public int getBlobServerPort() {
+		return 0;
+	}
+
+	@Override
 	public ClassLoader getClassLoader(JobID id) {
 		return getClass().getClassLoader();
 	}
