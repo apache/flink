@@ -138,7 +138,16 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	public void unregisterJob(JobID id) {
 		unregisterTask(id, JOB_ATTEMPT_ID);
 	}
-	
+
+	@Override
+	public void deleteBlob(BlobKey key) {
+		try {
+			this.blobService.delete(key);
+		} catch (IOException e) {
+			LOG.error("Error when removing Blob: "+ key, e);
+		}
+	}
+
 	@Override
 	public void unregisterTask(JobID jobId, ExecutionAttemptID task) {
 		Preconditions.checkNotNull(jobId, "The JobId must not be null.");
@@ -164,7 +173,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	public ClassLoader getClassLoader(JobID id) {
 		if (id == null) {
 			throw new IllegalArgumentException("The JobId must not be null.");
-		}
+	}
 		
 		synchronized (lockObject) {
 			LibraryCacheEntry entry = cacheEntries.get(id);
@@ -181,6 +190,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		return new File(blobService.getURL(blobKey).getFile());
 	}
 
+	@Override
 	public int getBlobServerPort() {
 		return blobService.getPort();
 	}

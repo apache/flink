@@ -24,7 +24,7 @@ public class BlobServerProtocol {
 	// --------------------------------------------------------------------------------------------
 
 	/** The buffer size in bytes for network transfers. */
-	static final int BUFFER_SIZE = 65536; // 64 K
+	public static final int BUFFER_SIZE = 65536; // 64 K
 
 	/** The maximum key length allowed for storing BLOBs. */
 	static final int MAX_KEY_LENGTH = 64;

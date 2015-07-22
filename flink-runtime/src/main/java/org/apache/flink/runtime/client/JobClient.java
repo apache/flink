@@ -27,10 +27,14 @@ import akka.actor.Status;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import com.google.common.base.Preconditions;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.accumulators.LargeAccumulatorHelper;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobClientMessages;
@@ -50,6 +54,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -187,9 +193,32 @@ public class JobClient {
 		}
 	}
 
+	public static JobExecutionResult returnFinalJobExecutionResult(
+			ActorGateway jobManagerGateway, SerializedJobExecutionResult partialResult,
+			ClassLoader userCodeClassLoader, FiniteDuration timeout)
+			throws IOException, ClassNotFoundException {
+
+		if (jobManagerGateway == null || partialResult == null || userCodeClassLoader == null || timeout == null) {
+			throw new NullPointerException();
+		}
+
+		Map<String, Accumulator<?, ?>> largeAccumulators;
+		try {
+			InetSocketAddress serverAddress = getBlobServerAddress(jobManagerGateway, timeout);
+			Map<String, List<BlobKey>> blobsKeysToFetch = partialResult.getBlobKeysToLargeAccumulators();
+
+			largeAccumulators = LargeAccumulatorHelper.getDeserializeAndMergeAccumulatorsFromBlobCache(
+					serverAddress, blobsKeysToFetch, userCodeClassLoader);
+
+		} catch (IOException e) {
+			throw new IOException("Failed to fetch the oversized accumulators from the BlobCache", e);
+		}
+		return partialResult.mergeToJobExecutionResult(userCodeClassLoader, largeAccumulators);
+	}
+
 	/**
 	 * Submits a job in detached mode. The method sends the JobGraph to the
-	 * JobManager and waits for the answer whether teh job could be started or not.
+	 * JobManager and waits for the answer whether the job could be started or not.
 	 *
 	 * @param jobManagerGateway Gateway to the JobManager which will execute the jobs
 	 * @param jobGraph The job
@@ -250,29 +279,30 @@ public class JobClient {
 			FiniteDuration timeout)
 			throws IOException {
 		if (jobGraph.hasUsercodeJarFiles()) {
-
-			Future<Object> futureBlobPort = jobManagerGateway.ask(
-					JobManagerMessages.getRequestBlobManagerPort(),
-					timeout);
-
-			int port;
-			try {
-				Object result = Await.result(futureBlobPort, timeout);
-				if (result instanceof Integer) {
-					port = (Integer) result;
-				} else {
-					throw new Exception("Expected port number (int) as answer, received " + result);
-				}
-			}
-			catch (Exception e) {
-				throw new IOException("Could not retrieve the JobManager's blob port.", e);
-			}
-
-			Option<String> jmHost = jobManagerGateway.actor().path().address().host();
-			String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
-			InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, port);
-
+			InetSocketAddress serverAddress = getBlobServerAddress(jobManagerGateway, timeout);
 			jobGraph.uploadRequiredJarFiles(serverAddress);
 		}
+	}
+
+	private static InetSocketAddress getBlobServerAddress(ActorGateway jobManagerGateway, FiniteDuration timeout) throws IOException {
+		Future<Object> futureBlobPort = jobManagerGateway.ask(
+				JobManagerMessages.getRequestBlobManagerPort(),
+				timeout);
+
+		int port;
+		try {
+			Object result = Await.result(futureBlobPort, timeout);
+			if (result instanceof Integer) {
+				port = (Integer) result;
+			} else {
+				throw new Exception("Expected port number (int) as answer, received " + result);
+			}
+		} catch (Exception e) {
+			throw new IOException("Could not retrieve the JobManager's blob port.", e);
+		}
+
+		Option<String> jmHost = jobManagerGateway.actor().path().address().host();
+		String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
+		return new InetSocketAddress(jmHostname, port);
 	}
 }

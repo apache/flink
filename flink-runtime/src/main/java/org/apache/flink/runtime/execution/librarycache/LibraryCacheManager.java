@@ -27,6 +27,13 @@ import java.io.IOException;
 import java.util.Collection;
 
 public interface LibraryCacheManager {
+
+	/**
+	 * Returns the port the service is listening to.
+	 * @return the port of the cache server.
+	 * */
+	int getBlobServerPort();
+
 	/**
 	 * Returns the user code class loader associated with id.
 	 *
@@ -75,6 +82,13 @@ public interface LibraryCacheManager {
 	 * @param id job ID
 	 */
 	void unregisterJob(JobID id);
+
+	/**
+	 * Deletes the blob with the given key.
+	 *
+	 * @param key the key to delete.
+	 * */
+	void deleteBlob(BlobKey key);
 
 	/**
 	 * Shutdown method
