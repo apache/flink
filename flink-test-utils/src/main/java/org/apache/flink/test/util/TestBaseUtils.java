@@ -19,11 +19,14 @@
 package org.apache.flink.test.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import akka.actor.ActorRef;
 import akka.dispatch.Futures;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -449,6 +452,53 @@ public class TestBaseUtils extends TestLogger {
 		
 		for (int i = 0; i < extectedStrings.length; i++) {
 			assertEquals(extectedStrings[i], resultStrings[i]);
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Comparison methods for tests using sample
+	// --------------------------------------------------------------------------------------------
+	
+	public static <T> void containsResultAsTuples(List<T> result, String expected) {
+		isExpectedContainsResult(result, expected, true);
+	}
+	
+	public static <T> void containsResultAsText(List<T> result, String expected) {
+		isExpectedContainsResult(result, expected, false);
+	}
+	
+	private static <T> void isExpectedContainsResult(List<T> result, String expected, boolean asTuple) {
+		String[] expectedStrings = expected.split("\n");
+		List<String> resultStrings = Lists.newLinkedList();
+		
+		for (int i = 0; i < result.size(); i++) {
+			T val = result.get(i);
+			
+			if (asTuple) {
+				if (val instanceof Tuple) {
+					Tuple t = (Tuple) val;
+					Object first = t.getField(0);
+					StringBuilder bld = new StringBuilder(first == null ? "null" : first.toString());
+					for (int pos = 1; pos < t.getArity(); pos++) {
+						Object next = t.getField(pos);
+						bld.append(',').append(next == null ? "null" : next.toString());
+					}
+					resultStrings.add(bld.toString());
+				}
+				else {
+					throw new IllegalArgumentException(val + " is no tuple");
+				}
+			}
+			else {
+				String str = (val == null) ? "null" : val.toString();
+				resultStrings.add(str);
+			}
+		}
+		
+		List<String> expectedStringList = Arrays.asList(expectedStrings);
+		
+		for (String element : resultStrings) {
+			assertTrue(expectedStringList.contains(element));
 		}
 	}
 

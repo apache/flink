@@ -37,6 +37,11 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
+import org.apache.flink.api.common.operators.util.BernoulliSampler;
+import org.apache.flink.api.common.operators.util.PoissonSampler;
+import org.apache.flink.api.common.operators.util.RandomSampler;
+import org.apache.flink.api.common.operators.util.ReservoirSamplerWithReplacement;
+import org.apache.flink.api.common.operators.util.ReservoirSamplerWithoutReplacement;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.aggregation.Aggregations;
@@ -84,9 +89,11 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.Collector;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -1057,7 +1064,91 @@ public abstract class DataSet<T> {
 	public UnionOperator<T> union(DataSet<T> other){
 		return new UnionOperator<T>(this, other, Utils.getCallLocationName());
 	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Sample
+	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Generate a sample of DataSet.
+	 *
+	 * @param withReplacement whether element can be sampled multiple times.
+	 * @param fraction        probability that each element is chosen, should be [0,1] without replacement, 
+	 *                        and [0, ∞) with replacement. While fraction is larger than 1, the elements are 
+	 *                        expected to be selected multi times into sample on average. 
+	 * @return the sampled DataSet
+	 */
+	public MapPartitionOperator<T, T> sample(final boolean withReplacement, final double fraction) {
+		return sample(withReplacement, fraction, Utils.RNG.nextLong());
+	}
+	
+	/**
+	 * Generate a sample of DataSet.
+	 *
+	 * @param withReplacement whether element can be sampled multiple times.
+	 * @param fraction        probability that each element is chosen, should be [0,1] without replacement, 
+	 *                        and [0, ∞) with replacement. While fraction is larger than 1, the elements are 
+	 *                        expected to be selected multi times into sample on average. 
+	 * @param seed            random number generator seed.
+	 * @return the sampled DataSet
+	 */
+	public MapPartitionOperator<T, T> sample(final boolean withReplacement, final double fraction, final long seed) {
+		return mapPartition(new MapPartitionFunction<T, T>() {
+			@Override
+			public void mapPartition(Iterable<T> values, Collector<T> out) throws Exception {
+				RandomSampler<T> sampler;
+				if (withReplacement) {
+					sampler = new PoissonSampler<T>(fraction, seed);
+				} else {
+					sampler = new BernoulliSampler<T>(fraction, seed);
+				}
+				
+				Iterator<T> sampled = sampler.sample(values.iterator());
+				while (sampled.hasNext()) {
+					out.collect(sampled.next());
+				}
+			}
+		});
+	}
+	
+	/**
+	 * Generate a sample of DataSet.
+	 *
+	 * @param withReplacement whether element can be sampled multiple times.
+	 * @param numSample       the expected sampled size.
+	 * @return the sampled DataSet
+	 */
+	public MapPartitionOperator<T, T> sampleWithSize(final boolean withReplacement, final int numSample) {
+		return this.sampleWithSize(withReplacement, numSample, Utils.RNG.nextLong());
+	}
+	
+	/**
+	 * Generate a sample of DataSet.
+	 *
+	 * @param withReplacement whether element can be sampled multiple times.
+	 * @param numSample       the expected sampled size.
+	 * @param seed            random number generator seed. 
+	 * @return the sampled DataSet
+	 */
+	public MapPartitionOperator<T, T> sampleWithSize(final boolean withReplacement, final int numSample, final long seed) {
+		return mapPartition(new MapPartitionFunction<T, T>() {
+			@Override
+			public void mapPartition(Iterable<T> values, Collector<T> out) throws Exception {
+				RandomSampler<T> sampler;
+				if (withReplacement) {
+					sampler = new ReservoirSamplerWithReplacement<T>(numSample, seed);
+				} else {
+					sampler = new ReservoirSamplerWithoutReplacement<T>(numSample, seed);
+				}
+
+				Iterator<T> sampled = sampler.sample(values.iterator());
+				while (sampled.hasNext()) {
+					out.collect(sampled.next());
+				}
+			}
+		});
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Partitioning
 	// --------------------------------------------------------------------------------------------
