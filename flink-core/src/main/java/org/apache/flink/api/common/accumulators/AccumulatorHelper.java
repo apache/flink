@@ -105,15 +105,6 @@ public class AccumulatorHelper {
 		return resultMap;
 	}
 
-	public static String getAccumulatorsFormated(Map<?, Accumulator<?, ?>> newAccumulators) {
-		StringBuilder builder = new StringBuilder();
-		for (Map.Entry<?, Accumulator<?, ?>> entry : newAccumulators.entrySet()) {
-			builder.append("- " + entry.getKey() + " (" + entry.getValue().getClass().getName()
-					+ ")" + ": " + entry.getValue().toString() + "\n");
-		}
-		return builder.toString();
-	}
-
 	public static String getResultsFormated(Map<String, Object> map) {
 		StringBuilder builder = new StringBuilder();
 		for (Map.Entry<String, Object> entry : map.entrySet()) {
