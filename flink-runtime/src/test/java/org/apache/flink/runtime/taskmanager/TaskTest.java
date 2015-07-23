@@ -772,7 +772,9 @@ public class TaskTest {
 			Object rawMessage = taskManagerMessages.poll(10, TimeUnit.SECONDS);
 			
 			assertNotNull("There is no additional TaskManager message", rawMessage);
-			assertTrue("TaskManager message is not 'UnregisterTask'", rawMessage instanceof TaskMessages.TaskInFinalState);
+			if (!(rawMessage instanceof TaskMessages.TaskInFinalState)) {
+				fail("TaskManager message is not 'UnregisterTask', but " + rawMessage.getClass());
+			}
 			
 			TaskMessages.TaskInFinalState message = (TaskMessages.TaskInFinalState) rawMessage;
 			assertEquals(id, message.executionID());
@@ -789,8 +791,9 @@ public class TaskTest {
 			Object rawMessage = taskManagerMessages.poll(10, TimeUnit.SECONDS);
 
 			assertNotNull("There is no additional TaskManager message", rawMessage);
-			assertTrue("TaskManager message is not 'UpdateTaskExecutionState'", 
-					rawMessage instanceof TaskMessages.UpdateTaskExecutionState);
+			if (!(rawMessage instanceof TaskMessages.UpdateTaskExecutionState)) {
+				fail("TaskManager message is not 'UpdateTaskExecutionState', but " + rawMessage.getClass());
+			}
 			
 			TaskMessages.UpdateTaskExecutionState message =
 					(TaskMessages.UpdateTaskExecutionState) rawMessage;
