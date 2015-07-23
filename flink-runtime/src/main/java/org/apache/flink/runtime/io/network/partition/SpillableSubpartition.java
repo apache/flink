@@ -98,13 +98,13 @@ class SpillableSubpartition extends ResultSubpartition {
 	public void finish() throws IOException {
 		synchronized (buffers) {
 			if (add(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE))) {
-				// If we are spilling/have spilled, wait for the writer to finish.
-				if (spillWriter != null) {
-					spillWriter.close();
-				}
-
 				isFinished = true;
 			}
+		}
+
+		// If we are spilling/have spilled, wait for the writer to finish.
+		if (spillWriter != null) {
+			spillWriter.close();
 		}
 	}
 
