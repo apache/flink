@@ -18,15 +18,27 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.disk.iomanager.AsynchronousBufferFileWriter;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.junit.AfterClass;
+import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-import static org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode.*;
+import static org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode.SYNC;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
@@ -45,5 +57,65 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	@Override
 	ResultSubpartition createSubpartition() {
 		return new SpillableSubpartition(0, mock(ResultPartition.class), ioManager, SYNC);
+	}
+
+
+	/**
+	 * Tests a fix for FLINK-2384.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-2384">FLINK-2384</a>
+	 */
+	@Test
+	public void testConcurrentFinishAndReleaseMemory() throws Exception {
+		// Latches to blocking
+		final CountDownLatch doneLatch = new CountDownLatch(1);
+		final CountDownLatch blockLatch = new CountDownLatch(1);
+
+		// Blocking spill writer (blocks on the close call)
+		AsynchronousBufferFileWriter spillWriter = mock(AsynchronousBufferFileWriter.class);
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				blockLatch.countDown();
+				doneLatch.await();
+				return null;
+			}
+		}).when(spillWriter).close();
+
+		// Mock I/O manager returning the blocking spill writer
+		IOManager ioManager = mock(IOManager.class);
+		when(ioManager.createBufferFileWriter(any(FileIOChannel.ID.class)))
+				.thenReturn(spillWriter);
+
+		// The partition
+		final SpillableSubpartition partition = new SpillableSubpartition(
+				0, mock(ResultPartition.class), ioManager, SYNC);
+
+		// Spill the partition initially (creates the spill writer)
+		partition.releaseMemory();
+
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+
+		// Finish the partition (this blocks because of the mock blocking writer)
+		Future<Void> blockingFinish = executor.submit(new Callable<Void>() {
+			@Override
+			public Void call() throws Exception {
+				partition.finish();
+				return null;
+			}
+		});
+
+		// Ensure that the blocking call has been made
+		blockLatch.await();
+
+		// This call needs to go through. FLINK-2384 discovered a bug, in
+		// which the finish call was holding a lock, which was leading to a
+		// deadlock when another operation on the partition was happening.
+		partition.releaseMemory();
+
+		// Check that the finish call succeeded w/o problems as well to avoid
+		// false test successes.
+		doneLatch.countDown();
+		blockingFinish.get();
 	}
 }
