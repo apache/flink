@@ -43,6 +43,7 @@ import org.apache.flink.runtime.webmonitor.handlers.RequestConfigHandler;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.RequestJobIdsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.RequestOverviewHandler;
+import org.apache.flink.runtime.webmonitor.legacy.JobManagerInfoHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,8 +112,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 		}
 		
 		// port configuration
-		this.configuredPort = config.getInteger(ConfigConstants.JOB_MANAGER_NEW_WEB_PORT_KEY,
-												ConfigConstants.DEFAULT_JOB_MANAGER_NEW_WEB_FRONTEND_PORT);
+		this.configuredPort = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
+												ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
 		if (this.configuredPort < 0) {
 			throw new IllegalArgumentException("Web frontend port is invalid: " + this.configuredPort);
 		}
@@ -133,7 +134,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/jobs/:jobid/plan", handler(new ExecutionPlanHandler(currentGraphs)))
 
 //			.GET("/running/:jobid/:jobvertex", handler(new ExecutionPlanHandler(currentGraphs)))
-			
+
+			// the handler for the legacy requests
+			.GET("/jobsInfo", new JobManagerInfoHandler(jobManager, archive, DEFAULT_REQUEST_TIMEOUT))
+					
 			// this handler serves all the static contents
 			.GET("/:*", new StaticFileServerHandler(webRootDir));
 

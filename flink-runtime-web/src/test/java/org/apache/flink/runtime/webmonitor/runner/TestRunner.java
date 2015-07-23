@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor;
+package org.apache.flink.runtime.webmonitor.runner;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -57,6 +57,7 @@ public class TestRunner {
 		runWebLogAnalysisExample(port);
 		runWordCount(port);
 
+		// block the thread
 		Object o = new Object();
 		synchronized (o) {
 			o.wait();

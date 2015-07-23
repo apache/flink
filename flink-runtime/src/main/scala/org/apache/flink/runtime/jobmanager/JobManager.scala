@@ -1038,9 +1038,6 @@ object JobManager {
         // start the new web frontend. we need to load this dynamically
         // because it is not in the same project/dependencies
         startWebRuntimeMonitor(configuration, jobManager, archiver)
-
-        // for the time being, we need to start both web servers
-        new WebInfoServer(configuration, jobManager, archiver).start()
       }
       else if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) != -1) {
         LOG.info("Starting JobManger web frontend")

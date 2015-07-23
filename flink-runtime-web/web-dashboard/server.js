@@ -29,7 +29,7 @@ var server = new Hapi.Server();
 var remotes = [
   { port: 8080, path: 'web-server' },
   { port: 8081, path: 'job-server' },
-  { port: 8082, path: 'new-server' }
+  { port: 8081, path: 'new-server' }
 ]
 
 server.connection({ port: 3000 });
