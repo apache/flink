@@ -17,30 +17,66 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.api.transformations.SinkTransformation;
 
 /**
- * Represents the end of a DataStream.
+ * A Stream Sink. This is used for emitting elements from a streaming topology.
  *
- * @param <IN>
- *            The type of the DataStream closed by the sink.
+ * @param <T> The type of the elements in the Stream
  */
-public class DataStreamSink<IN> extends SingleOutputStreamOperator<IN, DataStreamSink<IN>> {
+public class DataStreamSink<T> {
 
-	protected DataStreamSink(StreamExecutionEnvironment environment, String operatorType,
-			TypeInformation<IN> outTypeInfo, OneInputStreamOperator<IN, ?> operator) {
-		super(environment, outTypeInfo, operator);
+	SinkTransformation<T> transformation;
+
+	@SuppressWarnings("unchecked")
+	protected DataStreamSink(DataStream<T> inputStream, StreamSink<T> operator) {
+		this.transformation = new SinkTransformation<T>(inputStream.getTransformation(), "Unnamed", operator, inputStream.getExecutionEnvironment().getParallelism());
 	}
 
-	protected DataStreamSink(DataStream<IN> dataStream) {
-		super(dataStream);
+	/**
+	 * Returns the transformation that contains the actual sink operator of this sink.
+	 */
+	public SinkTransformation<T> getTransformation() {
+		return transformation;
 	}
 
-	@Override
-	public DataStreamSink<IN> copy() {
-		throw new RuntimeException("Data stream sinks cannot be copied");
+	/**
+	 * Sets the name of this sink. This name is
+	 * used by the visualization and logging during runtime.
+	 *
+	 * @return The named sink.
+	 */
+	public DataStreamSink<T> name(String name) {
+		transformation.setName(name);
+		return this;
 	}
 
+	/**
+	 * Sets the parallelism for this sink. The degree must be higher than zero.
+	 *
+	 * @param parallelism The parallelism for this sink.
+	 * @return The sink with set parallelism.
+	 */
+	public DataStreamSink<T> setParallelism(int parallelism) {
+		transformation.setParallelism(parallelism);
+		return this;
+	}
+
+	/**
+	 * Turns off chaining for this operator so thread co-location will not be
+	 * used as an optimization.
+	 *
+	 * <p>
+	 * Chaining can be turned off for the whole
+	 * job by {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#disableOperatorChaining()}
+	 * however it is not advised for performance considerations.
+	 *
+	 * @return The sink with chaining disabled
+	 */
+	public DataStreamSink<T> disableChaining() {
+		this.transformation.setChainingStrategy(AbstractStreamOperator.ChainingStrategy.NEVER);
+		return this;
+	}
 }

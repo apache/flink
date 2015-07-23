@@ -24,7 +24,6 @@ import akka.actor.Status;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
-import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -163,7 +162,7 @@ public class AccumulatorLiveITCase {
 	@Test
 	public void testStreaming() throws Exception {
 
-		StreamExecutionEnvironment env = new StreamJobExtractor();
+		StreamExecutionEnvironment env = new DummyStreamExecutionEnvironment();
 		env.setParallelism(1);
 
 		DataStream<String> input = env.fromCollection(inputData);
@@ -171,9 +170,8 @@ public class AccumulatorLiveITCase {
 				.flatMap(new NotifyingMapper())
 				.write(new NotifyingOutputFormat(), 1000).disableChaining();
 
-		env.execute();
 
-		jobGraph = ((StreamJobExtractor) env).graph;
+		jobGraph = env.getStreamGraph().getJobGraph();
 		jobID = jobGraph.getJobID();
 
 		verifyResults();
@@ -346,6 +344,7 @@ public class AccumulatorLiveITCase {
 	 * UDF that notifies when it changes the accumulator values
 	 */
 	private static class NotifyingMapper extends RichFlatMapFunction<String, Integer> {
+		private static final long serialVersionUID = 1L;
 
 		private IntCounter counter = new IntCounter();
 
@@ -376,6 +375,7 @@ public class AccumulatorLiveITCase {
 	 * Outputs format which notifies of accumulator changes and waits for the previous mapper.
 	 */
 	private static class NotifyingOutputFormat implements OutputFormat<Integer> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void configure(Configuration parameters) {
@@ -439,9 +439,11 @@ public class AccumulatorLiveITCase {
 	}
 
 
-	private static class StreamJobExtractor extends StreamExecutionEnvironment {
-
-		private JobGraph graph = null;
+	/**
+	 * This is used to for creating the example topology. {@link #execute} is never called, we
+	 * only use this to call {@link #getStreamGraph()}.
+	 */
+	private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
 		@Override
 		public JobExecutionResult execute() throws Exception {
@@ -450,8 +452,7 @@ public class AccumulatorLiveITCase {
 
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {
-			graph = this.streamGraph.getJobGraph();
-			return new JobExecutionResult(new JobID(), -1, null);
+			throw new RuntimeException("This should not be called.");
 		}
 	}
 }

@@ -36,14 +36,20 @@ public class ShufflePartitioner<T> extends StreamPartitioner<T> {
 
 	private int[] returnArray = new int[1];
 
-	public ShufflePartitioner() {
-		super(PartitioningStrategy.SHUFFLE);
-	}
-
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {
 		returnArray[0] = random.nextInt(numberOfOutputChannels);
 		return returnArray;
+	}
+
+	@Override
+	public StreamPartitioner<T> copy() {
+		return new ShufflePartitioner<T>();
+	}
+
+	@Override
+	public String toString() {
+		return "SHUFFLE";
 	}
 }

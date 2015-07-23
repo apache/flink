@@ -257,29 +257,6 @@ public class StreamConfig implements Serializable {
 		return config.getLong(ITERATON_WAIT, 0);
 	}
 
-	public void setSelectedNames(Integer output, List<String> selected) {
-		if (selected == null) {
-			selected = new ArrayList<String>();
-		}
-
-		try {
-			InstantiationUtil.writeObjectToConfig(selected, this.config, OUTPUT_NAME + output);
-		} catch (IOException e) {
-			throw new StreamTaskException("Cannot serialize OutputSelector for name \"" + output+ "\".", e);
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	public List<String> getSelectedNames(Integer output, ClassLoader cl) {
-		List<String> selectedNames;
-		try {
-			selectedNames = (List<String>) InstantiationUtil.readObjectFromConfig(this.config, OUTPUT_NAME + output, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Cannot deserialize OutputSelector for name \"" + output + "\".", e);
-		}
-		return selectedNames == null ? new ArrayList<String>() : selectedNames;
-	}
-
 	public void setNumberOfInputs(int numberOfInputs) {
 		config.setInteger(NUMBER_OF_INPUTS, numberOfInputs);
 	}

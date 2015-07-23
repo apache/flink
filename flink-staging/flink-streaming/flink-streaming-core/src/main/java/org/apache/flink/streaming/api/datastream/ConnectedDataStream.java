@@ -27,12 +27,12 @@ import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoReduceFunction;
 import org.apache.flink.streaming.api.functions.co.CoWindowFunction;
-import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamGroupedReduce;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamWindow;
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.windowing.helper.SystemTimestamp;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 
@@ -49,7 +49,6 @@ import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 public class ConnectedDataStream<IN1, IN2> {
 
 	protected StreamExecutionEnvironment environment;
-	protected StreamGraph jobGraphBuilder;
 	protected DataStream<IN1> dataStream1;
 	protected DataStream<IN2> dataStream2;
 
@@ -57,13 +56,13 @@ public class ConnectedDataStream<IN1, IN2> {
 	protected KeySelector<IN1, ?> keySelector1;
 	protected KeySelector<IN2, ?> keySelector2;
 
-	protected ConnectedDataStream(DataStream<IN1> input1, DataStream<IN2> input2) {
-		this.jobGraphBuilder = input1.streamGraph;
-		this.environment = input1.environment;
-		this.dataStream1 = input1.copy();
-		
+	protected ConnectedDataStream(StreamExecutionEnvironment env, DataStream<IN1> input1, DataStream<IN2> input2) {
+		this.environment = env;
+		if (input1 != null) {
+			this.dataStream1 = input1;
+		}
 		if (input2 != null) {
-			this.dataStream2 = input2.copy();
+			this.dataStream2 = input2;
 		}
 
 		if ((input1 instanceof GroupedDataStream) && (input2 instanceof GroupedDataStream)) {
@@ -78,7 +77,6 @@ public class ConnectedDataStream<IN1, IN2> {
 	}
 
 	protected ConnectedDataStream(ConnectedDataStream<IN1, IN2> coDataStream) {
-		this.jobGraphBuilder = coDataStream.jobGraphBuilder;
 		this.environment = coDataStream.environment;
 		this.dataStream1 = coDataStream.getFirst();
 		this.dataStream2 = coDataStream.getSecond();
@@ -105,7 +103,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The first DataStream.
 	 */
 	public DataStream<IN1> getFirst() {
-		return dataStream1.copy();
+		return dataStream1;
 	}
 
 	/**
@@ -114,7 +112,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The second DataStream.
 	 */
 	public DataStream<IN2> getSecond() {
-		return dataStream2.copy();
+		return dataStream2;
 	}
 
 	/**
@@ -150,7 +148,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The grouped {@link ConnectedDataStream}
 	 */
 	public ConnectedDataStream<IN1, IN2> groupBy(int keyPosition1, int keyPosition2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(keyPosition1),
+		return new ConnectedDataStream<IN1, IN2>(this.environment, dataStream1.groupBy(keyPosition1),
 				dataStream2.groupBy(keyPosition2));
 	}
 
@@ -167,7 +165,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The grouped {@link ConnectedDataStream}
 	 */
 	public ConnectedDataStream<IN1, IN2> groupBy(int[] keyPositions1, int[] keyPositions2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(keyPositions1),
+		return new ConnectedDataStream<IN1, IN2>(environment, dataStream1.groupBy(keyPositions1),
 				dataStream2.groupBy(keyPositions2));
 	}
 
@@ -185,7 +183,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The grouped {@link ConnectedDataStream}
 	 */
 	public ConnectedDataStream<IN1, IN2> groupBy(String field1, String field2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(field1),
+		return new ConnectedDataStream<IN1, IN2>(environment, dataStream1.groupBy(field1),
 				dataStream2.groupBy(field2));
 	}
 
@@ -204,7 +202,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The grouped {@link ConnectedDataStream}
 	 */
 	public ConnectedDataStream<IN1, IN2> groupBy(String[] fields1, String[] fields2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(fields1),
+		return new ConnectedDataStream<IN1, IN2>(environment, dataStream1.groupBy(fields1),
 				dataStream2.groupBy(fields2));
 	}
 
@@ -222,7 +220,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 */
 	public ConnectedDataStream<IN1, IN2> groupBy(KeySelector<IN1, ?> keySelector1,
 			KeySelector<IN2, ?> keySelector2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(keySelector1),
+		return new ConnectedDataStream<IN1, IN2>(environment, dataStream1.groupBy(keySelector1),
 				dataStream2.groupBy(keySelector2));
 	}
 
@@ -239,7 +237,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The partitioned {@link ConnectedDataStream}
 	 */
 	public ConnectedDataStream<IN1, IN2> partitionByHash(int keyPosition1, int keyPosition2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(keyPosition1),
+		return new ConnectedDataStream<IN1, IN2>(environment, dataStream1.partitionByHash(keyPosition1),
 				dataStream2.partitionByHash(keyPosition2));
 	}
 
@@ -254,7 +252,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The partitioned {@link ConnectedDataStream}
 	 */
 	public ConnectedDataStream<IN1, IN2> partitionByHash(int[] keyPositions1, int[] keyPositions2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(keyPositions1),
+		return new ConnectedDataStream<IN1, IN2>(environment, dataStream1.partitionByHash(keyPositions1),
 				dataStream2.partitionByHash(keyPositions2));
 	}
 
@@ -272,7 +270,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The partitioned {@link ConnectedDataStream}
 	 */
 	public ConnectedDataStream<IN1, IN2> partitionByHash(String field1, String field2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(field1),
+		return new ConnectedDataStream<IN1, IN2>(environment, dataStream1.partitionByHash(field1),
 				dataStream2.partitionByHash(field2));
 	}
 
@@ -290,7 +288,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The partitioned {@link ConnectedDataStream}
 	 */
 	public ConnectedDataStream<IN1, IN2> partitionByHash(String[] fields1, String[] fields2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(fields1),
+		return new ConnectedDataStream<IN1, IN2>(environment, dataStream1.partitionByHash(fields1),
 				dataStream2.partitionByHash(fields2));
 	}
 
@@ -306,7 +304,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 */
 	public ConnectedDataStream<IN1, IN2> partitionByHash(KeySelector<IN1, ?> keySelector1,
 														KeySelector<IN2, ?> keySelector2) {
-		return new ConnectedDataStream<IN1, IN2>(dataStream1.partitionByHash(keySelector1),
+		return new ConnectedDataStream<IN1, IN2>(environment, dataStream1.partitionByHash(keySelector1),
 				dataStream2.partitionByHash(keySelector2));
 	}
 
@@ -477,15 +475,22 @@ public class ConnectedDataStream<IN1, IN2> {
 	public <OUT> SingleOutputStreamOperator<OUT, ?> transform(String functionName,
 			TypeInformation<OUT> outTypeInfo, TwoInputStreamOperator<IN1, IN2, OUT> operator) {
 
+		// read the output type of the input Transforms to coax out errors about MissinTypeInfo
+		dataStream1.getType();
+		dataStream2.getType();
+
+		TwoInputTransformation<IN1, IN2, OUT> transform = new TwoInputTransformation<IN1, IN2, OUT>(
+				dataStream1.getTransformation(),
+				dataStream2.getTransformation(),
+				functionName,
+				operator,
+				outTypeInfo,
+				environment.getParallelism());
+
 		@SuppressWarnings({ "unchecked", "rawtypes" })
-		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(
-				environment, outTypeInfo, operator);
+		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(environment, transform);
 
-		dataStream1.streamGraph.addCoOperator(returnStream.getId(), operator, getType1(),
-				getType2(), outTypeInfo, functionName);
-
-		dataStream1.connectGraph(dataStream1, returnStream.getId(), 1);
-		dataStream1.connectGraph(dataStream2, returnStream.getId(), 2);
+		getExecutionEnvironment().addOperator(transform);
 
 		return returnStream;
 	}

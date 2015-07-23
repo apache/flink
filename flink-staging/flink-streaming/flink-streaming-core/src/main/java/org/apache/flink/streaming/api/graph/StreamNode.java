@@ -125,7 +125,11 @@ public class StreamNode implements Serializable {
 	}
 
 	public int getParallelism() {
-		return parallelism != null ? parallelism : env.getParallelism();
+		if (parallelism == -1) {
+			return env.getParallelism();
+		} else {
+			return parallelism;
+		}
 	}
 
 	public void setParallelism(Integer parallelism) {
@@ -218,7 +222,7 @@ public class StreamNode implements Serializable {
 	
 	@Override
 	public String toString() {
-		return operatorName + id;
+		return operatorName + "-" + id;
 	}
 
 	public KeySelector<?, ?> getStatePartitioner() {
@@ -227,5 +231,24 @@ public class StreamNode implements Serializable {
 
 	public void setStatePartitioner(KeySelector<?, ?> statePartitioner) {
 		this.statePartitioner = statePartitioner;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		StreamNode that = (StreamNode) o;
+
+		return id.equals(that.id);
+	}
+
+	@Override
+	public int hashCode() {
+		return id.hashCode();
 	}
 }

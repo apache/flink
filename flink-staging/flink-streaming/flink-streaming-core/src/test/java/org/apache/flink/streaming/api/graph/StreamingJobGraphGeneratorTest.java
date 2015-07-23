@@ -21,6 +21,8 @@ import java.util.Random;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.Assert;
@@ -28,7 +30,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StreamingJobGraphGeneratorTest {
+public class StreamingJobGraphGeneratorTest extends StreamingMultipleProgramsTestBase {
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingJobGraphGeneratorTest.class);
 	
 	@Test
@@ -36,8 +38,9 @@ public class StreamingJobGraphGeneratorTest {
 		final long seed = System.currentTimeMillis();
 		LOG.info("Test seed: {}", new Long(seed));
 		final Random r = new Random(seed);
-		
-		TestStreamEnvironment env = new TestStreamEnvironment(4, 32);
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
 		StreamGraph streamingJob = new StreamGraph(env);
 		StreamingJobGraphGenerator compiler = new StreamingJobGraphGenerator(streamingJob);
 		

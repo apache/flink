@@ -52,9 +52,6 @@ public class GroupedDataStream<OUT> extends KeyedDataStream<OUT> {
 		super(dataStream, keySelector);
 	}
 
-	protected GroupedDataStream(GroupedDataStream<OUT> dataStream) {
-		super(dataStream);
-	}
 
 	/**
 	 * Applies a reduce transformation on the grouped data stream grouped on by
@@ -331,10 +328,4 @@ public class GroupedDataStream<OUT> extends KeyedDataStream<OUT> {
 				getType(), operator);
 		return returnStream;
 	}
-
-	@Override
-	public GroupedDataStream<OUT> copy() {
-		return new GroupedDataStream<OUT>(this);
-	}
-
 }

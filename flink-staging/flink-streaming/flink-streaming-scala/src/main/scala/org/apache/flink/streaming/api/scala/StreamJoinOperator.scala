@@ -182,8 +182,9 @@ object StreamJoinOperator {
     }
   }
 
-  class JoinedStream[I1, I2](jp: JoinPredicate[I1, I2], javaStream: JavaStream[(I1, I2)]) extends 
-  DataStream[(I1, I2)](javaStream) {
+  class JoinedStream[I1, I2](
+      jp: JoinPredicate[I1, I2],
+      javaStream: JavaStream[(I1, I2)]) extends DataStream[(I1, I2)](javaStream) {
 
     private val op = jp.op
 
@@ -194,18 +195,15 @@ object StreamJoinOperator {
     def apply[R: TypeInformation: ClassTag](fun: (I1, I2) => R): DataStream[R] = {
 
       val cleanFun = clean(getJoinWindowFunction(jp, fun))
-      val operator = new CoStreamWindow[I1, I2, R](
-        cleanFun,
-        op.windowSize,
-        op.slideInterval,
-        op.timeStamp1,
-        op.timeStamp2)
 
-      javaStream.getExecutionEnvironment().getStreamGraph().setOperator(javaStream.getId(),
-        operator)
-
-      val js = javaStream.asInstanceOf[SingleOutputStreamOperator[R,_]]
-      js.returns(implicitly[TypeInformation[R]]).asInstanceOf[SingleOutputStreamOperator[R,_]]
+      op.input1.groupBy(jp.keys1).connect(op.input2.groupBy(jp.keys2))
+        .addGeneralWindowCombine[R](
+          cleanFun,
+          implicitly[TypeInformation[R]],
+          op.windowSize,
+          op.slideInterval,
+          op.timeStamp1,
+          op.timeStamp2)
     }
   }
 

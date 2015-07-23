@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.NoOpSink;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -111,7 +112,8 @@ public class TimestampITCase {
 		source1
 				.map(new IdentityMap())
 				.connect(source2).map(new IdentityCoMap())
-				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator());
+				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator())
+				.addSink(new NoOpSink<Integer>());
 
 		env.execute();
 
@@ -149,7 +151,9 @@ public class TimestampITCase {
 		source1
 				.map(new IdentityMap())
 				.connect(source2).map(new IdentityCoMap())
-				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator());
+				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator())
+				.addSink(new NoOpSink<Integer>());
+
 
 		env.execute();
 	}
@@ -176,7 +180,9 @@ public class TimestampITCase {
 		source1
 				.map(new IdentityMap())
 				.connect(source2).map(new IdentityCoMap())
-				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new DisabledTimestampCheckingOperator());
+				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new DisabledTimestampCheckingOperator())
+				.addSink(new NoOpSink<Integer>());
+
 
 		env.execute();
 	}
@@ -194,7 +200,8 @@ public class TimestampITCase {
 		DataStream<Integer> source1 = env.addSource(new MyErroneousTimestampSource());
 
 		source1
-				.map(new IdentityMap());
+				.map(new IdentityMap())
+				.addSink(new NoOpSink<Integer>());
 
 		env.execute();
 	}
@@ -212,7 +219,8 @@ public class TimestampITCase {
 		DataStream<Integer> source1 = env.addSource(new MyErroneousSource());
 
 		source1
-				.map(new IdentityMap());
+				.map(new IdentityMap())
+				.addSink(new NoOpSink<Integer>());
 
 		env.execute();
 	}
@@ -230,7 +238,8 @@ public class TimestampITCase {
 		DataStream<Integer> source1 = env.addSource(new MyErroneousWatermarkSource());
 
 		source1
-				.map(new IdentityMap());
+				.map(new IdentityMap())
+				.addSink(new NoOpSink<Integer>());
 
 		env.execute();
 	}

@@ -24,23 +24,23 @@ import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph.ResourceStrategy;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator.ChainingStrategy;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.StreamTransformation;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 /**
  * The SingleOutputStreamOperator represents a user defined transformation
  * applied on a {@link DataStream} with one predefined output type.
- * 
- * @param <OUT>
- *            Output type of the operator.
- * @param <O>
- *            Type of the operator.
+ *
+ * @param <T> The type of the elements in this Stream
+ * @param <O> Type of the operator.
  */
-public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperator<OUT, O>> extends
-		DataStream<OUT> {
+public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<T, O>> extends DataStream<T> {
 
-	protected boolean isSplit;
-	protected StreamOperator<?> operator;
+	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment, StreamTransformation<T> transformation) {
+		super(environment, transformation);
+	}
 
 	/**
 	 * Gets the name of the current data stream. This name is
@@ -48,8 +48,8 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 *
 	 * @return Name of the stream.
 	 */
-	public String getName(){
-		return streamGraph.getStreamNode(getId()).getOperatorName();
+	public String getName() {
+		return transformation.getName();
 	}
 
 	/**
@@ -58,25 +58,9 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 *
 	 * @return The named operator.
 	 */
-	public DataStream<OUT> name(String name){
-		streamGraph.getStreamNode(id).setOperatorName(name);
+	public SingleOutputStreamOperator<T, O> name(String name){
+		transformation.setName(name);
 		return this;
-	}
-
-	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment,
-			TypeInformation<OUT> outTypeInfo, StreamOperator<?> operator) {
-		super(environment, outTypeInfo);
-		this.isSplit = false;
-		this.operator = operator;
-	}
-
-	@SuppressWarnings("unchecked")
-	protected SingleOutputStreamOperator(DataStream<OUT> dataStream) {
-		super(dataStream);
-		if (dataStream instanceof SingleOutputStreamOperator) {
-			this.isSplit = ((SingleOutputStreamOperator<OUT, ?>) dataStream).isSplit;
-			this.operator = ((SingleOutputStreamOperator<OUT, ?>) dataStream).operator;
-		}
 	}
 
 	/**
@@ -86,13 +70,12 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 *            The parallelism for this operator.
 	 * @return The operator with set parallelism.
 	 */
-	public SingleOutputStreamOperator<OUT, O> setParallelism(int parallelism) {
+	public SingleOutputStreamOperator<T, O> setParallelism(int parallelism) {
 		if (parallelism < 1) {
 			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
 		}
-		this.parallelism = parallelism;
 
-		streamGraph.setParallelism(id, parallelism);
+		transformation.setParallelism(parallelism);
 
 		return this;
 	}
@@ -105,39 +88,34 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 *            The maximum time between two output flushes.
 	 * @return The operator with buffer timeout set.
 	 */
-	public SingleOutputStreamOperator<OUT, O> setBufferTimeout(long timeoutMillis) {
-		streamGraph.setBufferTimeout(id, timeoutMillis);
+	public SingleOutputStreamOperator<T, O> setBufferTimeout(long timeoutMillis) {
+		transformation.setBufferTimeout(timeoutMillis);
 		return this;
 	}
 
 	@SuppressWarnings("unchecked")
-	public SingleOutputStreamOperator<OUT, O> broadcast() {
-		return (SingleOutputStreamOperator<OUT, O>) super.broadcast();
+	public SingleOutputStreamOperator<T, O> broadcast() {
+		return (SingleOutputStreamOperator<T, O>) super.broadcast();
 	}
 
 	@SuppressWarnings("unchecked")
-	public SingleOutputStreamOperator<OUT, O> shuffle() {
-		return (SingleOutputStreamOperator<OUT, O>) super.shuffle();
+	public SingleOutputStreamOperator<T, O> shuffle() {
+		return (SingleOutputStreamOperator<T, O>) super.shuffle();
 	}
 
 	@SuppressWarnings("unchecked")
-	public SingleOutputStreamOperator<OUT, O> forward() {
-		return (SingleOutputStreamOperator<OUT, O>) super.forward();
+	public SingleOutputStreamOperator<T, O> forward() {
+		return (SingleOutputStreamOperator<T, O>) super.forward();
 	}
 
 	@SuppressWarnings("unchecked")
-	public SingleOutputStreamOperator<OUT, O> rebalance() {
-		return (SingleOutputStreamOperator<OUT, O>) super.rebalance();
+	public SingleOutputStreamOperator<T, O> rebalance() {
+		return (SingleOutputStreamOperator<T, O>) super.rebalance();
 	}
 
 	@SuppressWarnings("unchecked")
-	public SingleOutputStreamOperator<OUT, O> global() {
-		return (SingleOutputStreamOperator<OUT, O>) super.global();
-	}
-
-	@Override
-	public SingleOutputStreamOperator<OUT, O> copy() {
-		return new SingleOutputStreamOperator<OUT, O>(this);
+	public SingleOutputStreamOperator<T, O> global() {
+		return (SingleOutputStreamOperator<T, O>) super.global();
 	}
 
 	/**
@@ -149,8 +127,8 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 *            The selected {@link ChainingStrategy}
 	 * @return The operator with the modified chaining strategy
 	 */
-	private SingleOutputStreamOperator<OUT, O> setChainingStrategy(ChainingStrategy strategy) {
-		this.operator.setChainingStrategy(strategy);
+	private SingleOutputStreamOperator<T, O> setChainingStrategy(ChainingStrategy strategy) {
+		this.transformation.setChainingStrategy(strategy);
 		return this;
 	}
 
@@ -162,7 +140,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 * 
 	 * @return The operator with chaining disabled
 	 */
-	public SingleOutputStreamOperator<OUT, O> disableChaining() {
+	public SingleOutputStreamOperator<T, O> disableChaining() {
 		return setChainingStrategy(AbstractStreamOperator.ChainingStrategy.NEVER);
 	}
 
@@ -173,7 +151,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 * 
 	 * @return The operator with chaining set.
 	 */
-	public SingleOutputStreamOperator<OUT, O> startNewChain() {
+	public SingleOutputStreamOperator<T, O> startNewChain() {
 		return setChainingStrategy(AbstractStreamOperator.ChainingStrategy.HEAD);
 	}
 
@@ -216,7 +194,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		if (typeInfoString == null) {
 			throw new IllegalArgumentException("Type information string must not be null.");
 		}
-		return returns(TypeInfoParser.<OUT>parse(typeInfoString));
+		return returns(TypeInfoParser.<T>parse(typeInfoString));
 	}
 	
 	/**
@@ -243,11 +221,11 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 *            type information as a return type hint
 	 * @return This operator with a given return type hint.
 	 */
-	public O returns(TypeInformation<OUT> typeInfo) {
+	public O returns(TypeInformation<T> typeInfo) {
 		if (typeInfo == null) {
 			throw new IllegalArgumentException("Type information must not be null.");
 		}
-		fillInType(typeInfo);
+		transformation.setOutputType(typeInfo);
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
@@ -277,18 +255,23 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 * @return This operator with a given return type hint.
 	 */
 	@SuppressWarnings("unchecked")
-	public O returns(Class<OUT> typeClass) {
+	public O returns(Class<T> typeClass) {
 		if (typeClass == null) {
 			throw new IllegalArgumentException("Type class must not be null.");
 		}
 		
 		try {
-			TypeInformation<OUT> ti = (TypeInformation<OUT>) TypeExtractor.createTypeInfo(typeClass);
+			TypeInformation<T> ti = (TypeInformation<T>) TypeExtractor.createTypeInfo(typeClass);
 			return returns(ti);
 		}
 		catch (InvalidTypesException e) {
 			throw new InvalidTypesException("The given class is not suited for providing necessary type information.", e);
 		}
+	}
+
+	@Override
+	protected DataStream<T> setConnectionType(StreamPartitioner<T> partitioner) {
+		return new SingleOutputStreamOperator<T, O>(this.getExecutionEnvironment(), new PartitionTransformation<T>(this.getTransformation(), partitioner));
 	}
 
 	/**
@@ -305,8 +288,8 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 * 
 	 * @return The operator as a part of a new resource group.
 	 */
-	public SingleOutputStreamOperator<OUT, O> startNewResourceGroup() {
-		streamGraph.setResourceStrategy(getId(), ResourceStrategy.NEWGROUP);
+	public SingleOutputStreamOperator<T, O> startNewResourceGroup() {
+		transformation.setResourceStrategy(ResourceStrategy.NEWGROUP);
 		return this;
 	}
 
@@ -319,8 +302,8 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 * 
 	 * @return The operator with isolated resource group.
 	 */
-	public SingleOutputStreamOperator<OUT, O> isolateResources() {
-		streamGraph.setResourceStrategy(getId(), ResourceStrategy.ISOLATE);
+	public SingleOutputStreamOperator<T, O> isolateResources() {
+		transformation.setResourceStrategy(ResourceStrategy.ISOLATE);
 		return this;
 	}
 

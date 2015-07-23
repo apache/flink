@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.environment;
 
 import com.esotericsoftware.kryo.Serializer;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -60,8 +61,9 @@ import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.SplittableIterator;
 
@@ -86,20 +88,24 @@ public abstract class StreamExecutionEnvironment {
 
 	private ExecutionConfig config = new ExecutionConfig();
 
-	protected static StreamExecutionEnvironment currentEnvironment;
+	protected List<StreamTransformation<?>> transformations = Lists.newArrayList();
 
-	protected StreamGraph streamGraph;
+	protected boolean isChainingEnabled = true;
+
+	protected long checkpointInterval = -1; // disabled
+
+	protected CheckpointingMode checkpointingMode = null;
+
+	protected boolean forceCheckpointing = false;
+
+	protected StateHandleProvider<?> stateHandleProvider;
+
+	/** The environment of the context (local by default, cluster if invoked through command line) */
+	private static StreamExecutionEnvironmentFactory contextEnvironmentFactory;
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Constructor for creating StreamExecutionEnvironment
-	 */
-	protected StreamExecutionEnvironment() {
-		streamGraph = new StreamGraph(this);
-	}
 
 	/**
 	 * Gets the config object.
@@ -221,8 +227,17 @@ public abstract class StreamExecutionEnvironment {
 	 * @return StreamExecutionEnvironment with chaining disabled.
 	 */
 	public StreamExecutionEnvironment disableOperatorChaining() {
-		streamGraph.setChaining(false);
+		this.isChainingEnabled = false;
 		return this;
+	}
+
+	/**
+	 * Returns whether operator chaining is enabled.
+	 *
+	 * @return {@code true} if chaining is enabled, false otherwise.
+	 */
+	public boolean isChainingEnabled() {
+		return isChainingEnabled;
 	}
 
 	// ------------------------------------------------------------------------
@@ -275,10 +290,9 @@ public abstract class StreamExecutionEnvironment {
 		if (interval <= 0) {
 			throw new IllegalArgumentException("the checkpoint interval must be positive");
 		}
-		
-		streamGraph.setCheckpointingEnabled(true);
-		streamGraph.setCheckpointingInterval(interval);
-		streamGraph.setCheckpointingMode(mode);
+
+		this.checkpointInterval = interval;
+		this.checkpointingMode = mode;
 		return this;
 	}
 	
@@ -303,19 +317,9 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@Deprecated
 	public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode, boolean force) {
-		if (mode == null) {
-			throw new NullPointerException("checkpoint mode must not be null");
-		}
-		if (interval <= 0) {
-			throw new IllegalArgumentException("the checkpoint interval must be positive");
-		}
-		
-		streamGraph.setCheckpointingEnabled(true);
-		streamGraph.setCheckpointingInterval(interval);
-		streamGraph.setCheckpointingMode(mode);
-		if (force) {
-			streamGraph.forceCheckpoint();
-		}
+		this.enableCheckpointing(interval, mode);
+
+		this.forceCheckpointing = force;
 		return this;
 	}
 
@@ -334,9 +338,32 @@ public abstract class StreamExecutionEnvironment {
 	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
 	 */
 	public StreamExecutionEnvironment enableCheckpointing() {
-		streamGraph.setCheckpointingEnabled(true);
-		streamGraph.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+		enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
 		return this;
+	}
+
+	/**
+	 * Returns the checkpointing interval or -1 if checkpointing is disabled.
+	 *
+	 * @return The checkpointing interval or -1
+	 */
+	public long getCheckpointInterval() {
+		return checkpointInterval;
+	}
+
+
+	/**
+	 * Returns whether checkpointing is force-enabled.
+	 */
+	public boolean isForceCheckpointing() {
+		return forceCheckpointing;
+	}
+
+	/**
+	 * Returns the {@link CheckpointingMode}.
+	 */
+	public CheckpointingMode getCheckpointingMode() {
+		return checkpointingMode;
 	}
 
 	/**
@@ -348,8 +375,19 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 */
 	public StreamExecutionEnvironment setStateHandleProvider(StateHandleProvider<?> provider) {
-		streamGraph.setStateHandleProvider(provider);
+		this.stateHandleProvider = provider;
 		return this;
+	}
+
+	/**
+	 * Returns the {@link org.apache.flink.runtime.state.StateHandle}
+	 *
+	 * @see #setStateHandleProvider(org.apache.flink.runtime.state.StateHandleProvider)
+	 *
+	 * @return The StateHandleProvider
+	 */
+	public StateHandleProvider<?> getStateHandleProvider() {
+		return stateHandleProvider;
 	}
 
 	/**
@@ -591,7 +629,7 @@ public abstract class StreamExecutionEnvironment {
 		
 		// must not have null elements and mixed elements
 		FromElementsFunction.checkCollection(data, typeInfo.getTypeClass());
-		
+
 		SourceFunction<OUT> function;
 		try {
 			function = new FromElementsFunction<OUT>(typeInfo.createSerializer(getConfig()), data);
@@ -599,7 +637,7 @@ public abstract class StreamExecutionEnvironment {
 		catch (IOException e) {
 			throw new RuntimeException(e.getMessage(), e);
 		}
-		return addSource(function, "Collection Source", typeInfo);
+		return addSource(function, "Collection Source", typeInfo).setParallelism(1);
 	}
 
 	/**
@@ -980,15 +1018,12 @@ public abstract class StreamExecutionEnvironment {
 	private <OUT> DataStreamSource<OUT> createInput(InputFormat<OUT, ?> inputFormat,
 			TypeInformation<OUT> typeInfo, String sourceName) {
 		FileSourceFunction<OUT> function = new FileSourceFunction<OUT>(inputFormat, typeInfo);
-		DataStreamSource<OUT> returnStream = addSource(function, sourceName).returns(typeInfo);
-		streamGraph.setInputFormat(returnStream.getId(), inputFormat);
-		return returnStream;
+		return addSource(function, sourceName).returns(typeInfo);
 	}
 
 	/**
-	 * Adds a data source with a custom type information thus opening a
-	 * {@link org.apache.flink.streaming.api.datastream.DataStream}. Only in very special cases does the user need
-	 * to support type information. Otherwise use {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+	 * Adds a Data Source to the streaming topology.
+	 *
 	 * <p>
 	 * By default sources have a parallelism of 1. To enable parallel execution, the user defined source should
 	 * implement {@link org.apache.flink.streaming.api.functions.source.ParallelSourceFunction} or extend {@link
@@ -1078,10 +1113,9 @@ public abstract class StreamExecutionEnvironment {
 		boolean isParallel = function instanceof ParallelSourceFunction;
 
 		clean(function);
-		StreamOperator<OUT> sourceOperator = new StreamSource<OUT>(function);
+		StreamSource<OUT> sourceOperator = new StreamSource<OUT>(function);
 
-		return new DataStreamSource<OUT>(this, sourceName, typeInfo, sourceOperator,
-				isParallel, sourceName);
+		return new DataStreamSource<OUT>(this, typeInfo, sourceOperator, isParallel, sourceName);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1098,20 +1132,20 @@ public abstract class StreamExecutionEnvironment {
 	 * executed.
 	 */
 	public static StreamExecutionEnvironment getExecutionEnvironment() {
-		if (currentEnvironment != null) {
-			return currentEnvironment;
+		if (contextEnvironmentFactory != null) {
+			return contextEnvironmentFactory.createExecutionEnvironment();
 		}
+
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		if (env instanceof ContextEnvironment) {
 			ContextEnvironment ctx = (ContextEnvironment) env;
-			currentEnvironment = createContextEnvironment(ctx.getClient(), ctx.getJars(),
+			return createContextEnvironment(ctx.getClient(), ctx.getJars(),
 					ctx.getParallelism(), ctx.isWait());
 		} else if (env instanceof OptimizerPlanEnvironment | env instanceof PreviewPlanEnvironment) {
-			currentEnvironment = new StreamPlanEnvironment(env);
+			return new StreamPlanEnvironment(env);
 		} else {
 			return createLocalEnvironment();
 		}
-		return currentEnvironment;
 	}
 
 	private static StreamExecutionEnvironment createContextEnvironment(Client client,
@@ -1143,9 +1177,9 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A local execution environment with the specified parallelism.
 	 */
 	public static LocalStreamEnvironment createLocalEnvironment(int parallelism) {
-		currentEnvironment = new LocalStreamEnvironment();
-		currentEnvironment.setParallelism(parallelism);
-		return (LocalStreamEnvironment) currentEnvironment;
+		LocalStreamEnvironment env = new LocalStreamEnvironment();
+		env.setParallelism(parallelism);
+		return env;
 	}
 
 	// TODO:fix cluster default parallelism
@@ -1172,8 +1206,8 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public static StreamExecutionEnvironment createRemoteEnvironment(String host, int port,
 			String... jarFiles) {
-		currentEnvironment = new RemoteStreamEnvironment(host, port, jarFiles);
-		return currentEnvironment;
+		RemoteStreamEnvironment env = new RemoteStreamEnvironment(host, port, jarFiles);
+		return env;
 	}
 
 	/**
@@ -1199,9 +1233,9 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public static StreamExecutionEnvironment createRemoteEnvironment(String host, int port,
 			int parallelism, String... jarFiles) {
-		currentEnvironment = new RemoteStreamEnvironment(host, port, jarFiles);
-		currentEnvironment.setParallelism(parallelism);
-		return currentEnvironment;
+		RemoteStreamEnvironment env = new RemoteStreamEnvironment(host, port, jarFiles);
+		env.setParallelism(parallelism);
+		return env;
 	}
 
 	/**
@@ -1239,7 +1273,11 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The streamgraph representing the transformations
 	 */
 	public StreamGraph getStreamGraph() {
-		return streamGraph;
+		if (transformations.size() <= 0) {
+			throw new IllegalStateException("No operators defined in streaming topology. Cannot execute.");
+		}
+		StreamGraph result = StreamGraphGenerator.generate(this, transformations);
+		return result;
 	}
 
 	/**
@@ -1254,10 +1292,6 @@ public abstract class StreamExecutionEnvironment {
 		return getStreamGraph().getStreamingPlanAsJSON();
 	}
 
-	protected static void initializeFromFactory(StreamExecutionEnvironmentFactory eef) {
-		currentEnvironment = eef.createExecutionEnvironment();
-	}
-
 	/**
 	 * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
 	 * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
@@ -1270,4 +1304,28 @@ public abstract class StreamExecutionEnvironment {
 		return f;
 	}
 
+	/**
+	 * Adds an operator to the list of operators that should be executed when calling
+	 * {@link #execute}.
+	 *
+	 * <p>
+	 * When calling {@link #execute()} only the operators that where previously added to the list
+	 * are executed.
+	 *
+	 * <p>
+	 * This is not meant to be used by users. The API methods that create operators must call
+	 * this method.
+	 */
+	public void addOperator(StreamTransformation<?> transformation) {
+		Preconditions.checkNotNull(transformation, "Sinks must not be null.");
+		this.transformations.add(transformation);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Methods to control the context and local environments for execution from packaged programs
+	// --------------------------------------------------------------------------------------------
+
+	protected static void initializeContextEnvironment(StreamExecutionEnvironmentFactory ctx) {
+		contextEnvironmentFactory = ctx;
+	}
 }

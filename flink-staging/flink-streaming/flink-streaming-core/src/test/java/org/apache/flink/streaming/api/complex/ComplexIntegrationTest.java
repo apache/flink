@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.complex;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -44,7 +43,6 @@ import org.apache.flink.streaming.api.windowing.helper.Delta;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.After;
 import org.junit.Before;
@@ -131,7 +129,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 			}
 			
 		})
-				
 				.setParallelism(1).filter(new FilterFunction
 				<Tuple2<Long, Tuple2<String, Long>>>() {
 
