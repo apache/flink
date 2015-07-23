@@ -116,11 +116,14 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration,
     if (userConfiguration.getBoolean(
       ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, false))
     {
-      val webServer = new WebInfoServer(configuration, jobManager, archive)
-      webServer.start()
-
       if (userConfiguration.getBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, false)) {
+        // new web frontend
         JobManager.startWebRuntimeMonitor(userConfiguration, jobManager, archive)
+      }
+      else {
+        // old web frontend
+        val webServer = new WebInfoServer(configuration, jobManager, archive)
+        webServer.start()
       }
     }
 

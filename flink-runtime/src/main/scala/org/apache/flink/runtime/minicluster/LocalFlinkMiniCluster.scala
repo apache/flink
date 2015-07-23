@@ -80,11 +80,14 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration,
     val (jobManager, archiver) = JobManager.startJobManagerActors(config, system, streamingMode)
     
     if (config.getBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, false)) {
-      val webServer = new WebInfoServer(configuration, jobManager, archiver)
-      webServer.start()
-
       if (userConfiguration.getBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, false)) {
+        // new web frontend
         JobManager.startWebRuntimeMonitor(userConfiguration, jobManager, archiver)
+      }
+      else {
+        // old web frontend
+        val webServer = new WebInfoServer(configuration, jobManager, archiver)
+        webServer.start()
       }
     }
     jobManager

@@ -38,7 +38,7 @@ import java.util.Map;
  * May serve the IDs of current jobs, or past jobs, depending on whether this handler is
  * given the JobManager or Archive Actor Reference.
  */
-public class RequestJobIdsHandler implements  RequestHandler, RequestHandler.JsonResponse {
+public class RequestJobIdsHandler implements RequestHandler, RequestHandler.JsonResponse {
 	
 	private final ActorRef target;
 	
