@@ -39,12 +39,12 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RecordWriterOutput.class);
 
-	private RecordWriter<SerializationDelegate> recordWriter;
-	private SerializationDelegate serializationDelegate;
+	private RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter;
+	private SerializationDelegate<StreamRecord<OUT>> serializationDelegate;
 
 	@SuppressWarnings("unchecked")
 	public RecordWriterOutput(
-			RecordWriter<SerializationDelegate> recordWriter,
+			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
 			TypeSerializer<OUT> outSerializer,
 			boolean enableWatermarkMultiplexing) {
 		Preconditions.checkNotNull(recordWriter);
@@ -79,9 +79,9 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("unchecked,rawtypes")
 	public void emitWatermark(Watermark mark) {
-		serializationDelegate.setInstance(mark);
+		((SerializationDelegate)serializationDelegate).setInstance(mark);
 		try {
 			recordWriter.broadcastEmit(serializationDelegate);
 		} catch (Exception e) {
@@ -95,7 +95,7 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 	@Override
 	public void close() {
 		if (recordWriter instanceof StreamRecordWriter) {
-			((StreamRecordWriter) recordWriter).close();
+			((StreamRecordWriter<?>) recordWriter).close();
 		} else {
 			try {
 				recordWriter.flush();

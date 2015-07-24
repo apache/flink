@@ -32,7 +32,7 @@ public class TestHarnessUtil {
 	 * Extracts the StreamRecords from the given output list.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <OUT> List<StreamRecord<OUT>> getStreamRecordsFromOutput(List output) {
+	public static <OUT> List<StreamRecord<OUT>> getStreamRecordsFromOutput(List<Object> output) {
 		List<StreamRecord<OUT>> resultElements = new LinkedList<StreamRecord<OUT>>();
 		for (Object e: output) {
 			if (e instanceof StreamRecord) {
@@ -46,11 +46,11 @@ public class TestHarnessUtil {
 	 * Extracts the raw elements from the given output list.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <OUT> List<OUT> getRawElementsFromOutput(Queue output) {
+	public static <OUT> List<OUT> getRawElementsFromOutput(Queue<Object> output) {
 		List<OUT> resultElements = new LinkedList<OUT>();
 		for (Object e: output) {
 			if (e instanceof StreamRecord) {
-				resultElements.add((OUT) ((StreamRecord) e).getValue());
+				resultElements.add(((StreamRecord<OUT>) e).getValue());
 			}
 		}
 		return resultElements;
@@ -59,7 +59,7 @@ public class TestHarnessUtil {
 	/**
 	 * Compare the two queues containing operator/task output by converting them to an array first.
 	 */
-	public static void assertOutputEquals(String message, Queue expected, Queue actual) {
+	public static void assertOutputEquals(String message, Queue<Object> expected, Queue<Object> actual) {
 		Assert.assertArrayEquals(message,
 				expected.toArray(),
 				actual.toArray());

@@ -235,6 +235,7 @@ public class TimestampITCase {
 		env.execute();
 	}
 
+	@SuppressWarnings("unchecked")
 	public static class CustomOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
 
 		List<Watermark> watermarks;

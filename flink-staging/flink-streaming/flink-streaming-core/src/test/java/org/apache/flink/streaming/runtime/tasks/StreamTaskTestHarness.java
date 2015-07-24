@@ -35,7 +35,6 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.Assert;
@@ -43,7 +42,6 @@ import org.junit.Assert;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 
@@ -85,7 +83,7 @@ public class StreamTaskTestHarness<OUT> {
 	private TypeSerializer<OUT> outputSerializer;
 	private StreamRecordSerializer<OUT> outputStreamRecordSerializer;
 
-	private ConcurrentLinkedQueue outputList;
+	private ConcurrentLinkedQueue<Object> outputList;
 
 	protected Thread taskThread;
 
@@ -94,6 +92,7 @@ public class StreamTaskTestHarness<OUT> {
 	// input related methods only need to be implemented once, in generic form
 	protected int numInputGates;
 	protected int numInputChannelsPerGate;
+	@SuppressWarnings("rawtypes")
 	protected StreamTestSingleInputGate[] inputGates;
 
 	public StreamTaskTestHarness(AbstractInvokable task, TypeInformation<OUT> outputType) {
@@ -198,7 +197,7 @@ public class StreamTaskTestHarness<OUT> {
 	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getRawElementsFromOutput(java.util.Queue)}}
 	 * to extract only the StreamRecords.
 	 */
-	public Queue getOutput() {
+	public ConcurrentLinkedQueue<Object> getOutput() {
 		return outputList;
 	}
 

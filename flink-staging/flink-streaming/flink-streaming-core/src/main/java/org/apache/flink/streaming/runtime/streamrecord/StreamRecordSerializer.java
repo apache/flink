@@ -58,7 +58,7 @@ public class StreamRecordSerializer<T> extends TypeSerializer<Object> {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public TypeSerializer duplicate() {
+	public StreamRecordSerializer<T> duplicate() {
 		return this;
 	}
 

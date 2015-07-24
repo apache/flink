@@ -23,7 +23,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
-import org.joda.time.Instant;
 import org.junit.Test;
 
 /**
@@ -43,7 +42,7 @@ public class StreamCounterTest {
 		OneInputStreamOperatorTestHarness<String, Long> testHarness = new OneInputStreamOperatorTestHarness<String, Long>(operator);
 
 		long initialTime = 0L;
-		ConcurrentLinkedQueue expectedOutput = new ConcurrentLinkedQueue();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 
 		testHarness.open();
 

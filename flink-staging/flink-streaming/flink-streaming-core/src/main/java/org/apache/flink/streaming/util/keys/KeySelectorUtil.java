@@ -103,6 +103,7 @@ public class KeySelectorUtil {
 		}
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public K getKey(IN value) throws Exception {
 			comparator.extractKeys(value, keyArray, 0);
 			key = (K) keyArray[0];

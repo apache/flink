@@ -34,7 +34,6 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -49,14 +48,14 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 	OneInputStreamOperator<IN, OUT> operator;
 
-	ConcurrentLinkedQueue outputList;
+	ConcurrentLinkedQueue<Object> outputList;
 
 	ExecutionConfig executionConfig;
 
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
 		this.operator = operator;
 
-		outputList = new ConcurrentLinkedQueue();
+		outputList = new ConcurrentLinkedQueue<Object>();
 
 		executionConfig = new ExecutionConfig();
 
@@ -77,7 +76,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getStreamRecordsFromOutput(java.util.List)}
 	 * to extract only the StreamRecords.
 	 */
-	public Queue getOutput() {
+	public ConcurrentLinkedQueue<Object> getOutput() {
 		return outputList;
 	}
 

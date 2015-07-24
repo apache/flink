@@ -70,7 +70,7 @@ public class StreamGroupedReduceTest {
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<Integer, Integer>(operator);
 
 		long initialTime = 0L;
-		ConcurrentLinkedQueue expectedOutput = new ConcurrentLinkedQueue();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 
 		testHarness.open();
 

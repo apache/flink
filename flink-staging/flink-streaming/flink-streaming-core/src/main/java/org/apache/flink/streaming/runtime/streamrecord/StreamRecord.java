@@ -103,7 +103,7 @@ public class StreamRecord<T> {
 			return false;
 		}
 
-		StreamRecord that = (StreamRecord) o;
+		StreamRecord<?> that = (StreamRecord<?>) o;
 
 		return value.equals(that.value) && timestamp == that.timestamp;
 	}

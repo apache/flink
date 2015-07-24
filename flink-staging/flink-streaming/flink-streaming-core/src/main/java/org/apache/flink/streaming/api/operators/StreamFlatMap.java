@@ -28,7 +28,7 @@ public class StreamFlatMap<IN, OUT>
 
 	private static final long serialVersionUID = 1L;
 
-	private TimestampedCollector<OUT> collector;
+	private transient TimestampedCollector<OUT> collector;
 
 	public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
 		super(flatMapper);
@@ -38,7 +38,7 @@ public class StreamFlatMap<IN, OUT>
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
-		collector = new TimestampedCollector(output);
+		collector = new TimestampedCollector<OUT>(output);
 	}
 
 	@Override

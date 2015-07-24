@@ -44,7 +44,6 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -146,18 +145,18 @@ public class OutputHandler<OUT> {
 
 		// Create collectors for the network outputs
 		for (StreamEdge outputEdge : chainedTaskConfig.getNonChainedOutputs(cl)) {
-			Collector<?> outCollector = outputMap.get(outputEdge);
+			Output<?> output = outputMap.get(outputEdge);
 
-			wrapper.addCollector(outCollector, outputEdge);
+			wrapper.addCollector(output, outputEdge);
 		}
 
 		// Create collectors for the chained outputs
 		for (StreamEdge outputEdge : chainedTaskConfig.getChainedOutputs(cl)) {
-			Integer output = outputEdge.getTargetId();
+			Integer outputId = outputEdge.getTargetId();
 
-			Collector<?> outCollector = createChainedCollector(chainedConfigs.get(output), accumulatorMap);
+			Output<?> output = createChainedCollector(chainedConfigs.get(outputId), accumulatorMap);
 
-			wrapper.addCollector(outCollector, outputEdge);
+			wrapper.addCollector(output, outputEdge);
 		}
 
 		if (chainedTaskConfig.isChainStart()) {
@@ -200,7 +199,7 @@ public class OutputHandler<OUT> {
 	 * the configuration of its source task
 	 *
 	 * @param outputVertex
-	 * 		Name of the output to which the streamoutput will be set up
+	 * 		Name of the output to which the stream output will be set up
 	 * @param upStreamConfig
 	 * 		The config of upStream task
 	 * @return The created StreamOutput
@@ -222,7 +221,7 @@ public class OutputHandler<OUT> {
 		output.setReporter(reporter);
 
 		@SuppressWarnings("unchecked")
-		RecordWriterOutput<T> streamOutput = new RecordWriterOutput<T>((RecordWriter) output, outSerializer, vertex.getExecutionConfig().areTimestampsEnabled());
+		RecordWriterOutput<T> streamOutput = new RecordWriterOutput<T>(output, outSerializer, vertex.getExecutionConfig().areTimestampsEnabled());
 
 		if (LOG.isTraceEnabled()) {
 			LOG.trace("Partitioner set: {} with {} outputs for {}", outputPartitioner.getClass()
@@ -245,9 +244,9 @@ public class OutputHandler<OUT> {
 	}
 
 	private static class ChainingOutput<T> implements Output<StreamRecord<T>> {
-		protected OneInputStreamOperator operator;
+		protected OneInputStreamOperator<T, ?> operator;
 
-		public ChainingOutput(OneInputStreamOperator<?, T> operator) {
+		public ChainingOutput(OneInputStreamOperator<T, ?> operator) {
 			this.operator = operator;
 		}
 
@@ -292,7 +291,7 @@ public class OutputHandler<OUT> {
 	private static class CopyingChainingOutput<T> extends ChainingOutput<T> {
 		private final TypeSerializer<StreamRecord<T>> serializer;
 
-		public CopyingChainingOutput(OneInputStreamOperator<?, T> operator,
+		public CopyingChainingOutput(OneInputStreamOperator<T, ?> operator,
 				TypeSerializer<StreamRecord<T>> serializer) {
 			super(operator);
 			this.serializer = serializer;

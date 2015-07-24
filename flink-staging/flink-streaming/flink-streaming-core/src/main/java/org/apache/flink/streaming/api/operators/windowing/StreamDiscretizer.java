@@ -132,7 +132,7 @@ public class StreamDiscretizer<IN>
 	 * if not empty
 	 */
 	protected void emitWindow() {
-		output.collect(new StreamRecord(windowEvent.setTrigger()));
+		output.collect(new StreamRecord<WindowEvent<IN>>(windowEvent.setTrigger()));
 	}
 
 	private void activeEvict(Object input) {
@@ -144,7 +144,7 @@ public class StreamDiscretizer<IN>
 		}
 
 		if (numToEvict > 0) {
-			output.collect(new StreamRecord(windowEvent.setEviction(numToEvict)));
+			output.collect(new StreamRecord<WindowEvent<IN>>(windowEvent.setEviction(numToEvict)));
 			bufferSize -= numToEvict;
 			bufferSize = bufferSize >= 0 ? bufferSize : 0;
 		}
@@ -154,7 +154,7 @@ public class StreamDiscretizer<IN>
 		int numToEvict = evictionPolicy.notifyEviction(input, isTriggered, bufferSize);
 
 		if (numToEvict > 0) {
-			output.collect(new StreamRecord(windowEvent.setEviction(numToEvict)));
+			output.collect(new StreamRecord<WindowEvent<IN>>(windowEvent.setEviction(numToEvict)));
 			bufferSize -= numToEvict;
 			bufferSize = bufferSize >= 0 ? bufferSize : 0;
 		}

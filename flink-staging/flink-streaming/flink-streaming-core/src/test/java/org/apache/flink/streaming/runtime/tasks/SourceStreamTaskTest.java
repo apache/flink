@@ -89,6 +89,7 @@ public class SourceStreamTaskTest {
 	 * source kept emitting elements while the checkpoint was ongoing.
 	 */
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testCheckpointing() throws Exception {
 		final int NUM_ELEMENTS = 100;
 		final int NUM_CHECKPOINTS = 100;
@@ -108,7 +109,7 @@ public class SourceStreamTaskTest {
 
 
 		ExecutorService executor = Executors.newFixedThreadPool(10);
-		Future[] checkpointerResults = new Future[NUM_CHECKPOINTERS];
+		Future<Boolean>[] checkpointerResults = new Future[NUM_CHECKPOINTERS];
 		for (int i = 0; i < NUM_CHECKPOINTERS; i++) {
 			checkpointerResults[i] = executor.submit(new Checkpointer(NUM_CHECKPOINTS, CHECKPOINT_INTERVAL, sourceTask));
 		}
@@ -131,7 +132,7 @@ public class SourceStreamTaskTest {
 		Assert.assertEquals(NUM_ELEMENTS, resultElements.size());
 	}
 
-	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, Checkpointed {
+	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, Checkpointed<Serializable> {
 		private static final long serialVersionUID = 1;
 
 		private int maxElements;
