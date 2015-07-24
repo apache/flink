@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 from flink.plan.Environment import get_environment
-from flink.plan.Constants import _Fields
 from flink.plan.Constants import INT, STRING, BOOL, FLOAT
 import sys
 
@@ -29,28 +28,28 @@ if __name__ == "__main__":
 
     direct_from_source = d1.filter(lambda x:True)
 
-    if direct_from_source._info[_Fields.TYPES] != ("hello", 4, 3.2, True):
+    if direct_from_source._info.types != ("hello", 4, 3.2, True):
         sys.exit("Error deducting type directly from source.")
 
     from_common_udf = d1.map(lambda x: x[3], BOOL).filter(lambda x:True)
 
-    if from_common_udf._info[_Fields.TYPES] != BOOL:
+    if from_common_udf._info.types != BOOL:
         sys.exit("Error deducting type from common udf.")
 
     through_projection = d1.project(3, 2).filter(lambda x:True)
 
-    if through_projection._info[_Fields.TYPES] != (True, 3.2):
+    if through_projection._info.types != (True, 3.2):
         sys.exit("Error deducting type through projection.")
 
     through_default_op = d1.cross(d2).filter(lambda x:True)
 
-    if through_default_op._info[_Fields.TYPES] != (("hello", 4, 3.2, True), "world"):
-        sys.exit("Error deducting type through default J/C." +str(through_default_op._info[_Fields.TYPES]))
+    if through_default_op._info.types != (("hello", 4, 3.2, True), "world"):
+        sys.exit("Error deducting type through default J/C." +str(through_default_op._info.types))
 
     through_prj_op = d1.cross(d2).project_first(1, 0).project_second().project_first(3, 2).filter(lambda x:True)
 
-    if through_prj_op._info[_Fields.TYPES] != (4, "hello", "world", True, 3.2):
-        sys.exit("Error deducting type through projection J/C. "+str(through_prj_op._info[_Fields.TYPES]))
+    if through_prj_op._info.types != (4, "hello", "world", True, 3.2):
+        sys.exit("Error deducting type through projection J/C. "+str(through_prj_op._info.types))
 
 
     env = get_environment()

@@ -47,34 +47,6 @@ class _Identifier(object):
     BROADCAST = "broadcast"
 
 
-class _Fields(object):
-    PARENT = "parent"
-    OTHER = "other_set"
-    SINKS = "sinks"
-    IDENTIFIER = "identifier"
-    FIELD = "field"
-    ORDER = "order"
-    KEYS = "keys"
-    KEY1 = "key1"
-    KEY2 = "key2"
-    TYPES = "types"
-    OPERATOR = "operator"
-    META = "meta"
-    NAME = "name"
-    COMBINE = "combine"
-    DELIMITER_LINE = "del_l"
-    DELIMITER_FIELD = "del_f"
-    WRITE_MODE = "write"
-    PATH = "path"
-    VALUES = "values"
-    COMBINEOP = "combineop"
-    CHILDREN = "children"
-    BCVARS = "bcvars"
-    PROJECTIONS = "projections"
-    ID = "id"
-    TO_ERR = "to_error"
-
-
 class WriteMode(object):
     NO_OVERWRITE = 0
     OVERWRITE = 1
