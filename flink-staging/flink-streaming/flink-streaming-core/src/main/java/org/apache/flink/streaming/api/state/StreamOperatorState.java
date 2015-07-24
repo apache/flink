@@ -45,7 +45,7 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 	public static final Serializable DEFAULTKEY = -1;
 
 	private S state;
-	private StateCheckpointer<S, C> checkpointer;
+	protected StateCheckpointer<S, C> checkpointer;
 	private final StateHandleProvider<C> provider;
 
 	public StreamOperatorState(StateCheckpointer<S, C> checkpointer, StateHandleProvider<C> provider) {

@@ -53,6 +53,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	private final List<PartitionedStreamOperatorState> partitionedStates;
 	private final KeySelector<?, ?> statePartitioner;
 	private final StateHandleProvider<Serializable> provider;
+	private final ClassLoader cl;
 
 	@SuppressWarnings("unchecked")
 	public StreamingRuntimeContext(String name, Environment env, ClassLoader userCodeClassLoader,
@@ -65,6 +66,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 		this.states = new HashMap<String, StreamOperatorState>();
 		this.partitionedStates = new LinkedList<PartitionedStreamOperatorState>();
 		this.provider = (StateHandleProvider<Serializable>) provider;
+		this.cl = userCodeClassLoader;
 	}
 
 	/**
@@ -141,7 +143,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	public StreamOperatorState createRawState(boolean partitioned) {
 		if (partitioned) {
 			if (statePartitioner != null) {
-				return new PartitionedStreamOperatorState(provider, statePartitioner);
+				return new PartitionedStreamOperatorState(provider, statePartitioner, cl);
 			} else {
 				throw new RuntimeException(
 						"A partitioning key must be provided for pastitioned state.");
