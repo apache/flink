@@ -48,14 +48,14 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 
 	TwoInputStreamOperator<IN1, IN2, OUT> operator;
 
-	ConcurrentLinkedQueue outputList;
+	ConcurrentLinkedQueue<Object> outputList;
 
 	ExecutionConfig executionConfig;
 
 	public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator) {
 		this.operator = operator;
 
-		outputList = new ConcurrentLinkedQueue();
+		outputList = new ConcurrentLinkedQueue<Object>();
 
 		executionConfig = new ExecutionConfig();
 
@@ -76,7 +76,7 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getStreamRecordsFromOutput(java.util.List)}
 	 * to extract only the StreamRecords.
 	 */
-	public Queue getOutput() {
+	public ConcurrentLinkedQueue<Object> getOutput() {
 		return outputList;
 	}
 

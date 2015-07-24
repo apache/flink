@@ -42,7 +42,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.joda.time.Instant;
 import org.junit.Test;
 
 /**
@@ -75,7 +74,7 @@ public class StreamProjectTest implements Serializable {
 		OneInputStreamOperatorTestHarness<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>> testHarness = new OneInputStreamOperatorTestHarness<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>(operator);
 
 		long initialTime = 0L;
-		ConcurrentLinkedQueue expectedOutput = new ConcurrentLinkedQueue();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 
 		testHarness.open();
 
@@ -110,13 +109,17 @@ public class StreamProjectTest implements Serializable {
 		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORY_SIZE);
 
 		env.generateSequence(1, 10).map(new MapFunction<Long, Tuple3<Long, Character, Double>>() {
-				@Override
-				public Tuple3<Long, Character, Double> map(Long value) throws Exception {
-					return new Tuple3<Long, Character, Double>(value, 'c', value.doubleValue());
-				}
-			})
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Tuple3<Long, Character, Double> map(Long value) throws Exception {
+				return new Tuple3<Long, Character, Double>(value, 'c', value.doubleValue());
+			}
+		})
 			.project(0, 2)
 			.addSink(new SinkFunction<Tuple>() {
+				private static final long serialVersionUID = 1L;
+
 				@Override
 				@SuppressWarnings("unchecked")
 				public void invoke(Tuple value) throws Exception {

@@ -47,7 +47,7 @@ public class DirectedOutputSelectorWrapper<OUT> implements OutputSelectorWrapper
 		this.outputMap = new HashMap<String, List<Collector<StreamRecord<OUT>>>>();
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("unchecked,rawtypes")
 	@Override
 	public void addCollector(Collector<StreamRecord<?>> output, StreamEdge edge) {
 		Collector output1 = output;

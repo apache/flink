@@ -38,7 +38,8 @@ public class CollectorWrapper<OUT> implements Output<StreamRecord<OUT>> {
 		allOutputs = new ArrayList<Output<OUT>>();
 	}
 
-	public void addCollector(Collector<StreamRecord<?>> output, StreamEdge edge) {
+	@SuppressWarnings("unchecked,rawtypes")
+	public void addCollector(Output<StreamRecord<?>> output, StreamEdge edge) {
 		outputSelectorWrapper.addCollector(output, edge);
 		allOutputs.add((Output) output);
 	}

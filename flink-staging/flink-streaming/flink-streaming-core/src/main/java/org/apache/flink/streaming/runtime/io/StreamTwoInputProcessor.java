@@ -58,9 +58,9 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 	@SuppressWarnings("unused")
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTwoInputProcessor.class);
 
-	private final RecordDeserializer[] recordDeserializers;
+	private final RecordDeserializer<DeserializationDelegate<Object>>[] recordDeserializers;
 
-	private RecordDeserializer currentRecordDeserializer;
+	private RecordDeserializer<DeserializationDelegate<Object>> currentRecordDeserializer;
 
 	// We need to keep track of the channel from which a buffer came, so that we can
 	// appropriately map the watermarks to input channels
@@ -79,8 +79,8 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 	private int numInputChannels1;
 	private int numInputChannels2;
 
-	private DeserializationDelegate deserializationDelegate1;
-	private DeserializationDelegate deserializationDelegate2;
+	private DeserializationDelegate<Object> deserializationDelegate1;
+	private DeserializationDelegate<Object> deserializationDelegate2;
 
 	@SuppressWarnings("unchecked")
 	public StreamTwoInputProcessor(

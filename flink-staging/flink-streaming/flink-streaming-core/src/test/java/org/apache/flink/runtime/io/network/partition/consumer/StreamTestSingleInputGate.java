@@ -62,6 +62,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 
 	private ConcurrentLinkedQueue<InputValue<Object>>[] inputQueues;
 
+	@SuppressWarnings("unchecked")
 	public StreamTestSingleInputGate(
 			int numInputChannels,
 			int bufferSize,
@@ -84,8 +85,8 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 
 		for (int i = 0; i < numInputChannels; i++) {
 			final int channelIndex = i;
-			final RecordSerializer<SerializationDelegate<StreamRecord<T>>> recordSerializer = new SpanningRecordSerializer<SerializationDelegate<StreamRecord<T>>>();
-			final SerializationDelegate delegate = new SerializationDelegate(new MultiplexingStreamRecordSerializer<T>(serializer));
+			final RecordSerializer<SerializationDelegate<Object>> recordSerializer = new SpanningRecordSerializer<SerializationDelegate<Object>>();
+			final SerializationDelegate<Object> delegate = new SerializationDelegate(new MultiplexingStreamRecordSerializer<T>(serializer));
 
 			inputQueues[channelIndex] = new ConcurrentLinkedQueue<InputValue<Object>>();
 			inputChannels[channelIndex] = new TestInputChannel(inputGate, i);

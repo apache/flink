@@ -33,7 +33,7 @@ public class BroadcastOutputSelectorWrapper<OUT> implements OutputSelectorWrappe
 		outputs = new ArrayList<Collector<StreamRecord<OUT>>>();
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("unchecked,rawtypes")
 	@Override
 	public void addCollector(Collector<StreamRecord<?>> output, StreamEdge edge) {
 		Collector output1 = output;

@@ -57,9 +57,9 @@ public class StreamInputProcessor<IN> extends AbstractReader implements ReaderBa
 	@SuppressWarnings("unused")
 	private static final Logger LOG = LoggerFactory.getLogger(StreamInputProcessor.class);
 
-	private final RecordDeserializer<DeserializationDelegate>[] recordDeserializers;
+	private final RecordDeserializer<DeserializationDelegate<Object>>[] recordDeserializers;
 
-	private RecordDeserializer<DeserializationDelegate> currentRecordDeserializer;
+	private RecordDeserializer<DeserializationDelegate<Object>> currentRecordDeserializer;
 
 	// We need to keep track of the channel from which a buffer came, so that we can
 	// appropriately map the watermarks to input channels
@@ -72,7 +72,7 @@ public class StreamInputProcessor<IN> extends AbstractReader implements ReaderBa
 	private long[] watermarks;
 	private long lastEmittedWatermark;
 
-	private DeserializationDelegate deserializationDelegate;
+	private DeserializationDelegate<Object> deserializationDelegate;
 
 	@SuppressWarnings("unchecked")
 	public StreamInputProcessor(InputGate[] inputGates, TypeSerializer<IN> inputSerializer, boolean enableWatermarkMultiplexing) {
@@ -86,12 +86,12 @@ public class StreamInputProcessor<IN> extends AbstractReader implements ReaderBa
 		} else {
 			inputRecordSerializer = new StreamRecordSerializer<IN>(inputSerializer);
 		}
-		this.deserializationDelegate = new NonReusingDeserializationDelegate(inputRecordSerializer);
+		this.deserializationDelegate = new NonReusingDeserializationDelegate<Object>(inputRecordSerializer);
 
 		// Initialize one deserializer per input channel
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
 		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate>();
+			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<Object>>();
 		}
 
 		watermarks = new long[inputGate.getNumberOfInputChannels()];
