@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 
+import akka.actor.ActorRef;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
@@ -323,14 +324,19 @@ public class Task implements Runnable {
 			throw new RuntimeException("TaskManager not associated to JobManager.");
 		}
 
-		String jmHost = this.jobManager.actor().path().address().host().getOrElse(
-				new AbstractFunction0<String>() {
-					@Override
-					public String apply() {
-						return "localhost";
-					}
-		});
-
+		final String jmHost;
+		ActorRef jobManagerActor = this.jobManager.actor();
+		if (jobManagerActor == null) {
+			jmHost = "localhost";
+		} else {
+			jmHost = jobManagerActor.path().address().host().getOrElse(
+					new AbstractFunction0<String>() {
+						@Override
+						public String apply() {
+							return "localhost";
+						}
+					});
+		}
 		int blobPort = this.libraryCache.getBlobServerPort();
 		return new InetSocketAddress(jmHost, blobPort);
 	}
