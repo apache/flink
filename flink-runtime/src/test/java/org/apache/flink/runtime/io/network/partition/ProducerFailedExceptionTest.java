@@ -19,33 +19,27 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.util.ExceptionUtils;
+import org.junit.Test;
 
-/**
- * Network-stack level Exception to notify remote receiver about a failed
- * partition producer.
- */
-public class ProducerFailedException extends CancelTaskException {
+import static junit.framework.TestCase.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
-	private static final long serialVersionUID = -1555492656299526395L;
+public class ProducerFailedExceptionTest {
 
-	private final String causeAsString;
-
-	/**
-	 * The cause of the producer failure.
-	 *
-	 * Note: The cause will be stringified, because it might be an instance of
-	 * a user level Exception, which can not be deserialized by the remote
-	 * receiver's system class loader.
-	 */
-	public ProducerFailedException(Throwable cause) {
-		this.causeAsString = cause != null ? ExceptionUtils.stringifyException(cause) : null;
+	@Test
+	public void testInstanceOfCancelTaskException() throws Exception {
+		ProducerFailedException e = new ProducerFailedException(new Exception());
+		assertTrue(e instanceof CancelTaskException);
 	}
 
-	/**
-	 * Returns the stringified cause of the producer failure.
-	 */
-	public String getCauseAsString() {
-		return causeAsString;
+	@Test
+	public void testCauseIsStringified() throws Exception {
+		// Tests that the cause is stringified, because it might be an instance
+		// of a user level Exception, which can not be deserialized by the
+		// remote receiver's system class loader.
+		ProducerFailedException e = new ProducerFailedException(new Exception());
+		assertNull(e.getCause());
+		assertNotNull(e.getCauseAsString());
 	}
 }
