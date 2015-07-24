@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeutils.TypeComparator
+import org.apache.flink.api.common.typeutils.base.IntComparator
 import org.apache.flink.core.memory.{DataOutputView, DataInputView, MemorySegment}
 
 /**
@@ -28,8 +29,7 @@ class EnumValueComparator[E <: Enumeration](ascComp: Boolean) extends TypeCompar
 
   type T = E#Value
 
-  @transient
-  private var reference: T = null
+  final val intComparator = new IntComparator(ascComp)
 
   // We cannot use the Clone Constructor from Scala so we have to do it manually
   def duplicate: TypeComparator[T] = {
@@ -41,81 +41,53 @@ class EnumValueComparator[E <: Enumeration](ascComp: Boolean) extends TypeCompar
   // --------------------------------------------------------------------------------------------
 
   override def compareSerialized(firstSource: DataInputView, secondSource: DataInputView): Int = {
-    val i1: Int = firstSource.readInt
-    val i2: Int = secondSource.readInt
-    val comp: Int = if (i1 < i2) -1 else if (i1 == i2) 0 else 1
-    if (ascComp) comp else -comp
+    intComparator.compareSerialized(firstSource, secondSource)
   }
 
   def supportsNormalizedKey: Boolean = {
-    true
+    intComparator.supportsNormalizedKey
   }
 
   def getNormalizeKeyLen: Int = {
-    4
+    intComparator.getNormalizeKeyLen
   }
 
   def isNormalizedKeyPrefixOnly(keyBytes: Int): Boolean = {
-    keyBytes < 4
+    intComparator.isNormalizedKeyPrefixOnly(keyBytes)
   }
 
-  override def putNormalizedKey(v: T, tgt: MemorySegment, offset: Int, numBytes: Int): Unit = {
-    val value: Int = v.id - Integer.MIN_VALUE
-
-    // see IntValue for an explanation of the logic
-    if (numBytes == 4) {
-      // default case, full normalized key
-      tgt.putIntBigEndian(offset, value)
-    }
-    else if (numBytes <= 0) {
-    }
-    else if (numBytes < 4) {
-      var i: Int = 0
-      while (numBytes - i > 0) {
-        tgt.put(offset + i, (value >>> ((3 - i) << 3)).toByte)
-        i += 1
-      }
-    }
-    else {
-      tgt.putLongBigEndian(offset, value)
-      var i: Int = 4
-      while (i < numBytes) {
-        tgt.put(offset + i, 0.toByte)
-        i += 1
-      }
-    }
+  override def putNormalizedKey(v: T, target: MemorySegment, offset: Int, numBytes: Int): Unit = {
+    intComparator.putNormalizedKey(v.id, target, offset, numBytes)
   }
 
-  override def hash(record: T): Int = record.##
+  override def hash(record: T): Int = intComparator.hash(record.id)
 
   override def setReference(toCompare: T): Unit = {
-    this.reference = toCompare
+    intComparator.setReference(toCompare.id)
   }
 
   override def equalToReference(candidate: T): Boolean = {
-    candidate == reference
+    intComparator.equalToReference(candidate.id)
   }
 
-  override def compareToReference(refComparator: TypeComparator[T]): Int = {
-    val comp = refComparator.asInstanceOf[this.type].reference.id.compareTo(this.reference.id)
-    if (ascComp) comp else -comp
+  override def compareToReference(referencedComparator: TypeComparator[T]): Int = {
+    intComparator.compareToReference(referencedComparator.asInstanceOf[this.type].intComparator)
   }
 
   override def compare(first: E#Value, second: E#Value): Int = {
-    val cmp = first.id.compareTo(second.id)
-    if (ascComp) cmp else -cmp
+    intComparator.compare(first.id, second.id)
   }
 
   override def invertNormalizedKey(): Boolean = {
-    !ascComp
+    intComparator.invertNormalizedKey()
   }
 
   override def writeWithKeyNormalization(record: T, target: DataOutputView): Unit = {
-    throw new UnsupportedOperationException
+    intComparator.writeWithKeyNormalization(record.id, target)
   }
 
   override def supportsSerializationWithKeyNormalization(): Boolean = {
-    false
+    intComparator.supportsSerializationWithKeyNormalization()
   }
 
   override def extractKeys(record: AnyRef, target: Array[AnyRef], index: Int): Int = {
