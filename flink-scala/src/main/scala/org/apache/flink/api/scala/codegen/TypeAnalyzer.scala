@@ -28,7 +28,6 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
   with TypeDescriptors[C] =>
 
   import c.universe._
-  import compat._
 
   // This value is controlled by the udtRecycling compiler option
   var enableMutableUDTs = false
@@ -60,6 +59,8 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
           case NothingType() => NothingDesciptor(id, tpe)
 
           case EitherType(leftTpe, rightTpe) => analyzeEither(id, tpe, leftTpe, rightTpe)
+
+          case EnumValueType(enum) => EnumValueDescriptor(id, tpe, enum)
 
           case TryType(elemTpe) => analyzeTry(id, tpe, elemTpe)
 
@@ -350,6 +351,37 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       }
     }
 
+    private object EnumValueType {
+      def unapply(tpe: Type): Option[ModuleSymbol] = {
+        // somewhat hacky solution based on the 'org.example.MyEnum.Value' FQN
+        // convention, compatible with Scala 2.10
+        try {
+          val m = c.universe.rootMirror
+          // get fully-qualified type name, e.g. org.example.MyEnum.Value
+          val fqn = tpe.normalize.toString.split('.')
+          // get FQN parent
+          val owner = m.staticModule(fqn.slice(0, fqn.size - 1).mkString("."))
+
+          val enumerationSymbol = typeOf[scala.Enumeration].typeSymbol
+          if (owner.typeSignature.baseClasses.contains(enumerationSymbol)) {
+            Some(owner)
+          } else {
+            None
+          }
+        } catch {
+          case e: Throwable => None
+        }
+        // TODO: use this once 2.10 is no longer supported
+        // tpe is the Enumeration.Value alias, get the owner
+        // val owner = tpe.typeSymbol.owner
+        // if (owner.isModule &&
+        //     owner.typeSignature.baseClasses.contains(typeOf[scala.Enumeration].typeSymbol))
+        //   Some(owner.asModule)
+        // else
+        //   None
+      }
+    }
+
     private object TryType {
       def unapply(tpe: Type): Option[Type] = {
         if (tpe <:< typeOf[scala.util.Try[_]]) {
@@ -441,7 +473,7 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
     def getBoxInfo(prim: Symbol, primName: String, boxName: String) = {
       val (default, wrapper) = primitives(prim)
-      val box = { t: Tree => 
+      val box = { t: Tree =>
         Apply(
           Select(
             Select(Ident(newTermName("scala")), newTermName("Predef")),
