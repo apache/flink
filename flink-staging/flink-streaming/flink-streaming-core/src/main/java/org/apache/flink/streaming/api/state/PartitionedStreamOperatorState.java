@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.PartitionedStateStore;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.util.InstantiationUtil;
 
 /**
  * Implementation of the {@link OperatorState} interface for partitioned user
@@ -49,36 +50,41 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 	private final KeySelector<IN, Serializable> keySelector;
 
 	private final PartitionedStateStore<S, C> stateStore;
-	
-	private S defaultState;
+
+	private byte[] defaultState;
 
 	// The currently processed input, used to extract the appropriate key
 	private IN currentInput;
 
+	private ClassLoader cl;
+
 	public PartitionedStreamOperatorState(StateCheckpointer<S, C> checkpointer,
-			StateHandleProvider<C> provider, KeySelector<IN, Serializable> keySelector) {
+			StateHandleProvider<C> provider, KeySelector<IN, Serializable> keySelector, ClassLoader cl) {
 		super(checkpointer, provider);
 		this.keySelector = keySelector;
 		this.stateStore = new EagerStateStore<S, C>(checkpointer, provider);
-	}
-	
-	@SuppressWarnings("unchecked")
-	public PartitionedStreamOperatorState(StateHandleProvider<C> provider,
-			KeySelector<IN, Serializable> keySelector) {
-		this((StateCheckpointer<S, C>) new BasicCheckpointer(), provider, keySelector);
+		this.cl = cl;
 	}
 
+	@SuppressWarnings("unchecked")
+	public PartitionedStreamOperatorState(StateHandleProvider<C> provider,
+			KeySelector<IN, Serializable> keySelector, ClassLoader cl) {
+		this((StateCheckpointer<S, C>) new BasicCheckpointer(), provider, keySelector, cl);
+	}
+
+	@SuppressWarnings("unchecked")
 	@Override
-	public S value() throws IOException{
+	public S value() throws IOException {
 		if (currentInput == null) {
 			throw new IllegalStateException("Need a valid input for accessing the state.");
 		} else {
 			try {
 				Serializable key = keySelector.getKey(currentInput);
-				if(stateStore.containsKey(key)){
+				if (stateStore.containsKey(key)) {
 					return stateStore.getStateForKey(key);
-				}else{
-					return defaultState;
+				} else {
+					return checkpointer.restoreState((C) InstantiationUtil.deserializeObject(
+							defaultState, cl));
 				}
 			} catch (Exception e) {
 				throw new RuntimeException("User-defined key selector threw an exception.", e);
@@ -101,10 +107,15 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 			}
 		}
 	}
-	
+
 	@Override
-	public void setDefaultState(S defaultState){
-		this.defaultState = defaultState;
+	public void setDefaultState(S defaultState) {
+		try {
+			this.defaultState = InstantiationUtil.serializeObject(checkpointer.snapshotState(
+					defaultState, 0, 0));
+		} catch (IOException e) {
+			throw new RuntimeException("Default state must be serializable.");
+		}
 	}
 
 	public void setCurrentInput(IN input) {
@@ -113,7 +124,7 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 
 	@Override
 	public Map<Serializable, StateHandle<C>> snapshotState(long checkpointId,
-			long checkpointTimestamp) throws Exception{
+			long checkpointTimestamp) throws Exception {
 		return stateStore.snapshotStates(checkpointId, checkpointTimestamp);
 	}
 
@@ -126,7 +137,7 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 	public Map<Serializable, S> getPartitionedState() throws Exception {
 		return stateStore.getPartitionedState();
 	}
-	
+
 	@Override
 	public String toString() {
 		return stateStore.toString();

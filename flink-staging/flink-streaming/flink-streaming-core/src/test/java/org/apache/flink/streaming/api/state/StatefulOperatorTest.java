@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -76,7 +77,7 @@ public class StatefulOperatorTest {
 
 		assertEquals(Arrays.asList("1", "2", "3", "4", "5"), out);
 		assertEquals((Integer) 5, context.getOperatorState("counter", 0, false).value());
-		assertEquals(ImmutableMap.of(0, 2, 1, 3), context.getOperatorStates().get("groupCounter").getPartitionedState());
+		assertEquals(ImmutableMap.of(0, new MutableInt(2), 1, new MutableInt(3)), context.getOperatorStates().get("groupCounter").getPartitionedState());
 		assertEquals("12345", context.getOperatorState("concat", "", false).value());
 		assertEquals((Integer) 5, ((StatefulMapper) map.getUserFunction()).checkpointedCounter);
 
@@ -86,7 +87,7 @@ public class StatefulOperatorTest {
 		StreamingRuntimeContext restoredContext = restoredMap.getRuntimeContext();
 
 		assertEquals((Integer) 5, restoredContext.getOperatorState("counter", 0, false).value());
-		assertEquals(ImmutableMap.of(0, 2, 1, 3), context.getOperatorStates().get("groupCounter").getPartitionedState());
+		assertEquals(ImmutableMap.of(0, new MutableInt(2), 1, new MutableInt(3)), context.getOperatorStates().get("groupCounter").getPartitionedState());
 		assertEquals("12345", restoredContext.getOperatorState("concat", "", false).value());
 		assertEquals((Integer) 5, ((StatefulMapper) restoredMap.getUserFunction()).checkpointedCounter);
 		out.clear();
@@ -95,7 +96,7 @@ public class StatefulOperatorTest {
 
 		assertEquals(Arrays.asList("7", "8"), out);
 		assertEquals((Integer) 7, restoredContext.getOperatorState("counter", 0, false).value());
-		assertEquals(ImmutableMap.of(0, 3, 1, 4), restoredContext.getOperatorStates().get("groupCounter")
+		assertEquals(ImmutableMap.of(0, new MutableInt(3), 1, new MutableInt(4)), restoredContext.getOperatorStates().get("groupCounter")
 				.getPartitionedState());
 		assertEquals("1234578", restoredContext.getOperatorState("concat", "", false).value());
 		assertEquals((Integer) 7, ((StatefulMapper) restoredMap.getUserFunction()).checkpointedCounter);
@@ -179,7 +180,7 @@ public class StatefulOperatorTest {
 			Checkpointed<Integer> {
 	private static final long serialVersionUID = -9007873655253339356L;
 		OperatorState<Integer> counter;
-		OperatorState<Integer> groupCounter;
+		OperatorState<MutableInt> groupCounter;
 		OperatorState<String> concat;
 		
 		Integer checkpointedCounter = 0;
@@ -187,7 +188,9 @@ public class StatefulOperatorTest {
 		@Override
 		public String map(Integer value) throws Exception {
 			counter.update(counter.value() + 1);
-			groupCounter.update(groupCounter.value() + 1);
+			MutableInt incremented = groupCounter.value();
+			incremented.increment();
+			groupCounter.update(incremented);
 			concat.update(concat.value() + value.toString());
 			checkpointedCounter++;
 			try {
@@ -201,7 +204,7 @@ public class StatefulOperatorTest {
 		@Override
 		public void open(Configuration conf) throws IOException {
 			counter = getRuntimeContext().getOperatorState("counter", 0, false);
-			groupCounter = getRuntimeContext().getOperatorState("groupCounter", 0, true);
+			groupCounter = getRuntimeContext().getOperatorState("groupCounter", new MutableInt(0), true);
 			concat = getRuntimeContext().getOperatorState("concat", "", false);
 			try {
 				getRuntimeContext().getOperatorState("test", null, true);
@@ -223,7 +226,7 @@ public class StatefulOperatorTest {
 			for (Entry<Serializable, Integer> count : groupCounter.getPartitionedState().entrySet()) {
 				Integer key = (Integer) count.getKey();
 				Integer expected = key < 3 ? 2 : 1;
-				assertEquals(expected, count.getValue());
+				assertEquals(new MutableInt(expected), count.getValue());
 			}
 		}
 
