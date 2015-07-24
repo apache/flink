@@ -55,6 +55,9 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
 	/** Stores the concrete key/value pairs of this configuration object. */
 	private final HashMap<String, Object> confData;
+
+	/** Stores the version of this implementation of flink */
+	public static final String FLINK_VERSION = "0.10";
 	
 	// --------------------------------------------------------------------------------------------
 

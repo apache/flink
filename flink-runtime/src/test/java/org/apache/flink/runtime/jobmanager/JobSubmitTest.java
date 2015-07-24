@@ -28,6 +28,7 @@ import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -195,5 +196,79 @@ public class JobSubmitTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	/**
+	 * Verifies failure when the client version is lower than supported.
+	 */
+	@Test
+	public void testFailureClientNotSupportedLower() {
+		try {
+			Future<Object> submitFuture = dummyJobSubmitTest("0.1");
+
+			try {
+				Await.result(submitFuture, timeout);
+			}
+			catch (JobSubmissionException e) {
+				assertTrue(e.getMessage().startsWith("Version mismatch error"));
+			}
+			catch (Exception e) {
+				fail("Wrong exception type");
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	/**
+	 * Verifies failure when the client version is higher than the job manager version.
+	 */
+	@Test
+	public void testFailureClientNotSupportedUpper() {
+		try {
+			Future<Object> submitFuture = dummyJobSubmitTest(Configuration.FLINK_VERSION + ".0");
+
+			try {
+				Await.result(submitFuture, timeout);
+			}
+			catch (JobSubmissionException e) {
+				assertTrue(e.getMessage().startsWith("Version mismatch error"));
+			}
+			catch (Exception e) {
+				fail("Wrong exception type");
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	/**
+	 * Verifies success when the client version is supported properly.
+	 */
+	@Test
+	public void testSuccessClientSupported() {
+		try {
+			Future<Object> submitFuture = dummyJobSubmitTest(Configuration.FLINK_VERSION);
+			Await.result(submitFuture, timeout);
+		}
+		catch (Exception e) {
+			fail(e.getMessage());
+		}
+	}
+
+	private Future<Object> dummyJobSubmitTest(String version) {
+		JobVertex jobVertex = new JobVertex("Test Vertex");
+		jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
+
+		// create a test job graph
+		JobGraph jg = new JobGraph("test job", jobVertex);
+		jg.getJobConfiguration().setString(ConfigConstants.FLINK_VERSION_KEY, version);
+
+		// return the future.
+		return jmGateway.ask(new JobManagerMessages.SubmitJob(jg, ListeningBehaviour.EXECUTION_RESULT), timeout);
 	}
 }

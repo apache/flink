@@ -28,6 +28,13 @@ public final class ConfigConstants {
 	//                            Configuration Keys
 	// ------------------------------------------------------------------------
 	
+	// ---------------------------- Version -------------------------------
+
+	/**
+	 * Version of this flink implementation.
+	 */
+	public static final String FLINK_VERSION_KEY = "flink.version";
+
 	// ---------------------------- Parallelism -------------------------------
 
 	/**
