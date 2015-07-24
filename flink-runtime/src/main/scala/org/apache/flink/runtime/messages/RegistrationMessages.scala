@@ -68,7 +68,8 @@ object RegistrationMessages {
       taskManager: ActorRef,
       connectionInfo: InstanceConnectionInfo,
       resources: HardwareDescription,
-      numberOfSlots: Int)
+      numberOfSlots: Int,
+      TMVersionID: String)
     extends RegistrationMessage
 
   /**
@@ -84,7 +85,8 @@ object RegistrationMessages {
       leaderSessionID: UUID,
       jobManager: ActorRef,
       instanceID: InstanceID,
-      blobPort: Int)
+      blobPort: Int,
+      JMVersionID: String)
     extends RegistrationMessage
 
   /**

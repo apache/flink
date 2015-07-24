@@ -44,6 +44,11 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
   def this() = this(AkkaUtils.createLocalActorSystem(new Configuration()))
 
+  var versionID = getClass.getPackage.getImplementationVersion
+  if(versionID == null){
+    versionID = ""
+  }
+
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
@@ -73,11 +78,12 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
             tmDummy1,
             connectionInfo1,
             hardwareDescription,
-            1)
+            1,
+            versionID)
 
           val response = receiveOne(1 second)
           response match {
-            case AcknowledgeRegistration(registrationSessionID, _,  _, id, _) => id1 = id
+            case AcknowledgeRegistration(registrationSessionID, _,  _, id, _, _) => id1 = id
             case _ => fail("Wrong response message: " + response)
           }
         }
@@ -89,11 +95,12 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
             tmDummy2,
             connectionInfo2,
             hardwareDescription,
-            1)
+            1,
+            versionID)
 
           val response = receiveOne(1 second)
           response match {
-            case AcknowledgeRegistration(registrationSessionID, _, _, id, _) => id2 = id
+            case AcknowledgeRegistration(registrationSessionID, _, _, id, _, _) => id2 = id
             case _ => fail("Wrong response message: " + response)
           }
         }
@@ -126,19 +133,22 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
             tmDummy,
             connectionInfo,
             hardwareDescription,
-            1)
+            1,
+            versionID)
           jm ! RegisterTaskManager(
             registrationSessionID,
             tmDummy,
             connectionInfo,
             hardwareDescription,
-            1)
+            1,
+            versionID)
           jm ! RegisterTaskManager(
             registrationSessionID,
             tmDummy,
             connectionInfo,
             hardwareDescription,
-            1)
+            1,
+            versionID)
 
           expectMsgType[AcknowledgeRegistration]
           expectMsgType[AlreadyRegistered]

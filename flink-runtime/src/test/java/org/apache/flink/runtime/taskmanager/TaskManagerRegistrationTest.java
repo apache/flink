@@ -67,6 +67,8 @@ public class TaskManagerRegistrationTest {
 	// use one actor system throughout all tests
 	private static ActorSystem actorSystem;
 
+	private String JobManagerID = getClass().getPackage().getImplementationVersion();
+
 	@BeforeClass
 	public static void startActorSystem() {
 		Configuration config = new Configuration();
@@ -300,7 +302,8 @@ public class TaskManagerRegistrationTest {
 										leaderSessionID,
 										fakeJobManager1,
 										new InstanceID(),
-										45234),
+										45234,
+										JobManagerID == null ? "" : JobManagerID),
 								fakeJobManager1);
 					}
 				};
@@ -350,7 +353,8 @@ public class TaskManagerRegistrationTest {
 										leaderSessionID,
 										jm2Closure,
 										new InstanceID(),
-										45234),
+										45234,
+										JobManagerID == null ? "" : JobManagerID),
 								jm2Closure);
 					}
 				};
@@ -446,12 +450,14 @@ public class TaskManagerRegistrationTest {
 
 						// This AcknowledgeRegistration message should be discarded because the
 						// registration session ID is wrong
+
 						tm.tell(new AcknowledgeRegistration(
 									UUID.randomUUID(),
 									falseLeaderSessionID,
 									getTestActor(),
 									new InstanceID(),
-									1),
+									1,
+										JobManagerID == null ? "" : JobManagerID),
 								getTestActor());
 
 						// Valid AcknowledgeRegistration message
@@ -460,7 +466,8 @@ public class TaskManagerRegistrationTest {
 										trueLeaderSessionID,
 										getTestActor(),
 										new InstanceID(),
-										1),
+										1,
+										JobManagerID == null ? "" : JobManagerID),
 								getTestActor());
 
 						Object message = null;

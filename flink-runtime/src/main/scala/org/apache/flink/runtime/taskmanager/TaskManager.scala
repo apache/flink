@@ -173,6 +173,8 @@ class TaskManager(
 
   private var currentRegistrationSessionID: UUID = UUID.randomUUID()
 
+  private var taskManagerVersionID: String = _
+
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
   // --------------------------------------------------------------------------
@@ -183,9 +185,15 @@ class TaskManager(
    * JobManager.
    */
   override def preStart(): Unit = {
+    taskManagerVersionID = getClass.getPackage.getImplementationVersion
+    // no JAR yet
+    if(taskManagerVersionID == null){
+      taskManagerVersionID = ""
+    }
     log.info(s"Starting TaskManager actor at ${self.path.toSerializationFormat}.")
     log.info(s"TaskManager data connection information: $connectionInfo")
     log.info(s"TaskManager has $numberOfSlots task slot(s).")
+    log.info(s"TaskManager Version ID is $taskManagerVersionID")
 
     // log the initial memory utilization
     if (log.isInfoEnabled) {
@@ -519,7 +527,8 @@ class TaskManager(
                 self,
                 connectionInfo,
                 resources,
-                numberOfSlots)
+                numberOfSlots,
+                taskManagerVersionID)
             )
 
             // the next timeout computes via exponential backoff with cap
@@ -543,7 +552,7 @@ class TaskManager(
 
         // successful registration. associate with the JobManager
         // we disambiguate duplicate or erroneous messages, to simplify debugging
-        case AcknowledgeRegistration(_, leaderSessionID, jobManager, id, blobPort) =>
+        case AcknowledgeRegistration(_, leaderSessionID, jobManager, id, blobPort, jobManagerID) =>
           if (isConnected) {
             if (jobManager == currentJobManager.orNull) {
               log.debug("Ignoring duplicate registration acknowledgement.")
@@ -555,7 +564,11 @@ class TaskManager(
           else {
             // not yet connected, so let's associate with that JobManager
             try {
-              associateWithJobManager(jobManager, id, blobPort, leaderSessionID)
+              if(jobManagerID == taskManagerVersionID) {
+                associateWithJobManager(jobManager, id, blobPort, leaderSessionID)
+              } else{
+                throw new Throwable("Version mismatch error between Job Manager and Task Manager")
+              }
             } catch {
               case t: Throwable =>
                 killTaskManagerFatal(

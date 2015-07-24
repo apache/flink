@@ -109,7 +109,9 @@ public class TaskManagerTest {
 	final static Option<UUID> leaderSessionID = new Some<UUID>(UUID.randomUUID());
 
 	final static MessageDecorator decorator = new LeaderSessionMessageDecorator(leaderSessionID);
-	
+
+	private String JobManagerID = getClass().getPackage().getImplementationVersion();
+
 	@BeforeClass
 	public static void setup() {
 		system = AkkaUtils.createLocalActorSystem(new Configuration());
@@ -151,7 +153,8 @@ public class TaskManagerTest {
 										leaderSessionID.get(),
 										getTestActor(),
 										iid,
-										12345),
+										12345,
+										JobManagerID == null ? "" : JobManagerID),
 								getTestActor());
 					}
 				};
@@ -883,6 +886,7 @@ public class TaskManagerTest {
 	public static class SimpleJobManager extends FlinkUntypedActor {
 
 		private final Option<UUID> leaderSessionID;
+		private String JobManagerID = getClass().getPackage().getImplementationVersion();
 
 		public SimpleJobManager(UUID leaderSessionID) {
 			this.leaderSessionID = Option.apply(leaderSessionID);
@@ -900,7 +904,8 @@ public class TaskManagerTest {
 									leaderSessionID.get(),
 									self,
 									iid,
-									12345)
+									12345,
+									JobManagerID == null ? "" : JobManagerID)
 						),
 						self);
 			}

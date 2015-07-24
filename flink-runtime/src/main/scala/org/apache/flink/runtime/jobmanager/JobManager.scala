@@ -121,11 +121,18 @@ class JobManager(
 
   override val leaderSessionID = Some(UUID.randomUUID())
 
+  private var jobManagerVersionID: String = _
   /**
    * Run when the job manager is started. Simply logs an informational message.
    */
   override def preStart(): Unit = {
+    jobManagerVersionID = getClass.getPackage.getImplementationVersion
+    // in case we don't have the JAR yet.
+    if(jobManagerVersionID == null){
+      jobManagerVersionID = ""
+    }
     log.info(s"Starting JobManager at ${self.path.toSerializationFormat}.")
+    log.info(s"Job Manager Version ID is $jobManagerVersionID")
   }
 
   override def postStop(): Unit = {
@@ -160,13 +167,13 @@ class JobManager(
    * @return
    */
   override def handleMessage: Receive = {
-
     case RegisterTaskManager(
       registrationSessionID,
       taskManager,
       connectionInfo,
       hardwareInformation,
-      numberOfSlots) =>
+      numberOfSlots,
+      taskManagerVersionID) =>
 
       if (instanceManager.isRegistered(taskManager)) {
         val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
@@ -184,26 +191,31 @@ class JobManager(
       }
       else {
         try {
-          val instanceID = instanceManager.registerTaskManager(
-            taskManager,
-            connectionInfo,
-            hardwareInformation,
-            numberOfSlots,
-            leaderSessionID)
+          if(jobManagerVersionID == taskManagerVersionID) {
+            val instanceID = instanceManager.registerTaskManager(
+              taskManager,
+              connectionInfo,
+              hardwareInformation,
+              numberOfSlots,
+              leaderSessionID)
 
-          // IMPORTANT: Send the response to the "sender", which is not the
-          //            TaskManager actor, but the ask future!
-          sender() ! decorateMessage(
-            AcknowledgeRegistration(
-              registrationSessionID,
-              leaderSessionID.get,
-              self,
-              instanceID,
-              libraryCacheManager.getBlobServerPort)
-          )
+            // IMPORTANT: Send the response to the "sender", which is not the
+            //            TaskManager actor, but the ask future!
+            sender() ! decorateMessage(
+              AcknowledgeRegistration(
+                registrationSessionID,
+                leaderSessionID.get,
+                self,
+                instanceID,
+                libraryCacheManager.getBlobServerPort,
+                jobManagerVersionID)
+            )
 
-          // to be notified when the taskManager is no longer reachable
-          context.watch(taskManager)
+            // to be notified when the taskManager is no longer reachable
+            context.watch(taskManager)
+          } else{
+            throw new Exception("Version mismatch error between Job Manager and Task Manager")
+          }
         }
         catch {
           // registerTaskManager throws an IllegalStateException if it is already shut down
