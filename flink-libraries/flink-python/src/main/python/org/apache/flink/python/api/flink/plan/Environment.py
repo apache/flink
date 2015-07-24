@@ -18,7 +18,8 @@
 from flink.connection import Connection
 from flink.connection import Collector
 from flink.plan.DataSet import DataSet
-from flink.plan.Constants import _Fields, _Identifier
+from flink.plan.Constants import _Identifier
+from flink.plan.OperationInfo import OperationInfo
 from flink.utilities import Switch
 import copy
 import sys
@@ -70,13 +71,13 @@ class Environment(object):
         :param types: Specifies the types for the CSV fields.
         :return:A CsvReader that can be used to configure the CSV input.
         """
-        child = dict()
+        child = OperationInfo()
         child_set = DataSet(self, child)
-        child[_Fields.IDENTIFIER] = _Identifier.SOURCE_CSV
-        child[_Fields.DELIMITER_LINE] = line_delimiter
-        child[_Fields.DELIMITER_FIELD] = field_delimiter
-        child[_Fields.PATH] = path
-        child[_Fields.TYPES] = types
+        child.identifier = _Identifier.SOURCE_CSV
+        child.delimiter_line = line_delimiter
+        child.delimiter_field = field_delimiter
+        child.path = path
+        child.types = types
         self._sources.append(child)
         return child_set
 
@@ -89,10 +90,10 @@ class Environment(object):
         :param path: The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
         :return: A DataSet that represents the data read from the given file as text lines.
         """
-        child = dict()
+        child = OperationInfo()
         child_set = DataSet(self, child)
-        child[_Fields.IDENTIFIER] = _Identifier.SOURCE_TEXT
-        child[_Fields.PATH] = path
+        child.identifier = _Identifier.SOURCE_TEXT
+        child.path = path
         self._sources.append(child)
         return child_set
 
@@ -106,10 +107,10 @@ class Environment(object):
         :param elements: The elements to make up the data set.
         :return: A DataSet representing the given list of elements.
         """
-        child = dict()
+        child = OperationInfo()
         child_set = DataSet(self, child)
-        child[_Fields.IDENTIFIER] = _Identifier.SOURCE_VALUE
-        child[_Fields.VALUES] = elements
+        child.identifier = _Identifier.SOURCE_VALUE
+        child.values = elements
         self._sources.append(child)
         return child_set
 
@@ -155,10 +156,10 @@ class Environment(object):
 
                 operator = None
                 for set in self._sets:
-                    if set[_Fields.ID] == id:
-                        operator = set[_Fields.OPERATOR]
-                    if set[_Fields.ID] == -id:
-                        operator = set[_Fields.COMBINEOP]
+                    if set.id == id:
+                        operator = set.operator
+                    if set.id == -id:
+                        operator = set.combineop
                 operator._configure(input_path, output_path, port, self)
                 operator._go()
                 sys.stdout.flush()
@@ -183,55 +184,55 @@ class Environment(object):
         x = len(self._sets) - 1
         while x > -1:
             child = self._sets[x]
-            child_type = child[_Fields.IDENTIFIER]
+            child_type = child.identifier
             if child_type in chainable:
-                parent = child[_Fields.PARENT]
-                parent_type = parent[_Fields.IDENTIFIER]
-                if len(parent[_Fields.SINKS]) == 0:
+                parent = child.parent
+                parent_type = parent.identifier
+                if len(parent.sinks) == 0:
                     if child_type == _Identifier.GROUPREDUCE or child_type == _Identifier.REDUCE:
-                        if child[_Fields.COMBINE]:
+                        if child.combine:
                             while parent_type == _Identifier.GROUP or parent_type == _Identifier.SORT:
-                                parent = parent[_Fields.PARENT]
-                                parent_type = parent[_Fields.IDENTIFIER]
-                            if parent_type in udf and len(parent[_Fields.CHILDREN]) == 1:
-                                if parent[_Fields.OPERATOR] is not None:
-                                    function = child[_Fields.COMBINEOP]
-                                    parent[_Fields.OPERATOR]._chain(function)
-                                    child[_Fields.COMBINE] = False
-                                    parent[_Fields.NAME] += " -> PythonCombine"
-                                    for bcvar in child[_Fields.BCVARS]:
+                                parent = parent.parent
+                                parent_type = parent.identifier
+                            if parent_type in udf and len(parent.children) == 1:
+                                if parent.operator is not None:
+                                    function = child.combineop
+                                    parent.operator._chain(function)
+                                    child.combine = False
+                                    parent.name += " -> PythonCombine"
+                                    for bcvar in child.bcvars:
                                         bcvar_copy = copy.deepcopy(bcvar)
-                                        bcvar_copy[_Fields.PARENT] = parent
+                                        bcvar_copy.parent = parent
                                         self._broadcast.append(bcvar_copy)
                     else:
-                        if parent_type in udf and len(parent[_Fields.CHILDREN]) == 1:
-                            parent_op = parent[_Fields.OPERATOR]
+                        if parent_type in udf and len(parent.children) == 1:
+                            parent_op = parent.operator
                             if parent_op is not None:
-                                function = child[_Fields.OPERATOR]
+                                function = child.operator
                                 parent_op._chain(function)
-                                parent[_Fields.NAME] += " -> " + child[_Fields.NAME]
-                                parent[_Fields.TYPES] = child[_Fields.TYPES]
-                                for grand_child in child[_Fields.CHILDREN]:
-                                    if grand_child[_Fields.IDENTIFIER] in multi_input:
-                                        if grand_child[_Fields.PARENT][_Fields.ID] == child[_Fields.ID]:
-                                            grand_child[_Fields.PARENT] = parent
+                                parent.name += " -> " + child.name
+                                parent.types = child.types
+                                for grand_child in child.children:
+                                    if grand_child.identifier in multi_input:
+                                        if grand_child.parent.id == child.id:
+                                            grand_child.parent = parent
                                         else:
-                                            grand_child[_Fields.OTHER] = parent
+                                            grand_child.other = parent
                                     else:
-                                        grand_child[_Fields.PARENT] = parent
-                                        parent[_Fields.CHILDREN].append(grand_child)
-                                parent[_Fields.CHILDREN].remove(child)
-                                for sink in child[_Fields.SINKS]:
-                                    sink[_Fields.PARENT] = parent
-                                    parent[_Fields.SINKS].append(sink)
-                                for bcvar in child[_Fields.BCVARS]:
-                                    bcvar[_Fields.PARENT] = parent
-                                    parent[_Fields.BCVARS].append(bcvar)
+                                        grand_child.parent = parent
+                                        parent.children.append(grand_child)
+                                parent.children.remove(child)
+                                for sink in child.sinks:
+                                    sink.parent = parent
+                                    parent.sinks.append(sink)
+                                for bcvar in child.bcvars:
+                                    bcvar.parent = parent
+                                    parent.bcvars.append(bcvar)
                                 self._remove_set((child))
             x -= 1
 
     def _remove_set(self, set):
-        self._sets[:] = [s for s in self._sets if s[_Fields.ID]!=set[_Fields.ID]]
+        self._sets[:] = [s for s in self._sets if s.id!=set.id]
 
     def _send_plan(self):
         self._send_parameters()
@@ -248,111 +249,111 @@ class Environment(object):
 
     def _send_sources(self):
         for source in self._sources:
-            identifier = source[_Fields.IDENTIFIER]
+            identifier = source.identifier
             collect = self._collector.collect
             collect(identifier)
-            collect(source[_Fields.ID])
+            collect(source.id)
             for case in Switch(identifier):
                 if case(_Identifier.SOURCE_CSV):
-                    collect(source[_Fields.PATH])
-                    collect(source[_Fields.DELIMITER_FIELD])
-                    collect(source[_Fields.DELIMITER_LINE])
-                    collect(source[_Fields.TYPES])
+                    collect(source.path)
+                    collect(source.delimiter_field)
+                    collect(source.delimiter_line)
+                    collect(source.types)
                     break
                 if case(_Identifier.SOURCE_TEXT):
-                    collect(source[_Fields.PATH])
+                    collect(source.path)
                     break
                 if case(_Identifier.SOURCE_VALUE):
-                    collect(len(source[_Fields.VALUES]))
-                    for value in source[_Fields.VALUES]:
+                    collect(len(source.values))
+                    for value in source.values:
                         collect(value)
                     break
 
     def _send_operations(self):
         collect = self._collector.collect
         for set in self._sets:
-            identifier = set.get(_Fields.IDENTIFIER)
-            collect(set[_Fields.IDENTIFIER])
-            collect(set[_Fields.ID])
-            collect(set[_Fields.PARENT][_Fields.ID])
+            identifier = set.identifier
+            collect(set.identifier)
+            collect(set.id)
+            collect(set.parent.id)
             for case in Switch(identifier):
                 if case(_Identifier.SORT):
-                    collect(set[_Fields.FIELD])
-                    collect(set[_Fields.ORDER])
+                    collect(set.field)
+                    collect(set.order)
                     break
                 if case(_Identifier.GROUP):
-                    collect(set[_Fields.KEYS])
+                    collect(set.keys)
                     break
                 if case(_Identifier.COGROUP):
-                    collect(set[_Fields.OTHER][_Fields.ID])
-                    collect(set[_Fields.KEY1])
-                    collect(set[_Fields.KEY2])
-                    collect(set[_Fields.TYPES])
-                    collect(set[_Fields.NAME])
+                    collect(set.other.id)
+                    collect(set.key1)
+                    collect(set.key2)
+                    collect(set.types)
+                    collect(set.name)
                     break
                 if case(_Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST):
-                    collect(set[_Fields.OTHER][_Fields.ID])
-                    collect(set[_Fields.TYPES])
-                    collect(len(set[_Fields.PROJECTIONS]))
-                    for p in set[_Fields.PROJECTIONS]:
+                    collect(set.other.id)
+                    collect(set.types)
+                    collect(len(set.projections))
+                    for p in set.projections:
                         collect(p[0])
                         collect(p[1])
-                    collect(set[_Fields.NAME])
+                    collect(set.name)
                     break
                 if case(_Identifier.REDUCE, _Identifier.GROUPREDUCE):
-                    collect(set[_Fields.TYPES])
-                    collect(set[_Fields.COMBINE])
-                    collect(set[_Fields.NAME])
+                    collect(set.types)
+                    collect(set.combine)
+                    collect(set.name)
                     break
                 if case(_Identifier.JOIN, _Identifier.JOINH, _Identifier.JOINT):
-                    collect(set[_Fields.KEY1])
-                    collect(set[_Fields.KEY2])
-                    collect(set[_Fields.OTHER][_Fields.ID])
-                    collect(set[_Fields.TYPES])
-                    collect(len(set[_Fields.PROJECTIONS]))
-                    for p in set[_Fields.PROJECTIONS]:
+                    collect(set.key1)
+                    collect(set.key2)
+                    collect(set.other.id)
+                    collect(set.types)
+                    collect(len(set.projections))
+                    for p in set.projections:
                         collect(p[0])
                         collect(p[1])
-                    collect(set[_Fields.NAME])
+                    collect(set.name)
                     break
                 if case(_Identifier.MAP, _Identifier.MAPPARTITION, _Identifier.FLATMAP, _Identifier.FILTER):
-                    collect(set[_Fields.TYPES])
-                    collect(set[_Fields.NAME])
+                    collect(set.types)
+                    collect(set.name)
                     break
                 if case(_Identifier.UNION):
-                    collect(set[_Fields.OTHER][_Fields.ID])
+                    collect(set.other.id)
                     break
                 if case(_Identifier.PROJECTION):
-                    collect(set[_Fields.KEYS])
+                    collect(set.keys)
                     break
                 if case():
                     raise KeyError("Environment._send_child_sets(): Invalid operation identifier: " + str(identifier))
 
     def _send_sinks(self):
         for sink in self._sinks:
-            identifier = sink[_Fields.IDENTIFIER]
+            identifier = sink.identifier
             collect = self._collector.collect
             collect(identifier)
-            collect(sink[_Fields.PARENT][_Fields.ID])
+            collect(sink.parent.id)
             for case in Switch(identifier):
                 if case(_Identifier.SINK_CSV):
-                    collect(sink[_Fields.PATH])
-                    collect(sink[_Fields.DELIMITER_FIELD])
-                    collect(sink[_Fields.DELIMITER_LINE])
-                    collect(sink[_Fields.WRITE_MODE])
+                    collect(sink.path)
+                    collect(sink.delimiter_field)
+                    collect(sink.delimiter_line)
+                    collect(sink.write_mode)
                     break;
                 if case(_Identifier.SINK_TEXT):
-                    collect(sink[_Fields.PATH])
-                    collect(sink[_Fields.WRITE_MODE])
+                    collect(sink.path)
+                    collect(sink.write_mode)
                     break
                 if case(_Identifier.SINK_PRINT):
-                    collect(sink[_Fields.TO_ERR])
+                    collect(sink.to_err)
                     break
 
     def _send_broadcast(self):
         collect = self._collector.collect
         for entry in self._broadcast:
             collect(_Identifier.BROADCAST)
-            collect(entry[_Fields.PARENT][_Fields.ID])
-            collect(entry[_Fields.OTHER][_Fields.ID])
-            collect(entry[_Fields.NAME])
+            collect(entry.parent.id)
+            collect(entry.other.id)
+            collect(entry.name)
