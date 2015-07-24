@@ -303,6 +303,8 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
           traversable match {
             case TypeRef(_, _, elemTpe :: Nil) =>
 
+              import compat._ // this is needed in order to compile in Scala 2.11
+
               // determine whether we can find an implicit for the CanBuildFrom because
               // TypeInformationGen requires this. This catches the case where a user
               // has a custom class that implements Iterable[], for example.
