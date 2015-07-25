@@ -15,16 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.mesos
+package org.apache.flink.mesos.executor
 
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.GlobalConfiguration
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
+import org.apache.log4j.{Logger => ApacheLogger, _}
 import org.apache.mesos.MesosExecutorDriver
-import org.apache.mesos.Protos._
+import org.apache.mesos.Protos.Status
 import org.slf4j.{Logger, LoggerFactory}
 
+import scala.tools.nsc.io
 import scala.util.Try
 
 class TaskManagerExecutor extends FlinkExecutor {
@@ -32,11 +34,31 @@ class TaskManagerExecutor extends FlinkExecutor {
   def LOG: Logger = LoggerFactory.getLogger(classOf[TaskManagerExecutor])
 
   // methods that defines how the task is started when a launchTask is sent
-  override def startTask(conf: Configuration, streamingMode: StreamingMode): Try[Unit] = {
+  override def startTask(streamingMode: StreamingMode): Try[Unit] = {
     // start the TaskManager
+    val conf = GlobalConfiguration.getConfiguration
+    // get the logging level
+    val level = Level.toLevel(conf.getString("taskmanager.logging.level", "INFO"), Level.INFO)
+    // reconfigure log4j
+    initializeLog4j(level)
+    // start TaskManager
     Try(TaskManager.selectNetworkInterfaceAndRunTaskManager(conf, streamingMode, classOf[TaskManager]))
   }
 
+  private def initializeLog4j(level: Level): Unit = {
+    // remove all existing loggers
+    ApacheLogger.getRootLogger.removeAllAppenders()
+
+    // create a console appender
+    val consoleAppender = new ConsoleAppender()
+    consoleAppender.setLayout(new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n"))
+    consoleAppender.setThreshold(level)
+    consoleAppender.activateOptions()
+    // reconfigure log4j
+    ApacheLogger.getLogger("org.jboss.netty.channel.DefaultChannelPipeline").setLevel(Level.ERROR)
+    ApacheLogger.getLogger("org.apache.hadoop.util.NativeCodeLoader").setLevel(Level.OFF)
+    ApacheLogger.getRootLogger.addAppender(consoleAppender)
+  }
 }
 
 object TaskManagerExecutor {
@@ -54,14 +76,15 @@ object TaskManagerExecutor {
   }
 
   def main(args: Array[String]) {
-    // load libmesos.so
-    System.loadLibrary("mesos")
-
     // startup checks
     checkEnvironment(args)
 
+    // initialize sandbox
+    // create a tmp data directory
+    io.File("tmpData").createDirectory(force = true, failIfExists = false)
+
     // start executor and get exit status
-    val exitStatus = new MesosExecutorDriver(new TaskManagerExecutor).run()
+    val exitStatus = new MesosExecutorDriver()(new TaskManagerExecutor).run()
 
     if (exitStatus == Status.DRIVER_STOPPED) {
       sys.exit(0)

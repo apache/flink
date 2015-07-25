@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.mesos
+package org.apache.flink.mesos.executor
 
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.configuration.ConfigConstants._
+import org.apache.flink.configuration.GlobalConfiguration
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.jobmanager.{JobManager, JobManagerMode}
 import org.apache.flink.runtime.util.EnvironmentInformation
@@ -31,27 +32,16 @@ class JobManagerExecutor extends FlinkExecutor {
   def LOG: Logger = LoggerFactory.getLogger(classOf[JobManagerExecutor])
 
   // methods that defines how the task is started when a launchTask is sent
-  override def startTask(conf: Configuration, streamingMode: StreamingMode): Try[Unit] = {
-    val listeningHost = conf.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
-    // we want to check that the JobManager hostname is in the config
-    // if it is not in there, the actor system will bind to the loopback interface's
-    // address and will not be reachable from anyone remote
-    if (listeningHost == null) {
-      val message = s"Config parameter '${ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY}' is missing (hostname/address to bind JobManager to)."
-      LOG.error(message)
-      throw new RuntimeException(message)
-    }
+  override def startTask(streamingMode: StreamingMode): Try[Unit] = {
+    val hostname = slaveInfo.map(_.getHostname).orNull
 
-    val listeningPort = conf.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
-    if (listeningPort <= 0 || listeningPort >= 65536) {
-      val message = s"Config parameter '${ConfigConstants.JOB_MANAGER_IPC_PORT_KEY}' is invalid, it must be great than 0 and less than 65536."
-      LOG.error(message)
-      throw new RuntimeException(message)
-    }
-
-    // always run in cluster mode to allow us to wait for external TaskManagers
+    // configuration values
+    val conf = GlobalConfiguration.getConfiguration
     val executionMode = JobManagerMode.CLUSTER
+    val listeningHost = conf.getString(JOB_MANAGER_IPC_ADDRESS_KEY, hostname)
+    val listeningPort = conf.getInteger(JOB_MANAGER_IPC_PORT_KEY, DEFAULT_JOB_MANAGER_IPC_PORT)
 
+    // start jobManager
     Try(JobManager.runJobManager(conf, executionMode, streamingMode, listeningHost, listeningPort))
   }
 }
