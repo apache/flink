@@ -6,6 +6,7 @@ import org.rogach.scallop.ScallopConf
 
 import scala.concurrent.duration._
 
+// TODO: Figure out a way to do HA (leader election) using only mesos primitives.
 trait ZookeeperConf extends ScallopConf {
 
   private val userAndPass = """[^/@]+"""
