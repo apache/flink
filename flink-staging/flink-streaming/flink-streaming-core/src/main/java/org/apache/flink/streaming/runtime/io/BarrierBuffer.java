@@ -19,263 +19,262 @@ package org.apache.flink.streaming.runtime.io;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.Set;
+import java.util.ArrayDeque;
 
-import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.runtime.tasks.CheckpointBarrier;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The barrier buffer is responsible for implementing the blocking behaviour described
- * here: {@link CheckpointBarrier}.
- *
- * <p>
- * To avoid back-pressuring the
- * readers, we buffer up the new data received from the blocked channels until
- * the blocks are released.
+ * The barrier buffer is {@link CheckpointBarrierHandler} that blocks inputs with barriers until
+ * all inputs have received the barrier for a given checkpoint.
+ * 
+ * <p>To avoid back-pressuring the input streams (which may cause distributed deadlocks), the
+ * BarrierBuffer continues receiving buffers from the blocked channels and stores them internally until 
+ * the blocks are released.</p>
  */
-public class BarrierBuffer {
+public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BarrierBuffer.class);
+	
+	/** The gate that the buffer draws its input from */
+	private final InputGate inputGate;
 
-	private Queue<SpillingBufferOrEvent> nonProcessed = new LinkedList<SpillingBufferOrEvent>();
-	private Queue<SpillingBufferOrEvent> blockedNonProcessed = new LinkedList<SpillingBufferOrEvent>();
+	/** Flags that indicate whether a channel is currently blocked/buffered */
+	private final boolean[] blockedChannels;
+	
+	/** The total number of channels that this buffer handles data from */
+	private final int totalNumberOfInputChannels;
 
-	private Set<Integer> blockedChannels = new HashSet<Integer>();
-	private int totalNumberOfInputChannels;
+	private final SpillReader spillReader;
+	private final BufferSpiller bufferSpiller;
+	
+	private ArrayDeque<SpillingBufferOrEvent> nonProcessed;
+	private ArrayDeque<SpillingBufferOrEvent> blockedNonProcessed;
 
-	private CheckpointBarrier currentBarrier;
+	/** Handler that receives the checkpoint notifications */
+	private EventListener<CheckpointBarrier> checkpointHandler;
 
-	private AbstractReader reader;
+	/** The ID of the checkpoint for which we expect barriers */
+	private long currentCheckpointId = -1L;
 
-	private InputGate inputGate;
+	/** The number of received barriers (= number of blocked/buffered channels) */
+	private long numReceivedBarriers;
+	
+	/** Flag to indicate whether we have drawn all available input */
+	private boolean endOfStream;
 
-	private SpillReader spillReader;
-	private BufferSpiller bufferSpiller;
-
-	private boolean inputFinished = false;
-
-	private BufferOrEvent endOfStreamEvent = null;
-
-	private long lastCheckpointId = Long.MIN_VALUE;
-
-	public BarrierBuffer(InputGate inputGate, AbstractReader reader) {
+	
+	public BarrierBuffer(InputGate inputGate, IOManager ioManager) throws IOException {
 		this.inputGate = inputGate;
-		totalNumberOfInputChannels = inputGate.getNumberOfInputChannels();
-		this.reader = reader;
-		try {
-			this.bufferSpiller = new BufferSpiller();
-			this.spillReader = new SpillReader();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-
+		this.totalNumberOfInputChannels = inputGate.getNumberOfInputChannels();
+		this.blockedChannels = new boolean[this.totalNumberOfInputChannels];
+		
+		this.nonProcessed = new ArrayDeque<SpillingBufferOrEvent>();
+		this.blockedNonProcessed = new ArrayDeque<SpillingBufferOrEvent>();
+		
+		this.bufferSpiller = new BufferSpiller(ioManager);
+		this.spillReader = new SpillReader();
 	}
 
-	/**
-	 * Get then next non-blocked non-processed {@link BufferOrEvent}. Returns null if
-	 * none available.
-	 * 
-	 * @throws IOException
-	 */
-	private BufferOrEvent getNonProcessed() throws IOException {
-		SpillingBufferOrEvent nextNonProcessed;
+	// ------------------------------------------------------------------------
+	//  Buffer and barrier handling
+	// ------------------------------------------------------------------------
 
-		while ((nextNonProcessed = nonProcessed.poll()) != null) {
-			BufferOrEvent boe = nextNonProcessed.getBufferOrEvent();
-			if (isBlocked(boe.getChannelIndex())) {
-				blockedNonProcessed.add(new SpillingBufferOrEvent(boe, bufferSpiller, spillReader));
-			} else {
-				return boe;
+	@Override
+	public BufferOrEvent getNextNonBlocked() throws IOException, InterruptedException {
+		while (true) {
+			// process buffered BufferOrEvents before grabbing new ones
+			final SpillingBufferOrEvent nextBuffered = nonProcessed.pollFirst();
+			final BufferOrEvent next = nextBuffered == null ?
+					inputGate.getNextBufferOrEvent() :
+					nextBuffered.getBufferOrEvent();
+			
+			if (next != null) {
+				if (isBlocked(next.getChannelIndex())) {
+					// if the channel is blocked we, we just store the BufferOrEvent
+					blockedNonProcessed.add(new SpillingBufferOrEvent(next, bufferSpiller, spillReader));
+				}
+				else if (next.isBuffer() || next.getEvent().getClass() != CheckpointBarrier.class) {
+					return next;
+				}
+				else if (!endOfStream) {
+					// process barriers only if there is a chance of the checkpoint completing
+					processBarrier((CheckpointBarrier) next.getEvent(), next.getChannelIndex());
+				}
+			}
+			else if (!endOfStream) {
+				// end of stream. we feed the data that is still buffered
+				endOfStream = true;
+				releaseBlocks();
+				return getNextNonBlocked();
+			}
+			else {
+				return null;
+			}
+		}
+	}
+	
+	private void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws IOException {
+		final long barrierId = receivedBarrier.getId();
+
+		if (numReceivedBarriers > 0) {
+			// subsequent barrier of a checkpoint.
+			if (barrierId == currentCheckpointId) {
+				// regular case
+				onBarrier(channelIndex);
+			}
+			else if (barrierId > currentCheckpointId) {
+				// we did not complete the current checkpoint
+				LOG.warn("Received checkpoint barrier for checkpoint {} before completing current checkpoint {}. " +
+						"Skipping current checkpoint.", barrierId, currentCheckpointId);
+
+				releaseBlocks();
+				currentCheckpointId = barrierId;
+				onBarrier(channelIndex);
+			}
+			else {
+				// ignore trailing barrier from aborted checkpoint
+				return;
+			}
+			
+		}
+		else if (barrierId > currentCheckpointId) {
+			// first barrier of a new checkpoint
+			currentCheckpointId = barrierId;
+			onBarrier(channelIndex);
+		}
+		else {
+			// trailing barrier from previous (skipped) checkpoint
+			return;
+		}
+
+		// check if we have all barriers
+		if (numReceivedBarriers == totalNumberOfInputChannels) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Received all barrier, triggering checkpoint {} at {}",
+						receivedBarrier.getId(), receivedBarrier.getTimestamp());
+			}
+
+			if (checkpointHandler != null) {
+				checkpointHandler.onEvent(receivedBarrier);
+			}
+			
+			releaseBlocks();
+		}
+	}
+	
+	@Override
+	public void registerCheckpointEventHandler(EventListener<CheckpointBarrier> checkpointHandler) {
+		if (this.checkpointHandler == null) {
+			this.checkpointHandler = checkpointHandler;
+		}
+		else {
+			throw new IllegalStateException("BarrierBuffer already has a registered checkpoint handler");
+		}
+	}
+	
+	@Override
+	public boolean isEmpty() {
+		return nonProcessed.isEmpty() && blockedNonProcessed.isEmpty();
+	}
+
+	@Override
+	public void cleanup() throws IOException {
+		bufferSpiller.close();
+		File spillfile1 = bufferSpiller.getSpillFile();
+		if (spillfile1 != null) {
+			if (!spillfile1.delete()) {
+				LOG.warn("Cannot remove barrier buffer spill file: " + spillfile1.getAbsolutePath());
 			}
 		}
 
-		return null;
+		spillReader.close();
+		File spillfile2 = spillReader.getSpillFile();
+		if (spillfile2 != null) {
+			if (!spillfile2.delete()) {
+				LOG.warn("Cannot remove barrier buffer spill file: " + spillfile2.getAbsolutePath());
+			}
+		}
 	}
-
+	
 	/**
 	 * Checks whether the channel with the given index is blocked.
 	 * 
-	 * @param channelIndex The channel index to check
+	 * @param channelIndex The channel index to check.
+	 * @return True if the channel is blocked, false if not.
 	 */
 	private boolean isBlocked(int channelIndex) {
-		return blockedChannels.contains(channelIndex);
+		return blockedChannels[channelIndex];
 	}
-
-	/**
-	 * Checks whether all channels are blocked meaning that barriers have been
-	 * received from all channels
-	 */
-	private boolean isAllBlocked() {
-		return blockedChannels.size() == totalNumberOfInputChannels;
-	}
-
-	/**
-	 * Returns the next non-blocked {@link BufferOrEvent}. This is a blocking operator.
-	 */
-	public BufferOrEvent getNextNonBlocked() throws IOException, InterruptedException {
-		// If there are non-processed buffers from the previously blocked ones,
-		// we get the next
-		BufferOrEvent bufferOrEvent = getNonProcessed();
-
-		if (bufferOrEvent != null) {
-			return bufferOrEvent;
-		} else if (blockedNonProcessed.isEmpty() && inputFinished) {
-			return endOfStreamEvent;
-		} else {
-			// If no non-processed, get new from input
-			while (true) {
-				if (!inputFinished) {
-					// We read the next buffer from the inputgate
-					bufferOrEvent = inputGate.getNextBufferOrEvent();
-
-					if (!bufferOrEvent.isBuffer()
-							&& bufferOrEvent.getEvent() instanceof EndOfPartitionEvent) {
-						if (inputGate.isFinished()) {
-							// store the event for later if the channel is
-							// closed
-							endOfStreamEvent = bufferOrEvent;
-							inputFinished = true;
-						}
-
-					} else {
-						if (isBlocked(bufferOrEvent.getChannelIndex())) {
-							// If channel blocked we just store it
-							blockedNonProcessed.add(new SpillingBufferOrEvent(bufferOrEvent,
-									bufferSpiller, spillReader));
-						} else {
-							return bufferOrEvent;
-						}
-					}
-				} else {
-					actOnAllBlocked();
-					return getNextNonBlocked();
-				}
-			}
-		}
-	}
-
+	
 	/**
 	 * Blocks the given channel index, from which a barrier has been received.
 	 * 
-	 * @param channelIndex
-	 *            The channel index to block.
+	 * @param channelIndex The channel index to block.
 	 */
-	private void blockChannel(int channelIndex) {
-		if (!blockedChannels.contains(channelIndex)) {
-			blockedChannels.add(channelIndex);
+	private void onBarrier(int channelIndex) throws IOException {
+		if (!blockedChannels[channelIndex]) {
+			blockedChannels[channelIndex] = true;
+			numReceivedBarriers++;
+			
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Channel blocked with index: " + channelIndex);
+				LOG.debug("Received barrier from channel " + channelIndex);
 			}
-			if (isAllBlocked()) {
-				actOnAllBlocked();
-			}
-
-		} else {
-			throw new RuntimeException("Tried to block an already blocked channel");
+		}
+		else {
+			throw new IOException("Stream corrupt: Repeated barrier for same checkpoint and input stream");
 		}
 	}
 
 	/**
 	 * Releases the blocks on all channels.
 	 */
-	private void releaseBlocks() {
-		if (!nonProcessed.isEmpty()) {
-			// sanity check
-			throw new RuntimeException("Error in barrier buffer logic");
-		}
-		nonProcessed = blockedNonProcessed;
-		blockedNonProcessed = new LinkedList<SpillingBufferOrEvent>();
-
-		try {
-			spillReader.setSpillFile(bufferSpiller.getSpillFile());
-			bufferSpiller.resetSpillFile();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-
-		blockedChannels.clear();
-		currentBarrier = null;
+	private void releaseBlocks() throws IOException {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("All barriers received, blocks released");
+			LOG.debug("Releasing blocks");
 		}
+
+		for (int i = 0; i < blockedChannels.length; i++) {
+			blockedChannels[i] = false;
+		}
+		numReceivedBarriers = 0;
+		
+		if (nonProcessed.isEmpty()) {
+			// swap the queues
+			ArrayDeque<SpillingBufferOrEvent> empty = nonProcessed;
+			nonProcessed = blockedNonProcessed;
+			blockedNonProcessed = empty;
+		}
+		else {
+			throw new IllegalStateException("Unconsumed data from previous checkpoint alignment " +
+					"when starting next checkpoint alignment");
+		}
+		
+		// roll over the spill files
+		spillReader.setSpillFile(bufferSpiller.getSpillFile());
+		bufferSpiller.resetSpillFile();
 	}
 
-	/**
-	 * Method that is executed once the barrier has been received from all
-	 * channels.
-	 */
-	private void actOnAllBlocked() {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Publishing barrier to the vertex");
-		}
+	// ------------------------------------------------------------------------
+	// For Testing
+	// ------------------------------------------------------------------------
 
-		if (currentBarrier != null && !inputFinished) {
-			reader.publish(currentBarrier);
-			lastCheckpointId = currentBarrier.getId();
-		}
-
-		releaseBlocks();
+	public long getCurrentCheckpointId() {
+		return this.currentCheckpointId;
 	}
-
-	/**
-	 * Processes one {@link org.apache.flink.streaming.runtime.tasks.CheckpointBarrier}
-	 * 
-	 * @param bufferOrEvent The {@link BufferOrEvent} containing the checkpoint barrier
-	 */
-	public void processBarrier(BufferOrEvent bufferOrEvent) {
-		CheckpointBarrier receivedBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
-
-		if (receivedBarrier.getId() < lastCheckpointId) {
-			// a barrier from an old checkpoint, ignore these
-			return;
-		}
-
-		if (currentBarrier == null) {
-			this.currentBarrier = receivedBarrier;
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Checkpoint barrier received start waiting for checkpoint: {}", receivedBarrier);
-			}
-		} else if (receivedBarrier.getId() > currentBarrier.getId()) {
-			// we have a barrier from a more recent checkpoint, free all locks and start with
-			// this newer checkpoint
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Checkpoint barrier received while waiting on checkpoint {}. Restarting waiting with checkpoint {}: ", currentBarrier, receivedBarrier);
-			}
-			releaseBlocks();
-			currentBarrier = receivedBarrier;
-
-		}
-		blockChannel(bufferOrEvent.getChannelIndex());
-	}
-
-	public void cleanup() throws IOException {
-		bufferSpiller.close();
-		File spillfile1 = bufferSpiller.getSpillFile();
-		if (spillfile1 != null) {
-			spillfile1.delete();
-		}
-
-		spillReader.close();
-		File spillfile2 = spillReader.getSpillFile();
-		if (spillfile2 != null) {
-			spillfile2.delete();
-		}
-	}
-
+	
+	// ------------------------------------------------------------------------
+	// Utilities 
+	// ------------------------------------------------------------------------
+	
+	@Override
 	public String toString() {
-		return nonProcessed.toString() + blockedNonProcessed.toString();
+		return "Non-Processed: " + nonProcessed + " | Blocked: " + blockedNonProcessed;
 	}
-
-	public boolean isEmpty() {
-		return nonProcessed.isEmpty() && blockedNonProcessed.isEmpty();
-	}
-
 }

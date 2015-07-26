@@ -25,10 +25,10 @@ import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
  * A BufferRecycler that does nothing.
  */
 public class DummyBufferRecycler implements BufferRecycler {
-
+	
 	public static final BufferRecycler INSTANCE = new DummyBufferRecycler();
-
-
+	
+	
 	@Override
 	public void recycle(MemorySegment memorySegment) {}
 }

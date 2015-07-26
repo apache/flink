@@ -23,6 +23,7 @@ import java.io.IOException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.task.AbstractEvent;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.api.reader.ReaderBase;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
@@ -40,6 +42,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.CheckpointBarrier;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +69,7 @@ public class StreamInputProcessor<IN> extends AbstractReader implements ReaderBa
 
 	private boolean isFinished;
 
-	private final BarrierBuffer barrierBuffer;
+	private final CheckpointBarrierHandler barrierHandler;
 
 	private final long[] watermarks;
 	private long lastEmittedWatermark;
@@ -74,10 +77,17 @@ public class StreamInputProcessor<IN> extends AbstractReader implements ReaderBa
 	private final DeserializationDelegate<Object> deserializationDelegate;
 
 	@SuppressWarnings("unchecked")
-	public StreamInputProcessor(InputGate[] inputGates, TypeSerializer<IN> inputSerializer, boolean enableWatermarkMultiplexing) {
+	public StreamInputProcessor(InputGate[] inputGates, TypeSerializer<IN> inputSerializer,
+								EventListener<CheckpointBarrier> checkpointListener,
+								IOManager ioManager,
+								boolean enableWatermarkMultiplexing) throws IOException {
+		
 		super(InputGateUtil.createInputGate(inputGates));
 
-		barrierBuffer = new BarrierBuffer(inputGate, this);
+		this.barrierHandler = new BarrierBuffer(inputGate, ioManager);
+		if (checkpointListener != null) {
+			this.barrierHandler.registerCheckpointEventHandler(checkpointListener);
+		}
 		
 		if (enableWatermarkMultiplexing) {
 			MultiplexingStreamRecordSerializer<IN> ser = new MultiplexingStreamRecordSerializer<IN>(inputSerializer);
@@ -101,8 +111,8 @@ public class StreamInputProcessor<IN> extends AbstractReader implements ReaderBa
 		}
 		lastEmittedWatermark = Long.MIN_VALUE;
 	}
-
-	@SuppressWarnings("unchecked")
+	
+	
 	public boolean processInput(OneInputStreamOperator<IN, ?> streamOperator) throws Exception {
 		if (isFinished) {
 			return false;
@@ -137,8 +147,10 @@ public class StreamInputProcessor<IN> extends AbstractReader implements ReaderBa
 							}
 						}
 						continue;
-					} else {
+					}
+					else {
 						// now we can do the actual processing
+						@SuppressWarnings("unchecked")
 						StreamRecord<IN> record = (StreamRecord<IN>) deserializationDelegate.getInstance();
 						StreamingRuntimeContext ctx = streamOperator.getRuntimeContext();
 						if (ctx != null) {
@@ -150,31 +162,25 @@ public class StreamInputProcessor<IN> extends AbstractReader implements ReaderBa
 				}
 			}
 
-			final BufferOrEvent bufferOrEvent = barrierBuffer.getNextNonBlocked();
-
-			if (bufferOrEvent.isBuffer()) {
-				currentChannel = bufferOrEvent.getChannelIndex();
-				currentRecordDeserializer = recordDeserializers[currentChannel];
-				currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
-			} else {
-				// Event received
-				final AbstractEvent event = bufferOrEvent.getEvent();
-
-				if (event instanceof CheckpointBarrier) {
-					barrierBuffer.processBarrier(bufferOrEvent);
-				} else {
-					if (handleEvent(event)) {
-						if (inputGate.isFinished()) {
-							if (!barrierBuffer.isEmpty()) {
-								throw new RuntimeException("BarrierBuffer should be empty at this point");
-							}
-							isFinished = true;
-							return false;
-						} else if (hasReachedEndOfSuperstep()) {
-							return false;
-						} // else: More data is coming...
-					}
+			final BufferOrEvent bufferOrEvent = barrierHandler.getNextNonBlocked();
+			if (bufferOrEvent != null) {
+				if (bufferOrEvent.isBuffer()) {
+					currentChannel = bufferOrEvent.getChannelIndex();
+					currentRecordDeserializer = recordDeserializers[currentChannel];
+					currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
 				}
+				else {
+					// Event received
+					final AbstractEvent event = bufferOrEvent.getEvent();
+					handleEvent(event);
+				}
+			}
+			else {
+				isFinished = true;
+				if (!barrierHandler.isEmpty()) {
+					throw new IllegalStateException("Trailing data in checkpoint barrier handler.");
+				}
+				return false;
 			}
 		}
 	}
@@ -195,7 +201,8 @@ public class StreamInputProcessor<IN> extends AbstractReader implements ReaderBa
 		}
 	}
 
+	@Override
 	public void cleanup() throws IOException {
-		barrierBuffer.cleanup();
+		barrierHandler.cleanup();
 	}
 }

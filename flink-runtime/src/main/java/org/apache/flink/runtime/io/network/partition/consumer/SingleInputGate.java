@@ -408,7 +408,7 @@ public class SingleInputGate implements InputGate {
 
 		// Sanity check that notifications only happen when data is available
 		if (buffer == null) {
-			throw new IllegalStateException("Bug in input gate/channel logic: input gate got" +
+			throw new IllegalStateException("Bug in input gate/channel logic: input gate got " +
 					"notified by channel about available data, but none was available.");
 		}
 

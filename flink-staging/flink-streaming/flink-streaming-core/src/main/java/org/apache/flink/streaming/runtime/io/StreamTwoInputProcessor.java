@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.task.AbstractEvent;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.api.reader.ReaderBase;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
@@ -68,7 +70,7 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 
 	private boolean isFinished;
 
-	private final BarrierBuffer barrierBuffer;
+	private final CheckpointBarrierHandler barrierHandler;
 
 	private final long[] watermarks1;
 	private long lastEmittedWatermark1;
@@ -87,11 +89,17 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 			Collection<InputGate> inputGates2,
 			TypeSerializer<IN1> inputSerializer1,
 			TypeSerializer<IN2> inputSerializer2,
-			boolean enableWatermarkMultiplexing) {
+			EventListener<CheckpointBarrier> checkpointListener,
+			IOManager ioManager,
+			boolean enableWatermarkMultiplexing) throws IOException {
 		
 		super(InputGateUtil.createInputGate(inputGates1, inputGates2));
 
-		barrierBuffer = new BarrierBuffer(inputGate, this);
+		this.barrierHandler = new BarrierBuffer(inputGate, ioManager);
+		if (checkpointListener != null) {
+			this.barrierHandler.registerCheckpointEventHandler(checkpointListener);
+		}
+
 		
 		if (enableWatermarkMultiplexing) {
 			MultiplexingStreamRecordSerializer<IN1> ser = new MultiplexingStreamRecordSerializer<IN1>(inputSerializer1);
@@ -186,32 +194,26 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 				}
 			}
 
-			final BufferOrEvent bufferOrEvent = barrierBuffer.getNextNonBlocked();
+			final BufferOrEvent bufferOrEvent = barrierHandler.getNextNonBlocked();
+			if (bufferOrEvent != null) {
 
-			if (bufferOrEvent.isBuffer()) {
-				currentChannel = bufferOrEvent.getChannelIndex();
-				currentRecordDeserializer = recordDeserializers[currentChannel];
-				currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
-
-			} else {
-				// Event received
-				final AbstractEvent event = bufferOrEvent.getEvent();
-
-				if (event instanceof CheckpointBarrier) {
-					barrierBuffer.processBarrier(bufferOrEvent);
+				if (bufferOrEvent.isBuffer()) {
+					currentChannel = bufferOrEvent.getChannelIndex();
+					currentRecordDeserializer = recordDeserializers[currentChannel];
+					currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
+	
 				} else {
-					if (handleEvent(event)) {
-						if (inputGate.isFinished()) {
-							if (!barrierBuffer.isEmpty()) {
-								throw new RuntimeException("BarrierBuffer should be empty at this point");
-							}
-							isFinished = true;
-							return false;
-						} else if (hasReachedEndOfSuperstep()) {
-							return false;
-						} // else: More data is coming...
-					}
+					// Event received
+					final AbstractEvent event = bufferOrEvent.getEvent();
+					handleEvent(event);
 				}
+			}
+			else {
+				isFinished = true;
+				if (!barrierHandler.isEmpty()) {
+					throw new IllegalStateException("Trailing data in checkpoint barrier handler.");
+				}
+				return false;
 			}
 		}
 	}
@@ -270,6 +272,6 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 
 	@Override
 	public void cleanup() throws IOException {
-		barrierBuffer.cleanup();
+		barrierHandler.cleanup();
 	}
 }
