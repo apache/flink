@@ -34,22 +34,27 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 	@Override
 	public void registerInputOutput() {
-		super.registerInputOutput();
-
-		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
-
-		int numberOfInputs = configuration.getNumberOfInputs();
-
-		if (numberOfInputs > 0) {
-			InputGate[] inputGates = getEnvironment().getAllInputGates();
-			inputProcessor = new StreamInputProcessor<IN>(inputGates, inSerializer, getExecutionConfig().areTimestampsEnabled());
-
-			inputProcessor.registerTaskEventListener(getCheckpointBarrierListener(), CheckpointBarrier.class);
-
-			AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
-			AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
-
-			inputProcessor.setReporter(reporter);
+		try {
+			super.registerInputOutput();
+			
+			TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
+			int numberOfInputs = configuration.getNumberOfInputs();
+	
+			if (numberOfInputs > 0) {
+				InputGate[] inputGates = getEnvironment().getAllInputGates();
+				inputProcessor = new StreamInputProcessor<IN>(inputGates, inSerializer,
+						getCheckpointBarrierListener(), 
+						getEnvironment().getIOManager(),
+						getExecutionConfig().areTimestampsEnabled());
+	
+				// make sure that stream tasks report their I/O statistics
+				AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
+				AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
+				inputProcessor.setReporter(reporter);
+			}
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Failed to initialize stream operator: " + e.getMessage(), e);
 		}
 	}
 

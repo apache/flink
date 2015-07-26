@@ -16,40 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.api;
+package org.apache.flink.streaming.runtime.io;
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.event.task.RuntimeEvent;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 
-
-public class EndOfPartitionEvent extends RuntimeEvent {
-
-	public static final EndOfPartitionEvent INSTANCE = new EndOfPartitionEvent();
+/**
+ * A BufferRecycler that does nothing.
+ */
+public class DummyBufferRecycler implements BufferRecycler {
+	
+	public static final BufferRecycler INSTANCE = new DummyBufferRecycler();
 	
 	
 	@Override
-	public void read(DataInputView in) {
-		// Nothing to do here
-	}
-
-	@Override
-	public void write(DataOutputView out) {
-		// Nothing to do here
-	}
-
-	@Override
-	public int hashCode() {
-		return 1965146673;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		return obj != null && obj.getClass() == EndOfPartitionEvent.class;
-	}
-
-	@Override
-	public String toString() {
-		return getClass().getSimpleName();
-	}
+	public void recycle(MemorySegment memorySegment) {}
 }
