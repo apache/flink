@@ -128,9 +128,9 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 			throw new FileNotFoundException("Properties file "+path+" does not exist");
 		}
 		Properties props = new Properties();
-    FileInputStream fis = new FileInputStream(propertiesFile);
+		FileInputStream fis = new FileInputStream(propertiesFile);
 		props.load(fis);
-    fis.close();
+		fis.close();
 		return fromMap((Map)props);
 	}
 
