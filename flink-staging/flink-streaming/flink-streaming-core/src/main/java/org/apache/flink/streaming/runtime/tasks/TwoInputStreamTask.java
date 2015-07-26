@@ -34,44 +34,52 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	private static final Logger LOG = LoggerFactory.getLogger(TwoInputStreamTask.class);
 
-	StreamTwoInputProcessor<IN1, IN2> inputProcessor;
+	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
 
 	@Override
 	public void registerInputOutput() {
-		super.registerInputOutput();
-
-		TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
-		TypeSerializer<IN2> inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
-
-		int numberOfInputs = configuration.getNumberOfInputs();
-
-		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
-		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
-
-		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
-
-		for (int i = 0; i < numberOfInputs; i++) {
-			int inputType = inEdges.get(i).getTypeNumber();
-			InputGate reader = getEnvironment().getInputGate(i);
-			switch (inputType) {
-				case 1:
-					inputList1.add(reader);
-					break;
-				case 2:
-					inputList2.add(reader);
-					break;
-				default:
-					throw new RuntimeException("Invalid input type number: " + inputType);
+		try {
+			super.registerInputOutput();
+	
+			TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
+			TypeSerializer<IN2> inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
+	
+			int numberOfInputs = configuration.getNumberOfInputs();
+	
+			ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
+			ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
+	
+			List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
+	
+			for (int i = 0; i < numberOfInputs; i++) {
+				int inputType = inEdges.get(i).getTypeNumber();
+				InputGate reader = getEnvironment().getInputGate(i);
+				switch (inputType) {
+					case 1:
+						inputList1.add(reader);
+						break;
+					case 2:
+						inputList2.add(reader);
+						break;
+					default:
+						throw new RuntimeException("Invalid input type number: " + inputType);
+				}
 			}
+	
+			this.inputProcessor = new StreamTwoInputProcessor<IN1, IN2>(inputList1, inputList2,
+					inputDeserializer1, inputDeserializer2,
+					getCheckpointBarrierListener(),
+					getEnvironment().getIOManager(),
+					getExecutionConfig().areTimestampsEnabled());
+
+			// make sure that stream tasks report their I/O statistics
+			AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
+			AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
+			this.inputProcessor.setReporter(reporter);
 		}
-
-		inputProcessor = new StreamTwoInputProcessor<IN1, IN2>(inputList1, inputList2, inputDeserializer1, inputDeserializer2, getExecutionConfig().areTimestampsEnabled());
-
-		AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
-		AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
-		inputProcessor.setReporter(reporter);
-
-		inputProcessor.registerTaskEventListener(getCheckpointBarrierListener(), CheckpointBarrier.class);
+		catch (Exception e) {
+			throw new RuntimeException("Failed to initialize stream operator: " + e.getMessage(), e);
+		}
 	}
 
 	@Override

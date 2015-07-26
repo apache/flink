@@ -22,28 +22,33 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.StringUtils;
 
 public class BufferSpiller {
+	
+	/** The random number generator for temp file names */
+	private static final Random RND = new Random();
 
-	protected static Random rnd = new Random();
+	/** The counter that selects the next directory to spill into */
+	private static final AtomicInteger DIRECTORY_INDEX = new AtomicInteger(0);
+	
+	
+	/** The directories to spill to */
+	private final File tempDir;
 
 	private File spillFile;
-	protected FileChannel spillingChannel;
-	private String tempDir;
+	
+	private FileChannel spillingChannel;
+	
+	
 
-	public BufferSpiller() throws IOException {
-		String tempDirString = GlobalConfiguration.getString(
-				ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
-		String[] tempDirs = tempDirString.split(",|" + File.pathSeparator);
-
-		tempDir = tempDirs[rnd.nextInt(tempDirs.length)];
-
+	public BufferSpiller(IOManager ioManager) throws IOException {
+		File[] tempDirs = ioManager.getSpillingDirectories();
+		this.tempDir = tempDirs[DIRECTORY_INDEX.getAndIncrement() % tempDirs.length];
 		createSpillingChannel();
 	}
 
@@ -54,24 +59,20 @@ public class BufferSpiller {
 		try {
 			spillingChannel.write(buffer.getNioBuffer());
 			buffer.recycle();
-		} catch (IOException e) {
-			close();
-			throw new IOException(e);
 		}
-
+		catch (IOException e) {
+			close();
+			throw e;
+		}
 	}
 
 	@SuppressWarnings("resource")
 	private void createSpillingChannel() throws IOException {
-		this.spillFile = new File(tempDir, randomString(rnd) + ".buffer");
+		this.spillFile = new File(tempDir, randomString(RND) + ".buffer");
 		this.spillingChannel = new RandomAccessFile(spillFile, "rw").getChannel();
 	}
 
-	private static String randomString(Random random) {
-		final byte[] bytes = new byte[20];
-		random.nextBytes(bytes);
-		return StringUtils.byteToHexString(bytes);
-	}
+
 
 	public void close() throws IOException {
 		if (spillingChannel != null && spillingChannel.isOpen()) {
@@ -87,5 +88,12 @@ public class BufferSpiller {
 	public File getSpillFile() {
 		return spillFile;
 	}
+	
+	// ------------------------------------------------------------------------
 
+	private static String randomString(Random random) {
+		final byte[] bytes = new byte[20];
+		random.nextBytes(bytes);
+		return StringUtils.byteToHexString(bytes);
+	}
 }

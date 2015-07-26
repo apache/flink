@@ -22,18 +22,36 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class SpillingBufferOrEventTest {
+	
+	private static IOManager IO_MANAGER;
+	
+	@BeforeClass
+	public static void createIOManager() {
+		IO_MANAGER = new IOManagerAsync();
+	}
+	
+	@AfterClass
+	public static void shutdownIOManager() {
+		IO_MANAGER.shutdown();
+	}
 
+	// ------------------------------------------------------------------------
+	
 	@Test
 	public void testSpilling() throws IOException, InterruptedException {
-		BufferSpiller bsp = new BufferSpiller();
+		BufferSpiller bsp = new BufferSpiller(IO_MANAGER);
 		SpillReader spr = new SpillReader();
 
 		BufferPool pool1 = new NetworkBufferPool(10, 256).createBufferPool(2, true);
