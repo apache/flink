@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.scala
 
 import java.lang
-
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction,
   Partitioner, FoldFunction, Function}
 import org.apache.flink.api.java.typeutils.TypeExtractor
@@ -32,6 +31,7 @@ import org.apache.flink.streaming.runtime.partitioner._
 import org.apache.flink.util.Collector
 import org.junit.Assert.fail
 import org.junit.Test
+import org.apache.flink.streaming.api.scala.function.StatefulFunction
 
 class DataStreamTest {
 
@@ -310,9 +310,18 @@ class DataStreamTest {
     };
     val map = src.map(mapFunction)
     assert(mapFunction == getFunctionForDataStream(map))
-    assert(getFunctionForDataStream(map.map(x => 0)).isInstanceOf[MapFunction[Int, Int]])
+    assert(getFunctionForDataStream(map.map(x => 0)).isInstanceOf[MapFunction[_, _]])
 
-
+    val statefulMap1 = src.mapWithState((in, state: Option[Long]) => (in, None))
+    assert(getFunctionForDataStream(statefulMap1).isInstanceOf[MapFunction[_,_]])
+    assert(!getFunctionForDataStream(statefulMap1).
+        asInstanceOf[StatefulFunction[_,_,_]].isPartitioned)
+    
+    val statefulMap2 = src.keyBy(x=>x).mapWithState(
+        (in, state: Option[Long]) => (in, None))
+    assert(getFunctionForDataStream(statefulMap2).
+        asInstanceOf[StatefulFunction[_,_,_]].isPartitioned)
+    
     val flatMapFunction = new FlatMapFunction[Long, Int] {
       override def flatMap(value: Long, out: Collector[Int]): Unit = {}
     }
@@ -321,8 +330,18 @@ class DataStreamTest {
     assert(
       getFunctionForDataStream(flatMap
         .flatMap((x: Int, out: Collector[Int]) => {}))
-        .isInstanceOf[FlatMapFunction[Int, Int]])
+        .isInstanceOf[FlatMapFunction[_, _]])
 
+    val statefulfMap1 = src.flatMapWithState((in, state: Option[Long]) => (List(in), None))
+    assert(getFunctionForDataStream(statefulfMap1).isInstanceOf[FlatMapFunction[_, _]])
+    assert(!getFunctionForDataStream(statefulfMap1).
+        asInstanceOf[StatefulFunction[_, _, _]].isPartitioned)
+
+    val statefulfMap2 = src.keyBy(x=>x).flatMapWithState(
+        (in, state: Option[Long]) => (List(in), None))
+    assert(getFunctionForDataStream(statefulfMap2).
+        asInstanceOf[StatefulFunction[_, _, _]].isPartitioned)
+   
     val filterFunction = new FilterFunction[Int] {
       override def filter(value: Int): Boolean = false
     }
@@ -332,13 +351,23 @@ class DataStreamTest {
     assert(
       getFunctionForDataStream(map
         .filter((x: Int) => true))
-        .isInstanceOf[FilterFunction[Int]])
+        .isInstanceOf[FilterFunction[_]])
 
+    val statefulFilter1 = src.filterWithState((in, state: Option[Long]) => (true, None))
+    assert(getFunctionForDataStream(statefulFilter1).isInstanceOf[FilterFunction[_]])
+    assert(!getFunctionForDataStream(statefulFilter1).
+        asInstanceOf[StatefulFunction[_, _, _]].isPartitioned)
+
+    val statefulFilter2 = src.keyBy(x=>x).filterWithState(
+        (in, state: Option[Long]) => (false, None))
+    assert(getFunctionForDataStream(statefulFilter2).
+        asInstanceOf[StatefulFunction[_, _, _]].isPartitioned)
+   
     try {
       streamGraph.getStreamEdge(map.getId, unionFilter.getId)
     }
     catch {
-      case e => {
+      case e: Throwable => {
         fail(e.getMessage)
       }
     }
@@ -347,7 +376,7 @@ class DataStreamTest {
       streamGraph.getStreamEdge(flatMap.getId, unionFilter.getId)
     }
     catch {
-      case e => {
+      case e: Throwable => {
         fail(e.getMessage)
       }
     }
@@ -378,7 +407,7 @@ class DataStreamTest {
     assert(
       getFunctionForDataStream(map.groupBy(x=>x)
         .fold("", (x: String, y: Int) => ""))
-        .isInstanceOf[FoldFunction[Int, String]])
+        .isInstanceOf[FoldFunction[_, _]])
 
     val connect = fold.connect(flatMap)
 
@@ -395,7 +424,7 @@ class DataStreamTest {
       streamGraph.getStreamEdge(fold.getId, coMap.getId)
     }
     catch {
-      case e => {
+      case e: Throwable => {
         fail(e.getMessage)
       }
     }
@@ -403,7 +432,7 @@ class DataStreamTest {
       streamGraph.getStreamEdge(flatMap.getId, coMap.getId)
     }
     catch {
-      case e => {
+      case e: Throwable => {
         fail(e.getMessage)
       }
     }

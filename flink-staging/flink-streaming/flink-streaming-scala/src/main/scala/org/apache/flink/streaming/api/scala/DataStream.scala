@@ -30,8 +30,6 @@ import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, SingleOutputStreamOperator}
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink,
-  GroupedDataStream, SingleOutputStreamOperator}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
@@ -40,6 +38,11 @@ import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.streaming.api.windowing.policy.{EvictionPolicy, TriggerPolicy}
 import org.apache.flink.streaming.util.serialization.SerializationSchema
 import org.apache.flink.util.Collector
+import org.apache.flink.api.common.state.OperatorState
+import org.apache.flink.api.common.functions.{RichMapFunction, RichFlatMapFunction, RichFilterFunction}
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.datastream.KeyedDataStream
+import org.apache.flink.streaming.api.scala.function.StatefulFunction
 
 class DataStream[T](javaStream: JavaStream[T]) {
 
@@ -463,6 +466,31 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
+   * Creates a new DataStream by applying the given stateful function to every element of this 
+   * DataStream. To use state partitioning, a key must be defined using .keyBy(..), in which 
+   * case an independent state will be kept per key.
+   * 
+   * Note that the user state object needs to be serializable.
+   */
+  def mapWithState[R: TypeInformation: ClassTag, S](
+      fun: (T, Option[S]) => (R, Option[S])): DataStream[R] = {
+    if (fun == null) {
+      throw new NullPointerException("Map function must not be null.")
+    }
+
+    val cleanFun = clean(fun)
+    val mapper = new RichMapFunction[T, R] with StatefulFunction[T, R, S] {
+      override def map(in: T): R = {
+        applyWithState(in, cleanFun)
+      }
+    }
+    
+    setStatePartitioning(mapper)
+    
+    map(mapper)
+  }
+
+  /**
    * Creates a new DataStream by applying the given function to every element and flattening
    * the results.
    */
@@ -505,7 +533,31 @@ class DataStream[T](javaStream: JavaStream[T]) {
     flatMap(flatMapper)
   }
 
- 
+  /**
+   * Creates a new DataStream by applying the given stateful function to every element and 
+   * flattening the results. To use state partitioning, a key must be defined using .keyBy(..), 
+   * in which case an independent state will be kept per key.
+   * 
+   * Note that the user state object needs to be serializable.
+   */
+  def flatMapWithState[R: TypeInformation: ClassTag, S](
+      fun: (T, Option[S]) => (TraversableOnce[R], Option[S])):
+      DataStream[R] = {
+    if (fun == null) {
+      throw new NullPointerException("Flatmap function must not be null.")
+    }
+
+    val cleanFun = clean(fun)
+    val flatMapper = new RichFlatMapFunction[T, R] with StatefulFunction[T,TraversableOnce[R],S]{
+      override def flatMap(in: T, out: Collector[R]): Unit = {
+        applyWithState(in, cleanFun) foreach out.collect
+      }
+    }
+
+    setStatePartitioning(flatMapper)
+    
+    flatMap(flatMapper)
+  }
 
   /**
    * Creates a new DataStream that contains only the elements satisfying the given filter predicate.
@@ -529,6 +581,37 @@ class DataStream[T](javaStream: JavaStream[T]) {
       def filter(in: T) = cleanFun(in)
     }
     this.filter(filter)
+  }
+  
+  /**
+   * Creates a new DataStream that contains only the elements satisfying the given stateful filter 
+   * predicate. To use state partitioning, a key must be defined using .keyBy(..), in which case
+   * an independent state will be kept per key.
+   * 
+   * Note that the user state object needs to be serializable.
+   */
+  def filterWithState[S](
+      fun: (T, Option[S]) => (Boolean, Option[S])): DataStream[T] = {
+    if (fun == null) {
+      throw new NullPointerException("Filter function must not be null.")
+    }
+
+    val cleanFun = clean(fun)
+    val filterFun = new RichFilterFunction[T] with StatefulFunction[T, Boolean, S] {
+      override def filter(in: T): Boolean = {
+        applyWithState(in, cleanFun)
+      }
+    }
+    
+    setStatePartitioning(filterFun) 
+    
+    filter(filterFun)
+  }
+
+  private[flink] def setStatePartitioning(fun: StatefulFunction[_, _, _]) = {
+    if (javaStream.isInstanceOf[KeyedDataStream[T]]) {
+      fun.partitionStateByKey
+    }
   }
 
   /**

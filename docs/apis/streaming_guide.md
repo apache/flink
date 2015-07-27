@@ -621,6 +621,50 @@ dataStream.filter{ _ != 0 }
     </tr>
 
     <tr>
+      <td><strong>MapWithState</strong></td>
+      <td>
+        <p>Takes one element and produces one element using a stateful function. Note that the user state object needs to be serializable.
+	<br/>
+	<br/>
+	A map that produces a rolling average per key:</p>
+{% highlight scala %}
+dataStream.keyBy(..).mapWithState((in, state: Option[(Long, Int)]) => state match {
+	case Some((sum, count)) => ((sum + in)/(count + 1), Some((sum + in, count + 1)))
+	case None => (in, Some((in, 1)))
+})
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>FlatMapWithState</strong></td>
+      <td>
+        <p>Takes one element and produces zero, one, or more elements using a stateful function. Note that the user state object needs to be serializable.</p>
+{% highlight scala %}
+dataStream.flatMapWithState((I,Option[S]) => (Traversable[O], Option[S]))
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>FilterWithState</strong></td>
+      <td>
+       <p>Evaluates a stateful boolean function for each element and retains those for which the function returns true. Note that the user state object needs to be serializable.
+       	<br/>
+	<br/>
+        A filter that only keeps the first 10 elements at each operator instance:
+        </p>
+{% highlight scala %}
+dataStream.filterWithState((in, count: Option[Int]) => count match {
+	case Some(c) => (c < 10, Some(c+1))
+	case None => (true, Some(1))
+})
+{% endhighlight %}
+      </td>
+    </tr>
+
+
+    <tr>
       <td><strong>Reduce</strong></td>
       <td>
         <p>Combines a stream of elements into another stream by repeatedly combining two elements
