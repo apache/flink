@@ -64,6 +64,8 @@ public class FlinkTopologyBuilder {
 	private final HashMap<String, IRichBolt> bolts = new HashMap<String, IRichBolt>();
 	/** All declared output schemas by operator ID */
 	private final HashMap<String, Fields> outputSchemas = new HashMap<String, Fields>();
+	/** All spouts&bolts declarers by their ID */
+	private final HashMap<String, FlinkOutputFieldsDeclarer> declarers = new HashMap<String, FlinkOutputFieldsDeclarer>();
 
 	/**
 	 * Creates a Flink program that used the specified spouts and bolts.
@@ -84,6 +86,7 @@ public class FlinkTopologyBuilder {
 			final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
 			userSpout.declareOutputFields(declarer);
 			this.outputSchemas.put(spoutId, declarer.outputSchema);
+			declarers.put(spoutId, declarer);
 
 			/* TODO in order to support multiple output streams, use an additional wrapper (or modify StormSpoutWrapper
 			 * and StormCollector)
@@ -124,6 +127,7 @@ public class FlinkTopologyBuilder {
 				final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
 				userBolt.declareOutputFields(declarer);
 				this.outputSchemas.put(boltId, declarer.outputSchema);
+				declarers.put(boltId, declarer);
 
 				final ComponentCommon common = stormTopolgoy.get_bolts().get(boltId).get_common();
 
@@ -153,7 +157,8 @@ public class FlinkTopologyBuilder {
 							// global grouping is emulated in Storm via an empty fields grouping list
 							final List<String> fields = grouping.get_fields();
 							if (fields.size() > 0) {
-								inputDataStream = inputDataStream.groupBy(declarer.getGroupingFieldIndexes(grouping
+								FlinkOutputFieldsDeclarer procDeclarer = this.declarers.get(producerId);
+								inputDataStream = inputDataStream.groupBy(procDeclarer.getGroupingFieldIndexes(grouping
 										.get_fields()));
 							} else {
 								inputDataStream = inputDataStream.global();
