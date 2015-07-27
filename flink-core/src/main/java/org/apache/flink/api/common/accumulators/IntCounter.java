@@ -28,8 +28,15 @@ public class IntCounter implements SimpleAccumulator<Integer> {
 
 	private int localValue = 0;
 
+	/**
+	 * Consider using {@link #add(int)} instead for primitive int values
+	 */
 	@Override
 	public void add(Integer value) {
+		localValue += value;
+	}
+
+	public void add(int value){
 		localValue += value;
 	}
 

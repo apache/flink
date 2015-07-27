@@ -26,12 +26,19 @@ public class LongCounter implements SimpleAccumulator<Long> {
 	private static final long serialVersionUID = 1L;
 	
 	private long localValue = 0;
-	
+
+	/**
+	 * Consider using {@link #add(long)} instead for primitive long values
+	 */
 	@Override
 	public void add(Long value) {
 		this.localValue += value;
 	}
-	
+
+	public void add(long value){
+		this.localValue += value;
+	}
+
 	@Override
 	public Long getLocalValue() {
 		return this.localValue;
