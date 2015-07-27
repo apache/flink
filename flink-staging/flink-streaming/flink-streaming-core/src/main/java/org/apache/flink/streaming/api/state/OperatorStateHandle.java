@@ -15,26 +15,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.streaming.api.state;
 
 import java.io.Serializable;
-import java.util.Map;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.streaming.api.state.OperatorStateHandle;
 
-/**
- * Interface for Stream operators that can have state. This interface is used for checkpointing
- * and restoring that state.
- *
- * @param <OUT> The output type of the operator
- */
-public interface StatefulStreamOperator<OUT> extends StreamOperator<OUT> {
+public class OperatorStateHandle implements StateHandle<Serializable> {
+	
+	private static final long serialVersionUID = 1L;
+	
+	private final StateHandle<Serializable> handle;
+	private final boolean isPartitioned;
+	
+	public OperatorStateHandle(StateHandle<Serializable> handle, boolean isPartitioned){
+		this.handle = handle;
+		this.isPartitioned = isPartitioned;
+	}
+	
+	public boolean isPartitioned(){
+		return isPartitioned;
+	}
 
-	void restoreInitialState(Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> state) throws Exception;
+	@Override
+	public Serializable getState() throws Exception {
+		return handle.getState();
+	}
 
-	Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception;
+	@Override
+	public void discardState() throws Exception {
+		handle.discardState();
+	}
 
-	void notifyCheckpointComplete(long checkpointId) throws Exception;
 }

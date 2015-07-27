@@ -38,13 +38,13 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.state.FileStateHandle;
 import org.apache.flink.runtime.state.LocalStateHandle;
-import org.apache.flink.runtime.state.PartitionedStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StatefulStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.state.OperatorStateHandle;
 import org.apache.flink.streaming.api.state.WrapperStateHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -210,12 +210,12 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	@Override
 	public void setInitialState(StateHandle<Serializable> stateHandle) throws Exception {
 
-		// We retrieve end restore the states for the chained operators.
-		List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>> chainedStates = (List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>>) stateHandle.getState();
+		// We retrieve end restore the states for the chained oeprators.
+		List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>> chainedStates = (List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>>) stateHandle.getState();
 
-		// We restore all stateful chained operators
+		// We restore all stateful operators
 		for (int i = 0; i < chainedStates.size(); i++) {
-			Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>> state = chainedStates.get(i);
+			Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> state = chainedStates.get(i);
 			// If state is not null we need to restore it
 			if (state != null) {
 				StreamOperator<?> chainedOperator = outputHandler.getChainedOperators().get(i);
@@ -234,15 +234,14 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 					LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
 
 					// We wrap the states of the chained operators in a list, marking non-stateful oeprators with null
-					List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>> chainedStates = new ArrayList<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>>();
+					List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>> chainedStates = new ArrayList<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>>();
 
 					// A wrapper handle is created for the List of statehandles
 					WrapperStateHandle stateHandle;
 					try {
 
 						// We construct a list of states for chained tasks
-						for (StreamOperator<?> chainedOperator : outputHandler
-								.getChainedOperators()) {
+						for (StreamOperator<?> chainedOperator : outputHandler.getChainedOperators()) {
 							if (chainedOperator instanceof StatefulStreamOperator) {
 								chainedStates.add(((StatefulStreamOperator<?>) chainedOperator)
 										.getStateSnapshotFromFunction(checkpointId, timestamp));
@@ -281,7 +280,6 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	@SuppressWarnings("rawtypes")
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		// we do nothing here so far. this should call commit on the source function, for example
 		synchronized (checkpointLock) {
 
 			for (StreamOperator<?> chainedOperator : outputHandler.getChainedOperators()) {

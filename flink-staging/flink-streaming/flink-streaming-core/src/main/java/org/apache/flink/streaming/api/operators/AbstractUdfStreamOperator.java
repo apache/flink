@@ -27,16 +27,15 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.PartitionedStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.api.state.OperatorStateHandle;
+import org.apache.flink.streaming.api.state.PartitionedStreamOperatorState;
 import org.apache.flink.streaming.api.state.StreamOperatorState;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-
-import com.google.common.collect.ImmutableMap;
 
 /**
  * This is used as the base class for operators that have a user-defined
@@ -78,7 +77,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 
 	@Override
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public void restoreInitialState(Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>> snapshots) throws Exception {
+	public void restoreInitialState(Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> snapshots) throws Exception {
 		// Restore state using the Checkpointed interface
 		if (userFunction instanceof Checkpointed) {
 			((Checkpointed) userFunction).restoreState(snapshots.f0.getState());
@@ -86,49 +85,51 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 		
 		if (snapshots.f1 != null) {
 			// We iterate over the states registered for this operator, initialize and restore it
-			for (Entry<String, PartitionedStateHandle> snapshot : snapshots.f1.entrySet()) {
-				Map<Serializable, StateHandle<Serializable>> handles = snapshot.getValue().getState();
-				StreamOperatorState restoredState = runtimeContext.getState(snapshot.getKey(),
-						!(handles instanceof ImmutableMap));
-				restoredState.restoreState(snapshot.getValue().getState());
+			for (Entry<String, OperatorStateHandle> snapshot : snapshots.f1.entrySet()) {
+				StreamOperatorState restoredOpState = runtimeContext.getState(snapshot.getKey(), snapshot.getValue().isPartitioned());
+				StateHandle<Serializable> checkpointHandle = snapshot.getValue();
+				restoredOpState.restoreState(checkpointHandle);
 			}
 		}
 		
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>> getStateSnapshotFromFunction(long checkpointId, long timestamp)
+	public Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> getStateSnapshotFromFunction(long checkpointId, long timestamp)
 			throws Exception {
 		// Get all the states for the operator
 		Map<String, StreamOperatorState> operatorStates = runtimeContext.getOperatorStates();
 		
-		Map<String, PartitionedStateHandle> operatorStateSnapshots;
+		Map<String, OperatorStateHandle> operatorStateSnapshots;
 		if (operatorStates.isEmpty()) {
 			// We return null to signal that there is nothing to checkpoint
 			operatorStateSnapshots = null;
 		} else {
 			// Checkpoint the states and store the handles in a map
-			Map<String, PartitionedStateHandle> snapshots = new HashMap<String, PartitionedStateHandle>();
+			Map<String, OperatorStateHandle> snapshots = new HashMap<String, OperatorStateHandle>();
 
 			for (Entry<String, StreamOperatorState> state : operatorStates.entrySet()) {
+				boolean isPartitioned = state.getValue() instanceof PartitionedStreamOperatorState;
 				snapshots.put(state.getKey(),
-						new PartitionedStateHandle(state.getValue().snapshotState(checkpointId, timestamp)));
+						new OperatorStateHandle(state.getValue().snapshotState(checkpointId, timestamp),
+								isPartitioned));
 			}
 
 			operatorStateSnapshots = snapshots;
 		}
 		
 		StateHandle<Serializable> checkpointedSnapshot = null;
-
+		// if the UDF implements the Checkpointed interface we draw a snapshot
 		if (userFunction instanceof Checkpointed) {
 			StateHandleProvider<Serializable> provider = runtimeContext.getStateHandleProvider();
 			checkpointedSnapshot = provider.createStateHandle(((Checkpointed) userFunction)
 					.snapshotState(checkpointId, timestamp));
 		}
 		
+		// if we have either operator or checkpointed state we store it in a
+		// tuple2 otherwise return null
 		if (operatorStateSnapshots != null || checkpointedSnapshot != null) {
-			return new Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>(
-					checkpointedSnapshot, operatorStateSnapshots);
+			return Tuple2.of(checkpointedSnapshot, operatorStateSnapshots);
 		} else {
 			return null;
 		}

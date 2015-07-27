@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.streaming.api.state;
 
 import java.io.Serializable;
 import java.util.Map;
 
 import org.apache.flink.api.common.state.StateCheckpointer;
+import org.apache.flink.runtime.state.StateHandle;
 
 /**
  * Interface for storing and accessing partitioned state. The interface is
@@ -40,9 +41,9 @@ public interface PartitionedStateStore<S, C extends Serializable> {
 
 	Map<Serializable, S> getPartitionedState() throws Exception;
 
-	Map<Serializable, StateHandle<C>> snapshotStates(long checkpointId, long checkpointTimestamp) throws Exception;
+	StateHandle<Serializable> snapshotStates(long checkpointId, long checkpointTimestamp) throws Exception;
 
-	void restoreStates(Map<Serializable, StateHandle<C>> snapshots) throws Exception;
+	void restoreStates(StateHandle<Serializable> snapshot) throws Exception;
 
 	boolean containsKey(Serializable key);
 	

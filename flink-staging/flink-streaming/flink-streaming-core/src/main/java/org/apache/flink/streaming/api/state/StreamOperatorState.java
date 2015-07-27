@@ -42,15 +42,14 @@ import com.google.common.collect.ImmutableMap;
  */
 public class StreamOperatorState<S, C extends Serializable> implements OperatorState<S> {
 
-	public static final Serializable DEFAULTKEY = -1;
-
 	private S state;
 	protected StateCheckpointer<S, C> checkpointer;
-	private final StateHandleProvider<C> provider;
+	private final StateHandleProvider<Serializable> provider;
 
+	@SuppressWarnings("unchecked")
 	public StreamOperatorState(StateCheckpointer<S, C> checkpointer, StateHandleProvider<C> provider) {
 		this.checkpointer = checkpointer;
-		this.provider = provider;
+		this.provider = (StateHandleProvider<Serializable>) provider;
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -85,23 +84,24 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 		this.checkpointer = checkpointer;
 	}
 
-	protected StateHandleProvider<C> getStateHandleProvider() {
+	protected StateHandleProvider<Serializable> getStateHandleProvider() {
 		return provider;
 	}
 
-	public Map<Serializable, StateHandle<C>> snapshotState(long checkpointId,
-			long checkpointTimestamp) throws Exception {
-		return ImmutableMap.of(DEFAULTKEY, provider.createStateHandle(checkpointer.snapshotState(
-				value(), checkpointId, checkpointTimestamp)));
+	public StateHandle<Serializable> snapshotState(long checkpointId, long checkpointTimestamp)
+			throws Exception {
+		return provider.createStateHandle(checkpointer.snapshotState(value(), checkpointId,
+				checkpointTimestamp));
 
 	}
 
-	public void restoreState(Map<Serializable, StateHandle<C>> snapshots) throws Exception {
-		update(checkpointer.restoreState(snapshots.get(DEFAULTKEY).getState()));
+	@SuppressWarnings("unchecked")
+	public void restoreState(StateHandle<Serializable> snapshot) throws Exception {
+		update((S) checkpointer.restoreState((C) snapshot.getState()));
 	}
 
 	public Map<Serializable, S> getPartitionedState() throws Exception {
-		return ImmutableMap.of(DEFAULTKEY, state);
+		return ImmutableMap.of((Serializable) 0, state);
 	}
 	
 	@Override

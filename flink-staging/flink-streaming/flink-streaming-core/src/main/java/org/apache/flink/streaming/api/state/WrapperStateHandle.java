@@ -24,7 +24,6 @@ import java.util.Map;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.LocalStateHandle;
-import org.apache.flink.runtime.state.PartitionedStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 
 /**
@@ -36,24 +35,22 @@ public class WrapperStateHandle extends LocalStateHandle<Serializable> {
 
 	private static final long serialVersionUID = 1L;
 
-	public WrapperStateHandle(List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>> state) {
+	public WrapperStateHandle(List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>> state) {
 		super((Serializable) state);
 	}
 
 	@Override
 	public void discardState() throws Exception {
 		@SuppressWarnings("unchecked")
-		List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>> chainedStates = (List<Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>>>) getState();
-		for (Tuple2<StateHandle<Serializable>, Map<String, PartitionedStateHandle>> state : chainedStates) {
+		List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>> chainedStates = (List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>>) getState();
+		for (Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> state : chainedStates) {
 			if (state != null) {
 				if (state.f0 != null) {
 					state.f0.discardState();
 				}
 				if (state.f1 != null) {
-					for (PartitionedStateHandle statePartitions : state.f1.values()) {
-						for (StateHandle<Serializable> handle : statePartitions.getState().values()) {
-							handle.discardState();
-						}
+					for (StateHandle<Serializable> opState : state.f1.values()) {
+						opState.discardState();
 					}
 				}
 			}
