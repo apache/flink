@@ -4,7 +4,6 @@ import java.util.{List => JList, Random}
 
 import org.apache.flink.configuration.ConfigConstants._
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration}
-import org.apache.flink.mesos._
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.jobmanager.{JobManager, JobManagerMode}
 import org.apache.mesos.Protos.TaskState._
@@ -47,15 +46,23 @@ class FlinkScheduler extends Scheduler with SchedulerUtils {
   override def frameworkMessage(driver: SchedulerDriver, executorId: ExecutorID, slaveId: SlaveID, data: Array[Byte]): Unit = {
     val taskID = TaskID.parseFrom(data)
     if (taskID != null) {
-      LOG.info(s"Received heartbeat from taskID: ${taskID.getValue} running at executor: ${executorId.getValue} on slave: ${slaveId.getValue}")
-      taskManagers += taskID
+      LOG.debug(s"Received heartbeat from taskID: ${taskID.getValue} running at executor: ${executorId.getValue} on slave: ${slaveId.getValue}")
+
+      // add to list if not already known else just log it (at debug level)
+      taskManagers.find(_.getValue == taskID.getValue) match {
+        case Some(t) =>
+          LOG.debug(s"Heartbeat from known taskManager: ${taskID.getValue}")
+        case None =>
+          LOG.info(s"Heartbeat from unknown taskManager: ${taskID.getValue}, adding them to tracked list")
+          taskManagers += taskID
+      }
     } else {
       LOG.warn(s"Unrecognized framework message received from executor: ${executorId.getValue} on slave: ${slaveId.getValue}")
     }
   }
 
   override def registered(driver: SchedulerDriver, frameworkId: FrameworkID, masterInfo: MasterInfo): Unit = {
-      LOG.info(s"Registered as ${frameworkId.getValue} with master $masterInfo")
+    LOG.info(s"Registered as ${frameworkId.getValue} with master $masterInfo")
   }
 
   override def executorLost(driver: SchedulerDriver, executorId: ExecutorID, slaveId: SlaveID, status: Int): Unit = {
@@ -87,9 +94,9 @@ class FlinkScheduler extends Scheduler with SchedulerUtils {
     // this way we have better utilization and less memory wasted on overhead.
     val offersBySlaveId: Map[SlaveID, mutable.Buffer[Offer]] = offers.groupBy(_.getSlaveId)
     for ((slaveId, offers) <- offersBySlaveId) {
-      val totalMemory = offers.flatMap( _.getResourcesList.filter(x => x.getName == "mem" && x.getRole == role).map(_.getScalar.getValue) ).sum
-      val totalCPU = offers.flatMap( _.getResourcesList.filter(x => x.getName == "cpus" && x.getRole == role).map(_.getScalar.getValue) ).sum
-      val totalDisk = offers.flatMap( _.getResourcesList.filter(x => x.getName == "disk" && x.getRole == role).map(_.getScalar.getValue) ).sum
+      val totalMemory = offers.flatMap(_.getResourcesList.filter(x => x.getName == "mem" && x.getRole == role).map(_.getScalar.getValue)).sum
+      val totalCPU = offers.flatMap(_.getResourcesList.filter(x => x.getName == "cpus" && x.getRole == role).map(_.getScalar.getValue)).sum
+      val totalDisk = offers.flatMap(_.getResourcesList.filter(x => x.getName == "disk" && x.getRole == role).map(_.getScalar.getValue)).sum
       val portRanges = offers.flatMap(_.getResourcesList.filter(x => x.getName == "ports" && x.getRole == role).flatMap(_.getRanges.getRangeList))
       val ports = getNPortsFromPortRanges(2, portRanges)
       val offerAttributes = toAttributeMap(offers.flatMap(_.getAttributesList))
@@ -120,8 +127,8 @@ class FlinkScheduler extends Scheduler with SchedulerUtils {
         val taskId = TaskID.newBuilder().setValue(s"TaskManager_$taskmanagerCount").build()
 
         val artifactURIs: Set[String] = Set(
-        uberJarLocation
-        // http://path/to/log4j-console.properties
+          uberJarLocation
+          // http://path/to/log4j-console.properties
         )
         val command = createTaskManagerCommand(totalMemory.toInt)
         val taskInfo = createTaskInfo("taskManager", taskId, slaveId,
