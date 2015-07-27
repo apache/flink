@@ -18,6 +18,9 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -271,7 +274,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	 * Comparator creation
 	 */
 	private TypeComparator<?>[] fieldComparators;
-	private Field[] keyFields;
+	private transient Field[] keyFields;
 	private int comparatorHelperIndex = 0;
 	@Override
 	protected void initializeNewComparator(int keyCount) {
@@ -335,6 +338,53 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		}
 
 		return new PojoSerializer<T>(this.typeClass, fieldSerializers, reflectiveFields, config);
+	}
+
+	private void writeObject(ObjectOutputStream out)
+			throws IOException, ClassNotFoundException {
+		out.defaultWriteObject();
+		// length is -1 if null
+		if (keyFields == null) {
+			out.writeInt(-1);
+		}
+		else {
+			out.writeInt(keyFields.length);
+			for (Field field: keyFields) {
+				out.writeObject(field.getDeclaringClass());
+				out.writeUTF(field.getName());
+			}
+		}
+	}
+
+	private void readObject(ObjectInputStream in)
+			throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+		int numKeyFields = in.readInt();
+		if (numKeyFields == -1) {
+			keyFields = null;
+		}
+		else {
+			keyFields = new Field[numKeyFields];
+			for (int i = 0; i < numKeyFields; i++) {
+				Class<?> clazz = (Class<?>) in.readObject();
+				String fieldName = in.readUTF();
+				// try superclasses as well
+				while (clazz != null) {
+					try {
+						Field field = clazz.getDeclaredField(fieldName);
+						field.setAccessible(true);
+						keyFields[i] = field;
+						break;
+					} catch (NoSuchFieldException e) {
+						clazz = clazz.getSuperclass();
+					}
+				}
+				if (keyFields[i] == null) {
+					throw new RuntimeException("Class resolved at TaskManager is not compatible with class read during Plan setup."
+							+ " (" + fieldName + ")");
+				}
+			}
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
