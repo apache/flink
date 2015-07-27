@@ -344,15 +344,16 @@ class JobManager(
                     Collections.emptyMap()
                 }
 
+                var largeAccumulatorResults: java.util.Map[String, java.util.List[BlobKey]] =
+                  executionGraph.aggregateLargeUserAccumulatorBlobKeys()
+
                 /*
                 * The following covers the case where partial accumulator results are small, but
                 * when aggregated, they become big. In this case, this happens at the JobManager,
                 * and this code is responsible for detecting it, storing the oversized result in
                 * the BlobCache, and informing the Client accordingly.
                 * */
-                var largeAccumulatorResults: java.util.Map[String, java.util.List[BlobKey]] =
-                  executionGraph.aggregateLargeUserAccumulatorBlobKeys()
-
+                
                 val totalSize: Long = smallAccumulatorResults.asScala.map(_._2.getSizeInBytes).sum
                 if (totalSize > AkkaUtils.getLargeAccumulatorThreshold(jobConfig)) {
                   // given that the client is going to do the final merging, we serialize and
@@ -366,7 +367,7 @@ class JobManager(
 
                   // and update the blobKeys to send to the client.
                   largeAccumulatorResults = executionGraph.
-                    addLargeUserAccumulatorBlobKeys(newBlobKeys)
+                    addLargeUserAccumulatorBlobKeys(largeAccumulatorResults, newBlobKeys)
 
                 } else {
                   // do nothing
