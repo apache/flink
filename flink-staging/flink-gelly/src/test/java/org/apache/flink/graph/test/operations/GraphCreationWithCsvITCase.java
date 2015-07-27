@@ -46,7 +46,6 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 	private String expectedResult;
 
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testCreateWithCsvFile() throws Exception {
 		/*
 		 * Test with two Csv files one with Vertex Data and one with Edges data
@@ -61,9 +60,8 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 				"3,1,to\n";
 		final FileInputSplit split2 = createTempFile(fileContent2);
 
-		Graph<Long,Long,String> graph= Graph.fromCsvReader(split.getPath().toString(),split2.getPath().toString(),env)
-				.typesEdges(Long.class, String.class)
-				.typesVertices(Long.class, Long.class);
+		Graph<Long, Long, String> graph = Graph.fromCsvReader(split.getPath().toString(),split2.getPath().toString(),env)
+				.types(Long.class, Long.class, String.class);
 
 		List<Triplet<Long, Long, String>> result = graph.getTriplets().collect();
 
@@ -75,7 +73,6 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testCsvWithNullEdge() throws Exception {
 		/*
 		Test fromCsvReader with edge and vertex path and nullvalue for edge
@@ -90,10 +87,8 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 		final FileInputSplit split = createTempFile(vertexFileContent);
 		final FileInputSplit edgeSplit = createTempFile(edgeFileContent);
 
-		Graph<Long, String, NullValue> graph= Graph.fromCsvReader(split.getPath().toString(), edgeSplit.getPath().toString(),
-				env)
-				.typesEdges(Long.class)
-				.typesVerticesNullEdge(Long.class, String.class);
+		Graph<Long, String, NullValue> graph = Graph.fromCsvReader(split.getPath().toString(), edgeSplit.getPath().toString(),
+				env).vertexTypes(Long.class, String.class);
 
 		List<Triplet<Long, String, NullValue>> result = graph.getTriplets().collect();
 
@@ -105,7 +100,6 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testCsvWithConstantValueMapper() throws Exception {
 		/*
 		*Test fromCsvReader with edge path and a mapper that assigns a Double constant as value
@@ -117,8 +111,8 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 		final FileInputSplit split = createTempFile(fileContent);
 
 		Graph<Long, Double, String> graph = Graph.fromCsvReader(split.getPath().toString(),
-				new AssignDoubleValueMapper(), env).typesEdges(Long.class, String.class)
-				.typesVertices(Long.class, Double.class);
+				new AssignDoubleValueMapper(), env).types(Long.class, Double.class, String.class);
+
 		List<Triplet<Long, Double, String>> result = graph.getTriplets().collect();
 		//graph.getTriplets().writeAsCsv(resultPath);
 		expectedResult = "1,2,0.1,0.1,ot\n" + "3,1,0.1,0.1,to\n" + "3,2,0.1,0.1,tt\n";
@@ -126,7 +120,6 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testCreateWithOnlyEdgesCsvFile() throws Exception {
 		/*
 		 * Test with one Csv file one with Edges data. Also tests the configuration method ignoreFistLineEdges()
@@ -137,11 +130,10 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 				"3,1,to\n";
 
 		final FileInputSplit split2 = createTempFile(fileContent2);
-		Graph<Long,NullValue,String> graph= Graph.fromCsvReader(split2.getPath().toString(), env)
+		Graph<Long, NullValue, String> graph= Graph.fromCsvReader(split2.getPath().toString(), env)
 				.ignoreFirstLineEdges()
 				.ignoreCommentsVertices("hi")
-				.typesEdges(Long.class, String.class)
-				.typesVertices(Long.class);
+				.edgeTypes(Long.class, String.class);
 
 		List<Triplet<Long, NullValue, String>> result = graph.getTriplets().collect();
 		expectedResult = "1,2,(null),(null),ot\n" +
@@ -152,7 +144,6 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testCreateCsvFileDelimiterConfiguration() throws Exception {
 		/*
 		 * Test with an Edge and Vertex csv file. Tests the configuration methods FieldDelimiterEdges and
@@ -173,12 +164,11 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 
 		final FileInputSplit split2 = createTempFile(fileContent2);
 
-		Graph<Long,Long,String> graph= Graph.fromCsvReader(split.getPath().toString(),split2.getPath().toString(),env).
+		Graph<Long, Long, String> graph= Graph.fromCsvReader(split.getPath().toString(),split2.getPath().toString(),env).
 				ignoreFirstLineEdges().ignoreFirstLineVertices().
 				fieldDelimiterEdges(":").fieldDelimiterVertices(";").
 				lineDelimiterEdges("|").
-				typesEdges(Long.class, String.class)
-				.typesVertices(Long.class, Long.class);
+				types(Long.class, Long.class, String.class);
 
 		List<Triplet<Long, Long, String>> result = graph.getTriplets().collect();
 

@@ -292,8 +292,8 @@ public class Graph<K, VV, EV> {
 	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , on which calling typesEdges() and typesVertices() methods to specify types of the
 	*Vertex ID, Vertex Value and Edge value returns a Graph
 	*/
-	public static  <K, VV, EV> GraphCsvReader<K, VV, EV> fromCsvReader(String verticesPath, String edgesPath, ExecutionEnvironment context) {
-		return new GraphCsvReader<K, VV, EV>(verticesPath, edgesPath, context);
+	public static GraphCsvReader fromCsvReader(String verticesPath, String edgesPath, ExecutionEnvironment context) {
+		return new GraphCsvReader(verticesPath, edgesPath, context);
 	}
 	/** Creates a graph from a CSV file for Edges.Vertices are
 	* induced from the edges.
@@ -306,16 +306,16 @@ public class Graph<K, VV, EV> {
 	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader} , on which calling typesEdges() and typesVertices() methods to specify types of the
 	* Vertex ID, Vertex Value and Edge value returns a Graph
 	*/
-	public static <K, VV, EV> GraphCsvReader<K, VV, EV> fromCsvReader(String edgesPath, ExecutionEnvironment context) {
-		return new GraphCsvReader<K, VV, EV>(edgesPath, context);
+	public static GraphCsvReader fromCsvReader(String edgesPath, ExecutionEnvironment context) {
+		return new GraphCsvReader(edgesPath, context);
 	}
 
 	/**
-	 *Creates a graph from a CSV file for Edges., Vertices are
-	 * induced from the edges and vertex values are calculated by a mapper
-	 * function.  Edges with value are created from a CSV file with 3 fields.
+	 *Creates a graph from a CSV file for Edges.
+	 * Vertices are induced from the edges and vertex values are calculated by a mapper
+	 * function. Edges with value are created from a CSV file with 3 fields.
 	 * Vertices are created automatically and their values are set by applying the provided map
-	 * function to the vertex ids.
+	 * function to the vertex IDs.
 	 *
 	 * @param edgesPath a path to a CSV file with the Edges data
 	 * @param mapper the mapper function.
@@ -323,9 +323,9 @@ public class Graph<K, VV, EV> {
 	 * @return An instance of {@link org.apache.flink.graph.GraphCsvReader} ,on which calling typesEdges() and typesVertices() methods to specify types of the
 	 * Vertex ID, Vertex Value and Edge value returns a Graph
 	 */
-	public static <K, VV, EV> GraphCsvReader<K, VV, EV> fromCsvReader(String edgesPath,
+	public static <K, VV> GraphCsvReader fromCsvReader(String edgesPath,
 			final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
-		return new GraphCsvReader<K, VV, EV>(edgesPath, mapper, context);
+		return new GraphCsvReader(edgesPath, mapper, context);
 	}
 
 	/**
@@ -1899,7 +1899,7 @@ public class Graph<K, VV, EV> {
 	 *            the function to apply to the neighborhood
 	 * @param direction
 	 *            the edge direction (in-, out-, all-)
-	 * @return a Dataset containing one value per vertex(vertex key, aggegate edge value)
+	 * @return a Dataset containing one value per vertex(vertex key, aggregate edge value)
 	 * @throws IllegalArgumentException
 	 */
 	public DataSet<Tuple2<K, EV>> reduceOnEdges(ReduceEdgesFunction<EV> reduceEdgesFunction,

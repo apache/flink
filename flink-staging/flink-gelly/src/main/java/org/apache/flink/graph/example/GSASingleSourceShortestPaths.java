@@ -168,15 +168,15 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 		return true;
 	}
 
-	@SuppressWarnings("unchecked")
 	private static Graph<Long, Double, Double> getGraph(ExecutionEnvironment env) {
 		if (fileOutput) {
-			return Graph.fromCsvReader(edgesInputPath, new InitVertices(srcVertexId), env).fieldDelimiterEdges("\t")
+			return Graph.fromCsvReader(edgesInputPath, new InitVertices(srcVertexId), env)
+					.fieldDelimiterEdges("\t")
 					.lineDelimiterEdges("\n")
-					.typesEdges(Long.class, Double.class)
-					.typesVertices(Long.class, Double.class);
+					.types(Long.class, Double.class, Double.class);
 		} else {
-			return Graph.fromDataSet(SingleSourceShortestPathsData.getDefaultEdgeDataSet(env), new InitVertices(srcVertexId), env);
+			return Graph.fromDataSet(SingleSourceShortestPathsData.getDefaultEdgeDataSet(env),
+					new InitVertices(srcVertexId), env);
 		}
 	}
 

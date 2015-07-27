@@ -22,6 +22,8 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.ConnectedComponentsDefaultData;
@@ -57,8 +59,14 @@ public class ConnectedComponents implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		//util method getGraph is used
-		Graph<Long, Long, NullValue> graph = ConnectedComponents.getGraph(env);
+		DataSet<Edge<Long, NullValue>> edges = getEdgesDataSet(env);
+
+		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(edges, new MapFunction<Long, Long>() {
+			@Override
+			public Long map(Long value) throws Exception {
+				return value;
+			}
+		}, env);
 
 		DataSet<Vertex<Long, Long>> verticesWithMinIds = graph
 				.run(new GSAConnectedComponents(maxIterations)).getVertices();
@@ -110,29 +118,24 @@ public class ConnectedComponents implements ProgramDescription {
 
 		return true;
 	}
-@SuppressWarnings("unchecked")
-	private static Graph<Long, Long, NullValue> getGraph(ExecutionEnvironment env) {
-		Graph<Long, Long, NullValue> graph;
-		if(!fileOutput) {
-			graph = Graph.fromDataSet(ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
-					new MapFunction<Long, Long>() {
 
-						public Long map(Long label) {
-							return label;
+	@SuppressWarnings("serial")
+	private static DataSet<Edge<Long, NullValue>> getEdgesDataSet(ExecutionEnvironment env) {
+
+		if(fileOutput) {
+			return env.readCsvFile(edgeInputPath)
+					.ignoreComments("#")
+					.fieldDelimiter("\t")
+					.lineDelimiter("\n")
+					.types(Long.class, Long.class)
+					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
+						@Override
+						public Edge<Long, NullValue> map(Tuple2<Long, Long> value) throws Exception {
+							return new Edge<Long, NullValue>(value.f0, value.f1, NullValue.getInstance());
 						}
-					}, env);
+					});
 		} else {
-			graph = Graph.fromCsvReader(edgeInputPath,new MapFunction<Long, Long>() {
-				public Long map(Long label) {
-					return label;
-				}
-			}, env).ignoreCommentsEdges("#")
-					.fieldDelimiterEdges("\t")
-					.lineDelimiterEdges("\n")
-					.typesEdges(Long.class)
-					.typesVerticesNullEdge(Long.class, Long.class);
-
+			return ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env);
 		}
-		return graph;
 	}
 }

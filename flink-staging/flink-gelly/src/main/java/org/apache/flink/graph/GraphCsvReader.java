@@ -36,44 +36,44 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * The configuration is done using the functions provided in The {@link org.apache.flink.api.java.io.CsvReader} class.
  */
 
-public class GraphCsvReader<K, VV, EV> {
+public class GraphCsvReader {
 
 	@SuppressWarnings("unused")
 	private final Path vertexPath, edgePath;
 	private final ExecutionEnvironment executionContext;
 	protected CsvReader edgeReader;
 	protected CsvReader vertexReader;
-	protected MapFunction<K, VV> mapper;
-	protected Class<K> vertexKey;
-	protected Class<VV> vertexValue;
-	protected Class<EV> edgeValue;
+	protected MapFunction<?, ?> mapper;
+	protected Class<?> vertexKey;
+	protected Class<?> vertexValue;
+	protected Class<?> edgeValue;
 
 //--------------------------------------------------------------------------------------------------------------------
 	public GraphCsvReader(Path vertexPath, Path edgePath, ExecutionEnvironment context) {
 		this.vertexPath = vertexPath;
 		this.edgePath = edgePath;
-		this.vertexReader = new CsvReader(vertexPath,context);
-		this.edgeReader = new CsvReader(edgePath,context);
-		this.mapper=null;
-		this.executionContext=context;
+		this.vertexReader = new CsvReader(vertexPath, context);
+		this.edgeReader = new CsvReader(edgePath, context);
+		this.mapper = null;
+		this.executionContext = context;
 	}
 
 	public GraphCsvReader(Path edgePath, ExecutionEnvironment context) {
 		this.vertexPath = null;
 		this.edgePath = edgePath;
-		this.edgeReader = new CsvReader(edgePath,context);
+		this.edgeReader = new CsvReader(edgePath, context);
 		this.vertexReader = null;
 		this.mapper = null;
-		this.executionContext=context;
+		this.executionContext = context;
 	}
 
-	public GraphCsvReader(Path edgePath,final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
+	public <K, VV> GraphCsvReader(Path edgePath, final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
 		this.vertexPath = null;
 		this.edgePath = edgePath;
-		this.edgeReader = new CsvReader(edgePath,context);
+		this.edgeReader = new CsvReader(edgePath, context);
 		this.vertexReader = null;
 		this.mapper = mapper;
-		this.executionContext=context;
+		this.executionContext = context;
 	}
 
 	public GraphCsvReader (String edgePath, ExecutionEnvironment context) {
@@ -87,44 +87,56 @@ public class GraphCsvReader<K, VV, EV> {
 	}
 
 
-	public GraphCsvReader (String edgePath, final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
-			this(new Path(Preconditions.checkNotNull(edgePath, "The file path may not be null.")),mapper, context);
+	public <K, VV> GraphCsvReader(String edgePath, final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
+			this(new Path(Preconditions.checkNotNull(edgePath, "The file path may not be null.")), mapper, context);
 	}
 
 	/**
-	 * with vertex value *and* edge value
-	 * @param vertexKey
-	 * @param vertexValue
-	 * @param edgeValue
-	 * @return
+	 * Creates a Graph from CSV input(s) with vertex values and edge values.
+	 * The vertex values are specified through a vertices input file or a user-defined map function.
+	 * If no vertices input file is provided, the vertex IDs are automatically created from the edges
+	 * input file.
+	 * @param vertexKey the type of the vertex IDs
+	 * @param vertexValue the type of the vertex values
+	 * @param edgeValue the type of the edge values
+	 * @return a Graph with vertex and edge values.
 	 */
-	public Graph<K, VV, EV> types(Class<K> vertexKey, Class<VV> vertexValue, Class<EV> edgeValue) {
+	@SuppressWarnings("unchecked")
+	public <K, VV, EV> Graph<K, VV, EV> types(Class<K> vertexKey, Class<VV> vertexValue,
+			Class<EV> edgeValue) {
 
-		if (vertexReader == null) {
-			// some exception
-		}
+		DataSet<Tuple2<K, VV>> vertices = null;
+
 		if (edgeReader == null) {
-			// some exception
+			throw new RuntimeException("The edges input file cannot be null!");
 		}
-		DataSet<Tuple2<K, VV>> vertices = vertexReader.types(vertexKey, vertexValue);
+
 		DataSet<Tuple3<K, K, EV>> edges = edgeReader.types(vertexKey, vertexKey, edgeValue);
 
-		return Graph.fromTupleDataSet(vertices, edges, executionContext);
+		// the vertex value can be provided by an input file or a user-defined mapper
+		if (vertexReader != null) {
+			vertices = vertexReader.types(vertexKey, vertexValue);
+			return Graph.fromTupleDataSet(vertices, edges, executionContext);
+		}
+		else if (mapper != null) {
+			return Graph.fromTupleDataSet(edges, (MapFunction<K, VV>) mapper, executionContext);
+		}
+		else {
+			throw new RuntimeException("Vertex values have to be specified through a vertices input file"
+					+ "or a user-defined map function.");
+		}
 	}
 
 	/**
-	 * with edge value, no vertex value
-	 * @param vertexKey
-	 * @param edgeValue
-	 * @return
+	 * Creates a Graph from CSV input with edge values, but without vertex values.
+	 * @param vertexKey the type of the vertex IDs
+	 * @param edgeValue the type of the edge values
+	 * @return a Graph where the edges are read from an edges CSV file (with values).
 	 */
-	public Graph<K, NullValue, EV> types(Class<K> vertexKey, Class<EV> edgeValue) {
+	public <K, EV> Graph<K, NullValue, EV> edgeTypes(Class<K> vertexKey, Class<EV> edgeValue) {
 
-		if (vertexReader != null) {
-			// some exception
-		}
 		if (edgeReader == null) {
-			// some exception
+			throw new RuntimeException("The edges input file cannot be null!");
 		}
 
 		DataSet<Tuple3<K, K, EV>> edges = edgeReader.types(vertexKey, vertexKey, edgeValue);
@@ -133,17 +145,14 @@ public class GraphCsvReader<K, VV, EV> {
 	}
 
 	/**
-	 * no edge value, no vertex value
-	 * @param vertexKey
-	 * @return
+	 * Creates a Graph from CSV input without vertex values or edge values.
+	 * @param vertexKey the type of the vertex IDs
+	 * @return a Graph where the vertex IDs are read from the edges input file.
 	 */
-	public Graph<K, NullValue, NullValue> types(Class<K> vertexKey) {
+	public <K> Graph<K, NullValue, NullValue> keyType(Class<K> vertexKey) {
 
-		if (vertexReader != null) {
-			// some exception
-		}
 		if (edgeReader == null) {
-			// some exception
+			throw new RuntimeException("The edges input file cannot be null!");
 		}
 
 		@SuppressWarnings("serial")
@@ -159,23 +168,43 @@ public class GraphCsvReader<K, VV, EV> {
 	}
 
 	/**
-	 * with vertex value, no edge value
-	 * @param vertexKey
-	 * @param vertexValue
-	 * @return
+	 * Creates a Graph from CSV input without edge values.
+	 * The vertex values are specified through a vertices input file or a user-defined map function.
+	 * If no vertices input file is provided, the vertex IDs are automatically created from the edges
+	 * input file.
+	 * @param vertexKey the type of the vertex IDs
+	 * @param vertexValue the type of the vertex values
+	 * @return a Graph where the vertex IDs and vertex values.
 	 */
-	public Graph<K, VV, NullValue> types(Class<K> vertexKey, Class<VV> vertexValue) {
+	@SuppressWarnings({ "serial", "unchecked" })
+	public <K, VV> Graph<K, VV, NullValue> vertexTypes(Class<K> vertexKey, Class<VV> vertexValue) {
+		
+		DataSet<Tuple2<K, VV>> vertices = null;
 
-		if (vertexReader != null) {
-			// some exception
-		}
 		if (edgeReader == null) {
-			// some exception
+			throw new RuntimeException("The edges input file cannot be null!");
 		}
 
-		DataSet<Tuple3<K, K, EV>> edges = edgeReader.types(vertexKey, vertexKey, edgeValue);
+		DataSet<Tuple3<K, K, NullValue>> edges = edgeReader.types(vertexKey, vertexKey)
+				.map(new MapFunction<Tuple2<K,K>, Tuple3<K, K, NullValue>>() {
 
-		return Graph.fromTupleDataSet(edges, executionContext);
+					public Tuple3<K, K, NullValue> map(Tuple2<K, K> input) {
+						return new Tuple3<K, K, NullValue>(input.f0, input.f1, NullValue.getInstance());
+					}
+				}).withForwardedFields("f0;f1");
+
+		// the vertex value can be provided by an input file or a user-defined mapper
+		if (vertexReader != null) {
+			vertices = vertexReader.types(vertexKey, vertexValue);
+			return Graph.fromTupleDataSet(vertices, edges, executionContext);
+		}
+		else if (mapper != null) {
+			return Graph.fromTupleDataSet(edges, (MapFunction<K, VV>) mapper, executionContext);
+		}
+		else {
+			throw new RuntimeException("Vertex values have to be specified through a vertices input file"
+					+ "or a user-defined map function.");
+		}
 	}
 
 	/**
@@ -183,9 +212,9 @@ public class GraphCsvReader<K, VV, EV> {
 	 *	({@code '\n'}) is used by default.
 	 *
 	 *@param delimiter The delimiter that separates the rows.
-	 * @return The GraphCsv reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> lineDelimiterEdges(String delimiter) {
+	public GraphCsvReader lineDelimiterEdges(String delimiter) {
 		edgeReader.lineDelimiter(delimiter);
 		return this;
 	}
@@ -195,10 +224,10 @@ public class GraphCsvReader<K, VV, EV> {
 	 *	({@code '\n'}) is used by default.
 	 *
 	 *@param delimiter The delimiter that separates the rows.
-	 * @return The GraphCsv reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> lineDelimiterVertices(String delimiter) {
-		if(this.vertexReader !=null) {
+	public GraphCsvReader lineDelimiterVertices(String delimiter) {
+		if(this.vertexReader != null) {
 			this.vertexReader.lineDelimiter(delimiter);
 		}
 		return this;
@@ -211,8 +240,8 @@ public class GraphCsvReader<K, VV, EV> {
 	 * @param delimiter The delimiter that separates the fields in a row.
 	 * @return The GraphCsv reader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> fieldDelimiterVertices(String delimiter) {
-		if(this.vertexReader !=null) {
+	public GraphCsvReader fieldDelimiterVertices(String delimiter) {
+		if(this.vertexReader != null) {
 			this.vertexReader.fieldDelimiter(delimiter);
 		}
 		return this;
@@ -225,7 +254,7 @@ public class GraphCsvReader<K, VV, EV> {
 	 * @param delimiter The delimiter that separates the fields in a row.
 	 * @return The GraphCsv reader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> fieldDelimiterEdges(String delimiter) {
+	public GraphCsvReader fieldDelimiterEdges(String delimiter) {
 		this.edgeReader.fieldDelimiter(delimiter);
 		return this;
 	}
@@ -236,9 +265,9 @@ public class GraphCsvReader<K, VV, EV> {
 	 * Leading or tailing whitespaces are not allowed.
 	 *
 	 * @param quoteCharacter The character which is used as quoting character.
-	 * @return The Graph Csv reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> parseQuotedStringsEdges(char quoteCharacter) {
+	public GraphCsvReader parseQuotedStringsEdges(char quoteCharacter) {
 		this.edgeReader.parseQuotedStrings(quoteCharacter);
 		return this;
 	}
@@ -249,10 +278,10 @@ public class GraphCsvReader<K, VV, EV> {
 	 * Leading or tailing whitespaces are not allowed.
 	 *
 	 * @param quoteCharacter The character which is used as quoting character.
-	 * @return The Graph Csv reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> parseQuotedStringsVertices(char quoteCharacter) {
-		if(this.vertexReader !=null) {
+	public GraphCsvReader parseQuotedStringsVertices(char quoteCharacter) {
+		if(this.vertexReader != null) {
 			this.vertexReader.parseQuotedStrings(quoteCharacter);
 		}
 		return this;
@@ -264,10 +293,10 @@ public class GraphCsvReader<K, VV, EV> {
 	 * This function only recognizes comments which start at the beginning of the line!
 	 *
 	 * @param commentPrefix The string that starts the comments.
-	 * @return The Graph csv reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> ignoreCommentsVertices(String commentPrefix) {
-		if(this.vertexReader !=null) {
+	public GraphCsvReader ignoreCommentsVertices(String commentPrefix) {
+		if(this.vertexReader != null) {
 			this.vertexReader.ignoreComments(commentPrefix);
 		}
 		return this;
@@ -279,9 +308,9 @@ public class GraphCsvReader<K, VV, EV> {
 	 * This function only recognizes comments which start at the beginning of the line!
 	 *
 	 * @param commentPrefix The string that starts the comments.
-	 * @return The Graph csv reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> ignoreCommentsEdges(String commentPrefix) {
+	public GraphCsvReader ignoreCommentsEdges(String commentPrefix) {
 		this.edgeReader.ignoreComments(commentPrefix);
 		return this;
 	}
@@ -296,10 +325,10 @@ public class GraphCsvReader<K, VV, EV> {
 	 * occurs in the fields array.
 	 *
 	 * @param vertexFields The array of flags that describes which fields are to be included from the CSV file for vertices.
-	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> includeFieldsVertices(boolean ... vertexFields) {
-		if(this.vertexReader !=null) {
+	public GraphCsvReader includeFieldsVertices(boolean ... vertexFields) {
+		if(this.vertexReader != null) {
 			this.vertexReader.includeFields(vertexFields);
 		}
 		return this;
@@ -315,9 +344,9 @@ public class GraphCsvReader<K, VV, EV> {
 	 * occurs in the fields array.
 	 *
 	 * @param edgeFields The array of flags that describes which fields are to be included from the CSV file for edges.
-	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> includeFieldsEdges(boolean ... edgeFields) {
+	public GraphCsvReader includeFieldsEdges(boolean ... edgeFields) {
 		this.edgeReader.includeFields(edgeFields);
 		return this;
 	}
@@ -333,10 +362,10 @@ public class GraphCsvReader<K, VV, EV> {
 	 * the boolean array is {@code '1'}, {@code 'T'}, or {@code 't'} (representing the value {@code true}).
 	 *
 	 * @param mask The string mask defining which fields to include and which to skip.
-	 * @return The Graph Csv reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> includeFieldsVertices(String mask) {
-		if(this.vertexReader !=null) {
+	public GraphCsvReader includeFieldsVertices(String mask) {
+		if(this.vertexReader != null) {
 			this.vertexReader.includeFields(mask);
 		}
 		return this;
@@ -353,9 +382,9 @@ public class GraphCsvReader<K, VV, EV> {
 	 * the boolean array is {@code '1'}, {@code 'T'}, or {@code 't'} (representing the value {@code true}).
 	 *
 	 * @param mask The string mask defining which fields to include and which to skip.
-	 * @return The Graph Csv reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> includeFieldsEdges(String mask) {
+	public GraphCsvReader includeFieldsEdges(String mask) {
 		this.edgeReader.includeFields(mask);
 		return this;
 	}
@@ -377,10 +406,10 @@ public class GraphCsvReader<K, VV, EV> {
 	 * </ul>
 	 *
 	 * @param mask The bit mask defining which fields to include and which to skip.
-	 * @return The Graph CSV reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> includeFieldsVertices(long mask) {
-		if(this.vertexReader !=null) {
+	public GraphCsvReader includeFieldsVertices(long mask) {
+		if(this.vertexReader != null) {
 			this.vertexReader.includeFields(mask);
 		}
 		return this;
@@ -403,9 +432,9 @@ public class GraphCsvReader<K, VV, EV> {
 	 * </ul>
 	 *
 	 * @param mask The bit mask defining which fields to include and which to skip.
-	 * @return The Graph CSV reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> includeFieldsEdges(long mask) {
+	public GraphCsvReader includeFieldsEdges(long mask) {
 		this.edgeReader.includeFields(mask);
 		return this;
 	}
@@ -413,9 +442,9 @@ public class GraphCsvReader<K, VV, EV> {
 	/**
 	 * Sets the CSV reader for the Edges file to ignore the first line. This is useful for files that contain a header line.
 	 *
-	 * @return The Graph CSV reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> ignoreFirstLineEdges() {
+	public GraphCsvReader ignoreFirstLineEdges() {
 		this.edgeReader.ignoreFirstLine();
 		return this;
 	}
@@ -423,10 +452,10 @@ public class GraphCsvReader<K, VV, EV> {
 	/**
 	 * Sets the CSV reader for the Vertices file to ignore the first line. This is useful for files that contain a header line.
 	 *
-	 * @return The Graph CSV reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> ignoreFirstLineVertices() {
-		if(this.vertexReader !=null) {
+	public GraphCsvReader ignoreFirstLineVertices() {
+		if(this.vertexReader != null) {
 			this.vertexReader.ignoreFirstLine();
 		}
 		return this;
@@ -436,9 +465,9 @@ public class GraphCsvReader<K, VV, EV> {
 	 * Sets the CSV reader for the Edges file  to ignore any invalid lines.
 	 * This is useful for files that contain an empty line at the end, multiple header lines or comments. This would throw an exception otherwise.
 	 *
-	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> ignoreInvalidLinesEdges() {
+	public GraphCsvReader ignoreInvalidLinesEdges() {
 		this.edgeReader.ignoreInvalidLines();
 		return this;
 	}
@@ -447,10 +476,10 @@ public class GraphCsvReader<K, VV, EV> {
 	 * Sets the CSV reader Vertices file  to ignore any invalid lines.
 	 * This is useful for files that contain an empty line at the end, multiple header lines or comments. This would throw an exception otherwise.
 	 *
-	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphCsvReader<?, ?, ?> ignoreInvalidLinesVertices() {
-		if(this.vertexReader !=null) {
+	public GraphCsvReader ignoreInvalidLinesVertices() {
+		if(this.vertexReader != null) {
 			this.vertexReader.ignoreInvalidLines();
 		}
 		return this;
