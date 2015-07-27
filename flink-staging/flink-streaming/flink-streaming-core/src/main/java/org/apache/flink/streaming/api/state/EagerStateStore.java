@@ -24,20 +24,20 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.flink.api.common.state.StateCheckpointer;
-import org.apache.flink.runtime.state.PartitionedStateStore;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
 
 public class EagerStateStore<S, C extends Serializable> implements PartitionedStateStore<S, C> {
 
-	private StateCheckpointer<S, C> checkpointer;
-	private final StateHandleProvider<C> provider;
+	private StateCheckpointer<S,C> checkpointer;
+	private final StateHandleProvider<Serializable> provider;
 
 	private Map<Serializable, S> fetchedState;
 
+	@SuppressWarnings("unchecked")
 	public EagerStateStore(StateCheckpointer<S, C> checkpointer, StateHandleProvider<C> provider) {
 		this.checkpointer = checkpointer;
-		this.provider = provider;
+		this.provider = (StateHandleProvider<Serializable>) provider;
 
 		fetchedState = new HashMap<Serializable, S>();
 	}
@@ -58,23 +58,25 @@ public class EagerStateStore<S, C extends Serializable> implements PartitionedSt
 	}
 
 	@Override
-	public Map<Serializable, StateHandle<C>> snapshotStates(long checkpointId,
-			long checkpointTimestamp) {
-
-		Map<Serializable, StateHandle<C>> handles = new HashMap<Serializable, StateHandle<C>>();
-
+	public StateHandle<Serializable> snapshotStates(long checkpointId, long checkpointTimestamp) {
+		// we map the values in the state-map using the state-checkpointer and store it as a checkpoint
+		Map<Serializable, C> checkpoints = new HashMap<Serializable, C>();
 		for (Entry<Serializable, S> stateEntry : fetchedState.entrySet()) {
-			handles.put(stateEntry.getKey(), provider.createStateHandle(checkpointer.snapshotState(
-					stateEntry.getValue(), checkpointId, checkpointTimestamp)));
+			checkpoints.put(stateEntry.getKey(),
+					checkpointer.snapshotState(stateEntry.getValue(), checkpointId, checkpointTimestamp));
 		}
-		return handles;
+		return provider.createStateHandle((Serializable) checkpoints);
 	}
 
 	@Override
-	public void restoreStates(Map<Serializable, StateHandle<C>> snapshots) throws Exception {
-		for (Entry<Serializable, StateHandle<C>> snapshotEntry : snapshots.entrySet()) {
-			fetchedState.put(snapshotEntry.getKey(),
-					checkpointer.restoreState(snapshotEntry.getValue().getState()));
+	public void restoreStates(StateHandle<Serializable> snapshot) throws Exception {
+		
+		@SuppressWarnings("unchecked")
+		Map<Serializable, C> checkpoints = (Map<Serializable, C>) snapshot.getState();
+		
+		// we map the values back to the state from the checkpoints
+		for (Entry<Serializable, C> snapshotEntry : checkpoints.entrySet()) {
+			fetchedState.put(snapshotEntry.getKey(), (S) checkpointer.restoreState(snapshotEntry.getValue()));
 		}
 	}
 

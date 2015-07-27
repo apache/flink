@@ -25,7 +25,6 @@ import java.util.Map;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.StateCheckpointer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.runtime.state.PartitionedStateStore;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -83,7 +82,7 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 				if (stateStore.containsKey(key)) {
 					return stateStore.getStateForKey(key);
 				} else {
-					return checkpointer.restoreState((C) InstantiationUtil.deserializeObject(
+					return (S) checkpointer.restoreState((C) InstantiationUtil.deserializeObject(
 							defaultState, cl));
 				}
 			} catch (Exception e) {
@@ -123,13 +122,13 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 	}
 
 	@Override
-	public Map<Serializable, StateHandle<C>> snapshotState(long checkpointId,
+	public StateHandle<Serializable> snapshotState(long checkpointId,
 			long checkpointTimestamp) throws Exception {
 		return stateStore.snapshotStates(checkpointId, checkpointTimestamp);
 	}
 
 	@Override
-	public void restoreState(Map<Serializable, StateHandle<C>> snapshots) throws Exception {
+	public void restoreState(StateHandle<Serializable> snapshots) throws Exception {
 		stateStore.restoreStates(snapshots);
 	}
 
