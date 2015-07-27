@@ -334,7 +334,7 @@ class JobManager(
               case JobStatus.FINISHED =>
 
                 val jobConfig = currentJobs.getOrElse(jobID,
-                  throw new RuntimeException("Unknown Job: "+ jobID))._1.getJobConfiguration
+                  throw new RuntimeException("Unknown Job: " + jobID))._1.getJobConfiguration
 
                 val smallAccumulatorResults: java.util.Map[String, SerializedValue[AnyRef]] = try {
                   executionGraph.getSmallAccumulatorsContentSerialized
@@ -345,10 +345,10 @@ class JobManager(
                 }
 
                 /*
-                * The following covers the case where partial accumulator results are small, but when
-                * aggregated, they become big. In this case, this happens at the JobManager, and this code
-                * is responsible for detecting it, storing the oversized result in the BlobCache, and
-                * informing the Client accordingly.
+                * The following covers the case where partial accumulator results are small, but
+                * when aggregated, they become big. In this case, this happens at the JobManager,
+                * and this code is responsible for detecting it, storing the oversized result in
+                * the BlobCache, and informing the Client accordingly.
                 * */
                 var largeAccumulatorResults: java.util.Map[String, java.util.List[BlobKey]] =
                   executionGraph.aggregateLargeUserAccumulatorBlobKeys()
@@ -365,26 +365,14 @@ class JobManager(
                   smallAccumulatorResults.clear()
 
                   // and update the blobKeys to send to the client.
-                  largeAccumulatorResults = executionGraph.addLargeUserAccumulatorBlobKeys(newBlobKeys)
+                  largeAccumulatorResults = executionGraph.
+                    addLargeUserAccumulatorBlobKeys(newBlobKeys)
+
                 } else {
                   // do nothing
                   java.util.Collections.emptyMap()
                 }
-//
-//
-//
-//                val it = newBlobKeys.entrySet().iterator()
-//                while (it.hasNext) {
-//                  val e = it.next()
-//                  val existingKeys = largeAccumulatorResults.get(e.getKey)
-//                  if(existingKeys == null) {
-//                    largeAccumulatorResults.put(e.getKey, e.getValue)
-//                  } else {
-//                    existingKeys.addAll(e.getValue)
-//                    largeAccumulatorResults.put(e.getKey, existingKeys)
-//                  }
-//                }
-
+                
                 val result = new SerializedJobExecutionResult(jobID,
                   jobInfo.duration, smallAccumulatorResults, largeAccumulatorResults)
                 jobInfo.client ! JobResultSuccess(result)
