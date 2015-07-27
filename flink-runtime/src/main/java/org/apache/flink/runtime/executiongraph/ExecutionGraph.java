@@ -141,6 +141,12 @@ public class ExecutionGraph implements Serializable {
 	/** The currently executed tasks, for callbacks */
 	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
 
+	/** This is to guarantee that merging is going to happen only once. */
+	private Map<String, Accumulator<?, ?>> mergedSmallUserAccumulators;
+
+	/** This is to guarantee that merging is going to happen only once. */
+	private Map<String, List<BlobKey>> mergedLargeUserAccumulators;
+
 	/**
 	 * Updates the accumulators during the runtime of a job. Final accumulator results are transferred
 	 * through the UpdateTaskExecutionState message.
@@ -573,58 +579,99 @@ public class ExecutionGraph implements Serializable {
 
 	/**
 	 * Merges all accumulator results from the tasks previously executed in the Executions.
+	 * If the accumulators have already been merged, then the already computed result is returned.
+	 * This is to avoid merging accumulators more than once. The later could lead to WRONG resutls, as
+	 * accumulator merging happens in-place, thus merging more than once can lead to duplicate entries.
 	 * @return The accumulator map
 	 */
 	public Map<String, Accumulator<?,?>> aggregateSmallUserAccumulators() {
+		if(mergedSmallUserAccumulators != null) {
+			return mergedSmallUserAccumulators;
+		}
 
-		Map<String, Accumulator<?, ?>> smallUserAccumulators = new HashMap<String, Accumulator<?, ?>>();
-
+		this.mergedSmallUserAccumulators = new HashMap<String, Accumulator<?, ?>>();
 		for (ExecutionVertex vertex : getAllExecutionVertices()) {
 			Map<String, Accumulator<?, ?>> next = vertex.getCurrentExecutionAttempt().getSmallUserAccumulators();
 			if (next != null) {
-				AccumulatorHelper.mergeInto(smallUserAccumulators, next);
+				AccumulatorHelper.mergeInto(mergedSmallUserAccumulators, next);
 			}
 		}
-		return smallUserAccumulators;
+		return mergedSmallUserAccumulators;
 	}
 
 	/**
 	 * Merges all blobKeys referring to blobs of large accumulators. These refer to blobs in the
 	 * blobCache holding accumulators (results of tasks) that did not fit in an akka frame,
-	 * thus had to be sent through the BlobCache.
+	 * thus had to be sent through the BlobCache. If the lists of BlobKeys have already been merged,
+	 * then the already computed result is returned. This is to avoid merging accumulators more than
+	 * once. The later could lead to WRONG resutls, as accumulator merging happens in-place, thus
+	 * merging more than once can lead to duplicate entries.
 	 * @return The accumulator map
 	 */
 	public Map<String, List<BlobKey>> aggregateLargeUserAccumulatorBlobKeys() {
-		Map<String, List<BlobKey>> largeUserAccumulatorRefs = new HashMap<String, List<BlobKey>>();
+		if(mergedLargeUserAccumulators != null) {
+			return mergedLargeUserAccumulators;
+		}
 
+		this.mergedLargeUserAccumulators = new HashMap<String, List<BlobKey>>();
 		for (ExecutionVertex vertex : getAllExecutionVertices()) {
-			Map<String, List<BlobKey>> next = vertex.getCurrentExecutionAttempt().getLargeUserAccumulatorBlobKeys();
-			if (next != null) {
-				for (Map.Entry<String, List<BlobKey>> otherEntry : next.entrySet()) {
-					List<BlobKey> existing = largeUserAccumulatorRefs.get(otherEntry.getKey());
-					if (existing == null) {
-						largeUserAccumulatorRefs.put(otherEntry.getKey(), otherEntry.getValue());
-					} else {
-						existing.addAll(otherEntry.getValue());
-					}
-				}
+			Map<String, List<BlobKey>> next = vertex.getCurrentExecutionAttempt().
+					getLargeUserAccumulatorBlobKeys();
+			mergeLargeUserAccumulatorBlobKeys(next);
+		}
+		return mergedLargeUserAccumulators;
+	}
+
+	public Map<String, List<BlobKey>> addLargeUserAccumulatorBlobKeys(Map<String, List<BlobKey>> toMerge) {
+		if(mergedLargeUserAccumulators == null) {
+			this.mergedLargeUserAccumulators = new HashMap<String, List<BlobKey>>();;
+		}
+		mergeLargeUserAccumulatorBlobKeys(toMerge);
+		return mergedLargeUserAccumulators;
+	}
+
+	private void mergeLargeUserAccumulatorBlobKeys(Map<String, List<BlobKey>> toMerge) {
+		if(toMerge == null || toMerge.isEmpty()) {
+			return;
+		}
+
+		for (Map.Entry<String, List<BlobKey>> otherEntry : toMerge.entrySet()) {
+			List<BlobKey> existing = mergedLargeUserAccumulators.get(otherEntry.getKey());
+			if (existing == null) {
+				mergedLargeUserAccumulators.put(otherEntry.getKey(), otherEntry.getValue());
+			} else {
+				existing.addAll(otherEntry.getValue());
 			}
 		}
-		return largeUserAccumulatorRefs;
 	}
 
 	/**
-	 * Gets a serialized accumulator map.
+	 * Gets a serialized map of the contents of the accumulators.
 	 * @return The accumulator map with serialized accumulator values.
 	 * @throws IOException
 	 */
+	public Map<String, SerializedValue<Object>> getSmallAccumulatorsContentSerialized() throws IOException {
+		return serializeAccumulators(true);
+	}
+
+	/**
+	 * Gets a serialized map of the objects of the accumulators. This means that the actual
+	 * objects are serialized, thus merging can still be applied after deserialization.
+	 * @return The accumulator map with serialized accumulator objects.
+	 * @throws IOException
+	 */
 	public Map<String, SerializedValue<Object>> getSmallAccumulatorsSerialized() throws IOException {
+		return serializeAccumulators(false);
+	}
+
+	private Map<String,  SerializedValue<Object>> serializeAccumulators(boolean onlyContent) throws IOException {
 
 		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateSmallUserAccumulators();
 
 		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
 		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
-			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue().getLocalValue()));
+			Object toSerialize = onlyContent ? entry.getValue().getLocalValue() : entry.getValue();
+			result.put(entry.getKey(), new SerializedValue<Object>(toSerialize));
 		}
 
 		return result;

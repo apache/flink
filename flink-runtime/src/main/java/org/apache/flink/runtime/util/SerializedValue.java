@@ -61,6 +61,14 @@ public class SerializedValue<T> implements java.io.Serializable {
 	}
 
 	/**
+	 * Gets the content of the value in a byte array.
+	 * @return the byte array backing the content of the object.
+	 * */
+	public byte[] getSerializedData() {
+		return serializedData;
+	}
+
+	/**
 	 * Gets the size of the serialized content.
 	 * @return the size in bytes of the data stored in the blob.
 	 * */

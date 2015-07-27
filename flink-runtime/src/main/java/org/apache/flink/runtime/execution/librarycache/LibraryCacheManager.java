@@ -84,6 +84,13 @@ public interface LibraryCacheManager {
 	void unregisterJob(JobID id);
 
 	/**
+	 * Deletes the blob with the given key.
+	 *
+	 * @param key the key to delete.
+	 * */
+	void deleteBlob(BlobKey key);
+
+	/**
 	 * Shutdown method
 	 *
 	 * @throws IOException

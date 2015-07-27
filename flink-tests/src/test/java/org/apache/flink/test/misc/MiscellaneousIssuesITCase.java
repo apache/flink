@@ -179,7 +179,7 @@ public class MiscellaneousIssuesITCase {
 	}
 
 	@Test
-	public void testOversizedAccumulators() {
+	public void testOversizedAccumulatorsAtTaskManagers() {
 		try {
 
 			ExecutionEnvironment env =
@@ -195,6 +195,30 @@ public class MiscellaneousIssuesITCase {
 			long theCount = bigEnough.collect().size();
 
 			assertEquals(noOfParallelism * longsPerTask, theCount);
+
+		}catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testOversizedAccumulatorsAtJobManager() {
+		try {
+
+			ExecutionEnvironment env =
+					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
+
+			int noOfParallelism = 5;
+			int longsInTotal = 1200000;
+
+			env.setParallelism(noOfParallelism);
+			env.getConfig().disableSysoutLogging();
+
+			DataSet<Long> bigEnough = env.generateSequence(1, longsInTotal);
+			long theCount = bigEnough.collect().size();
+
+			assertEquals(longsInTotal, theCount);
 
 		}catch (Exception e) {
 			e.printStackTrace();

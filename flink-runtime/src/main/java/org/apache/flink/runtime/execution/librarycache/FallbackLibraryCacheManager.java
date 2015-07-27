@@ -61,7 +61,12 @@ public class FallbackLibraryCacheManager implements LibraryCacheManager {
 	public void unregisterJob(JobID id) {
 		LOG.warn("FallbackLibraryCacheManager does not book keeping of job IDs.");
 	}
-	
+
+	@Override
+	public void deleteBlob(BlobKey key) {
+		LOG.warn("FallbackLibraryCacheManager cannot delete files associated with blob keys.");
+	}
+
 	@Override
 	public void unregisterTask(JobID id, ExecutionAttemptID execution) {
 		LOG.warn("FallbackLibraryCacheManager does not book keeping of job IDs.");

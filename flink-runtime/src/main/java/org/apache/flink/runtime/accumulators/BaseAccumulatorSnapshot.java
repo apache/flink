@@ -27,10 +27,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 
-/**
- * LICENSE SHOULD GO HERE.
- * Created by kkloudas on 7/23/15.
- */
 public class BaseAccumulatorSnapshot implements Serializable {
 
 	private static final long serialVersionUID = 42L;

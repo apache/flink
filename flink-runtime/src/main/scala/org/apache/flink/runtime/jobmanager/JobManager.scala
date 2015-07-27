@@ -30,7 +30,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.io.InputSplitAssigner
-import org.apache.flink.runtime.accumulators.BaseAccumulatorSnapshot
+import org.apache.flink.runtime.accumulators.{BaseAccumulatorSnapshot, LargeAccumulatorHelper}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobKey, BlobServer}
 import org.apache.flink.runtime.client._
@@ -333,16 +333,57 @@ class JobManager(
             newJobStatus match {
               case JobStatus.FINISHED =>
 
+                val jobConfig = currentJobs.getOrElse(jobID,
+                  throw new RuntimeException("Unknown Job: "+ jobID))._1.getJobConfiguration
+
                 val smallAccumulatorResults: java.util.Map[String, SerializedValue[AnyRef]] = try {
-                  executionGraph.getSmallAccumulatorsSerialized
+                  executionGraph.getSmallAccumulatorsContentSerialized
                 } catch {
                   case e: Exception =>
                     log.error(s"Cannot fetch serialized accumulators for job $jobID", e)
                     Collections.emptyMap()
                 }
 
-                val largeAccumulatorResults: java.util.Map[String, java.util.List[BlobKey]] =
+                /*
+                * The following covers the case where partial accumulator results are small, but when
+                * aggregated, they become big. In this case, this happens at the JobManager, and this code
+                * is responsible for detecting it, storing the oversized result in the BlobCache, and
+                * informing the Client accordingly.
+                * */
+                var largeAccumulatorResults: java.util.Map[String, java.util.List[BlobKey]] =
                   executionGraph.aggregateLargeUserAccumulatorBlobKeys()
+
+                val totalSize: Long = smallAccumulatorResults.asScala.map(_._2.getSizeInBytes).sum
+                if (totalSize > AkkaUtils.getLargeAccumulatorThreshold(jobConfig)) {
+                  // given that the client is going to do the final merging, we serialize and
+                  // store the accumulator objects, not only the content
+                  val serializedSmallAccumulators = executionGraph.getSmallAccumulatorsSerialized
+
+                  // store the accumulators in the blobCache and get the keys.
+                  val newBlobKeys = LargeAccumulatorHelper.storeSerializedAccumulatorsToBlobCache(
+                    getBlobCacheServerAddress, serializedSmallAccumulators)
+                  smallAccumulatorResults.clear()
+
+                  // and update the blobKeys to send to the client.
+                  largeAccumulatorResults = executionGraph.addLargeUserAccumulatorBlobKeys(newBlobKeys)
+                } else {
+                  // do nothing
+                  java.util.Collections.emptyMap()
+                }
+//
+//
+//
+//                val it = newBlobKeys.entrySet().iterator()
+//                while (it.hasNext) {
+//                  val e = it.next()
+//                  val existingKeys = largeAccumulatorResults.get(e.getKey)
+//                  if(existingKeys == null) {
+//                    largeAccumulatorResults.put(e.getKey, e.getValue)
+//                  } else {
+//                    existingKeys.addAll(e.getValue)
+//                    largeAccumulatorResults.put(e.getKey, existingKeys)
+//                  }
+//                }
 
                 val result = new SerializedJobExecutionResult(jobID,
                   jobInfo.duration, smallAccumulatorResults, largeAccumulatorResults)
@@ -512,6 +553,19 @@ class JobManager(
 
     case RequestLeaderSessionID =>
       sender() ! ResponseLeaderSessionID(leaderSessionID)
+  }
+
+  /**
+   * Gets the address where the blobCache is listening to.
+   * @return the address where the blobCache is listening to.
+   **/
+  private def getBlobCacheServerAddress: InetSocketAddress = {
+    if (libraryCacheManager == null) {
+      throw new RuntimeException("LibraryCacheManage is not initialized yet.")
+    }
+    val jmHost: String = "localhost"
+    val blobPort: Int = this.libraryCacheManager.getBlobServerPort
+    return new InetSocketAddress(jmHost, blobPort)
   }
 
   /**
@@ -769,7 +823,7 @@ class JobManager(
           try {
             currentJobs.get(jobID) match {
               case Some((graph, jobInfo)) =>
-                val accumulatorValues = graph.getSmallAccumulatorsSerialized
+                val accumulatorValues = graph.getSmallAccumulatorsContentSerialized
                 sender() ! decorateMessage(AccumulatorResultsFound(jobID, accumulatorValues))
               case None =>
                 archive.forward(message)
@@ -910,6 +964,8 @@ class JobManager(
         try {
           eg.prepareForArchiving()
 
+          // todo KOSTAS: handle also the large accumulators.
+
           archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg))
         } catch {
           case t: Throwable => log.error(s"Could not prepare the execution graph $eg for " +
@@ -921,6 +977,7 @@ class JobManager(
 
     try {
       libraryCacheManager.unregisterJob(jobID)
+
     } catch {
       case t: Throwable =>
         log.error(s"Could not properly unregister job $jobID form the library cache.", t)

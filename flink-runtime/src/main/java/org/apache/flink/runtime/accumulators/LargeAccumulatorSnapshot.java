@@ -27,10 +27,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-/**
- * LICENSE SHOULD GO HERE.
- * Created by kkloudas on 7/23/15.
- */
 public class LargeAccumulatorSnapshot extends BaseAccumulatorSnapshot {
 
 	/**
