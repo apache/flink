@@ -19,12 +19,13 @@ package org.apache.flink.streaming.runtime.streamrecord;
 
 /**
  * One value in a data stream. This stores the value and the associated timestamp.
+ * 
+ * @param <T> The type encapsulated with the stream record.
  */
 public class StreamRecord<T> {
-
-	// We store it as Object so that we can reuse a StreamElement for emitting
-	// elements of a different type while still reusing the timestamp.
-	private Object value;
+	
+	private T value;
+	
 	private long timestamp;
 
 	/**
@@ -52,9 +53,8 @@ public class StreamRecord<T> {
 	/**
 	 * Returns the value wrapped in this stream value.
 	 */
-	@SuppressWarnings("unchecked")
 	public T getValue() {
-		return (T) value;
+		return value;
 	}
 
 	/**
@@ -74,7 +74,7 @@ public class StreamRecord<T> {
 	 */
 	@SuppressWarnings("unchecked")
 	public <X> StreamRecord<X> replace(X element) {
-		this.value = element;
+		this.value = (T) element;
 		return (StreamRecord<X>) this;
 	}
 
@@ -90,7 +90,7 @@ public class StreamRecord<T> {
 	@SuppressWarnings("unchecked")
 	public <X> StreamRecord<X> replace(X value, long timestamp) {
 		this.timestamp = timestamp;
-		this.value = value;
+		this.value = (T) value;
 		return (StreamRecord<X>) this;
 	}
 

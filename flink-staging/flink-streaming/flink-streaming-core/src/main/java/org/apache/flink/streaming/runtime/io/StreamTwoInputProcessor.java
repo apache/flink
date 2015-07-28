@@ -64,64 +64,70 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 
 	// We need to keep track of the channel from which a buffer came, so that we can
 	// appropriately map the watermarks to input channels
-	int currentChannel = -1;
+	private int currentChannel = -1;
 
 	private boolean isFinished;
 
 	private final BarrierBuffer barrierBuffer;
 
-	private long[] watermarks1;
+	private final long[] watermarks1;
 	private long lastEmittedWatermark1;
 
-	private long[] watermarks2;
+	private final long[] watermarks2;
 	private long lastEmittedWatermark2;
 
-	private int numInputChannels1;
-	private int numInputChannels2;
+	private final int numInputChannels1;
 
-	private DeserializationDelegate<Object> deserializationDelegate1;
-	private DeserializationDelegate<Object> deserializationDelegate2;
+	private final DeserializationDelegate<Object> deserializationDelegate1;
+	private final DeserializationDelegate<Object> deserializationDelegate2;
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	public StreamTwoInputProcessor(
 			Collection<InputGate> inputGates1,
 			Collection<InputGate> inputGates2,
 			TypeSerializer<IN1> inputSerializer1,
 			TypeSerializer<IN2> inputSerializer2,
 			boolean enableWatermarkMultiplexing) {
+		
 		super(InputGateUtil.createInputGate(inputGates1, inputGates2));
 
 		barrierBuffer = new BarrierBuffer(inputGate, this);
-
-		StreamRecordSerializer<IN1> inputRecordSerializer1;
+		
 		if (enableWatermarkMultiplexing) {
-			inputRecordSerializer1 = new MultiplexingStreamRecordSerializer<IN1>(inputSerializer1);
-		} else {
-			inputRecordSerializer1 = new StreamRecordSerializer<IN1>(inputSerializer1);
+			MultiplexingStreamRecordSerializer<IN1> ser = new MultiplexingStreamRecordSerializer<IN1>(inputSerializer1);
+			this.deserializationDelegate1 = new NonReusingDeserializationDelegate<Object>(ser);
 		}
-		this.deserializationDelegate1 = new NonReusingDeserializationDelegate(inputRecordSerializer1);
-
-		StreamRecordSerializer<IN2> inputRecordSerializer2;
+		else {
+			StreamRecordSerializer<IN1> ser = new StreamRecordSerializer<IN1>(inputSerializer1);
+			this.deserializationDelegate1 = (DeserializationDelegate<Object>)
+					(DeserializationDelegate<?>) new NonReusingDeserializationDelegate<StreamRecord<IN1>>(ser);
+		}
+		
 		if (enableWatermarkMultiplexing) {
-			inputRecordSerializer2 = new MultiplexingStreamRecordSerializer<IN2>(inputSerializer2);
-		} else {
-			inputRecordSerializer2 = new StreamRecordSerializer<IN2>(inputSerializer2);
+			MultiplexingStreamRecordSerializer<IN2> ser = new MultiplexingStreamRecordSerializer<IN2>(inputSerializer2);
+			this.deserializationDelegate2 = new NonReusingDeserializationDelegate<Object>(ser);
 		}
-		this.deserializationDelegate2 = new NonReusingDeserializationDelegate(inputRecordSerializer2);
+		else {
+			StreamRecordSerializer<IN2> ser = new StreamRecordSerializer<IN2>(inputSerializer2);
+			this.deserializationDelegate2 = (DeserializationDelegate<Object>)
+					(DeserializationDelegate<?>) new NonReusingDeserializationDelegate<StreamRecord<IN2>>(ser);
+		}
 
 		// Initialize one deserializer per input channel
-		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate
-				.getNumberOfInputChannels()];
+		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
+		
 		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer();
+			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<Object>>();
 		}
 
 		// determine which unioned channels belong to input 1 and which belong to input 2
-		numInputChannels1 = 0;
+		int numInputChannels1 = 0;
 		for (InputGate gate: inputGates1) {
 			numInputChannels1 += gate.getNumberOfInputChannels();
 		}
-		numInputChannels2 = inputGate.getNumberOfInputChannels() - numInputChannels1;
+		
+		this.numInputChannels1 = numInputChannels1;
+		int numInputChannels2 = inputGate.getNumberOfInputChannels() - numInputChannels1;
 
 		watermarks1 = new long[numInputChannels1];
 		for (int i = 0; i < numInputChannels1; i++) {
@@ -262,6 +268,7 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 		}
 	}
 
+	@Override
 	public void cleanup() throws IOException {
 		barrierBuffer.cleanup();
 	}

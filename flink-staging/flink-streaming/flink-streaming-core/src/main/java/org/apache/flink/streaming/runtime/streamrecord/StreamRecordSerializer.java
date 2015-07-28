@@ -38,11 +38,12 @@ import org.apache.flink.core.memory.DataOutputView;
  *
  * @param <T> The type of value in the {@link StreamRecord}
  */
-public class StreamRecordSerializer<T> extends TypeSerializer<Object> {
+public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord<T>> {
 
 	private static final long serialVersionUID = 1L;
 
-	protected final TypeSerializer<T> typeSerializer;
+	private final TypeSerializer<T> typeSerializer;
+	
 
 	public StreamRecordSerializer(TypeSerializer<T> serializer) {
 		if (serializer instanceof StreamRecordSerializer) {
@@ -51,19 +52,36 @@ public class StreamRecordSerializer<T> extends TypeSerializer<Object> {
 		this.typeSerializer = Preconditions.checkNotNull(serializer);
 	}
 
+	public TypeSerializer<T> getContainedTypeSerializer() {
+		return this.typeSerializer;
+	}
+	
+	// ------------------------------------------------------------------------
+	//  General serializer and type utils
+	// ------------------------------------------------------------------------
+
+	@Override
+	public StreamRecordSerializer<T> duplicate() {
+		TypeSerializer<T> serializerCopy = typeSerializer.duplicate();
+		return serializerCopy == typeSerializer ? this : new StreamRecordSerializer<T>(serializerCopy);
+	}
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public StreamRecordSerializer<T> duplicate() {
-		return this;
+	public int getLength() {
+		return typeSerializer.getLength();
 	}
 
+	// ------------------------------------------------------------------------
+	//  Type serialization, copying, instantiation
+	// ------------------------------------------------------------------------
+
 	@Override
-	public Object createInstance() {
+	public StreamRecord<T> createInstance() {
 		try {
 			return new StreamRecord<T>(typeSerializer.createInstance());
 		} catch (Exception e) {
@@ -72,46 +90,31 @@ public class StreamRecordSerializer<T> extends TypeSerializer<Object> {
 	}
 	
 	@Override
-	@SuppressWarnings("unchecked")
-	public Object copy(Object from) {
-		StreamRecord<T> fromRecord = (StreamRecord<T>) from;
-		return new StreamRecord<T>(typeSerializer.copy(fromRecord.getValue()), fromRecord.getTimestamp());
+	public StreamRecord<T> copy(StreamRecord<T> from) {
+		return new StreamRecord<T>(typeSerializer.copy(from.getValue()), from.getTimestamp());
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public Object copy(Object from, Object reuse) {
-		StreamRecord<T> fromRecord = (StreamRecord<T>) from;
-		StreamRecord<T> reuseRecord = (StreamRecord<T>) reuse;
-
-		reuseRecord.replace(typeSerializer.copy(fromRecord.getValue(), reuseRecord.getValue()), 0);
+	public StreamRecord<T> copy(StreamRecord<T> from, StreamRecord<T> reuse) {
+		reuse.replace(typeSerializer.copy(from.getValue(), reuse.getValue()), 0);
 		return reuse;
 	}
 
 	@Override
-	public int getLength() {
-		return -1;
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public void serialize(Object value, DataOutputView target) throws IOException {
-		StreamRecord<T> record = (StreamRecord<T>) value;
-		typeSerializer.serialize(record.getValue(), target);
+	public void serialize(StreamRecord<T> value, DataOutputView target) throws IOException {
+		typeSerializer.serialize(value.getValue(), target);
 	}
 	
 	@Override
-	public Object deserialize(DataInputView source) throws IOException {
+	public StreamRecord<T> deserialize(DataInputView source) throws IOException {
 		T element = typeSerializer.deserialize(source);
 		return new StreamRecord<T>(element, 0);
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public Object deserialize(Object reuse, DataInputView source) throws IOException {
-		StreamRecord<T> reuseRecord = (StreamRecord<T>) reuse;
-		T element = typeSerializer.deserialize(reuseRecord.getValue(), source);
-		reuseRecord.replace(element, 0);
+	public StreamRecord<T> deserialize(StreamRecord<T> reuse, DataInputView source) throws IOException {
+		T element = typeSerializer.deserialize(reuse.getValue(), source);
+		reuse.replace(element, 0);
 		return reuse;
 	}
 

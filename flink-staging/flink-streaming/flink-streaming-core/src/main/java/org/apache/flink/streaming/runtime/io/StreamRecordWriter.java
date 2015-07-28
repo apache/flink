@@ -58,7 +58,7 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 		
 		super(writer, channelSelector);
 		
-		checkArgument(timeout < 0);
+		checkArgument(timeout >= 0);
 		
 		if (timeout == 0) {
 			flushAlways = true;

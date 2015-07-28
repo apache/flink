@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.streamrecord;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -35,17 +36,36 @@ import java.io.IOException;
  *
  * @param <T> The type of value in the {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord}
  */
-public final class MultiplexingStreamRecordSerializer<T> extends StreamRecordSerializer<T> {
-
-	private final long IS_WATERMARK = Long.MIN_VALUE;
+public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<Object> {
 
 	private static final long serialVersionUID = 1L;
 
+	private static final long IS_WATERMARK = Long.MIN_VALUE;
+	
+	protected final TypeSerializer<T> typeSerializer;
+
+	
 	public MultiplexingStreamRecordSerializer(TypeSerializer<T> serializer) {
-		super(serializer);
-		if (serializer instanceof MultiplexingStreamRecordSerializer) {
+		if (serializer instanceof MultiplexingStreamRecordSerializer || serializer instanceof StreamRecordSerializer) {
 			throw new RuntimeException("StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: " + serializer);
 		}
+		this.typeSerializer = Preconditions.checkNotNull(serializer);
+	}
+	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public TypeSerializer<Object> duplicate() {
+		return this;
+	}
+
+	@Override
+	public Object createInstance() {
+		return new StreamRecord<T>(typeSerializer.createInstance(), 0L);
 	}
 
 	@Override
@@ -78,6 +98,11 @@ public final class MultiplexingStreamRecordSerializer<T> extends StreamRecordSer
 		} else {
 			throw new RuntimeException("Cannot copy " + from);
 		}
+	}
+
+	@Override
+	public int getLength() {
+		return 0;
 	}
 
 	@Override
