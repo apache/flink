@@ -22,7 +22,6 @@ import org.apache.flink.configuration.GlobalConfiguration
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
-import org.apache.log4j.{Logger => ApacheLogger}
 import org.apache.mesos.MesosExecutorDriver
 import org.apache.mesos.Protos.Status
 import org.slf4j.{Logger, LoggerFactory}

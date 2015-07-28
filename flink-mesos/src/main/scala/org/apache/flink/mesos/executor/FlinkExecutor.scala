@@ -18,8 +18,6 @@
 
 package org.apache.flink.mesos.executor
 
-import java.util.concurrent.{Executors, TimeUnit}
-
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration}
 import org.apache.flink.mesos._
 import org.apache.flink.mesos.scheduler._
@@ -35,10 +33,8 @@ trait FlinkExecutor extends Executor {
   def LOG: org.slf4j.Logger
 
   var currentRunningTaskId: Option[TaskID] = None
-  val pool = Executors.newScheduledThreadPool(1)
-
   val TASK_MANAGER_LOGGING_LEVEL_KEY = "taskmanager.logging.level"
-  val DEFAULT_TASK_MANAGER_LOGGING_LEVEL = "DEBUG"
+  val DEFAULT_TASK_MANAGER_LOGGING_LEVEL = "INFO"
 
 
   // methods that defines how the task is started when a launchTask is sent
@@ -54,10 +50,6 @@ trait FlinkExecutor extends Executor {
     for (t <- thread) {
       t.stop()
     }
-
-    // shutdown ping pool
-    LOG.info("shutting down executor ping")
-    pool.shutdown()
 
     // exit
     sys.exit(0)
@@ -121,6 +113,7 @@ trait FlinkExecutor extends Executor {
     ApacheLogger.getLogger("org.jboss.netty.channel.DefaultChannelPipeline").setLevel(Level.ERROR)
     ApacheLogger.getLogger("org.apache.hadoop.util.NativeCodeLoader").setLevel(Level.OFF)
     ApacheLogger.getRootLogger.addAppender(consoleAppender)
+    ApacheLogger.getRootLogger.setLevel(level)
   }
 
   override def launchTask(driver: ExecutorDriver, task: TaskInfo): Unit = {
@@ -150,7 +143,6 @@ trait FlinkExecutor extends Executor {
           case Failure(throwable) =>
             LOG.error("Caught exception, committing suicide.", throwable)
             driver.stop()
-            pool.shutdown()
             sys.exit(1)
           case Success(_) =>
             // Send a TASK_FINISHED status update.
@@ -174,21 +166,5 @@ trait FlinkExecutor extends Executor {
       .setTaskId(task.getTaskId)
       .setState(TaskState.TASK_RUNNING)
       .build())
-
-    // schedule periodic heartbeat pings to the framework scheduler
-    pool.scheduleAtFixedRate(new Runnable {
-      override def run(): Unit = {
-        for (
-        // create a ping only if running a task and registered
-          taskId <- currentRunningTaskId;
-          slave <- slaveId) {
-          // send ping
-          val ping = ExecutorPing(taskId, slave)
-          val data = Utils.serialize(ping)
-          LOG.info(s"Sending ping to scheduler: $ping")
-          driver.sendFrameworkMessage(data)
-        }
-      }
-    }, 10, 10, TimeUnit.SECONDS)
   }
 }

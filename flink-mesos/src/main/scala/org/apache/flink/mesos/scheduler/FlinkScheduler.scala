@@ -24,7 +24,6 @@ import java.util.{List => JList}
 import com.google.protobuf.ByteString
 import org.apache.flink.configuration.ConfigConstants._
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration}
-import org.apache.flink.mesos.{ExecutorPing, Utils}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.jobmanager.{JobManager, JobManagerMode}
 import org.apache.flink.runtime.util.EnvironmentInformation
@@ -46,12 +45,14 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
                          descr = "override hostname for this jobmanager")
 }
 
+sealed case class RunningTaskManager(taskId: TaskID, slaveId: SlaveID)
+
 object FlinkScheduler extends Scheduler with SchedulerUtils {
 
   val LOG = LoggerFactory.getLogger(FlinkScheduler.getClass)
   var jobManager: Option[Thread] = None
   var currentConfiguration: Option[Configuration] = None
-  var taskManagers: Set[ExecutorPing] = Set()
+  var taskManagers: Set[RunningTaskManager] = Set()
   var taskmanagerCount = 0
 
   override def offerRescinded(driver: SchedulerDriver, offerId: OfferID): Unit = {
@@ -72,28 +73,10 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
     taskManagers = taskManagers.filter(_.slaveId != slaveId)
   }
 
-  override def error(driver: SchedulerDriver, message: String): Unit = {
-  }
+  override def error(driver: SchedulerDriver, message: String): Unit = { }
 
   override def frameworkMessage(driver: SchedulerDriver, executorId: ExecutorID,
-                                slaveId: SlaveID, data: Array[Byte]): Unit = {
-    val ping: ExecutorPing = Utils.deserialize(data)
-    if (ping != null) {
-      LOG.debug(
-          s"Received heartbeat from taskID: ${ping.taskId} " +
-          s"running at executor: ${executorId.getValue} " +
-          s"on slave: ${slaveId.getValue}")
-
-      // add to list if not already known else just log it (at debug level)
-      taskManagers.find(_.taskId == ping.taskId) match {
-        case Some(t) =>
-          LOG.debug(s"Heartbeat from known taskManager: ${ping.taskId}")
-        case None =>
-          LOG.info(s"Heartbeat from unknown taskManager: ${ping.taskId}, adding to watchlist.")
-          taskManagers += ping
-      }
-    }
-  }
+                                slaveId: SlaveID, data: Array[Byte]): Unit = { }
 
   override def registered(driver: SchedulerDriver, frameworkId: FrameworkID,
                           masterInfo: MasterInfo): Unit = {
@@ -322,16 +305,12 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
       MESOS_FRAMEWORK_ROLE_KEY, DEFAULT_MESOS_FRAMEWORK_ROLE))
     frameworkBuilder.setName(GlobalConfiguration.getString(
       MESOS_FRAMEWORK_NAME_KEY, DEFAULT_MESOS_FRAMEWORK_NAME))
-    val frameworkTimeout = GlobalConfiguration.getInteger(
-      MESOS_FRAMEWORK_FAILOVER_TIMEOUT_KEY, DEFAULT_MESOS_FRAMEWORK_FAILOVER_TIMEOUT)
-    frameworkBuilder.setFailoverTimeout(frameworkTimeout)
     val webUIPort = GlobalConfiguration.getInteger(JOB_MANAGER_WEB_PORT_KEY, -1)
     if (webUIPort > 0) {
       val webUIHost = GlobalConfiguration.getString(
         JOB_MANAGER_IPC_ADDRESS_KEY, cliConf.host())
       frameworkBuilder.setWebuiUrl(s"http://$webUIHost:$webUIPort")
     }
-    frameworkBuilder.setCheckpoint(true)
 
     var credsBuilder: Credential.Builder = null
     val principal = GlobalConfiguration.getString(
