@@ -279,22 +279,18 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings("rawtypes")
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		// we do nothing here so far. this should call commit on the source function, for example
 		synchronized (checkpointLock) {
-			if (streamOperator instanceof StatefulStreamOperator) {
-				((StatefulStreamOperator) streamOperator).notifyCheckpointComplete(checkpointId);
-			}
 
-			if (hasChainedOperators) {
-				for (StreamOperator<?> chainedOperator : outputHandler.getChainedOperators()) {
-					if (chainedOperator instanceof StatefulStreamOperator) {
-						((StatefulStreamOperator) chainedOperator).notifyCheckpointComplete(checkpointId);
-					}
+			for (StreamOperator<?> chainedOperator : outputHandler.getChainedOperators()) {
+				if (chainedOperator instanceof StatefulStreamOperator) {
+					((StatefulStreamOperator) chainedOperator).notifyCheckpointComplete(checkpointId);
 				}
 			}
+
 		}
 	}
 
