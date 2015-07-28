@@ -422,18 +422,17 @@ under the License.
 			</modules>
 		</profile>
 
-        <profile>
-            <id>include-mesos</id>
-            <properties>
-                <shading-artifact.name>flink-shaded-include-mesos</shading-artifact.name>
-            </properties>
-            <modules>
-                <module>flink-mesos</module>
-            </modules>
-        </profile>
+		<profile>
+			<id>include-mesos</id>
+			<properties>
+				<shading-artifact.name>flink-shaded-include-mesos</shading-artifact.name>
+			</properties>
+			<modules>
+				<module>flink-mesos</module>
+			</modules>
+		</profile>
 
-
-        <profile>
+		<profile>
 			<id>vendor-repos</id>
 			<!-- Add vendor maven repositories -->
 			<repositories>

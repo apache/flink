@@ -169,16 +169,16 @@ under the License.
 			</dependencies>
 		</profile>
 
-        <profile>
-            <id>include-mesos</id>
-            <dependencies>
-                <dependency>
-                    <groupId>org.apache.flink</groupId>
-                    <artifactId>flink-mesos</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-            </dependencies>
-        </profile>
+		<profile>
+			<id>include-mesos</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-mesos</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+			</dependencies>
+		</profile>
 
 		<profile>
 			<id>debian-package</id>
