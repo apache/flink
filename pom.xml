@@ -424,9 +424,6 @@ under the License.
 
 		<profile>
 			<id>include-mesos</id>
-			<properties>
-				<shading-artifact.name>flink-shaded-include-mesos</shading-artifact.name>
-			</properties>
 			<modules>
 				<module>flink-mesos</module>
 			</modules>
