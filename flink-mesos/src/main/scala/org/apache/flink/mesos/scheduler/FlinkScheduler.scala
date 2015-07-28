@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.mesos.scheduler
 
 import java.net.InetAddress
@@ -23,22 +24,27 @@ import java.util.{List => JList, Random}
 import com.google.protobuf.ByteString
 import org.apache.flink.configuration.ConfigConstants._
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration}
-import org.apache.flink.mesos.ExecutorPing
+import org.apache.flink.mesos.{ExecutorPing, Utils}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.jobmanager.{JobManager, JobManagerMode}
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.mesos.Protos.TaskState._
 import org.apache.mesos.Protos._
 import org.apache.mesos.{MesosSchedulerDriver, Scheduler, SchedulerDriver}
+import org.rogach.scallop.ScallopConf
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
-class FlinkScheduler extends Scheduler with SchedulerUtils {
+class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
+  val confDir = opt[String](required = true, descr = "Configuration directory for flink")
+}
 
-  val LOG = LoggerFactory.getLogger(classOf[FlinkScheduler])
+object FlinkScheduler extends Scheduler with SchedulerUtils {
+
+  val LOG = LoggerFactory.getLogger(FlinkScheduler.getClass)
   var jobManager: Option[Thread] = None
   var currentConfiguration: Option[Configuration] = None
   var taskManagers: Set[ExecutorPing] = Set()
@@ -65,61 +71,86 @@ class FlinkScheduler extends Scheduler with SchedulerUtils {
   override def error(driver: SchedulerDriver, message: String): Unit = {
   }
 
-  override def frameworkMessage(driver: SchedulerDriver, executorId: ExecutorID, slaveId: SlaveID, data: Array[Byte]): Unit = {
-    val ping: ExecutorPing = ExecutorPing.fromBytes(data)
+  override def frameworkMessage(driver: SchedulerDriver, executorId: ExecutorID,
+                                slaveId: SlaveID, data: Array[Byte]): Unit = {
+    val ping: ExecutorPing = Utils.deserialize(data)
     if (ping != null) {
-      LOG.debug(s"Received heartbeat from taskID: ${ping.taskID} running at executor: ${executorId.getValue} on slave: ${slaveId.getValue}")
+      LOG.debug(
+          s"Received heartbeat from taskID: ${ping.taskId} " +
+          s"running at executor: ${executorId.getValue} " +
+          s"on slave: ${slaveId.getValue}")
 
       // add to list if not already known else just log it (at debug level)
-      taskManagers.find(_.taskID == ping.taskID) match {
+      taskManagers.find(_.taskId == ping.taskId) match {
         case Some(t) =>
-          LOG.debug(s"Heartbeat from known taskManager: ${ping.taskID}")
+          LOG.debug(s"Heartbeat from known taskManager: ${ping.taskId}")
         case None =>
-          LOG.info(s"Heartbeat from unknown taskManager: ${ping.taskID}, adding them to tracked list")
+          LOG.info(s"Heartbeat from unknown taskManager: ${ping.taskId}, adding to watchlist.")
           taskManagers += ping
       }
-    } else {
-      LOG.warn(s"Unrecognized framework message received from executor: ${executorId.getValue} on slave: ${slaveId.getValue}")
     }
   }
 
-  override def registered(driver: SchedulerDriver, frameworkId: FrameworkID, masterInfo: MasterInfo): Unit = {
+  override def registered(driver: SchedulerDriver, frameworkId: FrameworkID,
+                          masterInfo: MasterInfo): Unit = {
     LOG.info(s"Registered as ${frameworkId.getValue} with master $masterInfo")
   }
 
-  override def executorLost(driver: SchedulerDriver, executorId: ExecutorID, slaveId: SlaveID, status: Int): Unit = {
+  override def executorLost(driver: SchedulerDriver, executorId: ExecutorID,
+                            slaveId: SlaveID, status: Int): Unit = {
     LOG.warn(s"Executor ${executorId.getValue} lost with status $status on slave $slaveId")
   }
 
   override def statusUpdate(driver: SchedulerDriver, status: TaskStatus): Unit = {
-    LOG.info(s"Status update of ${status.getTaskId.getValue} to ${status.getState.name()} with message ${status.getMessage}")
+    val taskId = status.getTaskId.getValue
+    val slaveId = status.getSlaveId.getValue
+    LOG.info(
+      s"Status update of $taskId to ${status.getState.name()} with message ${status.getMessage}")
     status.getState match {
       case TASK_FAILED | TASK_FINISHED | TASK_KILLED | TASK_LOST =>
-        LOG.info(s"We lost the taskManager with TaskId: ${status.getTaskId.getValue} on slave: ${status.getSlaveId.getValue}")
+        LOG.info(
+          s"We lost the taskManager with TaskId: $taskId on slave: $slaveId")
         // remove from taskManagers map
-        taskManagers = taskManagers.filter(_.taskID != status.getTaskId)
+        taskManagers = taskManagers.filter(_.taskId != status.getTaskId)
       case _ =>
         LOG.debug(s"Ignorable TaskStatus received: ${status.getState.name()}")
     }
   }
 
   override def resourceOffers(driver: SchedulerDriver, offers: JList[Offer]): Unit = {
-    val maxTaskManagers = GlobalConfiguration.getInteger(TASK_MANAGER_COUNT_KEY, DEFAULT_TASK_MANAGER_COUNT)
-    val requiredMem = GlobalConfiguration.getInteger(TASK_MANAGER_MEM_KEY, DEFAULT_TASK_MANAGER_MEM)
-    val requiredCPU = GlobalConfiguration.getFloat(TASK_MANAGER_CPU_KEY, DEFAULT_TASK_MANAGER_CPU.toFloat)
-    val requiredDisk = GlobalConfiguration.getInteger(TASK_MANAGER_DISK_KEY, DEFAULT_TASK_MANGER_DISK)
-    val attributeConstraints = parseConstraintString(GlobalConfiguration.getString(TASK_MANAGER_OFFER_ATTRIBUTES_KEY, null))
-    val role = GlobalConfiguration.getString(MESOS_FRAMEWORK_ROLE_KEY, DEFAULT_MESOS_FRAMEWORK_ROLE)
-    val uberJarLocation = GlobalConfiguration.getString(UBERJAR_LOCATION, null)
+    val maxTaskManagers = GlobalConfiguration.getInteger(
+      TASK_MANAGER_COUNT_KEY, DEFAULT_TASK_MANAGER_COUNT)
+    val requiredMem = GlobalConfiguration.getInteger(
+      TASK_MANAGER_MEM_KEY, DEFAULT_TASK_MANAGER_MEM)
+    val requiredCPU = GlobalConfiguration.getFloat(
+      TASK_MANAGER_CPU_KEY, DEFAULT_TASK_MANAGER_CPU.toFloat)
+    val requiredDisk = GlobalConfiguration.getInteger(
+      TASK_MANAGER_DISK_KEY, DEFAULT_TASK_MANGER_DISK)
+    val attributeConstraints = parseConstraintString(
+      GlobalConfiguration.getString(TASK_MANAGER_OFFER_ATTRIBUTES_KEY, null))
+    val role = GlobalConfiguration.getString(
+      MESOS_FRAMEWORK_ROLE_KEY, DEFAULT_MESOS_FRAMEWORK_ROLE)
+    val uberJarLocation = GlobalConfiguration.getString(
+      FLINK_UBERJAR_LOCATION_KEY, null)
+    val nativeLibPath = GlobalConfiguration.getString(
+      MESOS_NATIVE_JAVA_LIBRARY_KEY, DEFAULT_MESOS_NATIVE_JAVA_LIBRARY)
 
-    // we will combine all resources from te same slave and then launch a single task rather than one per offer
-    // this way we have better utilization and less memory wasted on overhead.
+    // we will combine all resources from te same slave and then launch a single task rather
+    // than one per offer this way we have better utilization and less memory wasted on overhead.
     val offersBySlaveId: Map[SlaveID, mutable.Buffer[Offer]] = offers.groupBy(_.getSlaveId)
     for ((slaveId, offers) <- offersBySlaveId) {
-      val totalMemory = offers.flatMap(_.getResourcesList.filter(x => x.getName == "mem" && x.getRole == role).map(_.getScalar.getValue)).sum
-      val totalCPU = offers.flatMap(_.getResourcesList.filter(x => x.getName == "cpus" && x.getRole == role).map(_.getScalar.getValue)).sum
-      val totalDisk = offers.flatMap(_.getResourcesList.filter(x => x.getName == "disk" && x.getRole == role).map(_.getScalar.getValue)).sum
-      val portRanges = offers.flatMap(_.getResourcesList.filter(x => x.getName == "ports" && x.getRole == role).flatMap(_.getRanges.getRangeList))
+      val totalMemory = offers.flatMap(_.getResourcesList
+        .filter(x => x.getName == "mem" && x.getRole == role)
+        .map(_.getScalar.getValue)).sum
+      val totalCPU = offers.flatMap(_.getResourcesList
+        .filter(x => x.getName == "cpus" && x.getRole == role)
+        .map(_.getScalar.getValue)).sum
+      val totalDisk = offers.flatMap(_.getResourcesList
+        .filter(x => x.getName == "disk" && x.getRole == role)
+        .map(_.getScalar.getValue)).sum
+      val portRanges = offers.flatMap(_.getResourcesList
+        .filter(x => x.getName == "ports" && x.getRole == role)
+        .flatMap(_.getRanges.getRangeList))
       val ports = getNPortsFromPortRanges(2, portRanges)
       val offerAttributes = toAttributeMap(offers.flatMap(_.getAttributesList))
 
@@ -154,9 +185,10 @@ class FlinkScheduler extends Scheduler with SchedulerUtils {
           // http://path/to/log4j-console.properties
         )
         val command = createTaskManagerCommand(totalMemory.toInt)
-        val taskInfo = createTaskInfo("taskManager", taskId, slaveId,
-          role, requiredMem, requiredCPU, requiredDisk, ports,
-          command, artifactURIs, currentConfiguration.get)
+        val executorInfo = createExecutorInfo(taskId.getValue, role, requiredMem, requiredCPU,
+          requiredDisk, ports, artifactURIs, command, nativeLibPath)
+        val taskInfo = createTaskInfo("taskManager", taskId, slaveId, role, requiredMem,
+          requiredCPU, ports, executorInfo, currentConfiguration.get)
 
         Seq(taskInfo)
       }
@@ -171,10 +203,11 @@ class FlinkScheduler extends Scheduler with SchedulerUtils {
     val executionMode = JobManagerMode.CLUSTER
     val listeningHost = conf.getString(JOB_MANAGER_IPC_ADDRESS_KEY, hostName)
     val listeningPort = conf.getInteger(JOB_MANAGER_IPC_PORT_KEY, DEFAULT_JOB_MANAGER_IPC_PORT)
-    val streamingMode = conf.getString(JOB_MANAGER_STREAMING_MODE_KEY, DEFAULT_JOB_MANAGER_STREAMING_MODE) match {
-      case "streaming" => StreamingMode.STREAMING
-      case _ => StreamingMode.BATCH_ONLY
-    }
+    val streamingMode =
+      conf.getString(JOB_MANAGER_STREAMING_MODE_KEY, DEFAULT_JOB_MANAGER_STREAMING_MODE) match {
+        case "streaming" => StreamingMode.STREAMING
+        case _ => StreamingMode.BATCH_ONLY
+      }
 
     currentConfiguration = Some(conf)
 
@@ -184,7 +217,8 @@ class FlinkScheduler extends Scheduler with SchedulerUtils {
 
   def createTaskManagerCommand(mem: Int): String = {
     val tmJVMHeap = math.round(mem / (1 + JVM_MEM_OVERHEAD_PERCENT_DEFAULT))
-    val tmJVMArgs = GlobalConfiguration.getString(TASK_MANAGER_JVM_ARGS_KEY, DEFAULT_TASK_MANAGER_JVM_ARGS)
+    val tmJVMArgs = GlobalConfiguration.getString(
+      TASK_MANAGER_JVM_ARGS_KEY, DEFAULT_TASK_MANAGER_JVM_ARGS)
 
     createJavaExecCommand(
       jvmArgs = s"$tmJVMArgs -Xmx${tmJVMHeap}M",
@@ -210,23 +244,27 @@ class FlinkScheduler extends Scheduler with SchedulerUtils {
     ports
   }
 
+  def checkEnvironment(args: Array[String]): Unit = {
+    EnvironmentInformation.logEnvironmentInfo(LOG, "JobManagerExecutor", args)
+    EnvironmentInformation.checkJavaVersion()
+    val maxOpenFileHandles = EnvironmentInformation.getOpenFileHandlesLimit
+    if (maxOpenFileHandles != -1) {
+      LOG.info(s"Maximum number of open file descriptors is $maxOpenFileHandles")
+    } else {
+      LOG.info("Cannot determine the maximum number of open file descriptors")
+    }
+  }
+
   def main(args: Array[String]) {
 
-    def checkEnvironment(args: Array[String]): Unit = {
-      EnvironmentInformation.logEnvironmentInfo(LOG, "JobManagerExecutor", args)
-      EnvironmentInformation.checkJavaVersion()
-      val maxOpenFileHandles = EnvironmentInformation.getOpenFileHandlesLimit
-      if (maxOpenFileHandles != -1) {
-        LOG.info(s"Maximum number of open file descriptors is $maxOpenFileHandles")
-      } else {
-        LOG.info("Cannot determine the maximum number of open file descriptors")
-      }
-    }
+    val conf = new Conf(args)
 
     // startup checks
     checkEnvironment(args)
 
-    // initialize logging
+    LOG.info(s"Loading configuration from ${conf.confDir()}")
+    GlobalConfiguration.loadConfiguration(conf.confDir())
+
     val jobManagerThread: Thread = new Thread {
       override def run(): Unit = {
         // start the job
@@ -258,26 +296,33 @@ class FlinkScheduler extends Scheduler with SchedulerUtils {
     // start scheduler
     val frameworkBuilder = FrameworkInfo.newBuilder()
 
-    frameworkBuilder.setUser(GlobalConfiguration.getString(MESOS_FRAMEWORK_USER_KEY, DEFAULT_MESOS_FRAMEWORK_USER))
-    val frameworkId = GlobalConfiguration.getString(MESOS_FRAMEWORK_ID_KEY, DEFAULT_MESOS_FRAMEWORK_ID)
+    frameworkBuilder.setUser(GlobalConfiguration.getString(
+      MESOS_FRAMEWORK_USER_KEY, DEFAULT_MESOS_FRAMEWORK_USER))
+    val frameworkId = GlobalConfiguration.getString(
+      MESOS_FRAMEWORK_ID_KEY, DEFAULT_MESOS_FRAMEWORK_ID)
     if (frameworkId != null) {
       frameworkBuilder.setId(FrameworkID.newBuilder().setValue(frameworkId))
     }
 
-    frameworkBuilder.setRole(GlobalConfiguration.getString(MESOS_FRAMEWORK_ROLE_KEY, DEFAULT_MESOS_FRAMEWORK_ROLE))
-    frameworkBuilder.setName(GlobalConfiguration.getString(MESOS_FRAMEWORK_NAME_KEY, DEFAULT_MESOS_FRAMEWORK_NAME))
-    val frameworkTimeout = GlobalConfiguration.getInteger(MESOS_FRAMEWORK_FAILOVER_TIMEOUT_KEY, DEFAULT_MESOS_FRAMEWORK_FAILOVER_TIMEOUT)
+    frameworkBuilder.setRole(GlobalConfiguration.getString(
+      MESOS_FRAMEWORK_ROLE_KEY, DEFAULT_MESOS_FRAMEWORK_ROLE))
+    frameworkBuilder.setName(GlobalConfiguration.getString(
+      MESOS_FRAMEWORK_NAME_KEY, DEFAULT_MESOS_FRAMEWORK_NAME))
+    val frameworkTimeout = GlobalConfiguration.getInteger(
+      MESOS_FRAMEWORK_FAILOVER_TIMEOUT_KEY, DEFAULT_MESOS_FRAMEWORK_FAILOVER_TIMEOUT)
     frameworkBuilder.setFailoverTimeout(frameworkTimeout)
     frameworkBuilder.setCheckpoint(true)
 
     var credsBuilder: Credential.Builder = null
-    val principal = GlobalConfiguration.getString(MESOS_FRAMEWORK_PRINCIPAL_KEY, DEFAULT_MESOS_FRAMEWORK_PRINCIPAL)
+    val principal = GlobalConfiguration.getString(
+      MESOS_FRAMEWORK_PRINCIPAL_KEY, DEFAULT_MESOS_FRAMEWORK_PRINCIPAL)
     if (principal != null) {
       frameworkBuilder.setPrincipal(principal)
 
       credsBuilder = Credential.newBuilder()
       credsBuilder.setPrincipal(principal)
-      val secret = GlobalConfiguration.getString(MESOS_FRAMEWORK_SECRET_KEY, DEFAULT_MESOS_FRAMEWORK_SECRET)
+      val secret = GlobalConfiguration.getString(
+        MESOS_FRAMEWORK_SECRET_KEY, DEFAULT_MESOS_FRAMEWORK_SECRET)
       if (secret != null) {
         credsBuilder.setSecret(ByteString.copyFromUtf8(secret))
       }

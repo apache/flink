@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.mesos.executor
 
 import java.util.concurrent.{Executors, TimeUnit}
@@ -85,12 +86,13 @@ trait FlinkExecutor extends Executor {
 
   override def frameworkMessage(driver: ExecutorDriver, data: Array[Byte]): Unit = {}
 
-  override def registered(driver: ExecutorDriver, executorInfo: ExecutorInfo, frameworkInfo: FrameworkInfo, slaveInfo: SlaveInfo): Unit = {
+  override def registered(driver: ExecutorDriver, executorInfo: ExecutorInfo,
+                          frameworkInfo: FrameworkInfo, slaveInfo: SlaveInfo): Unit = {
     LOG.info(s"${executorInfo.getName} was registered on slave: ${slaveInfo.getHostname}")
     slaveId = Some(slaveInfo.getId)
     // get the configuration passed to it
     if (executorInfo.hasData) {
-      val newConfig: Configuration = deserialize(executorInfo.getData.toByteArray)
+      val newConfig: Configuration = Utils.deserialize(executorInfo.getData.toByteArray)
       GlobalConfiguration.includeConfiguration(newConfig)
     }
     LOG.debug("Loaded configuration: {}", GlobalConfiguration.getConfiguration)
@@ -104,7 +106,7 @@ trait FlinkExecutor extends Executor {
   override def launchTask(driver: ExecutorDriver, task: TaskInfo): Unit = {
     // overlay the new config over this one
     if (task.hasData) {
-      val taskConf: Configuration = deserialize(task.getData.toByteArray)
+      val taskConf: Configuration = Utils.deserialize(task.getData.toByteArray)
       GlobalConfiguration.includeConfiguration(taskConf)
     }
 
@@ -155,7 +157,7 @@ trait FlinkExecutor extends Executor {
           slave <- slaveId) {
           // send ping
           val ping = ExecutorPing(taskId, slave)
-          val data = ExecutorPing.toBytes(ping)
+          val data = Utils.serialize(ping)
           LOG.info(s"Sending ping to scheduler: $ping")
           driver.sendFrameworkMessage(data)
         }

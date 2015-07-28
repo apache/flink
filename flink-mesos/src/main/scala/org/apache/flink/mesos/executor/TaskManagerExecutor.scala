@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.mesos.executor
 
 import org.apache.flink.configuration.GlobalConfiguration
@@ -42,7 +43,8 @@ class TaskManagerExecutor extends FlinkExecutor {
     // reconfigure log4j
     initializeLog4j(level)
     // start TaskManager
-    Try(TaskManager.selectNetworkInterfaceAndRunTaskManager(conf, streamingMode, classOf[TaskManager]))
+    Try(TaskManager.selectNetworkInterfaceAndRunTaskManager(
+      conf, streamingMode, classOf[TaskManager]))
   }
 
   private def initializeLog4j(level: Level): Unit = {
@@ -88,8 +90,21 @@ object TaskManagerExecutor {
   }
 
   def main(args: Array[String]) {
-    // start executor and get exit status
-    val tmExecutor = TaskManagerExecutor(args)
+    // startup checks
+    checkEnvironment(args)
+
+    // initialize sandbox
+    // create a tmp data directory
+    io.File("tmpData").createDirectory(force = true, failIfExists = false)
+
+    // create dummy config dir
+    val configDirPath = io.File("configDir")
+      .createDirectory(force = true, failIfExists = false)
+      .path
+    GlobalConfiguration.loadConfiguration(configDirPath)
+
+    // create executor
+    val tmExecutor = new TaskManagerExecutor
 
     // start the executor
     val driver = new MesosExecutorDriver(tmExecutor)

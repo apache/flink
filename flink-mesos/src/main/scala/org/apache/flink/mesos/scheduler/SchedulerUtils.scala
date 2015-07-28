@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.mesos.scheduler
 
 import java.util.{List => JList}
@@ -24,7 +25,6 @@ import com.google.protobuf.{ByteString, GeneratedMessage}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.mesos._
 import org.apache.mesos.Protos.CommandInfo.URI
-import org.apache.mesos.Protos.DiscoveryInfo.Visibility
 import org.apache.mesos.Protos.Value.Ranges
 import org.apache.mesos.Protos.Value.Type._
 import org.apache.mesos.Protos._
@@ -52,7 +52,8 @@ trait SchedulerUtils {
     }).toMap
   }
 
-  def meetsConstraints(requiredMem: Int, requiredCPUs: Int, constraints: Map[String, Set[String]])(o: Offer): Boolean = {
+  def meetsConstraints(requiredMem: Int, requiredCPUs: Int,
+                       constraints: Map[String, Set[String]])(o: Offer): Boolean = {
     val mem = getResource(o.getResourcesList, "mem")
     val cpu = getResource(o.getResourcesList, "cpu")
     val offerAttributes = toAttributeMap(o.getAttributesList)
@@ -73,27 +74,19 @@ trait SchedulerUtils {
     s"java $jvmArgs -cp $classPath $classToExecute $args"
   }
 
-  def createTaskInfo(taskName: String,
-                     taskId: TaskID,
-                     slaveID: SlaveID,
-                     role: String,
-                     mem: Double, cpus: Double, disk: Double, ports: Set[Int],
-                     command: String,
-                     artifactURIs: Set[String],
-                     conf: Configuration): TaskInfo = {
-
+  def createExecutorInfo(id: String, role: String, mem: Double, cpus: Double, disk: Double,
+                         ports: Set[Int], artifactURIs: Set[String], command: String,
+                         nativeLibPath: String): ExecutorInfo = {
     val portRanges = Ranges.newBuilder().addAllRange(
       ports.map(port => Value.Range.newBuilder().setBegin(port).setEnd(port).build()))
-
     val uris = artifactURIs.map(uri => URI.newBuilder().setValue(uri).build())
 
-    // create an executor
-    val executorInfo = ExecutorInfo.newBuilder()
+    ExecutorInfo.newBuilder()
       .setExecutorId(ExecutorID
         .newBuilder()
-        .setValue(s"executor_${taskId.getValue}"))
+        .setValue(s"executor_$id"))
       .setName("Apache Flink Mesos Executor")
-      .setSource(taskId.getValue)
+      .setSource(s"task_$id")
       .addResources(Resource.newBuilder()
         .setName("ports").setType(RANGES)
         .setRole(role)
@@ -113,20 +106,25 @@ trait SchedulerUtils {
       .setCommand(CommandInfo.newBuilder()
         .setValue(s"env; $command")
         .addAllUris(uris)
+        .setEnvironment(Environment.newBuilder()
+          .addVariables(Environment.Variable.newBuilder()
+            .setName("MESOS_NATIVE_JAVA_LIBRARY").setValue(nativeLibPath)))
         .setValue(command))
+      .build()
+  }
+
+  def createTaskInfo(taskName: String, taskId: TaskID, slaveID: SlaveID, role: String, mem: Double,
+                     cpus: Double, ports: Set[Int], executorInfo: ExecutorInfo,
+                     conf: Configuration): TaskInfo = {
+
+    val portRanges = Ranges.newBuilder().addAllRange(
+      ports.map(port => Value.Range.newBuilder().setBegin(port).setEnd(port).build())).build()
 
     TaskInfo.newBuilder()
-      .setData(ByteString.copyFrom(serialize(conf)))
+      .setData(ByteString.copyFrom(Utils.serialize(conf)))
       .setExecutor(executorInfo)
       .setName(taskId.getValue)
       .setSlaveId(slaveID)
-      .setDiscovery(DiscoveryInfo.newBuilder()
-        .setLabels(Labels.newBuilder()
-          .addLabels(Label.newBuilder().setKey("type").setValue(taskName)))
-          .setVisibility(Visibility.FRAMEWORK)
-          .setName(taskName)
-          .setPorts(Ports.newBuilder()
-            .addAllPorts(ports.map(p => Port.newBuilder().setNumber(p).build()))))
       .addResources(Resource.newBuilder()
         .setName("ports").setType(RANGES)
         .setRole(role)
@@ -139,14 +137,13 @@ trait SchedulerUtils {
         .setName("cpus").setType(SCALAR)
         .setRole(role)
         .setScalar(Value.Scalar.newBuilder().setValue(cpus)))
-      // TODO: maybe we want to add a health check here, What is a good http healthcheck ?
-      //       ( too much beer to figure this out right now)
       .build()
   }
 
 
   def getResource(res: JList[Resource], name: String): Double = {
-    // A resource can have multiple values in the offer since it can either be from a specific role or wildcard.
+    // A resource can have multiple values in the offer since it can
+    // either be from a specific role or wildcard.
     res.filter(_.getName == name).map(_.getScalar.getValue).sum
   }
 
