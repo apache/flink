@@ -20,11 +20,8 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.task.AbstractEvent;
-import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
@@ -218,16 +215,6 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 
 		public boolean isEvent() {
 			return isEvent;
-		}
-	}
-
-	public static class DummyEvent extends TaskEvent {
-		@Override
-		public void write(DataOutputView out) throws IOException {
-		}
-
-		@Override
-		public void read(DataInputView in) throws IOException {
 		}
 	}
 }

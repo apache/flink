@@ -22,19 +22,34 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.task.RuntimeEvent;
 
-import java.io.IOException;
 
 public class EndOfPartitionEvent extends RuntimeEvent {
 
 	public static final EndOfPartitionEvent INSTANCE = new EndOfPartitionEvent();
-
+	
+	
 	@Override
-	public void read(DataInputView in) throws IOException {
+	public void read(DataInputView in) {
 		// Nothing to do here
 	}
 
 	@Override
-	public void write(DataOutputView out) throws IOException {
+	public void write(DataOutputView out) {
 		// Nothing to do here
+	}
+
+	@Override
+	public int hashCode() {
+		return 1965146673;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return obj != null && obj.getClass() == EndOfPartitionEvent.class;
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName();
 	}
 }

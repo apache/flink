@@ -16,9 +16,19 @@
  * limitations under the License.
  */
 
+package org.apache.flink.streaming.runtime.io;
+
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+
 /**
- * This package contains various tests that are not automatically executed, but
- * need to be manually invoked, because they are extremely heavy, time intensive,
- * of require larger-than-usual JVMs.
+ * A BufferRecycler that does nothing.
  */
-package org.apache.flink.test.manual;
+public class DummyBufferRecycler implements BufferRecycler {
+	
+	public static final BufferRecycler INSTANCE = new DummyBufferRecycler();
+	
+	
+	@Override
+	public void recycle(MemorySegment memorySegment) {}
+}

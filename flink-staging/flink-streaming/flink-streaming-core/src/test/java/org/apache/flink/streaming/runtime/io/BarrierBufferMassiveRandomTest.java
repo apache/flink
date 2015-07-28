@@ -23,53 +23,71 @@ import java.io.IOException;
 import java.util.Random;
 
 import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.streaming.runtime.tasks.CheckpointBarrier;
+
 import org.junit.Test;
 
-public class BarrierBufferIOTest {
+/**
+ * The test generates two random streams (input channels) which independently
+ * and randomly generate checkpoint barriers. The two streams are very
+ * unaligned, putting heavy work on the BarrierBuffer.
+ */
+public class BarrierBufferMassiveRandomTest {
 
 	@Test
-	public void IOTest() throws IOException, InterruptedException {
-
-		BufferPool pool1 = new NetworkBufferPool(100, 1024).createBufferPool(100, true);
-		BufferPool pool2 = new NetworkBufferPool(100, 1024).createBufferPool(100, true);
-
-		MockInputGate myIG = new MockInputGate(new BufferPool[] { pool1, pool2 },
-				new BarrierGenerator[] { new CountBarrier(100000), new RandomBarrier(100000) });
-		// new BarrierSimulator[] { new CountBarrier(1000), new
-		// CountBarrier(1000) });
-
-		BarrierBuffer barrierBuffer = new BarrierBuffer(myIG,
-				new BarrierBufferTest.MockReader(myIG));
-
+	public void testWithTwoChannelsAndRandomBarriers() {
+		IOManager ioMan = null;
 		try {
-			// long time = System.currentTimeMillis();
+			ioMan = new IOManagerAsync();
+			
+			BufferPool pool1 = new NetworkBufferPool(100, 1024).createBufferPool(100, true);
+			BufferPool pool2 = new NetworkBufferPool(100, 1024).createBufferPool(100, true);
+
+			RandomGeneratingInputGate myIG = new RandomGeneratingInputGate(
+					new BufferPool[] { pool1, pool2 },
+					new BarrierGenerator[] { new CountBarrier(100000), new RandomBarrier(100000) });
+	
+			BarrierBuffer barrierBuffer = new BarrierBuffer(myIG, ioMan);
+			
 			for (int i = 0; i < 2000000; i++) {
 				BufferOrEvent boe = barrierBuffer.getNextNonBlocked();
 				if (boe.isBuffer()) {
 					boe.getBuffer().recycle();
-				} else {
-					barrierBuffer.processBarrier(boe);
 				}
 			}
-			// System.out.println("Ran for " + (System.currentTimeMillis() -
-			// time));
-		} catch (Exception e) {
-			fail();
-		} finally {
-			barrierBuffer.cleanup();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			if (ioMan != null) {
+				ioMan.shutdown();
+			}
 		}
 	}
 
-	private static class RandomBarrier implements BarrierGenerator {
-		private static Random rnd = new Random();
+	// ------------------------------------------------------------------------
+	//  Mocks and Generators
+	// ------------------------------------------------------------------------
+	
+	protected interface BarrierGenerator {
+		public boolean isNextBarrier();
+	}
 
-		double threshold;
+	protected static class RandomBarrier implements BarrierGenerator {
+		
+		private static final Random rnd = new Random();
+
+		private final double threshold;
 
 		public RandomBarrier(double expectedEvery) {
 			threshold = 1 / expectedEvery;
@@ -83,8 +101,8 @@ public class BarrierBufferIOTest {
 
 	private static class CountBarrier implements BarrierGenerator {
 
-		long every;
-		long c = 0;
+		private final long every;
+		private long c = 0;
 
 		public CountBarrier(long every) {
 			this.every = every;
@@ -96,16 +114,16 @@ public class BarrierBufferIOTest {
 		}
 	}
 
-	protected static class MockInputGate implements InputGate {
+	protected static class RandomGeneratingInputGate implements InputGate {
 
-		private int numChannels;
-		private BufferPool[] bufferPools;
-		private int[] currentBarriers;
-		BarrierGenerator[] barrierGens;
-		int currentChannel = 0;
-		long c = 0;
+		private final int numChannels;
+		private final BufferPool[] bufferPools;
+		private final int[] currentBarriers;
+		private final BarrierGenerator[] barrierGens;
+		private int currentChannel = 0;
+		private long c = 0;
 
-		public MockInputGate(BufferPool[] bufferPools, BarrierGenerator[] barrierGens) {
+		public RandomGeneratingInputGate(BufferPool[] bufferPools, BarrierGenerator[] barrierGens) {
 			this.numChannels = bufferPools.length;
 			this.currentBarriers = new int[numChannels];
 			this.bufferPools = bufferPools;
@@ -123,37 +141,27 @@ public class BarrierBufferIOTest {
 		}
 
 		@Override
-		public void requestPartitions() throws IOException, InterruptedException {
-		}
+		public void requestPartitions() {}
 
 		@Override
 		public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException {
 			currentChannel = (currentChannel + 1) % numChannels;
 
 			if (barrierGens[currentChannel].isNextBarrier()) {
-				return BarrierBufferTest.createBarrier(++currentBarriers[currentChannel],
-						currentChannel);
+				return new BufferOrEvent(
+						new CheckpointBarrier(++currentBarriers[currentChannel], System.currentTimeMillis()),
+							currentChannel);
 			} else {
 				Buffer buffer = bufferPools[currentChannel].requestBuffer();
 				buffer.getMemorySegment().putLong(0, c++);
-
 				return new BufferOrEvent(buffer, currentChannel);
 			}
-
 		}
 
 		@Override
-		public void sendTaskEvent(TaskEvent event) throws IOException {
-		}
+		public void sendTaskEvent(TaskEvent event) {}
 
 		@Override
-		public void registerListener(EventListener<InputGate> listener) {
-		}
-
+		public void registerListener(EventListener<InputGate> listener) {}
 	}
-
-	protected interface BarrierGenerator {
-		public boolean isNextBarrier();
-	}
-
 }

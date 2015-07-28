@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.task.AbstractEvent;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.api.reader.ReaderBase;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
@@ -68,7 +70,7 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 
 	private boolean isFinished;
 
-	private final BarrierBuffer barrierBuffer;
+	private final CheckpointBarrierHandler barrierBuffer;
 
 	private long[] watermarks1;
 	private long lastEmittedWatermark1;
@@ -88,10 +90,16 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 			Collection<InputGate> inputGates2,
 			TypeSerializer<IN1> inputSerializer1,
 			TypeSerializer<IN2> inputSerializer2,
-			boolean enableWatermarkMultiplexing) {
+			EventListener<CheckpointBarrier> checkpointListener,
+			IOManager ioManager,
+			boolean enableWatermarkMultiplexing) throws IOException {
+		
 		super(InputGateUtil.createInputGate(inputGates1, inputGates2));
 
-		barrierBuffer = new BarrierBuffer(inputGate, this);
+		this.barrierBuffer = new BarrierBuffer(inputGate, ioManager);
+		if (checkpointListener != null) {
+			this.barrierBuffer.registerCheckpointEventHandler(checkpointListener);
+		}
 
 		StreamRecordSerializer<IN1> inputRecordSerializer1;
 		if (enableWatermarkMultiplexing) {
@@ -190,21 +198,16 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 			} else {
 				// Event received
 				final AbstractEvent event = bufferOrEvent.getEvent();
-
-				if (event instanceof CheckpointBarrier) {
-					barrierBuffer.processBarrier(bufferOrEvent);
-				} else {
-					if (handleEvent(event)) {
-						if (inputGate.isFinished()) {
-							if (!barrierBuffer.isEmpty()) {
-								throw new RuntimeException("BarrierBuffer should be empty at this point");
-							}
-							isFinished = true;
-							return false;
-						} else if (hasReachedEndOfSuperstep()) {
-							return false;
-						} // else: More data is coming...
-					}
+				if (handleEvent(event)) {
+					if (inputGate.isFinished()) {
+						if (!barrierBuffer.isEmpty()) {
+							throw new RuntimeException("BarrierBuffer should be empty at this point");
+						}
+						isFinished = true;
+						return false;
+					} else if (hasReachedEndOfSuperstep()) {
+						return false;
+					} // else: More data is coming...
 				}
 			}
 		}
