@@ -483,9 +483,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
       override def map(in: T): R = {
         applyWithState(in, cleanFun)
       }
+
+      val partitioned = isStatePartitioned
     }
-    
-    setStatePartitioning(mapper)
     
     map(mapper)
   }
@@ -552,10 +552,10 @@ class DataStream[T](javaStream: JavaStream[T]) {
       override def flatMap(in: T, out: Collector[R]): Unit = {
         applyWithState(in, cleanFun) foreach out.collect
       }
+
+      val partitioned = isStatePartitioned
     }
 
-    setStatePartitioning(flatMapper)
-    
     flatMap(flatMapper)
   }
 
@@ -601,17 +601,15 @@ class DataStream[T](javaStream: JavaStream[T]) {
       override def filter(in: T): Boolean = {
         applyWithState(in, cleanFun)
       }
+
+      val partitioned = isStatePartitioned
     }
-    
-    setStatePartitioning(filterFun) 
     
     filter(filterFun)
   }
 
-  private[flink] def setStatePartitioning(fun: StatefulFunction[_, _, _]) = {
-    if (javaStream.isInstanceOf[KeyedDataStream[T]]) {
-      fun.partitionStateByKey
-    }
+  private[flink] def isStatePartitioned: Boolean = {
+    javaStream.isInstanceOf[KeyedDataStream[T]]
   }
 
   /**

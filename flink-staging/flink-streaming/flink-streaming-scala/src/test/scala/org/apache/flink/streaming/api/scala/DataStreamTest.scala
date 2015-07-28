@@ -315,12 +315,12 @@ class DataStreamTest {
     val statefulMap1 = src.mapWithState((in, state: Option[Long]) => (in, None))
     assert(getFunctionForDataStream(statefulMap1).isInstanceOf[MapFunction[_,_]])
     assert(!getFunctionForDataStream(statefulMap1).
-        asInstanceOf[StatefulFunction[_,_,_]].isPartitioned)
+        asInstanceOf[StatefulFunction[_,_,_]].partitioned)
     
     val statefulMap2 = src.keyBy(x=>x).mapWithState(
         (in, state: Option[Long]) => (in, None))
     assert(getFunctionForDataStream(statefulMap2).
-        asInstanceOf[StatefulFunction[_,_,_]].isPartitioned)
+        asInstanceOf[StatefulFunction[_,_,_]].partitioned)
     
     val flatMapFunction = new FlatMapFunction[Long, Int] {
       override def flatMap(value: Long, out: Collector[Int]): Unit = {}
@@ -335,12 +335,12 @@ class DataStreamTest {
     val statefulfMap1 = src.flatMapWithState((in, state: Option[Long]) => (List(in), None))
     assert(getFunctionForDataStream(statefulfMap1).isInstanceOf[FlatMapFunction[_, _]])
     assert(!getFunctionForDataStream(statefulfMap1).
-        asInstanceOf[StatefulFunction[_, _, _]].isPartitioned)
+        asInstanceOf[StatefulFunction[_, _, _]].partitioned)
 
     val statefulfMap2 = src.keyBy(x=>x).flatMapWithState(
         (in, state: Option[Long]) => (List(in), None))
     assert(getFunctionForDataStream(statefulfMap2).
-        asInstanceOf[StatefulFunction[_, _, _]].isPartitioned)
+        asInstanceOf[StatefulFunction[_, _, _]].partitioned)
    
     val filterFunction = new FilterFunction[Int] {
       override def filter(value: Int): Boolean = false
@@ -356,12 +356,12 @@ class DataStreamTest {
     val statefulFilter1 = src.filterWithState((in, state: Option[Long]) => (true, None))
     assert(getFunctionForDataStream(statefulFilter1).isInstanceOf[FilterFunction[_]])
     assert(!getFunctionForDataStream(statefulFilter1).
-        asInstanceOf[StatefulFunction[_, _, _]].isPartitioned)
+        asInstanceOf[StatefulFunction[_, _, _]].partitioned)
 
     val statefulFilter2 = src.keyBy(x=>x).filterWithState(
         (in, state: Option[Long]) => (false, None))
     assert(getFunctionForDataStream(statefulFilter2).
-        asInstanceOf[StatefulFunction[_, _, _]].isPartitioned)
+        asInstanceOf[StatefulFunction[_, _, _]].partitioned)
    
     try {
       streamGraph.getStreamEdge(map.getId, unionFilter.getId)
