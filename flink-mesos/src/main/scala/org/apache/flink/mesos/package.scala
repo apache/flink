@@ -19,7 +19,17 @@ package org.apache.flink
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 
+import org.apache.mesos.Protos.{SlaveID, TaskID}
+
 package object mesos {
+
+  case class ExecutorPing(taskID: TaskID, slaveId: SlaveID)
+
+  object ExecutorPing {
+    def toBytes(ping: ExecutorPing): Array[Byte] = serialize(ping)
+    def fromBytes(data: Array[Byte]): ExecutorPing = deserialize(data)
+  }
+
   def serialize[T](o: T): Array[Byte] = {
     val bos = new ByteArrayOutputStream()
     val oos = new ObjectOutputStream(bos)

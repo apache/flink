@@ -75,7 +75,7 @@ object TaskManagerExecutor {
     }
   }
 
-  def main(args: Array[String]) {
+  def apply(args: Array[String]): TaskManagerExecutor = {
     // startup checks
     checkEnvironment(args)
 
@@ -83,14 +83,18 @@ object TaskManagerExecutor {
     // create a tmp data directory
     io.File("tmpData").createDirectory(force = true, failIfExists = false)
 
-    // start executor and get exit status
-    val exitStatus = new MesosExecutorDriver()(new TaskManagerExecutor).run()
+    // create executor
+    new TaskManagerExecutor
+  }
 
-    if (exitStatus == Status.DRIVER_STOPPED) {
-      sys.exit(0)
-    } else {
-      sys.exit(1)
-    }
+  def main(args: Array[String]) {
+    // start executor and get exit status
+    val tmExecutor = TaskManagerExecutor(args)
+
+    // start the executor
+    val driver = new MesosExecutorDriver(tmExecutor)
+    val status = if (driver.run eq Status.DRIVER_STOPPED) 0 else 1
+    sys.exit(status)
   }
 
 }

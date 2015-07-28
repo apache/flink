@@ -20,8 +20,8 @@ package object scheduler {
 
   val TASK_MANAGER_OFFER_ATTRIBUTES_KEY = "flink.mesos.taskmanager.attributes"
 
-  val TASK_MANAGER_OFFER_ROLE_KEY = "flink.mesos.taskmanager.role"
-  val DEFAULT_TASK_MANAGER_OFFER_ROLE = "*"
+  val MESOS_FRAMEWORK_ROLE_KEY = "flink.mesos.framework.role"
+  val DEFAULT_MESOS_FRAMEWORK_ROLE = "*"
 
   val TASK_MANAGER_JVM_ARGS_KEY = "flink.mesos.taskmanager.jvmArgs"
   val DEFAULT_TASK_MANAGER_JVM_ARGS = "-server " +
@@ -42,4 +42,24 @@ package object scheduler {
   // to a jvm process's resource requirement, in addition to its heap size.
   val JVM_MEM_OVERHEAD_PERCENT_DEFAULT = 0.20
 
+  val MESOS_FRAMEWORK_USER_KEY = "flink.mesos.framework.user"
+  val DEFAULT_MESOS_FRAMEWORK_USER = ""
+
+  val MESOS_FRAMEWORK_ID_KEY = "flink.mesos.framework.id"
+  val DEFAULT_MESOS_FRAMEWORK_ID = null
+
+  val MESOS_FRAMEWORK_NAME_KEY = "flink.mesos.framework.name"
+  val DEFAULT_MESOS_FRAMEWORK_NAME = "Apache Flink on Mesos"
+
+  val MESOS_FRAMEWORK_FAILOVER_TIMEOUT_KEY = "flink.mesos.framework.failoverTimeout"
+  val DEFAULT_MESOS_FRAMEWORK_FAILOVER_TIMEOUT = 300
+
+  val MESOS_FRAMEWORK_PRINCIPAL_KEY = "flink.mesos.framework.principal"
+  val DEFAULT_MESOS_FRAMEWORK_PRINCIPAL = null
+
+  val MESOS_FRAMEWORK_SECRET_KEY = "flink.mesos.framework.secret"
+  val DEFAULT_MESOS_FRAMEWORK_SECRET = null
+
+  val MESOS_MASTER_KEY = "flink.mesos.master"
+  val DEFAULT_MESOS_MASTER = "localhost:5050"
 }
