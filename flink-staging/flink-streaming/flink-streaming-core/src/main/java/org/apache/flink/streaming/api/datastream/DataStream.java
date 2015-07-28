@@ -1162,17 +1162,7 @@ public class DataStream<OUT> {
 	 * @return The closed DataStream.
 	 */
 	public DataStreamSink<OUT> addSink(SinkFunction<OUT> sinkFunction) {
-
-		OneInputStreamOperator<OUT, Object> sinkOperator = new StreamSink<OUT>(clean(sinkFunction));
-
-		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType(),
-				sinkOperator);
-
-		streamGraph.addOperator(returnStream.getId(), sinkOperator, getType(), null, "Stream Sink");
-
-		this.connectGraph(this.copy(), returnStream.getId(), 0);
-
-		return returnStream;
+		return new DataStreamSink<OUT>((DataStream<OUT>) transform("StreamSink", null, new StreamSink<OUT>(clean(sinkFunction))));
 	}
 
 	private void validateUnion(Integer id) {
