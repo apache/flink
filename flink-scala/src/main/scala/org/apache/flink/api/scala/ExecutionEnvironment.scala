@@ -134,7 +134,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def getId: UUID = {
     javaEnv.getId
   }
-  
+
   /**
    * Gets the JobExecutionResult of the last executed job.
    */
@@ -181,13 +181,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def addDefaultKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
     javaEnv.addDefaultKryoSerializer(clazz, serializer)
   }
-  
+
   /**
    * Registers the given type with the serialization stack. If the type is eventually
    * serialized as a POJO, then the type is registered with the POJO serializer. If the
    * type ends up being serialized with Kryo, then it will be registered at Kryo to make
    * sure that only tags are written.
-   * 
+   *
    */
   def registerType(typeClass: Class[_]) {
     javaEnv.registerType(typeClass)
@@ -705,6 +705,33 @@ object ExecutionEnvironment {
       jarFiles: String*): ExecutionEnvironment = {
     val javaEnv = JavaEnv.createRemoteEnvironment(host, port, jarFiles: _*)
     javaEnv.setParallelism(parallelism)
+    new ExecutionEnvironment(javaEnv)
+  }
+
+  /**
+   * Creates a remote execution environment. The remote environment sends (parts of) the program
+   * to a cluster for execution. Note that all file paths used in the program must be accessible
+   * from the cluster. The custom configuration file is used to configure Akka specific
+   * configuration parameters for the Client only; Program parallelism can be set via
+   * [[ExecutionEnvironment.setParallelism]].
+   *
+   * Cluster configuration has to be done in the remotely running Flink instance.
+   *
+   * @param host The host name or address of the master (JobManager), where the program should be
+   *             executed.
+   * @param port The port of the master (JobManager), where the program should be executed.
+   * @param clientConfiguration Pass a custom configuration to the Client.
+   * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the
+   *                 program uses user-defined functions, user-defined input formats, or any
+   *                 libraries, those must be provided in the JAR files.
+   * @return A remote environment that executes the program on a cluster.
+   */
+  def createRemoteEnvironment(
+      host: String,
+      port: Int,
+      clientConfiguration: Configuration,
+      jarFiles: String*): ExecutionEnvironment = {
+    val javaEnv = JavaEnv.createRemoteEnvironment(host, port, clientConfiguration, jarFiles: _*)
     new ExecutionEnvironment(javaEnv)
   }
 }
