@@ -22,7 +22,7 @@ import java.util.{List => JList}
 
 import com.google.common.base.Splitter
 import com.google.protobuf.{ByteString, GeneratedMessage}
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.mesos._
 import org.apache.mesos.Protos.CommandInfo.URI
 import org.apache.mesos.Protos.Value.Ranges
@@ -69,24 +69,48 @@ trait SchedulerUtils {
     meetsConstraints && meetsMemoryRequirements && meetsCPURequirements
   }
 
-  def createJavaExecCommand(jvmArgs: String = "", classPath: String = ".",
+  def createJavaExecCommand(jvmArgs: String = "", classPath: String = "flink-*.jar",
                             classToExecute: String, args: String = ""): String = {
-    s"java $jvmArgs -cp $classPath $classToExecute $args"
+    s"env; java $jvmArgs -cp $classPath $classToExecute $args"
   }
 
-  def createExecutorInfo(id: String, role: String, mem: Double, cpus: Double, disk: Double,
-                         ports: Set[Int], artifactURIs: Set[String], command: String,
+  def createExecutorInfo(id: String, role: String, artifactURIs: Set[String], command: String,
                          nativeLibPath: String): ExecutorInfo = {
-    val portRanges = Ranges.newBuilder().addAllRange(
-      ports.map(port => Value.Range.newBuilder().setBegin(port).setEnd(port).build()))
     val uris = artifactURIs.map(uri => URI.newBuilder().setValue(uri).build())
-
     ExecutorInfo.newBuilder()
       .setExecutorId(ExecutorID
         .newBuilder()
         .setValue(s"executor_$id"))
-      .setName("Apache Flink Mesos Executor")
-      .setSource(s"task_$id")
+      .setName(s"Apache Flink Mesos Executor - $id")
+      .setCommand(CommandInfo.newBuilder()
+        .setValue(s"env; $command")
+        .addAllUris(uris)
+        .setEnvironment(Environment.newBuilder()
+          .addVariables(Environment.Variable.newBuilder()
+            .setName("MESOS_NATIVE_JAVA_LIBRARY").setValue(nativeLibPath)))
+        .setValue(command))
+      .build()
+  }
+
+  def createTaskInfo(taskName: String, taskId: TaskID, slaveID: SlaveID, role: String, mem: Double,
+                     cpus: Double, disk: Double, ports: Set[Int], executorInfo: ExecutorInfo,
+                     conf: Configuration): TaskInfo = {
+
+    val portRanges = Ranges.newBuilder().addAllRange(
+      ports.map(port => Value.Range.newBuilder().setBegin(port).setEnd(port).build())).build()
+
+    val taskConf = conf.clone()
+    val portsSeq = ports.toSeq
+    // set task manager ports
+    taskConf.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, portsSeq.get(0))
+    taskConf.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, portsSeq.get(1))
+
+    TaskInfo.newBuilder()
+      .setData(ByteString.copyFrom(Utils.serialize(taskConf)))
+      .setExecutor(executorInfo)
+      .setName(taskId.getValue)
+      .setTaskId(taskId)
+      .setSlaveId(slaveID)
       .addResources(Resource.newBuilder()
         .setName("ports").setType(RANGES)
         .setRole(role)
@@ -103,40 +127,6 @@ trait SchedulerUtils {
         .setName("disk").setType(SCALAR)
         .setRole(role)
         .setScalar(Value.Scalar.newBuilder().setValue(disk)))
-      .setCommand(CommandInfo.newBuilder()
-        .setValue(s"env; $command")
-        .addAllUris(uris)
-        .setEnvironment(Environment.newBuilder()
-          .addVariables(Environment.Variable.newBuilder()
-            .setName("MESOS_NATIVE_JAVA_LIBRARY").setValue(nativeLibPath)))
-        .setValue(command))
-      .build()
-  }
-
-  def createTaskInfo(taskName: String, taskId: TaskID, slaveID: SlaveID, role: String, mem: Double,
-                     cpus: Double, ports: Set[Int], executorInfo: ExecutorInfo,
-                     conf: Configuration): TaskInfo = {
-
-    val portRanges = Ranges.newBuilder().addAllRange(
-      ports.map(port => Value.Range.newBuilder().setBegin(port).setEnd(port).build())).build()
-
-    TaskInfo.newBuilder()
-      .setData(ByteString.copyFrom(Utils.serialize(conf)))
-      .setExecutor(executorInfo)
-      .setName(taskId.getValue)
-      .setSlaveId(slaveID)
-      .addResources(Resource.newBuilder()
-        .setName("ports").setType(RANGES)
-        .setRole(role)
-        .setRanges(portRanges))
-      .addResources(Resource.newBuilder()
-        .setName("mem").setType(SCALAR)
-        .setRole(role)
-        .setScalar(Value.Scalar.newBuilder().setValue(mem)))
-      .addResources(Resource.newBuilder()
-        .setName("cpus").setType(SCALAR)
-        .setRole(role)
-        .setScalar(Value.Scalar.newBuilder().setValue(cpus)))
       .build()
   }
 

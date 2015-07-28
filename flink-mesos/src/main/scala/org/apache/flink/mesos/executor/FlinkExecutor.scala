@@ -22,19 +22,24 @@ import java.util.concurrent.{Executors, TimeUnit}
 
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration}
 import org.apache.flink.mesos._
+import org.apache.flink.mesos.scheduler._
 import org.apache.flink.runtime.StreamingMode
+import org.apache.log4j.{ConsoleAppender, Level, Logger => ApacheLogger, PatternLayout}
 import org.apache.mesos.Protos._
 import org.apache.mesos.{Executor, ExecutorDriver}
-import org.slf4j.Logger
 
 import scala.util.{Failure, Success, Try}
 
 trait FlinkExecutor extends Executor {
   // logger to use
-  def LOG: Logger
+  def LOG: org.slf4j.Logger
 
   var currentRunningTaskId: Option[TaskID] = None
   val pool = Executors.newScheduledThreadPool(1)
+
+  val TASK_MANAGER_LOGGING_LEVEL_KEY = "taskmanager.logging.level"
+  val DEFAULT_TASK_MANAGER_LOGGING_LEVEL = "DEBUG"
+
 
   // methods that defines how the task is started when a launchTask is sent
   def startTask(streamingMode: StreamingMode): Try[Unit]
@@ -47,7 +52,7 @@ trait FlinkExecutor extends Executor {
     LOG.info("Killing taskManager thread")
     // kill task manager thread
     for (t <- thread) {
-      t.interrupt()
+      t.stop()
     }
 
     // shutdown ping pool
@@ -66,7 +71,7 @@ trait FlinkExecutor extends Executor {
       return
     }
 
-    thread.get.interrupt()
+    thread.get.stop()
     thread = None
     currentRunningTaskId = None
 
@@ -103,18 +108,40 @@ trait FlinkExecutor extends Executor {
     slaveId = Some(slaveInfo.getId)
   }
 
+  def initializeLog4j(level: Level): Unit = {
+    // remove all existing loggers
+    ApacheLogger.getRootLogger.removeAllAppenders()
+
+    // create a console appender
+    val consoleAppender = new ConsoleAppender()
+    consoleAppender.setLayout(new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n"))
+    consoleAppender.setThreshold(level)
+    consoleAppender.activateOptions()
+    // reconfigure log4j
+    ApacheLogger.getLogger("org.jboss.netty.channel.DefaultChannelPipeline").setLevel(Level.ERROR)
+    ApacheLogger.getLogger("org.apache.hadoop.util.NativeCodeLoader").setLevel(Level.OFF)
+    ApacheLogger.getRootLogger.addAppender(consoleAppender)
+  }
+
   override def launchTask(driver: ExecutorDriver, task: TaskInfo): Unit = {
     // overlay the new config over this one
     if (task.hasData) {
       val taskConf: Configuration = Utils.deserialize(task.getData.toByteArray)
       GlobalConfiguration.includeConfiguration(taskConf)
+      // reconfigure log4j
+      val logLevel = GlobalConfiguration.getString(
+        TASK_MANAGER_LOGGING_LEVEL_KEY, DEFAULT_TASK_MANAGER_LOGGING_LEVEL)
+      initializeLog4j(Level.toLevel(logLevel, Level.DEBUG))
     }
 
+    LOG.debug(s"Task configuration ${GlobalConfiguration.getConfiguration.toMap}")
+
     // get streaming mode
-    val streamingMode = GlobalConfiguration.getString("streamingMode", "batch").toLowerCase match {
-      case "streaming" => StreamingMode.STREAMING
-      case _ => StreamingMode.BATCH_ONLY
-    }
+    val streamingMode =
+      GlobalConfiguration.getString(STREAMING_MODE_KEY, DEFAULT_STREAMING_MODE) match {
+        case "streaming" => StreamingMode.STREAMING
+        case _ => StreamingMode.BATCH_ONLY
+      }
 
     // create the thread
     val t = new Thread {
@@ -162,6 +189,6 @@ trait FlinkExecutor extends Executor {
           driver.sendFrameworkMessage(data)
         }
       }
-    }, 60, 10, TimeUnit.SECONDS)
+    }, 10, 10, TimeUnit.SECONDS)
   }
 }

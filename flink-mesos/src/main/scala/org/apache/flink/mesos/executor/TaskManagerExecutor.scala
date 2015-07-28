@@ -22,7 +22,7 @@ import org.apache.flink.configuration.GlobalConfiguration
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
-import org.apache.log4j.{Logger => ApacheLogger, _}
+import org.apache.log4j.{Logger => ApacheLogger}
 import org.apache.mesos.MesosExecutorDriver
 import org.apache.mesos.Protos.Status
 import org.slf4j.{Logger, LoggerFactory}
@@ -36,38 +36,16 @@ class TaskManagerExecutor extends FlinkExecutor {
 
   // methods that defines how the task is started when a launchTask is sent
   override def startTask(streamingMode: StreamingMode): Try[Unit] = {
-    // start the TaskManager
-    val conf = GlobalConfiguration.getConfiguration
-    // get the logging level
-    val level = Level.toLevel(conf.getString("taskmanager.logging.level", "INFO"), Level.INFO)
-    // reconfigure log4j
-    initializeLog4j(level)
+    // startup checks
+    checkEnvironment()
+
     // start TaskManager
     Try(TaskManager.selectNetworkInterfaceAndRunTaskManager(
-      conf, streamingMode, classOf[TaskManager]))
+      GlobalConfiguration.getConfiguration, streamingMode, classOf[TaskManager]))
   }
 
-  private def initializeLog4j(level: Level): Unit = {
-    // remove all existing loggers
-    ApacheLogger.getRootLogger.removeAllAppenders()
-
-    // create a console appender
-    val consoleAppender = new ConsoleAppender()
-    consoleAppender.setLayout(new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n"))
-    consoleAppender.setThreshold(level)
-    consoleAppender.activateOptions()
-    // reconfigure log4j
-    ApacheLogger.getLogger("org.jboss.netty.channel.DefaultChannelPipeline").setLevel(Level.ERROR)
-    ApacheLogger.getLogger("org.apache.hadoop.util.NativeCodeLoader").setLevel(Level.OFF)
-    ApacheLogger.getRootLogger.addAppender(consoleAppender)
-  }
-}
-
-object TaskManagerExecutor {
-  val LOG = LoggerFactory.getLogger(classOf[TaskManagerExecutor])
-
-  def checkEnvironment(args: Array[String]): Unit = {
-    EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManagerExecutor", args)
+  def checkEnvironment(): Unit = {
+    EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManagerExecutor", null)
     EnvironmentInformation.checkJavaVersion()
     val maxOpenFileHandles = EnvironmentInformation.getOpenFileHandlesLimit
     if (maxOpenFileHandles != -1) {
@@ -77,10 +55,12 @@ object TaskManagerExecutor {
     }
   }
 
-  def apply(args: Array[String]): TaskManagerExecutor = {
-    // startup checks
-    checkEnvironment(args)
+}
 
+object TaskManagerExecutor {
+  val LOG = LoggerFactory.getLogger(classOf[TaskManagerExecutor])
+
+  def apply(args: Array[String]): TaskManagerExecutor = {
     // initialize sandbox
     // create a tmp data directory
     io.File("tmpData").createDirectory(force = true, failIfExists = false)
@@ -90,8 +70,6 @@ object TaskManagerExecutor {
   }
 
   def main(args: Array[String]) {
-    // startup checks
-    checkEnvironment(args)
 
     // initialize sandbox
     // create a tmp data directory

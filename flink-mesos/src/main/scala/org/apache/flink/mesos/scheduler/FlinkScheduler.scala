@@ -19,7 +19,7 @@
 package org.apache.flink.mesos.scheduler
 
 import java.net.InetAddress
-import java.util.{List => JList, Random}
+import java.util.{List => JList}
 
 import com.google.protobuf.ByteString
 import org.apache.flink.configuration.ConfigConstants._
@@ -39,7 +39,11 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
-  val confDir = opt[String](required = true, descr = "Configuration directory for flink")
+  val confDir = opt[String](required = true,
+                            descr = "Configuration directory for flink")
+  val host = opt[String](required = false,
+                         default = Some(InetAddress.getLocalHost.getHostName),
+                         descr = "override hostname for this jobmanager")
 }
 
 object FlinkScheduler extends Scheduler with SchedulerUtils {
@@ -107,7 +111,7 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
     LOG.info(
       s"Status update of $taskId to ${status.getState.name()} with message ${status.getMessage}")
     status.getState match {
-      case TASK_FAILED | TASK_FINISHED | TASK_KILLED | TASK_LOST =>
+      case TASK_FAILED | TASK_FINISHED | TASK_KILLED | TASK_LOST | TASK_ERROR =>
         LOG.info(
           s"We lost the taskManager with TaskId: $taskId on slave: $slaveId")
         // remove from taskManagers map
@@ -120,14 +124,14 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
   override def resourceOffers(driver: SchedulerDriver, offers: JList[Offer]): Unit = {
     val maxTaskManagers = GlobalConfiguration.getInteger(
       TASK_MANAGER_COUNT_KEY, DEFAULT_TASK_MANAGER_COUNT)
-    val requiredMem = GlobalConfiguration.getInteger(
+    val requiredMem = GlobalConfiguration.getFloat(
       TASK_MANAGER_MEM_KEY, DEFAULT_TASK_MANAGER_MEM)
     val requiredCPU = GlobalConfiguration.getFloat(
       TASK_MANAGER_CPU_KEY, DEFAULT_TASK_MANAGER_CPU.toFloat)
-    val requiredDisk = GlobalConfiguration.getInteger(
+    val requiredDisk = GlobalConfiguration.getFloat(
       TASK_MANAGER_DISK_KEY, DEFAULT_TASK_MANGER_DISK)
-    val attributeConstraints = parseConstraintString(
-      GlobalConfiguration.getString(TASK_MANAGER_OFFER_ATTRIBUTES_KEY, null))
+    val attributeConstraints = parseConstraintString(GlobalConfiguration.getString(
+      TASK_MANAGER_OFFER_ATTRIBUTES_KEY, DEFAULT_TASK_MANAGER_OFFER_ATTRIBUTES))
     val role = GlobalConfiguration.getString(
       MESOS_FRAMEWORK_ROLE_KEY, DEFAULT_MESOS_FRAMEWORK_ROLE)
     val uberJarLocation = GlobalConfiguration.getString(
@@ -159,36 +163,39 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
       //  2. Memory requirements
       //  3. CPU requirements
       //  4. Port requirements
-      val meetsRequirements = taskManagers.size < maxTaskManagers &&
+      val meetsRequirements =
+        taskManagers.size < maxTaskManagers &&
         totalCPU >= requiredCPU &&
         totalMemory >= requiredMem &&
         totalDisk >= requiredDisk &&
         ports.size == 2 &&
         matchesAttributeRequirements(attributeConstraints, offerAttributes)
+      val portRangeDebugStr = portRanges.map( x => x.getBegin + "-" + x.getEnd).mkString(",")
 
       val tasksToLaunch: Seq[TaskInfo] = if (!meetsRequirements) {
         LOG.info(
-          s"""Declining offer because host/port combination is in use:
-              |  cpus: offered $totalCPU needed $requiredCPU
-              |  mem : offered $totalMemory needed $requiredMem
-              |  disk: offered $totalDisk needed $requiredDisk
-              |  ports: $ports""".stripMargin)
+          s"Declining offer(s) from slave ${slaveId.getValue} " +
+          s"[cpus: $totalCPU mem : $totalMemory disk: $totalDisk ports: $portRangeDebugStr]")
 
         Seq()
       } else {
+        LOG.info(
+          s"Accepting offer(s) from slave ${slaveId.getValue} " +
+          s"[cpus: $totalCPU mem : $totalMemory disk: $totalDisk ports: $portRangeDebugStr]" +
+          s"required [cpus: $requiredCPU mem: $requiredMem disk: $requiredDisk]")
+
         // create task Id
         taskmanagerCount += 1
-        val taskId = TaskID.newBuilder().setValue(s"TaskManager_$taskmanagerCount").build()
 
-        val artifactURIs: Set[String] = Set(
-          uberJarLocation
-          // http://path/to/log4j-console.properties
-        )
-        val command = createTaskManagerCommand(totalMemory.toInt)
-        val executorInfo = createExecutorInfo(taskId.getValue, role, requiredMem, requiredCPU,
-          requiredDisk, ports, artifactURIs, command, nativeLibPath)
+        val taskId = TaskID.newBuilder().setValue(s"TaskManager_$taskmanagerCount").build()
+        val artifactURIs: Set[String] = Set(uberJarLocation)
+        val command = createTaskManagerCommand(requiredMem.toInt)
+        LOG.debug(s"Executor command: $command")
+
+        val executorInfo = createExecutorInfo(
+            s"$taskmanagerCount", role, artifactURIs, command, nativeLibPath)
         val taskInfo = createTaskInfo("taskManager", taskId, slaveId, role, requiredMem,
-          requiredCPU, ports, executorInfo, currentConfiguration.get)
+          requiredCPU, requiredDisk, ports, executorInfo, currentConfiguration.get)
 
         Seq(taskInfo)
       }
@@ -204,10 +211,14 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
     val listeningHost = conf.getString(JOB_MANAGER_IPC_ADDRESS_KEY, hostName)
     val listeningPort = conf.getInteger(JOB_MANAGER_IPC_PORT_KEY, DEFAULT_JOB_MANAGER_IPC_PORT)
     val streamingMode =
-      conf.getString(JOB_MANAGER_STREAMING_MODE_KEY, DEFAULT_JOB_MANAGER_STREAMING_MODE) match {
+      conf.getString(STREAMING_MODE_KEY, DEFAULT_STREAMING_MODE) match {
         case "streaming" => StreamingMode.STREAMING
         case _ => StreamingMode.BATCH_ONLY
       }
+
+    // add jobmanager configuration
+    conf.setString(JOB_MANAGER_IPC_ADDRESS_KEY, listeningHost)
+    conf.setInteger(JOB_MANAGER_IPC_PORT_KEY, listeningPort)
 
     currentConfiguration = Some(conf)
 
@@ -221,8 +232,8 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
       TASK_MANAGER_JVM_ARGS_KEY, DEFAULT_TASK_MANAGER_JVM_ARGS)
 
     createJavaExecCommand(
-      jvmArgs = s"$tmJVMArgs -Xmx${tmJVMHeap}M",
-      classToExecute = "org.apache.flink.mesos.executors.FlinkTMExecutor")
+      jvmArgs = s"$tmJVMArgs -Xmx${tmJVMHeap}m",
+      classToExecute = "org.apache.flink.mesos.executor.TaskManagerExecutor")
   }
 
   def getNPortsFromPortRanges(n: Int, portRanges: Seq[Value.Range]): Set[Int] = {
@@ -232,10 +243,12 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
     for (x <- portRanges) {
       var begin = x.getBegin
       val end = x.getEnd
+
       while (begin < end && ports.size < n) {
-        ports += (begin + (end - begin) * new Random().nextLong()).toInt
+        ports += begin.toInt
         begin += 1
       }
+
       if (ports.size == n) {
         return ports
       }
@@ -245,7 +258,7 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
   }
 
   def checkEnvironment(args: Array[String]): Unit = {
-    EnvironmentInformation.logEnvironmentInfo(LOG, "JobManagerExecutor", args)
+    EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager", args)
     EnvironmentInformation.checkJavaVersion()
     val maxOpenFileHandles = EnvironmentInformation.getOpenFileHandlesLimit
     if (maxOpenFileHandles != -1) {
@@ -257,18 +270,19 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
 
   def main(args: Array[String]) {
 
-    val conf = new Conf(args)
+    val cliConf = new Conf(args)
 
     // startup checks
     checkEnvironment(args)
 
-    LOG.info(s"Loading configuration from ${conf.confDir()}")
-    GlobalConfiguration.loadConfiguration(conf.confDir())
+    LOG.info(s"Loading configuration from ${cliConf.confDir()}")
+    GlobalConfiguration.loadConfiguration(cliConf.confDir())
+    LOG.info(s"Loaded configuration: ${GlobalConfiguration.getConfiguration.toMap}")
 
     val jobManagerThread: Thread = new Thread {
       override def run(): Unit = {
         // start the job
-        startJobManager(InetAddress.getLocalHost.getHostName) match {
+        startJobManager(cliConf.host()) match {
           case Success(_) =>
             LOG.info("JobManager finished")
             sys.exit(0)
@@ -287,7 +301,7 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
     Runtime.getRuntime.addShutdownHook(new Thread {
       override def run(): Unit = {
         if (jobManager.isDefined) {
-          jobManager.get.interrupt()
+          jobManager.get.stop()
           jobManager = None
         }
       }
@@ -311,6 +325,12 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
     val frameworkTimeout = GlobalConfiguration.getInteger(
       MESOS_FRAMEWORK_FAILOVER_TIMEOUT_KEY, DEFAULT_MESOS_FRAMEWORK_FAILOVER_TIMEOUT)
     frameworkBuilder.setFailoverTimeout(frameworkTimeout)
+    val webUIPort = GlobalConfiguration.getInteger(JOB_MANAGER_WEB_PORT_KEY, -1)
+    if (webUIPort > 0) {
+      val webUIHost = GlobalConfiguration.getString(
+        JOB_MANAGER_IPC_ADDRESS_KEY, cliConf.host())
+      frameworkBuilder.setWebuiUrl(s"http://$webUIHost:$webUIPort")
+    }
     frameworkBuilder.setCheckpoint(true)
 
     var credsBuilder: Credential.Builder = null

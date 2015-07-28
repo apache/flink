@@ -21,22 +21,23 @@ package org.apache.flink.mesos
 package object scheduler {
 
   // configuration key and default value for streamingMode
-  val JOB_MANAGER_STREAMING_MODE_KEY = "jobmanager.streamingMode"
-  val DEFAULT_JOB_MANAGER_STREAMING_MODE = "batch"
+  val STREAMING_MODE_KEY = "streamingMode"
+  val DEFAULT_STREAMING_MODE = "batch"
 
   val TASK_MANAGER_COUNT_KEY = "flink.mesos.taskmanagers.maxcount"
   val DEFAULT_TASK_MANAGER_COUNT = Integer.MAX_VALUE // consume whole cluster
 
   val TASK_MANAGER_CPU_KEY = "flink.mesos.taskmanagers.cpu"
-  val DEFAULT_TASK_MANAGER_CPU = 1.0 // 1 core
+  val DEFAULT_TASK_MANAGER_CPU = 1.0F // 1 core
 
   val TASK_MANAGER_MEM_KEY = "flink.mesos.taskmanagers.mem"
-  val DEFAULT_TASK_MANAGER_MEM = 1024 // 1GB
+  val DEFAULT_TASK_MANAGER_MEM = 512.0F // 1GB
 
   val TASK_MANAGER_DISK_KEY = "flink.mesos.taskmanager.disk"
-  val DEFAULT_TASK_MANGER_DISK = 1024 // 1GB
+  val DEFAULT_TASK_MANGER_DISK = 1024.0F // 1GB
 
   val TASK_MANAGER_OFFER_ATTRIBUTES_KEY = "flink.mesos.taskmanager.attributes"
+  val DEFAULT_TASK_MANAGER_OFFER_ATTRIBUTES = ""
 
   val MESOS_FRAMEWORK_ROLE_KEY = "flink.mesos.framework.role"
   val DEFAULT_MESOS_FRAMEWORK_ROLE = "*"
@@ -50,10 +51,11 @@ package object scheduler {
                                       "-XX:+UseCompressedOops " +
                                       "-XX:+UseFastEmptyMethods " +
                                       "-XX:+UseFastAccessorMethods " +
-                                      "-XX:+AlwaysPreTouch " +
-                                      "-Dlog4j.configuration=file:log4j-console.properties"
+                                      "-XX:+AlwaysPreTouch"
 
   val FLINK_UBERJAR_LOCATION_KEY = "flink.uberjar.location"
+  val DEFAULT_FLINK_UBERJAR_LOCATION = "file:///vagrant/flink-dist-0.10-SNAPSHOT.jar"
+
   val MESOS_NATIVE_JAVA_LIBRARY_KEY = "mesos.native.lib"
   val DEFAULT_MESOS_NATIVE_JAVA_LIBRARY = "/usr/local/lib/libmesos.so"
 
@@ -80,5 +82,6 @@ package object scheduler {
   val DEFAULT_MESOS_FRAMEWORK_SECRET = null
 
   val MESOS_MASTER_KEY = "flink.mesos.master"
-  val DEFAULT_MESOS_MASTER = "localhost:5050"
+  val DEFAULT_MESOS_MASTER = "zk://127.0.0.1:2181/mesos"
+
 }
