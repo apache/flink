@@ -31,8 +31,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
-
 import org.apache.flink.util.Collector;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -110,7 +110,7 @@ public class StateCheckpoinedITCase {
 																	"localhost", cluster.getJobManagerRPCPort());
 			env.setParallelism(PARALLELISM);
 			env.enableCheckpointing(500);
-			env.getConfig().enableSysoutLogging();
+			env.getConfig().disableSysoutLogging();
 
 			DataStream<String> stream = env.addSource(new StringGeneratingSourceFunction(NUM_STRINGS));
 			
