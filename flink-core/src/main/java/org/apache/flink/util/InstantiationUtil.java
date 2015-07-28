@@ -311,7 +311,13 @@ public class InstantiationUtil {
 	public static byte[] serializeObject(Object o) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		ObjectOutputStream oos = new ObjectOutputStream(baos);
-		oos.writeObject(o);
+
+		try {
+			oos.writeObject(o);
+		}
+		finally {
+			oos.close();
+		}
 
 		return baos.toByteArray();
 	}
