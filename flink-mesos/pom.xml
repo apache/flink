@@ -44,12 +44,6 @@ under the License.
         </dependency>
 
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${guava.version}</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.apache.mesos</groupId>
             <artifactId>mesos</artifactId>
             <version>${mesos.version}</version>
@@ -189,14 +183,6 @@ under the License.
                 </configuration>
             </plugin>
 
-            <!--<plugin>-->
-                <!--<groupId>org.codehaus.mojo</groupId>-->
-                <!--<artifactId>exec-maven-plugin</artifactId>-->
-                <!--<version>1.4.0</version>-->
-                <!--<configuration>-->
-                    <!--<mainClass>org.apache.flink.mesos.FlinkMesosScheduler</mainClass>-->
-                <!--</configuration>-->
-            <!--</plugin>-->
         </plugins>
     </build>
 </project>
