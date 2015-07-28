@@ -77,17 +77,15 @@ public class LargeAccumulatorHelper {
 
 				String accumulatorName = entry.getKey();
 				byte[] accumulatorPayload = entry.getValue().getSerializedData();
-				if(accumulatorPayload == null) {
-					continue;
+				if(accumulatorPayload != null) {
+					BlobKey blobKey = bc.put(accumulatorPayload);
+					List<BlobKey> accKeys = keys.get(accumulatorName);
+					if (accKeys == null) {
+						accKeys = new ArrayList<BlobKey>();
+					}
+					accKeys.add(blobKey);
+					keys.put(accumulatorName, accKeys);
 				}
-
-				BlobKey blobKey = bc.put(accumulatorPayload);
-				List<BlobKey> accKeys = keys.get(accumulatorName);
-				if (accKeys == null) {
-					accKeys = new ArrayList<BlobKey>();
-				}
-				accKeys.add(blobKey);
-				keys.put(accumulatorName, accKeys);
 			}
 		} catch (IOException e) {
 			throw new IOException("Failed to send oversized accumulators to the BlobCache: ", e);

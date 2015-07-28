@@ -60,7 +60,6 @@ import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.FiniteDuration;
-import scala.runtime.AbstractFunction0;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -260,8 +259,7 @@ public class Task implements Runnable {
 		this.libraryCache = checkNotNull(libraryCache);
 		this.fileCache = checkNotNull(fileCache);
 		this.network = checkNotNull(networkEnvironment);
-
-
+		
 		this.accumulatorRegistry = new AccumulatorRegistry(tdd.getJobConfiguration(),
 				jobId, executionId, getBlobCacheServerAddress());
 
@@ -324,18 +322,10 @@ public class Task implements Runnable {
 			throw new RuntimeException("TaskManager not associated to JobManager.");
 		}
 
-		final String jmHost;
+		String jmHost = "localhost";
 		ActorRef jobManagerActor = this.jobManager.actor();
-		if (jobManagerActor == null) {
-			jmHost = "localhost";
-		} else {
-			jmHost = jobManagerActor.path().address().host().getOrElse(
-					new AbstractFunction0<String>() {
-						@Override
-						public String apply() {
-							return "localhost";
-						}
-					});
+		if (jobManagerActor != null && jobManagerActor.path().address().host().isDefined()) {
+			jmHost = jobManagerActor.path().address().host().get();
 		}
 		int blobPort = this.libraryCache.getBlobServerPort();
 		return new InetSocketAddress(jmHost, blobPort);

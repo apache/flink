@@ -36,6 +36,14 @@ public class LargeAccumulatorSnapshot extends BaseAccumulatorSnapshot {
 	 * */
 	private final Map<String, List<BlobKey>> largeUserAccumulatorBlobs;
 
+	/**
+	 * In case some user-defined accumulators do not fit in an Akka message payload, we store them in the
+	 * blobCache, and put in the snapshot only the mapping between the name of the accumulator,
+	 * and its blobKey in the cache. This clase is a subclass of the BaseAccumulatorSnapshot
+	 * and holds the (potential) references to blobs stored in the BlobCache and containing
+	 * these oversized accumulators. It is used for the transfer from TaskManagers to the
+	 * JobManager and from the JobManager to the Client.
+	 */
 	public LargeAccumulatorSnapshot(
 			JobID jobID, ExecutionAttemptID executionAttemptID,
 			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
@@ -45,8 +53,9 @@ public class LargeAccumulatorSnapshot extends BaseAccumulatorSnapshot {
 	}
 
 	/**
-	 * Gets the Flink (internal) accumulators values.
-	 * @return the serialized map
+	 * Gets the BlobKeys of the oversized accumulators that were too big to be sent through akka, and
+	 * had to be stored in the BlobCache.
+	 * @return the maping between accumulator and its blobKeys.
 	 */
 	public Map<String, List<BlobKey>> getLargeAccumulatorBlobKeys() {
 		return largeUserAccumulatorBlobs;

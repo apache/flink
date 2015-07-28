@@ -592,7 +592,7 @@ public class ExecutionGraph implements Serializable {
 	 * @param  reaggregate <code>true</code> if we want to aggregate accumulators,
 	 *                     <code>false</code> otherwise.
 	 * @return The accumulator map
-	 	 */
+	 */
 	public Map<String, Accumulator<?,?>> aggregateSmallUserAccumulators(boolean reaggregate) {
 		if(!reaggregate) {
 			return mergedSmallUserAccumulators;
@@ -676,6 +676,19 @@ public class ExecutionGraph implements Serializable {
 		return serializeAccumulators(false);
 	}
 
+	/**
+	 * Merges and serializes all accumulator results from the tasks previously executed in
+	 * the Executions. If <code>onlyContent</code> is set to true, then the Accumulators are
+	 * merged and the content of the resulting Accumulator is serialized and returned. In other
+	 * case, the result is assumed to be merged, so no additional merging is performed (as this
+	 * could lead to duplicate entries), and the whole accumulator object is serialized and
+	 * returned.
+	 * @param  onlyContent <code>true</code> if we want to aggregate accumulators and serialize just
+	 *                     the content of the result, <code>false</code> if (partial) accumulators
+	 *                     are already merged (so no additional merging is required), and we want the
+	 *                     whole object serialized.
+	 * @return The accumulator map
+	 */
 	private Map<String,  SerializedValue<Object>> serializeAccumulators(boolean onlyContent) throws IOException {
 
 		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateSmallUserAccumulators(onlyContent);
@@ -698,10 +711,10 @@ public class ExecutionGraph implements Serializable {
 		Map<String, List<BlobKey>> largeAccumulatorMap = aggregateLargeUserAccumulatorBlobKeys();
 
 		// get the total number of (unique) accumulators
-		Set<String> uniqAccumulators = new HashSet<String>();
-		uniqAccumulators.addAll(smallAccumulatorMap.keySet());
-		uniqAccumulators.addAll(largeAccumulatorMap.keySet());
-		int num = uniqAccumulators.size();
+		Set<String> uniqueAccumulators = new HashSet<String>();
+		uniqueAccumulators.addAll(smallAccumulatorMap.keySet());
+		uniqueAccumulators.addAll(largeAccumulatorMap.keySet());
+		int num = uniqueAccumulators.size();
 
 		StringifiedAccumulatorResult[] resultStrings = new StringifiedAccumulatorResult[num];
 		int i = 0;

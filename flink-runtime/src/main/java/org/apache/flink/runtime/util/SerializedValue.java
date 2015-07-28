@@ -48,7 +48,7 @@ public class SerializedValue<T> implements java.io.Serializable {
 	}
 
 	public SerializedValue(byte[] data) {
-		this.serializedData = data == null ? null : data;
+		this.serializedData = data;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -74,7 +74,7 @@ public class SerializedValue<T> implements java.io.Serializable {
 	 * */
 	public long getSizeInBytes() {
 		if(serializedData == null) {
-			throw new RuntimeException("No data in this Blob.");
+			throw new RuntimeException("Data Payload is NULL.");
 		}
 		return serializedData.length;
 	}

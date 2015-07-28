@@ -33,6 +33,10 @@ public class SmallAccumulatorSnapshot extends BaseAccumulatorSnapshot {
 	 */
 	private final SerializedValue<Map<String, Accumulator<?, ?>>> userAccumulators;
 
+	/**
+	 * This is a subclass of the BaseAccumulatorSnapshot that serves at storing the task user-defined
+	 * accumulators that are small enough to be sent to the JobManager using akka.
+	 * */
 	public SmallAccumulatorSnapshot(JobID jobID, ExecutionAttemptID executionAttemptID,
 									Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
 									SerializedValue<Map<String, Accumulator<?, ?>>> userAccumulators) throws IOException {

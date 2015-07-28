@@ -34,11 +34,14 @@ public class BaseAccumulatorSnapshot implements Serializable {
 	private final JobID jobID;
 	private final ExecutionAttemptID executionAttemptID;
 
-	/**
-	 * Flink internal accumulators which can be deserialized using the system class loader.
-	 */
+	/** Flink internal accumulators which can be deserialized using the system class loader. */
 	private final SerializedValue<Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators;
 
+	/**
+	 * This class and its subclasses encapsulate a map of accumulators for a single
+	 * task. It is used for the transfer from TaskManagers to the JobManager and from
+	 * the JobManager to the Client.
+	 */
 	public BaseAccumulatorSnapshot(JobID jobID, ExecutionAttemptID executionAttemptID,
 			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators) throws IOException {
 		this.jobID = jobID;

@@ -368,10 +368,6 @@ class JobManager(
                   // and update the blobKeys to send to the client.
                   largeAccumulatorResults = executionGraph.
                     addLargeUserAccumulatorBlobKeys(largeAccumulatorResults, newBlobKeys)
-
-                } else {
-                  // do nothing
-                  java.util.Collections.emptyMap()
                 }
                 
                 val result = new SerializedJobExecutionResult(jobID,
@@ -550,11 +546,10 @@ class JobManager(
    **/
   private def getBlobCacheServerAddress: InetSocketAddress = {
     if (libraryCacheManager == null) {
-      throw new RuntimeException("LibraryCacheManage is not initialized yet.")
+      throw new RuntimeException("LibraryCacheManager is not initialized yet.")
     }
-    val jmHost: String = "localhost"
     val blobPort: Int = this.libraryCacheManager.getBlobServerPort
-    return new InetSocketAddress(jmHost, blobPort)
+    return new InetSocketAddress("localhost", blobPort)
   }
 
   /**
@@ -952,8 +947,6 @@ class JobManager(
       case Some((eg, _)) =>
         try {
           eg.prepareForArchiving()
-
-          // todo KOSTAS: handle also the large accumulators.
 
           archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg))
         } catch {

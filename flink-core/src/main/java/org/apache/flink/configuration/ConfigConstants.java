@@ -414,6 +414,12 @@ public final class ConfigConstants {
 	 * Exit JVM on fatal Akka errors
 	 */
 	public static final String AKKA_JVM_EXIT_ON_FATAL_ERROR = "akka.jvm-exit-on-fatal-error";
+
+	/**
+	 * The threshold (in bytes) above which an object is considered too big
+	 * to transfer using akka
+	 */
+	public static final String AKKA_FRAMESIZE_OVERSIZED_THRESHOLD = "akka.framesize.oversized.threshold";
 	
 	// ----------------------------- Streaming --------------------------------
 	
@@ -662,6 +668,8 @@ public final class ConfigConstants {
 	public static String DEFAULT_AKKA_ASK_TIMEOUT = "100 s";
 
 	public static String DEFAULT_AKKA_LOOKUP_TIMEOUT = "10 s";
+
+	public static double DEFAULT_AKKA_FRAMESIZE_OVERSIZED_THRESHOLD = 0.8;
 	
 	// ----------------------------- Streaming Values --------------------------
 	

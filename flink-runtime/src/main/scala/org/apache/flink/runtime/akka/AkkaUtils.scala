@@ -424,13 +424,13 @@ object AkkaUtils {
 
   def getFramesize(config: Configuration): Long = config.getString(
     ConfigConstants.AKKA_FRAMESIZE,
-    ConfigConstants.DEFAULT_AKKA_FRAMESIZE).replaceAll("[^\\d.]", "").toLong
+    ConfigConstants.DEFAULT_AKKA_FRAMESIZE).replaceAll("[^\\d]", "").toLong
 
-  /**
-   * @return the threshold (in bytes) above which an object is considered too big
-   *         to transfer using akka. For now this parameter is set to 80% of the
-   *         akka.framesize.
-   * */
-  def getLargeAccumulatorThreshold(config: Configuration): Long =
-    (0.8 * getFramesize(config)).toLong
+  def getLargeAccumulatorThreshold(config: Configuration): Long = {
+    val threshold = config.getDouble(
+      ConfigConstants.AKKA_FRAMESIZE_OVERSIZED_THRESHOLD,
+      ConfigConstants.DEFAULT_AKKA_FRAMESIZE_OVERSIZED_THRESHOLD)
+
+    (threshold * getFramesize(config)).toLong
+  }
 }
