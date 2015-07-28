@@ -30,10 +30,7 @@ import org.apache.flink.api.common.state.OperatorState
 trait StatefulFunction[I, O, S] extends RichFunction {
 
   var state: OperatorState[Option[S]] = _
-  var partitioned: Boolean = false
-
-  def partitionStateByKey = { partitioned = true }
-  def isPartitioned = partitioned
+  val partitioned: Boolean
 
   def applyWithState(in: I, fun: (I, Option[S]) => (O, Option[S])): O = {
     val (o, s) = fun(in, state.value)
@@ -42,6 +39,6 @@ trait StatefulFunction[I, O, S] extends RichFunction {
   }
 
   override def open(c: Configuration) = {
-    state = getRuntimeContext().getOperatorState("state", None, isPartitioned)
+    state = getRuntimeContext().getOperatorState("state", None, partitioned)
   }
 }
