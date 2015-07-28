@@ -46,9 +46,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Input reader for {@link org.apache.flink.streaming.runtime.tasks.OneInputStreamTask}.
  *
- * <p>
- * This also keeps track of {@link Watermark} events and forwards them to event subscribers
- * once the {@link Watermark} from all inputs advances.
+ * <p>This also keeps track of {@link Watermark} events and forwards them to event subscribers
+ * once the {@link Watermark} from all inputs advances.</p>
  * 
  * @param <IN> The type of the record that can be read with this record reader.
  */
@@ -63,33 +62,35 @@ public class StreamInputProcessor<IN> extends AbstractReader implements ReaderBa
 
 	// We need to keep track of the channel from which a buffer came, so that we can
 	// appropriately map the watermarks to input channels
-	int currentChannel = -1;
+	private int currentChannel = -1;
 
 	private boolean isFinished;
 
 	private final BarrierBuffer barrierBuffer;
 
-	private long[] watermarks;
+	private final long[] watermarks;
 	private long lastEmittedWatermark;
 
-	private DeserializationDelegate<Object> deserializationDelegate;
+	private final DeserializationDelegate<Object> deserializationDelegate;
 
 	@SuppressWarnings("unchecked")
 	public StreamInputProcessor(InputGate[] inputGates, TypeSerializer<IN> inputSerializer, boolean enableWatermarkMultiplexing) {
 		super(InputGateUtil.createInputGate(inputGates));
 
 		barrierBuffer = new BarrierBuffer(inputGate, this);
-
-		StreamRecordSerializer<IN> inputRecordSerializer;
+		
 		if (enableWatermarkMultiplexing) {
-			inputRecordSerializer = new MultiplexingStreamRecordSerializer<IN>(inputSerializer);
+			MultiplexingStreamRecordSerializer<IN> ser = new MultiplexingStreamRecordSerializer<IN>(inputSerializer);
+			this.deserializationDelegate = new NonReusingDeserializationDelegate<Object>(ser);
 		} else {
-			inputRecordSerializer = new StreamRecordSerializer<IN>(inputSerializer);
+			StreamRecordSerializer<IN> ser = new StreamRecordSerializer<IN>(inputSerializer);
+			this.deserializationDelegate = (NonReusingDeserializationDelegate<Object>)
+					(NonReusingDeserializationDelegate<?>) new NonReusingDeserializationDelegate<StreamRecord<IN>>(ser);
 		}
-		this.deserializationDelegate = new NonReusingDeserializationDelegate<Object>(inputRecordSerializer);
-
+		
 		// Initialize one deserializer per input channel
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
+		
 		for (int i = 0; i < recordDeserializers.length; i++) {
 			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<Object>>();
 		}

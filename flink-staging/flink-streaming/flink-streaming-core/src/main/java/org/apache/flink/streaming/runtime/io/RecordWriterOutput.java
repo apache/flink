@@ -39,32 +39,33 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RecordWriterOutput.class);
 
-	private RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter;
-	private SerializationDelegate<StreamRecord<OUT>> serializationDelegate;
+	private RecordWriter<SerializationDelegate<Object>> recordWriter;
+	
+	private SerializationDelegate<Object> serializationDelegate;
 
 	@SuppressWarnings("unchecked")
 	public RecordWriterOutput(
-			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
+			RecordWriter<?> recordWriter,
 			TypeSerializer<OUT> outSerializer,
 			boolean enableWatermarkMultiplexing) {
+		
 		Preconditions.checkNotNull(recordWriter);
 
-		this.recordWriter = recordWriter;
+		this.recordWriter = (RecordWriter<SerializationDelegate<Object>>) recordWriter;
 
-		StreamRecordSerializer<OUT> outRecordSerializer;
+		TypeSerializer<Object> outRecordSerializer;
 		if (enableWatermarkMultiplexing) {
 			outRecordSerializer = new MultiplexingStreamRecordSerializer<OUT>(outSerializer);
 		} else {
-			outRecordSerializer = new StreamRecordSerializer<OUT>(outSerializer);
+			outRecordSerializer = (TypeSerializer<Object>) (TypeSerializer<?>) new StreamRecordSerializer<OUT>(outSerializer);
 		}
 
 		if (outSerializer != null) {
-			serializationDelegate = new SerializationDelegate(outRecordSerializer);
+			serializationDelegate = new SerializationDelegate<Object>(outRecordSerializer);
 		}
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void collect(StreamRecord<OUT> record) {
 		serializationDelegate.setInstance(record);
 
@@ -79,9 +80,9 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked,rawtypes")
 	public void emitWatermark(Watermark mark) {
-		((SerializationDelegate)serializationDelegate).setInstance(mark);
+		serializationDelegate.setInstance(mark);
+		
 		try {
 			recordWriter.broadcastEmit(serializationDelegate);
 		} catch (Exception e) {

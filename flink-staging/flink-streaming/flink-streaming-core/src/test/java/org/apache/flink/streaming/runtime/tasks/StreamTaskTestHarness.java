@@ -35,7 +35,6 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.Assert;
 
@@ -79,9 +78,8 @@ public class StreamTaskTestHarness<OUT> {
 
 	private AbstractInvokable task;
 
-	private TypeInformation<OUT> outputType;
 	private TypeSerializer<OUT> outputSerializer;
-	private StreamRecordSerializer<OUT> outputStreamRecordSerializer;
+	private TypeSerializer<Object> outputStreamRecordSerializer;
 
 	private ConcurrentLinkedQueue<Object> outputList;
 
@@ -114,7 +112,6 @@ public class StreamTaskTestHarness<OUT> {
 		streamConfig.setChainStart();
 		streamConfig.setBufferTimeout(0);
 
-		this.outputType = outputType;
 		outputSerializer = outputType.createSerializer(executionConfig);
 		outputStreamRecordSerializer = new MultiplexingStreamRecordSerializer<OUT>(outputSerializer);
 	}
@@ -127,7 +124,7 @@ public class StreamTaskTestHarness<OUT> {
 
 	@SuppressWarnings("unchecked")
 	private void initializeOutput() {
-		outputList = new ConcurrentLinkedQueue();
+		outputList = new ConcurrentLinkedQueue<Object>();
 
 		mockEnv.addOutput(outputList, outputStreamRecordSerializer);
 
