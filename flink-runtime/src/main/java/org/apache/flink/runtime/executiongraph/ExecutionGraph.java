@@ -658,49 +658,66 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	/**
-	 * Gets a serialized map of the contents of the accumulators.
+	 * Merges the partial accumulators referring to the same global accumulator received from the tasks,
+	 * and serializes the final result. Each of the partial accumulators contains the partial result
+	 * produced by each task, for that specific accumulator.
 	 * @return The accumulator map with serialized accumulator values.
 	 * @throws IOException
 	 */
 	public Map<String, SerializedValue<Object>> getSmallAccumulatorsContentSerialized() throws IOException {
-		return serializeAccumulators(true);
+		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateSmallUserAccumulators(true);
+
+		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
+		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
+			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue().getLocalValue()));
+		}
+		return result;
 	}
 
 	/**
-	 * Gets a serialized map of the objects of the accumulators. This means that the actual
+	 * Serializes the objects of the accumulators (not only the content as the
+	 * {@link #getSmallAccumulatorsContentSerialized()}. This means that the actual
 	 * objects are serialized, thus merging can still be applied after deserialization.
+	 * This method assumes that partial accumulators received from the tasks that refer to
+	 * the same global accumulator have already been merged.
 	 * @return The accumulator map with serialized accumulator objects.
 	 * @throws IOException
 	 */
 	public Map<String, SerializedValue<Object>> getSmallAccumulatorsSerialized() throws IOException {
-		return serializeAccumulators(false);
-	}
-
-	/**
-	 * Merges and serializes all accumulator results from the tasks previously executed in
-	 * the Executions. If <code>onlyContent</code> is set to true, then the Accumulators are
-	 * merged and the content of the resulting Accumulator is serialized and returned. In other
-	 * case, the result is assumed to be merged, so no additional merging is performed (as this
-	 * could lead to duplicate entries), and the whole accumulator object is serialized and
-	 * returned.
-	 * @param  onlyContent <code>true</code> if we want to aggregate accumulators and serialize just
-	 *                     the content of the result, <code>false</code> if (partial) accumulators
-	 *                     are already merged (so no additional merging is required), and we want the
-	 *                     whole object serialized.
-	 * @return The accumulator map
-	 */
-	private Map<String,  SerializedValue<Object>> serializeAccumulators(boolean onlyContent) throws IOException {
-
-		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateSmallUserAccumulators(onlyContent);
+		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateSmallUserAccumulators(false);
 
 		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
 		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
-			Object toSerialize = onlyContent ? entry.getValue().getLocalValue() : entry.getValue();
-			result.put(entry.getKey(), new SerializedValue<Object>(toSerialize));
+			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue()));
 		}
-
 		return result;
 	}
+
+//	/**
+//	 * Merges and serializes all accumulator results from the tasks previously executed in
+//	 * the Executions. If <code>onlyContent</code> is set to true, then the Accumulators are
+//	 * merged and the content of the resulting Accumulator is serialized and returned. In other
+//	 * case, the result is assumed to be merged, so no additional merging is performed (as this
+//	 * could lead to duplicate entries), and the whole accumulator object is serialized and
+//	 * returned.
+//	 * @param  onlyContent <code>true</code> if we want to aggregate accumulators and serialize just
+//	 *                     the content of the result, <code>false</code> if (partial) accumulators
+//	 *                     are already merged (so no additional merging is required), and we want the
+//	 *                     whole object serialized.
+//	 * @return The accumulator map
+//	 */
+//	private Map<String,  SerializedValue<Object>> serializeAccumulators(boolean onlyContent) throws IOException {
+//
+//		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateSmallUserAccumulators(onlyContent);
+//
+//		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
+//		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
+//			Object toSerialize = onlyContent ? entry.getValue().getLocalValue() : entry.getValue();
+//			result.put(entry.getKey(), new SerializedValue<Object>(toSerialize));
+//		}
+//
+//		return result;
+//	}
 
 	/**
 	 * Returns the a stringified version of the user-defined accumulators.
