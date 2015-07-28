@@ -18,34 +18,15 @@
 
 package org.apache.flink.mesos.scheduler
 
-import java.net.InetAddress
 import java.util.{List => JList}
 
-import com.google.protobuf.ByteString
-import org.apache.flink.configuration.ConfigConstants._
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration}
-import org.apache.flink.runtime.StreamingMode
-import org.apache.flink.runtime.jobmanager.{JobManager, JobManagerMode}
-import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.mesos.Protos.TaskState._
 import org.apache.mesos.Protos._
-import org.apache.mesos.{MesosSchedulerDriver, Scheduler, SchedulerDriver}
-import org.rogach.scallop.ScallopConf
+import org.apache.mesos.{Scheduler, SchedulerDriver}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable
-import scala.util.{Failure, Success, Try}
-
-class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
-  val confDir = opt[String](required = true,
-                            descr = "Configuration directory for flink")
-  val host = opt[String](required = false,
-                         default = Some(InetAddress.getLocalHost.getHostName),
-                         descr = "override hostname for this jobmanager")
-}
-
-sealed case class RunningTaskManager(taskId: TaskID, slaveId: SlaveID)
 
 object FlinkScheduler extends Scheduler with SchedulerUtils {
 
@@ -53,23 +34,16 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
   var jobManager: Option[Thread] = None
   var currentConfiguration: Option[Configuration] = None
   var taskManagers: Set[RunningTaskManager] = Set()
-  var taskmanagerCount = 0
+  var taskManagerCount = 0
 
-  override def offerRescinded(driver: SchedulerDriver, offerId: OfferID): Unit = {
-    LOG.warn(s"Rescinded offer: ${offerId.getValue}")
-  }
+  override def offerRescinded(driver: SchedulerDriver, offerId: OfferID): Unit = { }
 
-  override def disconnected(driver: SchedulerDriver): Unit = {
-    LOG.warn("Disconnected from Mesos master.")
-  }
+  override def disconnected(driver: SchedulerDriver): Unit = { }
 
-  override def reregistered(driver: SchedulerDriver, masterInfo: MasterInfo): Unit = {
-    LOG.info(s"Re-registered with master $masterInfo")
-  }
+  override def reregistered(driver: SchedulerDriver, masterInfo: MasterInfo): Unit = { }
 
   override def slaveLost(driver: SchedulerDriver, slaveId: SlaveID): Unit = {
-    LOG.warn(s"Slave lost: ${slaveId.getValue}")
-    // remove taskManager from that slave
+    LOG.warn(s"Slave lost: ${slaveId.getValue}, removing all task managers matching slaveId")
     taskManagers = taskManagers.filter(_.slaveId != slaveId)
   }
 
@@ -79,9 +53,7 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
                                 slaveId: SlaveID, data: Array[Byte]): Unit = { }
 
   override def registered(driver: SchedulerDriver, frameworkId: FrameworkID,
-                          masterInfo: MasterInfo): Unit = {
-    LOG.info(s"Registered as ${frameworkId.getValue} with master $masterInfo")
-  }
+                          masterInfo: MasterInfo): Unit = { }
 
   override def executorLost(driver: SchedulerDriver, executorId: ExecutorID,
                             slaveId: SlaveID, status: Int): Unit = {
@@ -92,19 +64,27 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
     val taskId = status.getTaskId.getValue
     val slaveId = status.getSlaveId.getValue
     LOG.info(
-      s"Status update of $taskId to ${status.getState.name()} with message ${status.getMessage}")
+      s"statusUpdate received from taskId: $taskId slaveId: $slaveId [${status.getState.name()}]")
+
     status.getState match {
       case TASK_FAILED | TASK_FINISHED | TASK_KILLED | TASK_LOST | TASK_ERROR =>
-        LOG.info(
-          s"We lost the taskManager with TaskId: $taskId on slave: $slaveId")
-        // remove from taskManagers map
+        LOG.info(s"Lost taskManager with TaskId: $taskId on slave: $slaveId")
         taskManagers = taskManagers.filter(_.taskId != status.getTaskId)
       case _ =>
-        LOG.debug(s"Ignorable TaskStatus received: ${status.getState.name()}")
+        LOG.debug(s"No action to take for statusUpdate ${status.getState.name()}")
     }
   }
 
   override def resourceOffers(driver: SchedulerDriver, offers: JList[Offer]): Unit = {
+    // we will combine all resources from te same slave and then launch a single task rather
+    // than one per offer this way we have better utilization and less memory wasted on overhead.
+    for((slaveId, offers) <- offers.groupBy(_.getSlaveId)) {
+      val tasks = constructTaskInfoFromOffers(slaveId, offers.toList)
+      driver.launchTasks(offers.map(_.getId), tasks)
+    }
+  }
+
+  def constructTaskInfoFromOffers(slaveId: SlaveID, offers: List[Offer]): Seq[TaskInfo] = {
     val maxTaskManagers = GlobalConfiguration.getInteger(
       TASK_MANAGER_COUNT_KEY, DEFAULT_TASK_MANAGER_COUNT)
     val requiredMem = GlobalConfiguration.getFloat(
@@ -122,132 +102,64 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
     val nativeLibPath = GlobalConfiguration.getString(
       MESOS_NATIVE_JAVA_LIBRARY_KEY, DEFAULT_MESOS_NATIVE_JAVA_LIBRARY)
 
-    // we will combine all resources from te same slave and then launch a single task rather
-    // than one per offer this way we have better utilization and less memory wasted on overhead.
-    val offersBySlaveId: Map[SlaveID, mutable.Buffer[Offer]] = offers.groupBy(_.getSlaveId)
-    for ((slaveId, offers) <- offersBySlaveId) {
-      val totalMemory = offers.flatMap(_.getResourcesList
-        .filter(x => x.getName == "mem" && x.getRole == role)
-        .map(_.getScalar.getValue)).sum
-      val totalCPU = offers.flatMap(_.getResourcesList
-        .filter(x => x.getName == "cpus" && x.getRole == role)
-        .map(_.getScalar.getValue)).sum
-      val totalDisk = offers.flatMap(_.getResourcesList
-        .filter(x => x.getName == "disk" && x.getRole == role)
-        .map(_.getScalar.getValue)).sum
-      val portRanges = offers.flatMap(_.getResourcesList
-        .filter(x => x.getName == "ports" && x.getRole == role)
-        .flatMap(_.getRanges.getRangeList))
-      val ports = getNPortsFromPortRanges(2, portRanges)
-      val offerAttributes = toAttributeMap(offers.flatMap(_.getAttributesList))
+    // combine offers into a single chunk
+    val totalMemory = offers.flatMap(_.getResourcesList
+      .filter(x => x.getName == "mem" && x.getRole == role)
+      .map(_.getScalar.getValue)).sum
 
-      // check if all constraints are satisfield
-      //  1. Attribute constraints
-      //  2. Memory requirements
-      //  3. CPU requirements
-      //  4. Port requirements
-      val meetsRequirements =
-        taskManagers.size < maxTaskManagers &&
-        totalCPU >= requiredCPU &&
-        totalMemory >= requiredMem &&
-        totalDisk >= requiredDisk &&
-        ports.size == 2 &&
-        matchesAttributeRequirements(attributeConstraints, offerAttributes)
-      val portRangeDebugStr = portRanges.map( x => x.getBegin + "-" + x.getEnd).mkString(",")
+    val totalCPU = offers.flatMap(_.getResourcesList
+      .filter(x => x.getName == "cpus" && x.getRole == role)
+      .map(_.getScalar.getValue)).sum
 
-      val tasksToLaunch: Seq[TaskInfo] = if (!meetsRequirements) {
-        LOG.info(
-          s"Declining offer(s) from slave ${slaveId.getValue} " +
-          s"[cpus: $totalCPU mem : $totalMemory disk: $totalDisk ports: $portRangeDebugStr]")
+    val totalDisk = offers.flatMap(_.getResourcesList
+      .filter(x => x.getName == "disk" && x.getRole == role)
+      .map(_.getScalar.getValue)).sum
 
-        Seq()
-      } else {
-        LOG.info(
-          s"Accepting offer(s) from slave ${slaveId.getValue} " +
-          s"[cpus: $totalCPU mem : $totalMemory disk: $totalDisk ports: $portRangeDebugStr]" +
-          s"required [cpus: $requiredCPU mem: $requiredMem disk: $requiredDisk]")
+    val portRanges = offers.flatMap(_.getResourcesList
+      .filter(x => x.getName == "ports" && x.getRole == role)
+      .flatMap(_.getRanges.getRangeList))
 
-        // create task Id
-        taskmanagerCount += 1
+    val ports = getNPortsFromPortRanges(2, portRanges)
 
-        val taskId = TaskID.newBuilder().setValue(s"TaskManager_$taskmanagerCount").build()
-        val artifactURIs: Set[String] = Set(uberJarLocation)
-        val command = createTaskManagerCommand(requiredMem.toInt)
-        LOG.debug(s"Executor command: $command")
+    val offerAttributes = toAttributeMap(offers.flatMap(_.getAttributesList))
 
-        val executorInfo = createExecutorInfo(
-            s"$taskmanagerCount", role, artifactURIs, command, nativeLibPath)
-        val taskInfo = createTaskInfo("taskManager", taskId, slaveId, role, requiredMem,
-          requiredCPU, requiredDisk, ports, executorInfo, currentConfiguration.get)
+    // check if all constraints are satisfield
+    //  0. We need more task managers
+    //  1. Attribute constraints
+    //  2. Memory requirements
+    //  3. CPU requirements
+    //  4. Port requirements
+    val meetsRequirements =
+      taskManagers.size < maxTaskManagers &&
+      totalCPU >= requiredCPU &&
+      totalMemory >= requiredMem &&
+      totalDisk >= requiredDisk &&
+      ports.size == 2 &&
+      matchesAttributeRequirements(attributeConstraints, offerAttributes)
 
-        Seq(taskInfo)
-      }
+    LOG.info( if(meetsRequirements) "Accepting" else "Declining " +
+      s"offer(s) from slave ${slaveId.getValue} " +
+      s"offered [cpus: $totalCPU | mem : $totalMemory | disk: $totalDisk] " +
+      s"required [cpus: $requiredCPU | mem: $requiredMem | disk: $requiredDisk]")
 
-      // launch tasks for these offers (if any)
-      driver.launchTasks(offers.map(_.getId), tasksToLaunch)
-    }
-  }
+    if (meetsRequirements) {
+      // create task Id
+      taskManagerCount += 1
 
-  def startJobManager(hostName: String): Try[Unit] = {
-    val conf = GlobalConfiguration.getConfiguration
-    val executionMode = JobManagerMode.CLUSTER
-    val listeningHost = conf.getString(JOB_MANAGER_IPC_ADDRESS_KEY, hostName)
-    val listeningPort = conf.getInteger(JOB_MANAGER_IPC_PORT_KEY, DEFAULT_JOB_MANAGER_IPC_PORT)
-    val streamingMode =
-      conf.getString(STREAMING_MODE_KEY, DEFAULT_STREAMING_MODE) match {
-        case "streaming" => StreamingMode.STREAMING
-        case _ => StreamingMode.BATCH_ONLY
-      }
+      // create executor
+      val command = createTaskManagerCommand(requiredMem.toInt)
+      val executorInfo = createExecutorInfo(
+        s"$taskManagerCount", role, Set(uberJarLocation), command, nativeLibPath)
 
-    // add jobmanager configuration
-    conf.setString(JOB_MANAGER_IPC_ADDRESS_KEY, listeningHost)
-    conf.setInteger(JOB_MANAGER_IPC_PORT_KEY, listeningPort)
+      // create task
+      val taskId = TaskID.newBuilder().setValue(s"TaskManager_$taskManagerCount").build()
+      val taskInfo = createTaskInfo(
+        "taskManager", taskId, slaveId, role, requiredMem,
+        requiredCPU, requiredDisk, ports, executorInfo, currentConfiguration.get)
 
-    currentConfiguration = Some(conf)
-
-    // start jobManager
-    Try(JobManager.runJobManager(conf, executionMode, streamingMode, listeningHost, listeningPort))
-  }
-
-  def createTaskManagerCommand(mem: Int): String = {
-    val tmJVMHeap = math.round(mem / (1 + JVM_MEM_OVERHEAD_PERCENT_DEFAULT))
-    val tmJVMArgs = GlobalConfiguration.getString(
-      TASK_MANAGER_JVM_ARGS_KEY, DEFAULT_TASK_MANAGER_JVM_ARGS)
-
-    createJavaExecCommand(
-      jvmArgs = s"$tmJVMArgs -Xmx${tmJVMHeap}m",
-      classToExecute = "org.apache.flink.mesos.executor.TaskManagerExecutor")
-  }
-
-  def getNPortsFromPortRanges(n: Int, portRanges: Seq[Value.Range]): Set[Int] = {
-    var ports: Set[Int] = Set()
-
-    // find some ports
-    for (x <- portRanges) {
-      var begin = x.getBegin
-      val end = x.getEnd
-
-      while (begin < end && ports.size < n) {
-        ports += begin.toInt
-        begin += 1
-      }
-
-      if (ports.size == n) {
-        return ports
-      }
-    }
-
-    ports
-  }
-
-  def checkEnvironment(args: Array[String]): Unit = {
-    EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager", args)
-    EnvironmentInformation.checkJavaVersion()
-    val maxOpenFileHandles = EnvironmentInformation.getOpenFileHandlesLimit
-    if (maxOpenFileHandles != -1) {
-      LOG.info(s"Maximum number of open file descriptors is $maxOpenFileHandles")
+      Seq(taskInfo)
     } else {
-      LOG.info("Cannot determine the maximum number of open file descriptors")
+      Seq()
     }
   }
 
@@ -260,83 +172,17 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
 
     LOG.info(s"Loading configuration from ${cliConf.confDir()}")
     GlobalConfiguration.loadConfiguration(cliConf.confDir())
-    LOG.info(s"Loaded configuration: ${GlobalConfiguration.getConfiguration.toMap}")
-
-    val jobManagerThread: Thread = new Thread {
-      override def run(): Unit = {
-        // start the job
-        startJobManager(cliConf.host()) match {
-          case Success(_) =>
-            LOG.info("JobManager finished")
-            sys.exit(0)
-          case Failure(throwable) =>
-            LOG.error("Caught exception, committing suicide.", throwable)
-            sys.exit(1)
-        }
-      }
-    }
 
     // start job manager thread
+    val jobManagerThread = createJobManagerThread(cliConf.host())
     jobManager = Some(jobManagerThread)
     jobManagerThread.start()
 
-    // register a termination hook
-    Runtime.getRuntime.addShutdownHook(new Thread {
-      override def run(): Unit = {
-        if (jobManager.isDefined) {
-          jobManager.get.stop()
-          jobManager = None
-        }
-      }
-    })
-
     // start scheduler
-    val frameworkBuilder = FrameworkInfo.newBuilder()
+    val scheduler = this
+    val (fwInfo, creds) = createFrameworkInfoAndCredentials(cliConf)
+    val driver = createDriver(scheduler, fwInfo, creds)
 
-    frameworkBuilder.setUser(GlobalConfiguration.getString(
-      MESOS_FRAMEWORK_USER_KEY, DEFAULT_MESOS_FRAMEWORK_USER))
-    val frameworkId = GlobalConfiguration.getString(
-      MESOS_FRAMEWORK_ID_KEY, DEFAULT_MESOS_FRAMEWORK_ID)
-    if (frameworkId != null) {
-      frameworkBuilder.setId(FrameworkID.newBuilder().setValue(frameworkId))
-    }
-
-    frameworkBuilder.setRole(GlobalConfiguration.getString(
-      MESOS_FRAMEWORK_ROLE_KEY, DEFAULT_MESOS_FRAMEWORK_ROLE))
-    frameworkBuilder.setName(GlobalConfiguration.getString(
-      MESOS_FRAMEWORK_NAME_KEY, DEFAULT_MESOS_FRAMEWORK_NAME))
-    val webUIPort = GlobalConfiguration.getInteger(JOB_MANAGER_WEB_PORT_KEY, -1)
-    if (webUIPort > 0) {
-      val webUIHost = GlobalConfiguration.getString(
-        JOB_MANAGER_IPC_ADDRESS_KEY, cliConf.host())
-      frameworkBuilder.setWebuiUrl(s"http://$webUIHost:$webUIPort")
-    }
-
-    var credsBuilder: Credential.Builder = null
-    val principal = GlobalConfiguration.getString(
-      MESOS_FRAMEWORK_PRINCIPAL_KEY, DEFAULT_MESOS_FRAMEWORK_PRINCIPAL)
-    if (principal != null) {
-      frameworkBuilder.setPrincipal(principal)
-
-      credsBuilder = Credential.newBuilder()
-      credsBuilder.setPrincipal(principal)
-      val secret = GlobalConfiguration.getString(
-        MESOS_FRAMEWORK_SECRET_KEY, DEFAULT_MESOS_FRAMEWORK_SECRET)
-      if (secret != null) {
-        credsBuilder.setSecret(ByteString.copyFromUtf8(secret))
-      }
-    }
-
-    val master = GlobalConfiguration.getString(MESOS_MASTER_KEY, DEFAULT_MESOS_MASTER)
-
-    val driver =
-      if (credsBuilder != null) {
-        new MesosSchedulerDriver(this, frameworkBuilder.build, master, credsBuilder.build)
-      } else {
-        new MesosSchedulerDriver(this, frameworkBuilder.build, master)
-      }
-
-    val status = if (driver.run eq Status.DRIVER_STOPPED) 0 else 1
-    sys.exit(status)
+    sys.exit(if (driver.run eq Status.DRIVER_STOPPED) 0 else 1)
   }
 }

@@ -18,15 +18,15 @@
 
 package org.apache.flink.mesos.executor
 
+import scala.util.{Failure, Success, Try}
+
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration}
 import org.apache.flink.mesos._
 import org.apache.flink.mesos.scheduler._
 import org.apache.flink.runtime.StreamingMode
 import org.apache.log4j.{ConsoleAppender, Level, Logger => ApacheLogger, PatternLayout}
-import org.apache.mesos.Protos._
 import org.apache.mesos.{Executor, ExecutorDriver}
-
-import scala.util.{Failure, Success, Try}
+import org.apache.mesos.Protos._
 
 trait FlinkExecutor extends Executor {
   // logger to use
@@ -41,7 +41,6 @@ trait FlinkExecutor extends Executor {
   def startTask(streamingMode: StreamingMode): Try[Unit]
 
   var thread: Option[Thread] = None
-  //  var baseConfig: Configuration = GlobalConfiguration.getConfiguration
   var slaveId: Option[SlaveID] = None
 
   override def shutdown(driver: ExecutorDriver): Unit = {
@@ -58,24 +57,20 @@ trait FlinkExecutor extends Executor {
   override def disconnected(driver: ExecutorDriver): Unit = {}
 
   override def killTask(driver: ExecutorDriver, taskId: TaskID): Unit = {
-    LOG.info(s"Killing task : ${taskId.getValue}")
-    if (thread.isEmpty) {
-      return
+    for (t <- thread) {
+      LOG.info(s"Killing task : ${taskId.getValue}")
+      thread = None
+      currentRunningTaskId = None
+
+      // stop running thread
+      t.stop()
+
+      // Send the TASK_FINISHED status
+      driver.sendStatusUpdate(TaskStatus.newBuilder()
+        .setTaskId(taskId)
+        .setState(TaskState.TASK_FINISHED)
+        .build())
     }
-
-    thread.get.stop()
-    thread = None
-    currentRunningTaskId = None
-
-    // Send the TASK_FINISHED status
-    new Thread("TaskFinishedUpdate") {
-      override def run(): Unit = {
-        driver.sendStatusUpdate(TaskStatus.newBuilder()
-          .setTaskId(taskId)
-          .setState(TaskState.TASK_FINISHED)
-          .build())
-      }
-    }.start()
   }
 
 
@@ -100,6 +95,33 @@ trait FlinkExecutor extends Executor {
     slaveId = Some(slaveInfo.getId)
   }
 
+
+  override def launchTask(driver: ExecutorDriver, task: TaskInfo): Unit = {
+    // overlay the new config over this one
+    val taskConf: Configuration = Utils.deserialize(task.getData.toByteArray)
+    GlobalConfiguration.includeConfiguration(taskConf)
+
+    // reconfigure log4j
+    val logLevel = GlobalConfiguration.getString(
+      TASK_MANAGER_LOGGING_LEVEL_KEY, DEFAULT_TASK_MANAGER_LOGGING_LEVEL)
+
+    initializeLog4j(Level.toLevel(logLevel, Level.DEBUG))
+
+    // get streaming mode
+    val streamingMode = getStreamingMode()
+
+    // create the thread
+    val t = createThread(driver, task.getTaskId, streamingMode)
+    thread = Some(t)
+    t.start()
+
+    // send message
+    driver.sendStatusUpdate(TaskStatus.newBuilder()
+      .setTaskId(task.getTaskId)
+      .setState(TaskState.TASK_RUNNING)
+      .build())
+  }
+
   def initializeLog4j(level: Level): Unit = {
     // remove all existing loggers
     ApacheLogger.getRootLogger.removeAllAppenders()
@@ -116,28 +138,15 @@ trait FlinkExecutor extends Executor {
     ApacheLogger.getRootLogger.setLevel(level)
   }
 
-  override def launchTask(driver: ExecutorDriver, task: TaskInfo): Unit = {
-    // overlay the new config over this one
-    if (task.hasData) {
-      val taskConf: Configuration = Utils.deserialize(task.getData.toByteArray)
-      GlobalConfiguration.includeConfiguration(taskConf)
-      // reconfigure log4j
-      val logLevel = GlobalConfiguration.getString(
-        TASK_MANAGER_LOGGING_LEVEL_KEY, DEFAULT_TASK_MANAGER_LOGGING_LEVEL)
-      initializeLog4j(Level.toLevel(logLevel, Level.DEBUG))
+  def getStreamingMode(): StreamingMode = {
+    GlobalConfiguration.getString(STREAMING_MODE_KEY, DEFAULT_STREAMING_MODE) match {
+      case "streaming" => StreamingMode.STREAMING
+      case _ => StreamingMode.BATCH_ONLY
     }
+  }
 
-    LOG.debug(s"Task configuration ${GlobalConfiguration.getConfiguration.toMap}")
-
-    // get streaming mode
-    val streamingMode =
-      GlobalConfiguration.getString(STREAMING_MODE_KEY, DEFAULT_STREAMING_MODE) match {
-        case "streaming" => StreamingMode.STREAMING
-        case _ => StreamingMode.BATCH_ONLY
-      }
-
-    // create the thread
-    val t = new Thread {
+  def createThread(driver: ExecutorDriver, taskID: TaskID, streamingMode: StreamingMode): Thread = {
+    new Thread {
       override def run(): Unit = {
         startTask(streamingMode) match {
           case Failure(throwable) =>
@@ -148,23 +157,16 @@ trait FlinkExecutor extends Executor {
             // Send a TASK_FINISHED status update.
             // We do this here because we want to send it in a separate thread
             // than was used to call killTask().
-            LOG.info("TaskManager finished running for task: {}", task.getTaskId.getValue)
+            LOG.info(s"TaskManager finished running for task: ${taskID.getValue}")
             driver.sendStatusUpdate(TaskStatus.newBuilder()
-              .setTaskId(task.getTaskId)
+              .setTaskId(taskID)
               .setState(TaskState.TASK_FINISHED)
               .build())
             // Stop the executor.
             driver.stop()
+            sys.exit(0)
         }
       }
     }
-    t.start()
-    thread = Some(t)
-
-    // send message
-    driver.sendStatusUpdate(TaskStatus.newBuilder()
-      .setTaskId(task.getTaskId)
-      .setState(TaskState.TASK_RUNNING)
-      .build())
   }
 }

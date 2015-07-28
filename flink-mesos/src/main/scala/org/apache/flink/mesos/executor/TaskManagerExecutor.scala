@@ -18,16 +18,15 @@
 
 package org.apache.flink.mesos.executor
 
+import scala.util.Try
+
 import org.apache.flink.configuration.GlobalConfiguration
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
-import org.apache.mesos.MesosExecutorDriver
+import org.apache.mesos.{Executor, ExecutorDriver, MesosExecutorDriver}
 import org.apache.mesos.Protos.Status
 import org.slf4j.{Logger, LoggerFactory}
-
-import scala.tools.nsc.io
-import scala.util.Try
 
 class TaskManagerExecutor extends FlinkExecutor {
 
@@ -43,7 +42,7 @@ class TaskManagerExecutor extends FlinkExecutor {
       GlobalConfiguration.getConfiguration, streamingMode, classOf[TaskManager]))
   }
 
-  def checkEnvironment(): Unit = {
+  private def checkEnvironment(): Unit = {
     EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManagerExecutor", null)
     EnvironmentInformation.checkJavaVersion()
     val maxOpenFileHandles = EnvironmentInformation.getOpenFileHandlesLimit
@@ -59,34 +58,24 @@ class TaskManagerExecutor extends FlinkExecutor {
 object TaskManagerExecutor {
   val LOG = LoggerFactory.getLogger(classOf[TaskManagerExecutor])
 
-  def apply(args: Array[String]): TaskManagerExecutor = {
-    // initialize sandbox
-    // create a tmp data directory
-    io.File("tmpData").createDirectory(force = true, failIfExists = false)
-
-    // create executor
-    new TaskManagerExecutor
+  def createExecutor(): Executor = {
+    new TaskManagerExecutor()
+  }
+  def createDriver(executor: Executor): ExecutorDriver = {
+    new MesosExecutorDriver(executor)
   }
 
   def main(args: Array[String]) {
-
-    // initialize sandbox
-    // create a tmp data directory
-    io.File("tmpData").createDirectory(force = true, failIfExists = false)
-
-    // create dummy config dir
-    val configDirPath = io.File("configDir")
-      .createDirectory(force = true, failIfExists = false)
-      .path
-    GlobalConfiguration.loadConfiguration(configDirPath)
+    GlobalConfiguration.loadConfiguration(".")
 
     // create executor
-    val tmExecutor = new TaskManagerExecutor
+    val tmExecutor = createExecutor()
 
     // start the executor
-    val driver = new MesosExecutorDriver(tmExecutor)
-    val status = if (driver.run eq Status.DRIVER_STOPPED) 0 else 1
-    sys.exit(status)
+    val driver = createDriver(tmExecutor)
+
+    // exit based on result of run
+    sys.exit(if (driver.run eq Status.DRIVER_STOPPED) 0 else 1)
   }
 
 }

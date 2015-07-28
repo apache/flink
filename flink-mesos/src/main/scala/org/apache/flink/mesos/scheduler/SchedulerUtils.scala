@@ -20,17 +20,24 @@ package org.apache.flink.mesos.scheduler
 
 import java.util.{List => JList}
 
+import scala.collection.JavaConversions._
+import scala.util.{Failure, Success, Try}
+import scala.util.control.NonFatal
+
 import com.google.common.base.Splitter
 import com.google.protobuf.{ByteString, GeneratedMessage}
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
+import org.apache.flink.configuration.ConfigConstants._
 import org.apache.flink.mesos._
+import org.apache.flink.mesos.scheduler.FlinkScheduler._
+import org.apache.flink.runtime.StreamingMode
+import org.apache.flink.runtime.jobmanager.{JobManager, JobManagerMode}
+import org.apache.flink.runtime.util.EnvironmentInformation
+import org.apache.mesos.{MesosSchedulerDriver, Scheduler, SchedulerDriver}
+import org.apache.mesos.Protos._
 import org.apache.mesos.Protos.CommandInfo.URI
 import org.apache.mesos.Protos.Value.Ranges
 import org.apache.mesos.Protos.Value.Type._
-import org.apache.mesos.Protos._
-
-import scala.collection.JavaConversions._
-import scala.util.control.NonFatal
 
 trait SchedulerUtils {
 
@@ -225,4 +232,134 @@ trait SchedulerUtils {
     }
   }
 
+  def createFrameworkInfoAndCredentials(cliConf: Conf): (FrameworkInfo, Option[Credential]) = {
+    // start scheduler
+    val frameworkBuilder = FrameworkInfo.newBuilder()
+
+    frameworkBuilder.setUser(GlobalConfiguration.getString(
+      MESOS_FRAMEWORK_USER_KEY, DEFAULT_MESOS_FRAMEWORK_USER))
+    val frameworkId = GlobalConfiguration.getString(
+      MESOS_FRAMEWORK_ID_KEY, DEFAULT_MESOS_FRAMEWORK_ID)
+    if (frameworkId != null) {
+      frameworkBuilder.setId(FrameworkID.newBuilder().setValue(frameworkId))
+    }
+
+    frameworkBuilder.setRole(GlobalConfiguration.getString(
+      MESOS_FRAMEWORK_ROLE_KEY, DEFAULT_MESOS_FRAMEWORK_ROLE))
+    frameworkBuilder.setName(GlobalConfiguration.getString(
+      MESOS_FRAMEWORK_NAME_KEY, DEFAULT_MESOS_FRAMEWORK_NAME))
+    val webUIPort = GlobalConfiguration.getInteger(JOB_MANAGER_WEB_PORT_KEY, -1)
+    if (webUIPort > 0) {
+      val webUIHost = GlobalConfiguration.getString(
+        JOB_MANAGER_IPC_ADDRESS_KEY, cliConf.host())
+      frameworkBuilder.setWebuiUrl(s"http://$webUIHost:$webUIPort")
+    }
+
+    var credsBuilder: Credential.Builder = null
+    val principal = GlobalConfiguration.getString(
+      MESOS_FRAMEWORK_PRINCIPAL_KEY, DEFAULT_MESOS_FRAMEWORK_PRINCIPAL)
+    if (principal != null) {
+      frameworkBuilder.setPrincipal(principal)
+
+      credsBuilder = Credential.newBuilder()
+      credsBuilder.setPrincipal(principal)
+      val secret = GlobalConfiguration.getString(
+        MESOS_FRAMEWORK_SECRET_KEY, DEFAULT_MESOS_FRAMEWORK_SECRET)
+      if (secret != null) {
+        credsBuilder.setSecret(ByteString.copyFromUtf8(secret))
+      }
+    }
+    val credential = if (credsBuilder == null) Some(credsBuilder.build) else None
+
+    (frameworkBuilder.build(), credential)
+  }
+
+
+  def createTaskManagerCommand(mem: Int): String = {
+    val tmJVMHeap = math.round(mem / (1 + JVM_MEM_OVERHEAD_PERCENT_DEFAULT))
+    val tmJVMArgs = GlobalConfiguration.getString(
+      TASK_MANAGER_JVM_ARGS_KEY, DEFAULT_TASK_MANAGER_JVM_ARGS)
+
+    createJavaExecCommand(
+      jvmArgs = s"$tmJVMArgs -Xmx${tmJVMHeap}m",
+      classToExecute = "org.apache.flink.mesos.executor.TaskManagerExecutor")
+  }
+
+  def getNPortsFromPortRanges(n: Int, portRanges: Seq[Value.Range]): Set[Int] = {
+    var ports: Set[Int] = Set()
+
+    // find some ports
+    for (x <- portRanges) {
+      var begin = x.getBegin
+      val end = x.getEnd
+
+      while (begin < end && ports.size < n) {
+        ports += begin.toInt
+        begin += 1
+      }
+
+      if (ports.size == n) {
+        return ports
+      }
+    }
+
+    ports
+  }
+
+  def checkEnvironment(args: Array[String]): Unit = {
+    EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager", args)
+    EnvironmentInformation.checkJavaVersion()
+    val maxOpenFileHandles = EnvironmentInformation.getOpenFileHandlesLimit
+    if (maxOpenFileHandles != -1) {
+      LOG.info(s"Maximum number of open file descriptors is $maxOpenFileHandles")
+    } else {
+      LOG.info("Cannot determine the maximum number of open file descriptors")
+    }
+  }
+
+  def createDriver(scheduler: Scheduler, fwInfo: FrameworkInfo,
+                   creds: Option[Credential]): SchedulerDriver = {
+    val master = GlobalConfiguration.getString(MESOS_MASTER_KEY, DEFAULT_MESOS_MASTER)
+    creds match {
+      case None => new MesosSchedulerDriver(scheduler, fwInfo, master)
+      case Some(c) => new MesosSchedulerDriver(scheduler, fwInfo, master, c)
+    }
+  }
+
+  def createJobManagerThread(host: String): Thread = {
+    new Thread {
+      override def run(): Unit = {
+        // start the job
+        startJobManager(host) match {
+          case Success(_) =>
+            LOG.info("JobManager finished")
+            sys.exit(0)
+          case Failure(throwable) =>
+            LOG.error("Caught exception, committing suicide.", throwable)
+            sys.exit(1)
+        }
+      }
+    }
+  }
+
+  def startJobManager(hostName: String): Try[Unit] = {
+    val conf = GlobalConfiguration.getConfiguration
+    val executionMode = JobManagerMode.CLUSTER
+    val listeningHost = conf.getString(JOB_MANAGER_IPC_ADDRESS_KEY, hostName)
+    val listeningPort = conf.getInteger(JOB_MANAGER_IPC_PORT_KEY, DEFAULT_JOB_MANAGER_IPC_PORT)
+    val streamingMode =
+      conf.getString(STREAMING_MODE_KEY, DEFAULT_STREAMING_MODE) match {
+        case "streaming" => StreamingMode.STREAMING
+        case _ => StreamingMode.BATCH_ONLY
+      }
+
+    // add jobmanager configuration
+    conf.setString(JOB_MANAGER_IPC_ADDRESS_KEY, listeningHost)
+    conf.setInteger(JOB_MANAGER_IPC_PORT_KEY, listeningPort)
+
+    currentConfiguration = Some(conf)
+
+    // start jobManager
+    Try(JobManager.runJobManager(conf, executionMode, streamingMode, listeningHost, listeningPort))
+  }
 }
