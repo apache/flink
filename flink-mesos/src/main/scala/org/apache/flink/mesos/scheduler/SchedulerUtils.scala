@@ -59,23 +59,6 @@ trait SchedulerUtils {
     }).toMap
   }
 
-  def meetsConstraints(requiredMem: Int, requiredCPUs: Int,
-                       constraints: Map[String, Set[String]])(o: Offer): Boolean = {
-    val mem = getResource(o.getResourcesList, "mem")
-    val cpu = getResource(o.getResourcesList, "cpu")
-    val offerAttributes = toAttributeMap(o.getAttributesList)
-
-    // check if all constraints are satisfield
-    //  1. Attribute constraints
-    //  2. Memory requirements
-    //  3. CPU requirements - need at least 1 for executor, 1 for task
-    val meetsConstraints = matchesAttributeRequirements(constraints, offerAttributes)
-    val meetsMemoryRequirements = mem >= requiredMem
-    val meetsCPURequirements = cpu >= requiredCPUs
-
-    meetsConstraints && meetsMemoryRequirements && meetsCPURequirements
-  }
-
   def createJavaExecCommand(jvmArgs: String = "", classPath: String = "flink-*.jar",
                             classToExecute: String, args: String = ""): String = {
     s"env; java $jvmArgs -cp $classPath $classToExecute $args"
