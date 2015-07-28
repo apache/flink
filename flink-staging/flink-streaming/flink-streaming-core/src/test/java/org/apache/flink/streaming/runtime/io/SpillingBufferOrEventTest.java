@@ -26,9 +26,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.streaming.runtime.io.BufferSpiller;
-import org.apache.flink.streaming.runtime.io.SpillReader;
-import org.apache.flink.streaming.runtime.io.SpillingBufferOrEvent;
+
 import org.junit.Test;
 
 public class SpillingBufferOrEventTest {

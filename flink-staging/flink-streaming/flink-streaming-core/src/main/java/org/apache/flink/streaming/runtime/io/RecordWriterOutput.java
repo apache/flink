@@ -94,14 +94,15 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 
 	@Override
 	public void close() {
-		if (recordWriter instanceof StreamRecordWriter) {
-			((StreamRecordWriter<?>) recordWriter).close();
-		} else {
-			try {
+		try {
+			if (recordWriter instanceof StreamRecordWriter) {
+				((StreamRecordWriter<?>) recordWriter).close();
+			} else {
 				recordWriter.flush();
-			} catch (IOException e) {
-				e.printStackTrace();
 			}
+		}
+		catch (IOException e) {
+			throw new RuntimeException("Failed to flush final output", e);
 		}
 	}
 
