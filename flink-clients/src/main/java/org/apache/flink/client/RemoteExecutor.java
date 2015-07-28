@@ -54,30 +54,47 @@ public class RemoteExecutor extends PlanExecutor {
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutor.class);
 
 	private final List<String> jarFiles;
-	private final Configuration configuration;
+
+	private final Configuration clientConfiguration;
 	
 	public RemoteExecutor(String hostname, int port) {
-		this(hostname, port, Collections.<String>emptyList());
+		this(hostname, port, Collections.<String>emptyList(), new Configuration());
 	}
 	
 	public RemoteExecutor(String hostname, int port, String jarFile) {
-		this(hostname, port, Collections.singletonList(jarFile));
+		this(hostname, port, Collections.singletonList(jarFile), new Configuration());
 	}
 	
 	public RemoteExecutor(String hostport, String jarFile) {
-		this(getInetFromHostport(hostport), Collections.singletonList(jarFile));
+		this(getInetFromHostport(hostport), Collections.singletonList(jarFile), new Configuration());
 	}
 	
 	public RemoteExecutor(String hostname, int port, List<String> jarFiles) {
-		this(new InetSocketAddress(hostname, port), jarFiles);
+		this(new InetSocketAddress(hostname, port), jarFiles, new Configuration());
 	}
 
-	public RemoteExecutor(InetSocketAddress inet, List<String> jarFiles) {
-		this.jarFiles = jarFiles;
-		configuration = new Configuration();
+	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration) {
+		this(hostname, port, Collections.<String>emptyList(), clientConfiguration);
+	}
 
-		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, inet.getHostName());
-		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, inet.getPort());
+	public RemoteExecutor(String hostname, int port, String jarFile, Configuration clientConfiguration) {
+		this(hostname, port, Collections.singletonList(jarFile), clientConfiguration);
+	}
+
+	public RemoteExecutor(String hostport, String jarFile, Configuration clientConfiguration) {
+		this(getInetFromHostport(hostport), Collections.singletonList(jarFile), clientConfiguration);
+	}
+
+	public RemoteExecutor(String hostname, int port, List<String> jarFiles, Configuration clientConfiguration) {
+		this(new InetSocketAddress(hostname, port), jarFiles, clientConfiguration);
+	}
+
+	public RemoteExecutor(InetSocketAddress inet, List<String> jarFiles, Configuration clientConfiguration) {
+		this.jarFiles = jarFiles;
+		this.clientConfiguration = clientConfiguration;
+
+		clientConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, inet.getHostName());
+		clientConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, inet.getPort());
 	}
 
 	@Override
@@ -87,7 +104,7 @@ public class RemoteExecutor extends PlanExecutor {
 	}
 	
 	public JobExecutionResult executePlanWithJars(JobWithJars p) throws Exception {
-		Client c = new Client(configuration, p.getUserCodeClassLoader(), -1);
+		Client c = new Client(clientConfiguration, p.getUserCodeClassLoader(), -1);
 		c.setPrintStatusDuringExecution(isPrintingStatusDuringExecution());
 		
 		JobSubmissionResult result = c.run(p, -1, true);
@@ -103,7 +120,7 @@ public class RemoteExecutor extends PlanExecutor {
 		File jarFile = new File(jarPath);
 		PackagedProgram program = new PackagedProgram(jarFile, assemblerClass, args);
 		
-		Client c = new Client(configuration, program.getUserCodeClassLoader(), -1);
+		Client c = new Client(clientConfiguration, program.getUserCodeClassLoader(), -1);
 		c.setPrintStatusDuringExecution(isPrintingStatusDuringExecution());
 		
 		JobSubmissionResult result = c.run(program.getPlanWithJars(), -1, true);
@@ -118,7 +135,7 @@ public class RemoteExecutor extends PlanExecutor {
 	@Override
 	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
 		JobWithJars p = new JobWithJars(plan, this.jarFiles);
-		Client c = new Client(configuration, p.getUserCodeClassLoader(), -1);
+		Client c = new Client(clientConfiguration, p.getUserCodeClassLoader(), -1);
 		
 		OptimizedPlan op = (OptimizedPlan) c.getOptimizedPlan(p, -1);
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();

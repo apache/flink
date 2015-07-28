@@ -25,6 +25,7 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 
 import org.apache.flink.api.scala.FlinkILoop;
+import org.apache.flink.configuration.Configuration;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -78,7 +79,7 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 		alljars.add(jarFile);
 		String[] alljarsArr = new String[alljars.size()];
 		alljarsArr = alljars.toArray(alljarsArr);
-		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, alljarsArr);
+		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, new Configuration(), alljarsArr);
 
 		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
 		return executor.executePlan(p);

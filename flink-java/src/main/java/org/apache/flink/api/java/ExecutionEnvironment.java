@@ -1106,6 +1106,28 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
+	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program
+	 * to a cluster for execution. Note that all file paths used in the program must be accessible from the
+	 * cluster. The custom configuration file is used to configure Akka specific configuration parameters
+	 * for the Client only; Program parallelism can be set via {@link ExecutionEnvironment#setParallelism(int)}.
+	 *
+	 * Cluster configuration has to be done in the remotely running Flink instance.
+	 *
+	 * @param host The host name or address of the master (JobManager), where the program should be executed.
+	 * @param port The port of the master (JobManager), where the program should be executed.
+	 * @param clientConfiguration Pass a custom configuration to the Client.
+	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
+	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
+	 *                 provided in the JAR files.
+	 * @return A remote environment that executes the program on a cluster.
+	 */
+	public static ExecutionEnvironment createRemoteEnvironment(String host, int port, Configuration clientConfiguration, String... jarFiles) {
+		RemoteEnvironment rec = new RemoteEnvironment(host, port, jarFiles);
+		rec.setClientConfiguration(clientConfiguration);
+		return rec;
+	}
+
+	/**
 	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program 
 	 * to a cluster for execution. Note that all file paths used in the program must be accessible from the
 	 * cluster. The execution will use the specified parallelism.

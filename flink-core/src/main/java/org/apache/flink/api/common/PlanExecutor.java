@@ -105,11 +105,12 @@ public abstract class PlanExecutor {
 	 * 
 	 * @param hostname The address of the JobManager to send the program to.
 	 * @param port The port of the JobManager to send the program to.
+	 * @param clientConfiguration The configuration for the client (Akka, default.parallelism).
 	 * @param jarFiles A list of jar files that contain the user-defined function (UDF) classes and all classes used
 	 *                 from within the UDFs.
 	 * @return A remote executor.
 	 */
-	public static PlanExecutor createRemoteExecutor(String hostname, int port, String... jarFiles) {
+	public static PlanExecutor createRemoteExecutor(String hostname, int port, Configuration clientConfiguration, String... jarFiles) {
 		if (hostname == null) {
 			throw new IllegalArgumentException("The hostname must not be null.");
 		}
@@ -123,7 +124,10 @@ public abstract class PlanExecutor {
 																		: Arrays.asList(jarFiles); 
 		
 		try {
-			return reClass.getConstructor(String.class, int.class, List.class).newInstance(hostname, port, files);
+			PlanExecutor executor = (clientConfiguration == null) ?
+					reClass.getConstructor(String.class, int.class, List.class).newInstance(hostname, port, files) :
+					reClass.getConstructor(String.class, int.class, List.class, Configuration.class).newInstance(hostname, port, files, clientConfiguration);
+			return executor;
 		}
 		catch (Throwable t) {
 			throw new RuntimeException("An error occurred while loading the remote executor ("
