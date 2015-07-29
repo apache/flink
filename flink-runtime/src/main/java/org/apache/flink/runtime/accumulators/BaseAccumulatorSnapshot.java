@@ -27,6 +27,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 
+/**
+ * This class and its subclasses ({@link SmallAccumulatorSnapshot} and {@link LargeAccumulatorSnapshot})
+ * encapsulate a map of accumulators (user- and system- defined)for a single task. It is used for the
+ * transfer from TaskManagers to the JobManager and from the JobManager to the Client.
+ */
 public class BaseAccumulatorSnapshot implements Serializable {
 
 	private static final long serialVersionUID = 42L;
@@ -37,11 +42,6 @@ public class BaseAccumulatorSnapshot implements Serializable {
 	/** Flink internal accumulators which can be deserialized using the system class loader. */
 	private final SerializedValue<Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators;
 
-	/**
-	 * This class and its subclasses encapsulate a map of accumulators for a single
-	 * task. It is used for the transfer from TaskManagers to the JobManager and from
-	 * the JobManager to the Client.
-	 */
 	public BaseAccumulatorSnapshot(JobID jobID, ExecutionAttemptID executionAttemptID,
 			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators) throws IOException {
 		this.jobID = jobID;

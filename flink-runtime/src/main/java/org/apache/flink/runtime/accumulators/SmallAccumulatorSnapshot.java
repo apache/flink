@@ -26,6 +26,11 @@ import org.apache.flink.runtime.util.SerializedValue;
 import java.io.IOException;
 import java.util.Map;
 
+/**
+ * This is a subclass of the BaseAccumulatorSnapshot that serves at storing the task user-defined
+ * accumulators that are small enough to be sent to the JobManager using akka. It is used for the
+ * transfer from TaskManagers to the JobManager and from the JobManager to the Client.
+ * */
 public class SmallAccumulatorSnapshot extends BaseAccumulatorSnapshot {
 
 	/**
@@ -33,10 +38,6 @@ public class SmallAccumulatorSnapshot extends BaseAccumulatorSnapshot {
 	 */
 	private final SerializedValue<Map<String, Accumulator<?, ?>>> userAccumulators;
 
-	/**
-	 * This is a subclass of the BaseAccumulatorSnapshot that serves at storing the task user-defined
-	 * accumulators that are small enough to be sent to the JobManager using akka.
-	 * */
 	public SmallAccumulatorSnapshot(JobID jobID, ExecutionAttemptID executionAttemptID,
 									Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
 									SerializedValue<Map<String, Accumulator<?, ?>>> userAccumulators) throws IOException {

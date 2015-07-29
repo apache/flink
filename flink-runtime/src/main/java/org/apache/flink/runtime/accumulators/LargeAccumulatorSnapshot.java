@@ -27,6 +27,14 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * In case some user-defined accumulators do not fit in an Akka message payload, we store them in the
+ * blobCache, and put in the snapshot only the mapping between the name of the accumulator,
+ * and its blobKey in the cache. This clase is a subclass of the BaseAccumulatorSnapshot
+ * and holds the (potential) references to blobs stored in the BlobCache and containing
+ * these oversized accumulators. It is used for the transfer from TaskManagers to the
+ * JobManager and from the JobManager to the Client.
+ */
 public class LargeAccumulatorSnapshot extends BaseAccumulatorSnapshot {
 
 	/**
@@ -36,14 +44,6 @@ public class LargeAccumulatorSnapshot extends BaseAccumulatorSnapshot {
 	 * */
 	private final Map<String, List<BlobKey>> largeUserAccumulatorBlobs;
 
-	/**
-	 * In case some user-defined accumulators do not fit in an Akka message payload, we store them in the
-	 * blobCache, and put in the snapshot only the mapping between the name of the accumulator,
-	 * and its blobKey in the cache. This clase is a subclass of the BaseAccumulatorSnapshot
-	 * and holds the (potential) references to blobs stored in the BlobCache and containing
-	 * these oversized accumulators. It is used for the transfer from TaskManagers to the
-	 * JobManager and from the JobManager to the Client.
-	 */
 	public LargeAccumulatorSnapshot(
 			JobID jobID, ExecutionAttemptID executionAttemptID,
 			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
