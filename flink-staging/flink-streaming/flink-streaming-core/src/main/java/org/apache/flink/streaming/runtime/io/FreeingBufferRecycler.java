@@ -22,13 +22,16 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 
 /**
- * A BufferRecycler that does nothing.
+ * A simple buffer recycler that only frees the memory segments.
  */
-public class DummyBufferRecycler implements BufferRecycler {
+public class FreeingBufferRecycler implements BufferRecycler {
 	
-	public static final BufferRecycler INSTANCE = new DummyBufferRecycler();
+	public static final BufferRecycler INSTANCE = new FreeingBufferRecycler();
 	
+	// ------------------------------------------------------------------------
 	
 	@Override
-	public void recycle(MemorySegment memorySegment) {}
+	public void recycle(MemorySegment memorySegment) {
+		memorySegment.free();
+	}
 }

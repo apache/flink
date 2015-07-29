@@ -39,7 +39,7 @@ import static org.junit.Assert.*;
  * Tests for the behavior of the barrier tracker.
  */
 public class BarrierTrackerTest {
-
+	
 	@Test
 	public void testSingleChannelNoBarriers() {
 		try {
@@ -341,7 +341,7 @@ public class BarrierTrackerTest {
 
 	private static BufferOrEvent createBuffer(int channel) {
 		return new BufferOrEvent(
-				new Buffer(new MemorySegment(new byte[] { 1 }),  DummyBufferRecycler.INSTANCE), channel);
+				new Buffer(new MemorySegment(new byte[] { 1, 2 }), FreeingBufferRecycler.INSTANCE), channel);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -381,6 +381,11 @@ public class BarrierTrackerTest {
 
 		@Override
 		public void registerListener(EventListener<InputGate> listener) {}
+
+		@Override
+		public int getPageSize() {
+			return 2;
+		}
 	}
 
 	private static class CheckpointSequenceValidator implements EventListener<CheckpointBarrier> {

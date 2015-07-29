@@ -211,6 +211,16 @@ public class SingleInputGate implements InputGate {
 		return bufferPool;
 	}
 
+	@Override
+	public int getPageSize() {
+		if (bufferPool != null) {
+			return bufferPool.getMemorySegmentSize();
+		}
+		else {
+			throw new IllegalStateException("Input gate has not been initialized with buffers.");
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	// Setup/Life-cycle
 	// ------------------------------------------------------------------------
