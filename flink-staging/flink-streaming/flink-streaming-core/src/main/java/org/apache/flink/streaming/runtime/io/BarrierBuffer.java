@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayDeque;
 
@@ -50,12 +49,17 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	
 	/** The total number of channels that this buffer handles data from */
 	private final int totalNumberOfInputChannels;
-
-	private final SpillReader spillReader;
-	private final BufferSpiller bufferSpiller;
 	
-	private ArrayDeque<SpillingBufferOrEvent> nonProcessed;
-	private ArrayDeque<SpillingBufferOrEvent> blockedNonProcessed;
+	/** To utility to write blocked data to a file channel */
+	private final BufferSpiller bufferSpiller;
+
+	/** The pending blocked buffer/event sequences. Must be consumed before requesting
+	 * further data from the input gate. */
+	private final ArrayDeque<BufferSpiller.SpilledBufferOrEventSequence> queuedBuffered;
+
+	/** The sequence of buffers/events that has been unblocked and must now be consumed
+	 * before requesting further data from the input gate */
+	private BufferSpiller.SpilledBufferOrEventSequence currentBuffered;
 
 	/** Handler that receives the checkpoint notifications */
 	private EventListener<CheckpointBarrier> checkpointHandler;
@@ -69,17 +73,21 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	/** Flag to indicate whether we have drawn all available input */
 	private boolean endOfStream;
 
-	
+
+	/**
+	 * 
+	 * @param inputGate Teh input gate to draw the buffers and events from.
+	 * @param ioManager The I/O manager that gives access to the temp directories.
+	 * 
+	 * @throws IOException Thrown, when the spilling to temp files cannot be initialized.
+	 */
 	public BarrierBuffer(InputGate inputGate, IOManager ioManager) throws IOException {
 		this.inputGate = inputGate;
 		this.totalNumberOfInputChannels = inputGate.getNumberOfInputChannels();
 		this.blockedChannels = new boolean[this.totalNumberOfInputChannels];
 		
-		this.nonProcessed = new ArrayDeque<SpillingBufferOrEvent>();
-		this.blockedNonProcessed = new ArrayDeque<SpillingBufferOrEvent>();
-		
-		this.bufferSpiller = new BufferSpiller(ioManager);
-		this.spillReader = new SpillReader();
+		this.bufferSpiller = new BufferSpiller(ioManager, inputGate.getPageSize());
+		this.queuedBuffered = new ArrayDeque<BufferSpiller.SpilledBufferOrEventSequence>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -90,15 +98,25 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	public BufferOrEvent getNextNonBlocked() throws IOException, InterruptedException {
 		while (true) {
 			// process buffered BufferOrEvents before grabbing new ones
-			final SpillingBufferOrEvent nextBuffered = nonProcessed.pollFirst();
-			final BufferOrEvent next = nextBuffered == null ?
-					inputGate.getNextBufferOrEvent() :
-					nextBuffered.getBufferOrEvent();
+			BufferOrEvent next;
+			if (currentBuffered != null) {
+				next = currentBuffered.getNext();
+				if (next == null) {
+					currentBuffered = queuedBuffered.pollFirst();
+					if (currentBuffered != null) {
+						currentBuffered.open();
+					}
+					return getNextNonBlocked();
+				}
+			}
+			else {
+				next = inputGate.getNextBufferOrEvent();
+			}
 			
 			if (next != null) {
 				if (isBlocked(next.getChannelIndex())) {
 					// if the channel is blocked we, we just store the BufferOrEvent
-					blockedNonProcessed.add(new SpillingBufferOrEvent(next, bufferSpiller, spillReader));
+					bufferSpiller.add(next);
 				}
 				else if (next.isBuffer() || next.getEvent().getClass() != CheckpointBarrier.class) {
 					return next;
@@ -181,25 +199,17 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	
 	@Override
 	public boolean isEmpty() {
-		return nonProcessed.isEmpty() && blockedNonProcessed.isEmpty();
+		return currentBuffered == null;
 	}
 
 	@Override
 	public void cleanup() throws IOException {
 		bufferSpiller.close();
-		File spillfile1 = bufferSpiller.getSpillFile();
-		if (spillfile1 != null) {
-			if (!spillfile1.delete()) {
-				LOG.warn("Cannot remove barrier buffer spill file: " + spillfile1.getAbsolutePath());
-			}
+		if (currentBuffered != null) {
+			currentBuffered.cleanup();
 		}
-
-		spillReader.close();
-		File spillfile2 = spillReader.getSpillFile();
-		if (spillfile2 != null) {
-			if (!spillfile2.delete()) {
-				LOG.warn("Cannot remove barrier buffer spill file: " + spillfile2.getAbsolutePath());
-			}
+		for (BufferSpiller.SpilledBufferOrEventSequence seq : queuedBuffered) {
+			seq.cleanup();
 		}
 	}
 	
@@ -233,7 +243,8 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	}
 
 	/**
-	 * Releases the blocks on all channels.
+	 * Releases the blocks on all channels. Makes sure the just written data
+	 * is the next to be consumed.
 	 */
 	private void releaseBlocks() throws IOException {
 		if (LOG.isDebugEnabled()) {
@@ -244,27 +255,36 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			blockedChannels[i] = false;
 		}
 		numReceivedBarriers = 0;
-		
-		if (nonProcessed.isEmpty()) {
-			// swap the queues
-			ArrayDeque<SpillingBufferOrEvent> empty = nonProcessed;
-			nonProcessed = blockedNonProcessed;
-			blockedNonProcessed = empty;
+
+		if (currentBuffered == null) {
+			// common case: no more buffered data
+			currentBuffered = bufferSpiller.rollOver();
+			if (currentBuffered != null) {
+				currentBuffered.open();
+			}
 		}
 		else {
-			throw new IllegalStateException("Unconsumed data from previous checkpoint alignment " +
-					"when starting next checkpoint alignment");
+			// uncommon case: buffered data pending
+			// push back the pending data
+			queuedBuffered.addFirst(currentBuffered);
+			
+			// since we did not fully drain the previous sequence, we need to allocate a new buffer for this one 
+			currentBuffered = bufferSpiller.rollOverWithNewBuffer();
+			if (currentBuffered != null) {
+				currentBuffered.open();
+			}
 		}
-		
-		// roll over the spill files
-		spillReader.setSpillFile(bufferSpiller.getSpillFile());
-		bufferSpiller.resetSpillFile();
 	}
 
 	// ------------------------------------------------------------------------
 	// For Testing
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Gets the ID defining the current pending, or just completed, checkpoint.
+	 * 
+	 * @return The ID of the pending of completed checkpoint. 
+	 */
 	public long getCurrentCheckpointId() {
 		return this.currentCheckpointId;
 	}
@@ -275,6 +295,6 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	
 	@Override
 	public String toString() {
-		return "Non-Processed: " + nonProcessed + " | Blocked: " + blockedNonProcessed;
+		return String.format("last checkpoint: %d, current barriers: %d", currentCheckpointId, numReceivedBarriers);
 	}
 }

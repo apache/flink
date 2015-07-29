@@ -26,10 +26,13 @@ import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.types.LongValue;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -96,7 +99,7 @@ public class StreamRecordWriterTest {
 		when(mockProvider.requestBufferBlocking()).thenAnswer(new Answer<Buffer>() {
 			@Override
 			public Buffer answer(InvocationOnMock invocation) {
-				return new Buffer(new MemorySegment(new byte[4096]), DummyBufferRecycler.INSTANCE);
+				return new Buffer(new MemorySegment(new byte[4096]), FreeingBufferRecycler.INSTANCE);
 			}
 		});
 		
@@ -107,7 +110,6 @@ public class StreamRecordWriterTest {
 		
 		return mockWriter;
 	}
-	
 	
 	// ------------------------------------------------------------------------
 	

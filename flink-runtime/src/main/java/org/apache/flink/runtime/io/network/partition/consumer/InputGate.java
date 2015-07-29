@@ -37,4 +37,5 @@ public interface InputGate {
 
 	void registerListener(EventListener<InputGate> listener);
 
+	int getPageSize();
 }

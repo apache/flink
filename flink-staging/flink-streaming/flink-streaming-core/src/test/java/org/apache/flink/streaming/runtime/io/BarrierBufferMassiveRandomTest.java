@@ -42,14 +42,16 @@ import org.junit.Test;
  */
 public class BarrierBufferMassiveRandomTest {
 
+	private static final int PAGE_SIZE = 1024;
+	
 	@Test
 	public void testWithTwoChannelsAndRandomBarriers() {
 		IOManager ioMan = null;
 		try {
 			ioMan = new IOManagerAsync();
 			
-			BufferPool pool1 = new NetworkBufferPool(100, 1024).createBufferPool(100, true);
-			BufferPool pool2 = new NetworkBufferPool(100, 1024).createBufferPool(100, true);
+			BufferPool pool1 = new NetworkBufferPool(100, PAGE_SIZE).createBufferPool(100, true);
+			BufferPool pool2 = new NetworkBufferPool(100, PAGE_SIZE).createBufferPool(100, true);
 
 			RandomGeneratingInputGate myIG = new RandomGeneratingInputGate(
 					new BufferPool[] { pool1, pool2 },
@@ -163,5 +165,10 @@ public class BarrierBufferMassiveRandomTest {
 
 		@Override
 		public void registerListener(EventListener<InputGate> listener) {}
+
+		@Override
+		public int getPageSize() {
+			return PAGE_SIZE;
+		}
 	}
 }
