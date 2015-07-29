@@ -131,9 +131,8 @@ class Environment(object):
             self._send_plan()
             self._connection._write_buffer()
         else:
-            import socket
             import struct
-            s = None
+            operator = None
             try:
                 port = int(sys.stdin.readline().rstrip('\n'))
 
@@ -154,8 +153,8 @@ class Environment(object):
             except:
                 sys.stdout.flush()
                 sys.stderr.flush()
-                if s is not None:
-                    s.send(struct.pack(">i", -2))
+                if operator is not None:
+                    operator._connection._socket.send(struct.pack(">i", -2))
                 raise
 
     def _optimize_plan(self):
