@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import com.google.common.collect.Maps;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -725,7 +726,10 @@ public class TaskTest {
 				jobManagerGateway,
 				new FiniteDuration(60, TimeUnit.SECONDS),
 				libCache,
-				mock(FileCache.class));
+				mock(FileCache.class),
+				new RuntimeConfiguration(
+						taskManagerGateway.path(),
+						new UnmodifiableConfiguration(new Configuration())));
 	}
 
 	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(Class<? extends AbstractInvokable> invokable) {

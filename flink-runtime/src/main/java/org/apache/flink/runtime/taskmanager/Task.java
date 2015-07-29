@@ -214,6 +214,9 @@ public class Task implements Runnable {
 	 * initialization, to be memory friendly */
 	private volatile SerializedValue<StateHandle<?>> operatorState;
 
+	/** Access to task manager configuration and host names*/
+	private RuntimeConfiguration taskManagerConfig;
+
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to 
 	 * be undone in the case of a failing task deployment.</p>
@@ -227,7 +230,8 @@ public class Task implements Runnable {
 				ActorGateway jobManagerActor,
 				FiniteDuration actorAskTimeout,
 				LibraryCacheManager libraryCache,
-				FileCache fileCache)
+				FileCache fileCache,
+				RuntimeConfiguration taskManagerConfig)
 	{
 		checkArgument(tdd.getNumberOfSubtasks() > 0);
 		checkArgument(tdd.getIndexInSubtaskGroup() >= 0);
@@ -258,6 +262,7 @@ public class Task implements Runnable {
 		this.libraryCache = checkNotNull(libraryCache);
 		this.fileCache = checkNotNull(fileCache);
 		this.network = checkNotNull(networkEnvironment);
+		this.taskManagerConfig = checkNotNull(taskManagerConfig);
 
 		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
 
@@ -510,7 +515,7 @@ public class Task implements Runnable {
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
 					splitProvider, distributedCacheEntries,
-					writers, inputGates, jobManager);
+					writers, inputGates, jobManager, taskManagerConfig);
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);
