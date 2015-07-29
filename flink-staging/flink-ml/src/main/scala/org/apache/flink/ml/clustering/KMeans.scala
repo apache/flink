@@ -18,14 +18,20 @@
 
 package org.apache.flink.ml.clustering
 
+import org.apache.flink.api.common.functions.RichFilterFunction
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
 import org.apache.flink.api.scala.{DataSet, _}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml._
+import org.apache.flink.ml.common.FlinkMLTools.ModuloKeyPartitioner
 import org.apache.flink.ml.common.{LabeledVector, _}
 import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.{BLAS, Vector}
 import org.apache.flink.ml.metrics.distances.EuclideanDistanceMetric
 import org.apache.flink.ml.pipeline._
+
+import scala.collection.JavaConverters._
+import scala.util.Random
 
 
 /**
@@ -95,10 +101,24 @@ import org.apache.flink.ml.pipeline._
  * [[org.apache.flink.ml.clustering.KMeans.NumIterations]]. The choice of the initial centroids
  * mainly affects the outcome of the algorithm.
  *
+ * - [[org.apache.flink.ml.clustering.KMeans.InitialStrategy]]:
+ * Defines the initialization strategy to be used for initializing the KMeans algorithm in case
+ * the initial centroids are not provided. Allowed values are "random", "kmeans++" and "kmeans||".
+ * (Default Value: '''random''')
+ *
  * - [[org.apache.flink.ml.clustering.KMeans.NumClusters]]:
  * Defines the number of clusters required. This is essential to provide when only the
  * initialization strategy is specified, not the initial centroids themselves.
  * (Default Value: '''0''')
+ *
+ * - [[org.apache.flink.ml.clustering.KMeans.OversamplingFactor]]:
+ *  Defines the oversampling rate for the kmeans|| initialization.
+ * (Default Value: '''2k'''), where k is the number of clusters.
+ *
+ * - [[org.apache.flink.ml.clustering.KMeans.KMeansParRounds]]:
+ *  Defines the number of rounds for the kmeans|| initialization.
+ * (Default Value: '''5''')
+ *
  */
 class KMeans extends Predictor[KMeans] {
 
@@ -133,7 +153,9 @@ class KMeans extends Predictor[KMeans] {
 
   /**
    * Sets the initial centroids on which the algorithm will start computing. These points should
-   * depend on the data and significantly influence the resulting centroids.
+   * depend on the data and will significantly influence the resulting centroids.
+   * Note that this setting will override [[setInitializationStrategy())]] and the size of
+   * initialCentroids will override the value, if set, by [[setNumClusters()]]
    *
    * @param initialCentroids A set of labeled vectors.
    * @return itself
@@ -142,6 +164,46 @@ class KMeans extends Predictor[KMeans] {
     parameters.add(InitialCentroids, initialCentroids)
     this
   }
+
+  /**
+   * Automatically initialize the KMeans algorithm. Allowed options are "random", "kmeans++" and
+   * "kmeans||"
+   *
+   * @param initialStrategy
+   * @return itself
+   */
+  def setInitializationStrategy(initialStrategy: String): KMeans = {
+    require(Array("random", "kmeans++", "kmeans||").contains(initialStrategy), s"$initialStrategy" +
+      s" is not supported")
+    parameters.add(InitialStrategy, initialStrategy)
+    this
+  }
+
+  /**
+   * Oversampling factor to be used in case the initialization strategy is set to be "kmeans||"
+   *
+   * @param oversamplingFactor Oversampling factor(\ell)
+   * @return this
+   */
+  def setOversamplingFactor(oversamplingFactor: Double): KMeans = {
+    require(oversamplingFactor > 0, "Oversampling factor must be positive.")
+    parameters.add(OversamplingFactor, oversamplingFactor)
+    this
+  }
+
+  /**
+   * Number of initialization rounds to be done when the initialization strategy is set to be
+   * "kmeans||"
+   *
+   * @param numRounds Number of rounds(r)
+   * @return this
+   */
+  def setNumRounds(numRounds: Int): KMeans = {
+    require(numRounds > 0, "Number of rounds must be positive")
+    parameters.add(KMeansParRounds, numRounds)
+    this
+  }
+
 }
 
 /**
@@ -149,6 +211,11 @@ class KMeans extends Predictor[KMeans] {
  * of the algorithm and the [[FitOperation]] & [[PredictOperation]].
  */
 object KMeans {
+
+  private val RANDOM_FRACTION = "random_sample_fraction"
+  private val PARINIT_SET = "par_init_solution_set"
+  private val PARINIT_COST = "par_init_solution_cost"
+  private val PARINIT_SAMPLE = "par_init_oversample_factor"
 
   /** Euclidean Distance Metric */
   val euclidean = EuclideanDistanceMetric()
@@ -161,8 +228,20 @@ object KMeans {
     val defaultValue = None
   }
 
+  case object InitialStrategy extends Parameter[String]{
+    val defaultValue = Some("kmeans||")
+  }
+
   case object NumClusters extends Parameter[Int] {
-    val defaultValue = Some(0)
+    val defaultValue = None
+  }
+
+  case object OversamplingFactor extends Parameter[Double] {
+    val defaultValue = None
+  }
+
+  case object KMeansParRounds extends Parameter[Int] {
+    val defaultValue = Some(5)
   }
 
   // ========================================== Factory methods ====================================
@@ -173,33 +252,32 @@ object KMeans {
 
   // ========================================== Operations =========================================
 
-  /**
-   * [[PredictOperation]] for vector types. The result type is a [[LabeledVector]].
-   *
-   * @return Anew [[PredictDataSetOperation]] to predict the labels of a [[DataSet]] of [[Vector]]s.
-   * */
-  implicit def predictDataSet = {
-    new PredictDataSetOperation[KMeans, Vector, LabeledVector] {
+  /** Provides the operation that makes the predictions for individual examples.
+    * The label of the vector will be the index of the cluster the input vector belongs to.
+    *
+    * @tparam T
+    * @return A PredictOperation, through which it is possible to predict a value, given a
+    *         feature vector
+    */
+  implicit def predictVectors[T <: Vector] = {
+    new PredictOperation[KMeans, Seq[LabeledVector], T, Double](){
 
-      /** Calculates the predictions for all elements in the [[DataSet]] input
-        *
-        * @param instance Reference to the current KMeans instance.
-        * @param predictParameters Container for predication parameter.
-        * @param testDS Data set to make predict on.
-        *
-        * @return A [[DataSet[LabeledVectors]] containing the nearest centroids.
-        */
-      override def predictDataSet(instance: KMeans, predictParameters: ParameterMap,
-                                  testDS: DataSet[Vector])
-      : DataSet[LabeledVector] = {
-        instance.centroids match {
-          case Some(centroids) =>
-            testDS.mapWithBcVariable(centroids)
-              { (dataPoint, centroids) => selectNearestCentroid(dataPoint, centroids) }
-          case None =>
+      override def getModel(
+          self: KMeans,
+          predictParameters: ParameterMap)
+        : DataSet[Seq[LabeledVector]] = {
+
+        self.centroids match {
+          case Some(model) => model
+          case None => {
             throw new RuntimeException("The KMeans model has not been trained. Call first fit" +
               "before calling the predict operation.")
+          }
         }
+      }
+
+      override def predict(value: T, model: Seq[LabeledVector]): Double = {
+        findNearestCentroid(value, model)._1
       }
     }
   }
@@ -216,8 +294,9 @@ object KMeans {
       : Unit = {
         val resultingParameters = instance.parameters ++ fitParameters
 
-        val centroids: DataSet[Seq[LabeledVector]] = trainingDS.
-          getExecutionEnvironment.fromElements(resultingParameters.get(InitialCentroids).get)
+        // =================  INITIALIZATION OF KMEANS ==========================
+        val centroids: DataSet[Seq[LabeledVector]] = init(trainingDS, resultingParameters)
+
         val numIterations: Int = resultingParameters.get(NumIterations).get
 
         val finalCentroids = centroids.iterate(numIterations) { currentCentroids =>
@@ -241,7 +320,6 @@ object KMeans {
             (_,newCenters) => newCenters
           }
         }
-
         instance.centroids = Some(finalCentroids)
       }
     }
@@ -258,6 +336,18 @@ object KMeans {
    */
   @ForwardedFields(Array("*->vector"))
   private def selectNearestCentroid(dataPoint: Vector, centroids: Seq[LabeledVector]) = {
+    val nearest = findNearestCentroid(dataPoint, centroids)
+    LabeledVector(nearest._1, dataPoint)
+  }
+
+  /**
+   * Finds the nearest centroid to a point and returns the distance to this centroid and label of it
+   *
+   * @param dataPoint The vector to determine the nearest centroid.
+   * @param centroids A collection of the centroids.
+   * @return A tuple of distance to the nearest centroid and label of this centroid
+   */
+  private def findNearestCentroid(dataPoint: Vector, centroids: Seq[LabeledVector]) = {
     var minDistance: Double = Double.MaxValue
     var closestCentroidLabel: Double = -1
     centroids.foreach(centroid => {
@@ -267,7 +357,258 @@ object KMeans {
         closestCentroidLabel = centroid.label
       }
     })
-    LabeledVector(closestCentroidLabel, dataPoint)
+    (closestCentroidLabel, minDistance)
   }
 
+  /**
+   * Returns the initial centroids for the KMeans algorithm based upon the information in
+   * parameter
+   *
+   * @param data The training data set
+   * @param parameter Parameter Map containing user parameters
+   * @return Initial centroids for KMeans clustering
+   */
+  private def init(data: DataSet[Vector], parameter: ParameterMap): DataSet[Seq[LabeledVector]] = {
+    parameter.get(InitialCentroids) match {
+      case Some(value) => data.getExecutionEnvironment.fromElements(value)
+      case None => {
+
+        val k = parameter.get(NumClusters) match{
+          case Some(value) => value
+          case None => throw new RuntimeException("Specify the number of clusters.")
+        }
+        val l = parameter.get(OversamplingFactor) match{
+          case Some(value) => value
+          case None => 2 * k  // default value
+        }
+        val r = parameter.get(KMeansParRounds).get
+
+        val blocks = data.getParallelism
+
+        parameter.get(InitialStrategy) match {
+          case Some("random") => {
+            random(data.map(x => (x,1)), k)
+          }
+          case Some("kmeans++") => {
+            kmeans(data.map(x => (x,1)), k, blocks)
+          }
+          case Some("kmeans||") => {
+            parInit(data, k, blocks, l ,r)
+          }
+          case default => {
+            throw new RuntimeException("Specify a valid initialization strategy.")
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Pick k centers from data one by one using kmeans|| initialization scheme
+   *
+   * The k-means|| algorithm works as described by the original authors
+   * (http://theory.stanford.edu/~sergei/papers/vldb12-kmpar.pdf):
+   *
+   * Given a data set X with |X| points, the k-means|| algorithm proceeds as follows:
+   *
+   * 1. Initialize C \leftarrow \{\}
+   * 2. Let p be a point sampled uniformly at random from X. C \leftarrow C \cup \{p\}
+   * 3. for i \leftarrow 1 to r
+   * Let C' be the set of formed by independently sampling every point x in X with probability
+   * \ell\cdot\frac{d(x,C)}{sigma_nolimits{p \in X }d(p,C)}
+   * C \leftarrow C \cup C'
+   * 4. Assign weights to all point c in C as the number of points from X which are closest to c
+   * 5. Run kmeans++ initialization on the weighted set C and return k centers
+   *
+   * @param data Training data set
+   * @param k Number of clusters
+   * @param blocks Blocks in the data
+   * @param oversampling Oversampling rate (\ell)
+   * @param rounds Number of rounds (r)
+   * @return Initial centroids
+   */
+  private def parInit(
+      data: DataSet[Vector],
+      k: Int,
+      blocks: Int,
+      oversampling: Double,
+      rounds: Int)
+    : DataSet[Seq[LabeledVector]] = {
+    // first pick one center randomly
+    val oversamplingFactor = data.getExecutionEnvironment.fromElements(oversampling)
+
+    val initialCentroids = random(data.map(x => (x,1)), 1).map(x => x.head)
+    val unionOfSamples = initialCentroids.iterate(rounds){
+      currentSet => {
+        // current cost
+        val currentCost = data.mapWithBcSet(currentSet){
+          (vector, pointSet) => Math.pow(findNearestCentroid(vector, pointSet)._2, 2)
+        }
+        val sampledSet = data.filter(new RichFilterFunction[Vector] {
+          var currentSet: Seq[LabeledVector] = _
+          var cost: Double = _
+          var rng: Random = _
+          var oversamplingFactor: Double = _
+          override def open(parameter: Configuration): Unit ={
+            currentSet = getRuntimeContext.getBroadcastVariable(PARINIT_SET).asScala
+            cost = getRuntimeContext.getBroadcastVariable(PARINIT_COST).get(0)
+            oversamplingFactor = getRuntimeContext.getBroadcastVariable(PARINIT_SAMPLE).get(0)
+            rng = new Random()
+          }
+          override def filter(value: Vector): Boolean = {
+            rng.nextDouble() <
+              oversamplingFactor * Math.pow(findNearestCentroid(value, currentSet)._2, 2) / cost
+          }
+        }).withBroadcastSet(currentCost, PARINIT_COST)
+          .withBroadcastSet(currentSet, PARINIT_SET)
+          .withBroadcastSet(oversamplingFactor, PARINIT_SAMPLE)
+
+        // keep taking unions of independent samples at each step
+        currentSet.union(sampledSet.map(x => LabeledVector(0, x)))
+      }
+    }
+
+    // now assign weights to points in the set
+    val weightedSample = data.mapWithBcSet(unionOfSamples){
+      (vector, sampledSet) => {
+        val samples = sampledSet.toList
+        var minDistance: Double = Double.MaxValue
+        var closestCentroidIndex: Int = -1
+        for (i <- 0 to samples.size - 1) {
+          val distance = EuclideanDistanceMetric().distance(vector, samples(i).vector)
+          if (distance < minDistance) {
+            minDistance = distance
+            closestCentroidIndex = i
+          }
+        }
+        // just assign a label of 1. We'll figure this out later.
+        (closestCentroidIndex, samples(closestCentroidIndex).vector, 1)
+      }
+    }.groupBy(0)
+      .reduce((a, b) => (a._1, a._2, a._3 + b._3))
+      .map(x => (x._2,x._3))
+
+    // finally, do a kmeans++ on this weighted set
+    kmeans(weightedSample, k, blocks)
+  }
+
+  /**
+   * Randomly initializes centroids from the data.
+   * Data is considered to be weighted.
+   *
+   * @param data Training data set
+   * @param k Number of centroids to be picked
+   * @return Initial random centroids
+   */
+  private def random(
+      data: DataSet[(Vector, Int)],
+      k: Int)
+    : DataSet[Seq[LabeledVector]] = {
+    // we'll sample 10 times as many points as we actually need
+    // TODO Modify to use the Random Sample Operator as and when added.
+
+    val fraction = data.map(x => 1).reduce(_ + _).map(x => 10 * (k + 0.0) / x)
+
+    val extraSampledSet = data.filter(new RichFilterFunction[(Vector, Int)] {
+      var rng: Random = _
+      var fraction: Double = _
+
+      override def open(parameters: Configuration): Unit ={
+        rng = new Random()
+        fraction = getRuntimeContext.getBroadcastVariable(RANDOM_FRACTION).get(0)
+      }
+      override def filter(value: (Vector,Int)): Boolean = {
+        rng.nextDouble() < fraction * value._2
+      }}
+    ).withBroadcastSet(fraction, RANDOM_FRACTION).map(x => x._1)
+
+    data.getExecutionEnvironment.fromElements(k).mapWithBcSet(extraSampledSet){
+      (required, largeSample) =>
+        val output = Array.ofDim[LabeledVector](required)
+        for(i<- 0 to required - 1){
+          output(i) = LabeledVector(i, largeSample(i))
+        }
+        output.toSeq
+    }
+  }
+
+  /**
+   * Pick k centers from data one by one using kmeans++ initialization scheme
+   *
+   * The k-means++ scheme works as described by the original authors in
+   * [[http://ilpubs.stanford.edu:8090/778/1/2006-13.pdf]]
+   *
+   * Given a data set X with |X| points, the k-means++ algorithm proceeds as follows:
+   *
+   * 1. Initialize C \leftarrow \{\}
+   * 2. Let p be a point sampled uniformly at random from X. C \leftarrow C \cup \{p\}
+   * 3. for i \leftarrow 1 to k-1
+   * Choose an x in X with probability \frac{d(x,C)}{sigma_nolimits{p \in X} d(p,C)} where
+   * d(p,C) denotes the distance of p from its nearest center in C
+   * 4. Output C as the initial seed points. These can now be used in a KMeans algorithm as initial
+   * centers
+   *
+   * @param data Training data set
+   * @param k Number of clusters
+   * @param blocks Blocks of data
+   * @return Initial centroids
+   */
+  private def kmeans(
+      data: DataSet[(Vector, Int)],
+      k: Int,
+      blocks: Int)
+    : DataSet[Seq[LabeledVector]] = {
+    // first pick one center randomly
+    val initialCentroids = random(data, 1)
+    initialCentroids.iterate(k - 1){
+      currentCentroids => {
+        // sample one point from each block based on the local probability distribution
+        val blockSamples = FlinkMLTools.block(data, blocks, Some(ModuloKeyPartitioner))
+          .mapWithBcVariable(currentCentroids) {
+          (block, centroids) => {
+            val rng = new Random()
+            // form a cumulative distribution
+            val distances = Array.ofDim[Double](block.values.length)
+            distances(0) =
+              findNearestCentroid(block.values.head._1, centroids)._2 * block.values.head._2
+            for (i <- 1 to block.values.length - 1) {
+              distances(i) = distances(i - 1) +
+                findNearestCentroid(block.values(i)._1, centroids)._2 * block.values(i)._2
+            }
+            val samplePoint = sampleFromDistribution(rng.nextDouble() * distances.last, distances)
+            (block.values(samplePoint)._1, distances.last)
+          }
+        }
+        // now sample one point from the block sample
+        currentCentroids.mapWithBcSet(blockSamples) {
+          (centroids, blockSample) => {
+            // find the next label to use
+            val rng = new Random()
+            val nextLabel = centroids.map(x => x.label).max + 1
+            val blockArray = blockSample.toArray
+            val blockCostArray = blockArray.map(x => x._2)
+            val sampleBlock = sampleFromDistribution(
+              rng.nextDouble() * blockCostArray.last, blockCostArray)
+            centroids.toList.::(LabeledVector(nextLabel, blockArray(sampleBlock)._1)).toSeq
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Finds an index i such that r >= distribution(i - 1) and r < distribution(i)
+   *
+   * @param r Value to be searched for
+   * @param distribution An unscaled cumulative distribution
+   * @return Index with cumulative probability just more than r
+   */
+  private def sampleFromDistribution(r: Double, distribution: Array[Double]): Int = {
+    for(i<- 1 to distribution.length - 1){
+      if(r >= distribution(i - 1) && r < distribution(i)){
+        return i
+      }
+    }
+    0
+  }
 }

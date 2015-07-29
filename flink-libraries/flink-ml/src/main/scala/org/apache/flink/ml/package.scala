@@ -25,7 +25,6 @@ import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common.LabeledVector
-import scala.collection.JavaConverters._
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -112,8 +111,7 @@ package object ml {
       fun(value, broadcastVariable, getIterationRuntimeContext.getSuperstepNumber)
     }
   }
-
-
+  
   private class BroadcastSingleElementFilter[T, B](
       fun: (T, B) => Boolean)
     extends RichFilterFunction[T] {

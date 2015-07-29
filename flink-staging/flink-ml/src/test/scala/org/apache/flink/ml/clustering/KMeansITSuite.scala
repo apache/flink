@@ -19,6 +19,7 @@
 package org.apache.flink.ml.clustering
 
 import org.apache.flink.api.scala._
+import org.apache.flink.ml._
 import org.apache.flink.ml.math
 import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.test.util.FlinkTestBase
@@ -85,10 +86,57 @@ class KMeansITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     // check if all vectors were labeled correctly
     predictedVectors.collect() foreach (result => {
-      val expectedLabel = expectedMap.get(result.vector.asInstanceOf[DenseVector]).get
-      result.label should be(expectedLabel)
+      val expectedLabel = expectedMap.get(result._1.asInstanceOf[DenseVector]).get
+      result._2 should be(expectedLabel)
     })
 
   }
 
+  it should "initialize k cluster centers randomly" in {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val kmeans = KMeans()
+      .setNumClusters(10)
+      .setNumIterations(ClusteringData.iterations)
+      .setInitializationStrategy("random")
+
+    val trainingDS = env.fromCollection(ClusteringData.trainingData)
+    kmeans.fit(trainingDS)
+
+    println(trainingDS.mapWithBcVariable(kmeans.centroids.get) {
+      (vector, centroid) => Math.pow(ClusteringData.MinClusterDistance(vector, centroid)._1, 2)
+    }.reduce(_ + _).collect().toArray.apply(0))
+  }
+
+  it should "initialize k cluster centers using kmeans++" in {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val kmeans = KMeans()
+      .setNumClusters(10)
+      .setNumIterations(ClusteringData.iterations)
+      .setInitializationStrategy("kmeans++")
+
+    val trainingDS = env.fromCollection(ClusteringData.trainingData)
+    kmeans.fit(trainingDS)
+
+    println(trainingDS.mapWithBcVariable(kmeans.centroids.get) {
+      (vector, centroid) => Math.pow(ClusteringData.MinClusterDistance(vector, centroid)._1, 2)
+    }.reduce(_ + _).collect().toArray.apply(0))
+  }
+
+  it should "initialize k cluster using kmeans||" in {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val kmeans = KMeans()
+      .setNumClusters(10)
+      .setNumIterations(ClusteringData.iterations)
+      .setInitializationStrategy("kmeans||")
+
+    val trainingDS = env.fromCollection(ClusteringData.trainingData)
+    kmeans.fit(trainingDS)
+
+    println(trainingDS.mapWithBcVariable(kmeans.centroids.get) {
+      (vector, centroid) => Math.pow(ClusteringData.MinClusterDistance(vector, centroid)._1, 2)
+    }.reduce(_ + _).collect().toArray.apply(0))
+  }
 }
