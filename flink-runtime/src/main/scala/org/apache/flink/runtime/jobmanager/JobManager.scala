@@ -363,6 +363,7 @@ class JobManager(
                   // store the accumulators in the blobCache and get the keys.
                   val newBlobKeys = LargeAccumulatorHelper.storeSerializedAccumulatorsToBlobCache(
                     getBlobCacheServerAddress, serializedSmallAccumulators)
+
                   smallAccumulatorResults.clear()
 
                   // and update the blobKeys to send to the client.
