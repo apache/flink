@@ -37,6 +37,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.handlers.ExecutionPlanHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobConfigHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobSummaryHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobVerticesOverviewHandler;
 import org.apache.flink.runtime.webmonitor.handlers.RequestConfigHandler;
@@ -132,6 +133,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/jobs/:jobid", handler(new JobSummaryHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices", handler(new JobVerticesOverviewHandler(currentGraphs)))
 			.GET("/jobs/:jobid/plan", handler(new ExecutionPlanHandler(currentGraphs)))
+			.GET("/jobs/:jobid/config", handler(new JobConfigHandler(currentGraphs)))
 
 //			.GET("/running/:jobid/:jobvertex", handler(new ExecutionPlanHandler(currentGraphs)))
 
