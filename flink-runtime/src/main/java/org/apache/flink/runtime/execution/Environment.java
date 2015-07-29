@@ -72,6 +72,16 @@ public interface Environment {
 	Configuration getTaskConfiguration();
 
 	/**
+	 * @return The task manager configuration
+	 */
+	Configuration getTaskManagerConfiguration();
+
+	/**
+	 * @return Hostname of the task manager
+	 */
+	String getHostname();
+
+	/**
 	 * Returns the job-wide configuration object that was attached to the JobGraph.
 	 *
 	 * @return The job-wide configuration
