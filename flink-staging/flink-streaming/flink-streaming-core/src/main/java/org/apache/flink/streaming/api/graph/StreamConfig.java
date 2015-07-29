@@ -68,13 +68,17 @@ public class StreamConfig implements Serializable {
 	private static final String CHECKPOINTING_ENABLED = "checkpointing";
 	private static final String STATEHANDLE_PROVIDER = "stateHandleProvider";
 	private static final String STATE_PARTITIONER = "statePartitioner";
-
+	private static final String CHECKPOINT_MODE = "checkpointMode";
+	
+	
 	// ------------------------------------------------------------------------
 	//  Default Values
 	// ------------------------------------------------------------------------
 	
 	private static final long DEFAULT_TIMEOUT = 100;
-
+	private static final CheckpointingMode DEFAULT_CHECKPOINTING_MODE = CheckpointingMode.EXACTLY_ONCE;
+	
+	
 	// ------------------------------------------------------------------------
 	//  Config
 	// ------------------------------------------------------------------------
@@ -351,6 +355,8 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
+	// --------------------- checkpointing -----------------------
+	
 	public void setCheckpointingEnabled(boolean enabled) {
 		config.setBoolean(CHECKPOINTING_ENABLED, enabled);
 	}
@@ -358,6 +364,20 @@ public class StreamConfig implements Serializable {
 	public boolean isCheckpointingEnabled() {
 		return config.getBoolean(CHECKPOINTING_ENABLED, false);
 	}
+	
+	public void setCheckpointMode(CheckpointingMode mode) {
+		config.setInteger(CHECKPOINT_MODE, mode.ordinal());
+	}
+
+	public CheckpointingMode getCheckpointMode() {
+		int ordinal = config.getInteger(CHECKPOINT_MODE, -1);
+		if (ordinal >= 0) {
+			return CheckpointingMode.values()[ordinal];
+		} else {
+			return DEFAULT_CHECKPOINTING_MODE; 
+		}
+	}
+	
 
 	public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {
 		try {

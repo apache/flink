@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.runtime.state.StateHandleProvider
+import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
@@ -112,37 +113,80 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     this
   }
 
+  // ------------------------------------------------------------------------
+  //  Checkpointing Settings
+  // ------------------------------------------------------------------------
   /**
-   * Method for enabling fault-tolerance. Activates monitoring and backup of streaming
-   * operator states. Time interval between state checkpoints is specified in in millis.
-   * 
-   * If the force flag is set to true, checkpointing will be enabled for iterative jobs as
-   * well.Please note that the checkpoint/restore guarantees for iterative jobs are
-   * only best-effort at the moment. Records inside the loops may be lost during failure.
+   * Enables checkpointing for the streaming job. The distributed state of the streaming
+   * dataflow will be periodically snapshotted. In case of a failure, the streaming
+   * dataflow will be restarted from the latest completed checkpoint.
    *
-   * Setting this option assumes that the job is used in production and thus if not stated
-   * explicitly otherwise with calling with the
-   * [[setNumberOfExecutionRetries(int)]] method in case of
-   * failure the job will be resubmitted to the cluster indefinitely.
+   * The job draws checkpoints periodically, in the given interval. The state will be
+   * stored in the configured state backend.
+   *
+   * NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+   * the moment. If the "force" parameter is set to true, the system will execute the
+   * job nonetheless.
+   *
+   * @param interval
+   *     Time interval between state checkpoints in millis.
+   * @param mode
+   *     The checkpointing mode, selecting between "exactly once" and "at least once" guarantees.
+   * @param force
+   *           If true checkpointing will be enabled for iterative jobs as well.
    */
   @deprecated
-  def enableCheckpointing(interval : Long, force: Boolean) : StreamExecutionEnvironment = {
-    javaEnv.enableCheckpointing(interval, force)
+  def enableCheckpointing(interval : Long,
+                          mode: CheckpointingMode,
+                          force: Boolean) : StreamExecutionEnvironment = {
+    javaEnv.enableCheckpointing(interval, mode, force)
     this
   }
-  
-   /**
-   * Method for enabling fault-tolerance. Activates monitoring and backup of streaming
-   * operator states. Time interval between state checkpoints is specified in in millis.
-   * 
-   * Setting this option assumes that the job is used in production and thus if not stated
-   * explicitly otherwise with calling with the
-   * [[setNumberOfExecutionRetries(int)]] method in case of
-   * failure the job will be resubmitted to the cluster indefinitely.
+
+  /**
+   * Enables checkpointing for the streaming job. The distributed state of the streaming
+   * dataflow will be periodically snapshotted. In case of a failure, the streaming
+   * dataflow will be restarted from the latest completed checkpoint.
+   *
+   * The job draws checkpoints periodically, in the given interval. The system uses the
+   * given [[CheckpointingMode]] for the checkpointing ("exactly once" vs "at least once").
+   * The state will be stored in the configured state backend.
+   *
+   * NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+   * the moment. For that reason, iterative jobs will not be started if used
+   * with enabled checkpointing. To override this mechanism, use the 
+   * [[enableCheckpointing(long, CheckpointingMode, boolean)]] method.
+   *
+   * @param interval 
+   *     Time interval between state checkpoints in milliseconds.
+   * @param mode 
+   *     The checkpointing mode, selecting between "exactly once" and "at least once" guarantees.
+   */
+  def enableCheckpointing(interval : Long,
+                          mode: CheckpointingMode) : StreamExecutionEnvironment = {
+    javaEnv.enableCheckpointing(interval, mode)
+    this
+  }
+
+  /**
+   * Enables checkpointing for the streaming job. The distributed state of the streaming
+   * dataflow will be periodically snapshotted. In case of a failure, the streaming
+   * dataflow will be restarted from the latest completed checkpoint.
+   *
+   * The job draws checkpoints periodically, in the given interval. The program will use
+   * [[CheckpointingMode.EXACTLY_ONCE]] mode. The state will be stored in the
+   * configured state backend.
+   *
+   * NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+   * the moment. For that reason, iterative jobs will not be started if used
+   * with enabled checkpointing. To override this mechanism, use the 
+   * [[enableCheckpointing(long, CheckpointingMode, boolean)]] method.
+   *
+   * @param interval 
+   *           Time interval between state checkpoints in milliseconds.
    */
   def enableCheckpointing(interval : Long) : StreamExecutionEnvironment = {
-    javaEnv.enableCheckpointing(interval)
-    this
+    enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE)
   }
 
   /**

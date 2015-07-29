@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator.ChainingStrategy;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -269,10 +270,19 @@ public class StreamingJobGraphGenerator {
 		config.setNumberOfOutputs(nonChainableOutputs.size());
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
+
 		config.setCheckpointingEnabled(streamGraph.isCheckpointingEnabled());
-		config.setStateHandleProvider(streamGraph.getStateHandleProvider());
+		if (streamGraph.isCheckpointingEnabled()) {
+			config.setCheckpointMode(streamGraph.getCheckpointingMode());
+			config.setStateHandleProvider(streamGraph.getStateHandleProvider());
+		} else {
+			// the at least once input handler is slightly cheaper (in the absence of checkpoints),
+			// so we use that one if checkpointing is not enabled
+			config.setCheckpointMode(CheckpointingMode.AT_LEAST_ONCE);
+		}
 		config.setStatePartitioner((KeySelector<?, Serializable>) vertex.getStatePartitioner());
 
+		
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 
 		if (vertexClass.equals(StreamIterationHead.class)
