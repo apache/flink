@@ -44,6 +44,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 				InputGate[] inputGates = getEnvironment().getAllInputGates();
 				inputProcessor = new StreamInputProcessor<IN>(inputGates, inSerializer,
 						getCheckpointBarrierListener(), 
+						configuration.getCheckpointMode(),
 						getEnvironment().getIOManager(),
 						getExecutionConfig().areTimestampsEnabled());
 	
