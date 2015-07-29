@@ -32,10 +32,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import akka.actor.ActorRef;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 
 import org.apache.flink.runtime.instance.InstanceID;
@@ -67,13 +65,13 @@ public class SetupInfoServlet extends HttpServlet {
 
 
 	final private Configuration configuration;
-	final private ActorRef jobmanager;
+	final private ActorGateway jobmanager;
 	final private FiniteDuration timeout;
 
 
-	public SetupInfoServlet(Configuration conf, ActorRef jm, FiniteDuration timeout) {
+	public SetupInfoServlet(Configuration conf, ActorGateway jobManager, FiniteDuration timeout) {
 		configuration = conf;
-		this.jobmanager = jm;
+		this.jobmanager = jobManager;
 		this.timeout = timeout;
 	}
 
@@ -114,9 +112,9 @@ public class SetupInfoServlet extends HttpServlet {
 
 	private void writeTaskmanagers(HttpServletResponse resp) throws IOException {
 
-		final Future<Object> response = Patterns.ask(jobmanager,
+		final Future<Object> response = jobmanager.ask(
 				JobManagerMessages.getRequestRegisteredTaskManagers(),
-				new Timeout(timeout));
+				timeout);
 
 		Object obj = null;
 
@@ -183,9 +181,9 @@ public class SetupInfoServlet extends HttpServlet {
 		StackTrace message = null;
 		Throwable exception = null;
 
-		final Future<Object> response = Patterns.ask(jobmanager,
+		final Future<Object> response = jobmanager.ask(
 				new RequestStackTrace(instanceID),
-				new Timeout(timeout));
+				timeout);
 
 		try {
 			message = (StackTrace) Await.result(response, timeout);

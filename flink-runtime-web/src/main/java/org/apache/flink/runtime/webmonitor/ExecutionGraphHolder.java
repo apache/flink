@@ -18,12 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import akka.actor.ActorRef;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 
 import scala.concurrent.Await;
@@ -42,18 +39,18 @@ import java.util.WeakHashMap;
  */
 public class ExecutionGraphHolder {
 	
-	private final ActorRef source;
+	private final ActorGateway source;
 	
 	private final FiniteDuration timeout;
 	
 	private final WeakHashMap<JobID, ExecutionGraph> cache = new WeakHashMap<JobID, ExecutionGraph>();
 	
 	
-	public ExecutionGraphHolder(ActorRef source) {
+	public ExecutionGraphHolder(ActorGateway source) {
 		this(source, WebRuntimeMonitor.DEFAULT_REQUEST_TIMEOUT);
 	}
 
-	public ExecutionGraphHolder(ActorRef source, FiniteDuration timeout) {
+	public ExecutionGraphHolder(ActorGateway source, FiniteDuration timeout) {
 		if (source == null || timeout == null) {
 			throw new NullPointerException();
 		}
@@ -69,8 +66,7 @@ public class ExecutionGraphHolder {
 		}
 		
 		try {
-			Timeout to = new Timeout(timeout);
-			Future<Object> future = Patterns.ask(source, new JobManagerMessages.RequestJob(jid), to);
+			Future<Object> future = source.ask(new JobManagerMessages.RequestJob(jid), timeout);
 			Object result = Await.result(future, timeout);
 			if (result instanceof JobManagerMessages.JobNotFound) {
 				return null;
