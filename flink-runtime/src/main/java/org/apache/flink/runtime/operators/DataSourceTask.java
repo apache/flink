@@ -266,12 +266,18 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 					ccex);
 		}
 
-		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
+		Thread thread = Thread.currentThread();
+		ClassLoader original = thread.getContextClassLoader();
+		// configure the stub. catch exceptions here extra, to report them as originating from the user code
 		try {
+			thread.setContextClassLoader(userCodeClassLoader);
 			this.format.configure(this.config.getStubParameters());
 		}
 		catch (Throwable t) {
 			throw new RuntimeException("The user defined 'configure()' method caused an error: " + t.getMessage(), t);
+		}
+		finally {
+			thread.setContextClassLoader(original);
 		}
 
 		// get the factory for the type serializer
