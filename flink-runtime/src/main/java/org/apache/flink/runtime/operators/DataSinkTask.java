@@ -323,14 +323,20 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		catch (ClassCastException ccex) {
 			throw new RuntimeException("The stub class is not a proper subclass of " + OutputFormat.class.getName(), ccex);
 		}
-		
+
+		Thread thread = Thread.currentThread();
+		ClassLoader original = thread.getContextClassLoader();
 		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
 		try {
+			thread.setContextClassLoader(userCodeClassLoader);
 			this.format.configure(this.config.getStubParameters());
 		}
 		catch (Throwable t) {
 			throw new RuntimeException("The user defined 'configure()' method in the Output Format caused an error: " 
 				+ t.getMessage(), t);
+		}
+		finally {
+			thread.setContextClassLoader(original);
 		}
 	}
 
