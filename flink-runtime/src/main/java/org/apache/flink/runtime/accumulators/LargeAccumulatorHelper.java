@@ -19,11 +19,15 @@
 package org.apache.flink.runtime.accumulators;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobServerProtocol;
 import org.apache.flink.runtime.util.SerializedValue;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,16 +38,20 @@ import java.util.Map;
 public class LargeAccumulatorHelper {
 
 	/**
-	 * Puts the blobs of the large accumulators on the BlobCache.
+	 * Serializes and Puts the blobs of the large accumulators on the BlobCache.
+	 *
 	 * @param blobServerAddress the address of the server to the blobCache.
-	 * @param accumulators the accumulators to be stored in the cache.
+	 * @param accumulators      the accumulators to be stored in the cache.
 	 * @return the name of each accumulator with the BlobKey that identifies its blob in the BlobCache.
-	 * */
-	public static Map<String, List<BlobKey>> storeAccumulatorsToBlobCache(InetSocketAddress blobServerAddress,
-																	Map<String, Accumulator<?, ?>> accumulators) throws IOException {
+	 */
+	public static Map<String, List<BlobKey>> storeAccumulatorsToBlobCache(
+			InetSocketAddress blobServerAddress,
+			Map<String, Accumulator<?, ?>> accumulators) throws IOException {
+
 		if (blobServerAddress == null) {
 			throw new RuntimeException("Undefined Blob Server Address.");
 		}
+
 		if (accumulators.isEmpty()) {
 			return Collections.emptyMap();
 		}
@@ -54,12 +62,13 @@ public class LargeAccumulatorHelper {
 
 	/**
 	 * Puts the blobs of the large accumulators on the BlobCache.
+	 *
 	 * @param blobServerAddress the address of the server to the blobCache.
-	 * @param accumulators the accumulators to be stored in the cache.
+	 * @param accumulators      the accumulators to be stored in the cache.
 	 * @return the name of each accumulator with the BlobKey that identifies its blob in the BlobCache.
-	 * */
+	 */
 	public static Map<String, List<BlobKey>> storeSerializedAccumulatorsToBlobCache(InetSocketAddress blobServerAddress,
-																		Map<String, SerializedValue<Object>> accumulators) throws IOException {
+																					Map<String, SerializedValue<Object>> accumulators) throws IOException {
 		if (blobServerAddress == null) {
 			throw new RuntimeException("Undefined Blob Server Address.");
 		}
@@ -77,7 +86,7 @@ public class LargeAccumulatorHelper {
 
 				String accumulatorName = entry.getKey();
 				byte[] accumulatorPayload = entry.getValue().getSerializedData();
-				if(accumulatorPayload != null) {
+				if (accumulatorPayload != null) {
 					BlobKey blobKey = bc.put(accumulatorPayload);
 					List<BlobKey> accKeys = keys.get(accumulatorName);
 					if (accKeys == null) {
@@ -91,7 +100,7 @@ public class LargeAccumulatorHelper {
 			throw new IOException("Failed to send oversized accumulators to the BlobCache: ", e);
 		} finally {
 			try {
-				if(bc != null) {
+				if (bc != null) {
 					bc.close();
 				}
 			} catch (IOException e) {
@@ -100,6 +109,101 @@ public class LargeAccumulatorHelper {
 
 		}
 		return keys;
+	}
+
+	/**
+	 * When the result of the job contains oversized (i.e. bigger that the akka.framesize) accumulators
+	 * then these are put in the BlobCache for the client to fetch and merge. This method gets, deserializes,
+	 * and merges these user-defined accumulators values.
+	 *
+	 * @param blobServerAddress the address that the BlobCache is listening to.
+	 * @param keys the blob keys to fetch.
+	 * @param loader the classloader used to deserialize the accumulators fetched.
+	 * @return the accumulators, grouped by name.
+	 * */
+	public static Map<String, Accumulator<?, ?>> getDeserializeAndMergeAccumulatorsFromBlobCache(
+			InetSocketAddress blobServerAddress, Map<String, List<BlobKey>> keys, ClassLoader loader)
+			throws IOException, ClassNotFoundException {
+
+		if (blobServerAddress == null) {
+			throw new RuntimeException("Undefined Blob Server Address.");
+		}
+
+		if (keys.isEmpty()) {
+			return Collections.emptyMap();
+		}
+
+		Map<String, Accumulator<?, ?>> accumulators =
+				new HashMap<String, Accumulator<?, ?>>();
+
+		Map<String, List<SerializedValue<Object>>> accumulatorBlobs =
+				getSerializedAccumulatorsFromBlobCache(blobServerAddress, keys);
+
+		for (String accumulatorName : accumulatorBlobs.keySet()) {
+			Accumulator<?, ?> existing = accumulators.get(accumulatorName);
+
+			for (SerializedValue<Object> acc : accumulatorBlobs.get(accumulatorName)) {
+				Accumulator<?, ?> accumulator = (Accumulator) acc.deserializeValue(loader);
+				if(existing == null) {
+					existing = accumulator;
+					accumulators.put(accumulatorName, existing);
+				} else {
+					AccumulatorHelper.mergeAccumulators(accumulatorName, existing, accumulator);
+				}
+			}
+		}
+		return accumulators;
+	}
+
+	/**
+	 * Gets the user-defined accumulators values.
+	 *
+	 * @return the serialized map
+	 */
+	public static Map<String, List<SerializedValue<Object>>> getSerializedAccumulatorsFromBlobCache(
+			InetSocketAddress blobServerAddress, Map<String, List<BlobKey>> keys) throws IOException {
+
+		if (blobServerAddress == null) {
+			throw new RuntimeException("Undefined Blob Server Address.");
+		}
+
+		if (keys.isEmpty()) {
+			return Collections.emptyMap();
+		}
+
+		Map<String, List<SerializedValue<Object>>> accumulatorBlobs =
+				new HashMap<String, List<SerializedValue<Object>>>();
+
+		BlobClient bc = new BlobClient(blobServerAddress);
+
+		final byte[] buf = new byte[BlobServerProtocol.BUFFER_SIZE];
+		for (String accName : keys.keySet()) {
+			List<BlobKey> accBlobKeys = keys.get(accName);
+			List<SerializedValue<Object>> accBlobs = new ArrayList<SerializedValue<Object>>();
+
+			for (BlobKey bk : accBlobKeys) {
+				InputStream is = bc.get(bk);
+				ByteArrayOutputStream os = new ByteArrayOutputStream();
+				while (true) {
+					final int read = is.read(buf);
+					if (read < 0) {
+						break;
+					}
+					os.write(buf, 0, read);
+				}
+				os.flush();
+				byte[] blob = os.toByteArray();
+				accBlobs.add(new SerializedValue<Object>(blob));
+				is.close();
+				os.close();
+
+				// after getting them, clean up and delete the blobs from the BlobCache.
+				bc.delete(bk);
+			}
+			accumulatorBlobs.put(accName, accBlobs);
+		}
+		bc.close();
+		return accumulatorBlobs;
 	}
 
 	private static Map<String, SerializedValue<Object>> serializeAccumulators(Map<String, Accumulator<?, ?>> accumulators) throws IOException {

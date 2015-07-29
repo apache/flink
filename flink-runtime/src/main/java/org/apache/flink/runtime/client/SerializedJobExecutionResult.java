@@ -21,7 +21,6 @@ package org.apache.flink.runtime.client;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.util.SerializedValue;
 
@@ -131,7 +130,7 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	 * 			the Accumulators received from the BlobCache as blobs, that are to be merged with local data.
 	 * @return the final result after the merging of the different partial accumulators.
 	 * */
-	public JobExecutionResult mergeToJobExecutionResult(ClassLoader loader, Map<String, List<SerializedValue<Object>>> accumulatorsToMerge) throws IOException, ClassNotFoundException {
+	public JobExecutionResult mergeToJobExecutionResult(ClassLoader loader, Map<String, Accumulator<?, ?>> accumulatorsToMerge) throws IOException, ClassNotFoundException {
 		if(accumulatorsToMerge == null || accumulatorsToMerge.isEmpty()) {
 			return toJobExecutionResult(loader);
 		}
@@ -139,14 +138,7 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 		Map<String, Object> accumulators = new HashMap<String, Object>();
 
 		for(String name: accumulatorsToMerge.keySet()) {
-			List<SerializedValue<Object>> blobs = accumulatorsToMerge.get(name);
-
-			// merge the serialized accumulators
-			Accumulator acc = (Accumulator) blobs.get(0).deserializeValue(loader);
-			for(int i = 1; i < blobs.size(); i++) {
-				AccumulatorHelper.mergeAccumulators(name, acc,
-						(Accumulator) blobs.get(i).deserializeValue(loader));
-			}
+			Accumulator acc = accumulatorsToMerge.get(name);
 
 			// add also the data from the non-oversized (i.e. the ones that were sent through akka)
 			// accumulators, if any

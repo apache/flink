@@ -29,18 +29,17 @@ import akka.util.Timeout;
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.accumulators.LargeAccumulatorHelper;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.blob.BlobServerProtocol;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 
-import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,15 +50,10 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -208,15 +202,18 @@ public class JobClient {
 			throw new NullPointerException();
 		}
 
-		Map<String, List<BlobKey>> blobsToFetch = partialResult.getBlobKeysToLargeAccumulators();
-
-		Map<String, List<SerializedValue<Object>>> accumulatorBlobs;
+		Map<String, Accumulator<?, ?>> largeAccumulators;
 		try {
-			accumulatorBlobs = getLargeAccumulatorBlobs(jobManagerGateway, blobsToFetch, timeout);
+			InetSocketAddress serverAddress = getBlobServerAddress(jobManagerGateway, timeout);
+			Map<String, List<BlobKey>> blobsKeysToFetch = partialResult.getBlobKeysToLargeAccumulators();
+
+			largeAccumulators = LargeAccumulatorHelper.getDeserializeAndMergeAccumulatorsFromBlobCache(
+					serverAddress, blobsKeysToFetch, userCodeClassLoader);
+
 		} catch (IOException e) {
 			throw new IOException("Failed to fetch the oversized accumulators from the BlobCache", e);
 		}
-		return partialResult.mergeToJobExecutionResult(userCodeClassLoader, accumulatorBlobs);
+		return partialResult.mergeToJobExecutionResult(userCodeClassLoader, largeAccumulators);
 	}
 
 	/**
@@ -287,63 +284,7 @@ public class JobClient {
 		}
 	}
 
-	/**
-	 * If the result of the job contained oversized (i.e. bigger that the akka.framesize) accumulators
-	 * then these are put in the BlobCache for the client to fetch and merge. This method gets
-	 * them from the BlobCache (if there was any). If the list of blobs to fetch is empty, then
-	 * an empty result is returned, as all (partial) accumulators were small enough to be sent
-	 * directly to the JobManager and be merged there.
-	 *
-	 * @param jobManagerGateway the reference to the jobManager actor.
-	 * @param keys the accumulators to fetch (based on their name) along with their associated BlobKeys.
-	 * @param timeout the timeout to wait for the connection to the blob server.
-	 * @return the serialized accumulators, grouped by name.
-	 * */
-	private static Map<String, List<SerializedValue<Object>>> getLargeAccumulatorBlobs(
-			ActorGateway jobManagerGateway, Map<String, List<BlobKey>> keys, FiniteDuration timeout) throws IOException {
-
-		if (keys.isEmpty()) {
-			return Collections.emptyMap();
-		}
-
-		Map<String, List<SerializedValue<Object>>> accumulatorBlobs =
-				new HashMap<String, List<SerializedValue<Object>>>();
-
-		InetSocketAddress serverAddress = getBlobServerAddress(jobManagerGateway, timeout);
-		BlobClient bc = new BlobClient(serverAddress);
-
-		final byte[] buf = new byte[BlobServerProtocol.BUFFER_SIZE];
-		for(String accName: keys.keySet()) {
-			List<BlobKey> accBlobKeys = keys.get(accName);
-			List<SerializedValue<Object>> accBlobs = new ArrayList<SerializedValue<Object>>();
-
-			for(BlobKey bk: accBlobKeys) {
-				InputStream is = bc.get(bk);
-				ByteArrayOutputStream os = new ByteArrayOutputStream();
-				while (true) {
-					final int read = is.read(buf);
-					if (read < 0) {
-						break;
-					}
-					os.write(buf, 0, read);
-				}
-				os.flush();
-				byte[] blob = os.toByteArray();
-				accBlobs.add(new SerializedValue<Object>(blob));
-				is.close();
-				os.close();
-
-				// after getting them, clean up and delete the blobs from the BlobCache.
-				bc.delete(bk);
-			}
-			accumulatorBlobs.put(accName, accBlobs);
-		}
-		bc.close();
-		return accumulatorBlobs;
-	}
-
 	private static InetSocketAddress getBlobServerAddress(ActorGateway jobManagerGateway, FiniteDuration timeout) throws IOException {
-		Timeout tOut = new Timeout(timeout);
 		Future<Object> futureBlobPort = jobManagerGateway.ask(
 				JobManagerMessages.getRequestBlobManagerPort(),
 				timeout);
@@ -362,7 +303,6 @@ public class JobClient {
 
 		Option<String> jmHost = jobManagerGateway.actor().path().address().host();
 		String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
-		InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, port);
-		return serverAddress;
+		return new InetSocketAddress(jmHostname, port);
 	}
 }

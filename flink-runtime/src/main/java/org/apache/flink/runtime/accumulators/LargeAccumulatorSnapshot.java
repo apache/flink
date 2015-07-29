@@ -30,7 +30,7 @@ import java.util.Map;
 public class LargeAccumulatorSnapshot extends BaseAccumulatorSnapshot {
 
 	/**
-	 * In case some accumulators do not fit in akka, we store them in the blobCache and put
+	 * In case some accumulators do not fit in an Akka message payload, we store them in the blobCache and put
 	 * in the snapshot only the mapping between the name of the accumulator, and its blobKey
 	 * in the cache. This list holds exactly this mapping.
 	 * */
