@@ -21,9 +21,7 @@ import java.lang.reflect.{Field, Modifier}
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo._
-
 import org.apache.flink.api.common.typeutils._
-import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.types.Value
@@ -32,7 +30,6 @@ import org.apache.hadoop.io.Writable
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
-
 import scala.reflect.macros.Context
 
 private[flink] trait TypeInformationGen[C <: Context] {
@@ -65,6 +62,8 @@ private[flink] trait TypeInformationGen[C <: Context] {
     case n: NothingDesciptor => reify { null.asInstanceOf[TypeInformation[T]] }
 
     case e: EitherDescriptor => mkEitherTypeInfo(e)
+
+    case e: EnumValueDescriptor => mkEnumValueTypeInfo(e)
 
     case tr: TryDescriptor => mkTryTypeInfo(tr)
 
@@ -145,6 +144,19 @@ private[flink] trait TypeInformationGen[C <: Context] {
         $eitherClass,
         $leftTypeInfo,
         $rightTypeInfo)
+    """
+
+    c.Expr[TypeInformation[T]](result)
+  }
+
+  def mkEnumValueTypeInfo[T: c.WeakTypeTag](d: EnumValueDescriptor): c.Expr[TypeInformation[T]] = {
+
+    val enumValueClass = c.Expr[Class[T]](Literal(Constant(weakTypeOf[T])))
+
+    val result = q"""
+      import org.apache.flink.api.scala.typeutils.EnumValueTypeInfo
+
+      new EnumValueTypeInfo[${d.enum.typeSignature}](${d.enum}, $enumValueClass)
     """
 
     c.Expr[TypeInformation[T]](result)
