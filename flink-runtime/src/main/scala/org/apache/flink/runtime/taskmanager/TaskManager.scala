@@ -36,13 +36,7 @@ import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, GarbageCollectorMetricSet}
 import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 
-//<<<<<<< HEAD
-//import org.apache.flink.api.common.cache.DistributedCache
-//import org.apache.flink.configuration._
-//import org.apache.flink.core.fs.Path
-//import org.apache.flink.runtime.ActorLogMessages
-//=======
-import org.apache.flink.configuration.{Configuration, ConfigConstants, GlobalConfiguration, IllegalConfigurationException}
+import org.apache.flink.configuration._
 
 import org.apache.flink.ps.impl.ParameterServerIgniteImpl
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
@@ -917,7 +911,10 @@ class TaskManager(
         jobManagerGateway,
         config.timeout,
         libCache,
-        fileCache)
+        fileCache,
+        new RuntimeConfiguration(
+          self.path.toSerializationFormat,
+          new UnmodifiableConfiguration(config.configuration)))
 
       log.info(s"Received task ${task.getTaskNameWithSubtasks}")
 
