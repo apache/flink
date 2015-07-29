@@ -295,8 +295,8 @@ class JobManager(
                     case ex: Exception =>
                       log.error(s"Could not serialize the next input split of " +
                         s"class ${nextInputSplit.getClass}.", ex)
-                      vertex.fail(new RuntimeException("Could not serialize the next input split " +
-                        "of class " + nextInputSplit.getClass + ".", ex))
+                      vertex.fail(new RuntimeException("Could not serialize the next input " +
+                        "split of class " + nextInputSplit.getClass + ".", ex))
                       null
                   }
 
@@ -323,8 +323,8 @@ class JobManager(
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
 
-          log.info(s"Status of job $jobID (${executionGraph.getJobName}) changed to $newJobStatus.",
-            error)
+          log.info(s"Status of job $jobID (${executionGraph.getJobName}) " +
+            "changed to $newJobStatus.", error)
 
           if (newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp
