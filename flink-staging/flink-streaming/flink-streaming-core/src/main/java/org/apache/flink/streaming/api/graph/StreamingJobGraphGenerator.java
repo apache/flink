@@ -269,7 +269,7 @@ public class StreamingJobGraphGenerator {
 		config.setNumberOfOutputs(nonChainableOutputs.size());
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
-		config.setStateMonitoring(streamGraph.isCheckpointingEnabled());
+		config.setCheckpointingEnabled(streamGraph.isCheckpointingEnabled());
 		config.setStateHandleProvider(streamGraph.getStateHandleProvider());
 		config.setStatePartitioner((KeySelector<?, Serializable>) vertex.getStatePartitioner());
 
