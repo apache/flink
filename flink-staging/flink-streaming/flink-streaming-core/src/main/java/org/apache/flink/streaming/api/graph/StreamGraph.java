@@ -147,6 +147,8 @@ public class StreamGraph extends StreamingPlan {
 		return checkpointingInterval;
 	}
 
+	// Checkpointing
+	
 	public boolean isChainingEnabled() {
 		return chaining;
 	}
@@ -154,6 +156,15 @@ public class StreamGraph extends StreamingPlan {
 	public boolean isCheckpointingEnabled() {
 		return checkpointingEnabled;
 	}
+
+	public CheckpointingMode getCheckpointingMode() {
+		return checkpointingMode;
+	}
+
+	public void setCheckpointingMode(CheckpointingMode checkpointingMode) {
+		this.checkpointingMode = checkpointingMode;
+	}
+	
 
 	public boolean isIterative() {
 		return !streamLoops.isEmpty();

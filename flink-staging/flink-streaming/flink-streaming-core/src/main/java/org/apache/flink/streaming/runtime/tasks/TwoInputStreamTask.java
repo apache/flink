@@ -69,6 +69,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 			this.inputProcessor = new StreamTwoInputProcessor<IN1, IN2>(inputList1, inputList2,
 					inputDeserializer1, inputDeserializer2,
 					getCheckpointBarrierListener(),
+					configuration.getCheckpointMode(),
 					getEnvironment().getIOManager(),
 					getExecutionConfig().areTimestampsEnabled());
 

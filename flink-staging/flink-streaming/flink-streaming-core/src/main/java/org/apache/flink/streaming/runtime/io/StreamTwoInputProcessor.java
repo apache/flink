@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
@@ -90,16 +91,25 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 			TypeSerializer<IN1> inputSerializer1,
 			TypeSerializer<IN2> inputSerializer2,
 			EventListener<CheckpointBarrier> checkpointListener,
+			CheckpointingMode checkpointMode,
 			IOManager ioManager,
 			boolean enableWatermarkMultiplexing) throws IOException {
 		
 		super(InputGateUtil.createInputGate(inputGates1, inputGates2));
 
-		this.barrierHandler = new BarrierBuffer(inputGate, ioManager);
+		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
+			this.barrierHandler = new BarrierBuffer(inputGate, ioManager);
+		}
+		else if (checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
+			this.barrierHandler = new BarrierTracker(inputGate);
+		}
+		else {
+			throw new IllegalArgumentException("Unrecognized CheckpointingMode: " + checkpointMode);
+		}
+		
 		if (checkpointListener != null) {
 			this.barrierHandler.registerCheckpointEventHandler(checkpointListener);
 		}
-
 		
 		if (enableWatermarkMultiplexing) {
 			MultiplexingStreamRecordSerializer<IN1> ser = new MultiplexingStreamRecordSerializer<IN1>(inputSerializer1);

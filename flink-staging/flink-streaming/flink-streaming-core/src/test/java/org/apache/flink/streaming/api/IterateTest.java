@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -351,6 +350,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 			coIt.groupBy(1, 2);
 			fail();
 		} catch (UnsupportedOperationException e) {
+			// this is expected
 		}
 
 		DataStream<String> head = coIt
@@ -479,7 +479,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 		// Test force checkpointing
 
 		try {
-			env.enableCheckpointing(1, false);
+			env.enableCheckpointing(1, CheckpointingMode.EXACTLY_ONCE, false);
 			env.execute();
 
 			// this statement should never be reached
@@ -488,7 +488,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 			// expected behaviour
 		}
 
-		env.enableCheckpointing(1, true);
+		env.enableCheckpointing(1, CheckpointingMode.EXACTLY_ONCE, true);
 		env.getStreamGraph().getJobGraph();
 	}
 

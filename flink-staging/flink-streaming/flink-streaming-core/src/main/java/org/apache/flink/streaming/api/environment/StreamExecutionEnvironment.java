@@ -45,6 +45,7 @@ import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.FileStateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
@@ -224,51 +225,94 @@ public abstract class StreamExecutionEnvironment {
 		return this;
 	}
 
+	// ------------------------------------------------------------------------
+	//  Checkpointing Settings
+	// ------------------------------------------------------------------------
+	
 	/**
-	 * Method for enabling fault-tolerance. Activates monitoring and backup of
-	 * streaming operator states.
-	 * <p/>
-	 * <p/>
-	 * Setting this option assumes that the job is used in production and thus
-	 * if not stated explicitly otherwise with calling with the
-	 * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method
-	 * in case of failure the job will be resubmitted to the cluster
-	 * indefinitely.
+	 * Enables checkpointing for the streaming job. The distributed state of the streaming
+	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
+	 * dataflow will be restarted from the latest completed checkpoint. This method selects
+	 * {@link CheckpointingMode#EXACTLY_ONCE} guarantees.
+	 * 
+	 * <p>The job draws checkpoints periodically, in the given interval. The state will be
+	 * stored in the configured state backend.</p>
+	 * 
+	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+	 * the moment. For that reason, iterative jobs will not be started if used
+	 * with enabled checkpointing. To override this mechanism, use the 
+	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
 	 *
-	 * @param interval
-	 * 		Time interval between state checkpoints in millis
+	 * @param interval Time interval between state checkpoints in milliseconds.
 	 */
 	public StreamExecutionEnvironment enableCheckpointing(long interval) {
+		return enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE);
+	}
+
+	/**
+	 * Enables checkpointing for the streaming job. The distributed state of the streaming
+	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
+	 * dataflow will be restarted from the latest completed checkpoint.
+	 *
+	 * <p>The job draws checkpoints periodically, in the given interval. The system uses the
+	 * given {@link CheckpointingMode} for the checkpointing ("exactly once" vs "at least once").
+	 * The state will be stored in the configured state backend.</p>
+	 *
+	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+	 * the moment. For that reason, iterative jobs will not be started if used
+	 * with enabled checkpointing. To override this mechanism, use the 
+	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
+	 *
+	 * @param interval 
+	 *             Time interval between state checkpoints in milliseconds.
+	 * @param mode 
+	 *             The checkpointing mode, selecting between "exactly once" and "at least once" guaranteed.
+	 */
+	public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode) {
+		if (mode == null) {
+			throw new NullPointerException("checkpoint mode must not be null");
+		}
+		if (interval <= 0) {
+			throw new IllegalArgumentException("the checkpoint interval must be positive");
+		}
+		
 		streamGraph.setCheckpointingEnabled(true);
 		streamGraph.setCheckpointingInterval(interval);
+		streamGraph.setCheckpointingMode(mode);
 		return this;
 	}
 	
 	/**
-	 * Method for force-enabling fault-tolerance. Activates monitoring and
-	 * backup of streaming operator states even for jobs containing iterations.
-	 * 
-	 * Please note that the checkpoint/restore guarantees for iterative jobs are
-	 * only best-effort at the moment. Records inside the loops may be lost
-	 * during failure.
-	 * <p/>
-	 * <p/>
-	 * Setting this option assumes that the job is used in production and thus
-	 * if not stated explicitly otherwise with calling with the
-	 * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method
-	 * in case of failure the job will be resubmitted to the cluster
-	 * indefinitely.
+	 * Enables checkpointing for the streaming job. The distributed state of the streaming
+	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
+	 * dataflow will be restarted from the latest completed checkpoint.
+	 *
+	 * <p>The job draws checkpoints periodically, in the given interval. The state will be
+	 * stored in the configured state backend.</p>
+	 *
+	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+	 * the moment. If the "force" parameter is set to true, the system will execute the
+	 * job nonetheless.</p>
 	 * 
 	 * @param interval
-	 *            Time interval between state checkpoints in millis
+	 *            Time interval between state checkpoints in millis.
+	 * @param mode
+	 *            The checkpointing mode, selecting between "exactly once" and "at least once" guaranteed.
 	 * @param force
-	 *            If true checkpointing will be enabled for iterative jobs as
-	 *            well
+	 *            If true checkpointing will be enabled for iterative jobs as well.
 	 */
 	@Deprecated
-	public StreamExecutionEnvironment enableCheckpointing(long interval, boolean force) {
+	public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode, boolean force) {
+		if (mode == null) {
+			throw new NullPointerException("checkpoint mode must not be null");
+		}
+		if (interval <= 0) {
+			throw new IllegalArgumentException("the checkpoint interval must be positive");
+		}
+		
 		streamGraph.setCheckpointingEnabled(true);
 		streamGraph.setCheckpointingInterval(interval);
+		streamGraph.setCheckpointingMode(mode);
 		if (force) {
 			streamGraph.forceCheckpoint();
 		}
@@ -276,18 +320,22 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Method for enabling fault-tolerance. Activates monitoring and backup of
-	 * streaming operator states.
-	 * <p/>
-	 * <p/>
-	 * Setting this option assumes that the job is used in production and thus
-	 * if not stated explicitly otherwise with calling with the
-	 * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method
-	 * in case of failure the job will be resubmitted to the cluster
-	 * indefinitely.
+	 * Enables checkpointing for the streaming job. The distributed state of the streaming
+	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
+	 * dataflow will be restarted from the latest completed checkpoint. This method selects
+	 * {@link CheckpointingMode#EXACTLY_ONCE} guarantees.
+	 *
+	 * <p>The job draws checkpoints periodically, in the default interval. The state will be
+	 * stored in the configured state backend.</p>
+	 *
+	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+	 * the moment. For that reason, iterative jobs will not be started if used
+	 * with enabled checkpointing. To override this mechanism, use the 
+	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
 	 */
 	public StreamExecutionEnvironment enableCheckpointing() {
 		streamGraph.setCheckpointingEnabled(true);
+		streamGraph.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
 		return this;
 	}
 
@@ -323,8 +371,7 @@ public abstract class StreamExecutionEnvironment {
 	 * A value of {@code -1} indicates that the system default value (as defined
 	 * in the configuration) should be used.
 	 *
-	 * @return The number of times the system will try to re-execute failed
-	 * tasks.
+	 * @return The number of times the system will try to re-execute failed tasks.
 	 */
 	public int getNumberOfExecutionRetries() {
 		return config.getNumberOfExecutionRetries();
