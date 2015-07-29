@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
@@ -37,6 +38,10 @@ public class StreamConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
+	// ------------------------------------------------------------------------
+	//  Config Keys
+	// ------------------------------------------------------------------------
+	
 	private static final String NUMBER_OF_OUTPUTS = "numberOfOutputs";
 	private static final String NUMBER_OF_INPUTS = "numberOfInputs";
 	private static final String CHAINED_OUTPUTS = "chainedOutputs";
@@ -59,16 +64,22 @@ public class StreamConfig implements Serializable {
 	private static final String EDGES_IN_ORDER = "edgesInOrder";
 	private static final String OUT_STREAM_EDGES = "outStreamEdges";
 	private static final String IN_STREAM_EDGES = "inStreamEdges";
+
+	private static final String CHECKPOINTING_ENABLED = "checkpointing";
 	private static final String STATEHANDLE_PROVIDER = "stateHandleProvider";
 	private static final String STATE_PARTITIONER = "statePartitioner";
 
-	// DEFAULT VALUES
+	// ------------------------------------------------------------------------
+	//  Default Values
+	// ------------------------------------------------------------------------
+	
 	private static final long DEFAULT_TIMEOUT = 100;
-	public static final String STATE_MONITORING = "STATE_MONITORING";
 
-	// CONFIG METHODS
+	// ------------------------------------------------------------------------
+	//  Config
+	// ------------------------------------------------------------------------
 
-	private Configuration config;
+	private final Configuration config;
 
 	public StreamConfig(Configuration config) {
 		this.config = config;
@@ -77,6 +88,11 @@ public class StreamConfig implements Serializable {
 	public Configuration getConfiguration() {
 		return config;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Configured Properties
+	// ------------------------------------------------------------------------
+	
 
 	public void setVertexID(Integer vertexID) {
 		config.setInteger(VERTEX_NAME, vertexID);
@@ -335,12 +351,12 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setStateMonitoring(boolean stateMonitoring) {
-		config.setBoolean(STATE_MONITORING, stateMonitoring);
+	public void setCheckpointingEnabled(boolean enabled) {
+		config.setBoolean(CHECKPOINTING_ENABLED, enabled);
 	}
 
-	public boolean getStateMonitoring() {
-		return config.getBoolean(STATE_MONITORING, false);
+	public boolean isCheckpointingEnabled() {
+		return config.getBoolean(CHECKPOINTING_ENABLED, false);
 	}
 
 	public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {
@@ -435,28 +451,29 @@ public class StreamConfig implements Serializable {
 		builder.append("\n=======================");
 		builder.append("Stream Config");
 		builder.append("=======================");
-		builder.append("\nTask name: " + getVertexID());
-		builder.append("\nNumber of non-chained inputs: " + getNumberOfInputs());
-		builder.append("\nNumber of non-chained outputs: " + getNumberOfOutputs());
-		builder.append("\nOutput names: " + getNonChainedOutputs(cl));
+		builder.append("\nTask name: ").append(getVertexID());
+		builder.append("\nNumber of non-chained inputs: ").append(getNumberOfInputs());
+		builder.append("\nNumber of non-chained outputs: ").append(getNumberOfOutputs());
+		builder.append("\nOutput names: ").append(getNonChainedOutputs(cl));
 		builder.append("\nPartitioning:");
 		for (StreamEdge output : getNonChainedOutputs(cl)) {
 			int outputname = output.getTargetId();
-			builder.append("\n\t" + outputname + ": " + output.getPartitioner());
+			builder.append("\n\t").append(outputname).append(": ").append(output.getPartitioner());
 		}
 
-		builder.append("\nChained subtasks: " + getChainedOutputs(cl));
+		builder.append("\nChained subtasks: ").append(getChainedOutputs(cl));
 
 		try {
-			builder.append("\nOperator: " + getStreamOperator(cl).getClass().getSimpleName());
-		} catch (Exception e) {
+			builder.append("\nOperator: ").append(getStreamOperator(cl).getClass().getSimpleName());
+		}
+		catch (Exception e) {
 			builder.append("\nOperator: Missing");
 		}
-		builder.append("\nBuffer timeout: " + getBufferTimeout());
-		builder.append("\nState Monitoring: " + getStateMonitoring());
+		builder.append("\nBuffer timeout: ").append(getBufferTimeout());
+		builder.append("\nState Monitoring: ").append(isCheckpointingEnabled());
 		if (isChainStart() && getChainedOutputs(cl).size() > 0) {
 			builder.append("\n\n\n---------------------\nChained task configs\n---------------------\n");
-			builder.append(getTransitiveChainedTaskConfigs(cl)).toString();
+			builder.append(getTransitiveChainedTaskConfigs(cl));
 		}
 
 		return builder.toString();

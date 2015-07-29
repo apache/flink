@@ -42,6 +42,7 @@ import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -66,14 +67,19 @@ import org.slf4j.LoggerFactory;
  */
 public class StreamGraph extends StreamingPlan {
 
+	/** The default interval for checkpoints, in milliseconds */
+	public static final int DEFAULT_CHECKPOINTING_INTERVAL_MS = 5000;
+	
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
+
 	private String jobName = StreamExecutionEnvironment.DEFAULT_JOB_NAME;
 
 	private final StreamExecutionEnvironment environemnt;
 	private final ExecutionConfig executionConfig;
 
+	private CheckpointingMode checkpointingMode;
 	private boolean checkpointingEnabled = false;
-	private long checkpointingInterval = 5000;
+	private long checkpointingInterval = DEFAULT_CHECKPOINTING_INTERVAL_MS;
 	private boolean chaining = true;
 
 	private Map<Integer, StreamNode> streamNodes;
