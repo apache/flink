@@ -29,7 +29,7 @@ import java.util.Map;
 
 /**
  * This class and its subclasses ({@link SmallAccumulatorSnapshot} and {@link LargeAccumulatorSnapshot})
- * encapsulate a map of accumulators (user- and system- defined)for a single task. It is used for the
+ * encapsulate a map of accumulators (user- and system- defined) for a single task. It is used for the
  * transfer from TaskManagers to the JobManager and from the JobManager to the Client.
  */
 public class BaseAccumulatorSnapshot implements Serializable {
