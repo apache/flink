@@ -98,13 +98,13 @@ public class PythonStreamer extends Streamer {
 
 		Runtime.getRuntime().addShutdownHook(shutdownThread);
 
-		OutputStream out = process.getOutputStream();
-		out.write("operator\n".getBytes());
-		out.write(("" + server.getLocalPort() + "\n").getBytes());
-		out.write((id + "\n").getBytes());
-		out.write((inputFilePath + "\n").getBytes());
-		out.write((outputFilePath + "\n").getBytes());
-		out.flush();
+		OutputStream processOutput = process.getOutputStream();
+		processOutput.write("operator\n".getBytes());
+		processOutput.write(("" + server.getLocalPort() + "\n").getBytes());
+		processOutput.write((id + "\n").getBytes());
+		processOutput.write((inputFilePath + "\n").getBytes());
+		processOutput.write((outputFilePath + "\n").getBytes());
+		processOutput.flush();
 
 		try { // wait a bit to catch syntax errors
 			Thread.sleep(2000);
