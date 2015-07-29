@@ -13,6 +13,7 @@
 package org.apache.flink.languagebinding.api.java.python.streaming;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.reflect.Field;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import static org.apache.flink.languagebinding.api.java.common.PlanBinder.DEBUG;
@@ -97,12 +98,13 @@ public class PythonStreamer extends Streamer {
 
 		Runtime.getRuntime().addShutdownHook(shutdownThread);
 
-		process.getOutputStream().write("operator\n".getBytes());
-		process.getOutputStream().write(("" + server.getLocalPort() + "\n").getBytes());
-		process.getOutputStream().write((id + "\n").getBytes());
-		process.getOutputStream().write((inputFilePath + "\n").getBytes());
-		process.getOutputStream().write((outputFilePath + "\n").getBytes());
-		process.getOutputStream().flush();
+		OutputStream out = process.getOutputStream();
+		out.write("operator\n".getBytes());
+		out.write(("" + server.getLocalPort() + "\n").getBytes());
+		out.write((id + "\n").getBytes());
+		out.write((inputFilePath + "\n").getBytes());
+		out.write((outputFilePath + "\n").getBytes());
+		out.flush();
 
 		try { // wait a bit to catch syntax errors
 			Thread.sleep(2000);
