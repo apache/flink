@@ -26,9 +26,11 @@ import org.apache.flink.client.CliFrontend
 import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.instance.AkkaActorGateway
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.util.EnvironmentInformation
+import org.apache.flink.runtime.webmonitor.WebMonitor
 import org.apache.flink.yarn.Messages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
@@ -68,7 +70,7 @@ object ApplicationMaster {
       override def run(): Object = {
 
         var actorSystem: ActorSystem = null
-        var webserver: WebInfoServer = null
+        var webserver: WebMonitor = null
 
         try {
           val conf = new YarnConfiguration()
@@ -99,25 +101,44 @@ object ApplicationMaster {
           val slots = env.get(FlinkYarnClient.ENV_SLOTS).toInt
           val dynamicPropertiesEncodedString = env.get(FlinkYarnClient.ENV_DYNAMIC_PROPERTIES)
 
-          val (config: Configuration,
-               system: ActorSystem,
-               jobManager: ActorRef,
-               archiver: ActorRef) = startJobManager(currDir, ownHostname,
-                                                     dynamicPropertiesEncodedString,
-                                                     streamingMode)
+          val config = createConfiguration(currDir, dynamicPropertiesEncodedString)
+
+          val (
+            system: ActorSystem,
+            jobManager: ActorRef,
+            archiver: ActorRef) = startJobManager(
+              config,
+              ownHostname,
+              streamingMode)
+
           actorSystem = system
           val extActor = system.asInstanceOf[ExtendedActorSystem]
           val jobManagerPort = extActor.provider.getDefaultAddress.port.get
 
-          // start the web info server
           if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) != -1) {
+            // start the web info server
+            val lookupTimeout = AkkaUtils.getLookupTimeout(config)
+            val jobManagerGateway = JobManager.getJobManagerGateway(jobManager, lookupTimeout)
+            val archiverGateway = new AkkaActorGateway(
+              archiver,
+              jobManagerGateway.leaderSessionID())
+
             LOG.info("Starting Job Manger web frontend.")
             config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDirs)
             config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0); // set port to 0.
             // set JobManager host/port for web interface.
             config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, ownHostname)
             config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort)
-            webserver = new WebInfoServer(config, jobManager, archiver)
+
+            webserver = if(
+              config.getBoolean(
+                ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY,
+                false)) {
+              JobManager.startWebRuntimeMonitor(config, jobManagerGateway, archiverGateway)
+            } else {
+              new WebInfoServer(config, jobManagerGateway, archiverGateway)
+            }
+
             webserver.start()
           }
 
@@ -160,11 +181,17 @@ object ApplicationMaster {
 
   }
 
-  def generateConfigurationFile(fileName: String, currDir: String, ownHostname: String,
-                               jobManagerPort: Int,
-                               jobManagerWebPort: Int, logDirs: String, slots: Int,
-                               taskManagerCount: Int, dynamicPropertiesEncodedString: String)
-  : Unit = {
+  def generateConfigurationFile(
+      fileName: String,
+      currDir: String,
+      ownHostname: String,
+      jobManagerPort: Int,
+      jobManagerWebPort: Int,
+      logDirs: String,
+      slots: Int,
+      taskManagerCount: Int,
+      dynamicPropertiesEncodedString: String)
+    : Unit = {
     LOG.info("Generate configuration file for application master.")
     val output = new PrintWriter(new BufferedWriter(
       new FileWriter(fileName))
@@ -208,26 +235,13 @@ object ApplicationMaster {
    *
    * @return (Configuration, JobManager ActorSystem, JobManager ActorRef, Archiver ActorRef)
    */
-  def startJobManager(currDir: String,
-                      hostname: String,
-                      dynamicPropertiesEncodedString: String,
-                      streamingMode: StreamingMode):
-    (Configuration, ActorSystem, ActorRef, ActorRef) = {
+  def startJobManager(
+      configuration: Configuration,
+      hostname: String,
+      streamingMode: StreamingMode)
+    : (ActorSystem, ActorRef, ActorRef) = {
 
     LOG.info("Starting JobManager for YARN")
-    LOG.info(s"Loading config from: $currDir.")
-
-    GlobalConfiguration.loadConfiguration(currDir)
-    val configuration = GlobalConfiguration.getConfiguration()
-
-    configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, currDir)
-
-    // add dynamic properties to JobManager configuration.
-    val dynamicProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncodedString)
-    import scala.collection.JavaConverters._
-    for(property <- dynamicProperties.asScala){
-      configuration.setString(property.f0, property.f1)
-    }
 
     // set port to 0 to let Akka automatically determine the port.
     LOG.debug("Starting JobManager actor system")
@@ -265,7 +279,25 @@ object ApplicationMaster {
     LOG.debug("Starting JobManager actor")
     val jobManager = JobManager.startActor(jobManagerProps, jobManagerSystem)
 
-    (configuration, jobManagerSystem, jobManager, archiver)
+    (jobManagerSystem, jobManager, archiver)
+  }
+
+  def createConfiguration(curDir: String, dynamicPropertiesEncodedString: String): Configuration = {
+    LOG.info(s"Loading config from: $curDir.")
+
+    GlobalConfiguration.loadConfiguration(curDir)
+    val configuration = GlobalConfiguration.getConfiguration()
+
+    configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, curDir)
+
+    // add dynamic properties to JobManager configuration.
+    val dynamicProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncodedString)
+    import scala.collection.JavaConverters._
+    for(property <- dynamicProperties.asScala){
+      configuration.setString(property.f0, property.f1)
+    }
+
+    configuration
   }
 
 

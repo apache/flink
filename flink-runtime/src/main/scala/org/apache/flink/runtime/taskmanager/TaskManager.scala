@@ -171,7 +171,7 @@ class TaskManager(
 
   protected var leaderSessionID: Option[UUID] = None
 
-  private var currentRegistrationSessionID: UUID = UUID.randomUUID()
+  private val currentRegistrationSessionID: UUID = UUID.randomUUID()
 
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle

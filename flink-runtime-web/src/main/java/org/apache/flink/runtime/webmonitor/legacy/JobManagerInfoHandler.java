@@ -18,10 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.legacy;
 
-import akka.actor.ActorRef;
-
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -41,6 +37,7 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -78,12 +75,12 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 	private static final Charset ENCODING = Charset.forName("UTF-8");
 
 	/** Underlying JobManager */
-	private final ActorRef jobmanager;
-	private final ActorRef archive;
+	private final ActorGateway jobmanager;
+	private final ActorGateway archive;
 	private final FiniteDuration timeout;
 
 
-	public JobManagerInfoHandler(ActorRef jobmanager, ActorRef archive, FiniteDuration timeout) {
+	public JobManagerInfoHandler(ActorGateway jobmanager, ActorGateway archive, FiniteDuration timeout) {
 		this.jobmanager = jobmanager;
 		this.archive = archive;
 		this.timeout = timeout;
@@ -118,8 +115,7 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 	@SuppressWarnings("unchecked")
 	private String handleRequest(Routed routed) throws Exception {
 		if ("archive".equals(routed.queryParam("get"))) {
-			Future<Object> response = Patterns.ask(archive, ArchiveMessages.getRequestArchivedJobs(),
-					new Timeout(timeout));
+			Future<Object> response = archive.ask(ArchiveMessages.getRequestArchivedJobs(), timeout);
 
 			Object result = Await.result(response, timeout);
 
@@ -135,8 +131,7 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 			}
 		}
 		else if ("jobcounts".equals(routed.queryParam("get"))) {
-			Future<Object> response = Patterns.ask(archive, ArchiveMessages.getRequestJobCounts(),
-					new Timeout(timeout));
+			Future<Object> response = archive.ask(ArchiveMessages.getRequestJobCounts(), timeout);
 
 			Object result = Await.result(response, timeout);
 
@@ -152,8 +147,8 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 		else if ("job".equals(routed.queryParam("get"))) {
 			String jobId = routed.queryParam("job");
 
-			Future<Object> response = Patterns.ask(archive, new JobManagerMessages.RequestJob(JobID.fromHexString(jobId)),
-					new Timeout(timeout));
+			Future<Object> response = archive.ask(new JobManagerMessages.RequestJob(JobID.fromHexString(jobId)),
+					timeout);
 
 			Object result = Await.result(response, timeout);
 
@@ -182,8 +177,8 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 				throw new Exception("Found null groupVertexId");
 			}
 
-			Future<Object> response = Patterns.ask(archive, new JobManagerMessages.RequestJob(JobID.fromHexString(jobId)),
-					new Timeout(timeout));
+			Future<Object> response = archive.ask(new JobManagerMessages.RequestJob(JobID.fromHexString(jobId)),
+					timeout);
 
 			Object result = Await.result(response, timeout);
 
@@ -205,9 +200,9 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 			}
 		}
 		else if ("taskmanagers".equals(routed.queryParam("get"))) {
-			Future<Object> response = Patterns.ask(jobmanager,
+			Future<Object> response = jobmanager.ask(
 					JobManagerMessages.getRequestNumberRegisteredTaskManager(),
-					new Timeout(timeout));
+					timeout);
 
 			Object result = Await.result(response, timeout);
 
@@ -219,9 +214,9 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 			else {
 				final int numberOfTaskManagers = (Integer)result;
 
-				final Future<Object> responseRegisteredSlots = Patterns.ask(jobmanager,
+				final Future<Object> responseRegisteredSlots = jobmanager.ask(
 						JobManagerMessages.getRequestTotalNumberOfSlots(),
-						new Timeout(timeout));
+						timeout);
 
 				final Object resultRegisteredSlots = Await.result(responseRegisteredSlots,
 						timeout);
@@ -242,8 +237,8 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 		else if ("cancel".equals(routed.queryParam("get"))) {
 			String jobId = routed.queryParam("job");
 
-			Future<Object> response = Patterns.ask(jobmanager, new JobManagerMessages.CancelJob(JobID.fromHexString(jobId)),
-					new Timeout(timeout));
+			Future<Object> response = jobmanager.ask(new JobManagerMessages.CancelJob(JobID.fromHexString(jobId)),
+					timeout);
 
 			Await.ready(response, timeout);
 			return "{}";
@@ -256,8 +251,8 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 			return writeJsonForVersion();
 		}
 		else{
-			Future<Object> response = Patterns.ask(jobmanager, JobManagerMessages.getRequestRunningJobs(),
-					new Timeout(timeout));
+			Future<Object> response = jobmanager.ask(JobManagerMessages.getRequestRunningJobs(),
+					timeout);
 
 			Object result = Await.result(response, timeout);
 
@@ -454,8 +449,9 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 		}
 
 		// write accumulators
-		final Future<Object> response = Patterns.ask(jobmanager,
-				new RequestAccumulatorResultsStringified(graph.getJobID()), new Timeout(timeout));
+		final Future<Object> response = jobmanager.ask(
+				new RequestAccumulatorResultsStringified(graph.getJobID()),
+				timeout);
 
 		Object result;
 		try {
@@ -549,9 +545,9 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 
 
 	private String writeJsonUpdatesForJob(JobID jobId) {
-		final Future<Object> responseArchivedJobs = Patterns.ask(jobmanager,
+		final Future<Object> responseArchivedJobs = jobmanager.ask(
 				JobManagerMessages.getRequestRunningJobs(),
-				new Timeout(timeout));
+				timeout);
 
 		Object resultArchivedJobs;
 		try{
@@ -591,8 +587,9 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 			}
 			bld.append("],");
 
-			final Future<Object> responseJob = Patterns.ask(jobmanager, new JobManagerMessages.RequestJob(jobId),
-					new Timeout(timeout));
+			final Future<Object> responseJob = jobmanager.ask(
+					new JobManagerMessages.RequestJob(jobId),
+					timeout);
 
 			Object resultJob;
 			try{

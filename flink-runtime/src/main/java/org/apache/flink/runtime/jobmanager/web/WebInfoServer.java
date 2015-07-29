@@ -23,12 +23,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 
-import akka.actor.ActorRef;
-
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.Server;
@@ -45,7 +45,7 @@ import scala.concurrent.duration.FiniteDuration;
  * This class sets up a web-server that contains a web frontend to display information about running jobs.
  * It instantiates and configures an embedded jetty server.
  */
-public class WebInfoServer {
+public class WebInfoServer implements WebMonitor {
 
 	/** Web root dir in the jar */
 	private static final String WEB_ROOT_DIR = "web-docs-infoserver";
@@ -70,7 +70,7 @@ public class WebInfoServer {
 	 * @throws IOException
 	 *         Thrown, if the server setup failed for an I/O related reason.
 	 */
-	public WebInfoServer(Configuration config, ActorRef jobmanager, ActorRef archive) throws IOException {
+	public WebInfoServer(Configuration config, ActorGateway jobmanager, ActorGateway archive) throws IOException {
 		if (config == null) {
 			throw new IllegalArgumentException("No Configuration has been passed to the web server");
 		}

@@ -1128,17 +1128,27 @@ object JobManager {
           "TaskManager_Process_Reaper")
       }
 
-      // start the job manager web frontend
-      if (configuration.getBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, false)) {
-        LOG.info("Starting NEW JobManger web frontend")
-        
-        // start the new web frontend. we need to load this dynamically
-        // because it is not in the same project/dependencies
-        startWebRuntimeMonitor(configuration, jobManager, archiver)
-      }
-      else if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) != -1) {
-        LOG.info("Starting JobManger web frontend")
-        val webServer = new WebInfoServer(configuration, jobManager, archiver)
+      if(configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
+        val lookupTimeout = AkkaUtils.getLookupTimeout(configuration)
+        val jobManagerGateway = JobManager.getJobManagerGateway(jobManager, lookupTimeout)
+        val archiverGateway = new AkkaActorGateway(archiver, jobManagerGateway.leaderSessionID())
+
+        // start the job manager web frontend
+        val webServer = if (
+          configuration.getBoolean(
+            ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY,
+            false)) {
+
+          LOG.info("Starting NEW JobManger web frontend")
+          // start the new web frontend. we need to load this dynamically
+          // because it is not in the same project/dependencies
+          startWebRuntimeMonitor(configuration, jobManagerGateway, archiverGateway)
+        }
+        else {
+          LOG.info("Starting JobManger web frontend")
+          new WebInfoServer(configuration, jobManagerGateway, archiverGateway)
+        }
+
         webServer.start()
       }
     }
@@ -1570,46 +1580,37 @@ object JobManager {
    * this method does not throw any exceptions, but only logs them.
    * 
    * @param config The configuration for the runtime monitor.
-   * @param jobManager The JobManager actor.
+   * @param jobManager The JobManager actor gateway.
    * @param archiver The execution graph archive actor.
    */
-  def startWebRuntimeMonitor(config: Configuration,
-                             jobManager: ActorRef,
-                             archiver: ActorRef): Unit = {
+  def startWebRuntimeMonitor(
+      config: Configuration,
+      jobManager: ActorGateway,
+      archiver: ActorGateway)
+    : WebMonitor = {
     // try to load and instantiate the class
-    val monitor: WebMonitor =
-      try {
-        val classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor"
-        val clazz: Class[_ <: WebMonitor] = Class.forName(classname)
-                                                 .asSubclass(classOf[WebMonitor])
-        
-        val ctor: Constructor[_ <: WebMonitor] = clazz.getConstructor(classOf[Configuration],
-                                                                      classOf[ActorRef],
-                                                                      classOf[ActorRef])
-        ctor.newInstance(config, jobManager, archiver)
-      }
-      catch {
-        case e: ClassNotFoundException =>
-          LOG.error("Could not load web runtime monitor. " +
-              "Probably reason: flink-runtime-web is not in the classpath")
-          LOG.debug("Caught exception", e)
-          null
-        case e: InvocationTargetException =>
-          LOG.error("WebServer could not be created", e.getTargetException())
-          null
-        case t: Throwable =>
-          LOG.error("Failed to instantiate web runtime monitor.", t)
-          null
-      }
-    
-    if (monitor != null) {
-      try {
-        monitor.start()
-      }
-      catch {
-        case e: Exception => 
-          LOG.error("Failed to start web runtime monitor", e)
-      }
+    try {
+      val classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor"
+      val clazz: Class[_ <: WebMonitor] = Class.forName(classname)
+                                               .asSubclass(classOf[WebMonitor])
+
+      val ctor: Constructor[_ <: WebMonitor] = clazz.getConstructor(classOf[Configuration],
+                                                                    classOf[ActorGateway],
+                                                                    classOf[ActorGateway])
+      ctor.newInstance(config, jobManager, archiver)
+    }
+    catch {
+      case e: ClassNotFoundException =>
+        LOG.error("Could not load web runtime monitor. " +
+            "Probably reason: flink-runtime-web is not in the classpath")
+        LOG.debug("Caught exception", e)
+        null
+      case e: InvocationTargetException =>
+        LOG.error("WebServer could not be created", e.getTargetException())
+        null
+      case t: Throwable =>
+        LOG.error("Failed to instantiate web runtime monitor.", t)
+        null
     }
   }
 }

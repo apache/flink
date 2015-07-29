@@ -32,12 +32,9 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import akka.actor.ActorRef;
-
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchivedJobs;
 import org.apache.flink.runtime.messages.ArchiveMessages;
@@ -78,12 +75,12 @@ public class JobManagerInfoServlet extends HttpServlet {
 	private static final Logger LOG = LoggerFactory.getLogger(JobManagerInfoServlet.class);
 
 	/** Underlying JobManager */
-	private final ActorRef jobmanager;
-	private final ActorRef archive;
+	private final ActorGateway jobmanager;
+	private final ActorGateway archive;
 	private final FiniteDuration timeout;
 
 
-	public JobManagerInfoServlet(ActorRef jobmanager, ActorRef archive, FiniteDuration timeout) {
+	public JobManagerInfoServlet(ActorGateway jobmanager, ActorGateway archive, FiniteDuration timeout) {
 		this.jobmanager = jobmanager;
 		this.archive = archive;
 		this.timeout = timeout;
@@ -102,8 +99,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 
 		try {
 			if("archive".equals(req.getParameter("get"))) {
-				response = Patterns.ask(archive, ArchiveMessages.getRequestArchivedJobs(),
-						new Timeout(timeout));
+				response = archive.ask(ArchiveMessages.getRequestArchivedJobs(), timeout);
 
 				result = Await.result(response, timeout);
 
@@ -119,8 +115,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 				}
 			}
 			else if("jobcounts".equals(req.getParameter("get"))) {
-				response = Patterns.ask(archive, ArchiveMessages.getRequestJobCounts(),
-						new Timeout(timeout));
+				response = archive.ask(ArchiveMessages.getRequestJobCounts(), timeout);
 
 				result = Await.result(response, timeout);
 
@@ -135,8 +130,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 			else if("job".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
 
-				response = Patterns.ask(archive, new RequestJob(JobID.fromHexString(jobId)),
-						new Timeout(timeout));
+				response = archive.ask(new RequestJob(JobID.fromHexString(jobId)), timeout);
 
 				result = Await.result(response, timeout);
 
@@ -163,8 +157,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 					return;
 				}
 
-				response = Patterns.ask(archive, new RequestJob(JobID.fromHexString(jobId)),
-						new Timeout(timeout));
+				response = archive.ask(new RequestJob(JobID.fromHexString(jobId)), timeout);
 
 				result = Await.result(response, timeout);
 
@@ -186,9 +179,9 @@ public class JobManagerInfoServlet extends HttpServlet {
 			}
 			else if("taskmanagers".equals(req.getParameter("get"))) {
 
-				response = Patterns.ask(jobmanager,
+				response = jobmanager.ask(
 						JobManagerMessages.getRequestNumberRegisteredTaskManager(),
-						new Timeout(timeout));
+						timeout);
 
 				result = Await.result(response, timeout);
 
@@ -199,9 +192,9 @@ public class JobManagerInfoServlet extends HttpServlet {
 				} else {
 					final int numberOfTaskManagers = (Integer)result;
 
-					final Future<Object> responseRegisteredSlots = Patterns.ask(jobmanager,
+					final Future<Object> responseRegisteredSlots = jobmanager.ask(
 							JobManagerMessages.getRequestTotalNumberOfSlots(),
-							new Timeout(timeout));
+							timeout);
 
 					final Object resultRegisteredSlots = Await.result(responseRegisteredSlots,
 							timeout);
@@ -221,8 +214,9 @@ public class JobManagerInfoServlet extends HttpServlet {
 			else if("cancel".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
 
-				response = Patterns.ask(jobmanager, new CancelJob(JobID.fromHexString(jobId)),
-						new Timeout(timeout));
+				response = jobmanager.ask(
+						new CancelJob(JobID.fromHexString(jobId)),
+						timeout);
 
 				Await.ready(response, timeout);
 			}
@@ -233,8 +227,9 @@ public class JobManagerInfoServlet extends HttpServlet {
 				writeJsonForVersion(resp.getWriter());
 			}
 			else{
-				response = Patterns.ask(jobmanager, JobManagerMessages.getRequestRunningJobs(),
-						new Timeout(timeout));
+				response = jobmanager.ask(
+						JobManagerMessages.getRequestRunningJobs(),
+						timeout);
 
 				result = Await.result(response, timeout);
 
@@ -471,8 +466,8 @@ public class JobManagerInfoServlet extends HttpServlet {
 			}
 
 			// write accumulators
-			final Future<Object> response = Patterns.ask(jobmanager,
-					new RequestAccumulatorResultsStringified(graph.getJobID()), new Timeout(timeout));
+			final Future<Object> response = jobmanager.ask(
+					new RequestAccumulatorResultsStringified(graph.getJobID()), timeout);
 
 			Object result;
 			try {
@@ -575,9 +570,9 @@ public class JobManagerInfoServlet extends HttpServlet {
 	private void writeJsonUpdatesForJob(PrintWriter wrt, JobID jobId) {
 
 		try {
-			final Future<Object> responseArchivedJobs = Patterns.ask(jobmanager,
+			final Future<Object> responseArchivedJobs = jobmanager.ask(
 					JobManagerMessages.getRequestRunningJobs(),
-					new Timeout(timeout));
+					timeout);
 
 			Object resultArchivedJobs = null;
 
@@ -615,8 +610,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 
 				wrt.write("],");
 
-				final Future<Object> responseJob = Patterns.ask(jobmanager, new RequestJob(jobId),
-						new Timeout(timeout));
+				final Future<Object> responseJob = jobmanager.ask(new RequestJob(jobId), timeout);
 
 				Object resultJob = null;
 

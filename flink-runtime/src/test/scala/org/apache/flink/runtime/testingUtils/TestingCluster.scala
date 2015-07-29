@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.runtime.webmonitor.WebMonitor
 
 /**
  * Testing cluster which starts the [[JobManager]] and [[TaskManager]] actors with testing support
@@ -67,7 +68,7 @@ class TestingCluster(userConfiguration: Configuration,
     cfg
   }
 
-  override def startJobManager(actorSystem: ActorSystem): ActorRef = {
+  override def startJobManager(actorSystem: ActorSystem): (ActorRef, Option[WebMonitor]) = {
 
     val (executionContext,
       instanceManager,
@@ -103,7 +104,7 @@ class TestingCluster(userConfiguration: Configuration,
       jobManagerProps
     }
 
-    actorSystem.actorOf(dispatcherJobManagerProps, JobManager.JOB_MANAGER_NAME)
+    (actorSystem.actorOf(dispatcherJobManagerProps, JobManager.JOB_MANAGER_NAME), None)
   }
 
   override def startTaskManager(index: Int, system: ActorSystem) = {
@@ -116,12 +117,14 @@ class TestingCluster(userConfiguration: Configuration,
       None
     }
     
-    TaskManager.startTaskManagerComponentsAndActor(configuration, system,
-                                                   hostname,
-                                                   Some(tmActorName),
-                                                   jobManagerPath,
-                                                   numTaskManagers == 1,
-                                                   streamingMode,
-                                                   classOf[TestingTaskManager])
+    TaskManager.startTaskManagerComponentsAndActor(
+      configuration,
+      system,
+      hostname,
+      Some(tmActorName),
+      jobManagerPath,
+      numTaskManagers == 1,
+      streamingMode,
+      classOf[TestingTaskManager])
   }
 }
