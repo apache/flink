@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
@@ -86,25 +85,6 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	@Override
 	public Class<T> getTypeClass() {
 		return tupleType;
-	}
-
-	/**
-	 * Recursively add all fields in this tuple type. We need this in particular to get all
-	 * the types.
-	 * @param startKeyId
-	 * @param keyFields
-	 */
-	public void addAllFields(int startKeyId, List<FlatFieldDescriptor> keyFields) {
-		for(int i = 0; i < this.getArity(); i++) {
-			TypeInformation<?> type = this.types[i];
-			if(type instanceof AtomicType) {
-				keyFields.add(new FlatFieldDescriptor(startKeyId, type));
-			} else if(type instanceof TupleTypeInfoBase<?>) {
-				TupleTypeInfoBase<?> ttb = (TupleTypeInfoBase<?>) type;
-				ttb.addAllFields(startKeyId, keyFields);
-			}
-			startKeyId += type.getTotalFields();
-		}
 	}
 
 	@Override
