@@ -18,5 +18,7 @@
 
 package org.apache.flink.runtime.event.task;
 
-public abstract class RuntimeEvent extends AbstractEvent {
-}
+/**
+ * Subclasses of this event are recognized as events exchanged by the core runtime.
+ */
+public abstract class RuntimeEvent extends AbstractEvent {}

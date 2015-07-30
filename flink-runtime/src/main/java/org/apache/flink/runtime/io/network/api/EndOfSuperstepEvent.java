@@ -22,20 +22,41 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.task.RuntimeEvent;
 
-import java.io.IOException;
-
 /**
- * Marks the end of a superstep of one particular iteration head
+ * Marks the end of a superstep of one particular iteration superstep.
  */
 public class EndOfSuperstepEvent extends RuntimeEvent {
 
+	/** The singleton instance of this event */
 	public static final EndOfSuperstepEvent INSTANCE = new EndOfSuperstepEvent();
 
+	// ------------------------------------------------------------------------
+	
+	// not instantiable
+	private EndOfSuperstepEvent() {}
+	
+	// ------------------------------------------------------------------------
+	
 	@Override
-	public void write(DataOutputView out) throws IOException {
+	public void write(DataOutputView out) {}
+
+	@Override
+	public void read(DataInputView in) {}
+
+	// ------------------------------------------------------------------------
+
+	@Override
+	public int hashCode() {
+		return 41;
 	}
 
 	@Override
-	public void read(DataInputView in) throws IOException {
+	public boolean equals(Object obj) {
+		return obj != null && obj.getClass() == EndOfSuperstepEvent.class;
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName();
 	}
 }
