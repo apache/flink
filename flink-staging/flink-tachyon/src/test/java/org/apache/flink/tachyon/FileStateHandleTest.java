@@ -21,6 +21,7 @@ package org.apache.flink.tachyon;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
@@ -90,13 +91,23 @@ public class FileStateHandleTest {
 				+ hdPath);
 
 		FileStateHandle handle = (FileStateHandle) handleProvider.createStateHandle(state);
+		
+		try {
+			handleProvider.createStateHandle(null);
+			fail();
+		} catch (RuntimeException e) {
+			// good
+		}
 
 		assertTrue(handle.stateFetched());
+		assertFalse(handle.isWritten());
 
 		// Serialize the handle so it writes the value to hdfs
 		SerializedValue<StateHandle<Serializable>> serializedHandle = new SerializedValue<StateHandle<Serializable>>(
 				handle);
-
+		
+		assertTrue(handle.isWritten());
+		
 		// Deserialize the handle and verify that the state is not fetched yet
 		FileStateHandle deserializedHandle = (FileStateHandle) serializedHandle
 				.deserializeValue(Thread.currentThread().getContextClassLoader());
@@ -107,7 +118,7 @@ public class FileStateHandleTest {
 
 		// Test whether discard removes the checkpoint file properly
 		assertTrue(hdfs.listFiles(hdPath, true).hasNext());
-		handle.discardState();
+		deserializedHandle.discardState();
 		assertFalse(hdfs.listFiles(hdPath, true).hasNext());
 
 	}
