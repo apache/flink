@@ -79,7 +79,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public void restoreInitialState(Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> snapshots) throws Exception {
 		// Restore state using the Checkpointed interface
-		if (userFunction instanceof Checkpointed) {
+		if (userFunction instanceof Checkpointed && snapshots.f0 != null) {
 			((Checkpointed) userFunction).restoreState(snapshots.f0.getState());
 		}
 		
@@ -122,8 +122,10 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 		// if the UDF implements the Checkpointed interface we draw a snapshot
 		if (userFunction instanceof Checkpointed) {
 			StateHandleProvider<Serializable> provider = runtimeContext.getStateHandleProvider();
-			checkpointedSnapshot = provider.createStateHandle(((Checkpointed) userFunction)
-					.snapshotState(checkpointId, timestamp));
+			Serializable state = ((Checkpointed) userFunction).snapshotState(checkpointId, timestamp);
+			if (state != null) {
+				checkpointedSnapshot = provider.createStateHandle(state);
+			}
 		}
 		
 		// if we have either operator or checkpointed state we store it in a
