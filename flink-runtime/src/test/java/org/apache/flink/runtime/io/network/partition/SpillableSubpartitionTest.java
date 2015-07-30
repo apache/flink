@@ -22,7 +22,7 @@ import org.apache.flink.runtime.io.disk.iomanager.AsynchronousBufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.util.TestInfiniteBufferProvider;
 import org.junit.AfterClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -35,9 +35,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode.SYNC;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 public class SpillableSubpartitionTest extends SubpartitionTestBase {
@@ -58,7 +61,6 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	ResultSubpartition createSubpartition() {
 		return new SpillableSubpartition(0, mock(ResultPartition.class), ioManager, SYNC);
 	}
-
 
 	/**
 	 * Tests a fix for FLINK-2384.
@@ -117,5 +119,32 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		// false test successes.
 		doneLatch.countDown();
 		blockingFinish.get();
+	}
+
+	/**
+	 * Tests a fix for FLINK-2412.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-2412">FLINK-2412</a>
+	 */
+	@Test
+	public void testReleasePartitionAndGetNext() throws Exception {
+		// Create partition and add some buffers
+		SpillableSubpartition partition = new SpillableSubpartition(
+				0, mock(ResultPartition.class), ioManager, SYNC);
+
+		partition.finish();
+
+		// Create the read view
+		ResultSubpartitionView readView = spy(partition
+				.createReadView(new TestInfiniteBufferProvider()));
+
+		// The released state check (of the parent) needs to be independent
+		// of the released state of the view.
+		doNothing().when(readView).releaseAllResources();
+
+		// Release the partition, but the view does not notice yet.
+		partition.release();
+
+		assertNull(readView.getNextBuffer());
 	}
 }
