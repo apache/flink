@@ -35,9 +35,14 @@ public abstract class ByteStreamStateHandle implements StateHandle<Serializable>
 	private static final long serialVersionUID = -962025800339325828L;
 
 	private transient Serializable state;
+	private boolean isWritten = false;
 
 	public ByteStreamStateHandle(Serializable state) {
-		this.state = state;
+		if (state != null) {
+			this.state = state;
+		} else {
+			throw new RuntimeException("State cannot be null");
+		}
 	}
 
 	/**
@@ -54,16 +59,25 @@ public abstract class ByteStreamStateHandle implements StateHandle<Serializable>
 	public Serializable getState() throws Exception {
 		if (!stateFetched()) {
 			ObjectInputStream stream = new ObjectInputStream(getInputStream());
-			state = (Serializable) stream.readObject();
-			stream.close();
+			try {
+				state = (Serializable) stream.readObject();
+			} finally {
+				stream.close();
+			}
 		}
 		return state;
 	}
 
 	private void writeObject(ObjectOutputStream oos) throws Exception {
-		ObjectOutputStream stream = new ObjectOutputStream(getOutputStream());
-		stream.writeObject(state);
-		stream.close();
+		if (!isWritten) {
+			ObjectOutputStream stream = new ObjectOutputStream(getOutputStream());
+			try {
+				stream.writeObject(state);
+				isWritten = true;
+			} finally {
+				stream.close();
+			}
+		}
 		oos.defaultWriteObject();
 	}
 
@@ -73,5 +87,12 @@ public abstract class ByteStreamStateHandle implements StateHandle<Serializable>
 	 */
 	public boolean stateFetched() {
 		return state != null;
+	}
+	
+	/**
+	 * Checks whether the state has already been written to the external store
+	 */
+	public boolean isWritten() {
+		return isWritten;
 	}
 }
