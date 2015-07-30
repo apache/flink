@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.event.task;
+package org.apache.flink.runtime.event;
 
 /**
- * Subclasses of this event are recognized as custom events that are not part of the core
- * flink runtime.
+ * Subclasses of this event are recognized as events exchanged by the core runtime.
  */
-public abstract class TaskEvent extends AbstractEvent {}
+public abstract class RuntimeEvent extends AbstractEvent {}

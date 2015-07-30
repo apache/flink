@@ -16,22 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.io;
-
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+package org.apache.flink.runtime.event;
 
 /**
- * A simple buffer recycler that only frees the memory segments.
+ * Subclasses of this event are recognized as custom events that are not part of the core
+ * flink runtime.
  */
-public class FreeingBufferRecycler implements BufferRecycler {
-	
-	public static final BufferRecycler INSTANCE = new FreeingBufferRecycler();
-	
-	// ------------------------------------------------------------------------
-	
-	@Override
-	public void recycle(MemorySegment memorySegment) {
-		memorySegment.free();
-	}
-}
+public abstract class TaskEvent extends AbstractEvent {}

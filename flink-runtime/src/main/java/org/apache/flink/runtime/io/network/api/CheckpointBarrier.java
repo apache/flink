@@ -16,32 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks;
+package org.apache.flink.runtime.io.network.api;
 
 import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.RuntimeEvent;
 
 /**
- * Checkpoint barriers are used to synchronize checkpoints throughout the streaming topology. The
+ * Checkpoint barriers are used to align checkpoints throughout the streaming topology. The
  * barriers are emitted by the sources when instructed to do so by the JobManager. When
- * operators receive a {@link CheckpointBarrier} on one of its inputs it must block processing
- * of further elements on this input until all inputs received the checkpoint barrier
- * corresponding to to that checkpoint. Once all inputs received the checkpoint barrier for
- * a checkpoint the operator is to perform the checkpoint and then broadcast the barrier to
- * downstream operators.
- *
- * <p>
- * The checkpoint barrier IDs are advancing. Once an operator receives a {@link CheckpointBarrier}
- * for a checkpoint with a higher id it is to discard all barriers that it received from previous
- * checkpoints and unblock all other inputs.
+ * operators receive a CheckpointBarrier on one of its inputs, it knows that this is the point 
+ * between the pre-checkpoint and post-checkpoint data.
+ * 
+ * <p>Once an operator has received a checkpoint barrier from all its input channels, it
+ * knows that a certain checkpoint is complete. It can trigger the operator specific checkpoint
+ * behavior and broadcast the barrier to downstream operators.</p>
+ * 
+ * <p>Depending on the semantic guarantees, may hold off post-checkpoint data until the checkpoint
+ * is complete (exactly once)</p>
+ * 
+ * <p>The checkpoint barrier IDs are strictly monotonous increasing.</p>
  */
-public class CheckpointBarrier extends TaskEvent {
+public class CheckpointBarrier extends RuntimeEvent {
 
-	protected long id;
-	protected long timestamp;
+	private long id;
+	private long timestamp;
 
 	public CheckpointBarrier() {}
 
@@ -55,7 +56,7 @@ public class CheckpointBarrier extends TaskEvent {
 	}
 
 	public long getTimestamp() {
-		return id;
+		return timestamp;
 	}
 
 	// ------------------------------------------------------------------------

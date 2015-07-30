@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.event.task;
+package org.apache.flink.runtime.event;
 
 import org.apache.flink.core.io.IOReadableWritable;
 
