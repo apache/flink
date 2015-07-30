@@ -85,8 +85,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	@Override
 	public void invoke() throws Exception {
-		this.isRunning = true;
-
 		boolean operatorOpen = false;
 
 		if (LOG.isDebugEnabled()) {

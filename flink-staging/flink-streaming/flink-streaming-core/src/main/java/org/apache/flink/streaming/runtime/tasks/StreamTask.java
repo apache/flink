@@ -66,7 +66,8 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 	protected boolean hasChainedOperators;
 
-	protected volatile boolean isRunning = false;
+	// needs to be initialized to true, so that early cancel() before invoke() behaves correctly
+	protected volatile boolean isRunning = true;
 
 	protected List<StreamingRuntimeContext> contexts;
 
@@ -229,10 +230,12 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	@Override
 	public void triggerCheckpoint(long checkpointId, long timestamp) throws Exception {
 
+		LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
+		
 		synchronized (checkpointLock) {
 			if (isRunning) {
 				try {
-					LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
+					
 
 					// We wrap the states of the chained operators in a list, marking non-stateful oeprators with null
 					List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>> chainedStates = new ArrayList<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>>();
