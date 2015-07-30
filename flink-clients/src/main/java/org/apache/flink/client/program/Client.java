@@ -27,8 +27,6 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.List;
 
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -459,11 +457,17 @@ public class Client {
 		try {
 			jobManager = JobManager.getJobManagerRemoteReference(jobManagerAddress, actorSystem, timeout);
 		} catch (Exception e) {
-			LOG.error("Error in getting the remote reference for the job manager", e);
-			throw new ProgramInvocationException("Failed to resolve JobManager", e);
+			throw new ProgramInvocationException("Error getting the remote actor reference for the job manager.", e);
 		}
 
-		Future<Object> response = Patterns.ask(jobManager, new JobManagerMessages.CancelJob(jobId), new Timeout(timeout));
+		Future<Object> response;
+		try {
+			ActorGateway jobManagerGateway = JobManager.getJobManagerGateway(jobManager, timeout);
+			response = jobManagerGateway.ask(new JobManagerMessages.CancelJob(jobId), timeout);
+		} catch (Exception e) {
+			throw new ProgramInvocationException("Failed to query the job manager gateway.", e);
+		}
+
 		Object result = Await.result(response, timeout);
 
 		if (result instanceof JobManagerMessages.CancellationSuccess) {
