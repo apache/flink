@@ -58,6 +58,10 @@ The command line can be used to
         ./bin/flink run -p 16 ./examples/flink-java-examples-{{ site.version }}-WordCount.jar \
                                 file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
+-   Run example program with flink log output disabled
+
+            ./bin/flink run -q ./examples/flink-java-examples-{{ site.version }}-WordCount.jar
+
 -   Run example program on a specific JobManager:
 
         ./bin/flink run -m myJMHost:6123 \
