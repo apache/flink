@@ -22,11 +22,20 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.task.RuntimeEvent;
 
-
+/**
+ * This event marks a subpartition as fully consumed.
+ */
 public class EndOfPartitionEvent extends RuntimeEvent {
 
+	/** The singleton instance of this event */
 	public static final EndOfPartitionEvent INSTANCE = new EndOfPartitionEvent();
 	
+	// ------------------------------------------------------------------------
+
+	// not instantiable
+	private EndOfPartitionEvent() {}
+	
+	// ------------------------------------------------------------------------
 	
 	@Override
 	public void read(DataInputView in) {
@@ -38,6 +47,8 @@ public class EndOfPartitionEvent extends RuntimeEvent {
 		// Nothing to do here
 	}
 
+	// ------------------------------------------------------------------------
+	
 	@Override
 	public int hashCode() {
 		return 1965146673;

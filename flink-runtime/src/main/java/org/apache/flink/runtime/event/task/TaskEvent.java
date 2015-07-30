@@ -18,5 +18,8 @@
 
 package org.apache.flink.runtime.event.task;
 
-public abstract class TaskEvent extends AbstractEvent {
-}
+/**
+ * Subclasses of this event are recognized as custom events that are not part of the core
+ * flink runtime.
+ */
+public abstract class TaskEvent extends AbstractEvent {}
