@@ -276,6 +276,7 @@ public class CliFrontend {
 			LOG.debug("User parallelism is set to {}", userParallelism);
 
 			Client client = getClient(options, program.getUserCodeClassLoader(), program.getMainClassName(), userParallelism);
+			client.setPrintStatusDuringExecution(options.getStdoutLogging());
 			LOG.debug("Client slots is set to {}", client.getMaxSlots());
 			if(client.getMaxSlots() != -1 && userParallelism == -1) {
 				logAndSysout("Using the parallelism provided by the remote cluster ("+client.getMaxSlots()+"). " +
@@ -604,7 +605,6 @@ public class CliFrontend {
 		LOG.info("Starting execution of program");
 		JobSubmissionResult execResult;
 		try {
-			client.setPrintStatusDuringExecution(true);
 			execResult = client.run(program, parallelism, wait);
 		}
 		catch (ProgramInvocationException e) {
