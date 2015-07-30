@@ -19,10 +19,11 @@
 
 package org.apache.flink.runtime.event.task;
 
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.util.SerializableArrayList;
 
 /**
- * Objects of this class can store and serialize/deserialize {@link org.apache.flink.runtime.event.task.AbstractEvent}
+ * Objects of this class can store and serialize/deserialize {@link org.apache.flink.runtime.event.AbstractEvent}
  * objects.
  * 
  */

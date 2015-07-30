@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.util.event.EventListener;
-import org.apache.flink.streaming.runtime.tasks.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import java.io.IOException;
 
@@ -43,8 +43,18 @@ public interface CheckpointBarrierHandler {
 	 */
 	BufferOrEvent getNextNonBlocked() throws IOException, InterruptedException;
 
+	/**
+	 * Registers the given event handler to be notified on successful checkpoints.
+	 * 
+	 * @param checkpointHandler The handler to register.
+	 */
 	void registerCheckpointEventHandler(EventListener<CheckpointBarrier> checkpointHandler);
-	
+
+	/**
+	 * Cleans up all internally held resources.
+	 * 
+	 * @throws IOException Thrown, if the cleanup of I/O resources failed.
+	 */
 	void cleanup() throws IOException;
 
 	/**

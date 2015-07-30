@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.util.StringUtils;
 
 /**

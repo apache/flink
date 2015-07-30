@@ -23,6 +23,7 @@ import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.event.TaskEvent;
 
 /**
  * This class provides a simple implementation of an event that holds an integer value.
