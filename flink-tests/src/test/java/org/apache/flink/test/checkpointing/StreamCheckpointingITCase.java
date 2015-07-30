@@ -372,7 +372,8 @@ public class StreamCheckpointingITCase {
 		}
 	}
 
-	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount> {
+	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount>
+			implements Checkpointed<Integer> {
 
 		OperatorState<Long> count;
 		static final long[] counts = new long[PARALLELISM];
@@ -391,6 +392,17 @@ public class StreamCheckpointingITCase {
 		@Override
 		public void close() throws IOException {
 			counts[getRuntimeContext().getIndexOfThisSubtask()] = count.value();
+		}
+
+		@Override
+		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+			return null;
+		}
+
+		@Override
+		public void restoreState(Integer state) {
+			// verify that we never store/restore null state
+			fail();
 		}
 	}
 }
