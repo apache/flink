@@ -45,8 +45,6 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 	public void invoke() throws Exception {
 		final SourceOutput<StreamRecord<OUT>> output = new SourceOutput<StreamRecord<OUT>>(outputHandler.getOutput(), checkpointLock);
 
-		this.isRunning = true;
-
 		boolean operatorOpen = false;
 
 		if (LOG.isDebugEnabled()) {
