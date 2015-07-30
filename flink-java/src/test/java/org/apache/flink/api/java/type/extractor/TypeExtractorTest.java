@@ -313,6 +313,11 @@ public class TypeExtractorTest {
 		}
 	}
 
+	public static class PojoWithNonPublicDefaultCtor {
+		public int foo, bar;
+		PojoWithNonPublicDefaultCtor() {}
+	}
+
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testPojo() {
@@ -345,6 +350,8 @@ public class TypeExtractorTest {
 		Assert.assertFalse(ti2.isTupleType());
 		Assert.assertTrue(ti2 instanceof PojoTypeInfo);
 		Assert.assertEquals(ti2.getTypeClass(), CustomType.class);
+
+		Assert.assertFalse(TypeExtractor.getForClass(PojoWithNonPublicDefaultCtor.class) instanceof PojoTypeInfo);
 	}
 	
 

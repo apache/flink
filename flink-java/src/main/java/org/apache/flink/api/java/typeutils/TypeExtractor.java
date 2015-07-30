@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
@@ -1298,10 +1299,10 @@ public class TypeExtractor {
 				return true;
 			} else {
 				if(!hasGetter) {
-					LOG.debug("Class "+clazz+" does not contain a getter for field "+f.getName() );
+					LOG.debug(clazz+" does not contain a getter for field "+f.getName() );
 				}
 				if(!hasSetter) {
-					LOG.debug("Class "+clazz+" does not contain a setter for field "+f.getName() );
+					LOG.debug(clazz+" does not contain a setter for field "+f.getName() );
 				}
 				return false;
 			}
@@ -1323,7 +1324,7 @@ public class TypeExtractor {
 		
 		List<Field> fields = getAllDeclaredFields(clazz);
 		if(fields.size() == 0) {
-			LOG.info("No fields detected for class " + clazz + ". Cannot be used as a PojoType. Will be handled as GenericType");
+			LOG.info("No fields detected for " + clazz + ". Cannot be used as a PojoType. Will be handled as GenericType");
 			return new GenericTypeInfo<OUT>(clazz);
 		}
 
@@ -1331,7 +1332,7 @@ public class TypeExtractor {
 		for (Field field : fields) {
 			Type fieldType = field.getGenericType();
 			if(!isValidPojoField(field, clazz, typeHierarchy)) {
-				LOG.info("Class " + clazz + " is not a valid POJO type");
+				LOG.info(clazz + " is not a valid POJO type");
 				return null;
 			}
 			try {
@@ -1357,23 +1358,28 @@ public class TypeExtractor {
 		List<Method> methods = getAllDeclaredMethods(clazz);
 		for (Method method : methods) {
 			if (method.getName().equals("readObject") || method.getName().equals("writeObject")) {
-				LOG.info("Class "+clazz+" contains custom serialization methods we do not call.");
+				LOG.info(clazz+" contains custom serialization methods we do not call.");
 				return null;
 			}
 		}
 
 		// Try retrieving the default constructor, if it does not have one
 		// we cannot use this because the serializer uses it.
+		Constructor defaultConstructor = null;
 		try {
-			clazz.getDeclaredConstructor();
+			defaultConstructor = clazz.getDeclaredConstructor();
 		} catch (NoSuchMethodException e) {
 			if (clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
-				LOG.info("Class " + clazz + " is abstract or an interface, having a concrete " +
+				LOG.info(clazz + " is abstract or an interface, having a concrete " +
 						"type can increase performance.");
 			} else {
-				LOG.info("Class " + clazz + " must have a default constructor to be used as a POJO.");
+				LOG.info(clazz + " must have a default constructor to be used as a POJO.");
 				return null;
 			}
+		}
+		if(defaultConstructor != null && !Modifier.isPublic(defaultConstructor.getModifiers())) {
+			LOG.info("The default constructor of " + clazz + " should be Public to be used as a POJO.");
+			return null;
 		}
 		
 		// everything is checked, we return the pojo
@@ -1394,7 +1400,7 @@ public class TypeExtractor {
 					continue; // we have no use for transient or static fields
 				}
 				if(hasFieldWithSameName(field.getName(), result)) {
-					throw new RuntimeException("The field "+field+" is already contained in the hierarchy of the class "+clazz+"."
+					throw new RuntimeException("The field "+field+" is already contained in the hierarchy of the "+clazz+"."
 							+ "Please use unique field names through your classes hierarchy");
 				}
 				result.add(field);
