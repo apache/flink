@@ -28,6 +28,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
+import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
@@ -45,7 +46,7 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends RichOutputFormat<T
 	private org.apache.hadoop.conf.Configuration configuration;
 	private org.apache.hadoop.mapreduce.OutputFormat<K,V> mapreduceOutputFormat;
 	protected transient RecordWriter<K,V> recordWriter;
-	private transient FileOutputCommitter fileOutputCommitter;
+	private transient OutputCommitter outputCommitter;
 	private transient TaskAttemptContext context;
 	private transient int taskNumber;
 
@@ -101,20 +102,16 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends RichOutputFormat<T
 
 		try {
 			this.context = HadoopUtils.instantiateTaskAttemptContext(this.configuration, taskAttemptID);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-
-		this.fileOutputCommitter = new FileOutputCommitter(new Path(this.configuration.get("mapred.output.dir")), context);
-
-		try {
-			this.fileOutputCommitter.setupJob(HadoopUtils.instantiateJobContext(this.configuration, new JobID()));
+			this.outputCommitter = this.mapreduceOutputFormat.getOutputCommitter(this.context);
+			this.outputCommitter.setupJob(HadoopUtils.instantiateJobContext(this.configuration, new JobID()));
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 
 		// compatible for hadoop 2.2.0, the temporary output directory is different from hadoop 1.2.1
-		this.configuration.set("mapreduce.task.output.dir", this.fileOutputCommitter.getWorkPath().toString());
+		if(outputCommitter instanceof FileOutputCommitter) {
+			this.configuration.set("mapreduce.task.output.dir", ((FileOutputCommitter)this.outputCommitter).getWorkPath().toString());
+		}
 
 		try {
 			this.recordWriter = this.mapreduceOutputFormat.getRecordWriter(this.context);
@@ -135,8 +132,8 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends RichOutputFormat<T
 			throw new IOException("Could not close RecordReader.", e);
 		}
 		
-		if (this.fileOutputCommitter.needsTaskCommit(this.context)) {
-			this.fileOutputCommitter.commitTask(this.context);
+		if (this.outputCommitter.needsTaskCommit(this.context)) {
+			this.outputCommitter.commitTask(this.context);
 		}
 		
 		Path outputPath = new Path(this.configuration.get("mapred.output.dir"));
@@ -152,28 +149,31 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends RichOutputFormat<T
 			fs.rename(new Path(outputPath.toString()+"/"+tmpFile), new Path(outputPath.toString()+"/"+taskNumberStr));
 		}
 	}
-	
+
 	@Override
 	public void finalizeGlobal(int parallelism) throws IOException {
 
 		JobContext jobContext;
 		TaskAttemptContext taskContext;
 		try {
-			
-			TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt__0000_r_" 
-					+ String.format("%" + (6 - Integer.toString(1).length()) + "s"," ").replace(" ", "0") 
-					+ Integer.toString(1) 
+
+			TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt__0000_r_"
+					+ String.format("%" + (6 - Integer.toString(1).length()) + "s"," ").replace(" ", "0")
+					+ Integer.toString(1)
 					+ "_0");
-			
+
 			jobContext = HadoopUtils.instantiateJobContext(this.configuration, new JobID());
 			taskContext = HadoopUtils.instantiateTaskAttemptContext(this.configuration, taskAttemptID);
+			this.outputCommitter = this.mapreduceOutputFormat.getOutputCommitter(taskContext);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-		this.fileOutputCommitter = new FileOutputCommitter(new Path(this.configuration.get("mapred.output.dir")), taskContext);
-		
+
 		// finalize HDFS output format
-		this.fileOutputCommitter.commitJob(jobContext);
+		if(this.outputCommitter != null) {
+			this.outputCommitter.commitJob(jobContext);
+		}
+
 	}
 	
 	// --------------------------------------------------------------------------------------------

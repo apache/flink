@@ -26,11 +26,11 @@ import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyProgressable;
 import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.configuration.Configuration;
 import org.apache.hadoop.conf.Configurable;
-import org.apache.hadoop.mapred.FileOutputCommitter;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobConfigurable;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.JobID;
+import org.apache.hadoop.mapred.OutputCommitter;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.mapred.TaskAttemptID;
@@ -48,7 +48,7 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends RichOutputFormat<T
 	private JobConf jobConf;
 	private org.apache.hadoop.mapred.OutputFormat<K,V> mapredOutputFormat;
 	protected transient RecordWriter<K,V> recordWriter;
-	private transient FileOutputCommitter fileOutputCommitter;
+	private transient OutputCommitter outputCommitter;
 	private transient TaskAttemptContext context;
 	private transient JobContext jobContext;
 
@@ -106,7 +106,7 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends RichOutputFormat<T
 			throw new RuntimeException(e);
 		}
 
-		this.fileOutputCommitter = new FileOutputCommitter();
+		this.outputCommitter = this.jobConf.getOutputCommitter();
 
 		try {
 			this.jobContext = HadoopUtils.instantiateJobContext(this.jobConf, new JobID());
@@ -114,7 +114,7 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends RichOutputFormat<T
 			throw new RuntimeException(e);
 		}
 
-		this.fileOutputCommitter.setupJob(jobContext);
+		this.outputCommitter.setupJob(jobContext);
 
 		this.recordWriter = this.mapredOutputFormat.getRecordWriter(null, this.jobConf, Integer.toString(taskNumber + 1), new HadoopDummyProgressable());
 	}
@@ -127,8 +127,8 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends RichOutputFormat<T
 	public void close() throws IOException {
 		this.recordWriter.close(new HadoopDummyReporter());
 		
-		if (this.fileOutputCommitter.needsTaskCommit(this.context)) {
-			this.fileOutputCommitter.commitTask(this.context);
+		if (this.outputCommitter.needsTaskCommit(this.context)) {
+			this.outputCommitter.commitTask(this.context);
 		}
 	}
 	
@@ -137,10 +137,10 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends RichOutputFormat<T
 
 		try {
 			JobContext jobContext = HadoopUtils.instantiateJobContext(this.jobConf, new JobID());
-			FileOutputCommitter fileOutputCommitter = new FileOutputCommitter();
+			OutputCommitter outputCommitter = this.jobConf.getOutputCommitter();
 			
 			// finalize HDFS output format
-			fileOutputCommitter.commitJob(jobContext);
+			outputCommitter.commitJob(jobContext);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
