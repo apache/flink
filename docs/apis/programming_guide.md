@@ -1520,7 +1520,7 @@ Java and Scala classes are treated by Flink as a special POJO data type if they 
 
 - The type of a field must be supported by Flink. At the moment, Flink uses [Avro](http://avro.apache.org) to serialize arbitrary objects (such as `Date`).
 
-Flink analyzes the structure of POJO types, i.e., it learns about the fields of a POJO. As a result POJO types are easier to use than general types. Moreover, they Flink can process POJOs more efficiently than general types.  
+Flink analyzes the structure of POJO types, i.e., it learns about the fields of a POJO. As a result POJO types are easier to use than general types. Moreover, Flink can process POJOs more efficiently than general types.
 
 The following example shows a simple POJO with two public fields.
 
