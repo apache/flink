@@ -960,7 +960,6 @@ class JobManager(
 
     try {
       libraryCacheManager.unregisterJob(jobID)
-
     } catch {
       case t: Throwable =>
         log.error(s"Could not properly unregister job $jobID form the library cache.", t)
