@@ -455,13 +455,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-   * Creates a DataSet from the given non-empty [[Seq]].
+   * Creates a DataSet from the given non-empty [[Iterable]].
    *
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
    */
   def fromCollection[T: ClassTag : TypeInformation](
-      data: Seq[T]): DataSet[T] = {
+      data: Iterable[T]): DataSet[T] = {
     require(data != null, "Data must not be null.")
 
     val typeInfo = implicitly[TypeInformation[T]]
