@@ -46,5 +46,9 @@ public class OperatorStateHandle implements StateHandle<Serializable> {
 	public void discardState() throws Exception {
 		handle.discardState();
 	}
+	
+	public StateHandle<Serializable> getHandle() {
+		return handle;
+	}
 
 }
