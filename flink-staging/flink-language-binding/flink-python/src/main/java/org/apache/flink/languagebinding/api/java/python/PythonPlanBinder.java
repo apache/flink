@@ -238,33 +238,25 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 
 	//=====Plan Binding=================================================================================================
 	protected class PythonOperationInfo extends OperationInfo {
-		protected boolean combine;
-		protected String name;
+		public boolean combine;
 
 		@Override
 		public String toString() {
 			StringBuilder sb = new StringBuilder();
-			sb.append("SetID: ").append(setID).append("\n");
-			sb.append("ParentID: ").append(parentID).append("\n");
-			sb.append("OtherID: ").append(otherID).append("\n");
-			sb.append("Name: ").append(name).append("\n");
-			sb.append("Types: ").append(types).append("\n");
+			sb.append(super.toString());
 			sb.append("Combine: ").append(combine).append("\n");
-			sb.append("Keys1: ").append(Arrays.toString(keys1)).append("\n");
-			sb.append("Keys2: ").append(Arrays.toString(keys2)).append("\n");
-			sb.append("Projections: ").append(Arrays.toString(projections)).append("\n");
 			return sb.toString();
 		}
 
-		protected PythonOperationInfo(AbstractOperation identifier) throws IOException {
+		protected PythonOperationInfo(Receiver receiver, AbstractOperation identifier) throws IOException {
 			Object tmpType;
 			setID = (Integer) receiver.getRecord(true);
 			parentID = (Integer) receiver.getRecord(true);
 			switch (identifier) {
 				case COGROUP:
 					otherID = (Integer) receiver.getRecord(true);
-					keys1 = tupleToIntArray((Tuple) receiver.getRecord(true));
-					keys2 = tupleToIntArray((Tuple) receiver.getRecord(true));
+					keys1 = normalizeKeys(receiver.getRecord(true));
+					keys2 = normalizeKeys(receiver.getRecord(true));
 					tmpType = receiver.getRecord();
 					types = tmpType == null ? null : getForObject(tmpType);
 					name = (String) receiver.getRecord();
@@ -279,7 +271,7 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 					projections = new ProjectionEntry[cProjectCount];
 					for (int x = 0; x < cProjectCount; x++) {
 						String side = (String) receiver.getRecord();
-						int[] keys = tupleToIntArray((Tuple) receiver.getRecord(true));
+						int[] keys = toIntArray((Tuple) receiver.getRecord(true));
 						projections[x] = new ProjectionEntry(ProjectionSide.valueOf(side.toUpperCase()), keys);
 					}
 					name = (String) receiver.getRecord();
@@ -294,8 +286,8 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 				case JOIN:
 				case JOIN_H:
 				case JOIN_T:
-					keys1 = tupleToIntArray((Tuple) receiver.getRecord(true));
-					keys2 = tupleToIntArray((Tuple) receiver.getRecord(true));
+					keys1 = normalizeKeys(receiver.getRecord(true));
+					keys2 = normalizeKeys(receiver.getRecord(true));
 					otherID = (Integer) receiver.getRecord(true);
 					tmpType = receiver.getRecord();
 					types = tmpType == null ? null : getForObject(tmpType);
@@ -303,7 +295,7 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 					projections = new ProjectionEntry[jProjectCount];
 					for (int x = 0; x < jProjectCount; x++) {
 						String side = (String) receiver.getRecord();
-						int[] keys = tupleToIntArray((Tuple) receiver.getRecord(true));
+						int[] keys = toIntArray((Tuple) receiver.getRecord(true));
 						projections[x] = new ProjectionEntry(ProjectionSide.valueOf(side.toUpperCase()), keys);
 					}
 					name = (String) receiver.getRecord();
@@ -324,11 +316,11 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 
 	@Override
 	protected PythonOperationInfo createOperationInfo(AbstractOperation identifier) throws IOException {
-		return new PythonOperationInfo(identifier);
+		return new PythonOperationInfo(receiver, identifier);
 	}
 
 	@Override
-	protected DataSet applyCoGroupOperation(DataSet op1, DataSet op2, int[] firstKeys, int[] secondKeys, PythonOperationInfo info) {
+	protected DataSet applyCoGroupOperation(DataSet op1, DataSet op2, String[] firstKeys, String[] secondKeys, PythonOperationInfo info) {
 		return new CoGroupRawOperator(
 				op1,
 				op2,
@@ -411,20 +403,9 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 	}
 
 	@Override
-	protected DataSet applyJoinOperation(DataSet op1, DataSet op2, int[] firstKeys, int[] secondKeys, DatasizeHint mode, PythonOperationInfo info) {
-		switch (mode) {
-			case NONE:
-				return op1.join(op2).where(firstKeys).equalTo(secondKeys).name("PythonJoinPreStep")
-						.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
-			case HUGE:
-				return op1.joinWithHuge(op2).where(firstKeys).equalTo(secondKeys).name("PythonJoinPreStep")
-						.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
-			case TINY:
-				return op1.joinWithTiny(op2).where(firstKeys).equalTo(secondKeys).name("PythonJoinPreStep")
-						.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
-			default:
-				throw new IllegalArgumentException("Invalid join mode specified.");
-		}
+	protected DataSet applyJoinOperation(DataSet op1, DataSet op2, String[] firstKeys, String[] secondKeys, DatasizeHint mode, PythonOperationInfo info) {
+		return createDefaultJoin(op1, op2, firstKeys, secondKeys, mode).name("PythonJoinPreStep")
+				.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name);
 	}
 
 	@Override

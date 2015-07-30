@@ -14,10 +14,8 @@ package org.apache.flink.languagebinding.api.java.common;
 
 import java.io.IOException;
 import java.util.HashMap;
-import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.operators.AggregateOperator;
@@ -30,9 +28,7 @@ import org.apache.flink.api.java.operators.SortedGrouping;
 import org.apache.flink.api.java.operators.UdfOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.tuple.Tuple;
-import static org.apache.flink.api.java.typeutils.TypeExtractor.getForObject;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.languagebinding.api.java.common.OperationInfo.DatasizeHint;
 import static org.apache.flink.languagebinding.api.java.common.OperationInfo.DatasizeHint.HUGE;
@@ -109,7 +105,7 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 	/**
 	 * This enum contains the identifiers for all supported non-UDF DataSet operations.
 	 */
-	private enum Operation {
+	protected enum Operation {
 		SOURCE_CSV, SOURCE_TEXT, SOURCE_VALUE, SOURCE_SEQ, SINK_CSV, SINK_TEXT, SINK_PRINT,
 		PROJECTION, SORT, UNION, FIRST, DISTINCT, GROUPBY, AGGREGATE,
 		REBALANCE, PARTITION_HASH,
@@ -141,55 +137,55 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 			if (op != null) {
 				switch (op) {
 					case SOURCE_CSV:
-						createCsvSource();
+						createCsvSource(createOperationInfo(op));
 						break;
 					case SOURCE_TEXT:
-						createTextSource();
+						createTextSource(createOperationInfo(op));
 						break;
 					case SOURCE_VALUE:
-						createValueSource();
+						createValueSource(createOperationInfo(op));
 						break;
 					case SOURCE_SEQ:
-						createSequenceSource();
+						createSequenceSource(createOperationInfo(op));
 						break;
 					case SINK_CSV:
-						createCsvSink();
+						createCsvSink(createOperationInfo(op));
 						break;
 					case SINK_TEXT:
-						createTextSink();
+						createTextSink(createOperationInfo(op));
 						break;
 					case SINK_PRINT:
-						createPrintSink();
+						createPrintSink(createOperationInfo(op));
 						break;
 					case BROADCAST:
-						createBroadcastVariable();
+						createBroadcastVariable(createOperationInfo(op));
 						break;
 					case AGGREGATE:
-						createAggregationOperation();
+						createAggregationOperation(createOperationInfo(op));
 						break;
 					case DISTINCT:
-						createDistinctOperation();
+						createDistinctOperation(createOperationInfo(op));
 						break;
 					case FIRST:
-						createFirstOperation();
+						createFirstOperation(createOperationInfo(op));
 						break;
 					case PARTITION_HASH:
-						createHashPartitionOperation();
+						createHashPartitionOperation(createOperationInfo(op));
 						break;
 					case PROJECTION:
-						createProjectOperation();
+						createProjectOperation(createOperationInfo(op));
 						break;
 					case REBALANCE:
-						createRebalanceOperation();
+						createRebalanceOperation(createOperationInfo(op));
 						break;
 					case GROUPBY:
-						createGroupOperation();
+						createGroupOperation(createOperationInfo(op));
 						break;
 					case SORT:
-						createSortOperation();
+						createSortOperation(createOperationInfo(op));
 						break;
 					case UNION:
-						createUnionOperation();
+						createUnionOperation(createOperationInfo(op));
 						break;
 				}
 			}
@@ -239,86 +235,15 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 		}
 	}
 
-	private void createCsvSource() throws IOException {
-		int id = (Integer) receiver.getRecord(true);
-		String path = (String) receiver.getRecord();
-		String fieldDelimiter = (String) receiver.getRecord();
-		String lineDelimiter = (String) receiver.getRecord();
-		Tuple types = (Tuple) receiver.getRecord();
-		sets.put(id, env.createInput(new CsvInputFormat(new Path(path), lineDelimiter, fieldDelimiter, getForObject(types)), getForObject(types)).name("CsvSource"));
-	}
-
-	private void createTextSource() throws IOException {
-		int id = (Integer) receiver.getRecord(true);
-		String path = (String) receiver.getRecord();
-		sets.put(id, env.readTextFile(path).name("TextSource"));
-	}
-
-	private void createValueSource() throws IOException {
-		int id = (Integer) receiver.getRecord(true);
-		int valueCount = (Integer) receiver.getRecord(true);
-		Object[] values = new Object[valueCount];
-		for (int x = 0; x < valueCount; x++) {
-			values[x] = receiver.getRecord();
-		}
-		sets.put(id, env.fromElements(values).name("ValueSource"));
-	}
-
-	private void createSequenceSource() throws IOException {
-		int id = (Integer) receiver.getRecord(true);
-		long from = (Long) receiver.getRecord();
-		long to = (Long) receiver.getRecord();
-		sets.put(id, env.generateSequence(from, to).name("SequenceSource"));
-	}
-
-	private void createCsvSink() throws IOException {
-		int parentID = (Integer) receiver.getRecord(true);
-		String path = (String) receiver.getRecord();
-		String fieldDelimiter = (String) receiver.getRecord();
-		String lineDelimiter = (String) receiver.getRecord();
-		WriteMode writeMode = ((Integer) receiver.getRecord(true)) == 1
-				? WriteMode.OVERWRITE
-				: WriteMode.NO_OVERWRITE;
-		DataSet parent = (DataSet) sets.get(parentID);
-		parent.writeAsCsv(path, lineDelimiter, fieldDelimiter, writeMode).name("CsvSink");
-	}
-
-	private void createTextSink() throws IOException {
-		int parentID = (Integer) receiver.getRecord(true);
-		String path = (String) receiver.getRecord();
-		WriteMode writeMode = ((Integer) receiver.getRecord(true)) == 1
-				? WriteMode.OVERWRITE
-				: WriteMode.NO_OVERWRITE;
-		DataSet parent = (DataSet) sets.get(parentID);
-		parent.writeAsText(path, writeMode).name("TextSink");
-	}
-
-	private void createPrintSink() throws IOException {
-		int parentID = (Integer) receiver.getRecord(true);
-		DataSet parent = (DataSet) sets.get(parentID);
-		boolean toError = (Boolean) receiver.getRecord();
-		parent.output(new PrintingOutputFormat(toError));
-	}
-
-	private void createBroadcastVariable() throws IOException {
-		int parentID = (Integer) receiver.getRecord(true);
-		int otherID = (Integer) receiver.getRecord(true);
-		String name = (String) receiver.getRecord();
-		UdfOperator op1 = (UdfOperator) sets.get(parentID);
-		DataSet op2 = (DataSet) sets.get(otherID);
-
-		op1.withBroadcastSet(op2, name);
-		Configuration c = ((UdfOperator) op1).getParameters();
-
-		if (c == null) {
-			c = new Configuration();
-		}
-
-		int count = c.getInteger(PLANBINDER_CONFIG_BCVAR_COUNT, 0);
-		c.setInteger(PLANBINDER_CONFIG_BCVAR_COUNT, count + 1);
-		c.setString(PLANBINDER_CONFIG_BCVAR_NAME_PREFIX + count, name);
-
-		op1.withParameters(c);
+	/**
+	 * This method creates an OperationInfo object based on the operation-identifier passed.
+	 *
+	 * @param operationIdentifier
+	 * @return
+	 * @throws IOException
+	 */
+	protected OperationInfo createOperationInfo(Operation operationIdentifier) throws IOException {
+		return new OperationInfo(receiver, operationIdentifier);
 	}
 
 	/**
@@ -330,46 +255,111 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 	 */
 	protected abstract INFO createOperationInfo(AbstractOperation operationIdentifier) throws IOException;
 
-	private void createAggregationOperation() throws IOException {
-		int setID = (Integer) receiver.getRecord(true);
-		int parentID = (Integer) receiver.getRecord(true);
-		int count = (Integer) receiver.getRecord(true);
+	private void createCsvSource(OperationInfo info) throws IOException {
+		sets.put(info.setID, env.createInput(new CsvInputFormat(new Path(info.path), info.lineDelimiter, info.fieldDelimiter, info.types), info.types).name("CsvSource"));
+	}
 
-		int encodedAgg = (Integer) receiver.getRecord(true);
-		int field = (Integer) receiver.getRecord(true);
+	private void createTextSource(OperationInfo info) throws IOException {
+		sets.put(info.setID, env.readTextFile(info.path).name("TextSource"));
+	}
 
-		Aggregations agg = null;
-		switch (encodedAgg) {
-			case 0:
-				agg = Aggregations.MAX;
-				break;
-			case 1:
-				agg = Aggregations.MIN;
-				break;
-			case 2:
-				agg = Aggregations.SUM;
-				break;
+	private void createValueSource(OperationInfo info) throws IOException {
+		sets.put(info.setID, env.fromElements(info.values).name("ValueSource"));
+	}
+
+	private void createSequenceSource(OperationInfo info) throws IOException {
+		sets.put(info.setID, env.generateSequence(info.from, info.to).name("SequenceSource"));
+	}
+
+	private void createCsvSink(OperationInfo info) throws IOException {
+		DataSet parent = (DataSet) sets.get(info.parentID);
+		parent.writeAsCsv(info.path, info.lineDelimiter, info.fieldDelimiter, info.writeMode).name("CsvSink");
+	}
+
+	private void createTextSink(OperationInfo info) throws IOException {
+		DataSet parent = (DataSet) sets.get(info.parentID);
+		parent.writeAsText(info.path, info.writeMode).name("TextSink");
+	}
+
+	private void createPrintSink(OperationInfo info) throws IOException {
+		DataSet parent = (DataSet) sets.get(info.parentID);
+		parent.output(new PrintingOutputFormat(info.toError));
+	}
+
+	private void createBroadcastVariable(OperationInfo info) throws IOException {
+		UdfOperator op1 = (UdfOperator) sets.get(info.parentID);
+		DataSet op2 = (DataSet) sets.get(info.otherID);
+
+		op1.withBroadcastSet(op2, info.name);
+		Configuration c = ((UdfOperator) op1).getParameters();
+
+		if (c == null) {
+			c = new Configuration();
 		}
-		DataSet op = (DataSet) sets.get(parentID);
-		AggregateOperator ao = op.aggregate(agg, field);
 
-		for (int x = 1; x < count; x++) {
-			encodedAgg = (Integer) receiver.getRecord(true);
-			field = (Integer) receiver.getRecord(true);
-			switch (encodedAgg) {
-				case 0:
-					ao = ao.andMax(field);
-					break;
-				case 1:
-					ao = ao.andMin(field);
-					break;
-				case 2:
-					ao = ao.andSum(field);
-					break;
-			}
+		int count = c.getInteger(PLANBINDER_CONFIG_BCVAR_COUNT, 0);
+		c.setInteger(PLANBINDER_CONFIG_BCVAR_COUNT, count + 1);
+		c.setString(PLANBINDER_CONFIG_BCVAR_NAME_PREFIX + count, info.name);
+
+		op1.withParameters(c);
+	}
+
+	private void createAggregationOperation(OperationInfo info) throws IOException {
+		DataSet op = (DataSet) sets.get(info.parentID);
+		AggregateOperator ao = op.aggregate(info.aggregates[0].agg, info.aggregates[0].field);
+
+		for (int x = 1; x < info.count; x++) {
+			ao = ao.and(info.aggregates[x].agg, info.aggregates[x].field);
 		}
 
-		sets.put(setID, ao.name("Aggregation"));
+		sets.put(info.setID, ao.name("Aggregation"));
+	}
+
+	private void createDistinctOperation(OperationInfo info) throws IOException {
+		DataSet op = (DataSet) sets.get(info.parentID);
+		sets.put(info.setID, info.keys.length == 0 ? op.distinct() : op.distinct(info.keys).name("Distinct"));
+	}
+
+	private void createFirstOperation(OperationInfo info) throws IOException {
+		DataSet op = (DataSet) sets.get(info.parentID);
+		sets.put(info.setID, op.first(info.count).name("First"));
+	}
+
+	private void createGroupOperation(OperationInfo info) throws IOException {
+		DataSet op1 = (DataSet) sets.get(info.parentID);
+		sets.put(info.setID, op1.groupBy(info.keys));
+	}
+
+	private void createHashPartitionOperation(OperationInfo info) throws IOException {
+		DataSet op1 = (DataSet) sets.get(info.parentID);
+		sets.put(info.setID, op1.partitionByHash(info.keys));
+	}
+
+	private void createProjectOperation(OperationInfo info) throws IOException {
+		DataSet op1 = (DataSet) sets.get(info.parentID);
+		sets.put(info.setID, op1.project(info.fields).name("Projection"));
+	}
+
+	private void createRebalanceOperation(OperationInfo info) throws IOException {
+		DataSet op = (DataSet) sets.get(info.parentID);
+		sets.put(info.setID, op.rebalance().name("Rebalance"));
+	}
+
+	private void createSortOperation(OperationInfo info) throws IOException {
+		Grouping op1 = (Grouping) sets.get(info.parentID);
+		if (op1 instanceof UnsortedGrouping) {
+			sets.put(info.setID, ((UnsortedGrouping) op1).sortGroup(info.field, info.order));
+			return;
+		}
+		if (op1 instanceof SortedGrouping) {
+			sets.put(info.setID, ((SortedGrouping) op1).sortGroup(info.field, info.order));
+		}
+	}
+
+	private void createUnionOperation(OperationInfo info) throws IOException {
+		DataSet op1 = (DataSet) sets.get(info.parentID);
+		DataSet op2 = (DataSet) sets.get(info.otherID);
+		sets.put(info.setID, op1.union(op2).name("Union"));
 	}
 
 	private void createCoGroupOperation(INFO info) {
@@ -377,8 +367,6 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 		DataSet op2 = (DataSet) sets.get(info.otherID);
 		sets.put(info.setID, applyCoGroupOperation(op1, op2, info.keys1, info.keys2, info));
 	}
-
-	protected abstract DataSet applyCoGroupOperation(DataSet op1, DataSet op2, int[] firstKeys, int[] secondKeys, INFO info);
 
 	private void createCrossOperation(DatasizeHint mode, INFO info) {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
@@ -420,56 +408,14 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 		}
 	}
 
-	protected abstract DataSet applyCrossOperation(DataSet op1, DataSet op2, DatasizeHint mode, INFO info);
-
-	private void createDistinctOperation() throws IOException {
-		int setID = (Integer) receiver.getRecord(true);
-		int parentID = (Integer) receiver.getRecord(true);
-		Object keysArrayOrTuple = receiver.getRecord(true);
-		int[] keys;
-		if (keysArrayOrTuple instanceof Tuple) {
-			keys = tupleToIntArray((Tuple) keysArrayOrTuple);
-		} else {
-			keys = (int[]) keysArrayOrTuple;
-		}
-		DataSet op = (DataSet) sets.get(parentID);
-		sets.put(setID, (keys.length == 0 ? op.distinct() : op.distinct(keys)).name("Distinct"));
-	}
-
 	private void createFilterOperation(INFO info) {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
 		sets.put(info.setID, applyFilterOperation(op1, info));
 	}
 
-	protected abstract DataSet applyFilterOperation(DataSet op1, INFO info);
-
 	private void createFlatMapOperation(INFO info) {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
 		sets.put(info.setID, applyFlatMapOperation(op1, info));
-	}
-
-	protected abstract DataSet applyFlatMapOperation(DataSet op1, INFO info);
-
-	private void createFirstOperation() throws IOException {
-		int setID = (Integer) receiver.getRecord(true);
-		int parentID = (Integer) receiver.getRecord(true);
-		int count = (Integer) receiver.getRecord(true);
-		DataSet op = (DataSet) sets.get(parentID);
-		sets.put(setID, op.first(count).name("First"));
-	}
-
-	private void createGroupOperation() throws IOException {
-		int setID = (Integer) receiver.getRecord(true);
-		int parentID = (Integer) receiver.getRecord(true);
-		Object keysArrayOrTuple = receiver.getRecord(true);
-		int[] keys;
-		if (keysArrayOrTuple instanceof Tuple) {
-			keys = tupleToIntArray((Tuple) keysArrayOrTuple);
-		} else {
-			keys = (int[]) keysArrayOrTuple;
-		}
-		DataSet op1 = (DataSet) sets.get(parentID);
-		sets.put(setID, op1.groupBy(keys));
 	}
 
 	private void createGroupReduceOperation(INFO info) {
@@ -487,27 +433,6 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 		}
 	}
 
-	protected abstract DataSet applyGroupReduceOperation(DataSet op1, INFO info);
-
-	protected abstract DataSet applyGroupReduceOperation(UnsortedGrouping op1, INFO info);
-
-	protected abstract DataSet applyGroupReduceOperation(SortedGrouping op1, INFO info);
-
-	private void createHashPartitionOperation() throws IOException {
-		int setID = (Integer) receiver.getRecord(true);
-		int parentID = (Integer) receiver.getRecord(true);
-		Object keysArrayOrTuple = receiver.getRecord(true);
-		int[] keys;
-		if (keysArrayOrTuple instanceof Tuple) {
-			keys = tupleToIntArray((Tuple) keysArrayOrTuple);
-		} else {
-			keys = (int[]) keysArrayOrTuple;
-		}
-		DataSet op1 = (DataSet) sets.get(parentID);
-		sets.put(setID, op1.partitionByHash(keys));
-
-	}
-
 	private void createJoinOperation(DatasizeHint mode, INFO info) {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
 		DataSet op2 = (DataSet) sets.get(info.otherID);
@@ -515,20 +440,7 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 		if (info.types != null && (info.projections == null || info.projections.length == 0)) {
 			sets.put(info.setID, applyJoinOperation(op1, op2, info.keys1, info.keys2, mode, info));
 		} else {
-			DefaultJoin defaultResult;
-			switch (mode) {
-				case NONE:
-					defaultResult = op1.join(op2).where(info.keys1).equalTo(info.keys2);
-					break;
-				case HUGE:
-					defaultResult = op1.joinWithHuge(op2).where(info.keys1).equalTo(info.keys2);
-					break;
-				case TINY:
-					defaultResult = op1.joinWithTiny(op2).where(info.keys1).equalTo(info.keys2);
-					break;
-				default:
-					throw new IllegalArgumentException("Invalid join mode specified.");
-			}
+			DefaultJoin defaultResult = createDefaultJoin(op1, op2, info.keys1, info.keys2, mode);
 			if (info.projections.length == 0) {
 				sets.put(info.setID, defaultResult.name("DefaultJoin"));
 			} else {
@@ -548,41 +460,27 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 		}
 	}
 
-	protected abstract DataSet applyJoinOperation(DataSet op1, DataSet op2, int[] firstKeys, int[] secondKeys, DatasizeHint mode, INFO info);
+	protected DefaultJoin createDefaultJoin(DataSet op1, DataSet op2, String[] firstKeys, String[] secondKeys, DatasizeHint mode) {
+		switch (mode) {
+			case NONE:
+				return op1.join(op2).where(firstKeys).equalTo(secondKeys);
+			case HUGE:
+				return op1.joinWithHuge(op2).where(firstKeys).equalTo(secondKeys);
+			case TINY:
+				return op1.joinWithTiny(op2).where(firstKeys).equalTo(secondKeys);
+			default:
+				throw new IllegalArgumentException("Invalid join mode specified.");
+		}
+	}
 
 	private void createMapOperation(INFO info) {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
 		sets.put(info.setID, applyMapOperation(op1, info));
 	}
 
-	protected abstract DataSet applyMapOperation(DataSet op1, INFO info);
-
 	private void createMapPartitionOperation(INFO info) {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
 		sets.put(info.setID, applyMapPartitionOperation(op1, info));
-	}
-
-	protected abstract DataSet applyMapPartitionOperation(DataSet op1, INFO info);
-
-	protected void createProjectOperation() throws IOException {
-		int setID = (Integer) receiver.getRecord(true);
-		int parentID = (Integer) receiver.getRecord(true);
-		Object keysArrayOrTuple = receiver.getRecord(true);
-		int[] keys;
-		if (keysArrayOrTuple instanceof Tuple) {
-			keys = tupleToIntArray((Tuple) keysArrayOrTuple);
-		} else {
-			keys = (int[]) keysArrayOrTuple;
-		}
-		DataSet op1 = (DataSet) sets.get(parentID);
-		sets.put(setID, op1.project(keys).name("Projection"));
-	}
-
-	private void createRebalanceOperation() throws IOException {
-		int setID = (Integer) receiver.getRecord(true);
-		int parentID = (Integer) receiver.getRecord(true);
-		DataSet op = (DataSet) sets.get(parentID);
-		sets.put(setID, op.rebalance().name("Rebalance"));
 	}
 
 	private void createReduceOperation(INFO info) {
@@ -596,57 +494,79 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 		}
 	}
 
+	protected abstract DataSet applyCoGroupOperation(DataSet op1, DataSet op2, String[] firstKeys, String[] secondKeys, INFO info);
+
+	protected abstract DataSet applyCrossOperation(DataSet op1, DataSet op2, DatasizeHint mode, INFO info);
+
+	protected abstract DataSet applyFilterOperation(DataSet op1, INFO info);
+
+	protected abstract DataSet applyFlatMapOperation(DataSet op1, INFO info);
+
+	protected abstract DataSet applyGroupReduceOperation(DataSet op1, INFO info);
+
+	protected abstract DataSet applyGroupReduceOperation(UnsortedGrouping op1, INFO info);
+
+	protected abstract DataSet applyGroupReduceOperation(SortedGrouping op1, INFO info);
+
+	protected abstract DataSet applyJoinOperation(DataSet op1, DataSet op2, String[] firstKeys, String[] secondKeys, DatasizeHint mode, INFO info);
+
+	protected abstract DataSet applyMapOperation(DataSet op1, INFO info);
+
+	protected abstract DataSet applyMapPartitionOperation(DataSet op1, INFO info);
+
 	protected abstract DataSet applyReduceOperation(DataSet op1, INFO info);
 
 	protected abstract DataSet applyReduceOperation(UnsortedGrouping op1, INFO info);
 
-	protected void createSortOperation() throws IOException {
-		int setID = (Integer) receiver.getRecord(true);
-		int parentID = (Integer) receiver.getRecord(true);
-		int field = (Integer) receiver.getRecord(true);
-		int encodedOrder = (Integer) receiver.getRecord(true);
-		Order order;
-		switch (encodedOrder) {
-			case 0:
-				order = Order.NONE;
-				break;
-			case 1:
-				order = Order.ASCENDING;
-				break;
-			case 2:
-				order = Order.DESCENDING;
-				break;
-			case 3:
-				order = Order.ANY;
-				break;
-			default:
-				order = Order.NONE;
-				break;
-		}
-		Grouping op1 = (Grouping) sets.get(parentID);
-		if (op1 instanceof UnsortedGrouping) {
-			sets.put(setID, ((UnsortedGrouping) op1).sortGroup(field, order));
-			return;
-		}
-		if (op1 instanceof SortedGrouping) {
-			sets.put(setID, ((SortedGrouping) op1).sortGroup(field, order));
-		}
-	}
-
-	protected void createUnionOperation() throws IOException {
-		int setID = (Integer) receiver.getRecord(true);
-		int parentID = (Integer) receiver.getRecord(true);
-		int otherID = (Integer) receiver.getRecord(true);
-		DataSet op1 = (DataSet) sets.get(parentID);
-		DataSet op2 = (DataSet) sets.get(otherID);
-		sets.put(setID, op1.union(op2).name("Union"));
-	}
-
 	//====Utility=======================================================================================================
-	protected int[] tupleToIntArray(Tuple tuple) {
-		int[] keys = new int[tuple.getArity()];
+	protected static String[] normalizeKeys(Object keys) {
+		if (keys instanceof Tuple) {
+			Tuple tupleKeys = (Tuple) keys;
+			if (tupleKeys.getArity() == 0) {
+				return new String[0];
+			}
+			if (tupleKeys.getField(0) instanceof Integer) {
+				String[] stringKeys = new String[tupleKeys.getArity()];
+				for (int x = 0; x < stringKeys.length; x++) {
+					stringKeys[x] = "f" + (Integer) tupleKeys.getField(x);
+				}
+				return stringKeys;
+			}
+			if (tupleKeys.getField(0) instanceof String) {
+				return tupleToStringArray(tupleKeys);
+			}
+			throw new RuntimeException("Key argument contains field that is neither an int nor a String.");
+		}
+		if (keys instanceof int[]) {
+			int[] intKeys = (int[]) keys;
+			String[] stringKeys = new String[intKeys.length];
+			for (int x = 0; x < stringKeys.length; x++) {
+				stringKeys[x] = "f" + intKeys[x];
+			}
+			return stringKeys;
+		}
+		throw new RuntimeException("Key argument is neither an int[] nor a Tuple.");
+	}
+
+	protected static int[] toIntArray(Object key) {
+		if (key instanceof Tuple) {
+			Tuple tuple = (Tuple) key;
+			int[] keys = new int[tuple.getArity()];
+			for (int y = 0; y < tuple.getArity(); y++) {
+				keys[y] = (Integer) tuple.getField(y);
+			}
+			return keys;
+		}
+		if (key instanceof int[]) {
+			return (int[]) key;
+		}
+		throw new RuntimeException("Key argument is neither an int[] nor a Tuple.");
+	}
+
+	protected static String[] tupleToStringArray(Tuple tuple) {
+		String[] keys = new String[tuple.getArity()];
 		for (int y = 0; y < tuple.getArity(); y++) {
-			keys[y] = (Integer) tuple.getField(y);
+			keys[y] = (String) tuple.getField(y);
 		}
 		return keys;
 	}
