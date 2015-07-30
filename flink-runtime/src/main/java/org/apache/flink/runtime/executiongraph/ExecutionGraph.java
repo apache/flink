@@ -137,30 +137,6 @@ public class ExecutionGraph implements Serializable {
 	/** The currently executed tasks, for callbacks */
 	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
 
-	/**
-	 * Updates the accumulators during the runtime of a job. Final accumulator results are transferred
-	 * through the UpdateTaskExecutionState message.
-	 * @param accumulatorSnapshot The serialized flink and user-defined accumulators
-	 */
-	public void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
-		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
-		Map<String, Accumulator<?, ?>> userAccumulators;
-		try {
-			flinkAccumulators = accumulatorSnapshot.deserializeFlinkAccumulators();
-			userAccumulators = accumulatorSnapshot.deserializeUserAccumulators(userClassLoader);
-
-			ExecutionAttemptID execID = accumulatorSnapshot.getExecutionAttemptID();
-			Execution execution = currentExecutions.get(execID);
-			if (execution != null) {
-				execution.setAccumulators(flinkAccumulators, userAccumulators);
-			} else {
-				LOG.warn("Received accumulator result for unknown execution {}.", execID);
-			}
-		} catch (Exception e) {
-			LOG.error("Cannot update accumulators for job " + jobID, e);
-		}
-	}
-
 	/** A list of all libraries required during the job execution. Libraries have to be stored
 	 * inside the BlobService and are referenced via the BLOB keys. */
 	private final List<BlobKey> requiredJarFiles;
@@ -1004,6 +980,30 @@ public class ExecutionGraph implements Serializable {
 
 		if (contained != null && contained != exec) {
 			fail(new Exception("De-registering execution " + exec + " failed. Found for same ID execution " + contained));
+		}
+	}
+
+	/**
+	 * Updates the accumulators during the runtime of a job. Final accumulator results are transferred
+	 * through the UpdateTaskExecutionState message.
+	 * @param accumulatorSnapshot The serialized flink and user-defined accumulators
+	 */
+	public void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
+		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
+		Map<String, Accumulator<?, ?>> userAccumulators;
+		try {
+			flinkAccumulators = accumulatorSnapshot.deserializeFlinkAccumulators();
+			userAccumulators = accumulatorSnapshot.deserializeUserAccumulators(userClassLoader);
+
+			ExecutionAttemptID execID = accumulatorSnapshot.getExecutionAttemptID();
+			Execution execution = currentExecutions.get(execID);
+			if (execution != null) {
+				execution.setAccumulators(flinkAccumulators, userAccumulators);
+			} else {
+				LOG.warn("Received accumulator result for unknown execution {}.", execID);
+			}
+		} catch (Exception e) {
+			LOG.error("Cannot update accumulators for job " + jobID, e);
 		}
 	}
 
