@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.OutputCommitter;
 
 public class HadoopOutputFormat<K,V> extends HadoopOutputFormatBase<K, V, Tuple2<K, V>> {
 
@@ -29,6 +30,11 @@ public class HadoopOutputFormat<K,V> extends HadoopOutputFormatBase<K, V, Tuple2
 
 	public HadoopOutputFormat(org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat, JobConf job) {
 		super(mapredOutputFormat, job);
+	}
+
+	public HadoopOutputFormat(org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat, Class<OutputCommitter> outputCommitterClass, JobConf job) {
+		this(mapredOutputFormat, job);
+		super.getJobConf().setOutputCommitter(outputCommitterClass);
 	}
 
 	@Override
