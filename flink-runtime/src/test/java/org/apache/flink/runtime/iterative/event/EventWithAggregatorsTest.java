@@ -19,6 +19,15 @@
 
 package org.apache.flink.runtime.iterative.event;
 
+import org.apache.flink.api.common.aggregators.Aggregator;
+import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.types.LongValue;
+import org.apache.flink.types.StringValue;
+import org.apache.flink.types.Value;
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -27,17 +36,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
-import org.apache.flink.api.common.aggregators.Aggregator;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
-import org.apache.flink.runtime.iterative.event.IterationEventWithAggregators;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.StringValue;
-import org.apache.flink.types.Value;
-import org.junit.Assert;
-import org.junit.Test;
 
 
 public class EventWithAggregatorsTest {
@@ -98,6 +96,55 @@ public class EventWithAggregatorsTest {
 		Assert.assertTrue(allNames.isEmpty());
 		Assert.assertTrue(allVals.isEmpty());
 	}
+
+	@Test
+	public void testSerializationOfClockTaskEvent() {
+		StringValue stringValue = new StringValue("test string");
+		LongValue longValue = new LongValue(68743254);
+
+		String stringValueName = "stringValue";
+		String longValueName = "longValue";
+
+		Aggregator<StringValue> stringAgg = new TestAggregator<StringValue>(stringValue);
+		Aggregator<LongValue> longAgg = new TestAggregator<LongValue>(longValue);
+
+		Map<String, Aggregator<?>> aggMap = new HashMap<String,  Aggregator<?>>();
+		aggMap.put(stringValueName, stringAgg);
+		aggMap.put(longValueName, longAgg);
+
+		Set<String> allNames = new HashSet<String>();
+		allNames.add(stringValueName);
+		allNames.add(longValueName);
+
+		Set<Value> allVals = new HashSet<Value>();
+		allVals.add(stringValue);
+		allVals.add(longValue);
+
+		int clock = 6;
+
+		// run the serialization
+		ClockTaskEvent e = new ClockTaskEvent(clock, aggMap);
+		ClockTaskEvent deserialized = pipeThroughSerialization2(e);
+
+		// verify the result
+		String[] names = deserialized.getAggregatorNames();
+		Value[] aggregates = deserialized.getAggregates(cl);
+
+		Assert.assertEquals(allNames.size(), names.length);
+		Assert.assertEquals(allVals.size(), aggregates.length);
+
+		// check that all the correct names and values are returned
+		for (String s : names) {
+			allNames.remove(s);
+		}
+		for (Value v : aggregates) {
+			allVals.remove(v);
+		}
+
+		Assert.assertTrue(allNames.isEmpty());
+		Assert.assertTrue(allVals.isEmpty());
+		Assert.assertEquals(clock, deserialized.getClock());
+	}
 	
 	private IterationEventWithAggregators pipeThroughSerialization(IterationEventWithAggregators event) {
 		try {
@@ -115,6 +162,31 @@ public class EventWithAggregatorsTest {
 			newEvent.read(new InputViewDataInputStreamWrapper(in));
 			in.close();
 			
+			return newEvent;
+		} catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Test threw an exception: " + e.getMessage());
+			return null;
+		}
+	}
+
+	private ClockTaskEvent pipeThroughSerialization2(ClockTaskEvent event) {
+		try {
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			DataOutputStream out = new DataOutputStream(baos);
+			event.write(new OutputViewDataOutputStreamWrapper(out));
+			out.flush();
+
+			byte[] data = baos.toByteArray();
+			out.close();
+			baos.close();
+
+			DataInputStream in = new DataInputStream(new ByteArrayInputStream(data));
+			ClockTaskEvent newEvent = event.getClass().newInstance();
+			newEvent.read(new InputViewDataInputStreamWrapper(in));
+			in.close();
+
 			return newEvent;
 		} catch (Exception e) {
 			System.err.println(e.getMessage());
