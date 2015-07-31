@@ -73,7 +73,7 @@ public class MusicProfilesITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testMusicProfilesExample() throws Exception {
-		MusicProfiles.main(new String[]{tripletsPath, mismatchesPath, topSongsResultPath, communitiesResultPath,
+		MusicProfiles.main(new String[]{tripletsPath, mismatchesPath, topSongsResultPath, "0", communitiesResultPath,
 				MusicProfilesData.MAX_ITERATIONS + ""});
 		expectedTopSongs = MusicProfilesData.TOP_SONGS_RESULT;
 	}

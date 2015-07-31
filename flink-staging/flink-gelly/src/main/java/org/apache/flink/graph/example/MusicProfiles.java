@@ -46,15 +46,17 @@ import org.apache.flink.util.Collector;
 public class MusicProfiles implements ProgramDescription {
 
 	/**
-	 * This example demonstrates how to mix the "record" Flink API with the
-	 * graph API. The input is a set <userId - songId - playCount> triplets and
-	 * a set of bad records,i.e. song ids that should not be trusted. Initially,
-	 * we use the record API to filter out the bad records. Then, we use the
-	 * graph API to create a user -> song weighted bipartite graph and compute
-	 * the top song (most listened) per user. Then, we use the record API again,
-	 * to create a user-user similarity graph, based on common songs, where two
-	 * users that listen to the same song are connected. Finally, we use the
-	 * graph API to run the label propagation community detection algorithm on
+	 * This example demonstrates how to mix the DataSet Flink API with the Gelly API.
+	 * The input is a set <userId - songId - playCount> triplets and
+	 * a set of bad records, i.e. song ids that should not be trusted.
+	 * Initially, we use the DataSet API to filter out the bad records.
+	 * Then, we use Gelly to create a user -> song weighted bipartite graph and compute
+	 * the top song (most listened) per user.
+	 * Then, we use the DataSet API again, to create a user-user similarity graph,
+	 * based on common songs, where users that are listeners of the same song
+	 * are connected. A user-defined threshold on the playcount value
+	 * defines when a user is considered to be a listener of a song.
+	 * Finally, we use the graph API to run the label propagation community detection algorithm on
 	 * the similarity graph.
 	 *
 	 * The triplets input is expected to be given as one triplet per line,
@@ -116,7 +118,13 @@ public class MusicProfiles implements ProgramDescription {
 		 * create an edge between each pair of its in-neighbors.
 		 */
 		DataSet<Edge<String, NullValue>> similarUsers = userSongGraph
-				.getEdges().groupBy(1)
+				.getEdges()
+				// filter out user-song edges that are below the playcount threshold
+				.filter(new FilterFunction<Edge<String, Integer>>() {
+					public boolean filter(Edge<String, Integer> edge) {
+						return (edge.getValue() > playcountThreshold);
+					}
+				}).groupBy(1)
 				.reduceGroup(new CreateSimilarUserEdges()).distinct();
 
 		Graph<String, Long, NullValue> similarUsersGraph = Graph.fromDataSet(similarUsers,
@@ -241,6 +249,8 @@ public class MusicProfiles implements ProgramDescription {
 
 	private static String topTracksOutputPath = null;
 
+	private static int playcountThreshold = 0;
+
 	private static String communitiesOutputPath = null;
 
 	private static int maxIterations = 10;
@@ -248,10 +258,10 @@ public class MusicProfiles implements ProgramDescription {
 	private static boolean parseParameters(String[] args) {
 
 		if(args.length > 0) {
-			if(args.length != 5) {
+			if(args.length != 6) {
 				System.err.println("Usage: MusicProfiles <input user song triplets path>" +
 						" <input song mismatches path> <output top tracks path> "
-						+ "<output communities path> <num iterations>");
+						+ "<playcount threshold> <output communities path> <num iterations>");
 				return false;
 			}
 
@@ -259,15 +269,16 @@ public class MusicProfiles implements ProgramDescription {
 			userSongTripletsInputPath = args[0];
 			mismatchesInputPath = args[1];
 			topTracksOutputPath = args[2];
-			communitiesOutputPath = args[3];
-			maxIterations = Integer.parseInt(args[4]);
+			playcountThreshold = Integer.parseInt(args[3]);
+			communitiesOutputPath = args[4];
+			maxIterations = Integer.parseInt(args[5]);
 		} else {
 			System.out.println("Executing Music Profiles example with default parameters and built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
 			System.out.println("  See the documentation for the correct format of input files.");
 			System.out.println("Usage: MusicProfiles <input user song triplets path>" +
 					" <input song mismatches path> <output top tracks path> "
-					+ "<output communities path> <num iterations>");
+					+ "<playcount threshold> <output communities path> <num iterations>");
 		}
 		return true;
 	}
