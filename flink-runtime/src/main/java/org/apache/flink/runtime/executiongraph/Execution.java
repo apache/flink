@@ -965,18 +965,18 @@ public class Execution implements Serializable {
 	/**
 	 * Update accumulators (discarded when the Execution has already been terminated).
 	 * @param flinkAccumulators the flink internal accumulators
-	 * @param userAccumulators the user accumulators
-	 * @param userLargeAccumulatorBlobKeys the keys to the blobs storing the oversized accumulators sent by
+	 * @param smallUserAccumulators the user accumulators
+	 * @param largeUserAccumulatorBlobKeys the keys to the blobs storing the oversized accumulators sent by
 	 *                                     (some) tasks.
 	 */
 	public void setAccumulators(Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
-								Map<String, Accumulator<?, ?>> userAccumulators,
-								Map<String, List<BlobKey>> userLargeAccumulatorBlobKeys) {
+								Map<String, Accumulator<?, ?>> smallUserAccumulators,
+								Map<String, List<BlobKey>> largeUserAccumulatorBlobKeys) {
 		synchronized (accumulatorLock) {
 			if (!state.isTerminal()) {
 				this.flinkAccumulators = flinkAccumulators;
-				this.smallUserAccumulators = userAccumulators;
-				this.largeUserAccumulators = userLargeAccumulatorBlobKeys;
+				this.smallUserAccumulators = smallUserAccumulators;
+				this.largeUserAccumulators = largeUserAccumulatorBlobKeys;
 			}
 		}
 	}

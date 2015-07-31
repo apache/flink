@@ -90,8 +90,8 @@ public class AccumulatorRegistry {
 	 *
 	 * @return a serialized accumulator map
 	 */
-	public BaseAccumulatorSnapshot getSnapshot() {
-		BaseAccumulatorSnapshot snapshot;
+	public AccumulatorSnapshot getSnapshot() {
+		AccumulatorSnapshot snapshot;
 		Map<String, List<BlobKey>> largeAccumulatorBlobKeys;
 		SerializedValue<Map<String, Accumulator<?, ?>>> serializedAccumulators;
 
@@ -102,10 +102,10 @@ public class AccumulatorRegistry {
 				largeAccumulatorBlobKeys = LargeAccumulatorHelper.
 						storeAccumulatorsToBlobCache(blobServerAddress, userAccumulators);
 
-				snapshot = new LargeAccumulatorSnapshot(jobID, taskID,
+				snapshot = new AccumulatorSnapshot(jobID, taskID,
 						flinkAccumulators, largeAccumulatorBlobKeys);
 			} else {
-				snapshot = new SmallAccumulatorSnapshot(jobID, taskID,
+				snapshot = new AccumulatorSnapshot(jobID, taskID,
 						flinkAccumulators, serializedAccumulators);
 			}
 			return snapshot;

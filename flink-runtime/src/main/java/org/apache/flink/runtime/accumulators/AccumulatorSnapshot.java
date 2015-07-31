@@ -20,11 +20,13 @@ package org.apache.flink.runtime.accumulators;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.util.SerializedValue;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -32,21 +34,39 @@ import java.util.Map;
  * encapsulate a map of accumulators (user- and system- defined) for a single task. It is used for the
  * transfer from TaskManagers to the JobManager and from the JobManager to the Client.
  */
-public class BaseAccumulatorSnapshot implements Serializable {
+public class AccumulatorSnapshot implements Serializable {
 
 	private static final long serialVersionUID = 42L;
 
 	private final JobID jobID;
 	private final ExecutionAttemptID executionAttemptID;
 
-	/** Flink internal accumulators which can be deserialized using the system class loader. */
+	/**
+	 * Flink internal accumulators which can be deserialized using the system class loader.
+	 */
 	private final SerializedValue<Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators;
 
-	public BaseAccumulatorSnapshot(JobID jobID, ExecutionAttemptID executionAttemptID,
-			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators) throws IOException {
+	/**
+	 * User defined accumulators that may require user defined classloader.
+	 */
+	private final UserAccumulators userAccumulators;
+
+	public AccumulatorSnapshot(JobID jobID, ExecutionAttemptID executionAttemptID,
+								Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
+								Map<String, List<BlobKey>> oversizedUserAccumulatorBlobKeys) throws IOException {
 		this.jobID = jobID;
 		this.executionAttemptID = executionAttemptID;
 		this.flinkAccumulators = new SerializedValue<Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>>(flinkAccumulators);
+		this.userAccumulators = new UserAccumulators(oversizedUserAccumulatorBlobKeys);
+	}
+
+	public AccumulatorSnapshot(JobID jobID, ExecutionAttemptID executionAttemptID,
+								Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
+								SerializedValue<Map<String, Accumulator<?, ?>>> smallUserAccumulators) throws IOException {
+		this.jobID = jobID;
+		this.executionAttemptID = executionAttemptID;
+		this.flinkAccumulators = new SerializedValue<Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>>(flinkAccumulators);
+		this.userAccumulators = new UserAccumulators(smallUserAccumulators);
 	}
 
 	public JobID getJobID() {
@@ -59,9 +79,19 @@ public class BaseAccumulatorSnapshot implements Serializable {
 
 	/**
 	 * Gets the Flink (internal) accumulators values.
+	 *
 	 * @return the serialized map
 	 */
 	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> deserializeFlinkAccumulators() throws IOException, ClassNotFoundException {
 		return flinkAccumulators.deserializeValue(ClassLoader.getSystemClassLoader());
+	}
+
+	/**
+	 * Gets the User-defined accumulators.
+	 *
+	 * @return the user accumulators.
+	 */
+	public UserAccumulators getUserAccumulators() {
+		return userAccumulators;
 	}
 }

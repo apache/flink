@@ -18,24 +18,19 @@
 
 package org.apache.flink.runtime.accumulators;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.util.SerializedValue;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-/**
- * In case some user-defined accumulators do not fit in an Akka message payload, we store them in the
- * blobCache, and put in the snapshot only the mapping between the name of the accumulator,
- * and its blobKey in the cache. This clase is a subclass of the BaseAccumulatorSnapshot
- * and holds the (potential) references to blobs stored in the BlobCache and containing
- * these oversized accumulators. It is used for the transfer from TaskManagers to the
- * JobManager and from the JobManager to the Client.
- */
-public class LargeAccumulatorSnapshot extends BaseAccumulatorSnapshot {
+public class UserAccumulators implements java.io.Serializable {
+
+	/** Serialized user accumulators which may require the custom user class loader. */
+	private final SerializedValue<Map<String, Accumulator<?, ?>>> smallUserAccumulators;
 
 	/**
 	 * In case some accumulators do not fit in an Akka message payload, we store them in the blobCache and put
@@ -44,20 +39,37 @@ public class LargeAccumulatorSnapshot extends BaseAccumulatorSnapshot {
 	 * */
 	private final Map<String, List<BlobKey>> largeUserAccumulatorBlobs;
 
-	public LargeAccumulatorSnapshot(
-			JobID jobID, ExecutionAttemptID executionAttemptID,
-			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
-			Map<String, List<BlobKey>> oversizedUserAccumulatorBlobKeys) throws IOException {
-		super(jobID, executionAttemptID, flinkAccumulators);
+	public UserAccumulators(Map<String, List<BlobKey>> oversizedUserAccumulatorBlobKeys) throws IOException {
+		this.smallUserAccumulators = null;
 		this.largeUserAccumulatorBlobs = oversizedUserAccumulatorBlobKeys;
 	}
 
+
+	public UserAccumulators(SerializedValue<Map<String, Accumulator<?, ?>>> userAccumulators) throws IOException {
+		this.smallUserAccumulators = userAccumulators;
+		this.largeUserAccumulatorBlobs = null;
+	}
+
 	/**
-	 * Gets the BlobKeys of the oversized accumulators that were too big to be sent through akka, and
-	 * had to be stored in the BlobCache.
+	 * Gets the user-defined accumulators values that fit in akka payload.
+	 * @return the serialized map
+	 */
+	public Map<String, Accumulator<?, ?>> deserializeSmallUserAccumulators(ClassLoader classLoader) throws IOException, ClassNotFoundException {
+		if(largeUserAccumulatorBlobs != null) {
+			return Collections.emptyMap();
+		}
+		return smallUserAccumulators.deserializeValue(classLoader);
+	}
+
+	/**
+	 * Gets the BlobKeys of the oversized accumulators that were too big to be sent through akka.
+	 * These accumulators had to be stored in the BlobCache and their blobKeys are returned here.
 	 * @return the maping between accumulator and its blobKeys.
 	 */
 	public Map<String, List<BlobKey>> getLargeAccumulatorBlobKeys() {
+		if(smallUserAccumulators != null) {
+			return Collections.emptyMap();
+		}
 		return largeUserAccumulatorBlobs;
 	}
 }

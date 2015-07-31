@@ -34,7 +34,7 @@ import com.codahale.metrics.{Gauge, MetricFilter, MetricRegistry}
 import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration, IllegalConfigurationException}
-import org.apache.flink.runtime.accumulators.BaseAccumulatorSnapshot
+import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobCache, BlobService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
@@ -1040,7 +1040,7 @@ class TaskManager(
       val metricsReport: Array[Byte] = metricRegistryMapper.writeValueAsBytes(metricRegistry)
 
       val accumulatorEvents =
-        scala.collection.mutable.Buffer[BaseAccumulatorSnapshot]()
+        scala.collection.mutable.Buffer[AccumulatorSnapshot]()
 
       runningTasks foreach {
         case (execID, task) =>

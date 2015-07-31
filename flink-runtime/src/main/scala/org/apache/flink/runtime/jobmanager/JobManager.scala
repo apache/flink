@@ -30,7 +30,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.io.InputSplitAssigner
-import org.apache.flink.runtime.accumulators.{BaseAccumulatorSnapshot, LargeAccumulatorHelper}
+import org.apache.flink.runtime.accumulators.{AccumulatorSnapshot, LargeAccumulatorHelper}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobKey, BlobServer}
 import org.apache.flink.runtime.client._
@@ -970,7 +970,7 @@ class JobManager(
    * Updates the accumulators reported from a task manager via the Heartbeat message.
    * @param accumulators list of accumulator snapshots
    */
-  private def updateAccumulators(accumulators : Seq[BaseAccumulatorSnapshot]) = {
+  private def updateAccumulators(accumulators : Seq[AccumulatorSnapshot]) = {
     accumulators foreach {
       case accumulatorEvent =>
         currentJobs.get(accumulatorEvent.getJobID) match {
