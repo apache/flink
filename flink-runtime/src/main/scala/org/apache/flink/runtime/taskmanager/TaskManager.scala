@@ -36,11 +36,19 @@ import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, GarbageCollectorMetricSet}
 import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 
+//<<<<<<< HEAD
+//import org.apache.flink.api.common.cache.DistributedCache
+//import org.apache.flink.configuration._
+//import org.apache.flink.core.fs.Path
+//import org.apache.flink.runtime.ActorLogMessages
+//=======
 import org.apache.flink.configuration.{Configuration, ConfigConstants, GlobalConfiguration, IllegalConfigurationException}
 
+import org.apache.flink.ps.impl.ParameterServerIgniteImpl
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessages, LogMessages, StreamingMode}
+//>>>>>>> upstream/master
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobService, BlobCache}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
@@ -65,7 +73,14 @@ import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
+//<<<<<<< HEAD
+//import org.apache.flink.runtime.util.{MathUtils, EnvironmentInformation}
+//import org.apache.flink.util.ExceptionUtils
+import org.apache.ignite.Ignition
+import org.slf4j.LoggerFactory
+//=======
 import org.apache.flink.runtime.util.{ZooKeeperUtil, MathUtils, EnvironmentInformation}
+//>>>>>>> upstream/master
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -169,6 +184,8 @@ class TaskManager(
 
   private var heartbeatScheduler: Option[Cancellable] = None
 
+  private var ps : ParameterServerIgniteImpl = null
+
   protected var leaderSessionID: Option[UUID] = None
 
   private var currentRegistrationSessionID: UUID = UUID.randomUUID()
@@ -186,6 +203,11 @@ class TaskManager(
     log.info(s"Starting TaskManager actor at ${self.path.toSerializationFormat}.")
     log.info(s"TaskManager data connection information: $connectionInfo")
     log.info(s"TaskManager has $numberOfSlots task slot(s).")
+
+    log.info("TaskManager is starting a parameter server")
+    Ignition.stopAll(true);
+    ps = new ParameterServerIgniteImpl(ParameterServerIgniteImpl.GRID_NAME, false)
+
 
     // log the initial memory utilization
     if (log.isInfoEnabled) {
@@ -247,6 +269,9 @@ class TaskManager(
     } catch {
       case t: Exception => log.error("FileCache did not shutdown properly.", t)
     }
+
+    log.info("Shutting down own parameter server")
+    ps.shutDown()
 
     log.info(s"Task manager ${self.path} is completely shut down.")
   }
