@@ -18,13 +18,6 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.java.DataSet;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.operators.AbstractUdfOperator;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
@@ -32,9 +25,16 @@ import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
+import org.apache.flink.api.common.operators.base.BulkIterationStrategy;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.configuration.Configuration;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class OperatorTranslation {
 	
@@ -184,7 +184,7 @@ public class OperatorTranslation {
 	private <T> BulkIterationBase<T> translateBulkIteration(BulkIterationResultSet<?> untypedIterationEnd) {
 		@SuppressWarnings("unchecked")
 		BulkIterationResultSet<T> iterationEnd = (BulkIterationResultSet<T>) untypedIterationEnd;
-		
+
 		BulkIterationBase<T> iterationOperator =
 				new BulkIterationBase<T>(new UnaryOperatorInformation<T, T>(iterationEnd.getType(), iterationEnd.getType()), "Bulk Iteration");
 		IterativeDataSet<T> iterationHead = iterationEnd.getIterationHead();
@@ -195,6 +195,13 @@ public class OperatorTranslation {
 		iterationOperator.setNextPartialSolution(translatedBody);
 		iterationOperator.setMaximumNumberOfIterations(iterationHead.getMaxIterations());
 		iterationOperator.setInput(translate(iterationHead.getInput()));
+
+		if(iterationHead.getStrategy().equals(IterationStrategy.PLAIN)) {
+			iterationOperator.setStrategy(BulkIterationStrategy.PLAIN);
+		}
+		else if (iterationHead.getStrategy().equals(IterationStrategy.SSP)) {
+			iterationOperator.setStrategy(BulkIterationStrategy.SSP);
+		}
 		
 		iterationOperator.getAggregators().addAll(iterationHead.getAggregators());
 		
