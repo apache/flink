@@ -257,7 +257,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       case udfOp: UdfOperator[_] => udfOp.withParameters(parameters)
       case source: DataSource[_] => source.withParameters(parameters)
       case _ =>
-        throw new UnsupportedOperationException("Operator " + javaSet.toString 
+        throw new UnsupportedOperationException("Operator " + javaSet.toString
             + " cannot have parameters")
     }
     this
@@ -537,10 +537,10 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def collect(): Seq[T] = {
     val id = new AbstractID().toString
     val serializer = getType().createSerializer(getExecutionEnvironment.getConfig)
-    
+
     javaSet.flatMap(new Utils.CollectHelper[T](id, serializer))
            .output(new DiscardingOutputFormat[T])
-    
+
     val res = getExecutionEnvironment.execute()
 
     val accResult: java.util.ArrayList[Array[Byte]] = res.getAccumulatorResult(id)
@@ -884,7 +884,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def join[O](other: DataSet[O], strategy: JoinHint): UnfinishedJoinOperation[T, O] =
     new UnfinishedJoinOperation(this, other, strategy)
-  
+
   /**
    * Special [[join]] operation for explicitly telling the system that the right side is assumed
    * to be a lot smaller than the left side of the join.
@@ -1008,6 +1008,24 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
+   * Creates a new DataSet by performing bulk iterations using the given step function and Stale Synchronous
+   * Parallelism. The iterations terminate when `maxIterations` iterations have been performed.
+   */
+  def iterateWithSSP(maxIterations: Int)(stepFunction: (DataSet[T]) => DataSet[T]): DataSet[T] = {
+    val iterativeSet =
+      new IterativeDataSet[T](
+        javaSet.getExecutionEnvironment,
+        javaSet.getType,
+        javaSet,
+        maxIterations,
+        IterationStrategy.SSP)
+
+    val resultSet = stepFunction(wrap(iterativeSet))
+    val result = iterativeSet.closeWith(resultSet.javaSet)
+    wrap(result)
+  }
+
+  /**
    * Creates a new DataSet by performing bulk iterations using the given step function. The first
    * DataSet the step function returns is the input for the next iteration, the second DataSet is
    * the termination criterion. The iterations terminate when either the termination criterion
@@ -1034,6 +1052,26 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
         javaSet.getType,
         javaSet,
         maxIterations)
+
+    val (resultSet, terminationCriterion) = stepFunction(wrap(iterativeSet))
+    val result = iterativeSet.closeWith(resultSet.javaSet, terminationCriterion.javaSet)
+    wrap(result)
+  }
+
+  /**
+   * Creates a new DataSet by performing bulk iterations using the given step function and Stale Synchronous
+   * Parallelism.
+   *
+   */
+  def iterateWithSSPWithTermination(maxIterations: Int)(
+    stepFunction: (DataSet[T]) => (DataSet[T], DataSet[_])): DataSet[T] = {
+    val iterativeSet =
+      new IterativeDataSet[T](
+        javaSet.getExecutionEnvironment,
+        javaSet.getType,
+        javaSet,
+        maxIterations,
+        IterationStrategy.SSP)
 
     val (resultSet, terminationCriterion) = stepFunction(wrap(iterativeSet))
     val result = iterativeSet.closeWith(resultSet.javaSet, terminationCriterion.javaSet)
@@ -1176,7 +1214,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
         getCallLocationName())
     wrap(op)
   }
-  
+
   /**
    * Partitions a tuple DataSet on the specified key fields using a custom partitioner.
    * This method takes the key position to partition on, and a partitioner that accepts the key
@@ -1191,7 +1229,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       partitioner,
       implicitly[TypeInformation[K]],
       getCallLocationName())
-      
+
     wrap(op)
   }
 
@@ -1210,7 +1248,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       partitioner,
       implicitly[TypeInformation[K]],
       getCallLocationName())
-      
+
     wrap(op)
   }
 
@@ -1228,7 +1266,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       val cleanFun = clean(fun)
       def getKey(in: T) = cleanFun(in)
     }
-    
+
     val keyType = implicitly[TypeInformation[K]]
 
     val op = new PartitionOperator[T](
@@ -1240,7 +1278,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       partitioner,
       keyType,
       getCallLocationName())
-      
+
     wrap(op)
   }
 

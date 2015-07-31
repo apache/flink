@@ -29,26 +29,52 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.types.Value;
 
 /**
- * The IterativeDataSet represents the start of an iteration. It is created from the DataSet that 
+ * The IterativeDataSet represents the start of an iteration. It is created from the DataSet that
  * represents the initial solution set via the {@link DataSet#iterate(int)} method.
- * 
+ *
  * @param <T> The data type of set that is the input and feedback of the iteration.
  *
  * @see DataSet#iterate(int)
  */
 public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeDataSet<T>> {
 
+	private final IterationStrategy strategy;
+
+	@Override
+	public int getParallelism() {
+		return super.getParallelism();
+	}
+
 	private final AggregatorRegistry aggregators = new AggregatorRegistry();
-	
+
 	private int maxIterations;
 
 	public IterativeDataSet(ExecutionEnvironment context, TypeInformation<T> type, DataSet<T> input, int maxIterations) {
 		super(input, type);
 		this.maxIterations = maxIterations;
+		this.strategy = IterationStrategy.PLAIN;
 	}
-	
+
+	public IterativeDataSet(ExecutionEnvironment context, TypeInformation<T> type, DataSet<T> input, int maxIterations, IterationStrategy strategy) {
+		super(input, type);
+		this.maxIterations = maxIterations;
+		this.strategy = strategy;
+	}
+
 	// --------------------------------------------------------------------------------------------
-	
+
+	/**
+	 * Returns the iteration strategy
+	 *
+	 *
+	 * @return The DataSet that represents the result of the iteration, after the computation has terminated.
+	 *
+	 * @see DataSet#iterate(int)
+	 */
+	public IterationStrategy getStrategy() {
+		return strategy;
+	}
+
 	/**
 	 * Closes the iteration. This method defines the end of the iterative program part.
 	 * 
