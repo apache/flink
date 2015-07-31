@@ -62,6 +62,7 @@ import org.apache.flink.api.java.operators.FilterOperator;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
+import org.apache.flink.api.java.operators.IterationStrategy;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
@@ -970,6 +971,19 @@ public abstract class DataSet<T> {
 	 */
 	public IterativeDataSet<T> iterate(int maxIterations) {
 		return new IterativeDataSet<T>(getExecutionEnvironment(), getType(), this, maxIterations);
+	}
+
+	/**
+	 * Same as {@link org.apache.flink.api.java.DataSet#iterate(int)} but using SSP iterations with a default slack of 3.
+	 *
+	 * @param maxIterations The maximum number of times that the iteration is executed.
+	 * @return An IterativeDataSet that marks the start of the iterative part and needs to be closed by
+	 *         {@link org.apache.flink.api.java.operators.IterativeDataSet#closeWith(DataSet)}.
+	 *
+	 * @see org.apache.flink.api.java.operators.IterativeDataSet
+	 */
+	public IterativeDataSet<T> iterateWithSSP(int maxIterations) {
+		return new IterativeDataSet<T>(getExecutionEnvironment(), getType(), this, maxIterations, IterationStrategy.SSP);
 	}
 	
 	/**
