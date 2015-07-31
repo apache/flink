@@ -18,15 +18,6 @@
 
 package org.apache.flink.api.java;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.UUID;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -69,6 +60,14 @@ import org.apache.hadoop.mapreduce.Job;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.UUID;
 import com.esotericsoftware.kryo.Serializer;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -136,6 +135,13 @@ public abstract class ExecutionEnvironment {
 	 */
 	public ExecutionConfig getConfig() {
 		return config;
+	}
+
+
+	public int getSSPSlack() {return config.getSSPSlack();}
+
+	public void setSSPSlack(int slack) {
+		config.setSSPSlack(slack);
 	}
 
 	/**
