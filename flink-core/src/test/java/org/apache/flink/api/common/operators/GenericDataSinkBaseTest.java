@@ -26,10 +26,12 @@ import org.apache.flink.api.common.operators.util.TestNonRichOutputFormat;
 import org.apache.flink.api.common.operators.util.TestNonRichInputFormat;
 import org.apache.flink.api.common.operators.util.TestRichOutputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Nothing;
 import org.junit.Test;
 
 import java.util.HashMap;
+import java.util.concurrent.Future;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
@@ -87,15 +89,16 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
 
 			ExecutionConfig executionConfig = new ExecutionConfig();
 			final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
+			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 			executionConfig.disableObjectReuse();
 			in.reset();
-			sink.executeOnCollections(asList(TestIOData.NAMES), new RuntimeUDFContext("test_sink", 1, 0, null, executionConfig, accumulatorMap), executionConfig);
+			sink.executeOnCollections(asList(TestIOData.NAMES), new RuntimeUDFContext("test_sink", 1, 0, null, executionConfig, cpTasks, accumulatorMap), executionConfig);
 			assertEquals(out.output, asList(TestIOData.RICH_NAMES));
 
 			executionConfig.enableObjectReuse();
 			out.clear();
 			in.reset();
-			sink.executeOnCollections(asList(TestIOData.NAMES), new RuntimeUDFContext("test_sink", 1, 0, null, executionConfig, accumulatorMap), executionConfig);
+			sink.executeOnCollections(asList(TestIOData.NAMES), new RuntimeUDFContext("test_sink", 1, 0, null, executionConfig, cpTasks, accumulatorMap), executionConfig);
 			assertEquals(out.output, asList(TestIOData.RICH_NAMES));
 		} catch(Exception e){
 			e.printStackTrace();

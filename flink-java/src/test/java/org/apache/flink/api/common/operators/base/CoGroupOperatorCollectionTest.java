@@ -29,6 +29,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.builder.Tuple2Builder;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
@@ -40,6 +41,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Future;
 
 @SuppressWarnings("serial")
 public class CoGroupOperatorCollectionTest implements Serializable {
@@ -71,7 +73,8 @@ public class CoGroupOperatorCollectionTest implements Serializable {
 
 			ExecutionConfig executionConfig = new ExecutionConfig();
 			final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
-			final RuntimeContext ctx = new RuntimeUDFContext("Test UDF", 4, 0, null, executionConfig, accumulators);
+			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
+			final RuntimeContext ctx = new RuntimeUDFContext("Test UDF", 4, 0, null, executionConfig, cpTasks, accumulators);
 
 			{
 				SumCoGroup udf1 = new SumCoGroup();
