@@ -50,17 +50,24 @@ public class CliFrontendRunTest {
 			// test without parallelism
 			{
 				String[] parameters = {"-v", getTestJarPath()};
-				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(-1);
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(-1, true);
 				assertEquals(0, testFrontend.run(parameters));
 			}
 			
 			// test configure parallelism
 			{
 				String[] parameters = {"-v", "-p", "42",  getTestJarPath()};
-				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(42);
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(42, true);
 				assertEquals(0, testFrontend.run(parameters));
 			}
-			
+
+			// test configure sysout logging
+			{
+				String[] parameters = {"-p", "2", "-q", getTestJarPath()};
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, false);
+				assertEquals(0, testFrontend.run(parameters));
+			}
+
 			// test configure parallelism with non integer value
 			{
 				String[] parameters = {"-v", "-p", "text",  getTestJarPath()};
@@ -86,15 +93,18 @@ public class CliFrontendRunTest {
 	public static final class RunTestingCliFrontend extends CliFrontend {
 		
 		private final int expectedParallelim;
+		private final boolean sysoutLogging;
 		
-		public RunTestingCliFrontend(int expectedParallelim) throws Exception {
+		public RunTestingCliFrontend(int expectedParallelim, boolean logging) throws Exception {
 			super(CliFrontendTestUtils.getConfigDir());
 			this.expectedParallelim = expectedParallelim;
+			this.sysoutLogging = logging;
 		}
 
 		@Override
 		protected int executeProgram(PackagedProgram program, Client client, int parallelism, boolean wait) {
 			assertEquals(this.expectedParallelim, parallelism);
+			assertEquals(client.getPrintStatusDuringExecution(), sysoutLogging);
 			return 0;
 		}
 	}

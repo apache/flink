@@ -51,7 +51,7 @@ public class CliFrontendParser {
 			"The parallelism with which to run the program. Optional flag to override the default value " +
 					"specified in the configuration.");
 
-	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "Whether sysout" +
+	static final Option LOGGING_OPTION = new Option("q", "quiet", false, "Whether sysout" +
 			" " +
 			"logging is required or not");
 
@@ -149,7 +149,8 @@ public class CliFrontendParser {
 	}
 
 	private static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
-		options = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
+		options.addOption(CLASS_OPTION);
+		options.addOption(PARALLELISM_OPTION);
 		options = getJobManagerAddressOption(options);
 		return options;
 	}
