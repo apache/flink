@@ -149,7 +149,8 @@ public class CliFrontendParser {
 	}
 
 	private static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
-		options = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
+		options.addOption(CLASS_OPTION);
+		options.addOption(PARALLELISM_OPTION);
 		options = getJobManagerAddressOption(options);
 		return options;
 	}
