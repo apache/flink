@@ -192,6 +192,13 @@ public class Client {
 	}
 
 	/**
+	 * @return whether the client will print progress updates during the execution to {@code System.out}
+	 */
+	public boolean getPrintStatusDuringExecution() {
+		return this.printStatusDuringExecution;
+	}
+
+	/**
 	 * @return -1 if unknown. The maximum number of available processing slots at the Flink cluster
 	 * connected to this client.
 	 */
