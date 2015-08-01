@@ -25,10 +25,12 @@ import org.apache.flink.api.common.operators.util.TestIOData;
 import org.apache.flink.api.common.operators.util.TestNonRichInputFormat;
 import org.apache.flink.api.common.operators.util.TestRichInputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.core.fs.Path;
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.Future;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
@@ -73,13 +75,14 @@ public class GenericDataSourceBaseTest implements java.io.Serializable {
 							in, new OperatorInformation<String>(BasicTypeInfo.STRING_TYPE_INFO), "testSource");
 
 			final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
+			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 			ExecutionConfig executionConfig = new ExecutionConfig();
 			executionConfig.disableObjectReuse();
-			List<String> resultMutableSafe = source.executeOnCollections(new RuntimeUDFContext("test_source", 1, 0, null, executionConfig, accumulatorMap), executionConfig);
+			List<String> resultMutableSafe = source.executeOnCollections(new RuntimeUDFContext("test_source", 1, 0, null, executionConfig, cpTasks, accumulatorMap), executionConfig);
 
 			in.reset();
 			executionConfig.enableObjectReuse();
-			List<String> resultRegular = source.executeOnCollections(new RuntimeUDFContext("test_source", 1, 0, null, executionConfig, accumulatorMap), executionConfig);
+			List<String> resultRegular = source.executeOnCollections(new RuntimeUDFContext("test_source", 1, 0, null, executionConfig, cpTasks, accumulatorMap), executionConfig);
 
 			assertEquals(asList(TestIOData.RICH_NAMES), resultMutableSafe);
 			assertEquals(asList(TestIOData.RICH_NAMES), resultRegular);

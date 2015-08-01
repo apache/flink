@@ -57,17 +57,6 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final DistributedCache distributedCache;
 
-
-	public AbstractRuntimeUDFContext(String name,
-										int numParallelSubtasks, int subtaskIndex,
-										ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig,
-										Map<String, Accumulator<?,?>> accumulators)
-	{
-		this(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig,
-				accumulators, Collections.<String, Future<Path>>emptyMap());
-	}
-
 	public AbstractRuntimeUDFContext(String name,
 										int numParallelSubtasks, int subtaskIndex,
 										ClassLoader userCodeClassLoader,
@@ -79,7 +68,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 		this.subtaskIndex = subtaskIndex;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
-		this.distributedCache = new DistributedCache(cpTasks);
+		this.distributedCache = new DistributedCache(Preconditions.checkNotNull(cpTasks));
 		this.accumulators = Preconditions.checkNotNull(accumulators);
 	}
 
