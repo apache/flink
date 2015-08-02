@@ -30,6 +30,8 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -40,6 +42,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.Assert.*;
 
 public class BufferSpillerTest {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(BufferSpillerTest.class);
 
 	private static final int PAGE_SIZE = 4096;
 
@@ -179,6 +183,8 @@ public class BufferSpillerTest {
 
 	@Test
 	public void testSpillWhileReading() {
+		LOG.debug("Starting SpillWhileReading test");
+		
 		try {
 			final int sequences = 10;
 			
@@ -287,7 +293,11 @@ public class BufferSpillerTest {
 
 		MemorySegment seg = buf.getMemorySegment();
 		for (int i = 0; i < expectedSize; i++) {
-			assertEquals("wrong buffer contents", (byte) i, seg.get(i));
+			byte expected = (byte) i;
+			if (expected != seg.get(i)) {
+				fail(String.format(
+						"wrong buffer contents at position %s : expected=%d , found=%d", i, expected, seg.get(i)));
+			}
 		}
 	}
 	
@@ -349,6 +359,8 @@ public class BufferSpillerTest {
 					int numBuffersAndEvents = nextSequence.numBuffersAndEvents;
 					int numChannels = nextSequence.numChannels;
 
+					LOG.debug("Reading sequence {}", consumedSequences);
+					
 					// consume sequence
 					seq.open();
 					
