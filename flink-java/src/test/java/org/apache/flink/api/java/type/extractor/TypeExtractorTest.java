@@ -40,6 +40,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -265,6 +266,27 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, ((TupleTypeInfo<?>) tti2.getTypeAt(2)).getTypeAt(1));
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testTuple0() {
+		// use getFlatMapReturnTypes()
+		RichFlatMapFunction<?, ?> function = new RichFlatMapFunction<Tuple0, Tuple0>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void flatMap(Tuple0 value, Collector<Tuple0> out) throws Exception {
+				// nothing to do
+			}
+		};
+
+		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(function,
+				(TypeInformation) TypeInfoParser.parse("Tuple0"));
+
+		Assert.assertTrue(ti.isTupleType());
+		Assert.assertEquals(0, ti.getArity());
+		Assert.assertTrue(ti instanceof TupleTypeInfo);
+	}
+	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testSubclassOfTuple() {

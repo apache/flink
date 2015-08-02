@@ -17,23 +17,75 @@
  */
 package org.apache.flink.api.java.tuple;
 
-public class Tuple0 extends Tuple {
+import java.io.ObjectStreamException;
 
+/**
+ * A tuple with 0 fields.
+ * <p>
+ * {@code Tuple0} is a singleton.
+ * 
+ * @see Tuple
+ */
+public class Tuple0 extends Tuple {
 	private static final long serialVersionUID = 1L;
 
-	public Tuple0() {}
-
-	@Override
-	public <T> T getField(int pos) {
-		return null;
-	}
-
-	@Override
-	public <T> void setField(T value, int pos) {
-	}
+	public static final Tuple0 instance = new Tuple0();
 
 	@Override
 	public int getArity() {
 		return 0;
 	}
+
+	@Override
+	public <T> T getField(int pos) {
+		throw new IndexOutOfBoundsException(String.valueOf(pos));
+	}
+
+	@Override
+	public <T> void setField(T value, int pos) {
+		throw new IndexOutOfBoundsException(String.valueOf(pos));
+	}
+
+	// -------------------------------------------------------------------------------------------------
+	// standard utilities
+	// -------------------------------------------------------------------------------------------------
+
+	/**
+	 * Creates a string representation of the tuple in the form "()"
+	 * 
+	 * @return The string representation of the tuple.
+	 */
+	@Override
+	public String toString() {
+		return "()";
+	}
+
+	/**
+	 * Deep equality for tuples by calling equals() on the tuple members
+	 * 
+	 * @param o
+	 *            the object checked for equality
+	 * @return true if this is equal to o.
+	 */
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof Tuple0)) {
+			return false;
+		}
+		return true;
+	}
+
+	@Override
+	public int hashCode() {
+		return 0;
+	}
+
+	// singleton deserialization
+	private Object readResolve() throws ObjectStreamException {
+		return instance;
+	}
+
 }

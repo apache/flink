@@ -402,12 +402,9 @@ class TupleGenerator {
 	private static void modifyTupleType(File root) throws IOException {
 		// generate code
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tprivate static final Class<?>[] CLASSES = new Class<?>[] {\n\t\t");
+		sb.append("\tprivate static final Class<?>[] CLASSES = new Class<?>[] {\n\t\tTuple0.class");
 		for (int i = FIRST; i <= LAST; i++) {
-			if (i > FIRST) {
-				sb.append(", ");
-			}
-			sb.append("Tuple" + i + ".class");
+			sb.append(", Tuple" + i + ".class");
 		}
 		sb.append("\n\t};");
 
@@ -802,7 +799,7 @@ class TupleGenerator {
 		// package and imports
 		w.println("package " + PACKAGE + "." + BUILDER_SUFFIX + ';');
 		w.println();
-		w.println("import java.util.LinkedList;");
+		w.println("import java.util.ArrayList;");
 		w.println("import java.util.List;");
 		w.println();
 		w.println("import " + PACKAGE + ".Tuple" + numFields + ";");
@@ -817,7 +814,7 @@ class TupleGenerator {
 		// Class-Attributes - a list of tuples
 		w.print("\tprivate List<Tuple" + numFields);
 		printGenericsString(w, numFields);
-		w.print("> tuples = new LinkedList<Tuple" + numFields );
+		w.print("> tuples = new ArrayList<Tuple" + numFields );
 		printGenericsString(w, numFields);
 		w.println(">();");
 		w.println();
