@@ -32,6 +32,7 @@ import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Value;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -135,7 +136,10 @@ public final class UdfAnalyzerUtils {
 			throw new IllegalStateException("Method '" + name + "' could not be found", e);
 		} finally {
 			if (stream != null) {
-				stream.close();
+				try {
+					stream.close();
+				} catch (IOException ioe) {  // ignore
+				}
 			}
 		}
 		throw new IllegalStateException("Method '" + name + "' could not be found");
