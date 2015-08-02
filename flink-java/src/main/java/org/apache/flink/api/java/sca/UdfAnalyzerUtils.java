@@ -114,7 +114,7 @@ public final class UdfAnalyzerUtils {
 	 */
 	@SuppressWarnings("unchecked")
 	public static Object[] findMethodNode(String internalClassName, String name, String desc) {
-	  InputStream stream = null;
+		InputStream stream = null;
 		try {
 			// iterate through hierarchy and search for method node /
 			// class that really implements the method
@@ -134,9 +134,9 @@ public final class UdfAnalyzerUtils {
 		} catch (IOException e) {
 			throw new IllegalStateException("Method '" + name + "' could not be found", e);
 		} finally {
-		    if (stream != null) {
-		      stream.close();
-		    }
+			if (stream != null) {
+				stream.close();
+			}
 		}
 		throw new IllegalStateException("Method '" + name + "' could not be found");
 	}
