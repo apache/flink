@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.api.java.typeutils.runtime.Tuple0Serializer;
 //CHECKSTYLE.ON: AvoidStarImport
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
@@ -49,7 +50,7 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 
 	public TupleTypeInfo(Class<T> tupleType, TypeInformation<?>... types) {
 		super(tupleType, types);
-		if (types == null || types.length == 0 || types.length > Tuple.MAX_ARITY) {
+		if (types == null || types.length > Tuple.MAX_ARITY) {
 			throw new IllegalArgumentException();
 		}
 		this.fieldNames = new String[types.length];
@@ -72,8 +73,13 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 		return fieldIndex;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public TupleSerializer<T> createSerializer(ExecutionConfig executionConfig) {
+		if (this.tupleType == Tuple0.class) {
+			return (TupleSerializer<T>) Tuple0Serializer.getInstance();
+		}
+
 		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[getArity()];
 		for (int i = 0; i < types.length; i++) {
 			fieldSerializers[i] = types[i].createSerializer(executionConfig);

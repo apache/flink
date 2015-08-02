@@ -160,6 +160,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		}
 	}
 
+	@Override
 	public <X> TypeInformation<X> getTypeAt(String fieldExpression) {
 
 		Matcher matcher = PATTERN_NESTED_FIELDS.matcher(fieldExpression);
@@ -196,6 +197,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		}
 	}
 	
+	@Override
 	public <X> TypeInformation<X> getTypeAt(int pos) {
 		if (pos < 0 || pos >= this.types.length) {
 			throw new IndexOutOfBoundsException();
@@ -227,14 +229,16 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	@Override
 	public String toString() {
 		StringBuilder bld = new StringBuilder("Tuple");
-		bld.append(types.length).append('<');
-		bld.append(types[0]);
-		
-		for (int i = 1; i < types.length; i++) {
-			bld.append(", ").append(types[i]);
+		bld.append(types.length);
+		if (types.length > 0) {
+			bld.append('<').append(types[0]);
+
+			for (int i = 1; i < types.length; i++) {
+				bld.append(", ").append(types[i]);
+			}
+
+			bld.append('>');
 		}
-		
-		bld.append('>');
 		return bld.toString();
 	}
 

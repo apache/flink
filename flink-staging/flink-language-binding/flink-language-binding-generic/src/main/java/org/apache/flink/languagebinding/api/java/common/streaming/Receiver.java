@@ -32,6 +32,8 @@ import org.apache.flink.util.Collector;
  * General-purpose class to read data from memory-mapped files.
  */
 public class Receiver implements Serializable {
+	private static final long serialVersionUID = -2474088929850009968L;
+
 	private final AbstractRichFunction function;
 
 	private File inputFile;
@@ -39,7 +41,7 @@ public class Receiver implements Serializable {
 	private FileChannel inputChannel;
 	private MappedByteBuffer fileBuffer;
 
-	private Deserializer deserializer = null;
+	private Deserializer<?> deserializer = null;
 
 	public Receiver(AbstractRichFunction function) {
 		this.function = function;
@@ -196,6 +198,7 @@ public class Receiver implements Serializable {
 	 * @param bufferSize size of the buffer
 	 * @throws IOException
 	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public void collectBuffer(Collector c, int bufferSize) throws IOException {
 		fileBuffer.position(0);
 
@@ -209,7 +212,7 @@ public class Receiver implements Serializable {
 	}
 
 	//=====Deserializer=================================================================================================
-	private Deserializer getDeserializer(byte type) {
+	private Deserializer<?> getDeserializer(byte type) {
 		switch (type) {
 			case TYPE_TUPLE:
 				return new TupleDeserializer();
@@ -324,7 +327,7 @@ public class Receiver implements Serializable {
 	}
 
 	private class TupleDeserializer implements Deserializer<Tuple> {
-		Deserializer[] deserializer = null;
+		Deserializer<?>[] deserializer = null;
 		Tuple reuse;
 
 		public TupleDeserializer() {
@@ -346,61 +349,12 @@ public class Receiver implements Serializable {
 	}
 
 	public static Tuple createTuple(int size) {
-		switch (size) {
-			case 0:
-				return new Tuple0();
-			case 1:
-				return new Tuple1();
-			case 2:
-				return new Tuple2();
-			case 3:
-				return new Tuple3();
-			case 4:
-				return new Tuple4();
-			case 5:
-				return new Tuple5();
-			case 6:
-				return new Tuple6();
-			case 7:
-				return new Tuple7();
-			case 8:
-				return new Tuple8();
-			case 9:
-				return new Tuple9();
-			case 10:
-				return new Tuple10();
-			case 11:
-				return new Tuple11();
-			case 12:
-				return new Tuple12();
-			case 13:
-				return new Tuple13();
-			case 14:
-				return new Tuple14();
-			case 15:
-				return new Tuple15();
-			case 16:
-				return new Tuple16();
-			case 17:
-				return new Tuple17();
-			case 18:
-				return new Tuple18();
-			case 19:
-				return new Tuple19();
-			case 20:
-				return new Tuple20();
-			case 21:
-				return new Tuple21();
-			case 22:
-				return new Tuple22();
-			case 23:
-				return new Tuple23();
-			case 24:
-				return new Tuple24();
-			case 25:
-				return new Tuple25();
-			default:
-				throw new IllegalArgumentException("Tuple size not supported: " + size);
+		try {
+			return Tuple.getTupleClass(size).newInstance();
+		} catch (InstantiationException e) {
+			throw new RuntimeException(e);
+		} catch (IllegalAccessException e) {
+			throw new RuntimeException(e);
 		}
 	}
 }
