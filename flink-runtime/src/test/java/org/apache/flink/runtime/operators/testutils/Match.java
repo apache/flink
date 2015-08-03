@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators.testutils;
 /**
  * Utility class for keeping track of matches in join operator tests.
  *
- * @see org.apache.flink.runtime.operators.testutils.MatchRemovingMatcher
+ * @see MatchRemovingJoiner
  */
 public class Match {
 	private final String left;

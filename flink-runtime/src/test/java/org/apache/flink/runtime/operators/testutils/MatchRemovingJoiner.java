@@ -27,12 +27,12 @@ import java.util.Collection;
 import java.util.Map;
 
 
-public final class MatchRemovingMatcher implements FlatJoinFunction<Tuple2<Integer,String>,Tuple2<Integer,String>,Tuple2<Integer,String>> {
+public final class MatchRemovingJoiner implements FlatJoinFunction<Tuple2<Integer,String>,Tuple2<Integer,String>,Tuple2<Integer,String>> {
 	private static final long serialVersionUID = 1L;
 
 	private final Map<Integer, Collection<Match>> toRemoveFrom;
 
-	public MatchRemovingMatcher(Map<Integer, Collection<Match>> map) {
+	public MatchRemovingJoiner(Map<Integer, Collection<Match>> map) {
 		this.toRemoveFrom = map;
 	}
 
