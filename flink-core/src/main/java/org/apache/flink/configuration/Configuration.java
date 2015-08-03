@@ -472,7 +472,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters implement
 
 	// --------------------------------------------------------------------------------------------
 	
-	private <T> void setValueInternal(String key, T value) {
+	<T> void setValueInternal(String key, T value) {
 		if (key == null) {
 			throw new NullPointerException("Key must not be null.");
 		}

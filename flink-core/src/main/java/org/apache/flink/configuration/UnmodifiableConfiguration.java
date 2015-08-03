@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
  */
 public class UnmodifiableConfiguration extends Configuration {
 
-
 	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(UnmodifiableConfiguration.class);
 
@@ -89,8 +88,13 @@ public class UnmodifiableConfiguration extends Configuration {
 		error();
 	}
 
-	private final void error(){
-		LOG.warn("The unmodifiable configuration object doesn't allow set methods. Silently " +
-				"failing");
+	@Override
+	<T> void setValueInternal(String key, T value){
+		error();
 	}
+
+	private final void error(){
+		throw new UnsupportedOperationException("The unmodifiable configuration object doesn't allow set methods.");
+	}
+	
 }

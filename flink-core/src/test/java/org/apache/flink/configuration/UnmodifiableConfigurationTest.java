@@ -23,6 +23,8 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
+import java.lang.reflect.Method;
+
 /**
  * This class verifies that the Unmodifiable Configuration class overrides all setter methods in
  * Configuration.
@@ -35,16 +37,10 @@ public class UnmodifiableConfigurationTest {
 
 	@Test
 	public void testOverride() throws Exception{
-		unConf.setBoolean("a", false);
-		assertEquals(clazz, clazz.getMethod("setClass", String.class, Class.class).getDeclaringClass());
-		assertEquals(clazz, clazz.getMethod("setString", String.class, String.class).getDeclaringClass());
-		assertEquals(clazz, clazz.getMethod("setInteger", String.class, int.class).getDeclaringClass());
-		assertEquals(clazz, clazz.getMethod("setLong", String.class, long.class).getDeclaringClass());
-		assertEquals(clazz, clazz.getMethod("setFloat", String.class, float.class).getDeclaringClass());
-		assertEquals(clazz, clazz.getMethod("setDouble", String.class, double.class).getDeclaringClass());
-		assertEquals(clazz, clazz.getMethod("setBoolean", String.class, boolean.class).getDeclaringClass());
-		assertEquals(clazz, clazz.getMethod("setBytes", String.class, byte[].class).getDeclaringClass());
-		assertEquals(clazz, clazz.getMethod("addAll", Configuration.class).getDeclaringClass());
-		assertEquals(clazz, clazz.getMethod("addAll", Configuration.class, String.class).getDeclaringClass());
+		for(Method m : clazz.getMethods()){
+			if(m.getName().indexOf("set") == 0 || m.getName().indexOf("add") == 0 ) {
+				assertEquals(clazz, m.getDeclaringClass());
+			}
+		}
 	}
 }
