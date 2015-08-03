@@ -46,16 +46,27 @@ The web interface provides two views:
 
 ### Job View
 
-The interface starts serving the job view. 
+<div class="row">
+	<div class="col-md-4">
+		The interface starts serving the job view. <br>
+		<br>
+		You can <strong>upload</strong> a Flink program as a jar file. <br>
+                <br>
+		To <strong>execute</strong> an uploaded program:
+		<ul>
+			<li>select it from the job list on the left,</li>
+			<li>enter (optional) execution options in the <em>"Flink Options"</em> field (bottom left),</li>
+			<li>enter (optional) program arguments in the <em>"Program Arguments"</em> field (bottom left), and</li>
+			<li>click on the <em>"Run Job"</em> button (bottom right).</li>
+		</ul>
+		If the <em>“Show optimizer plan”</em> option is enabled (default), the <em>plan view</em> is display next, otherwise the job is directly submitted to the JobManager for execution.
+	</div>
+	<div class="col-md-8">
+		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/webclient_job_view.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/webclient_job_view.png" /></a>
+	</div>
+</div>
 
-You can **upload** a Flink program as a jar file. To **execute** an uploaded program:
-
-* select it from the job list on the left, 
-* enter (optional) execution options in the *"Flink Options"* field (bottom left),
-* enter (optional) program arguments in the *"Program Arguments"* field (bottom left), and
-* click on the *"Run Job"* button (bottom right).
-
-If the *“Show optimizer plan”* option is enabled (default), the *plan view* is display next, otherwise the job is directly submitted to the JobManager for execution.
+<br>
 
 The web interface can also handle multiple Flink jobs within a single jar file. To use this feature, package all required class files of all jobs into a single jar and specify the entry classes for each job as comma-separated-values in *program-class* argument within the jar's manifest file. The job view displays each entry class and you can pick any of them to preview the plan and/or submit the job to the JobManager. In case the jar's manifest file does not specify any entry class, you can specify it in the options field as:
 
@@ -73,11 +84,19 @@ Furthermore, for each entry class implementing ```ProgramDescription``` interfac
 
 ### Plan View
 
-The plan view shows the optimized execution plan of the submitted program in the upper half of the page. The bottom part of the page displays detailed information about the currently selected plan operator including:
+<div class="row">
+	<div class="col-md-4">
+		The plan view shows the optimized execution plan of the submitted program in the upper half of the page. The bottom part of the page displays detailed information about the currently selected plan operator including:
+		<ul>
+			<li>the chosen shipping strategies (local forward, hash partition, range partition, broadcast, ...),</li>
+			<li>the chosen local strategy (sort, hash join, merge join, ...),</li>
+			<li>inferred data properties (partitioning, grouping, sorting), and </li>
+			<li>used optimizer estimates (data size, I/O and network costs, ...).</li>
+		</ul>
 
-* the chosen shipping strategies (local forward, hash partition, range partition, broadcast, ...),
-* the chosen local strategy (sort, hash join, merge join, ...),
-* inferred data properties (partitioning, grouping, sorting), and 
-* used optimizer estimates (data size, I/O and network costs, ...).
-
-To submit the job for execution, click again on the *"Run Job"* button in the bottom right.
+		To submit the job for execution, click again on the <em>"Run Job"</em> button in the bottom right.
+	</div>
+	<div class="col-md-8">
+		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/webclient_plan_view.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/webclient_plan_view.png" /></a>
+	</div>
+</div>
