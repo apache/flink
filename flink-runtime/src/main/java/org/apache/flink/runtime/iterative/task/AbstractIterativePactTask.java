@@ -20,6 +20,7 @@ package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.runtime.taskmanager.TaskMessageHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -169,7 +170,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new IterativeRuntimeUdfContext(taskName, env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(), this.accumulatorMap);
+				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(), this.accumulatorMap, env.getMessageHandler());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -361,8 +362,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 
 		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig,
-										Map<String, Accumulator<?,?>> accumulatorMap) {
-			super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, accumulatorMap);
+										Map<String, Accumulator<?,?>> accumulatorMap, TaskMessageHandler messageHandler) {
+			super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, accumulatorMap, messageHandler);
 		}
 
 		@Override

@@ -173,6 +173,11 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
 
 	/**
+	 * Maximum messages a task can receive from its counterparts, i.e., parallel running instances.
+	 */
+	public static final String TASK_MANAGER_MAX_TASK_MESSAGES = "taskmanager.maxTaskMessage";
+
+	/**
 	 * Parameter for the maximum fan for out-of-core algorithms.
 	 * Corresponds to the maximum fan-in for merge-sorts and the maximum fan-out
 	 * for hybrid hash joins. 

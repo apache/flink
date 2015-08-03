@@ -157,7 +157,8 @@ public class TaskAsyncCallTest {
 				DummyActorGateway.INSTANCE,
 				new FiniteDuration(60, TimeUnit.SECONDS),
 				libCache,
-				mock(FileCache.class));
+				mock(FileCache.class),
+				new TaskMessageHandler(0, new JobVertexID(), DummyActorGateway.INSTANCE));
 	}
 	
 	public static class CheckpointsInOrderInvokable extends AbstractInvokable

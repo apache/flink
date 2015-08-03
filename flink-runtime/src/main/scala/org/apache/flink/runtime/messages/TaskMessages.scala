@@ -21,9 +21,10 @@ package org.apache.flink.runtime.messages
 import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, IntermediateResultPartitionID}
+import org.apache.flink.runtime.jobgraph.{JobVertexID, IntermediateDataSetID, IntermediateResultPartitionID}
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
+import org.apache.flink.api.common.messages.{TaskMessage => RuntimeTaskMessage}
 
 /**
  * A set of messages that control the deployment and the state of Tasks executed
@@ -181,4 +182,18 @@ object TaskMessages {
     new UpdateTaskMultiplePartitionInfos(executionID,
       resultIDs.asScala.zip(partitionInfos.asScala))
   }
+
+  case class RuntimeMessage(jobVertexID: JobVertexID, message: RuntimeTaskMessage){
+    def getVertexID: JobVertexID = jobVertexID
+    def getMessage: RuntimeTaskMessage = message
+  }
+  /**
+   * Message sent from the Message Handler to the Task Manager for broadcasting to everyone
+   */
+  case class SelfBroadcast(runtimeMessage: RuntimeMessage)
+
+  /**
+   * Message broadcasted by a task manager to every task manager.
+   */
+  case class RuntimeBroadcast(runtimeMessage: RuntimeMessage)
 }

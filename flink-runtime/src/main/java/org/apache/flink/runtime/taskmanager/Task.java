@@ -215,6 +215,11 @@ public class Task implements Runnable {
 	private volatile SerializedValue<StateHandle<?>> operatorState;
 
 	/**
+	 * The message handler which managed communication to and from other parallel instances.
+	 */
+	private TaskMessageHandler messageHandler;
+
+	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to 
 	 * be undone in the case of a failing task deployment.</p>
 	 */
@@ -227,7 +232,8 @@ public class Task implements Runnable {
 				ActorGateway jobManagerActor,
 				FiniteDuration actorAskTimeout,
 				LibraryCacheManager libraryCache,
-				FileCache fileCache)
+				FileCache fileCache,
+				TaskMessageHandler messageHandler)
 	{
 		checkArgument(tdd.getNumberOfSubtasks() > 0);
 		checkArgument(tdd.getIndexInSubtaskGroup() >= 0);
@@ -250,6 +256,7 @@ public class Task implements Runnable {
 		this.ioManager = checkNotNull(ioManager);
 		this.broadcastVariableManager = checkNotNull(bcVarManager);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
+		this.messageHandler = checkNotNull(messageHandler);
 
 		this.jobManager = checkNotNull(jobManagerActor);
 		this.taskManager = checkNotNull(taskManagerActor);
@@ -265,7 +272,6 @@ public class Task implements Runnable {
 
 		final String taskNameWithSubtasksAndId =
 				Task.getTaskNameWithSubtaskAndID(taskName, subtaskIndex, parallelism, executionId);
-
 		List<ResultPartitionDeploymentDescriptor> partitions = tdd.getProducedPartitions();
 		List<InputGateDeploymentDescriptor> consumedPartitions = tdd.getInputGates();
 
@@ -510,7 +516,7 @@ public class Task implements Runnable {
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
 					splitProvider, distributedCacheEntries,
-					writers, inputGates, jobManager);
+					writers, inputGates, jobManager, messageHandler);
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);

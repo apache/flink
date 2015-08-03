@@ -47,6 +47,18 @@ object TaskManagerMessages {
   }
 
   /**
+   * Tells the task manager to fetch the list of current running task managers fromm the job manager
+   */
+  case object FetchTaskManagerList {
+
+    /**
+     * Accessor for the case object instance, to simplify Java interoperability.
+     * @return The FetchTaskManagerList case object instance
+     */
+    def get() : FetchTaskManagerList.type = FetchTaskManagerList
+  }
+
+  /**
    * Reports liveliness of the TaskManager instance with the given instance ID to the
    * This message is sent to the job. This message reports the TaskManagers
    * metrics, as a byte array.
@@ -57,6 +69,8 @@ object TaskManagerMessages {
    */
   case class Heartbeat(instanceID: InstanceID, metricsReport: Array[Byte],
      accumulators: Seq[AccumulatorSnapshot])
+
+  case class FetchTaskManagerList()
 
 
   // --------------------------------------------------------------------------

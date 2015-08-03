@@ -30,6 +30,7 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.messages.TaskMessage;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.StateCheckpointer;
 
@@ -230,4 +231,19 @@ public interface RuntimeContext {
 	 */
 	<S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
 			boolean partitioned) throws IOException;
+
+
+	/**
+	 * Send a message to all parallel instances of this task at runtime. This message will also
+	 * be available to this runtime context also via {@link #receive()}
+	 *
+	 * @param message Message to be sent to all parallel instances of task
+	 */
+	void broadcast(TaskMessage message);
+
+	/**
+	 * Fetch all messages received by the task manager from parallel instances of this task in a
+	 * list. If no message has been received, this will be an empty list.
+	 */
+	List<TaskMessage> receive();
 }

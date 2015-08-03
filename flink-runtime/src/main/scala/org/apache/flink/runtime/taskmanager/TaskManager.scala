@@ -39,6 +39,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.configuration.{Configuration, ConfigConstants, GlobalConfiguration, IllegalConfigurationException}
 
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
+import org.apache.flink.runtime.messages.JobManagerMessages.{RegisteredTaskManagers, RequestRegisteredTaskManagers}
 import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessages, LogMessages, StreamingMode}
 import org.apache.flink.runtime.akka.AkkaUtils
@@ -49,7 +50,7 @@ import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager,
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription,
-InstanceConnectionInfo, InstanceID}
+InstanceConnectionInfo, InstanceID, Instance}
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.disk.iomanager.{IOManager, IOManagerAsync}
 import org.apache.flink.runtime.io.network.NetworkEnvironment
@@ -124,7 +125,8 @@ class TaskManager(
     protected val memoryManager: MemoryManager,
     protected val ioManager: IOManager,
     protected val network: NetworkEnvironment,
-    protected val numberOfSlots: Int)
+    protected val numberOfSlots: Int,
+    protected val messageHandler: MessageHandler)
   extends FlinkActor
   with LeaderSessionMessages // Mixin order is important: second we want to filter leader messages
   with LogMessages // Mixin order is important: first we want to support message logging
@@ -169,9 +171,13 @@ class TaskManager(
 
   private var heartbeatScheduler: Option[Cancellable] = None
 
+  private var fetchTaskManagerListScheduler: Option[Cancellable] = None
+
   protected var leaderSessionID: Option[UUID] = None
 
   private val currentRegistrationSessionID: UUID = UUID.randomUUID()
+
+  private var taskManagerList: Iterable[Instance] = Iterable.empty
 
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
@@ -248,6 +254,8 @@ class TaskManager(
       case t: Exception => log.error("FileCache did not shutdown properly.", t)
     }
 
+    messageHandler.shutDown()
+
     log.info(s"Task manager ${self.path} is completely shut down.")
   }
 
@@ -282,6 +290,14 @@ class TaskManager(
         waitForRegistration += sender
       }
 
+    case FetchTaskManagerList =>
+      currentJobManager foreach {
+        jm => jm ! decorateMessage(RequestRegisteredTaskManagers)
+      }
+
+    case taskManagers: RegisteredTaskManagers =>
+      taskManagerList = taskManagers.taskManagers
+
     // this message indicates that some actor watched by this TaskManager has died
     case Terminated(actor: ActorRef) =>
       if (isConnected && actor == currentJobManager.orNull) {
@@ -291,6 +307,14 @@ class TaskManager(
         log.warn(s"Received unrecognized disconnect message " +
           s"from ${if (actor == null) null else actor.path}.")
       }
+
+    case SelfBroadcast(runtimeMessage) =>
+      taskManagerList.iterator.foreach(
+        taskManager => taskManager.getActorGateway.tell(RuntimeBroadcast(runtimeMessage))
+      )
+
+    case RuntimeBroadcast(runtimeMessage) =>
+      messageHandler.sendToTask(runtimeMessage.getVertexID, runtimeMessage.getMessage)
 
     case Disconnect(msg) =>
       handleJobManagerDisconnect(sender(), "JobManager requested disconnect: " + msg)
@@ -703,12 +727,16 @@ class TaskManager(
 
     // start the network stack, now that we have the JobManager actor reference
     try {
+      val tmGateway = new AkkaActorGateway(self, leaderSessionID)
       network.associateWithTaskManagerAndJobManager(
         new AkkaActorGateway(jobManager, leaderSessionID),
-        new AkkaActorGateway(self, leaderSessionID)
+        tmGateway
       )
 
-
+      messageHandler.setup(
+        tmGateway,
+        config.configuration.getInteger(ConfigConstants.TASK_MANAGER_MAX_TASK_MESSAGES, 50)
+      )
     }
     catch {
       case e: Exception =>
@@ -753,6 +781,16 @@ class TaskManager(
       )(context.dispatcher)
     )
 
+    // schedule regular messages to fetch other task manager instances
+    fetchTaskManagerListScheduler = Some(
+      context.system.scheduler.schedule(
+        TaskManager.FETCH_LIST_INITIAL_DELAY,
+        TaskManager.HEARTBEAT_INTERVAL,
+        self,
+        decorateMessage(FetchTaskManagerList)
+      )(context.dispatcher)
+    )
+
     // notify all the actors that listen for a successful registration
     for (listener <- waitForRegistration) {
       listener ! RegisteredAtJobManager
@@ -780,6 +818,11 @@ class TaskManager(
     }
     heartbeatScheduler = None
 
+    fetchTaskManagerListScheduler foreach {
+      _.cancel()
+    }
+    fetchTaskManagerListScheduler = None
+
     // stop the monitoring of the JobManager
     currentJobManager foreach {
       jm => context.unwatch(jm)
@@ -803,6 +846,8 @@ class TaskManager(
       service => service.shutdown()
     }
     blobService = None
+
+    messageHandler.shutDown()
 
     // disassociate the network environment
     network.disassociate()
@@ -892,7 +937,9 @@ class TaskManager(
         jobManagerGateway,
         config.timeout,
         libCache,
-        fileCache)
+        fileCache,
+        messageHandler.registerTask(tdd.getVertexID, tdd.getIndexInSubtaskGroup)
+      )
 
       log.info(s"Received task ${task.getTaskNameWithSubtasks}")
 
@@ -990,6 +1037,7 @@ class TaskManager(
         t.failExternally(cause)
       }
       runningTasks.clear()
+      messageHandler.shutDown()
     }
   }
 
@@ -1015,6 +1063,8 @@ class TaskManager(
         val registry = task.getAccumulatorRegistry
         registry.getSnapshot
       }
+
+      messageHandler.registerTask(task.getJobVertexId, task.getIndexInSubtaskGroup)
 
         self ! decorateMessage(
           UpdateTaskExecutionState(
@@ -1137,6 +1187,8 @@ object TaskManager {
   val DELAY_AFTER_REFUSED_REGISTRATION: FiniteDuration = 10 seconds
 
   val HEARTBEAT_INTERVAL: FiniteDuration = 5000 milliseconds
+
+  val FETCH_LIST_INITIAL_DELAY: FiniteDuration = 0 milliseconds
 
 
   // --------------------------------------------------------------------------
@@ -1596,6 +1648,8 @@ object TaskManager {
       LOG.info("HA mode.")
     }
 
+    val messageHandler = new MessageHandler()
+
     // create the actor properties (which define the actor constructor parameters)
     val tmProps = Props(
       taskManagerClass,
@@ -1605,7 +1659,8 @@ object TaskManager {
       memoryManager,
       ioManager,
       network,
-      taskManagerConfig.numberOfSlots)
+      taskManagerConfig.numberOfSlots,
+      messageHandler)
 
     taskManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(tmProps, actorName)

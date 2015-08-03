@@ -99,7 +99,7 @@ public class TaskManagerComponentsStartupShutdownTest {
 			// create the task manager
 			final Props tmProps = Props.create(TaskManager.class,
 					tmConfig, connectionInfo, jobManager.path().toString(),
-					memManager, ioManager, network, numberOfSlots);
+					memManager, ioManager, network, numberOfSlots, new MessageHandler());
 
 			final ActorRef taskManager = actorSystem.actorOf(tmProps);
 
