@@ -34,9 +34,9 @@ under the License.
             <outputDirectory>/</outputDirectory>
             <unpack>true</unpack>
             <includes>
-                <!-- need to be added explicitly to get 'defaults.yaml' -->
                 <include>org.apache.storm:storm-core:jar</include>
-                <include>org.apache.flink:flink-storm-examples:jar</include>
+                <include>org.apache.flink:flink-storm-compatibility-core:jar</include>
+                <include>org.apache.flink:flink-storm-compatibility-examples:jar</include>
             </includes>
             <unpackOptions>
                 <includes>
@@ -60,10 +60,10 @@ under the License.
                     <include>org/apache/flink/stormcompatibility/api/*.class</include>
                     <include>org/apache/flink/stormcompatibility/wrappers/*.class</include>
                     <!-- Word Count -->
-                    <include>org/apache/flink/stormcompatibility/wordcount/StormWordCountRemoteBySubmitter.class
-                    </include>
+                    <include>org/apache/flink/stormcompatibility/wordcount/StormWordCountRemoteBySubmitter.class</include>
                     <include>org/apache/flink/stormcompatibility/wordcount/WordCountTopology.class</include>
                     <include>org/apache/flink/stormcompatibility/wordcount/stormoperators/*.class</include>
+                    <include>org/apache/flink/stormcompatibility/util/*.class</include>
                     <include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>
                 </includes>
             </unpackOptions>
