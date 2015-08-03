@@ -135,7 +135,7 @@ public class NonReusingSortMergeInnerJoinIteratorITCase {
 					collectData(input2));
 
 			final FlatJoinFunction<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> joinFunction =
-					new MatchRemovingMatcher(expectedMatchesMap);
+					new MatchRemovingJoiner(expectedMatchesMap);
 
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<Tuple2<Integer, String>>();
 	
@@ -226,7 +226,7 @@ public class NonReusingSortMergeInnerJoinIteratorITCase {
 			input1 = new MergeIterator<Tuple2<Integer, String>>(inList1, comparator1.duplicate());
 			input2 = new MergeIterator<Tuple2<Integer, String>>(inList2, comparator2.duplicate());
 			
-			final FlatJoinFunction<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> joinFunction = new MatchRemovingMatcher(expectedMatchesMap);
+			final FlatJoinFunction<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> joinFunction = new MatchRemovingJoiner(expectedMatchesMap);
 			
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<Tuple2<Integer, String>>();
 	
