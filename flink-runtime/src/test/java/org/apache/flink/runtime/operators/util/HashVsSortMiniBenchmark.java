@@ -32,7 +32,7 @@ import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.hash.ReusingBuildFirstHashMatchIterator;
 import org.apache.flink.runtime.operators.hash.ReusingBuildSecondHashMatchIterator;
-import org.apache.flink.runtime.operators.sort.ReusingMergeMatchIterator;
+import org.apache.flink.runtime.operators.sort.ReusingMergeInnerJoinIterator;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -143,8 +143,8 @@ public class HashVsSortMiniBenchmark {
 			final MutableObjectIterator<Record> sortedInput2 = sorter2.getIterator();
 			
 			// compare with iterator values
-			ReusingMergeMatchIterator<Record, Record, Record> iterator =
-				new ReusingMergeMatchIterator<Record, Record, Record>(sortedInput1, sortedInput2,
+			ReusingMergeInnerJoinIterator<Record, Record, Record> iterator =
+				new ReusingMergeInnerJoinIterator<Record, Record, Record>(sortedInput1, sortedInput2,
 						this.serializer1.getSerializer(), this.comparator1, this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
 						this.memoryManager, this.ioManager, MEMORY_PAGES_FOR_MERGE, this.parentTask);
 			

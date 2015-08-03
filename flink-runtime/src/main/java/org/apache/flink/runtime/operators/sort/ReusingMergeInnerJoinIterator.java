@@ -26,13 +26,13 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.util.KeyGroupedIterator;
-import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
+import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.MutableObjectIterator;
 
 
-public class NonReusingMergeMatchIterator<T1, T2, O> extends AbstractMergeMatchIterator<T1, T2, O> {
+public class ReusingMergeInnerJoinIterator<T1, T2, O> extends AbstractMergeInnerJoinIterator<T1, T2, O> {
 
-	public NonReusingMergeMatchIterator(
+	public ReusingMergeInnerJoinIterator(
 			MutableObjectIterator<T1> input1,
 			MutableObjectIterator<T2> input2,
 			TypeSerializer<T1> serializer1, TypeComparator<T1> comparator1,
@@ -44,16 +44,21 @@ public class NonReusingMergeMatchIterator<T1, T2, O> extends AbstractMergeMatchI
 			AbstractInvokable parentTask)
 			throws MemoryAllocationException {
 		super(input1, input2, serializer1, comparator1, serializer2, comparator2, pairComparator, memoryManager, ioManager, numMemoryPages, parentTask);
+
+		this.copy1 = serializer1.createInstance();
+		this.spillHeadCopy = serializer1.createInstance();
+		this.copy2 = serializer2.createInstance();
+		this.blockHeadCopy = serializer2.createInstance();
 	}
 
 	@Override
 	protected <T> KeyGroupedIterator<T> createKeyGroupedIterator(MutableObjectIterator<T> input, TypeSerializer<T> serializer, TypeComparator<T> comparator) {
-		return new NonReusingKeyGroupedIterator<T>(input, comparator);
+		return new ReusingKeyGroupedIterator<T>(input, serializer, comparator);
 	}
 
 	@Override
 	protected <T> T createCopy(TypeSerializer<T> serializer, T value, T reuse) {
-		return serializer.copy(value);
+		return serializer.copy(value, reuse);
 	}
 
 }
