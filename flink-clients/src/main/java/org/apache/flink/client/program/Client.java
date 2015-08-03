@@ -370,7 +370,7 @@ public class Client {
 
 			try {
 				if (wait) {
-					return JobClient.submitJobAndWait(actorSystem,
+					return JobClient.submitJobAndWait(configuration, actorSystem,
 						jobManagerGateway, jobGraph, timeout, printStatusDuringExecution, userCodeClassLoader);
 				} else {
 					JobClient.submitJobDetached(jobManagerGateway, jobGraph, timeout, userCodeClassLoader);

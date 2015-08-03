@@ -128,6 +128,7 @@ public class JobClient {
 	 *                                                               execution fails.
 	 */
 	public static JobExecutionResult submitJobAndWait(
+			Configuration config,
 			ActorSystem actorSystem,
 			ActorGateway jobManagerGateway,
 			JobGraph jobGraph,
@@ -149,7 +150,8 @@ public class JobClient {
 				jobManagerGateway.actor(),
 				LOG,
 				sysoutLogUpdates,
-				jobManagerGateway.leaderSessionID());
+				jobManagerGateway.leaderSessionID(),
+				config);
 
 		ActorRef jobClientActor = actorSystem.actorOf(jobClientActorProps);
 		
