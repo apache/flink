@@ -329,8 +329,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		if (ss instanceof CompactingHashTable) {
 			@SuppressWarnings("unchecked")
 			CompactingHashTable<OT> solutionSet = (CompactingHashTable<OT>) ss;
-			TypeSerializer<OT> serializer = getOutputSerializer();
-			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, serializer, delegate);
+			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, delegate);
 		}
 		else if (ss instanceof JoinHashMap) {
 			@SuppressWarnings("unchecked")

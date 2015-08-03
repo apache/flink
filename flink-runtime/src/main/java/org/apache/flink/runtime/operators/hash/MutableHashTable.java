@@ -886,7 +886,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 				
 				// forward pointer set
 				final int overflowSegNum = (int) (originalForwardPointer >>> 32);
-				final int segOffset = (int) (originalForwardPointer & 0xffffffff);
+				final int segOffset = (int) originalForwardPointer;
 				final MemorySegment seg = p.overflowSegments[overflowSegNum];
 				
 				final short obCount = seg.getShort(segOffset + HEADER_COUNT_OFFSET);
