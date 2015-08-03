@@ -20,6 +20,7 @@ package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -189,6 +190,16 @@ public class MockEnvironment implements Environment {
 	@Override
 	public Configuration getJobConfiguration() {
 		return this.jobConfiguration;
+	}
+
+	@Override
+	public Configuration getTaskManagerConfiguration(){
+		return new UnmodifiableConfiguration(new Configuration());
+	}
+
+	@Override
+	public String getHostname(){
+		return "localhost";
 	}
 
 	@Override

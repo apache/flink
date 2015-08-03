@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.filecache.FileCache;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -148,16 +150,20 @@ public class TaskAsyncCallTest {
 				Collections.<BlobKey>emptyList(),
 				0);
 
+		ActorGateway taskManagerGateway = DummyActorGateway.INSTANCE;
 		return new Task(tdd,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				networkEnvironment,
 				mock(BroadcastVariableManager.class),
-				DummyActorGateway.INSTANCE,
+				taskManagerGateway,
 				DummyActorGateway.INSTANCE,
 				new FiniteDuration(60, TimeUnit.SECONDS),
 				libCache,
-				mock(FileCache.class));
+				mock(FileCache.class),
+				new RuntimeConfiguration(
+						taskManagerGateway.path(),
+						new UnmodifiableConfiguration(new Configuration())));
 	}
 	
 	public static class CheckpointsInOrderInvokable extends AbstractInvokable
