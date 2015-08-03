@@ -18,29 +18,76 @@
 
 package org.apache.flink.configuration;
 
-
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This class verifies that the Unmodifiable Configuration class overrides all setter methods in
  * Configuration.
  */
 public class UnmodifiableConfigurationTest {
-
-	private static Configuration pc = new Configuration();
-	private static UnmodifiableConfiguration unConf = new UnmodifiableConfiguration(pc);
-	private static Class clazz = unConf.getClass();
-
+	
 	@Test
-	public void testOverride() throws Exception{
-		for(Method m : clazz.getMethods()){
-			if(m.getName().indexOf("set") == 0 || m.getName().indexOf("add") == 0 ) {
-				assertEquals(clazz, m.getDeclaringClass());
+	public void testOverrideAddMethods() {
+		try {
+			Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
+			for (Method m : clazz.getMethods()) {
+				if (m.getName().startsWith("add")) {
+					assertEquals(clazz, m.getDeclaringClass());
+				}
 			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testExceptionOnSet() {
+		try {
+			Map<Class<?>, Object> parameters = new HashMap<Class<?>, Object>();
+			parameters.put(byte[].class, new byte[0]);
+			parameters.put(Class.class, Object.class);
+			parameters.put(int.class, 0);
+			parameters.put(long.class, 0L);
+			parameters.put(float.class, 0.0f);
+			parameters.put(double.class, 0.0);
+			parameters.put(String.class, "");
+			parameters.put(boolean.class, false);
+					
+			Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
+			UnmodifiableConfiguration config = new UnmodifiableConfiguration(new Configuration());
+			
+			for (Method m : clazz.getMethods()) {
+				if (m.getName().startsWith("set")) {
+					
+					Class<?> parameterClass = m.getParameterTypes()[1];
+					Object parameter = parameters.get(parameterClass);
+					assertNotNull("method " + m + " not covered by test", parameter);
+					
+					try {
+						m.invoke(config, "key", parameter);
+						fail("should fail with an exception");
+					}
+					catch (InvocationTargetException e) {
+						assertTrue(e.getTargetException() instanceof UnsupportedOperationException);
+					}
+				}
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 }
