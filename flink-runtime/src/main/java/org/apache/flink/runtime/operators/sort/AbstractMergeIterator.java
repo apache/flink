@@ -115,20 +115,20 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 	}
 
 	/**
-	 * Calls the <code>JoinFunction#match()</code> method for all two key-value pairs that share the same key and come
-	 * from different inputs. The output of the <code>match()</code> method is forwarded.
+	 * Calls the <code>JoinFunction#join()</code> method for all two key-value pairs that share the same key and come
+	 * from different inputs. The output of the <code>join()</code> method is forwarded.
 	 * <p>
 	 * This method first zig-zags between the two sorted inputs in order to find a common
-	 * key, and then calls the match stub with the cross product of the values.
+	 * key, and then calls the join stub with the cross product of the values.
 	 *
 	 * @throws Exception Forwards all exceptions from the user code and the I/O system.
 	 * @see org.apache.flink.runtime.operators.util.JoinTaskIterator#callWithNextKey(org.apache.flink.api.common.functions.FlatJoinFunction, org.apache.flink.util.Collector)
 	 */
 	@Override
-	public abstract boolean callWithNextKey(final FlatJoinFunction<T1, T2, O> matchFunction, final Collector<O> collector)
+	public abstract boolean callWithNextKey(final FlatJoinFunction<T1, T2, O> joinFunction, final Collector<O> collector)
 			throws Exception;
 
-	protected void crossMatchingGroup(Iterator<T1> values1, Iterator<T2> values2, FlatJoinFunction<T1, T2, O> matchFunction, Collector<O> collector) throws Exception {
+	protected void crossMatchingGroup(Iterator<T1> values1, Iterator<T2> values2, FlatJoinFunction<T1, T2, O> joinFunction, Collector<O> collector) throws Exception {
 		final T1 firstV1 = values1.next();
 		final T2 firstV2 = values2.next();
 
@@ -143,23 +143,23 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 			if (v2HasNext) {
 				// both sides contain more than one value
 				// TODO: Decide which side to spill and which to block!
-				crossMwithNValues(firstV1, values1, firstV2, values2, matchFunction, collector);
+				crossMwithNValues(firstV1, values1, firstV2, values2, joinFunction, collector);
 			} else {
-				crossSecond1withNValues(firstV2, firstV1, values1, matchFunction, collector);
+				crossSecond1withNValues(firstV2, firstV1, values1, joinFunction, collector);
 			}
 		} else {
 			if (v2HasNext) {
-				crossFirst1withNValues(firstV1, firstV2, values2, matchFunction, collector);
+				crossFirst1withNValues(firstV1, firstV2, values2, joinFunction, collector);
 			} else {
 				// both sides contain only one value
-				matchFunction.join(firstV1, firstV2, collector);
+				joinFunction.join(firstV1, firstV2, collector);
 			}
 		}
 	}
 
 	/**
 	 * Crosses a single value from the first input with N values, all sharing a common key.
-	 * Effectively realizes a <i>1:N</i> match (join).
+	 * Effectively realizes a <i>1:N</i> join.
 	 *
 	 * @param val1      The value form the <i>1</i> side.
 	 * @param firstValN The first of the values from the <i>N</i> side.
@@ -167,21 +167,21 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 	 * @throws Exception Forwards all exceptions thrown by the stub.
 	 */
 	private void crossFirst1withNValues(final T1 val1, final T2 firstValN,
-										final Iterator<T2> valsN, final FlatJoinFunction<T1, T2, O> matchFunction, final Collector<O> collector)
+										final Iterator<T2> valsN, final FlatJoinFunction<T1, T2, O> joinFunction, final Collector<O> collector)
 			throws Exception {
 		T1 copy1 = createCopy(serializer1, val1, this.copy1);
-		matchFunction.join(copy1, firstValN, collector);
+		joinFunction.join(copy1, firstValN, collector);
 
-		// set copy and match first element
+		// set copy and join first element
 		boolean more = true;
 		do {
 			final T2 nRec = valsN.next();
 
 			if (valsN.hasNext()) {
 				copy1 = createCopy(serializer1, val1, this.copy1);
-				matchFunction.join(copy1, nRec, collector);
+				joinFunction.join(copy1, nRec, collector);
 			} else {
-				matchFunction.join(val1, nRec, collector);
+				joinFunction.join(val1, nRec, collector);
 				more = false;
 			}
 		}
@@ -190,7 +190,7 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 
 	/**
 	 * Crosses a single value from the second side with N values, all sharing a common key.
-	 * Effectively realizes a <i>N:1</i> match (join).
+	 * Effectively realizes a <i>N:1</i> join.
 	 *
 	 * @param val1      The value form the <i>1</i> side.
 	 * @param firstValN The first of the values from the <i>N</i> side.
@@ -198,20 +198,20 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 	 * @throws Exception Forwards all exceptions thrown by the stub.
 	 */
 	private void crossSecond1withNValues(T2 val1, T1 firstValN,
-										Iterator<T1> valsN, FlatJoinFunction<T1, T2, O> matchFunction, Collector<O> collector) throws Exception {
+										Iterator<T1> valsN, FlatJoinFunction<T1, T2, O> joinFunction, Collector<O> collector) throws Exception {
 		T2 copy2 = createCopy(serializer2, val1, this.copy2);
-		matchFunction.join(firstValN, copy2, collector);
+		joinFunction.join(firstValN, copy2, collector);
 
-		// set copy and match first element
+		// set copy and join first element
 		boolean more = true;
 		do {
 			final T1 nRec = valsN.next();
 
 			if (valsN.hasNext()) {
 				copy2 = createCopy(serializer2, val1, this.copy2);
-				matchFunction.join(nRec, copy2, collector);
+				joinFunction.join(nRec, copy2, collector);
 			} else {
-				matchFunction.join(nRec, val1, collector);
+				joinFunction.join(nRec, val1, collector);
 				more = false;
 			}
 		}
@@ -220,7 +220,7 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 
 	private void crossMwithNValues(final T1 firstV1, Iterator<T1> spillVals,
 									final T2 firstV2, final Iterator<T2> blockVals,
-									final FlatJoinFunction<T1, T2, O> matchFunction, final Collector<O> collector) throws Exception {
+									final FlatJoinFunction<T1, T2, O> joinFunction, final Collector<O> collector) throws Exception {
 		// ==================================================
 		// We have one first (head) element from both inputs (firstV1 and firstV2)
 		// We have an iterator for both inputs.
@@ -237,13 +237,13 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 		// 5) cross the head of the spilling side with the next block
 		// 6) cross the spilling iterator with the next block.
 
-		// match the first values first
+		// join the first values first
 		T1 copy1 = this.createCopy(serializer1, firstV1, this.copy1);
 		T2 blockHeadCopy = this.createCopy(serializer2, firstV2, this.blockHeadCopy);
 		T1 spillHeadCopy = null;
 
 		// --------------- 1) Cross the heads -------------------
-		matchFunction.join(copy1, firstV2, collector);
+		joinFunction.join(copy1, firstV2, collector);
 
 		// for the remaining values, we do a block-nested-loops join
 		SpillingResettableIterator<T1> spillIt = null;
@@ -256,7 +256,7 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 			while (this.blockIt.hasNext()) {
 				final T2 nextBlockRec = this.blockIt.next();
 				copy1 = this.createCopy(serializer1, firstV1, this.copy1);
-				matchFunction.join(copy1, nextBlockRec, collector);
+				joinFunction.join(copy1, nextBlockRec, collector);
 			}
 			this.blockIt.reset();
 
@@ -286,7 +286,7 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 
 				// -------- 3) cross the iterator of the spilling side with the head of the block side --------
 				T2 copy2 = this.createCopy(serializer2, blockHeadCopy, this.copy2);
-				matchFunction.join(copy1, copy2, collector);
+				joinFunction.join(copy1, copy2, collector);
 
 				// -------- 4) cross the iterator of the spilling side with the first block --------
 				while (this.blockIt.hasNext()) {
@@ -294,7 +294,7 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 
 					// get instances of key and block value
 					copy1 = this.createCopy(serializer1, nextSpillVal, this.copy1);
-					matchFunction.join(copy1, nextBlockRec, collector);
+					joinFunction.join(copy1, nextBlockRec, collector);
 				}
 				// reset block iterator
 				this.blockIt.reset();
@@ -316,7 +316,7 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 				while (this.blockIt.hasNext()) {
 					copy1 = this.createCopy(serializer1, spillHeadCopy, this.copy1);
 					final T2 nextBlockVal = blockIt.next();
-					matchFunction.join(copy1, nextBlockVal, collector);
+					joinFunction.join(copy1, nextBlockVal, collector);
 				}
 				this.blockIt.reset();
 
@@ -329,7 +329,7 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 						// get instances of key and block value
 						final T2 nextBlockVal = this.blockIt.next();
 						copy1 = this.createCopy(serializer1, nextSpillVal, this.copy1);
-						matchFunction.join(copy1, nextBlockVal, collector);
+						joinFunction.join(copy1, nextBlockVal, collector);
 					}
 
 					// reset block iterator
