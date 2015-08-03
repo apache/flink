@@ -75,6 +75,8 @@ public class RuntimeEnvironment implements Environment {
 
 	private final AccumulatorRegistry accumulatorRegistry;
 
+	private TaskMessageHandler messageHandler;
+
 	// ------------------------------------------------------------------------
 
 	public RuntimeEnvironment(
@@ -96,7 +98,8 @@ public class RuntimeEnvironment implements Environment {
 			Map<String, Future<Path>> distCacheEntries,
 			ResultPartitionWriter[] writers,
 			InputGate[] inputGates,
-			ActorGateway jobManager) {
+			ActorGateway jobManager,
+			TaskMessageHandler messageHandler) {
 		
 		checkArgument(parallelism > 0 && subtaskIndex >= 0 && subtaskIndex < parallelism);
 
@@ -119,6 +122,7 @@ public class RuntimeEnvironment implements Environment {
 		this.writers = checkNotNull(writers);
 		this.inputGates = checkNotNull(inputGates);
 		this.jobManager = checkNotNull(jobManager);
+		this.messageHandler = checkNotNull(messageHandler);
 	}
 
 
@@ -177,6 +181,11 @@ public class RuntimeEnvironment implements Environment {
 	@Override
 	public MemoryManager getMemoryManager() {
 		return memManager;
+	}
+
+	@Override
+	public TaskMessageHandler getMessageHandler(){
+		return messageHandler;
 	}
 
 	@Override

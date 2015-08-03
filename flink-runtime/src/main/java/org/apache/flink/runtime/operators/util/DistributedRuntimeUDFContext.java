@@ -28,11 +28,13 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.AbstractRuntimeUDFContext;
+import org.apache.flink.api.common.messages.TaskMessage;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.broadcast.InitializationTypeConflictException;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.runtime.taskmanager.TaskMessageHandler;
 
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
@@ -40,16 +42,21 @@ import com.google.common.base.Preconditions;
 public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 
 	private final HashMap<String, BroadcastVariableMaterialization<?, ?>> broadcastVars = new HashMap<String, BroadcastVariableMaterialization<?, ?>>();
-	
+
+	private final TaskMessageHandler messageHandler;
 	
 	public DistributedRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig, Map<String, Accumulator<?,?>> accumulators) {
+										ExecutionConfig executionConfig, Map<String, Accumulator<?,?>> accumulators,
+										TaskMessageHandler messageHandler) {
 		super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, accumulators);
+		this.messageHandler = messageHandler;
 	}
 	
 	public DistributedRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators) {
+										ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks,
+										Map<String, Accumulator<?,?>> accumulators, TaskMessageHandler messageHandler) {
 		super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, accumulators, cpTasks);
+		this.messageHandler = messageHandler;
 	}
 	
 
@@ -105,5 +112,15 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 	
 	public void clearAllBroadcastVariables() {
 		this.broadcastVars.clear();
+	}
+
+	@Override
+	public void broadcast(TaskMessage message){
+		messageHandler.send(message);
+	}
+
+	@Override
+	public List<TaskMessage> receive(){
+		return messageHandler.fetch(getIndexOfThisSubtask());
 	}
 }
