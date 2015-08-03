@@ -27,6 +27,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.messages.TaskMessage;
 import org.apache.flink.core.fs.Path;
 
 /**
@@ -114,5 +115,17 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
 	public void clearAllBroadcastVariables() {
 		this.uninitializedBroadcastVars.clear();
 		this.initializedBroadcastVars.clear();
+	}
+
+	@Override
+	public void broadcast(TaskMessage message){
+		// can't implement this method here. We need the runtime system.
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public List<TaskMessage> receive(){
+		// can't implement this method here. We need the runtime system.
+		throw new UnsupportedOperationException();
 	}
 }

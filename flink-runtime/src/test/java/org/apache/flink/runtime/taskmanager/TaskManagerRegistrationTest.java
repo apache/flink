@@ -470,12 +470,20 @@ public class TaskManagerRegistrationTest {
 							message = expectMsgAnyClassOf(
 									TaskManagerMessages.getRegisteredAtJobManagerMessage().getClass(),
 									RegisterTaskManager.class,
-									TaskManagerMessages.Heartbeat.class);
+									TaskManagerMessages.Heartbeat.class,
+									TaskManagerMessages.FetchTaskManagerList.class);
 						}
 
 						tm.tell(JobManagerMessages.getRequestLeaderSessionID(), getTestActor());
 
-						expectMsgEquals(new JobManagerMessages.ResponseLeaderSessionID(Option.apply(trueLeaderSessionID)));
+						JobManagerMessages.ResponseLeaderSessionID expected =
+								new JobManagerMessages.ResponseLeaderSessionID(Option.apply(trueLeaderSessionID));
+
+						while(message == null || !(message.equals(expected))){
+							message = expectMsgAnyClassOf(
+									JobManagerMessages.ResponseLeaderSessionID.class,
+									JobManagerMessages.getRequestRegisteredTaskManagers().getClass());
+						}
 					}
 				};
 

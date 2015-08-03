@@ -32,6 +32,7 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -725,7 +726,8 @@ public class TaskTest {
 				jobManagerGateway,
 				new FiniteDuration(60, TimeUnit.SECONDS),
 				libCache,
-				mock(FileCache.class));
+				mock(FileCache.class),
+				new TaskMessageHandler(0, new JobVertexID(), DummyActorGateway.INSTANCE));
 	}
 
 	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(Class<? extends AbstractInvokable> invokable) {

@@ -53,10 +53,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.Tasks;
-import org.apache.flink.runtime.messages.Messages;
-import org.apache.flink.runtime.messages.RegistrationMessages;
-import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.messages.TaskMessages;
+import org.apache.flink.runtime.messages.*;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.PartitionState;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
@@ -194,12 +191,14 @@ public class TaskManagerTest {
 										new TaskExecutionState(jid, eid, ExecutionState.FINISHED)));
 						
 						deadline = System.currentTimeMillis() + 10000;
+
 						do {
 							Object message = receiveOne(d);
 							if (message.equals(toRunning)) {
 								break;
 							}
-							else if (!(message instanceof TaskManagerMessages.Heartbeat)) {
+							else if (!(message instanceof TaskManagerMessages.Heartbeat)
+									&& !(message == JobManagerMessages.getRequestRegisteredTaskManagers())) {
 								fail("Unexpected message: " + message);
 							}
 						} while (System.currentTimeMillis() < deadline);
@@ -210,7 +209,8 @@ public class TaskManagerTest {
 							if (message.equals(toFinished)) {
 								break;
 							}
-							else if (!(message instanceof TaskManagerMessages.Heartbeat)) {
+							else if (!(message instanceof TaskManagerMessages.Heartbeat)
+									&& !(message == JobManagerMessages.getRequestRegisteredTaskManagers())) {
 								fail("Unexpected message: " + message);
 							}
 						} while (System.currentTimeMillis() < deadline);

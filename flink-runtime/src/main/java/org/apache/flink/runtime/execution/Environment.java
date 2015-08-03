@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.taskmanager.TaskMessageHandler;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -114,6 +115,14 @@ public interface Environment {
 	 * @return the current {@link MemoryManager}.
 	 */
 	MemoryManager getMemoryManager();
+
+	/**
+	 * Returns the {@link org.apache.flink.runtime.taskmanager.TaskMessageHandler} for this task
+	 *
+	 * @return the {@link org.apache.flink.runtime.taskmanager.TaskMessageHandler} for this task
+	 */
+
+	TaskMessageHandler getMessageHandler();
 
 	/**
 	 * Returns the name of the task running in this environment.

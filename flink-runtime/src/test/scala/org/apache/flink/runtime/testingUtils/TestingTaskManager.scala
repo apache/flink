@@ -30,7 +30,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.{ResponseLeaderSessi
 RequestLeaderSessionID}
 import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.TaskMessages.{UpdateTaskExecutionState, TaskInFinalState}
-import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManager}
+import org.apache.flink.runtime.taskmanager.{MessageHandler, TaskManagerConfiguration, TaskManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages._
@@ -55,7 +55,8 @@ class TestingTaskManager(
     memoryManager: DefaultMemoryManager,
     ioManager: IOManager,
     network: NetworkEnvironment,
-    numberOfSlots: Int)
+    numberOfSlots: Int,
+    messageHandler: MessageHandler)
   extends TaskManager(
     config,
     connectionInfo,
@@ -63,7 +64,8 @@ class TestingTaskManager(
     memoryManager,
     ioManager,
     network,
-    numberOfSlots) {
+    numberOfSlots,
+    messageHandler) {
 
   import scala.collection.JavaConverters._
 
