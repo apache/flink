@@ -16,78 +16,52 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.example;
+package org.apache.flink.graph.library;
 
-import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
 import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.SumFunction;
 import org.apache.flink.graph.gsa.Neighbor;
-import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
  * This is an implementation of the Single Source Shortest Paths algorithm, using a gather-sum-apply iteration
  */
-public class GSASingleSourceShortestPaths implements ProgramDescription {
+public class GSASingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, Double> {
 
-	// --------------------------------------------------------------------------------------------
-	//  Program
-	// --------------------------------------------------------------------------------------------
+	private final K srcVertexId;
+	private final Integer maxIterations;
 
-	public static void main(String[] args) throws Exception {
+	public GSASingleSourceShortestPaths(K srcVertexId, Integer maxIterations) {
+		this.srcVertexId = srcVertexId;
+		this.maxIterations = maxIterations;
+	}
 
-		if(!parseParameters(args)) {
-			return;
-		}
+	@Override
+	public Graph<K, Double, Double> run(Graph<K, Double, Double> input) {
 
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		DataSet<Edge<Long, Double>> edges = getEdgeDataSet(env);
-
-		Graph<Long, Double, Double> graph = Graph.fromDataSet(edges, new InitVertices(srcVertexId), env);
-
-		// Execute the GSA iteration
-		Graph<Long, Double, Double> result = graph
+		return input.mapVertices(new InitVerticesMapper<K>(srcVertexId))
 				.runGatherSumApplyIteration(new CalculateDistances(), new ChooseMinDistance(),
-						new UpdateDistance(), maxIterations);
-
-		// Extract the vertices as the result
-		DataSet<Vertex<Long, Double>> singleSourceShortestPaths = result.getVertices();
-
-		// emit result
-		if(fileOutput) {
-			singleSourceShortestPaths.writeAsCsv(outputPath, "\n", " ");
-
-			// since file sinks are lazy, we trigger the execution explicitly
-			env.execute("GSA Single Source Shortest Paths");
-		} else {
-			singleSourceShortestPaths.print();
-		}
-
+						new UpdateDistance<K>(), maxIterations);
 	}
 
 	@SuppressWarnings("serial")
-	private static final class InitVertices implements MapFunction<Long, Double>{
+	public static final class InitVerticesMapper<K>	implements MapFunction<Vertex<K, Double>, Double> {
 
-		private long srcId;
+		private K srcVertexId;
 
-		public InitVertices(long srcId) {
-			this.srcId = srcId;
+		public InitVerticesMapper(K srcId) {
+			this.srcVertexId = srcId;
 		}
 
-		public Double map(Long id) {
-			if (id.equals(srcId)) {
+		public Double map(Vertex<K, Double> value) {
+			if (value.f0.equals(srcVertexId)) {
 				return 0.0;
-			}
-			else {
-				return Double.POSITIVE_INFINITY;
+			} else {
+				return Double.MAX_VALUE;
 			}
 		}
 	}
@@ -113,68 +87,12 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 	};
 
 	@SuppressWarnings("serial")
-	private static final class UpdateDistance extends ApplyFunction<Long, Double, Double> {
+	private static final class UpdateDistance<K> extends ApplyFunction<K, Double, Double> {
 
 		public void apply(Double newDistance, Double oldDistance) {
 			if (newDistance < oldDistance) {
 				setResult(newDistance);
 			}
 		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Util methods
-	// --------------------------------------------------------------------------------------------
-
-	private static boolean fileOutput = false;
-
-	private static Long srcVertexId = 1l;
-
-	private static String edgesInputPath = null;
-
-	private static String outputPath = null;
-
-	private static int maxIterations = 5;
-
-	private static boolean parseParameters(String[] args) {
-
-		if (args.length > 0) {
-			if(args.length != 4) {
-				System.err.println("Usage: GSASingleSourceShortestPaths <source vertex id>" +
-						" <input edges path> <output path> <num iterations>");
-				return false;
-			}
-
-			fileOutput = true;
-			srcVertexId = Long.parseLong(args[0]);
-			edgesInputPath = args[1];
-			outputPath = args[2];
-			maxIterations = Integer.parseInt(args[3]);
-		} else {
-				System.out.println("Executing GSASingle Source Shortest Paths example "
-						+ "with default parameters and built-in default data.");
-				System.out.println("  Provide parameters to read input data from files.");
-				System.out.println("  See the documentation for the correct format of input files.");
-				System.out.println("Usage: GSASingleSourceShortestPaths <source vertex id>" +
-						" <input edges path> <output path> <num iterations>");
-		}
-		return true;
-	}
-
-	private static DataSet<Edge<Long, Double>> getEdgeDataSet(ExecutionEnvironment env) {
-		if (fileOutput) {
-			return env.readCsvFile(edgesInputPath)
-					.fieldDelimiter("\t")
-					.lineDelimiter("\n")
-					.types(Long.class, Long.class, Double.class)
-					.map(new Tuple3ToEdgeMap<Long, Double>());
-		} else {
-			return SingleSourceShortestPathsData.getDefaultEdgeDataSet(env);
-		}
-	}
-
-	@Override
-	public String getDescription() {
-		return "GSA Single Source Shortest Paths";
 	}
 }
