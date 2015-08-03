@@ -33,34 +33,35 @@ import java.util.Iterator;
 
 /**
  * An implementation of the {@link org.apache.flink.runtime.operators.util.JoinTaskIterator} that realizes the
- * matching through a sort-merge join strategy.
+ * joining through a sort-merge join strategy.
  */
-public abstract class AbstractMergeMatchIterator<T1, T2, O> extends AbstractMergeIterator<T1, T2, O> {
+public abstract class AbstractMergeInnerJoinIterator<T1, T2, O> extends AbstractMergeIterator<T1, T2, O> {
 
-	public AbstractMergeMatchIterator(MutableObjectIterator<T1> input1, MutableObjectIterator<T2> input2,
-									TypeSerializer<T1> serializer1, TypeComparator<T1> comparator1,
-									TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2,
-									TypePairComparator<T1, T2> pairComparator,
-									MemoryManager memoryManager,
-									IOManager ioManager,
-									int numMemoryPages,
-									AbstractInvokable parentTask)
+	public AbstractMergeInnerJoinIterator(
+			MutableObjectIterator<T1> input1, MutableObjectIterator<T2> input2,
+			TypeSerializer<T1> serializer1, TypeComparator<T1> comparator1,
+			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2,
+			TypePairComparator<T1, T2> pairComparator,
+			MemoryManager memoryManager,
+			IOManager ioManager,
+			int numMemoryPages,
+			AbstractInvokable parentTask)
 			throws MemoryAllocationException {
 		super(input1, input2, serializer1, comparator1, serializer2, comparator2, pairComparator, memoryManager, ioManager, numMemoryPages, parentTask);
 	}
 
 	/**
-	 * Calls the <code>JoinFunction#match()</code> method for all two key-value pairs that share the same key and come
-	 * from different inputs. The output of the <code>match()</code> method is forwarded.
-	 * <p>
+	 * Calls the <code>JoinFunction#join()</code> method for all two key-value pairs that share the same key and come
+	 * from different inputs. The output of the <code>join()</code> method is forwarded.
+	 * <p/>
 	 * This method first zig-zags between the two sorted inputs in order to find a common
-	 * key, and then calls the match stub with the cross product of the values.
+	 * key, and then calls the join stub with the cross product of the values.
 	 *
 	 * @throws Exception Forwards all exceptions from the user code and the I/O system.
 	 * @see org.apache.flink.runtime.operators.util.JoinTaskIterator#callWithNextKey(org.apache.flink.api.common.functions.FlatJoinFunction, org.apache.flink.util.Collector)
 	 */
 	@Override
-	public boolean callWithNextKey(final FlatJoinFunction<T1, T2, O> matchFunction, final Collector<O> collector)
+	public boolean callWithNextKey(final FlatJoinFunction<T1, T2, O> joinFunction, final Collector<O> collector)
 			throws Exception {
 		if (!this.iterator1.nextKey() || !this.iterator2.nextKey()) {
 			// consume all remaining keys (hack to prevent remaining inputs during iterations, lets get rid of this soon)
@@ -96,12 +97,12 @@ public abstract class AbstractMergeMatchIterator<T1, T2, O> extends AbstractMerg
 			}
 		}
 
-		// here, we have a common key! call the match function with the cross product of the
+		// here, we have a common key! call the join function with the cross product of the
 		// values
 		final Iterator<T1> values1 = this.iterator1.getValues();
 		final Iterator<T2> values2 = this.iterator2.getValues();
 
-		crossMatchingGroup(values1, values2, matchFunction, collector);
+		crossMatchingGroup(values1, values2, joinFunction, collector);
 		return true;
 	}
 }
