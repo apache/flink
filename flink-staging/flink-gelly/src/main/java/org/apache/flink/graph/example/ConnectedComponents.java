@@ -31,12 +31,11 @@ import org.apache.flink.graph.library.ConnectedComponentsAlgorithm;
 import org.apache.flink.types.NullValue;
 
 /**
- * This example shows how to use the {@link org.apache.flink.graph.library.ConnectedComponentsAlgorithm}
- * library method:
- * <ul>
- * 	<li> with the edge data set given as a parameter
- * 	<li> with default data
- * </ul>
+ * This example shows how to use Gelly's library methods.
+ * You can find all available library methods in {@link org.apache.flink.graph.library}. 
+ * 
+ * In particular, this example uses the {@link org.apache.flink.graph.library.ConnectedComponentsAlgorithm}
+ * library method to compute the connected components of the input graph.
  *
  * The input file is a plain text file and must be formatted as follows:
  * Edges are represented by tuples of srcVertexId, trgVertexId which are

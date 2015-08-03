@@ -34,6 +34,13 @@ import org.apache.flink.graph.example.utils.JaccardSimilarityMeasureData;
 import java.util.HashSet;
 
 /**
+ * This example shows how to use
+ * <ul>
+ *  <li> neighborhood methods
+ *  <li> join with vertices
+ *  <li> triplets
+ * </ul>
+ * 
  * Given a directed, unweighted graph, return a weighted graph where the edge values are equal
  * to the Jaccard similarity coefficient - the number of common neighbors divided by the the size
  * of the union of neighbor sets - for the src and target vertices.
@@ -117,8 +124,7 @@ public class JaccardSimilarityMeasure implements ProgramDescription {
 	private static final class GatherNeighbors implements ReduceNeighborsFunction<HashSet<Long>> {
 
 		@Override
-		public HashSet<Long> reduceNeighbors(HashSet<Long> first,
-											HashSet<Long> second) {
+		public HashSet<Long> reduceNeighbors(HashSet<Long> first, HashSet<Long> second) {
 			first.addAll(second);
 			return new HashSet<Long>(first);
 		}

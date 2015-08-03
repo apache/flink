@@ -26,23 +26,28 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
-import org.apache.flink.graph.library.SingleSourceShortestPathsAlgorithm;
+import org.apache.flink.graph.spargel.MessageIterator;
+import org.apache.flink.graph.spargel.MessagingFunction;
+import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
- * This example implements the Single Source Shortest Paths algorithm,
- * using a vertex-centric iteration.
+ * This example shows how to use Gelly's vertex-centric iterations.
+ * 
+ * It is an implementation of the Single-Source-Shortest-Paths algorithm.
+ * For a gather-sum-apply implementation of the same algorithm, please refer to {@link GSASingleSourceShortestPaths}. 
  *
- * The input file is expected to contain one edge per line, with long IDs
- * and double weights, separated by tabs, in the following format:
- * "<sourceVertexID>\t<targetVertexID>\t<edgeValue>".
+ * The input file is a plain text file and must be formatted as follows:
+ * Edges are represented by tuples of srcVertexId, trgVertexId, distance which are
+ * separated by tabs. Edges themselves are separated by newlines.
+ * For example: <code>1\t2\t0.1\n1\t3\t1.4\n</code> defines two edges,
+ * edge 1-2 with distance 0.1, and edge 1-3 with distance 1.4.
  *
- * If no arguments are provided, the example runs with default data from {@link SingleSourceShortestPathsData}.
- *
+ * If no parameters are provided, the program is run with default data from
+ * {@link org.apache.flink.graph.example.utils.SingleSourceShortestPathsData}
  */
 public class SingleSourceShortestPaths implements ProgramDescription {
 
-	@SuppressWarnings("serial")
 	public static void main(String[] args) throws Exception {
 
 		if (!parseParameters(args)) {
@@ -53,17 +58,14 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 
 		DataSet<Edge<Long, Double>> edges = getEdgesDataSet(env);
 
-		Graph<Long, Double, Double> graph = Graph.fromDataSet(edges,
-				new MapFunction<Long, Double>() {
+		Graph<Long, Double, Double> graph = Graph.fromDataSet(edges, new InitVertices(srcVertexId), env);
 
-					public Double map(Long value) {
-						return Double.MAX_VALUE;
-					}
-		}, env);
+		// Execute the vertex-centric iteration
+		Graph<Long, Double, Double> result = graph.runVertexCentricIteration(
+				new VertexDistanceUpdater(), new MinDistanceMessenger(), maxIterations);
 
-		DataSet<Vertex<Long, Double>> singleSourceShortestPaths = graph
-				.run(new SingleSourceShortestPathsAlgorithm<Long>(srcVertexId, maxIterations))
-				.getVertices();
+		// Extract the vertices as the result
+		DataSet<Vertex<Long, Double>> singleSourceShortestPaths = result.getVertices();
 
 		// emit result
 		if (fileOutput) {
@@ -77,9 +79,66 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 
 	}
 
-	@Override
-	public String getDescription() {
-		return "Single Source Shortest Paths";
+	// --------------------------------------------------------------------------------------------
+	//  Single Source Shortest Path UDFs
+	// --------------------------------------------------------------------------------------------
+
+	@SuppressWarnings("serial")
+	private static final class InitVertices implements MapFunction<Long, Double>{
+
+		private long srcId;
+
+		public InitVertices(long srcId) {
+			this.srcId = srcId;
+		}
+
+		public Double map(Long id) {
+			if (id.equals(srcId)) {
+				return 0.0;
+			}
+			else {
+				return Double.POSITIVE_INFINITY;
+			}
+		}
+	}
+
+	/**
+	 * Function that updates the value of a vertex by picking the minimum
+	 * distance from all incoming messages.
+	 */
+	@SuppressWarnings("serial")
+	public static final class VertexDistanceUpdater extends VertexUpdateFunction<Long, Double, Double> {
+
+		@Override
+		public void updateVertex(Vertex<Long, Double> vertex, MessageIterator<Double> inMessages) {
+
+			Double minDistance = Double.MAX_VALUE;
+
+			for (double msg : inMessages) {
+				if (msg < minDistance) {
+					minDistance = msg;
+				}
+			}
+
+			if (vertex.getValue() > minDistance) {
+				setNewVertexValue(minDistance);
+			}
+		}
+	}
+
+	/**
+	 * Distributes the minimum distance associated with a given vertex among all
+	 * the target vertices summed up with the edge's value.
+	 */
+	@SuppressWarnings("serial")
+	public static final class MinDistanceMessenger extends MessagingFunction<Long, Double, Double, Double> {
+
+		@Override
+		public void sendMessages(Vertex<Long, Double> vertex) {
+			for (Edge<Long, Double> edge : getEdges()) {
+				sendMessageTo(edge.getTarget(), vertex.getValue() + edge.getValue());
+			}
+		}
 	}
 
 	// ******************************************************************************************************************
@@ -131,5 +190,10 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 		} else {
 			return SingleSourceShortestPathsData.getDefaultEdgeDataSet(env);
 		}
+	}
+
+	@Override
+	public String getDescription() {
+		return "Vertex-centric Single Source Shortest Paths";
 	}
 }

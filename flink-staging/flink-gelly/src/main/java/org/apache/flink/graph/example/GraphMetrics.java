@@ -30,8 +30,9 @@ import org.apache.flink.graph.example.utils.ExampleUtils;
 import org.apache.flink.types.NullValue;
 
 /**
+ * This example illustrate how to use Gelly metrics methods and get simple statistics
+ * from the input graph.  
  * 
- * A simple example to illustrate the basic functionality of the graph-api.
  * The program creates a random graph and computes and prints
  * the following metrics:
  * - number of vertices

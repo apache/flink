@@ -35,11 +35,11 @@ import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
- * Incremental Single Sink Shortest Paths Example. Shortest Paths are incrementally updated
- * upon edge removal.
- *
  * This example illustrates the usage of vertex-centric iteration's
  * messaging direction configuration option.
+ * 
+ * Incremental Single Sink Shortest Paths Example. Shortest Paths are incrementally updated
+ * upon edge removal.
  *
  * The program takes as input the resulted graph after a SSSP computation,
  * an edge to be removed and the initial graph(i.e. before SSSP was computed).
