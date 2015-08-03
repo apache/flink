@@ -199,7 +199,7 @@ public class InMemoryPartition<T> {
 	 * 
 	 * @param compacted compaction status
 	 */
-	public void setCompaction(boolean compacted) {
+	public void setIsCompacted(boolean compacted) {
 		this.compacted = compacted;
 	}
 	
@@ -281,9 +281,9 @@ public class InMemoryPartition<T> {
 	 * @param numberOfSegments allocation count
 	 */
 	public void allocateSegments(int numberOfSegments) {
-		while(getBlockCount() < numberOfSegments) {
+		while (getBlockCount() < numberOfSegments) {
 			MemorySegment next = this.availableMemory.nextSegment();
-			if(next != null) {
+			if (next != null) {
 				this.partitionPages.add(next);
 			} else {
 				return;
