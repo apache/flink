@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -129,7 +128,6 @@ public class TaskAsyncCallTest {
 	}
 	
 	private static Task createTask() {
-		
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
 		
@@ -161,9 +159,7 @@ public class TaskAsyncCallTest {
 				new FiniteDuration(60, TimeUnit.SECONDS),
 				libCache,
 				mock(FileCache.class),
-				new RuntimeConfiguration(
-						taskManagerGateway.path(),
-						new UnmodifiableConfiguration(new Configuration())));
+				new TaskManagerRuntimeInfo("localhost", new Configuration()));
 	}
 	
 	public static class CheckpointsInOrderInvokable extends AbstractInvokable

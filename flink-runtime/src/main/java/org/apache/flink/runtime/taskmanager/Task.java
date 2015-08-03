@@ -145,6 +145,9 @@ public class Task implements Runnable {
 	/** The name of the class that holds the invokable code */
 	private final String nameOfInvokableClass;
 
+	/** Access to task manager configuration and host names*/
+	private final TaskManagerRuntimeInfo taskManagerConfig;
+	
 	/** The memory manager to be used by this task */
 	private final MemoryManager memoryManager;
 
@@ -214,9 +217,6 @@ public class Task implements Runnable {
 	 * initialization, to be memory friendly */
 	private volatile SerializedValue<StateHandle<?>> operatorState;
 
-	/** Access to task manager configuration and host names*/
-	private RuntimeConfiguration taskManagerConfig;
-
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to 
 	 * be undone in the case of a failing task deployment.</p>
@@ -231,7 +231,7 @@ public class Task implements Runnable {
 				FiniteDuration actorAskTimeout,
 				LibraryCacheManager libraryCache,
 				FileCache fileCache,
-				RuntimeConfiguration taskManagerConfig)
+				TaskManagerRuntimeInfo taskManagerConfig)
 	{
 		checkArgument(tdd.getNumberOfSubtasks() > 0);
 		checkArgument(tdd.getIndexInSubtaskGroup() >= 0);
