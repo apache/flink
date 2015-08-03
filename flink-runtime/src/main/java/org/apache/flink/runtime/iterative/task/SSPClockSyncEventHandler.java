@@ -37,7 +37,7 @@ import java.util.Map;
  */
 public class SSPClockSyncEventHandler implements EventListener<TaskEvent> {
 
-	private static final Logger log = LoggerFactory.getLogger(ClockSyncEventHandler.class);
+	private static final Logger log = LoggerFactory.getLogger(SSPClockSyncEventHandler.class);
 
 	private final ClassLoader userCodeClassLoader;
 
