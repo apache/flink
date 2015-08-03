@@ -173,6 +173,10 @@ class TaskManager(
 
   private val currentRegistrationSessionID: UUID = UUID.randomUUID()
 
+  private val runtimeInfo = new TaskManagerRuntimeInfo(
+       connectionInfo.getHostname(),
+       new UnmodifiableConfiguration(config.configuration))
+
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
   // --------------------------------------------------------------------------
@@ -893,9 +897,7 @@ class TaskManager(
         config.timeout,
         libCache,
         fileCache,
-        new RuntimeConfiguration(
-          self.path.toSerializationFormat,
-          new UnmodifiableConfiguration(config.configuration)))
+        runtimeInfo)
 
       log.info(s"Received task ${task.getTaskNameWithSubtasks}")
 
