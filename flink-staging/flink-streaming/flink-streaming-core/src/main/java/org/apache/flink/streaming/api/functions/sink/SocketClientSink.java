@@ -88,7 +88,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	 */
 	private void closeConnection(){
 		try {
-			dataOutputStream.flush();
+			dataOutputStream.close();
 			client.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Error while closing connection with socket server at "
