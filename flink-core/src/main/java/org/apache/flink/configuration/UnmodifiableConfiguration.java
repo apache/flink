@@ -18,65 +18,26 @@
 
 package org.apache.flink.configuration;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
- * Unmodifiable version of the Configuration class
+ * Unmodifiable version of the Configuration class.
  */
 public class UnmodifiableConfiguration extends Configuration {
+	
+	private static final long serialVersionUID = -8151292629158972280L;
 
-	/** The log object used for debugging. */
-	private static final Logger LOG = LoggerFactory.getLogger(UnmodifiableConfiguration.class);
-
+	/**
+	 * Creates a new UnmodifiableConfiguration, which holds a copy of the given configuration
+	 * that cannot be altered.
+	 * 
+	 * @param config The configuration with the original contents.
+	 */
 	public UnmodifiableConfiguration(Configuration config) {
-		super();
-		super.addAll(config);
+		super(config);
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  All setter methods must fail.
+	//  All mutating methods must fail
 	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public final void setClass(String key, Class<?> klazz) {
-		error();
-	}
-
-	@Override
-	public final void setString(String key, String value) {
-		error();
-	}
-
-	@Override
-	public final void setInteger(String key, int value) {
-		error();
-	}
-
-	@Override
-	public final void setLong(String key, long value) {
-		error();
-	}
-
-	@Override
-	public final void setBoolean(String key, boolean value) {
-		error();
-	}
-
-	@Override
-	public final void setFloat(String key, float value) {
-		error();
-	}
-
-	@Override
-	public final void setDouble(String key, double value) {
-		error();
-	}
-
-	@Override
-	public final void setBytes(String key, byte[] bytes) {
-		error();
-	}
 
 	@Override
 	public final void addAll(Configuration other) {
@@ -89,12 +50,11 @@ public class UnmodifiableConfiguration extends Configuration {
 	}
 
 	@Override
-	<T> void setValueInternal(String key, T value){
+	final <T> void setValueInternal(String key, T value){
 		error();
 	}
 
-	private final void error(){
-		throw new UnsupportedOperationException("The unmodifiable configuration object doesn't allow set methods.");
+	private void error(){
+		throw new UnsupportedOperationException("The configuration is unmodifiable; its contents cannot be changed.");
 	}
-	
 }

@@ -23,8 +23,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
+
 import org.junit.Test;
 
 /**
@@ -169,6 +169,25 @@ public class ConfigurationTest {
 			assertEquals(true, pc.getBoolean("boolean", false));
 			assertEquals("true", pc.getString("boolean", "0"));
 			assertArrayEquals(EMPTY_BYTES, pc.getBytes("boolean", EMPTY_BYTES));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testCopyConstructor() {
+		try {
+			final String key = "theKey";
+			
+			Configuration cfg1 = new Configuration();
+			cfg1.setString(key, "value");
+			
+			Configuration cfg2 = new Configuration(cfg1);
+			cfg2.setString(key, "another value");
+			
+			assertEquals("value", cfg1.getString(key, ""));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
