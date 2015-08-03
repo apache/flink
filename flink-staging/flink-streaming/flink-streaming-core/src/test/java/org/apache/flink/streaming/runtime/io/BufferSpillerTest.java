@@ -183,7 +183,7 @@ public class BufferSpillerTest {
 
 	@Test
 	public void testSpillWhileReading() {
-		LOG.debug("Starting SpillWhileReading test");
+		LOG.info("Starting SpillWhileReading test");
 		
 		try {
 			final int sequences = 10;
@@ -359,7 +359,7 @@ public class BufferSpillerTest {
 					int numBuffersAndEvents = nextSequence.numBuffersAndEvents;
 					int numChannels = nextSequence.numChannels;
 
-					LOG.debug("Reading sequence {}", consumedSequences);
+					LOG.info("Reading sequence {}", consumedSequences);
 					
 					// consume sequence
 					seq.open();
