@@ -27,7 +27,7 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.ConnectedComponentsDefaultData;
-import org.apache.flink.graph.library.ConnectedComponentsAlgorithm;
+import org.apache.flink.graph.library.GSAConnectedComponents;
 import org.apache.flink.types.NullValue;
 
 /**
@@ -69,7 +69,7 @@ public class ConnectedComponents implements ProgramDescription {
 		}, env);
 
 		DataSet<Vertex<Long, Long>> verticesWithMinIds = graph
-				.run(new ConnectedComponentsAlgorithm(maxIterations)).getVertices();
+				.run(new GSAConnectedComponents(maxIterations)).getVertices();
 
 		// emit result
 		if (fileOutput) {

@@ -26,7 +26,6 @@ import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.types.NullValue;
 
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -43,12 +42,11 @@ import java.util.Map.Entry;
  */
 @SuppressWarnings("serial")
 
-public class LabelPropagationAlgorithm<K extends Comparable<K> & Serializable>
-		implements GraphAlgorithm<K, Long, NullValue> {
+public class LabelPropagation<K extends Comparable<K>> implements GraphAlgorithm<K, Long, NullValue> {
 
 	private final int maxIterations;
 
-	public LabelPropagationAlgorithm(int maxIterations) {
+	public LabelPropagation(int maxIterations) {
 		this.maxIterations = maxIterations;
 	}
 

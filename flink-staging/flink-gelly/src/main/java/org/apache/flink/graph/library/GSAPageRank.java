@@ -16,86 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.example;
+package org.apache.flink.graph.library;
 
-import org.apache.flink.api.common.ProgramDescription;
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.Neighbor;
 import org.apache.flink.graph.gsa.SumFunction;
-import org.apache.flink.util.Collector;
 
 /**
- * This example implements a simple PageRank algorithm, using a gather-sum-apply iteration.
- *
- * The edges input file is expected to contain one edge per line, with long IDs and no
- * values, in the following format:"<sourceVertexID>\t<targetVertexID>".
- *
- * If no arguments are provided, the example runs with a random graph of 10 vertices
- * and random edge weights.
+ * This is an implementation of a simple PageRank algorithm, using a gather-sum-apply iteration.
  */
-public class GSAPageRank implements ProgramDescription {
+public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double> {
 
-	@SuppressWarnings("serial")
-	public static void main(String[] args) throws Exception {
+	private double beta;
+	private int maxIterations;
 
-		if(!parseParameters(args)) {
-			return;
-		}
+	public GSAPageRank(double beta, int maxIterations) {
+		this.beta = beta;
+		this.maxIterations = maxIterations;
+	}
 
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+	@Override
+	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) throws Exception {
 
-		DataSet<Edge<Long, Double>> links = getLinksDataSet(env);
+		final long numberOfVertices = network.numberOfVertices();
 
-		Graph<Long, Double, Double> network = Graph.fromDataSet(links, new MapFunction<Long, Double>() {
-
-			@Override
-			public Double map(Long value) throws Exception {
-				return 1.0;
-			}
-		}, env);
-
-		DataSet<Tuple2<Long, Long>> vertexOutDegrees = network.outDegrees();
-
-		// Assign the transition probabilities as the edge weights
-		Graph<Long, Double, Double> networkWithWeights = network
-				.joinWithEdgesOnSource(vertexOutDegrees,
-						new MapFunction<Tuple2<Double, Long>, Double>() {
-
-							@Override
-							public Double map(Tuple2<Double, Long> value) {
-								return value.f0 / value.f1;
-							}
-						});
-
-		long numberOfVertices = networkWithWeights.numberOfVertices();
-
-		// Execute the GSA iteration
-		Graph<Long, Double, Double> result = networkWithWeights
-				.runGatherSumApplyIteration(new GatherRanks(numberOfVertices), new SumRanks(),
-						new UpdateRanks(numberOfVertices), maxIterations);
-
-		// Extract the vertices as the result
-		DataSet<Vertex<Long, Double>> pageRanks = result.getVertices();
-
-		// emit result
-		if (fileOutput) {
-			pageRanks.writeAsCsv(outputPath, "\n", "\t");
-
-			// since file sinks are lazy, we trigger the execution explicitly
-			env.execute("GSA Page Ranks");
-		} else {
-			pageRanks.print();
-		}
-
+		return network.runGatherSumApplyIteration(new GatherRanks(numberOfVertices), new SumRanks(),
+				new UpdateRanks<K>(beta, numberOfVertices), maxIterations);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -133,83 +82,19 @@ public class GSAPageRank implements ProgramDescription {
 	}
 
 	@SuppressWarnings("serial")
-	private static final class UpdateRanks extends ApplyFunction<Long, Double, Double> {
+	private static final class UpdateRanks<K> extends ApplyFunction<K, Double, Double> {
 
-		long numberOfVertices;
+		private final double beta;
+		private final long numVertices;
 
-		public UpdateRanks(long numberOfVertices) {
-			this.numberOfVertices = numberOfVertices;
+		public UpdateRanks(double beta, long numberOfVertices) {
+			this.beta = beta;
+			this.numVertices = numberOfVertices;
 		}
 
 		@Override
 		public void apply(Double rankSum, Double currentValue) {
-			setResult((1-DAMPENING_FACTOR)/numberOfVertices + DAMPENING_FACTOR * rankSum);
+			setResult((1-beta)/numVertices + beta * rankSum);
 		}
-	}
-
-	// *************************************************************************
-	//     UTIL METHODS
-	// *************************************************************************
-
-	private static boolean fileOutput = false;
-	private static final double DAMPENING_FACTOR = 0.85;
-	private static long numPages = 10;
-	private static String edgeInputPath = null;
-	private static String outputPath = null;
-	private static int maxIterations = 10;
-
-	private static boolean parseParameters(String[] args) {
-
-		if(args.length > 0) {
-			if(args.length != 3) {
-				System.err.println("Usage: GSAPageRank <input edges path> <output path> <num iterations>");
-				return false;
-			}
-
-			fileOutput = true;
-			edgeInputPath = args[0];
-			outputPath = args[1];
-			maxIterations = Integer.parseInt(args[2]);
-		} else {
-			System.out.println("Executing GSAPageRank example with default parameters and built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: GSAPageRank <input edges path> <output path> <num iterations>");
-		}
-		return true;
-	}
-
-	@SuppressWarnings("serial")
-	private static DataSet<Edge<Long, Double>> getLinksDataSet(ExecutionEnvironment env) {
-
-		if (fileOutput) {
-			return env.readCsvFile(edgeInputPath)
-					.fieldDelimiter("\t")
-					.lineDelimiter("\n")
-					.types(Long.class, Long.class)
-					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, Double>>() {
-						public Edge<Long, Double> map(Tuple2<Long, Long> input) {
-							return new Edge<Long, Double>(input.f0, input.f1, 1.0);
-						}
-					}).withForwardedFields("f0; f1");
-		}
-
-		return env.generateSequence(1, numPages).flatMap(
-				new FlatMapFunction<Long, Edge<Long, Double>>() {
-					@Override
-					public void flatMap(Long key,
-										Collector<Edge<Long, Double>> out) throws Exception {
-						int numOutEdges = (int) (Math.random() * (numPages / 2));
-						for (int i = 0; i < numOutEdges; i++) {
-							long target = (long) (Math.random() * numPages) + 1;
-							out.collect(new Edge<Long, Double>(key, target, 1.0));
-						}
-					}
-				});
-	}
-
-	@Override
-	public String getDescription() {
-		return "GSA Page Rank";
 	}
 }

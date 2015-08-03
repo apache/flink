@@ -44,13 +44,13 @@ import java.util.TreeMap;
  *
  * @see <a href="http://arxiv.org/pdf/0808.2633.pdf">article explaining the algorithm in detail</a>
  */
-public class CommunityDetectionAlgorithm implements GraphAlgorithm<Long, Long, Double> {
+public class CommunityDetection implements GraphAlgorithm<Long, Long, Double> {
 
 	private Integer maxIterations;
 
 	private Double delta;
 
-	public CommunityDetectionAlgorithm(Integer maxIterations, Double delta) {
+	public CommunityDetection(Integer maxIterations, Double delta) {
 
 		this.maxIterations = maxIterations;
 		this.delta = delta;

@@ -27,7 +27,7 @@ import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.types.NullValue;
 
 /**
- * Connected components algorithm.
+ * A vertex-centric implementation of the Connected components algorithm.
  *
  * Initially, each vertex will have its own ID as a value(is its own component). The vertices propagate their
  * current component ID in iterations, each time adopting a new value from the received neighbor IDs,
@@ -37,11 +37,11 @@ import org.apache.flink.types.NullValue;
  * is reached.
  */
 @SuppressWarnings("serial")
-public class ConnectedComponentsAlgorithm implements GraphAlgorithm<Long, Long, NullValue>{
+public class ConnectedComponents implements GraphAlgorithm<Long, Long, NullValue>{
 
 	private Integer maxIterations;
 
-	public ConnectedComponentsAlgorithm(Integer maxIterations) {
+	public ConnectedComponents(Integer maxIterations) {
 		this.maxIterations = maxIterations;
 	}
 
@@ -51,8 +51,7 @@ public class ConnectedComponentsAlgorithm implements GraphAlgorithm<Long, Long, 
 		Graph<Long, Long, NullValue> undirectedGraph = graph.getUndirected();
 
 		// initialize vertex values and run the Vertex Centric Iteration
-		return undirectedGraph.runVertexCentricIteration(new CCUpdater(),
-				new CCMessenger(), maxIterations);
+		return undirectedGraph.runVertexCentricIteration(new CCUpdater(), new CCMessenger(), maxIterations);
 	}
 
 	/**

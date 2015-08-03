@@ -27,16 +27,16 @@ import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
-import java.io.Serializable;
-
+/**
+ * This is an implementation of the Single-Source-Shortest Paths algorithm, using a vertex-centric iteration.
+ */
 @SuppressWarnings("serial")
-public class SingleSourceShortestPathsAlgorithm<K extends Comparable<K> & Serializable>
-		implements GraphAlgorithm<K, Double, Double> {
+public class SingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, Double> {
 
 	private final K srcVertexId;
 	private final Integer maxIterations;
 
-	public SingleSourceShortestPathsAlgorithm(K srcVertexId, Integer maxIterations) {
+	public SingleSourceShortestPaths(K srcVertexId, Integer maxIterations) {
 		this.srcVertexId = srcVertexId;
 		this.maxIterations = maxIterations;
 	}
