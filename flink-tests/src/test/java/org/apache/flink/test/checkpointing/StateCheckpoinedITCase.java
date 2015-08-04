@@ -49,48 +49,15 @@ import static org.junit.Assert.fail;
 
 /**
  * A simple test that runs a streaming topology with checkpointing enabled.
- * 
+ *
  * The test triggers a failure after a while and verifies that, after completion, the
- * state reflects the "exactly once" semantics.
+ * state defined with either the {@link OperatorState} or the {@link Checkpointed}
+ * interface reflects the "exactly once" semantics.
  */
 @SuppressWarnings("serial")
-public class StateCheckpoinedITCase {
+public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 
-	private static final int NUM_TASK_MANAGERS = 2;
-	private static final int NUM_TASK_SLOTS = 3;
-	private static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
-
-	private static ForkableFlinkMiniCluster cluster;
-
-	@BeforeClass
-	public static void startCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_TASK_SLOTS);
-			config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 ms");
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
-			
-			cluster = new ForkableFlinkMiniCluster(config, false);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to start test cluster: " + e.getMessage());
-		}
-	}
-
-	@AfterClass
-	public static void shutdownCluster() {
-		try {
-			cluster.shutdown();
-			cluster = null;
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to stop test cluster: " + e.getMessage());
-		}
-	}
-
+	final long NUM_STRINGS = 10_000_000L;
 
 	/**
 	 * Runs the following program:
@@ -99,69 +66,56 @@ public class StateCheckpoinedITCase {
 	 *     [ (source)->(filter)->(map) ] -> [ (map) ] -> [ (groupBy/reduce)->(sink) ]
 	 * </pre>
 	 */
-	@Test
-	public void runCheckpointedProgram() {
-
-		final long NUM_STRINGS = 10000000L;
+	@Override
+	public void testProgram(StreamExecutionEnvironment env) {
 		assertTrue("Broken test setup", NUM_STRINGS % 40 == 0);
-		
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-																	"localhost", cluster.getJobManagerRPCPort());
-			env.setParallelism(PARALLELISM);
-			env.enableCheckpointing(500);
-			env.getConfig().disableSysoutLogging();
 
-			DataStream<String> stream = env.addSource(new StringGeneratingSourceFunction(NUM_STRINGS));
-			
-			stream
-					// -------------- first vertex, chained to the source ----------------
-					.filter(new StringRichFilterFunction())
+		DataStream<String> stream = env.addSource(new StringGeneratingSourceFunction(NUM_STRINGS));
 
-					// -------------- seconds vertex - one-to-one connected ----------------
-					.map(new StringPrefixCountRichMapFunction())
-					.startNewChain()
-					.map(new StatefulCounterFunction())
+		stream
+				// -------------- first vertex, chained to the source ----------------
+				.filter(new StringRichFilterFunction())
 
-					// -------------- third vertex - reducer and the sink ----------------
-					.partitionByHash("prefix")
-					.flatMap(new OnceFailingAggregator(NUM_STRINGS))
-					.addSink(new ValidatingSink());
+						// -------------- seconds vertex - one-to-one connected ----------------
+				.map(new StringPrefixCountRichMapFunction())
+				.startNewChain()
+				.map(new StatefulCounterFunction())
 
-			env.execute();
-			
-			long filterSum = 0;
-			for (long l : StringRichFilterFunction.counts) {
-				filterSum += l;
-			}
+						// -------------- third vertex - reducer and the sink ----------------
+				.partitionByHash("prefix")
+				.flatMap(new OnceFailingAggregator(NUM_STRINGS))
+				.addSink(new ValidatingSink());
+	}
 
-			long mapSum = 0;
-			for (long l : StringPrefixCountRichMapFunction.counts) {
-				mapSum += l;
-			}
-
-			long countSum = 0;
-			for (long l : StatefulCounterFunction.counts) {
-				countSum += l;
-			}
-
-			// verify that we counted exactly right
-			assertEquals(NUM_STRINGS, filterSum);
-			assertEquals(NUM_STRINGS, mapSum);
-			assertEquals(NUM_STRINGS, countSum);
-
-			for (Map<Character, Long> map : ValidatingSink.maps) {
-				for (Long count : map.values()) {
-					assertEquals(NUM_STRINGS / 40, count.longValue());
-				}
-			}
+	@Override
+	public void postSubmit() {
+		long filterSum = 0;
+		for (long l : StringRichFilterFunction.counts) {
+			filterSum += l;
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+
+		long mapSum = 0;
+		for (long l : StringPrefixCountRichMapFunction.counts) {
+			mapSum += l;
+		}
+
+		long countSum = 0;
+		for (long l : StatefulCounterFunction.counts) {
+			countSum += l;
+		}
+
+		// verify that we counted exactly right
+		assertEquals(NUM_STRINGS, filterSum);
+		assertEquals(NUM_STRINGS, mapSum);
+		assertEquals(NUM_STRINGS, countSum);
+
+		for (Map<Character, Long> map : ValidatingSink.maps) {
+			for (Long count : map.values()) {
+				assertEquals(NUM_STRINGS / 40, count.longValue());
+			}
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Custom Functions
 	// --------------------------------------------------------------------------------------------
@@ -404,30 +358,6 @@ public class StateCheckpoinedITCase {
 		@Override
 		public void restoreState(HashMap<Character, Long> state) {
 			counts.putAll(state);
-		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	//  Custom Type Classes
-	// --------------------------------------------------------------------------------------------
-
-	public static class PrefixCount implements Serializable {
-
-		public String prefix;
-		public String value;
-		public long count;
-
-		public PrefixCount() {}
-
-		public PrefixCount(String prefix, String value, long count) {
-			this.prefix = prefix;
-			this.value = value;
-			this.count = count;
-		}
-
-		@Override
-		public String toString() {
-			return prefix + " / " + value;
 		}
 	}
 }

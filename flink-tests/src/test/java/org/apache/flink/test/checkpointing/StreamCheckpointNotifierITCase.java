@@ -18,11 +18,12 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.functions.RichFilterFunction;
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,34 +32,30 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.util.Collector;
-import org.junit.Assert;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
- * A simple test that runs a streaming topology with checkpointing enabled. This differs from
- * {@link org.apache.flink.test.checkpointing.StreamCheckpointingITCase} in that it contains
- * a TwoInput (or co-) Task.
+ * Integration test for the {@link CheckpointNotifier} interface. The test ensures that
+ * {@link CheckpointNotifier#notifyCheckpointComplete(long)} is called for some completed
+ * checkpoints, that it is called at most once for any checkpoint id and that it is not
+ * called for a deliberately failed checkpoint.
  *
  * <p>
- * This checks whether checkpoint barriers correctly trigger TwoInputTasks and also whether
- * this barriers are correctly forwarded.
- *
- * <p>
- * This uses a mixture of Operators with the {@link Checkpointed} interface and the new
- * {@link org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext#getOperatorState}
- * method.
- *
- * <p>
- * The test triggers a failure after a while and verifies that, after completion, the
- * state reflects the "exactly once" semantics.
+ * Note that as a result of doing the checks on the task level there is no way to verify
+ * that the {@link CheckpointNotifier#notifyCheckpointComplete(long)} is called for every
+ * successfully completed checkpoint.
  */
 @SuppressWarnings("serial")
-public class CoStreamCheckpointingITCase extends StreamFaultToleranceTestBase {
+public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase {
 
 	final long NUM_STRINGS = 10_000_000L;
 
@@ -77,91 +74,69 @@ public class CoStreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 		DataStream<String> stream = env.addSource(new StringGeneratingSourceFunction(NUM_STRINGS));
 
 		stream
-				// -------------- first vertex, chained to the source ----------------
+				// -------------- first vertex, chained to the src ----------------
 				.filter(new StringRichFilterFunction())
 
-						// -------------- second vertex - the stateful one that also fails ----------------
+						// -------------- second vertex, applying the co-map ----------------
 				.connect(stream).flatMap(new LeftIdentityCoRichFlatMapFunction())
 
 				// -------------- third vertex - the stateful one that also fails ----------------
 				.map(new StringPrefixCountRichMapFunction())
 				.startNewChain()
-				.map(new StatefulCounterFunction())
+				.map(new IdentityMapFunction())
 
 						// -------------- fourth vertex - reducer and the sink ----------------
 				.groupBy("prefix")
 				.reduce(new OnceFailingReducer(NUM_STRINGS))
 				.addSink(new SinkFunction<PrefixCount>() {
-
 					@Override
-					public void invoke(PrefixCount value) throws Exception {
-						// Do nothing here
+					public void invoke(PrefixCount value) {
+						// do nothing
 					}
 				});
 	}
 
 	@Override
 	public void postSubmit() {
-		long filterSum = 0;
-		for (long l : StringRichFilterFunction.counts) {
-			filterSum += l;
+		List[][] checkList = new List[][]{	StringGeneratingSourceFunction.completedCheckpoints,
+				IdentityMapFunction.completedCheckpoints,
+				StringPrefixCountRichMapFunction.completedCheckpoints,
+				LeftIdentityCoRichFlatMapFunction.completedCheckpoints};
+
+		for(List[] parallelNotifications : checkList) {
+			for (int i = 0; i < PARALLELISM; i++){
+				List<Long> notifications = parallelNotifications[i];
+				assertTrue("No checkpoint notification was received.",
+						notifications.size() > 0);
+				assertFalse("Failure checkpoint was marked as completed.",
+						notifications.contains(OnceFailingReducer.failureCheckpointID));
+				assertTrue("Checkpoint notification was received multiple times",
+						notifications.size() == new HashSet<Long>(notifications).size());
+			}
 		}
-
-		long coMapSum = 0;
-		for (long l : LeftIdentityCoRichFlatMapFunction.counts) {
-			coMapSum += l;
-		}
-
-		long mapSum = 0;
-		for (long l : StringPrefixCountRichMapFunction.counts) {
-			mapSum += l;
-		}
-
-		long countSum = 0;
-		for (long l : StatefulCounterFunction.counts) {
-			countSum += l;
-		}
-
-		if (!StringPrefixCountRichMapFunction.restoreCalledAtLeastOnce) {
-			Assert.fail("Restore was never called on counting Map function.");
-		}
-
-		if (!LeftIdentityCoRichFlatMapFunction.restoreCalledAtLeastOnce) {
-			Assert.fail("Restore was never called on counting CoMap function.");
-		}
-
-		// verify that we counted exactly right
-
-		assertEquals(NUM_STRINGS, filterSum);
-		assertEquals(NUM_STRINGS, coMapSum);
-		assertEquals(NUM_STRINGS, mapSum);
-		assertEquals(NUM_STRINGS, countSum);
 	}
-
 
 	// --------------------------------------------------------------------------------------------
 	//  Custom Functions
 	// --------------------------------------------------------------------------------------------
 
 	private static class StringGeneratingSourceFunction extends RichSourceFunction<String>
-			implements  ParallelSourceFunction<String> {
+			implements  ParallelSourceFunction<String>, CheckpointNotifier {
 
+		// operator life cycle
+		private volatile boolean isRunning;
+
+		// operator behaviour
 		private final long numElements;
-
 		private Random rnd;
-		private StringBuilder stringBuilder;
 
+		private StringBuilder stringBuilder;
 		private OperatorState<Integer> index;
 		private int step;
 
-		private volatile boolean isRunning;
-
-		static final long[] counts = new long[PARALLELISM];
-		@Override
-		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = index.value();
-		}
-
+		// test behaviour
+		private int subtaskId;
+		public static List[] completedCheckpoints = new List[PARALLELISM];
 
 		StringGeneratingSourceFunction(long numElements) {
 			this.numElements = numElements;
@@ -172,9 +147,13 @@ public class CoStreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 			rnd = new Random();
 			stringBuilder = new StringBuilder();
 			step = getRuntimeContext().getNumberOfParallelSubtasks();
+			subtaskId = getRuntimeContext().getIndexOfThisSubtask();
+			index = getRuntimeContext().getOperatorState("index", subtaskId, false);
 
-
-			index = getRuntimeContext().getOperatorState("index", getRuntimeContext().getIndexOfThisSubtask(), false);
+			// Create a collection on the first open
+			if (completedCheckpoints[subtaskId] == null) {
+				completedCheckpoints[subtaskId] = new ArrayList();
+			}
 
 			isRunning = true;
 		}
@@ -213,39 +192,50 @@ public class CoStreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
 			return bld.toString();
 		}
+
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+			completedCheckpoints[subtaskId].add(checkpointId);
+		}
 	}
 
-	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount> {
+	private static class IdentityMapFunction extends RichMapFunction<PrefixCount, PrefixCount>
+			implements CheckpointNotifier {
 
-		private OperatorState<Long> count;
-		static final long[] counts = new long[PARALLELISM];
+		public static List[] completedCheckpoints = new List[PARALLELISM];
+		private int subtaskId;
 
 		@Override
 		public PrefixCount map(PrefixCount value) throws Exception {
-			count.update(count.value() + 1);
 			return value;
 		}
 
 		@Override
 		public void open(Configuration conf) throws IOException {
-			count = getRuntimeContext().getOperatorState("count", 0L, false);
+			subtaskId = getRuntimeContext().getIndexOfThisSubtask();
+
+			// Create a collection on the first open
+			if (completedCheckpoints[subtaskId] == null) {
+				completedCheckpoints[subtaskId] = new ArrayList();
+			}
 		}
 
 		@Override
-		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = count.value();
+		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+			completedCheckpoints[subtaskId].add(checkpointId);
 		}
-
 	}
 
-	private static class OnceFailingReducer extends RichReduceFunction<PrefixCount> {
+	private static class OnceFailingReducer extends RichReduceFunction<PrefixCount> implements Checkpointed<Long>{
 
 		private static volatile boolean hasFailed = false;
+		public static volatile long failureCheckpointID;
 
 		private final long numElements;
 
 		private long failurePos;
 		private long count;
+
 
 		OnceFailingReducer(long numElements) {
 			this.numElements = numElements;
@@ -263,86 +253,78 @@ public class CoStreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 		@Override
 		public PrefixCount reduce(PrefixCount value1, PrefixCount value2) throws Exception {
 			count++;
-			if (!hasFailed && count >= failurePos) {
-				hasFailed = true;
-				throw new Exception("Test Failure");
-			}
-
 			value1.count += value2.count;
 			return value1;
 		}
+
+		@Override
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+			if (!hasFailed && count >= failurePos) {
+				hasFailed = true;
+				failureCheckpointID = checkpointId;
+				throw new Exception("Test Failure");
+			}
+			return count;
+		}
+
+		@Override
+		public void restoreState(Long state) {
+			count = state;
+		}
 	}
 
-	private static class StringRichFilterFunction extends RichFilterFunction<String> implements Checkpointed<Long> {
-
-		Long count = 0L;
-		static final long[] counts = new long[PARALLELISM];
-
+	private static class StringRichFilterFunction implements FilterFunction<String> {
 		@Override
 		public boolean filter(String value) {
-			count++;
 			return value.length() < 100;
-		}
-
-		@Override
-		public void close() {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
-		}
-
-		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return count;
-		}
-
-		@Override
-		public void restoreState(Long state) {
-			count = state;
 		}
 	}
 
-	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount> implements Checkpointed<Long> {
+	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount>
+			implements CheckpointNotifier {
 
-		private long count = 0;
-		static final long[] counts = new long[PARALLELISM];
-		static volatile boolean restoreCalledAtLeastOnce = false;
-
-		@Override
-		public PrefixCount map(String value) throws IOException {
-			count += 1;
-			return new PrefixCount(value.substring(0, 1), value, 1L);
-		}
+		public static List[] completedCheckpoints = new List[PARALLELISM];
+		private int subtaskId;
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return count;
-		}
+		public void open(Configuration conf) throws IOException {
+			subtaskId = getRuntimeContext().getIndexOfThisSubtask();
 
-		@Override
-		public void restoreState(Long state) {
-			restoreCalledAtLeastOnce = true;
-			count = state;
-			if (count == 0) {
-				throw new RuntimeException("Restore from beginning");
+			// Create a collection on the first open
+			if (completedCheckpoints[subtaskId] == null) {
+				completedCheckpoints[subtaskId] = new ArrayList();
 			}
 		}
 
 		@Override
-		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+			completedCheckpoints[subtaskId].add(checkpointId);
+		}
+
+		@Override
+		public PrefixCount map(String value) throws IOException {
+			return new PrefixCount(value.substring(0, 1), value, 1L);
 		}
 	}
 
-	private static class LeftIdentityCoRichFlatMapFunction extends RichCoFlatMapFunction<String, String, String> implements Checkpointed<Long> {
+	private static class LeftIdentityCoRichFlatMapFunction extends RichCoFlatMapFunction<String, String, String>
+			implements CheckpointNotifier {
 
-		long count = 0;
-		static final long[] counts = new long[PARALLELISM];
+		public static List[] completedCheckpoints = new List[PARALLELISM];
+		private int subtaskId;
 
-		static volatile boolean restoreCalledAtLeastOnce = false;
+		@Override
+		public void open(Configuration conf) throws IOException {
+			subtaskId = getRuntimeContext().getIndexOfThisSubtask();
+
+			// Create a collection on the first open
+			if (completedCheckpoints[subtaskId] == null) {
+				completedCheckpoints[subtaskId] = new ArrayList();
+			}
+		}
 
 		@Override
 		public void flatMap1(String value, Collector<String> out) throws IOException {
-			count += 1;
-
 			out.collect(value);
 		}
 
@@ -352,19 +334,8 @@ public class CoStreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return count;
-		}
-
-		@Override
-		public void restoreState(Long state) {
-			restoreCalledAtLeastOnce = true;
-			count = state;
-		}
-
-		@Override
-		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+			completedCheckpoints[subtaskId].add(checkpointId);
 		}
 	}
 }

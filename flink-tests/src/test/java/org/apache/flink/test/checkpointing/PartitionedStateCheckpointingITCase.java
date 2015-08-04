@@ -52,82 +52,36 @@ import org.junit.Test;
  * It is designed to check partitioned states.
  */
 @SuppressWarnings("serial")
-public class PartitionedStateCheckpointingITCase {
+public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTestBase {
 
-	private static final int NUM_TASK_MANAGERS = 2;
-	private static final int NUM_TASK_SLOTS = 3;
-	private static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
+	final long NUM_STRINGS = 10_000_000L;
 
-	private static ForkableFlinkMiniCluster cluster;
-
-	@BeforeClass
-	public static void startCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_TASK_SLOTS);
-			config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 ms");
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
-
-			cluster = new ForkableFlinkMiniCluster(config, false);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to start test cluster: " + e.getMessage());
-		}
-	}
-
-	@AfterClass
-	public static void shutdownCluster() {
-		try {
-			cluster.shutdown();
-			cluster = null;
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to stop test cluster: " + e.getMessage());
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	@Test
-	public void runCheckpointedProgram() {
-
-		final long NUM_STRINGS = 10000000L;
+	@Override
+	public void testProgram(StreamExecutionEnvironment env) {
 		assertTrue("Broken test setup", (NUM_STRINGS/2) % 40 == 0);
 
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost",
-					cluster.getJobManagerRPCPort());
-			env.setParallelism(PARALLELISM);
-			env.enableCheckpointing(500);
-			env.getConfig().disableSysoutLogging();
+		DataStream<Integer> stream1 = env.addSource(new IntGeneratingSourceFunction(NUM_STRINGS / 2));
+		DataStream<Integer> stream2 = env.addSource(new IntGeneratingSourceFunction(NUM_STRINGS / 2));
 
-			DataStream<Integer> stream1 = env.addSource(new IntGeneratingSourceFunction(NUM_STRINGS / 2));
-			DataStream<Integer> stream2 = env.addSource(new IntGeneratingSourceFunction(NUM_STRINGS / 2));
+		stream1.union(stream2)
+				.groupBy(new IdentityKeySelector<Integer>())
+				.map(new OnceFailingPartitionedSum(NUM_STRINGS))
+				.keyBy(0)
+				.addSink(new CounterSink());
+	}
 
-			stream1.union(stream2)
-					.groupBy(new IdentityKeySelector<Integer>())
-					.map(new OnceFailingPartitionedSum(NUM_STRINGS))
-					.keyBy(0)
-					.addSink(new CounterSink());
-
-			env.execute();
-
-			// verify that we counted exactly right
-			for (Entry<Integer, Long> sum : OnceFailingPartitionedSum.allSums.entrySet()) {
-				assertEquals(new Long(sum.getKey() * NUM_STRINGS / 40), sum.getValue());
-			}
-			System.out.println("new");
-			for (Long count : CounterSink.allCounts.values()) {
-				assertEquals(new Long(NUM_STRINGS / 40), count);
-			}
-			
-			assertEquals(40, CounterSink.allCounts.size());
-			assertEquals(40, OnceFailingPartitionedSum.allSums.size());
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+	@Override
+	public void postSubmit() {
+		// verify that we counted exactly right
+		for (Entry<Integer, Long> sum : OnceFailingPartitionedSum.allSums.entrySet()) {
+			assertEquals(new Long(sum.getKey() * NUM_STRINGS / 40), sum.getValue());
 		}
+		for (Long count : CounterSink.allCounts.values()) {
+			assertEquals(new Long(NUM_STRINGS / 40), count);
+		}
+
+		assertEquals(40, CounterSink.allCounts.size());
+		assertEquals(40, OnceFailingPartitionedSum.allSums.size());
 	}
 
 	// --------------------------------------------------------------------------------------------
