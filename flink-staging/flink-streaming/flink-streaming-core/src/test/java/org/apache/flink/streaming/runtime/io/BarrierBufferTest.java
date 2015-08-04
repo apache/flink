@@ -34,6 +34,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.File;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.List;
@@ -94,6 +95,8 @@ public class BarrierBufferTest {
 			assertNull(buffer.getNextNonBlocked());
 			
 			buffer.cleanup();
+
+			checkNoTempFilesRemain();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -125,6 +128,8 @@ public class BarrierBufferTest {
 			assertNull(buffer.getNextNonBlocked());
 
 			buffer.cleanup();
+
+			checkNoTempFilesRemain();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -166,6 +171,8 @@ public class BarrierBufferTest {
 			assertNull(buffer.getNextNonBlocked());
 
 			buffer.cleanup();
+
+			checkNoTempFilesRemain();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -283,6 +290,8 @@ public class BarrierBufferTest {
 			assertNull(buffer.getNextNonBlocked());
 
 			buffer.cleanup();
+
+			checkNoTempFilesRemain();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -338,8 +347,10 @@ public class BarrierBufferTest {
 
 			assertNull(buffer.getNextNonBlocked());
 			assertNull(buffer.getNextNonBlocked());
-			buffer.cleanup();
 			
+			buffer.cleanup();
+
+			checkNoTempFilesRemain();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -456,6 +467,8 @@ public class BarrierBufferTest {
 			assertNull(buffer.getNextNonBlocked());
 
 			buffer.cleanup();
+
+			checkNoTempFilesRemain();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -533,6 +546,8 @@ public class BarrierBufferTest {
 			assertNull(buffer.getNextNonBlocked());
 			
 			buffer.cleanup();
+
+			checkNoTempFilesRemain();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -620,6 +635,8 @@ public class BarrierBufferTest {
 			assertNull(buffer.getNextNonBlocked());
 
 			buffer.cleanup();
+
+			checkNoTempFilesRemain();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -719,6 +736,8 @@ public class BarrierBufferTest {
 			assertNull(buffer.getNextNonBlocked());
 
 			buffer.cleanup();
+
+			checkNoTempFilesRemain();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -769,6 +788,7 @@ public class BarrierBufferTest {
 			buffer.getNextNonBlocked();
 			buffer.cleanup();
 
+			checkNoTempFilesRemain();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -808,6 +828,17 @@ public class BarrierBufferTest {
 		}
 		else {
 			assertEquals(expected.getEvent(), present.getEvent());
+		}
+	}
+	
+	private static void checkNoTempFilesRemain() {
+		// validate that all temp files have been removed
+		for (File dir : IO_MANAGER.getSpillingDirectories()) {
+			for (String file : dir.list()) {
+				if (file != null && !(file.equals(".") || file.equals(".."))) {
+					fail("barrier buffer did not clean up temp files. remaining file: " + file);
+				}
+			}
 		}
 	}
 	
