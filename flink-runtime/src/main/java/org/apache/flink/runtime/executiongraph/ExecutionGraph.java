@@ -666,6 +666,8 @@ public class ExecutionGraph implements Serializable {
 				case BACKTRACKING:
 					// go back from vertices that need computation to the ones we need to run
 					throw new JobException("BACKTRACKING is currently not supported as schedule mode.");
+				default:
+					throw new JobException("Schedule mode is invalid.");
 			}
 		}
 		else {
