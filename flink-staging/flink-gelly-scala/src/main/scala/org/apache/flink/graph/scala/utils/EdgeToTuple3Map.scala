@@ -23,9 +23,9 @@ import org.apache.flink.graph.Edge
 
 class EdgeToTuple3Map[K, EV] extends MapFunction[Edge[K, EV], (K, K, EV)] {
 
-    private val serialVersionUID: Long = 1L
+  private val serialVersionUID: Long = 1L
 
-    override def map(value: Edge[K, EV]): (K, K, EV) = {
-        (value.getSource, value.getTarget, value.getValue)
-    }
+  override def map(value: Edge[K, EV]): (K, K, EV) = {
+    (value.getSource, value.getTarget, value.getValue)
+  }
 }
