@@ -20,6 +20,9 @@ package org.apache.flink.tachyon;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.io.FileOutputFormat;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.io.AvroOutputFormat;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -96,7 +99,7 @@ public class HDFSTest {
 		try {
 			FileSystem fs = file.getFileSystem();
 			Assert.assertTrue("Must be HadoopFileSystem", fs instanceof HadoopFileSystem);
-			new TachyonFileSystemWrapperTest.DopOneTestEnvironment();
+			new DopOneTestEnvironment();
 			try {
 				WordCount.main(new String[]{file.toString(), result.toString()});
 			} catch(Throwable t) {
@@ -152,6 +155,20 @@ public class HDFSTest {
 		} catch (IOException e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
+		}
+	}
+
+	// package visible
+	static final class DopOneTestEnvironment extends LocalEnvironment {
+		static {
+			initializeContextEnvironment(new ExecutionEnvironmentFactory() {
+				@Override
+				public ExecutionEnvironment createExecutionEnvironment() {
+					LocalEnvironment le = new LocalEnvironment();
+					le.setParallelism(1);
+					return le;
+				}
+			});
 		}
 	}
 }
