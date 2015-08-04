@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.messages
 
+import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.instance.InstanceID
 
 /**
@@ -52,8 +53,10 @@ object TaskManagerMessages {
    *
    * @param instanceID The instance ID of the reporting TaskManager.
    * @param metricsReport utf-8 encoded JSON metrics report from the metricRegistry.
+   * @param accumulators Accumulators of tasks serialized as Tuple2[internal, user-defined]
    */
-  case class Heartbeat(instanceID: InstanceID, metricsReport: Array[Byte])
+  case class Heartbeat(instanceID: InstanceID, metricsReport: Array[Byte],
+     accumulators: Seq[AccumulatorSnapshot])
 
 
   // --------------------------------------------------------------------------

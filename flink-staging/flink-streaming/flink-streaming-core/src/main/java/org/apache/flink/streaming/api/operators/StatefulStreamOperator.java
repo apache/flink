@@ -18,6 +18,11 @@
 package org.apache.flink.streaming.api.operators;
 
 import java.io.Serializable;
+import java.util.Map;
+
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.streaming.api.state.OperatorStateHandle;
 
 /**
  * Interface for Stream operators that can have state. This interface is used for checkpointing
@@ -27,9 +32,9 @@ import java.io.Serializable;
  */
 public interface StatefulStreamOperator<OUT> extends StreamOperator<OUT> {
 
-	void restoreInitialState(Serializable state) throws Exception;
+	void restoreInitialState(Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> state) throws Exception;
 
-	Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception;
+	Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception;
 
-	void confirmCheckpointCompleted(long checkpointId, long timestamp) throws Exception;
+	void notifyCheckpointComplete(long checkpointId) throws Exception;
 }

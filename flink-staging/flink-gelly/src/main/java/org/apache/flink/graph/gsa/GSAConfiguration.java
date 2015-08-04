@@ -20,6 +20,7 @@ package org.apache.flink.graph.gsa;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.IterationConfiguration;
 
 import java.util.ArrayList;
@@ -45,6 +46,8 @@ public class GSAConfiguration extends IterationConfiguration {
 
 	/** the broadcast variables for the apply function **/
 	private List<Tuple2<String, DataSet<?>>> bcVarsApply = new ArrayList<Tuple2<String,DataSet<?>>>();
+
+	private EdgeDirection direction = EdgeDirection.OUT;
 
 	public GSAConfiguration() {}
 
@@ -106,5 +109,25 @@ public class GSAConfiguration extends IterationConfiguration {
 	 */
 	public List<Tuple2<String, DataSet<?>>> getApplyBcastVars() {
 		return this.bcVarsApply;
+	}
+
+	/**
+	 * Gets the direction from which the neighbors are to be selected
+	 * By default the neighbors who are target of the edges are selected
+	 *
+	 * @return an EdgeDirection, which can be either IN, OUT or ALL.
+	 */
+	public EdgeDirection getDirection() {
+		return direction;
+	}
+
+	/**
+	 * Sets the direction in which neighbors are to be selected
+	 * By default the neighbors who are target of the edges are selected
+	 *
+	 * @param direction - IN, OUT or ALL
+	 */
+	public void setDirection(EdgeDirection direction) {
+		this.direction = direction;
 	}
 }

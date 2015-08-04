@@ -21,6 +21,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 /**
@@ -44,7 +45,7 @@ public class JumpingTimePreReducer<T> extends TumblingPreReducer<T> {
 	}
 
 	@Override
-	public void emitWindow(Collector<StreamWindow<T>> collector) {
+	public void emitWindow(Collector<StreamRecord<StreamWindow<T>>> collector) {
 		super.emitWindow(collector);
 		windowStartTime += slideSize;
 	}

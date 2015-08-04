@@ -71,7 +71,7 @@ import static org.apache.flink.yarn.UtilsTest.checkForLogString;
 
 
 /**
- * This test starts a MiniYARNCluster with a FIFO scheudler.
+ * This test starts a MiniYARNCluster with a FIFO scheduler.
  * There are no queues for that scheduler.
  */
 public class YARNSessionFIFOITCase extends YarnTestBase {
@@ -91,7 +91,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 	@After
 	public void checkForProhibitedLogContents() {
-		ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS);
+		ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS, WHITELISTED_STRINGS);
 	}
 
 	/**
@@ -121,6 +121,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 						"-n", "1",
 						"-jm", "768",
 						"-tm", "1024",
+						"--name", "MyCustomName", // test setting a custom name
 						"--detached"},
 				"Flink JobManager is now running on", RunTypes.YARN_SESSION);
 
@@ -142,7 +143,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			yc.start();
 			List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
 			Assert.assertEquals(1, apps.size()); // Only one running
-			ApplicationId id = apps.get(0).getApplicationId();
+			ApplicationReport app = apps.get(0);
+			Assert.assertEquals("MyCustomName", app.getName());
+			ApplicationId id = app.getApplicationId();
 			yc.killApplication(id);
 
 			while(yc.getApplications(EnumSet.of(YarnApplicationState.KILLED)).size() == 0) {
@@ -166,6 +169,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				"-n", "1",
 				"-jm", "768",
 				"-tm", "1024",
+				"-nm", "customName",
 				"-Dfancy-configuration-value=veryFancy",
 				"-Dyarn.maximum-failed-containers=3"},
 				"Number of connected TaskManagers changed to 1. Slots available: 1",
@@ -180,7 +184,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			yc.start();
 			List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
 			Assert.assertEquals(1, apps.size()); // Only one running
-			String url = apps.get(0).getTrackingUrl();
+			ApplicationReport app = apps.get(0);
+			Assert.assertEquals("customName", app.getName());
+			String url = app.getTrackingUrl();
 			if(!url.endsWith("/")) {
 				url += "/";
 			}
@@ -206,12 +212,12 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			String hostname = null;
 			String port = null;
 			while(matches.find()) {
-				hostname = matches.group(1);
+				hostname = matches.group(1).toLowerCase();
 				port = matches.group(2);
 			}
 			LOG.info("Extracted hostname:port: {} {}", hostname, port);
 
-			Assert.assertEquals("unable to find hostname in " + parsed, hostname, parsed.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY));
+			Assert.assertEquals("unable to find hostname in " + parsed, hostname, parsed.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY).toLowerCase());
 			Assert.assertEquals("unable to find port in " + parsed, port, parsed.getString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY));
 
 			// test logfile access
@@ -615,7 +621,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		// deploy
 		AbstractFlinkYarnCluster yarnCluster = null;
 		try {
-			yarnCluster = flinkYarnClient.deploy(null);
+			yarnCluster = flinkYarnClient.deploy();
 			yarnCluster.connectToCluster();
 		} catch (Exception e) {
 			System.err.println("Error while deploying YARN cluster: "+e.getMessage());
@@ -647,7 +653,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		LOG.info("Shutting down cluster. All tests passed");
 		// shutdown cluster
-		yarnCluster.shutdown();
+		yarnCluster.shutdown(false);
 		LOG.info("Finished testJavaAPI()");
 	}
 }

@@ -21,6 +21,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 public class JumpingCountGroupedPreReducer<T> extends TumblingGroupedPreReducer<T> {
@@ -37,7 +38,7 @@ public class JumpingCountGroupedPreReducer<T> extends TumblingGroupedPreReducer<
 	}
 
 	@Override
-	public void emitWindow(Collector<StreamWindow<T>> collector) {
+	public void emitWindow(Collector<StreamRecord<StreamWindow<T>>> collector) {
 		super.emitWindow(collector);
 		skipped = 0;
 	}

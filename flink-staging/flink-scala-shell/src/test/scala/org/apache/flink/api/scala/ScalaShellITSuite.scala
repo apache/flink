@@ -74,8 +74,6 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
     output should not include "error"
     output should not include "Exception"
 
-    output should include("Job execution switched to status FINISHED.")
-
 //    some of the words that should be included
     output should include("(a,1)")
     output should include("(whether,1)")

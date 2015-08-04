@@ -18,22 +18,22 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import akka.actor.ActorRef;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -78,7 +78,7 @@ public class TerminalStateDeadlockTest {
 			InstanceConnectionInfo ci = new InstanceConnectionInfo(address, 12345);
 				
 			HardwareDescription resources = new HardwareDescription(4, 4000000, 3000000, 2000000);
-			Instance instance = new Instance(ActorRef.noSender(), ci, new InstanceID(), resources, 4);
+			Instance instance = new Instance(DummyActorGateway.INSTANCE, ci, new InstanceID(), resources, 4);
 
 			this.resource = instance.allocateSimpleSlot(new JobID());
 		}
@@ -105,10 +105,10 @@ public class TerminalStateDeadlockTest {
 			
 			final Configuration jobConfig = new Configuration();
 			
-			final List<AbstractJobVertex> vertices;
+			final List<JobVertex> vertices;
 			{
-				AbstractJobVertex v1 = new AbstractJobVertex("v1", vid1);
-				AbstractJobVertex v2 = new AbstractJobVertex("v2", vid2);
+				JobVertex v1 = new JobVertex("v1", vid1);
+				JobVertex v2 = new JobVertex("v2", vid2);
 				v1.setParallelism(1);
 				v2.setParallelism(1);
 				v1.setInvokableClass(DummyInvokable.class);
@@ -116,7 +116,7 @@ public class TerminalStateDeadlockTest {
 				vertices = Arrays.asList(v1, v2);
 			}
 			
-			final Scheduler scheduler = new Scheduler();
+			final Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 			
 			final Executor executor = Executors.newFixedThreadPool(4);
 			
@@ -181,7 +181,7 @@ public class TerminalStateDeadlockTest {
 		private volatile boolean done;
 
 		TestExecGraph(JobID jobId) {
-			super(jobId, "test graph", EMPTY_CONFIG, TIMEOUT);
+			super(TestingUtils.defaultExecutionContext(), jobId, "test graph", EMPTY_CONFIG, TIMEOUT);
 		}
 
 		@Override

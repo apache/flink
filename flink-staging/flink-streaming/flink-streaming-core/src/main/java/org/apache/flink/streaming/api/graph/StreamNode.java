@@ -22,13 +22,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapperFactory;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 
 /**
  * Class representing the operators in the streaming programs, with all their
@@ -48,12 +49,13 @@ public class StreamNode implements Serializable {
 	private String operatorName;
 	private Integer slotSharingID;
 	private boolean isolatedSlot = false;
+	private KeySelector<?,?> statePartitioner;
 
 	private transient StreamOperator<?> operator;
 	private List<OutputSelector<?>> outputSelectors;
-	private StreamRecordSerializer<?> typeSerializerIn1;
-	private StreamRecordSerializer<?> typeSerializerIn2;
-	private StreamRecordSerializer<?> typeSerializerOut;
+	private TypeSerializer<?> typeSerializerIn1;
+	private TypeSerializer<?> typeSerializerIn2;
+	private TypeSerializer<?> typeSerializerOut;
 
 	private List<StreamEdge> inEdges = new ArrayList<StreamEdge>();
 	private List<StreamEdge> outEdges = new ArrayList<StreamEdge>();
@@ -166,27 +168,27 @@ public class StreamNode implements Serializable {
 		this.outputSelectors.add(outputSelector);
 	}
 
-	public StreamRecordSerializer<?> getTypeSerializerIn1() {
+	public TypeSerializer<?> getTypeSerializerIn1() {
 		return typeSerializerIn1;
 	}
 
-	public void setSerializerIn1(StreamRecordSerializer<?> typeSerializerIn1) {
+	public void setSerializerIn1(TypeSerializer<?> typeSerializerIn1) {
 		this.typeSerializerIn1 = typeSerializerIn1;
 	}
 
-	public StreamRecordSerializer<?> getTypeSerializerIn2() {
+	public TypeSerializer<?> getTypeSerializerIn2() {
 		return typeSerializerIn2;
 	}
 
-	public void setSerializerIn2(StreamRecordSerializer<?> typeSerializerIn2) {
+	public void setSerializerIn2(TypeSerializer<?> typeSerializerIn2) {
 		this.typeSerializerIn2 = typeSerializerIn2;
 	}
 
-	public StreamRecordSerializer<?> getTypeSerializerOut() {
+	public TypeSerializer<?> getTypeSerializerOut() {
 		return typeSerializerOut;
 	}
 
-	public void setSerializerOut(StreamRecordSerializer<?> typeSerializerOut) {
+	public void setSerializerOut(TypeSerializer<?> typeSerializerOut) {
 		this.typeSerializerOut = typeSerializerOut;
 	}
 
@@ -219,4 +221,11 @@ public class StreamNode implements Serializable {
 		return operatorName + id;
 	}
 
+	public KeySelector<?, ?> getStatePartitioner() {
+		return statePartitioner;
+	}
+
+	public void setStatePartitioner(KeySelector<?, ?> statePartitioner) {
+		this.statePartitioner = statePartitioner;
+	}
 }

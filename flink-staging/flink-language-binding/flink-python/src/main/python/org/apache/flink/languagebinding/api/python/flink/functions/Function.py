@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 from abc import ABCMeta, abstractmethod
-import dill
 import sys
 from collections import deque
 from flink.connection import Connection, Iterator, Collector
@@ -32,7 +31,6 @@ class Function(object):
         self._collector = None
         self.context = None
         self._chain_operator = None
-        self._meta = None
 
     def _configure(self, input_file, output_file, port):
         self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, port)
@@ -42,22 +40,15 @@ class Function(object):
 
     def _configure_chain(self, collector):
         if self._chain_operator is not None:
-            frag = self._meta.split("|")
-            if "flink/functions" in frag[0]:#lambda function
-                exec("from flink.functions." + frag[1] + " import " + frag[1])
-            else:
-                self._chain_operator = self._chain_operator.replace(b"__main__", b"plan")
-                exec("from plan import " + frag[1])
-            self._collector = dill.loads(self._chain_operator)
+            self._collector = self._chain_operator
             self._collector.context = self.context
             self._collector._configure_chain(collector)
             self._collector._open()
         else:
             self._collector = collector
 
-    def _chain(self, operator, meta):
+    def _chain(self, operator):
         self._chain_operator = operator
-        self._meta = meta
 
     @abstractmethod
     def _run(self):

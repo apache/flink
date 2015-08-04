@@ -70,7 +70,7 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 		Plan p = getTestJob();
 		p.setExecutionConfig(new ExecutionConfig());
 		if (p == null) {
-			Assert.fail("Error: Cannot obtain Pact plan. Did the thest forget to override either 'getPactPlan()' or 'getJobGraph()' ?");
+			Assert.fail("Error: Cannot obtain Pact plan. Did the test forget to override either 'getPactPlan()' or 'getJobGraph()' ?");
 		}
 		
 		Optimizer pc = new Optimizer(new DataStatistics(), this.config);

@@ -18,23 +18,23 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.scala.ClosureCleaner
+
 import scala.Array.canBuildFrom
-import scala.collection.JavaConversions.iterableAsScalaIterable
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 import org.apache.flink.api.common.functions.{FoldFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
-import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
 import org.apache.flink.streaming.api.datastream.{WindowedDataStream => JavaWStream, DiscretizedStream}
 import org.apache.flink.streaming.api.functions.WindowMapFunction
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
-import org.apache.flink.streaming.api.functions.aggregation.SumFunction
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.windowing.StreamWindow
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.util.Collector
+import org.apache.flink.streaming.api.functions.aggregation.SumAggregator
+import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator
 
 class WindowedDataStream[T](javaStream: JavaWStream[T]) {
 
@@ -105,8 +105,8 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    */
   def groupBy[K: TypeInformation](fun: T => K): WindowedDataStream[T] = {
 
+    val cleanFun = clean(fun)
     val keyExtractor = new KeySelector[T, K] {
-      val cleanFun = clean(fun)
       def getKey(in: T) = cleanFun(in)
     }
     javaStream.groupBy(keyExtractor)
@@ -151,8 +151,8 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     if (fun == null) {
       throw new NullPointerException("Reduce function must not be null.")
     }
+    val cleanFun = clean(fun)
     val reducer = new ReduceFunction[T] {
-      val cleanFun = clean(fun)
       def reduce(v1: T, v2: T) = { cleanFun(v1, v2) }
     }
     reduceWindow(reducer)
@@ -181,8 +181,8 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     if (fun == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
+    val cleanFun = clean(fun)
     val folder = new FoldFunction[T,R] {
-      val cleanFun = clean(fun)
       def fold(acc: R, v: T) = { cleanFun(acc, v) }
     }
     foldWindow(initialValue, folder)
@@ -217,9 +217,9 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     if (fun == null) {
       throw new NullPointerException("GroupReduce function must not be null.")
     }
+    val cleanFun = clean(fun)
     val reducer = new WindowMapFunction[T, R] {
-      val cleanFun = clean(fun)
-      def mapWindow(in: java.lang.Iterable[T], out: Collector[R]) = { cleanFun(in, out) }
+      def mapWindow(in: java.lang.Iterable[T], out: Collector[R]) = { cleanFun(in.asScala, out) }
     }
     mapWindow(reducer)
   }
@@ -306,16 +306,13 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
   WindowedDataStream[T] = {
 
     val jStream = javaStream.asInstanceOf[JavaWStream[Product]]
-    val outType = jStream.getType().asInstanceOf[TupleTypeInfoBase[_]]
-
-    val agg = new ScalaStreamingAggregator[Product](
-      jStream.getType().createSerializer(javaStream.getExecutionConfig),
-      position)
 
     val reducer = aggregationType match {
-      case AggregationType.SUM => new agg.Sum(SumFunction.getForClass(
-        outType.getTypeAt(position).getTypeClass()))
-      case _ => new agg.ProductComparableAggregator(aggregationType, true)
+      case AggregationType.SUM =>
+        new SumAggregator(position, jStream.getType, jStream.getExecutionConfig)
+      case _ =>
+        new ComparableAggregator(position, jStream.getType, aggregationType, true,
+          jStream.getExecutionConfig)
     }
 
     new WindowedDataStream[Product](
@@ -328,5 +325,14 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * @return The output type.
    */
   def getType(): TypeInformation[T] = javaStream.getType
+
+  /**
+   * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
+   * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
+   */
+  private[flink] def clean[F <: AnyRef](f: F): F = {
+    new StreamExecutionEnvironment(
+      javaStream.getDiscretizedStream.getExecutionEnvironment).scalaClean(f)
+  }
 
 }

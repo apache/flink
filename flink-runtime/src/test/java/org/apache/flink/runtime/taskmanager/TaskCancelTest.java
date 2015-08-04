@@ -25,11 +25,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -77,12 +78,12 @@ public class TaskCancelTest {
 			// Setup
 			final JobGraph jobGraph = new JobGraph("Cancel Big Union");
 
-			AbstractJobVertex[] sources = new AbstractJobVertex[numberOfSources];
+			JobVertex[] sources = new JobVertex[numberOfSources];
 			SlotSharingGroup group = new SlotSharingGroup();
 
 			// Create multiple sources
 			for (int i = 0; i < sources.length; i++) {
-				sources[i] = new AbstractJobVertex("Source " + i);
+				sources[i] = new JobVertex("Source " + i);
 				sources[i].setInvokableClass(InfiniteSource.class);
 				sources[i].setParallelism(sourceParallelism);
 				sources[i].setSlotSharingGroup(group);
@@ -92,14 +93,14 @@ public class TaskCancelTest {
 			}
 
 			// Union all sources
-			AbstractJobVertex union = new AbstractJobVertex("Union");
+			JobVertex union = new JobVertex("Union");
 			union.setInvokableClass(AgnosticUnion.class);
 			union.setParallelism(sourceParallelism);
 
 			jobGraph.addVertex(union);
 
 			// Each source creates a separate result
-			for (AbstractJobVertex source : sources) {
+			for (JobVertex source : sources) {
 				union.connectNewDataSetAsInput(
 						source,
 						DistributionPattern.POINTWISE,
@@ -108,7 +109,7 @@ public class TaskCancelTest {
 
 			// Run test
 			JobClient.submitJobDetached(
-					flink.jobManagerActor(), jobGraph, TestingUtils.TESTING_DURATION());
+					flink.getJobManagerGateway(), jobGraph, TestingUtils.TESTING_DURATION());
 
 			// Wait for the job to make some progress and then cancel
 			awaitRunning(
@@ -117,7 +118,7 @@ public class TaskCancelTest {
 			Thread.sleep(5000);
 
 			cancelJob(
-					flink.jobManagerActor(), jobGraph.getJobID(), TestingUtils.TESTING_DURATION());
+					flink.getJobManagerGateway(), jobGraph.getJobID(), TestingUtils.TESTING_DURATION());
 
 			// Wait for the job to be cancelled
 			JobStatus status = awaitTermination(
@@ -147,16 +148,14 @@ public class TaskCancelTest {
 	 * @param jobId The JobID of the job to cancel.
 	 * @param timeout Duration in which the JobManager must have responded.
 	 */
-	public static void cancelJob(ActorRef jobManager, JobID jobId, FiniteDuration timeout)
+	public static void cancelJob(ActorGateway jobManager, JobID jobId, FiniteDuration timeout)
 			throws Exception {
 
 		checkNotNull(jobManager);
 		checkNotNull(jobId);
 		checkNotNull(timeout);
 
-		Future<Object> ask = Patterns.ask(jobManager,
-				new CancelJob(jobId),
-				new Timeout(timeout));
+		Future<Object> ask = jobManager.ask(new CancelJob(jobId), timeout);
 
 		Object result = Await.result(ask, timeout);
 

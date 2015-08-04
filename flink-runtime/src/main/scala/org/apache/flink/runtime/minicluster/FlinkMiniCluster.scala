@@ -28,13 +28,18 @@ import org.apache.flink.api.common.JobSubmissionResult
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.client.{JobExecutionException, JobClient, SerializedJobExecutionResult}
+import org.apache.flink.runtime.client.{JobExecutionException, JobClient,
+SerializedJobExecutionResult}
+import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway}
 import org.apache.flink.runtime.jobgraph.JobGraph
+import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
+import org.apache.flink.runtime.webmonitor.WebMonitor
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Future, Await}
+import scala.concurrent.{ExecutionContext, Future, Await}
 
 /**
  * Abstract base class for Flink's mini cluster. The mini cluster starts a
@@ -48,9 +53,10 @@ import scala.concurrent.{Future, Await}
  * @param streamingMode True, if the system should be started in streaming mode, false if
  *                      in pure batch mode.
  */
-abstract class FlinkMiniCluster(val userConfiguration: Configuration,
-                                val singleActorSystem: Boolean,
-                                val streamingMode: StreamingMode) {
+abstract class FlinkMiniCluster(
+    val userConfiguration: Configuration,
+    val singleActorSystem: Boolean,
+    val streamingMode: StreamingMode) {
 
   def this(userConfiguration: Configuration, singleActorSystem: Boolean) 
          = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
@@ -70,7 +76,7 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
   val configuration = generateConfiguration(userConfiguration)
 
   var jobManagerActorSystem = startJobManagerActorSystem()
-  var jobManagerActor = startJobManager(jobManagerActorSystem)
+  var (jobManagerActor, webMonitor) = startJobManager(jobManagerActorSystem)
 
   val numTaskManagers = configuration.getInteger(
      ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
@@ -95,7 +101,7 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
 
   def generateConfiguration(userConfiguration: Configuration): Configuration
 
-  def startJobManager(system: ActorSystem): ActorRef
+  def startJobManager(system: ActorSystem): (ActorRef, Option[WebMonitor])
 
   def startTaskManager(index: Int, system: ActorSystem): ActorRef
 
@@ -131,8 +137,9 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
     AkkaUtils.createActorSystem(config)
   }
 
-  def getJobManager: ActorRef = {
-    jobManagerActor
+  def getJobManagerGateway(): ActorGateway = {
+    // create ActorGateway from the JobManager's ActorRef
+    JobManager.getJobManagerGateway(jobManagerActor, timeout)
   }
 
   def getTaskManagers = {
@@ -151,13 +158,17 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
   }
 
   def shutdown(): Unit = {
+    webMonitor foreach {
+      _.stop()
+    }
+
     val futures = taskManagerActors map {
         gracefulStop(_, timeout)
     }
 
     val future = gracefulStop(jobManagerActor, timeout)
 
-    implicit val executionContext = AkkaUtils.globalExecutionContext
+    implicit val executionContext = ExecutionContext.global
 
     Await.ready(Future.sequence(future +: futures), timeout)
 
@@ -178,8 +189,46 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
     }
   }
 
+  def startWebServer(
+      config: Configuration,
+      jobManager: ActorRef,
+      archiver: ActorRef)
+    : Option[WebMonitor] = {
+    if(
+      config.getBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, false) &&
+      config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
+
+      val lookupTimeout = AkkaUtils.getLookupTimeout(config)
+
+      val jobManagerGateway = JobManager.getJobManagerGateway(jobManager, lookupTimeout)
+      val archiverGateway = new AkkaActorGateway(archiver, jobManagerGateway.leaderSessionID())
+
+      // start the job manager web frontend
+      val webServer = if (
+        config.getBoolean(
+          ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY,
+          false)) {
+
+        LOG.info("Starting NEW JobManger web frontend")
+        // start the new web frontend. we need to load this dynamically
+        // because it is not in the same project/dependencies
+        JobManager.startWebRuntimeMonitor(config, jobManagerGateway, archiverGateway)
+      }
+      else {
+        LOG.info("Starting JobManger web frontend")
+        new WebInfoServer(config, jobManagerGateway, archiverGateway)
+      }
+
+      webServer.start()
+
+      Option(webServer)
+    } else {
+      None
+    }
+  }
+
   def waitForTaskManagersToBeRegistered(): Unit = {
-    implicit val executionContext = AkkaUtils.globalExecutionContext
+    implicit val executionContext = ExecutionContext.global
 
     val futures = taskManagerActors map {
       taskManager => (taskManager ? NotifyWhenRegisteredAtJobManager)(timeout)
@@ -196,18 +245,26 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
   }
   
   @throws(classOf[JobExecutionException])
-  def submitJobAndWait(jobGraph: JobGraph, printUpdates: Boolean, timeout: FiniteDuration)
-                                                                 : SerializedJobExecutionResult = {
+  def submitJobAndWait(
+      jobGraph: JobGraph,
+      printUpdates: Boolean,
+      timeout: FiniteDuration)
+    : SerializedJobExecutionResult = {
 
     val clientActorSystem = if (singleActorSystem) jobManagerActorSystem
     else JobClient.startJobClientActorSystem(configuration)
 
-    JobClient.submitJobAndWait(clientActorSystem, jobManagerActor, jobGraph, timeout, printUpdates)
+    JobClient.submitJobAndWait(
+      clientActorSystem,
+      getJobManagerGateway(),
+      jobGraph,
+      timeout,
+      printUpdates)
   }
 
   @throws(classOf[JobExecutionException])
   def submitJobDetached(jobGraph: JobGraph) : JobSubmissionResult = {
-    JobClient.submitJobDetached(jobManagerActor, jobGraph, timeout)
+    JobClient.submitJobDetached(getJobManagerGateway(), jobGraph, timeout)
     new JobSubmissionResult(jobGraph.getJobID)
   }
 }

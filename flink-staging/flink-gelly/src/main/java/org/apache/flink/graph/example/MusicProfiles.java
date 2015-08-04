@@ -31,6 +31,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.EdgesFunctionWithVertexValue;
@@ -128,12 +129,16 @@ public class MusicProfiles implements ProgramDescription {
 		/**
 		 * Detect user communities using the label propagation library method
 		 */
+		// Initialize each vertex with a unique numeric label and run the label propagation algorithm
+		DataSet<Tuple2<String, Long>> idsWithInitialLabels = DataSetUtils
+				.zipWithUniqueId(similarUsersGraph.getVertexIds())
+				.map(new MapFunction<Tuple2<Long, String>, Tuple2<String, Long>>() {
+					@Override
+					public Tuple2<String, Long> map(Tuple2<Long, String> tuple2) throws Exception {
+						return new Tuple2<String, Long>(tuple2.f1, tuple2.f0);
+					}
+				});
 
-		// Initialize each vertex with a unique numeric label
-		DataSet<Tuple2<String, Long>> idsWithInitialLabels = similarUsersGraph
-				.getVertices().reduceGroup(new AssignInitialLabelReducer());
-
-		// update the vertex values and run the label propagation algorithm
 		DataSet<Vertex<String, Long>> verticesWithCommunity = similarUsersGraph
 				.joinWithVertices(idsWithInitialLabels,
 						new MapFunction<Tuple2<Long, Long>, Long>() {
@@ -215,18 +220,6 @@ public class MusicProfiles implements ProgramDescription {
 					out.collect(new Edge<String, NullValue>(listeners.get(i),
 							listeners.get(j), NullValue.getInstance()));
 				}
-			}
-		}
-	}
-
-	public static final class AssignInitialLabelReducer implements GroupReduceFunction<Vertex<String, Long>,
-		Tuple2<String, Long>> {
-
-		public void reduce(Iterable<Vertex<String, Long>> vertices,	Collector<Tuple2<String, Long>> out) {
-			long label = 0;
-			for (Vertex<String, Long> vertex : vertices) {
-				out.collect(new Tuple2<String, Long>(vertex.getId(), label));
-				label++;
 			}
 		}
 	}

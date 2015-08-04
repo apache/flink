@@ -1,34 +1,35 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Licensed to the Apache Software Foundation (ASF) under one or more
+* contributor license agreements.  See the NOTICE file distributed with
+* this work for additional information regarding copyright ownership.
+* The ASF licenses this file to You under the Apache License, Version 2.0
+* (the "License"); you may not use this file except in compliance with
+* the License.  You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 
 package org.apache.flink.streaming.api.windowing.windowbuffer;
 
-import static org.apache.flink.streaming.api.windowing.windowbuffer.SlidingTimeGroupedPreReducerTest.checkResults;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.operators.windowing.WindowIntegrationTest;
+import org.apache.flink.streaming.api.operators.windowing.WindowingITCase;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
-import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestCollector;
+import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestOutput;
 import org.junit.Test;
 
 public class SlidingCountGroupedPreReducerTest {
@@ -37,11 +38,11 @@ public class SlidingCountGroupedPreReducerTest {
 
 	ReduceFunction<Integer> reducer = new SumReducer();
 
-	KeySelector<Integer, ?> key = new WindowIntegrationTest.ModKey(2);
+	KeySelector<Integer, ?> key = new WindowingITCase.ModKey(2);
 
 	@Test
 	public void testPreReduce1() throws Exception {
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 
 		SlidingCountGroupedPreReducer<Integer> preReducer = new SlidingCountGroupedPreReducer<Integer>(
 				reducer, serializer, key, 3, 2, 0);
@@ -84,7 +85,7 @@ public class SlidingCountGroupedPreReducerTest {
 
 	@Test
 	public void testPreReduce2() throws Exception {
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 
 		SlidingCountGroupedPreReducer<Integer> preReducer = new SlidingCountGroupedPreReducer<Integer>(
 				reducer, serializer, key, 5, 2, 0);
@@ -126,7 +127,7 @@ public class SlidingCountGroupedPreReducerTest {
 
 	@Test
 	public void testPreReduce3() throws Exception {
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 
 		SlidingCountGroupedPreReducer<Integer> preReducer = new SlidingCountGroupedPreReducer<Integer>(
 				reducer, serializer, key, 6, 3, 0);
@@ -163,7 +164,7 @@ public class SlidingCountGroupedPreReducerTest {
 
 	@Test
 	public void testPreReduce4() throws Exception {
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 
 		SlidingCountGroupedPreReducer<Integer> preReducer = new SlidingCountGroupedPreReducer<Integer>(
 				reducer, serializer, key, 5, 1, 2);
@@ -217,4 +218,18 @@ public class SlidingCountGroupedPreReducerTest {
 
 	}
 
+
+	protected static void checkResults(List<StreamWindow<Integer>> expected,
+			List<StreamWindow<Integer>> actual) {
+
+		for (StreamWindow<Integer> sw : expected) {
+			Collections.sort(sw);
+		}
+
+		for (StreamWindow<Integer> sw : actual) {
+			Collections.sort(sw);
+		}
+
+		assertEquals(expected, actual);
+	}
 }

@@ -20,15 +20,15 @@ package org.apache.flink.runtime.io.network;
 
 import static org.junit.Assert.*;
 
-import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
-import org.mockito.Mockito;
 import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
@@ -58,7 +58,10 @@ public class NetworkEnvironmentTest {
 					NUM_BUFFERS, BUFFER_SIZE, IOManager.IOMode.SYNC, new Some<NettyConfig>(nettyConf),
 					new Tuple2<Integer, Integer>(0, 0));
 
-			NetworkEnvironment env = new NetworkEnvironment(new FiniteDuration(30, TimeUnit.SECONDS), config);
+			NetworkEnvironment env = new NetworkEnvironment(
+				TestingUtils.defaultExecutionContext(),
+				new FiniteDuration(30, TimeUnit.SECONDS),
+				config);
 
 			assertFalse(env.isShutdown());
 			assertFalse(env.isAssociated());
@@ -74,9 +77,9 @@ public class NetworkEnvironmentTest {
 			assertNull(env.getPartitionManager());
 
 			// associate the environment with some mock actors
-			ActorRef jmActor = Mockito.mock(ActorRef.class);
-			ActorRef tmActor = Mockito.mock(ActorRef.class);
-			env.associateWithTaskManagerAndJobManager(jmActor, tmActor);
+			env.associateWithTaskManagerAndJobManager(
+					DummyActorGateway.INSTANCE,
+					DummyActorGateway.INSTANCE);
 
 			assertNotNull(env.getConnectionManager());
 			assertNotNull(env.getPartitionConsumableNotifier());
@@ -99,9 +102,10 @@ public class NetworkEnvironmentTest {
 			assertTrue(localPool.isDestroyed());
 
 			// associate once again
-			jmActor = Mockito.mock(ActorRef.class);
-			tmActor = Mockito.mock(ActorRef.class);
-			env.associateWithTaskManagerAndJobManager(jmActor, tmActor);
+			env.associateWithTaskManagerAndJobManager(
+					DummyActorGateway.INSTANCE,
+					DummyActorGateway.INSTANCE
+			);
 
 			assertNotNull(env.getConnectionManager());
 			assertNotNull(env.getPartitionConsumableNotifier());

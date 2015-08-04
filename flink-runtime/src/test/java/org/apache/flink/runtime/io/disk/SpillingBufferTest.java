@@ -19,13 +19,8 @@
 
 package org.apache.flink.runtime.io.disk;
 
-import java.io.EOFException;
-import java.util.ArrayList;
-
-import org.junit.Assert;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.disk.SpillingBuffer;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -34,14 +29,18 @@ import org.apache.flink.runtime.memorymanager.ListMemorySegmentSource;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.runtime.operators.testutils.TestData.Key;
-import org.apache.flink.runtime.operators.testutils.TestData.Value;
 import org.apache.flink.runtime.operators.testutils.TestData.Generator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.Generator.ValueMode;
+import org.apache.flink.runtime.operators.testutils.TestData.Key;
+import org.apache.flink.runtime.operators.testutils.TestData.Value;
 import org.apache.flink.types.Record;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.EOFException;
+import java.util.ArrayList;
 
 
 public class SpillingBufferTest {

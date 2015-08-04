@@ -26,10 +26,12 @@ import akka.actor.Props;
 import akka.actor.Status;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -114,25 +116,36 @@ public class JobClient {
 	 * case a [[JobExecutionException]] is thrown.
 	 *
 	 * @param actorSystem The actor system that performs the communication.
-	 * @param jobManager  The JobManager that should execute the job.
+	 * @param jobManagerGateway  Gateway to the JobManager that should execute the job.
 	 * @param jobGraph    JobGraph describing the Flink job
 	 * @param timeout     Timeout for futures
 	 * @return The job execution result
 	 * @throws org.apache.flink.runtime.client.JobExecutionException Thrown if the job
 	 *                                                               execution fails.
 	 */
-	public static SerializedJobExecutionResult submitJobAndWait(ActorSystem actorSystem, ActorRef jobManager,
-																JobGraph jobGraph, FiniteDuration timeout,
-																boolean sysoutLogUpdates) throws JobExecutionException
-	{
-		if (actorSystem == null || jobManager == null || jobGraph == null || timeout == null) {
-			throw new NullPointerException();
-		}
+	public static SerializedJobExecutionResult submitJobAndWait(
+			ActorSystem actorSystem,
+			ActorGateway jobManagerGateway,
+			JobGraph jobGraph,
+			FiniteDuration timeout,
+			boolean sysoutLogUpdates) throws JobExecutionException {
+
+		Preconditions.checkNotNull(actorSystem, "The actorSystem must not be null.");
+		Preconditions.checkNotNull(jobManagerGateway, "The jobManagerGateway must not be null.");
+		Preconditions.checkNotNull(jobGraph, "The jobGraph must not be null.");
+		Preconditions.checkNotNull(timeout, "The timeout must not be null.");
+
 		// for this job, we create a proxy JobClientActor that deals with all communication with
 		// the JobManager. It forwards the job submission, checks the success/failure responses, logs
 		// update messages, watches for disconnect between client and JobManager, ...
 
-		Props jobClientActorProps = Props.create(JobClientActor.class, jobManager, LOG, sysoutLogUpdates);
+		Props jobClientActorProps = Props.create(
+				JobClientActor.class,
+				jobManagerGateway.actor(),
+				LOG,
+				sysoutLogUpdates,
+				jobManagerGateway.leaderSessionID());
+
 		ActorRef jobClientActor = actorSystem.actorOf(jobClientActorProps);
 
 		try {
@@ -178,25 +191,30 @@ public class JobClient {
 	 * Submits a job in detached mode. The method sends the JobGraph to the
 	 * JobManager and waits for the answer whether teh job could be started or not.
 	 *
+	 * @param jobManagerGateway Gateway to the JobManager which will execute the jobs
 	 * @param jobGraph The job
 	 * @param timeout  Timeout in which the JobManager must have responded.
 	 */
-	public static void submitJobDetached(ActorRef jobManager, JobGraph jobGraph, FiniteDuration timeout)
-			throws JobExecutionException {
-		if (jobManager == null || jobGraph == null || timeout == null) {
-			throw new NullPointerException();
-		}
+	public static void submitJobDetached(
+			ActorGateway jobManagerGateway,
+			JobGraph jobGraph,
+			FiniteDuration timeout) throws JobExecutionException {
 
-		Future<Object> future = Patterns.ask(jobManager,
+		Preconditions.checkNotNull(jobManagerGateway, "The jobManagerGateway must not be null.");
+		Preconditions.checkNotNull(jobGraph, "The jobGraph must not be null.");
+		Preconditions.checkNotNull(timeout, "The timeout must not be null.");
+
+		Future<Object> future = jobManagerGateway.ask(
 				new JobManagerMessages.SubmitJob(jobGraph, false),
-				new Timeout(timeout));
+				timeout);
+
 		try {
 			Object result = Await.result(future, timeout);
 			if (result instanceof JobID) {
 				JobID respondedID = (JobID) result;
 				if (!respondedID.equals(jobGraph.getJobID())) {
-					throw new Exception("JobManager responded for wrong Job. This Job: " + jobGraph.getJobID() +
-							", response: " + respondedID);
+					throw new Exception("JobManager responded for wrong Job. This Job: " +
+							jobGraph.getJobID() + ", response: " + respondedID);
 				}
 			}
 			else {
@@ -222,17 +240,20 @@ public class JobClient {
 	 * blocking call.
 	 *
 	 * @param jobGraph   Flink job containing the information about the required jars
-	 * @param jobManager ActorRef of the JobManager.
+	 * @param jobManagerGateway Gateway to the JobManager.
 	 * @param timeout    Timeout for futures
 	 * @throws IOException Thrown, if the file upload to the JobManager failed.
 	 */
-	public static void uploadJarFiles(JobGraph jobGraph, ActorRef jobManager, FiniteDuration timeout)
+	public static void uploadJarFiles(
+			JobGraph jobGraph,
+			ActorGateway jobManagerGateway,
+			FiniteDuration timeout)
 			throws IOException {
 		if (jobGraph.hasUsercodeJarFiles()) {
-			Timeout tOut = new Timeout(timeout);
-			Future<Object> futureBlobPort = Patterns.ask(jobManager,
+
+			Future<Object> futureBlobPort = jobManagerGateway.ask(
 					JobManagerMessages.getRequestBlobManagerPort(),
-					tOut);
+					timeout);
 
 			int port;
 			try {
@@ -247,7 +268,7 @@ public class JobClient {
 				throw new IOException("Could not retrieve the JobManager's blob port.", e);
 			}
 
-			Option<String> jmHost = jobManager.path().address().host();
+			Option<String> jmHost = jobManagerGateway.actor().path().address().host();
 			String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
 			InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, port);
 

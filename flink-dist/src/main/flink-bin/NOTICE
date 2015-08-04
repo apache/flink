@@ -35,22 +35,6 @@ Copyright (c) 2008 Alexander Beider & Stephen P. Morse.
 
 
 -----------------------------------------------------------------------
-                          LOGBack
------------------------------------------------------------------------
-
-Copyright (C) 1999-2012, QOS.ch
-
-This program and the accompanying materials are dual-licensed under
-either the terms of the Eclipse Public License v1.0 as published by
-the Eclipse Foundation
-
-  or (per the licensee's choosing)
-
-under the terms of the GNU Lesser General Public License version 2.1
-as published by the Free Software Foundation.
-
-
------------------------------------------------------------------------
                        Apache Commmons Lang3
 -----------------------------------------------------------------------
 
@@ -140,6 +124,14 @@ http://hadoop.apache.org
 
 
 -----------------------------------------------------------------------
+                      Twitter Bijection Library
+-----------------------------------------------------------------------
+
+MurmurHash implementation provided by software developed by The Apache Software
+Foundation (http://www.apache.org/).
+
+
+-----------------------------------------------------------------------
                         Jetty Web Container
 -----------------------------------------------------------------------
 
@@ -190,14 +182,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
------------------------------------------------------------------------
-                            Janino
------------------------------------------------------------------------
-
-Janino - An embedded Java[TM] compiler
-
-Copyright (c) 2001-2010, Arno Unkrig
-All rights reserved.
 
 -----------------------------------------------------------------------
                          The Netty Project
@@ -406,4 +390,73 @@ LongAdder), which was released with the following comments:
     Expert Group and released to the public domain, as explained at
     http://creativecommons.org/publicdomain/zero/1.0/
 
+
+-----------------------------------------------------------------------
+                           Snappy-Java
+-----------------------------------------------------------------------
+
+This product includes software developed by Google
+ Snappy: http://code.google.com/p/snappy/ (New BSD License)
+
+This product includes software developed by Apache
+ PureJavaCrc32C from apache-hadoop-common http://hadoop.apache.org/
+ (Apache 2.0 license)
+
+This library containd statically linked libstdc++. This inclusion is allowed by
+"GCC RUntime Library Exception"
+http://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html
+
+== Contributors ==
+  * Tatu Saloranta
+    * Providing benchmark suite
+  * Alec Wysoker
+    * Performance and memory usage improvement
+
+
+-----------------------------------------------------------------------
+                       Apache Commmons Compress
+-----------------------------------------------------------------------
+
+Apache Commons Compress
+Copyright 2002-2015 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+The files in the package org.apache.commons.compress.archivers.sevenz
+were derived from the LZMA SDK, version 9.20 (C/ and CPP/7zip/),
+which has been placed in the public domain:
+
+"LZMA SDK is placed in the public domain." (http://www.7-zip.org/sdk.html)
+
+
+-----------------------------------------------------------------------
+                          lodash
+-----------------------------------------------------------------------
+
+Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+Based on Underscore.js, copyright 2009-2015 Jeremy Ashkenas,
+DocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>
+
+
+-----------------------------------------------------------------------
+                      Uncommons Math
+-----------------------------------------------------------------------
+
+Uncommons Maths (https://uncommons-maths.dev.java.net)
+Copyright 2006-2012 Daniel W. Dyer (http://www.dandyer.co.uk)
+
+Acknowledgements:
+-----------------
+This software includes a Java port of the cellular automaton pseudorandom
+number generator developed by Tony Pasqualoni
+(http://home.southernct.edu/~pasqualonia1/ca/report.html).
+
+This software includes a Java port of the Mersenne Twister pseudorandom
+number generator developed by Makoto Matsumoto and Takuji Nishimura
+(http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/emt.html).
+
+This software also includes modified versions of the PermutationGenerator and
+CombinationGenerator Java classes written by Michael Gilleland
+(http://www.mgilleland.com/).
 

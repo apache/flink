@@ -18,30 +18,31 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{Cancellable, Terminated, ActorRef, Props}
+import akka.actor.{Cancellable, Terminated, ActorRef}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
-import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.FlinkActor
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
-import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
+import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.Disconnect
+import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.AccumulatorsChanged
 
-import scala.collection.convert.WrapAsScala
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import scala.language.postfixOps
 
-/**
- * Mixin for [[TestingJobManager]] to support testing messages
+/** Mixin for [[TestingJobManager]] to support testing messages
  */
-trait TestingJobManager extends ActorLogMessages with WrapAsScala {
+trait TestingJobManager extends FlinkActor {
   that: JobManager =>
 
+  import scala.collection.JavaConverters._
   import context._
 
   val waitForAllVerticesToBeRunning = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
@@ -55,42 +56,62 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
   val waitForJobStatus = scala.collection.mutable.HashMap[JobID,
     collection.mutable.HashMap[JobStatus, Set[ActorRef]]]()
 
+  val waitForAccumulatorUpdate = scala.collection.mutable.HashMap[JobID, (Boolean, Set[ActorRef])]()
+
   var disconnectDisabled = false
 
-  abstract override def receiveWithLogMessages: Receive = {
-    receiveTestingMessages orElse super.receiveWithLogMessages
+  abstract override def handleMessage: Receive = {
+    handleTestingMessage orElse super.handleMessage
   }
 
-  def receiveTestingMessages: Receive = {
+  def handleTestingMessage: Receive = {
     case RequestExecutionGraph(jobID) =>
       currentJobs.get(jobID) match {
-        case Some((executionGraph, jobInfo)) => sender ! ExecutionGraphFound(jobID,
-          executionGraph)
-        case None => archive.tell(RequestExecutionGraph(jobID), sender)
+        case Some((executionGraph, jobInfo)) => sender ! decorateMessage(
+          ExecutionGraphFound(
+            jobID,
+            executionGraph)
+        )
+
+        case None => archive.tell(decorateMessage(RequestExecutionGraph(jobID)), sender)
       }
 
     case WaitForAllVerticesToBeRunning(jobID) =>
       if(checkIfAllVerticesRunning(jobID)){
-        sender ! AllVerticesRunning(jobID)
+        sender ! decorateMessage(AllVerticesRunning(jobID))
       }else{
         val waiting = waitForAllVerticesToBeRunning.getOrElse(jobID, Set[ActorRef]())
         waitForAllVerticesToBeRunning += jobID -> (waiting + sender)
 
         if(periodicCheck.isEmpty){
           periodicCheck =
-            Some(context.system.scheduler.schedule(0 seconds, 200 millis, self, NotifyListeners))
+            Some(
+              context.system.scheduler.schedule(
+                0 seconds,
+                200 millis,
+                self,
+                decorateMessage(NotifyListeners)
+              )
+            )
         }
       }
     case WaitForAllVerticesToBeRunningOrFinished(jobID) =>
       if(checkIfAllVerticesRunningOrFinished(jobID)){
-        sender ! AllVerticesRunning(jobID)
+        sender ! decorateMessage(AllVerticesRunning(jobID))
       }else{
         val waiting = waitForAllVerticesToBeRunningOrFinished.getOrElse(jobID, Set[ActorRef]())
         waitForAllVerticesToBeRunningOrFinished += jobID -> (waiting + sender)
 
         if(periodicCheck.isEmpty){
           periodicCheck =
-            Some(context.system.scheduler.schedule(0 seconds, 200 millis, self, NotifyListeners))
+            Some(
+              context.system.scheduler.schedule(
+                0 seconds,
+                200 millis,
+                self,
+                decorateMessage(NotifyListeners)
+              )
+            )
         }
       }
 
@@ -106,47 +127,91 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
 
 
     case NotifyWhenJobRemoved(jobID) =>
-      val tms = instanceManager.getAllRegisteredInstances.map(_.getTaskManager)
+      val gateways = instanceManager.getAllRegisteredInstances.asScala.map(_.getActorGateway)
 
-      val responses = tms.map{
-        tm =>
-          (tm ? NotifyWhenJobRemoved(jobID))(timeout).mapTo[Boolean]
+      val responses = gateways.map{
+        gateway => gateway.ask(NotifyWhenJobRemoved(jobID), timeout).mapTo[Boolean]
       }
 
       import context.dispatcher
 
-      Future.fold(responses)(true)(_ & _) pipeTo sender
+      Future.fold(responses)(true)(_ & _).map(decorateMessage(_)) pipeTo sender
 
     case NotifyWhenTaskManagerTerminated(taskManager) =>
       val waiting = waitForTaskManagerToBeTerminated.getOrElse(taskManager.path.name, Set())
       waitForTaskManagerToBeTerminated += taskManager.path.name -> (waiting + sender)
 
     case msg@Terminated(taskManager) =>
-      super.receiveWithLogMessages(msg)
+      super.handleMessage(msg)
 
       waitForTaskManagerToBeTerminated.remove(taskManager.path.name) foreach {
         _ foreach {
           listener =>
-            listener ! TaskManagerTerminated(taskManager)
+            listener ! decorateMessage(TaskManagerTerminated(taskManager))
         }
+      }
+
+    case NotifyWhenAccumulatorChange(jobID) =>
+
+      val (updated, registered) = waitForAccumulatorUpdate.
+        getOrElse(jobID, (false, Set[ActorRef]()))
+      waitForAccumulatorUpdate += jobID -> (updated, registered + sender)
+      sender ! true
+
+    /**
+     * Notification from the task manager that changed accumulator are transferred on next
+     * Hearbeat. We need to keep this state to notify the listeners on next Heartbeat report.
+     */
+    case AccumulatorsChanged(jobID: JobID) =>
+      waitForAccumulatorUpdate.get(jobID) match {
+        case Some((updated, registered)) =>
+          waitForAccumulatorUpdate.put(jobID, (true, registered))
+        case None =>
+      }
+
+    /**
+     * Disabled async processing of accumulator values and send accumulators to the listeners if
+     * we previously received an [[AccumulatorsChanged]] message.
+     */
+    case msg : Heartbeat =>
+      super.handleMessage(msg)
+
+      waitForAccumulatorUpdate foreach {
+        case (jobID, (updated, actors)) if updated =>
+          currentJobs.get(jobID) match {
+            case Some((graph, jobInfo)) =>
+              val flinkAccumulators = graph.getFlinkAccumulators
+              val userAccumulators = graph.aggregateUserAccumulators
+              actors foreach {
+                actor => actor ! UpdatedAccumulators(jobID, flinkAccumulators, userAccumulators)
+              }
+            case None =>
+          }
+          waitForAccumulatorUpdate.put(jobID, (false, actors))
+        case _ =>
       }
 
     case RequestWorkingTaskManager(jobID) =>
       currentJobs.get(jobID) match {
         case Some((eg, _)) =>
-          if(eg.getAllExecutionVertices.isEmpty){
-            sender ! WorkingTaskManager(ActorRef.noSender)
+          if(eg.getAllExecutionVertices.asScala.isEmpty){
+            sender ! decorateMessage(WorkingTaskManager(None))
           } else {
-            val resource = eg.getAllExecutionVertices.head.getCurrentAssignedResource
+            val resource = eg.getAllExecutionVertices.asScala.head.getCurrentAssignedResource
 
             if(resource == null){
-              sender ! WorkingTaskManager(ActorRef.noSender)
+              sender ! decorateMessage(WorkingTaskManager(None))
             } else {
-              sender ! WorkingTaskManager(resource.getInstance().getTaskManager)
+              sender ! decorateMessage(
+                WorkingTaskManager(
+                  Some(resource.getInstance().getActorGateway)
+                )
+              )
             }
           }
-        case None => sender ! WorkingTaskManager(ActorRef.noSender)
+        case None => sender ! decorateMessage(WorkingTaskManager(None))
       }
+
 
     case NotifyWhenJobStatus(jobID, state) =>
       val jobStatusListener = waitForJobStatus.getOrElseUpdate(jobID,
@@ -157,14 +222,14 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
       jobStatusListener += state -> (listener + sender)
 
     case msg@JobStatusChanged(jobID, newJobStatus, _, _) =>
-      super.receiveWithLogMessages(msg)
+      super.handleMessage(msg)
 
       val cleanup = waitForJobStatus.get(jobID) match {
         case Some(stateListener) =>
           stateListener.remove(newJobStatus) match {
             case Some(listeners) =>
               listeners foreach {
-                _ ! JobStatusIs(jobID, newJobStatus)
+                _ ! decorateMessage(JobStatusIs(jobID, newJobStatus))
               }
             case _ =>
           }
@@ -182,14 +247,14 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
 
     case msg: Disconnect =>
       if (!disconnectDisabled) {
-        super.receiveWithLogMessages(msg)
+        super.handleMessage(msg)
 
         val taskManager = sender
 
         waitForTaskManagerToBeTerminated.remove(taskManager.path.name) foreach {
           _ foreach {
             listener =>
-              listener ! TaskManagerTerminated(taskManager)
+              listener ! decorateMessage(TaskManagerTerminated(taskManager))
           }
         }
       }
@@ -198,7 +263,7 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
   def checkIfAllVerticesRunning(jobID: JobID): Boolean = {
     currentJobs.get(jobID) match {
       case Some((eg, _)) =>
-        eg.getAllExecutionVertices.forall( _.getExecutionState == ExecutionState.RUNNING)
+        eg.getAllExecutionVertices.asScala.forall( _.getExecutionState == ExecutionState.RUNNING)
       case None => false
     }
   }
@@ -206,7 +271,7 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
   def checkIfAllVerticesRunningOrFinished(jobID: JobID): Boolean = {
     currentJobs.get(jobID) match {
       case Some((eg, _)) =>
-        eg.getAllExecutionVertices.forall {
+        eg.getAllExecutionVertices.asScala.forall {
           case vertex =>
             (vertex.getExecutionState == ExecutionState.RUNNING
               || vertex.getExecutionState == ExecutionState.FINISHED)
@@ -220,7 +285,7 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
       waitForAllVerticesToBeRunning.remove(jobID) match {
         case Some(listeners) =>
           for (listener <- listeners) {
-            listener ! AllVerticesRunning(jobID)
+            listener ! decorateMessage(AllVerticesRunning(jobID))
           }
         case _ =>
       }
@@ -230,7 +295,7 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
       waitForAllVerticesToBeRunningOrFinished.remove(jobID) match {
         case Some(listeners) =>
           for (listener <- listeners) {
-            listener ! AllVerticesRunning(jobID)
+            listener ! decorateMessage(AllVerticesRunning(jobID))
           }
         case _ =>
       }

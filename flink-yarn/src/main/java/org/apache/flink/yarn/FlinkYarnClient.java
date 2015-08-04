@@ -143,6 +143,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	private boolean detached;
 	private boolean streamingMode;
 
+	private String customName = null;
 
 	public FlinkYarnClient() {
 		conf = new YarnConfiguration();
@@ -314,7 +315,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		return detached;
 	}
 
-	public AbstractFlinkYarnCluster deploy(final String clusterName) throws Exception {
+	public AbstractFlinkYarnCluster deploy() throws Exception {
 
 		UserGroupInformation.setConfiguration(conf);
 		UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
@@ -327,11 +328,11 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 			return ugi.doAs(new PrivilegedExceptionAction<AbstractFlinkYarnCluster>() {
 				@Override
 				public AbstractFlinkYarnCluster run() throws Exception {
-					return deployInternal(clusterName);
+					return deployInternal();
 				}
 			});
 		} else {
-			return deployInternal(clusterName);
+			return deployInternal();
 		}
 	}
 
@@ -341,7 +342,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	 * This method will block until the ApplicationMaster/JobManager have been
 	 * deployed on YARN.
 	 */
-	protected AbstractFlinkYarnCluster deployInternal(String clusterName) throws Exception {
+	protected AbstractFlinkYarnCluster deployInternal() throws Exception {
 		isReadyForDepoyment();
 
 		LOG.info("Using values:");
@@ -435,11 +436,11 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 					+ "There are currently only " + freeClusterMem.totalFreeMemory + "MB available." + NOTE_RSC);
 
 		}
-		if( taskManagerMemoryMb > freeClusterMem.containerLimit) {
+		if(taskManagerMemoryMb > freeClusterMem.containerLimit) {
 			LOG.warn("The requested amount of memory for the TaskManagers ("+taskManagerMemoryMb+"MB) is more than "
 					+ "the largest possible YARN container: "+freeClusterMem.containerLimit + NOTE_RSC);
 		}
-		if( jobManagerMemoryMb > freeClusterMem.containerLimit) {
+		if(jobManagerMemoryMb > freeClusterMem.containerLimit) {
 			LOG.warn("The requested amount of memory for the JobManager (" + jobManagerMemoryMb + "MB) is more than "
 					+ "the largest possible YARN container: " + freeClusterMem.containerLimit + NOTE_RSC);
 		}
@@ -591,14 +592,17 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		capability.setMemory(jobManagerMemoryMb);
 		capability.setVirtualCores(1);
 
-		if(clusterName == null) {
-			clusterName = "Flink session with "+taskManagerCount+" TaskManagers";
-		}
-		if(detached) {
-			clusterName += " (detached)";
+		String name;
+		if(customName == null) {
+			name = "Flink session with "+taskManagerCount+" TaskManagers";
+			if(detached) {
+				name += " (detached)";
+			}
+		} else {
+			name = customName;
 		}
 
-		appContext.setApplicationName(clusterName); // application name
+		appContext.setApplicationName(name); // application name
 		appContext.setApplicationType("Apache Flink");
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
@@ -732,6 +736,14 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	@Override
 	public void setStreamingMode(boolean streamingMode) {
 		this.streamingMode = streamingMode;
+	}
+
+	@Override
+	public void setName(String name) {
+		if(name == null) {
+			throw new IllegalArgumentException("The passed name is null");
+		}
+		customName = name;
 	}
 
 	public static class YarnDeploymentException extends RuntimeException {

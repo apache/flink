@@ -35,6 +35,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -82,6 +84,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
  * </pre>
  */
 public class SlotSharingGroupAssignment {
+
+	private final static Logger LOG = LoggerFactory.getLogger(SlotSharingGroupAssignment.class);
 
 	/** The lock globally guards against concurrent modifications in the data structures */
 	private final Object lock = new Object();
@@ -474,48 +478,53 @@ public class SlotSharingGroupAssignment {
 	 */
 	void releaseSimpleSlot(SimpleSlot simpleSlot) {
 		synchronized (lock) {
-			// sanity checks
-			if (simpleSlot.isAlive()) {
-				throw new IllegalStateException("slot is still alive");
-			}
-			
-			// check whether the slot is already released
-			if (simpleSlot.markReleased()) {
-				
-				AbstractID groupID = simpleSlot.getGroupID();
-				SharedSlot parent = simpleSlot.getParent();
+			// try to transition to the CANCELED state. That state marks
+			// that the releasing is in progress
+			if (simpleSlot.markCancelled()) {
 
-				// if we have a group ID, then our parent slot is tracked here
-				if (groupID != null && !allSlots.contains(parent)) {
-					throw new IllegalArgumentException("Slot was not associated with this SlotSharingGroup before.");
+				// sanity checks
+				if (simpleSlot.isAlive()) {
+					throw new IllegalStateException("slot is still alive");
 				}
 
-				int parentRemaining = parent.removeDisposedChildSlot(simpleSlot);
-				
-				if (parentRemaining > 0) {
-					// the parent shared slot is still alive. make sure we make it
-					// available again to the group of the just released slot
-					
-					if (groupID != null) {
-						// if we have a group ID, then our parent becomes available
-						// for that group again. otherwise, the slot is part of a
-						// co-location group and nothing becomes immediately available
-						
-						Map<Instance, List<SharedSlot>> slotsForJid = availableSlotsPerJid.get(groupID);
+				// check whether the slot is already released
+				if (simpleSlot.markReleased()) {
+					LOG.debug("Release simple slot {}.", simpleSlot);
 
-						// sanity check
-						if (slotsForJid == null) {
-							throw new IllegalStateException("Trying to return a slot for group " + groupID +
-									" when available slots indicated that all slots were available.");
-						}
+					AbstractID groupID = simpleSlot.getGroupID();
+					SharedSlot parent = simpleSlot.getParent();
 
-						putIntoMultiMap(slotsForJid, parent.getInstance(), parent);
+					// if we have a group ID, then our parent slot is tracked here
+					if (groupID != null && !allSlots.contains(parent)) {
+						throw new IllegalArgumentException("Slot was not associated with this SlotSharingGroup before.");
 					}
-				}
-				else {
-					// the parent shared slot is now empty and can be released
-					parent.markCancelled();
-					internalDisposeEmptySharedSlot(parent);
+
+					int parentRemaining = parent.removeDisposedChildSlot(simpleSlot);
+
+					if (parentRemaining > 0) {
+						// the parent shared slot is still alive. make sure we make it
+						// available again to the group of the just released slot
+
+						if (groupID != null) {
+							// if we have a group ID, then our parent becomes available
+							// for that group again. otherwise, the slot is part of a
+							// co-location group and nothing becomes immediately available
+
+							Map<Instance, List<SharedSlot>> slotsForJid = availableSlotsPerJid.get(groupID);
+
+							// sanity check
+							if (slotsForJid == null) {
+								throw new IllegalStateException("Trying to return a slot for group " + groupID +
+										" when available slots indicated that all slots were available.");
+							}
+
+							putIntoMultiMap(slotsForJid, parent.getInstance(), parent);
+						}
+					} else {
+						// the parent shared slot is now empty and can be released
+						parent.markCancelled();
+						internalDisposeEmptySharedSlot(parent);
+					}
 				}
 			}
 		}
@@ -577,6 +586,8 @@ public class SlotSharingGroupAssignment {
 			// we remove ourselves from our parent slot
 
 			if (sharedSlot.markReleased()) {
+				LOG.debug("Internally dispose empty shared slot {}.", sharedSlot);
+
 				int parentRemaining = parent.removeDisposedChildSlot(sharedSlot);
 				
 				if (parentRemaining > 0) {

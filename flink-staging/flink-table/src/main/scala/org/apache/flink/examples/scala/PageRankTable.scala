@@ -42,10 +42,10 @@ import _root_.scala.collection.JavaConverters._
 * Input files are plain text files and must be formatted as follows:
 *
 *  - Pages represented as an (long) ID separated by new-line characters.
-*    For example `"1\n2\n12\n42\n63\n"` gives five pages with IDs 1, 2, 12, 42, and 63.
+*    For example `"1\n2\n12\n42\n63"` gives five pages with IDs 1, 2, 12, 42, and 63.
 *  - Links are represented as pairs of page IDs which are separated by space  characters. Links
 *    are separated by new-line characters.
-*    For example `"1 2\n2 12\n1 12\n42 63\n"` gives four (directed) links (1)->(2), (2)->(12),
+*    For example `"1 2\n2 12\n1 12\n42 63"` gives four (directed) links (1)->(2), (2)->(12),
 *    (1)->(12), and (42)->(63). For this simple implementation it is required that each page has
 *    at least one incoming and one outgoing link (a page can point to itself).
 *
@@ -101,7 +101,7 @@ object PageRankTable {
         val newRanks = currentRanks.toTable
           // distribute ranks to target pages
           .join(adjacencyLists).where('pageId === 'sourceId)
-          .select('rank, 'targetIds).toSet[RankOutput]
+          .select('rank, 'targetIds).toDataSet[RankOutput]
           .flatMap {
             (in, out: Collector[(Long, Double)]) =>
               val targets = in.targetIds

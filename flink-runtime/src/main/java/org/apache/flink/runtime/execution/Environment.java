@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.execution;
 
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -70,6 +70,16 @@ public interface Environment {
 	 * @return The task-wide configuration
 	 */
 	Configuration getTaskConfiguration();
+
+	/**
+	 * @return The task manager configuration
+	 */
+	Configuration getTaskManagerConfiguration();
+
+	/**
+	 * @return Hostname of the task manager
+	 */
+	String getHostname();
 
 	/**
 	 * Returns the job-wide configuration object that was attached to the JobGraph.
@@ -142,11 +152,10 @@ public interface Environment {
 	BroadcastVariableManager getBroadcastVariableManager();
 
 	/**
-	 * Reports the given set of accumulators to the JobManager.
-	 *
-	 * @param accumulators The accumulators to report.
+	 * Return the registry for accumulators which are periodically sent to the job manager.
+	 * @return the registry
 	 */
-	void reportAccumulators(Map<String, Accumulator<?, ?>> accumulators);
+	AccumulatorRegistry getAccumulatorRegistry();
 
 	/**
 	 * Confirms that the invokable has successfully completed all steps it needed to

@@ -19,6 +19,7 @@
 package org.apache.flink.tez.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.runtime.operators.PactDriver;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
@@ -68,7 +69,8 @@ public class RegularProcessor<S extends Function, OT> extends AbstractLogicalIOP
 				getContext().getVertexParallelism(),
 				getContext().getTaskIndex(),
 				getClass().getClassLoader(),
-				new ExecutionConfig());
+				new ExecutionConfig(),
+				new HashMap<String, Accumulator<?, ?>>());
 
 		this.task = new TezTask<S, OT>(taskConfig, runtimeUdfContext, this.getContext().getTotalMemoryAvailableToTask());
 	}

@@ -24,11 +24,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -36,6 +38,10 @@ public class StreamConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
+	// ------------------------------------------------------------------------
+	//  Config Keys
+	// ------------------------------------------------------------------------
+	
 	private static final String NUMBER_OF_OUTPUTS = "numberOfOutputs";
 	private static final String NUMBER_OF_INPUTS = "numberOfInputs";
 	private static final String CHAINED_OUTPUTS = "chainedOutputs";
@@ -58,15 +64,26 @@ public class StreamConfig implements Serializable {
 	private static final String EDGES_IN_ORDER = "edgesInOrder";
 	private static final String OUT_STREAM_EDGES = "outStreamEdges";
 	private static final String IN_STREAM_EDGES = "inStreamEdges";
+
+	private static final String CHECKPOINTING_ENABLED = "checkpointing";
 	private static final String STATEHANDLE_PROVIDER = "stateHandleProvider";
-
-	// DEFAULT VALUES
+	private static final String STATE_PARTITIONER = "statePartitioner";
+	private static final String CHECKPOINT_MODE = "checkpointMode";
+	
+	
+	// ------------------------------------------------------------------------
+	//  Default Values
+	// ------------------------------------------------------------------------
+	
 	private static final long DEFAULT_TIMEOUT = 100;
-	public static final String STATE_MONITORING = "STATE_MONITORING";
+	private static final CheckpointingMode DEFAULT_CHECKPOINTING_MODE = CheckpointingMode.EXACTLY_ONCE;
+	
+	
+	// ------------------------------------------------------------------------
+	//  Config
+	// ------------------------------------------------------------------------
 
-	// CONFIG METHODS
-
-	private Configuration config;
+	private final Configuration config;
 
 	public StreamConfig(Configuration config) {
 		this.config = config;
@@ -75,6 +92,11 @@ public class StreamConfig implements Serializable {
 	public Configuration getConfiguration() {
 		return config;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Configured Properties
+	// ------------------------------------------------------------------------
+	
 
 	public void setVertexID(Integer vertexID) {
 		config.setInteger(VERTEX_NAME, vertexID);
@@ -92,26 +114,26 @@ public class StreamConfig implements Serializable {
 		return config.getString(OPERATOR_NAME, "Missing");
 	}
 
-	public void setTypeSerializerIn1(StreamRecordSerializer<?> serializer) {
+	public void setTypeSerializerIn1(TypeSerializer<?> serializer) {
 		setTypeSerializer(TYPE_SERIALIZER_IN_1, serializer);
 	}
 
-	public void setTypeSerializerIn2(StreamRecordSerializer<?> serializer) {
+	public void setTypeSerializerIn2(TypeSerializer<?> serializer) {
 		setTypeSerializer(TYPE_SERIALIZER_IN_2, serializer);
 	}
 
-	public void setTypeSerializerOut1(StreamRecordSerializer<?> serializer) {
+	public void setTypeSerializerOut1(TypeSerializer<?> serializer) {
 		setTypeSerializer(TYPE_SERIALIZER_OUT_1, serializer);
 	}
 
-	public void setTypeSerializerOut2(StreamRecordSerializer<?> serializer) {
+	public void setTypeSerializerOut2(TypeSerializer<?> serializer) {
 		setTypeSerializer(TYPE_SERIALIZER_OUT_2, serializer);
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> StreamRecordSerializer<T> getTypeSerializerIn1(ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerIn1(ClassLoader cl) {
 		try {
-			return (StreamRecordSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
+			return (TypeSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
 					TYPE_SERIALIZER_IN_1, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate serializer.", e);
@@ -119,9 +141,9 @@ public class StreamConfig implements Serializable {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> StreamRecordSerializer<T> getTypeSerializerIn2(ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerIn2(ClassLoader cl) {
 		try {
-			return (StreamRecordSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
+			return (TypeSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
 					TYPE_SERIALIZER_IN_2, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate serializer.", e);
@@ -129,9 +151,9 @@ public class StreamConfig implements Serializable {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> StreamRecordSerializer<T> getTypeSerializerOut1(ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerOut1(ClassLoader cl) {
 		try {
-			return (StreamRecordSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
+			return (TypeSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
 					TYPE_SERIALIZER_OUT_1, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate serializer.", e);
@@ -139,16 +161,16 @@ public class StreamConfig implements Serializable {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> StreamRecordSerializer<T> getTypeSerializerOut2(ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerOut2(ClassLoader cl) {
 		try {
-			return (StreamRecordSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
+			return (TypeSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
 					TYPE_SERIALIZER_OUT_2, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate serializer.", e);
 		}
 	}
 
-	private void setTypeSerializer(String key, StreamRecordSerializer<?> typeWrapper) {
+	private void setTypeSerializer(String key, TypeSerializer<?> typeWrapper) {
 		try {
 			InstantiationUtil.writeObjectToConfig(typeWrapper, this.config, key);
 		} catch (IOException e) {
@@ -204,12 +226,12 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setIterationId(Integer iterationId) {
-		config.setInteger(ITERATION_ID, iterationId);
+	public void setIterationId(String iterationId) {
+		config.setString(ITERATION_ID, iterationId);
 	}
 
-	public Integer getIterationId() {
-		return config.getInteger(ITERATION_ID, 0);
+	public String getIterationId() {
+		return config.getString(ITERATION_ID, "");
 	}
 
 	public void setIterationWaitTime(long time) {
@@ -333,13 +355,29 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setStateMonitoring(boolean stateMonitoring) {
-		config.setBoolean(STATE_MONITORING, stateMonitoring);
+	// --------------------- checkpointing -----------------------
+	
+	public void setCheckpointingEnabled(boolean enabled) {
+		config.setBoolean(CHECKPOINTING_ENABLED, enabled);
 	}
 
-	public boolean getStateMonitoring() {
-		return config.getBoolean(STATE_MONITORING, false);
+	public boolean isCheckpointingEnabled() {
+		return config.getBoolean(CHECKPOINTING_ENABLED, false);
 	}
+	
+	public void setCheckpointMode(CheckpointingMode mode) {
+		config.setInteger(CHECKPOINT_MODE, mode.ordinal());
+	}
+
+	public CheckpointingMode getCheckpointMode() {
+		int ordinal = config.getInteger(CHECKPOINT_MODE, -1);
+		if (ordinal >= 0) {
+			return CheckpointingMode.values()[ordinal];
+		} else {
+			return DEFAULT_CHECKPOINTING_MODE; 
+		}
+	}
+	
 
 	public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {
 		try {
@@ -381,7 +419,6 @@ public class StreamConfig implements Serializable {
 	}
 	
 	public void setStateHandleProvider(StateHandleProvider<?> provider) {
-
 		try {
 			InstantiationUtil.writeObjectToConfig(provider, this.config, STATEHANDLE_PROVIDER);
 		} catch (IOException e) {
@@ -396,6 +433,24 @@ public class StreamConfig implements Serializable {
 					.readObjectFromConfig(this.config, STATEHANDLE_PROVIDER, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate statehandle provider.", e);
+		}
+	}
+	
+	public void setStatePartitioner(KeySelector<?, Serializable> partitioner) {
+		try {
+			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER);
+		} catch (IOException e) {
+			throw new StreamTaskException("Could not serialize state partitioner.", e);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public KeySelector<?, Serializable> getStatePartitioner(ClassLoader cl) {
+		try {
+			return (KeySelector<?, Serializable>) InstantiationUtil
+					.readObjectFromConfig(this.config, STATE_PARTITIONER, cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not instantiate state partitioner.", e);
 		}
 	}
 
@@ -416,28 +471,29 @@ public class StreamConfig implements Serializable {
 		builder.append("\n=======================");
 		builder.append("Stream Config");
 		builder.append("=======================");
-		builder.append("\nTask name: " + getVertexID());
-		builder.append("\nNumber of non-chained inputs: " + getNumberOfInputs());
-		builder.append("\nNumber of non-chained outputs: " + getNumberOfOutputs());
-		builder.append("\nOutput names: " + getNonChainedOutputs(cl));
+		builder.append("\nTask name: ").append(getVertexID());
+		builder.append("\nNumber of non-chained inputs: ").append(getNumberOfInputs());
+		builder.append("\nNumber of non-chained outputs: ").append(getNumberOfOutputs());
+		builder.append("\nOutput names: ").append(getNonChainedOutputs(cl));
 		builder.append("\nPartitioning:");
 		for (StreamEdge output : getNonChainedOutputs(cl)) {
 			int outputname = output.getTargetId();
-			builder.append("\n\t" + outputname + ": " + output.getPartitioner());
+			builder.append("\n\t").append(outputname).append(": ").append(output.getPartitioner());
 		}
 
-		builder.append("\nChained subtasks: " + getChainedOutputs(cl));
+		builder.append("\nChained subtasks: ").append(getChainedOutputs(cl));
 
 		try {
-			builder.append("\nOperator: " + getStreamOperator(cl).getClass().getSimpleName());
-		} catch (Exception e) {
+			builder.append("\nOperator: ").append(getStreamOperator(cl).getClass().getSimpleName());
+		}
+		catch (Exception e) {
 			builder.append("\nOperator: Missing");
 		}
-		builder.append("\nBuffer timeout: " + getBufferTimeout());
-		builder.append("\nState Monitoring: " + getStateMonitoring());
+		builder.append("\nBuffer timeout: ").append(getBufferTimeout());
+		builder.append("\nState Monitoring: ").append(isCheckpointingEnabled());
 		if (isChainStart() && getChainedOutputs(cl).size() > 0) {
 			builder.append("\n\n\n---------------------\nChained task configs\n---------------------\n");
-			builder.append(getTransitiveChainedTaskConfigs(cl)).toString();
+			builder.append(getTransitiveChainedTaskConfigs(cl));
 		}
 
 		return builder.toString();

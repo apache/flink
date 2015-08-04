@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.mapred.FileOutputCommitter;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobConfigurable;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.RecordWriter;
@@ -67,8 +68,12 @@ public abstract class HadoopOutputFormatBase<K, V, T> implements OutputFormat<T>
 
 	@Override
 	public void configure(Configuration parameters) {
-		if(this.mapredOutputFormat instanceof Configurable){
+		// configure MR OutputFormat if necessary
+		if(this.mapredOutputFormat instanceof Configurable) {
 			((Configurable)this.mapredOutputFormat).setConf(this.jobConf);
+		}
+		else if(this.mapredOutputFormat instanceof JobConfigurable) {
+			((JobConfigurable)this.mapredOutputFormat).configure(this.jobConf);
 		}
 	}
 

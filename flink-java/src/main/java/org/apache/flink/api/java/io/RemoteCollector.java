@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.io;
 
+import org.apache.flink.api.java.DataSet;
+
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
@@ -27,7 +29,11 @@ import java.rmi.RemoteException;
  * 
  * @param <T>
  *            The type of the records the collector will receive
+ *
+ * @deprecated Results are retrieved through {@link org.apache.flink.api.common.accumulators.Accumulator}
+ * and the {@link DataSet#collect()} method respectively.
  */
+@Deprecated
 public interface RemoteCollector<T> extends Remote {
 
 	public void collect(T element) throws RemoteException;

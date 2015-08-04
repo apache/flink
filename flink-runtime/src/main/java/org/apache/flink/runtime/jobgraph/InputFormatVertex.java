@@ -22,7 +22,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 
-public class InputFormatVertex extends AbstractJobVertex {
+public class InputFormatVertex extends JobVertex {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -71,13 +71,19 @@ public class InputFormatVertex extends AbstractJobVertex {
 		catch (Throwable t) {
 			throw new Exception("Instantiating the InputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
 		}
-		
+
+		Thread thread = Thread.currentThread();
+		ClassLoader original = thread.getContextClassLoader();
 		// configure
 		try {
+			thread.setContextClassLoader(loader);
 			inputFormat.configure(cfg.getStubParameters());
 		}
 		catch (Throwable t) {
 			throw new Exception("Configuring the InputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		finally {
+			thread.setContextClassLoader(original);
 		}
 		
 		setInputSplitSource(inputFormat);

@@ -218,35 +218,66 @@ licenses.
 The Apache Flink project bundles the following components
 under the Apache License (v 2.0):
 
- - Apache Commons Logging (http://commons.apache.org/proper/commons-logging/)
- - Apache Commons Codec (http://commons.apache.org/proper/commons-codec/)
- - Apache Commons Collections (http://commons.apache.org/collections/)
- - Apache Commons CLI (http://commons.apache.org/cli/)
- - Apache Commons FileUpload (http://commons.apache.org/fileupload/)
- - Apache Commons IO (http://commons.apache.org/io/)
- - Apache Commons Lang 3 v.3.3.2 (http://commons.apache.org/proper/commons-lang/)
- - Apache Commons Math (http://commons.apache.org/proper/commons-math/)
- - Apache log4j 1.2 (http://logging.apache.org/log4j/1.2/)
- - Apache Avro v1.7.6 (http://avro.apache.org)
+ - Apache Commons Logging (commons-logging:commons-logging:1.1.1 - http://commons.apache.org/proper/commons-logging/)
+ - Apache Commons Codec (commons-codec:commons-codec:1.3 - http://commons.apache.org/proper/commons-codec/)
+ - Apache Commons Collections (commons-collections:commons-collections:3.2.1 - http://commons.apache.org/collections/)
+ - Apache Commons CLI (commons-cli:commons-cli:1.2 - http://commons.apache.org/cli/)
+ - Apache Commons FileUpload (commons-fileupload:commons-fileupload:1.3.1 - http://commons.apache.org/fileupload/)
+ - Apache Commons IO (commons-io:commons-io:2.4 - http://commons.apache.org/io/)
+ - Apache Commons Lang 3 (org.apache.commons:commons-lang3:3.3.2 - http://commons.apache.org/proper/commons-lang/)
+ - Apache Commons Math (org.apache.commons:commons-math:2.2 - http://commons.apache.org/proper/commons-math/)
+ - Apache Commons Compress (org.apache.commons:commons-compress:1.4.1 - http://commons.apache.org/proper/commons-compress/)
+ - Apache log4j (log4j:log4j:1.2.17 - http://logging.apache.org/log4j/1.2/)
+ - Apache Avro (org.apache.avro:avro:1.7.6 - http://avro.apache.org)
  - Apache Hadoop (http://hadoop.apache.org)
- - Apache Sling (http://sling.apache.org)
- - Apache Thrift (http://thrift.apache.org)
- - Google Guava (https://code.google.com/p/guava-libraries/)
- - Google Protocol Buffers (https://github.com/google/protobuf/)
- - Netty v4.0.21 (http://netty.io)
- - Javassist (http://www.javassist.org)
- - Kryo-Serializers (https://github.com/magro/kryo-serializers/)
- - Joda-Time (http://www.joda.org/joda-time/)
- - Chill_2.10 v0.5.1 (https://github.com/twitter/chill)
- - Jetty Server, Jetty Security, Jetty Servlet (http://www.eclipse.org/jetty/)
- - Amazon Web Services SDK for Java (http://aws.amazon.com/sdkforjava/)
+ - Apache Sling (org.apache.sling:org.apache.sling.commons.json:2.0.6 - http://sling.apache.org)
+ - Google Guava (com.google.guava:guava:18.0 - https://code.google.com/p/guava-libraries/)
+ - Google Protocol Buffers Java API (com.google.protobuf:protobuf-java:2.5.0 - https://github.com/google/protobuf/)
+ - Netty (io.netty:netty-all:4.0.27.Final - http://netty.io)
+ - Netty (io.netty:netty:3.8.0.Final - http://netty.io)
+ - Javassist (org.javassist:javassist:3.18.1-GA - http://www.javassist.org)
+ - Kryo-Serializers (de.javakaffee:kryo-serializers:0.27 - https://github.com/magro/kryo-serializers/) - Copyright 2010 Martin Grotzke
+ - Joda-Time (joda-time:joda-time:2.5 - http://www.joda.org/joda-time/)
+ - Twitter's Chill Library (com.twitter:chill_2.10:0.5.2 - https://github.com/twitter/chill)
+ - Twitter's Chill Library (com.twitter:chill-java:0.5.2 - https://github.com/twitter/chill)
+ - Twitter's Chill Library (com.twitter:chill-avro_2.10:0.5.2 - https://github.com/twitter/chill)
+ - Twitter's Chill Library (com.twitter:chill-bijection_2.10:0.5.2 - https://github.com/twitter/chill)
+ - Twitter's Bijection Library (com.twitter:bijection-core_2.10:0.7.2 - https://github.com/twitter/bijection)
+ - Twitter's Bijection Library (com.twitter:bijection-avro_2.10:0.7.2 -  https://github.com/twitter/bijection)
+ - Jetty (org.eclipse.jetty:jetty-server:8.0.0.M1 - http://www.eclipse.org/jetty)
+ - Jetty (org.eclipse.jetty:jetty-continuation:8.0.0.M1 - http://www.eclipse.org/jetty)
+ - Jetty (org.eclipse.jetty:jetty-http:8.0.0.M1 - http://www.eclipse.org/jetty)
+ - Jetty (org.eclipse.jetty:jetty-io:8.0.0.M1 - http://www.eclipse.org/jetty)
+ - Jetty (org.eclipse.jetty:jetty-util:8.0.0.M1 - http://www.eclipse.org/jetty)
+ - Jetty (org.eclipse.jetty:jetty-security:8.0.0.M1 - http://www.eclipse.org/jetty)
+ - Jetty (org.eclipse.jetty:jetty-servlet:8.0.0.M1 - http://www.eclipse.org/jetty)
+ - Servlet API (org.mortbay.jetty:servlet-api:3.0.20100224 - org.mortbay.jetty)
+ - Amazon Web Services SDK for Java (om.amazonaws:aws-java-sdk:1.8.1 - http://aws.amazon.com/sdkforjava/)
  - StartBootstrap (http://startbootstrap.com)
  - CHAP Links Library Timeline (http://almende.github.io/chap-links-library/)
- - Jettison (http://jettison.codehaus.org)
- - json-simple (https://code.google.com/p/json-simple/)
- - Akka (http://akka.io)
- - Metrics (https://github.com/dropwizard/metrics)
- 
+ - Jettison (org.codehaus.jettison:jettison:1.1 - http://jettison.codehaus.org)
+ - Akka (com.typesafe.akka:akka-actor_2.10:2.3.7 - http://akka.io)
+ - Akka (om.typesafe.akka:akka-remote_2.10:2.3.7 - http://akka.io)
+ - Akka (com.typesafe.akka:akka-actor_2.10:2.3.7 - http://akka.io)
+ - Akka (com.typesafe.akka:akka-slf4j_2.10:2.3.7 - http://akka.io)
+ - Akka (com.typesafe.akka:akka-camel_2.10:2.3.7 - http://akka.io)
+ - Typesafe Config (com.typesafe:config:1.2.1 - https://github.com/typesafehub/config)
+ - Metrics (io.dropwizard.metrics:metrics-core:3.1.0 - https://github.com/dropwizard/metrics)
+ - Metrics (io.dropwizard.metrics:metrics-jvm:3.1.0 - https://github.com/dropwizard/metrics)
+ - Metrics (io.dropwizard.metrics:metrics-json:3.1.0 - https://github.com/dropwizard/metrics)
+ - Jackson (org.codehaus.jackson:jackson-core-asl:1.9.13 - http://jackson.codehaus.org/)
+ - Jackson (org.codehaus.jackson:jackson-mapper-asl:1.9.13 - http://jackson.codehaus.org/)
+ - Jackson (com.fasterxml.jackson.core:jackson-core:2.1.1 - https://github.com/FasterXML/jackson-core)
+ - Jackson (com.fasterxml.jackson.core:jackson-annotations:2.1.1 - https://github.com/FasterXML/jackson-core)
+ - Jackson (com.fasterxml.jackson.core:jackson-databind:2.1.1 - https://github.com/FasterXML/jackson-core)
+ - Snappy-java (org.xerial.snappy:snappy-java:1.0.5 - https://github.com/xerial/snappy-java/)
+ - Http Components (org.apache.httpcomponents:httpclient:4.2 - https://github.com/apache/httpclient)
+ - Http Components (org.apache.httpcomponents:httpcore:4.2 - https://github.com/apache/httpclient)
+ - Stax (stax:stax-api:1.0.1 - http://stax.codehaus.org/)
+ - Uncommons Math (org.uncommons.maths:uncommons-maths:1.2.2a - https://github.com/dwdyer/uncommons-maths)
+ - Jansi (org.fusesource.jansi:jansi:1.4 - https://github.com/fusesource/jansi)
+ - Apache Camel Core (org.apache.camel:camel-core:2.10.3 - http://camel.apache.org/camel-core.html)
+
 
 -----------------------------------------------------------------------
  The MIT License
@@ -254,20 +285,31 @@ under the Apache License (v 2.0):
 
 The Apache Flink project bundles the following components under the MIT License:
 
- - SLF4J (http://www.slf4j.org) - Copyright (c) 2004-2013 QOS.ch
+ - SLF4J (org.slf4j:slf4j-api:1.7.7 - http://www.slf4j.org) - Copyright (c) 2004-2013 QOS.ch
+ - SLF4J-LOG4J Bridge (org.slf4j:slf4j-log4j12:1.7.7 - http://www.slf4j.org) - Copyright (c) 2004-2013 QOS.ch
  - jQuery v2.1.0. (http://jquery.com) - Copyright 2014 jQuery Foundation and other contributors
- - jQuery resize event v1.1 (http://benalman.com/projects/jquery-resize-plugin/) - Copyright (c) 2010 "Cowboy" Ben Alman
  - Sizzle.js (http://sizzlejs.com) - Copyright 2010, The Dojo Foundation
  - jCanvas 13.11.21 (http://calebevans.me/projects/jcanvas/) - Copyright 2014 Caleb Evans
- - Flot 0.8.1 (http://www.flotcharts.org) - Copyright (c) 2007-2013 IOLA and Ole Laursen
- - query.flot.tooltip (https://github.com/krzysu/flot.tooltip) - Copyright (c) Krzysztof Urbas
  - Bootstrap 3.1.0 (http://getbootstrap.com) - Copyright (c) 2011-2014 Twitter, Inc
- - Bootswatch Lumen Theme v3.1.1+1 (http://bootswatch.com) - Copyright (c) 2012-2014 Thomas Park
  - normalize.css v3.0.0 (http://git.io/normalize) - Copyright (c) Nicolas Gallagher and Jonathan Neal
- - Font Awesome - Code (http://fortawesome.github.io/Font-Awesome/) - Copyright (c) 2014 Dave Gandy
  - D3 dagre renderer (https://github.com/cpettitt/dagre-d3) - Copyright (c) 2012-2013 Chris Pettitt
- - spymemcached (http://code.google.com/p/spymemcached/) - Copyright (c) 2006-2009  Dustin Sallings, Copyright (c) 2009-2011  Couchbase, Inc.
- - scopt (https://github.com/scopt/scopt) - Copyright (c) scopt contributors
+ - Rickshaw (https://github.com/shutterstock/rickshaw) - Copyright (C) 2011-2013 by Shutterstock Images, LLC
+ - Scopt (com.github.scopt:scopt_2.10:3.2.0 - https://github.com/scopt/scopt) - Copyright (c) scopt contributors
+ - Objenesis (org.objenesis:objenesis:2.1 - https://github.com/easymock/objenesis) - Copyright (c) 2006-2015 the original author and authors
+
+ - Angular.JS v1.3.17 (http://angularjs.org) - Copyright (c) 2010-2015 Google, Inc.
+ - Angular Moment v0.9.2 (http://www.momentjs.com) - Copyright (C) 2013, 2014, 2015, Uri Shaked <uri@urish.org>
+ - Angular UI Router v0.2.15 (http://angular-ui.github.io) - Copyright (c) 2013-2015 The AngularUI Team, Karsten Sperling
+ - Bootstrap v3.3.5 (http://getbootstrap.com) - Copyright (c) 2011-2015 Twitter, Inc
+ - D3 timeline (https://github.com/jiahuang/d3-timeline) - Copyright (c) 2012-2015 Jia Huang
+ - dagre v0.7.3 (https://github.com/cpettitt/dagre) - Copyright (c) 2012-2014 Chris Pettitt
+ - dagre-d3 v0.4.10 (https://github.com/cpettitt/dagre-d3) - Copyright (c) 2013 Chris Pettitt
+ - Font Awesome (code) v4.3.0 (http://fontawesome.io) - Copyright (c) 2014 Dave Gandy
+ - graphlib v1.0.7 (https://github.com/cpettitt/graphlib) - Copyright (c) 2012-2014 Chris Pettitt
+ - JQuery v2.1.4 (http://jquery.com/) - Copyright 2014 jQuery Foundation and other contributors
+ - lodash v3.10.0 (http://dojofoundation.org) - Copyright 2012-2015 The Dojo Foundation
+ - moment.js v2.9.0 (http://momentjs.com/docs/) - Copyright (c) 2011-2014 Tim Wood, Iskren Chernev, Moment.js contributors
+ - moment-duration-format v1.3.0 (https://github.com/jsmreese/moment-duration-format) - Copyright (c) 2013 John Madhavan-Reese
 
 
 All rights reserved.
@@ -299,17 +341,20 @@ The Apache Flink project bundles the following components under
 BSD-style licenses:
  
 [3-clause BSD license]
- - Kryo (https://github.com/EsotericSoftware/kryo) - Copyright (c) 2008, Nathan Sweet
- - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
- - Janino (http://docs.codehaus.org/display/JANINO/Home) - Copyright (c) 2001-2010, Arno Unkrig
- 
+ - Kryo (com.esotericsoftware.kryo:kryo:2.24.0 - https://github.com/EsotericSoftware/kryo) - Copyright (c) 2008, Nathan Sweet
+ - MinLog (com.esotericsoftware.minlog:minlog:1.2 - https://github.com/EsotericSoftware/minlog) - Copyright (c) 2008, Nathan Sweet
+ - D3 v3.5.6 (http://d3js.org/) - Copyright (c) 2010-2015, Michael Bostock
+
 [BSD-like License]
- - Scala Library (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
- - Scala Compiler (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
- - Scala Compiler Reflect (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
- - Scala Quasiquotes (http://scalamacros.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
- - ASM (http://asm.ow2.org/) - Copyright (c) 2000-2011 INRIA, France Telecom
- - Grizzled SLF4J (http://software.clapper.org/grizzled-slf4j/) - Copyright (c) 2010 Brian M. Clapper
+ - Scala Library (org.scala-lang:scala-library:2.10.4 - http://www.scala-lang.org/) - Copyright (c) 2002-2015 EPFL, Copyright (c) 2011-2015 Typesafe, Inc.
+ - Scala Compiler (org.scala-lang:scala-compiler:2.10.4 - http://www.scala-lang.org/) - Copyright (c) 2002-2015 EPFL, Copyright (c) 2011-2015 Typesafe, Inc.
+ - Scala Compiler Reflect (org.scala-lang:scala-reflect:2.10.4 - http://www.scala-lang.org/) - Copyright (c) 2002-2015 EPFL, Copyright (c) 2011-2015 Typesafe, Inc.
+ - Scala Quasiquotes (org.scalamacros:quasiquotes_2.10:2.0.1 - http://scalamacros.org/) - Copyright (c) 2002-2015 EPFL, Copyright (c) 2011-2015 Typesafe, Inc.
+ - Scala JLine (org.scala-lang:jline:2.10.4 - http://www.scala-lang.org/) - Copyright (c) 2002-2015 EPFL, Copyright (c) 2011-2015 Typesafe, Inc.
+ - ASM (org.ow2.asm:asm-all:5.0.4 - http://asm.ow2.org/) - Copyright (c) 2000-2011 INRIA, France Telecom
+ - ASM (org.ow2.asm:asm:5.0.4 - http://asm.ow2.org/) - Copyright (c) 2000-2011 INRIA, France Telecom
+ - Grizzled SLF4J (org.clapper:grizzled-slf4j_2.10:1.0.2 - http://software.clapper.org/grizzled-slf4j/) - Copyright (c) 2010 Brian M. Clapper
+ - ParaNamer (com.thoughtworks.paranamer:paranamer:2.3 - https://github.com/paul-hammant/paranamer) - Copyright (c) 2006 Paul Hammant & ThoughtWorks Inc
 
 
 (Below is the 3-clause BSD license)
@@ -340,20 +385,6 @@ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY
 WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
-
-
------------------------------------------------------------------------
- Eclipse Public License  - v 1.0
------------------------------------------------------------------------
-
-The Apache Flink project bundles the following components
-under the Eclipse Public License (v 1.0)
-
-- LOGback (http://logback.qos.ch)
-    Copyright (C) 1999-2012, QOS.ch. All rights reserved.
-
-You may obtain a copy of the Eclipse Public License (v 1.0) at
-https://www.eclipse.org/legal/epl-v10.html
 
 
 -----------------------------------------------------------------------

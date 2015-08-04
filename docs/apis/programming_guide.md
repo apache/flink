@@ -606,7 +606,18 @@ DataSet<Tuple3<Integer, String, Double>> output = input.sum(0).andMin(2);
       </td>
     </tr>
 
+    <tr>
+      <td><strong>Distinct</strong></td>
+      <td>
+        <p>Returns the distinct elements of a data set. It removes the duplicate entries 
+        from the input DataSet, with respect to all fields of the elements, or a subset of fields.</p>
+    {% highlight java %}
+        data.distinct(); 
+    {% endhighlight %}
+      </td>
     </tr>
+    
+    <tr>
       <td><strong>Join</strong></td>
       <td>
         Joins two data sets by creating all pairs of elements that are equal on their keys.
@@ -870,6 +881,17 @@ val output: DataSet[(Int, String, Doublr)] = input.sum(0).min(2)
 {% endhighlight %}
       </td>
     </tr>
+    
+    <tr>
+      <td><strong>Distinct</strong></td>
+      <td>
+        <p>Returns the distinct elements of a data set. It removes the duplicate entries 
+        from the input DataSet, with respect to all fields of the elements, or a subset of fields.</p>
+      {% highlight scala %}
+         data.distinct() 
+      {% endhighlight %}
+      </td> 
+    </tr>
 
     </tr>
       <td><strong>Join</strong></td>
@@ -956,6 +978,19 @@ val result = in.partitionByHash(0).mapPartition { ... }
 {% endhighlight %}
       </td>
     </tr>
+    </tr>
+    <tr>
+      <td><strong>Custom Partitioning</strong></td>
+      <td>
+        <p>Manually specify a partitioning over the data.
+          <br/>
+          <i>Note</i>: This method works only on single field keys.</p>
+{% highlight scala %}
+val in: DataSet[(Int, String)] = // [...]
+val result = in
+  .partitionCustom(partitioner: Partitioner[K], key)
+{% endhighlight %}
+      </td>
     </tr>
     <tr>
       <td><strong>Sort Partition</strong></td>

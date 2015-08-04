@@ -73,6 +73,10 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 
 		// 1) In-memory
 		synchronized (parent.buffers) {
+			if (parent.isReleased) {
+				return null;
+			}
+
 			if (parent.spillWriter == null) {
 				if (currentQueuePosition < numberOfBuffers) {
 					Buffer buffer = parent.buffers.get(currentQueuePosition);

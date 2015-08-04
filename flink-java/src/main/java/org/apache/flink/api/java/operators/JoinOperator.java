@@ -1323,7 +1323,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 		/**
 		 * Chooses a projectTupleX according to the length of
-		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#fieldIndexes} 
+		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#fieldIndexes}
 		 * 
 		 * @return The projected DataSet.
 		 * 

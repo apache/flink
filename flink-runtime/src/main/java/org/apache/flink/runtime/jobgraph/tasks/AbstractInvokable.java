@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This is the abstract base class for every task that can be executed ba a TaskManager.
+ * This is the abstract base class for every task that can be executed by a TaskManager.
  * Concrete tasks like the stream vertices of the batch tasks
  * (see {@link org.apache.flink.runtime.operators.RegularPactTask}) inherit from this class.
  *
@@ -108,9 +108,9 @@ public abstract class AbstractInvokable {
 	}
 
 	/**
-	 * Returns the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.AbstractJobVertex}.
+	 * Returns the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobVertex}.
 	 * 
-	 * @return the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.AbstractJobVertex}
+	 * @return the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobVertex}
 	 */
 	public Configuration getTaskConfiguration() {
 		return this.environment.getTaskConfiguration();

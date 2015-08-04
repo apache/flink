@@ -37,7 +37,6 @@ import akka.dispatch.Futures;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.instance.SharedSlot;
@@ -50,6 +49,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.ExecutionContext;
 
 /**
  * The scheduler is responsible for distributing the ready-to-run tasks among instances and slots.
@@ -95,12 +95,17 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	/** The number of slot allocations where locality could not be respected */
 	private int nonLocalizedAssignments;
 
+	/** The ExecutionContext which is used to execute newSlotAvailable futures. */
+	private final ExecutionContext executionContext;
+
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a new scheduler.
 	 */
-	public Scheduler() {}
+	public Scheduler(ExecutionContext executionContext) {
+		this.executionContext = executionContext;
+	}
 	
 	/**
 	 * Shuts the scheduler down. After shut down no more tasks can be added to the scheduler.
@@ -209,7 +214,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 							constraint.lockLocation();
 						}
 						
-						updateLocalityCounters(slotFromGroup.getLocality(), vertex, slotFromGroup.getInstance());
+						updateLocalityCounters(slotFromGroup, vertex);
 						return slotFromGroup;
 					}
 					
@@ -279,7 +284,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 						constraint.lockLocation();
 					}
 					
-					updateLocalityCounters(toUse.getLocality(), vertex, toUse.getInstance());
+					updateLocalityCounters(toUse, vertex);
 				}
 				catch (NoResourceAvailableException e) {
 					throw e;
@@ -303,7 +308,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				
 				SimpleSlot slot = getFreeSlotForTask(vertex, preferredLocations, forceExternalLocation);
 				if (slot != null) {
-					updateLocalityCounters(slot.getLocality(), vertex, slot.getInstance());
+					updateLocalityCounters(slot, vertex);
 					return slot;
 				}
 				else {
@@ -519,7 +524,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				handleNewSlot();
 				return null;
 			}
-		}, AkkaUtils.globalExecutionContext());
+		}, executionContext);
 	}
 	
 	private void handleNewSlot() {
@@ -570,7 +575,9 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		}
 	}
 	
-	private void updateLocalityCounters(Locality locality, ExecutionVertex vertex, Instance location) {
+	private void updateLocalityCounters(SimpleSlot slot, ExecutionVertex vertex) {
+		Locality locality = slot.getLocality();
+
 		switch (locality) {
 		case UNCONSTRAINED:
 			this.unconstrainedAssignments++;
@@ -588,13 +595,13 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		if (LOG.isDebugEnabled()) {
 			switch (locality) {
 				case UNCONSTRAINED:
-					LOG.debug("Unconstrained assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + location);
+					LOG.debug("Unconstrained assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + slot);
 					break;
 				case LOCAL:
-					LOG.debug("Local assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + location);
+					LOG.debug("Local assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + slot);
 					break;
 				case NON_LOCAL:
-					LOG.debug("Non-local assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + location);
+					LOG.debug("Non-local assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + slot);
 					break;
 			}
 		}

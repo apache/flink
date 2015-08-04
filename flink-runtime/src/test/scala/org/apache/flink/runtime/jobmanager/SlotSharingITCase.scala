@@ -21,18 +21,23 @@ package org.apache.flink.runtime.jobmanager
 import akka.actor.ActorSystem
 import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
+import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{Sender, AgnosticBinaryReceiver, Receiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
 import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, SubmitJob}
-import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 @RunWith(classOf[JUnitRunner])
-class SlotSharingITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
-WordSpecLike with Matchers with BeforeAndAfterAll {
+class SlotSharingITCase(_system: ActorSystem)
+  extends TestKit(_system)
+  with ImplicitSender
+  with WordSpecLike
+  with Matchers
+  with BeforeAndAfterAll
+  with ScalaTestingUtils {
   def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
 
   override def afterAll(): Unit = {
@@ -43,8 +48,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
     "support slot sharing for forward job" in {
       val num_tasks = 31
 
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender = new JobVertex("Sender")
+      val receiver = new JobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Sender])
       receiver.setInvokableClass(classOf[Receiver])
@@ -61,11 +66,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
 
@@ -82,9 +87,9 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
     "support jobs with two inputs and slot sharing" in {
       val num_tasks = 11
 
-      val sender1 = new AbstractJobVertex("Sender1")
-      val sender2 = new AbstractJobVertex("Sender2")
-      val receiver = new AbstractJobVertex("Receiver")
+      val sender1 = new JobVertex("Sender1")
+      val sender2 = new JobVertex("Sender2")
+      val receiver = new JobVertex("Receiver")
 
       sender1.setInvokableClass(classOf[Sender])
       sender2.setInvokableClass(classOf[Sender])
@@ -105,10 +110,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Bipartite job", sender1, sender2, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
+
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
         }

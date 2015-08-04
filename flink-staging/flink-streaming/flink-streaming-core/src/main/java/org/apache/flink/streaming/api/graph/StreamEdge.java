@@ -46,7 +46,7 @@ public class StreamEdge implements Serializable {
 	 * output selection).
 	 */
 	final private List<String> selectedNames;
-	final private StreamPartitioner<?> outputPartitioner;
+	private StreamPartitioner<?> outputPartitioner;
 
 	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
 			List<String> selectedNames, StreamPartitioner<?> outputPartitioner) {
@@ -86,6 +86,10 @@ public class StreamEdge implements Serializable {
 
 	public StreamPartitioner<?> getPartitioner() {
 		return outputPartitioner;
+	}
+	
+	public void setPartitioner(StreamPartitioner<?> partitioner) {
+		this.outputPartitioner = partitioner;
 	}
 
 	@Override

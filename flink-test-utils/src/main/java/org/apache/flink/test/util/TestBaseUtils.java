@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.util;
 
+import static org.junit.Assert.assertEquals;
 import akka.actor.ActorRef;
 import akka.dispatch.Futures;
 import akka.pattern.Patterns;
@@ -25,16 +26,17 @@ import akka.util.Timeout;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.Assert;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -146,7 +148,7 @@ public class TestBaseUtils {
 				}
 
 				Future<Iterable<Object>> bcVariableManagerFutureResponses = Futures.sequence(
-						bcVariableManagerResponseFutures, AkkaUtils.globalExecutionContext());
+						bcVariableManagerResponseFutures, TestingUtils.defaultExecutionContext());
 
 				Iterable<Object> responses = Await.result(bcVariableManagerFutureResponses, timeout);
 
@@ -156,7 +158,7 @@ public class TestBaseUtils {
 				}
 
 				Future<Iterable<Object>> numActiveConnectionsFutureResponses = Futures.sequence(
-						numActiveConnectionsResponseFutures, AkkaUtils.globalExecutionContext());
+						numActiveConnectionsResponseFutures, TestingUtils.defaultExecutionContext());
 
 				responses = Await.result(numActiveConnectionsFutureResponses, timeout);
 
@@ -214,9 +216,7 @@ public class TestBaseUtils {
 		}
 		return readers;
 	}
-
-
-
+	
 	public static BufferedInputStream[] getResultInputStream(String resultPath) throws IOException {
 		return getResultInputStream(resultPath, new String[]{});
 	}
@@ -241,19 +241,32 @@ public class TestBaseUtils {
 		readAllResultLines(target, resultPath, excludePrefixes, false);
 	}
 
-	public static void readAllResultLines(List<String> target, String resultPath, String[]
-			excludePrefixes, boolean inOrderOfFiles) throws IOException {
-		for (BufferedReader reader : getResultReader(resultPath, excludePrefixes, inOrderOfFiles)) {
-			String s;
-			while ((s = reader.readLine()) != null) {
-				target.add(s);
+	public static void readAllResultLines(List<String> target, String resultPath, 
+											String[] excludePrefixes, boolean inOrderOfFiles) throws IOException {
+
+		final BufferedReader[] readers = getResultReader(resultPath, excludePrefixes, inOrderOfFiles);
+		try {
+			for (BufferedReader reader : readers) {
+				String s;
+				while ((s = reader.readLine()) != null) {
+					target.add(s);
+				}
+			}
+		}
+		finally {
+			for (BufferedReader reader : readers) {
+				try {
+					reader.close();
+				}
+				catch (Exception e) {
+					// ignore, this is best-effort cleanup
+				}
 			}
 		}
 	}
 
-	public static void compareResultsByLinesInMemory(String expectedResultStr, String
-			resultPath) throws Exception {
-		compareResultsByLinesInMemory(expectedResultStr, resultPath, new String[]{});
+	public static void compareResultsByLinesInMemory(String expectedResultStr, String resultPath) throws Exception {
+		compareResultsByLinesInMemory(expectedResultStr, resultPath, new String[0]);
 	}
 
 	public static void compareResultsByLinesInMemory(String expectedResultStr, String resultPath,
@@ -272,8 +285,7 @@ public class TestBaseUtils {
 	}
 
 	public static void compareResultsByLinesInMemoryWithStrictOrder(String expectedResultStr,
-																	String resultPath) throws
-			Exception {
+																	String resultPath) throws Exception {
 		compareResultsByLinesInMemoryWithStrictOrder(expectedResultStr, resultPath, new String[]{});
 	}
 
@@ -392,6 +404,55 @@ public class TestBaseUtils {
 	}
 
 	// --------------------------------------------------------------------------------------------
+	// Comparison methods for tests using collect()
+	// --------------------------------------------------------------------------------------------
+
+	public static <T> void compareResultAsTuples(List<T> result, String expected) {
+		compareResult(result, expected, true);
+	}
+
+	public static <T> void compareResultAsText(List<T> result, String expected) {
+		compareResult(result, expected, false);
+	}
+	
+	private static <T> void compareResult(List<T> result, String expected, boolean asTuples) {
+		String[] extectedStrings = expected.split("\n");
+		String[] resultStrings = new String[result.size()];
+		
+		for (int i = 0; i < resultStrings.length; i++) {
+			T val = result.get(i);
+			
+			if (asTuples) {
+				if (val instanceof Tuple) {
+					Tuple t = (Tuple) val;
+					Object first = t.getField(0);
+					StringBuilder bld = new StringBuilder(first == null ? "null" : first.toString());
+					for (int pos = 1; pos < t.getArity(); pos++) {
+						Object next = t.getField(pos);
+						bld.append(',').append(next == null ? "null" : next.toString());
+					}
+					resultStrings[i] = bld.toString();
+				}
+				else {
+					throw new IllegalArgumentException(val + " is no tuple");
+				}
+			}
+			else {
+				resultStrings[i] = (val == null) ? "null" : val.toString();
+			}
+		}
+		
+		assertEquals("Wrong number of elements result", extectedStrings.length, resultStrings.length);
+
+		Arrays.sort(extectedStrings);
+		Arrays.sort(resultStrings);
+		
+		for (int i = 0; i < extectedStrings.length; i++) {
+			assertEquals(extectedStrings[i], resultStrings[i]);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
 	//  Miscellaneous helper methods
 	// --------------------------------------------------------------------------------------------
 
@@ -429,9 +490,9 @@ public class TestBaseUtils {
 			cienv.putAll(newenv);
 		} catch (NoSuchFieldException e) {
 			try {
-				Class[] classes = Collections.class.getDeclaredClasses();
+				Class<?>[] classes = Collections.class.getDeclaredClasses();
 				Map<String, String> env = System.getenv();
-				for (Class cl : classes) {
+				for (Class<?> cl : classes) {
 					if ("java.util.Collections$UnmodifiableMap".equals(cl.getName())) {
 						Field field = cl.getDeclaredField("m");
 						field.setAccessible(true);

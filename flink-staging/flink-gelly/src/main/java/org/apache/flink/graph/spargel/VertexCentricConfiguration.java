@@ -47,9 +47,6 @@ public class VertexCentricConfiguration extends IterationConfiguration {
 	/** flag that defines whether the degrees option is set **/
 	private boolean optDegrees = false;
 
-	/** flag that defines whether the number of vertices option is set **/
-	private boolean optNumVertices = false;
-
 	/** the direction in which the messages should be sent **/
 	private EdgeDirection direction = EdgeDirection.OUT;
 
@@ -113,26 +110,6 @@ public class VertexCentricConfiguration extends IterationConfiguration {
 	 */
 	public void setOptDegrees(boolean optDegrees) {
 		this.optDegrees = optDegrees;
-	}
-
-	/**
-	 * Gets whether the number of vertices option is set.
-	 * By default, the number of vertices option is not set.
-	 *
-	 * @return True, if the number of vertices option is set, false otherwise.
-	 */
-	public boolean isOptNumVertices() {
-		return optNumVertices;
-	}
-
-	/**
-	 * Sets the number of vertices option.
-	 * By default, the number of vertices option is not set.
-	 *
-	 * @param optNumVertices True, to set this option, false otherwise.
-	 */
-	public void setOptNumVertices(boolean optNumVertices) {
-		this.optNumVertices = optNumVertices;
 	}
 
 	/**

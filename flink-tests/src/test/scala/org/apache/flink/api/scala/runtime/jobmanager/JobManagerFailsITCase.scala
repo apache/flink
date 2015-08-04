@@ -27,17 +27,22 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, JobGraph}
+import org.apache.flink.runtime.jobgraph.{JobVertex, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingNoOpInvokable, NoOpInvokable}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated, NotifyWhenJobManagerTerminated}
-import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.apache.flink.test.util.ForkableFlinkMiniCluster
 
 @RunWith(classOf[JUnitRunner])
-class JobManagerFailsITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender
-with WordSpecLike with Matchers with BeforeAndAfterAll {
+class JobManagerFailsITCase(_system: ActorSystem)
+  extends TestKit(_system)
+  with ImplicitSender
+  with WordSpecLike
+  with Matchers
+  with BeforeAndAfterAll
+  with ScalaTestingUtils {
 
   def this() = this(ActorSystem("TestingActorSystem", AkkaUtils.getDefaultAkkaConfig))
 
@@ -52,18 +57,18 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       val cluster = startDeathwatchCluster(num_slots, 1)
 
       val tm = cluster.getTaskManagers(0)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       // disable disconnect message to test death watch
       tm ! DisableDisconnect
 
       try{
-        jm ! RequestNumberRegisteredTaskManager
+        jmGateway.tell(RequestNumberRegisteredTaskManager, self)
         expectMsg(1)
 
-        tm ! NotifyWhenJobManagerTerminated(jm)
+        tm ! NotifyWhenJobManagerTerminated(jmGateway.actor)
 
-        jm ! PoisonPill
+        jmGateway.tell(PoisonPill, self)
 
         expectMsgClass(classOf[JobManagerTerminated])
 
@@ -71,7 +76,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
         cluster.waitForTaskManagersToBeRegistered()
 
-        cluster.getJobManager ! RequestNumberRegisteredTaskManager
+        cluster.getJobManagerGateway.tell(RequestNumberRegisteredTaskManager, self)
 
         expectMsg(1)
       } finally {
@@ -82,39 +87,39 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     "go into a clean state in case of a JobManager failure" in {
       val num_slots = 36
 
-      val sender = new AbstractJobVertex("BlockingSender")
+      val sender = new JobVertex("BlockingSender")
       sender.setParallelism(num_slots)
       sender.setInvokableClass(classOf[BlockingNoOpInvokable])
       val jobGraph = new JobGraph("Blocking Testjob", sender)
 
-      val noOp = new AbstractJobVertex("NoOpInvokable")
+      val noOp = new JobVertex("NoOpInvokable")
       noOp.setParallelism(num_slots)
       noOp.setInvokableClass(classOf[NoOpInvokable])
       val jobGraph2 = new JobGraph("NoOp Testjob", noOp)
 
       val cluster = startDeathwatchCluster(num_slots / 2, 2)
 
-      var jm = cluster.getJobManager
+      var jmGateway = cluster.getJobManagerGateway
       val tm = cluster.getTaskManagers(0)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
 
-          tm ! NotifyWhenJobManagerTerminated(jm)
+          tm.tell(NotifyWhenJobManagerTerminated(jmGateway.actor()), self)
 
-          jm ! PoisonPill
+          jmGateway.tell(PoisonPill, self)
 
           expectMsgClass(classOf[JobManagerTerminated])
 
           cluster.restartJobManager()
 
-          jm = cluster.getJobManager
+          jmGateway = cluster.getJobManagerGateway
 
           cluster.waitForTaskManagersToBeRegistered()
 
-          jm ! SubmitJob(jobGraph2, false)
+          jmGateway.tell(SubmitJob(jobGraph2, false), self)
 
           val failure = expectMsgType[Success]
 

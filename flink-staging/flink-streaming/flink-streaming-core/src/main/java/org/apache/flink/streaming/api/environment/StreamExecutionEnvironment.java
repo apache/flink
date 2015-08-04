@@ -45,6 +45,7 @@ import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.FileStateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
@@ -57,14 +58,16 @@ import org.apache.flink.streaming.api.functions.source.FromSplittableIteratorFun
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.SplittableIterator;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -222,39 +225,117 @@ public abstract class StreamExecutionEnvironment {
 		return this;
 	}
 
+	// ------------------------------------------------------------------------
+	//  Checkpointing Settings
+	// ------------------------------------------------------------------------
+	
 	/**
-	 * Method for enabling fault-tolerance. Activates monitoring and backup of
-	 * streaming operator states.
-	 * <p/>
-	 * <p/>
-	 * Setting this option assumes that the job is used in production and thus
-	 * if not stated explicitly otherwise with calling with the
-	 * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method
-	 * in case of failure the job will be resubmitted to the cluster
-	 * indefinitely.
+	 * Enables checkpointing for the streaming job. The distributed state of the streaming
+	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
+	 * dataflow will be restarted from the latest completed checkpoint. This method selects
+	 * {@link CheckpointingMode#EXACTLY_ONCE} guarantees.
+	 * 
+	 * <p>The job draws checkpoints periodically, in the given interval. The state will be
+	 * stored in the configured state backend.</p>
+	 * 
+	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+	 * the moment. For that reason, iterative jobs will not be started if used
+	 * with enabled checkpointing. To override this mechanism, use the 
+	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
 	 *
-	 * @param interval
-	 * 		Time interval between state checkpoints in millis
+	 * @param interval Time interval between state checkpoints in milliseconds.
 	 */
 	public StreamExecutionEnvironment enableCheckpointing(long interval) {
+		return enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE);
+	}
+
+	/**
+	 * Enables checkpointing for the streaming job. The distributed state of the streaming
+	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
+	 * dataflow will be restarted from the latest completed checkpoint.
+	 *
+	 * <p>The job draws checkpoints periodically, in the given interval. The system uses the
+	 * given {@link CheckpointingMode} for the checkpointing ("exactly once" vs "at least once").
+	 * The state will be stored in the configured state backend.</p>
+	 *
+	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+	 * the moment. For that reason, iterative jobs will not be started if used
+	 * with enabled checkpointing. To override this mechanism, use the 
+	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
+	 *
+	 * @param interval 
+	 *             Time interval between state checkpoints in milliseconds.
+	 * @param mode 
+	 *             The checkpointing mode, selecting between "exactly once" and "at least once" guaranteed.
+	 */
+	public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode) {
+		if (mode == null) {
+			throw new NullPointerException("checkpoint mode must not be null");
+		}
+		if (interval <= 0) {
+			throw new IllegalArgumentException("the checkpoint interval must be positive");
+		}
+		
 		streamGraph.setCheckpointingEnabled(true);
 		streamGraph.setCheckpointingInterval(interval);
+		streamGraph.setCheckpointingMode(mode);
+		return this;
+	}
+	
+	/**
+	 * Enables checkpointing for the streaming job. The distributed state of the streaming
+	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
+	 * dataflow will be restarted from the latest completed checkpoint.
+	 *
+	 * <p>The job draws checkpoints periodically, in the given interval. The state will be
+	 * stored in the configured state backend.</p>
+	 *
+	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+	 * the moment. If the "force" parameter is set to true, the system will execute the
+	 * job nonetheless.</p>
+	 * 
+	 * @param interval
+	 *            Time interval between state checkpoints in millis.
+	 * @param mode
+	 *            The checkpointing mode, selecting between "exactly once" and "at least once" guaranteed.
+	 * @param force
+	 *            If true checkpointing will be enabled for iterative jobs as well.
+	 */
+	@Deprecated
+	public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode, boolean force) {
+		if (mode == null) {
+			throw new NullPointerException("checkpoint mode must not be null");
+		}
+		if (interval <= 0) {
+			throw new IllegalArgumentException("the checkpoint interval must be positive");
+		}
+		
+		streamGraph.setCheckpointingEnabled(true);
+		streamGraph.setCheckpointingInterval(interval);
+		streamGraph.setCheckpointingMode(mode);
+		if (force) {
+			streamGraph.forceCheckpoint();
+		}
 		return this;
 	}
 
 	/**
-	 * Method for enabling fault-tolerance. Activates monitoring and backup of
-	 * streaming operator states.
-	 * <p/>
-	 * <p/>
-	 * Setting this option assumes that the job is used in production and thus
-	 * if not stated explicitly otherwise with calling with the
-	 * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method
-	 * in case of failure the job will be resubmitted to the cluster
-	 * indefinitely.
+	 * Enables checkpointing for the streaming job. The distributed state of the streaming
+	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
+	 * dataflow will be restarted from the latest completed checkpoint. This method selects
+	 * {@link CheckpointingMode#EXACTLY_ONCE} guarantees.
+	 *
+	 * <p>The job draws checkpoints periodically, in the default interval. The state will be
+	 * stored in the configured state backend.</p>
+	 *
+	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+	 * the moment. For that reason, iterative jobs will not be started if used
+	 * with enabled checkpointing. To override this mechanism, use the 
+	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
 	 */
 	public StreamExecutionEnvironment enableCheckpointing() {
 		streamGraph.setCheckpointingEnabled(true);
+		streamGraph.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
 		return this;
 	}
 
@@ -290,8 +371,7 @@ public abstract class StreamExecutionEnvironment {
 	 * A value of {@code -1} indicates that the system default value (as defined
 	 * in the configuration) should be used.
 	 *
-	 * @return The number of times the system will try to re-execute failed
-	 * tasks.
+	 * @return The number of times the system will try to re-execute failed tasks.
 	 */
 	public int getNumberOfExecutionRetries() {
 		return config.getNumberOfExecutionRetries();
@@ -399,8 +479,10 @@ public abstract class StreamExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Creates a new data stream that contains a sequence of numbers. The data stream will be created with parallelism
-	 * one, so the order of the elements is guaranteed.
+	 * Creates a new data stream that contains a sequence of numbers. This is a parallel source,
+	 * if you manually set the parallelism to {@code 1}
+	 * (using {@link org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#setParallelism(int)})
+	 * the generated sequence of elements is in order.
 	 *
 	 * @param from
 	 * 		The number to start at (inclusive)
@@ -412,22 +494,7 @@ public abstract class StreamExecutionEnvironment {
 		if (from > to) {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
 		}
-		return fromCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO, "Sequence Source");
-	}
-
-	/**
-	 * Creates a new data stream that contains a sequence of numbers. The data stream will be created in parallel, so
-	 * there is no guarantee about the oder of the elements.
-	 *
-	 * @param from
-	 * 		The number to start at (inclusive)
-	 * @param to
-	 * 		The number to stop at (inclusive)
-	 * @return A data stream, containing all number in the [from, to] interval
-	 */
-	public DataStreamSource<Long> generateParallelSequence(long from, long to) {
-		return fromParallelCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO, "Parallel " +
-				"Sequence Source");
+		return addSource(new StatefulSequenceSource(from, to), "Sequence Source");
 	}
 
 	/**
@@ -449,35 +516,38 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public <OUT> DataStreamSource<OUT> fromElements(OUT... data) {
 		if (data.length == 0) {
-			throw new IllegalArgumentException(
-					"fromElements needs at least one element as argument");
+			throw new IllegalArgumentException("fromElements needs at least one element as argument");
 		}
 
-		TypeInformation<OUT> typeInfo = TypeExtractor.getForObject(data[0]);
-
-		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
-
-		return addSource(function, "Elements source").returns(typeInfo);
+		TypeInformation<OUT> typeInfo;
+		try {
+			typeInfo = TypeExtractor.getForObject(data[0]);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Could not create TypeInformation for type " + data[0].getClass().getName()
+				+ "; please specify the TypeInformation manually via "
+				+ "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)");
+		}
+		return fromCollection(Arrays.asList(data), typeInfo);
 	}
 
 	/**
 	 * Creates a data stream from the given non-empty collection. The type of the data stream is that of the
 	 * elements in the collection.
 	 *
-	 * <p>
-	 * The framework will try and determine the exact type from the collection elements. In case of generic
+	 * <p>The framework will try and determine the exact type from the collection elements. In case of generic
 	 * elements, it may be necessary to manually supply the type information via
-	 * {@link #fromCollection(java.util.Collection, org.apache.flink.api.common.typeinfo.TypeInformation)}.
-	 * <p>
+	 * {@link #fromCollection(java.util.Collection, org.apache.flink.api.common.typeinfo.TypeInformation)}.</p>
 	 *
-	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
-	 * degree of parallelism one.
+	 * <p>Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
+	 * parallelism one.</p>
 	 *
 	 * @param data
-	 * 		The collection of elements to create the data stream from
+	 * 		The collection of elements to create the data stream from.
 	 * @param <OUT>
-	 * 		The type of the returned data stream
-	 * @return The data stream representing the given collection
+	 *     The generic type of the returned data stream.
+	 * @return
+	 *     The data stream representing the given collection
 	 */
 	public <OUT> DataStreamSource<OUT> fromCollection(Collection<OUT> data) {
 		Preconditions.checkNotNull(data, "Collection must not be null");
@@ -485,16 +555,28 @@ public abstract class StreamExecutionEnvironment {
 			throw new IllegalArgumentException("Collection must not be empty");
 		}
 
-		TypeInformation<OUT> typeInfo = TypeExtractor.getForObject(data.iterator().next());
-		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
-		checkCollection(data, typeInfo.getTypeClass());
+		OUT first = data.iterator().next();
+		if (first == null) {
+			throw new IllegalArgumentException("Collection must not contain null elements");
+		}
 
-		return addSource(function, "Collection Source").returns(typeInfo);
+		TypeInformation<OUT> typeInfo;
+		try {
+			typeInfo = TypeExtractor.getForObject(first);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Could not create TypeInformation for type " + first.getClass()
+					+ "; please specify the TypeInformation manually via "
+					+ "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)");
+		}
+		return fromCollection(data, typeInfo);
 	}
 
 	/**
-	 * Creates a data stream from the given non-empty collection.Note that this operation will result in
-	 * a non-parallel data stream source, i.e. a data stream source with a degree of parallelism one.
+	 * Creates a data stream from the given non-empty collection.
+	 * 
+	 * <p>Note that this operation will result in a non-parallel data stream source,
+	 * i.e., a data stream source with a parallelism one.</p>
 	 *
 	 * @param data
 	 * 		The collection of elements to create the data stream from
@@ -504,26 +586,31 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream representing the given collection
 	 */
-	public <OUT> DataStreamSource<OUT> fromCollection(Collection<OUT> data, TypeInformation<OUT>
-			typeInfo) {
+	public <OUT> DataStreamSource<OUT> fromCollection(Collection<OUT> data, TypeInformation<OUT> typeInfo) {
 		Preconditions.checkNotNull(data, "Collection must not be null");
-		if (data.isEmpty()) {
-			throw new IllegalArgumentException("Collection must not be empty");
+		
+		// must not have null elements and mixed elements
+		FromElementsFunction.checkCollection(data, typeInfo.getTypeClass());
+		
+		SourceFunction<OUT> function;
+		try {
+			function = new FromElementsFunction<OUT>(typeInfo.createSerializer(getConfig()), data);
 		}
-
-		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
-		checkCollection(data, typeInfo.getTypeClass());
-
-		return addSource(function, "Collection Source").returns(typeInfo);
+		catch (IOException e) {
+			throw new RuntimeException(e.getMessage(), e);
+		}
+		return addSource(function, "Collection Source", typeInfo);
 	}
 
 	/**
-	 * Creates a data stream from the given iterator. Because the iterator will remain unmodified until the actual
-	 * execution happens, the type of data returned by the iterator must be given explicitly in the form of the type
-	 * class (this is due to the fact that the Java compiler erases the generic type information).
-	 * <p>
-	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
-	 * degree of parallelism of one.
+	 * Creates a data stream from the given iterator.
+	 * 
+	 * <p>Because the iterator will remain unmodified until the actual execution happens,
+	 * the type of data returned by the iterator must be given explicitly in the form of the type
+	 * class (this is due to the fact that the Java compiler erases the generic type information).</p>
+	 * 
+	 * <p>Note that this operation will result in a non-parallel data stream source, i.e.,
+	 * a data stream source with a parallelism of one.</p>
 	 *
 	 * @param data
 	 * 		The iterator of elements to create the data stream from
@@ -539,14 +626,16 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a data stream from the given iterator. Because the iterator will remain unmodified until the actual
-	 * execution happens, the type of data returned by the iterator must be given explicitly in the form of the type
-	 * information. This method is useful for cases where the type is generic. In that case, the type class (as
-	 * given in
-	 * {@link #fromCollection(java.util.Iterator, Class)} does not supply all type information.
-	 * <p>
-	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
-	 * degree of parallelism one.
+	 * Creates a data stream from the given iterator.
+	 * 
+	 * <p>Because the iterator will remain unmodified until the actual execution happens,
+	 * the type of data returned by the iterator must be given explicitly in the form of the type
+	 * information. This method is useful for cases where the type is generic.
+	 * In that case, the type class (as given in
+	 * {@link #fromCollection(java.util.Iterator, Class)} does not supply all type information.</p>
+	 * 
+	 * <p>Note that this operation will result in a non-parallel data stream source, i.e.,
+	 * a data stream source with a parallelism one.</p>
 	 *
 	 * @param data
 	 * 		The iterator of elements to create the data stream from
@@ -556,27 +645,20 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream representing the elements in the iterator
 	 */
-	public <OUT> DataStreamSource<OUT> fromCollection(Iterator<OUT> data, TypeInformation<OUT>
-			typeInfo) {
+	public <OUT> DataStreamSource<OUT> fromCollection(Iterator<OUT> data, TypeInformation<OUT> typeInfo) {
 		Preconditions.checkNotNull(data, "The iterator must not be null");
 
 		SourceFunction<OUT> function = new FromIteratorFunction<OUT>(data);
-		return addSource(function, "Collection Source").returns(typeInfo);
-	}
-
-	// private helper for passing different names
-	private <OUT> DataStreamSource<OUT> fromCollection(Iterator<OUT> iterator, TypeInformation<OUT>
-			typeInfo, String operatorName) {
-		return addSource(new FromIteratorFunction<OUT>(iterator), operatorName).returns(typeInfo);
+		return addSource(function, "Collection Source", typeInfo);
 	}
 
 	/**
 	 * Creates a new data stream that contains elements in the iterator. The iterator is splittable, allowing the
 	 * framework to create a parallel data stream source that returns the elements in the iterator.
-	 * <p>
-	 * Because the iterator will remain unmodified until the actual execution happens, the type of data returned by the
+	 * 
+	 * <p>Because the iterator will remain unmodified until the actual execution happens, the type of data returned by the
 	 * iterator must be given explicitly in the form of the type class (this is due to the fact that the Java compiler
-	 * erases the generic type information).
+	 * erases the generic type information).</p>
 	 *
 	 * @param iterator
 	 * 		The iterator that produces the elements of the data stream
@@ -938,26 +1020,64 @@ public abstract class StreamExecutionEnvironment {
 	 * 		type of the returned stream
 	 * @return the data stream constructed
 	 */
-	@SuppressWarnings("unchecked")
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName) {
+		return addSource(function, sourceName, null);
+	}
 
-		TypeInformation<OUT> typeInfo;
+	/**
+	 * Ads a data source with a custom type information thus opening a
+	 * {@link DataStream}. Only in very special cases does the user need to
+	 * support type information. Otherwise use
+	 * {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+	 *
+	 * @param function
+	 * 		the user defined function
+	 * @param <OUT>
+	 * 		type of the returned stream
+	 * @param typeInfo
+	 * 		the user defined type information for the stream
+	 * @return the data stream constructed
+	 */
+	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, TypeInformation<OUT> typeInfo) {
+		return addSource(function, "Custom Source", typeInfo);
+	}
 
-		if (function instanceof ResultTypeQueryable) {
-			typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
-		} else {
-			try {
-				typeInfo = TypeExtractor.createTypeInfo(
-						SourceFunction.class,
-						function.getClass(), 0, null, null);
-			} catch (InvalidTypesException e) {
-				typeInfo = (TypeInformation<OUT>) new MissingTypeInfo("Custom source", e);
+	/**
+	 * Ads a data source with a custom type information thus opening a
+	 * {@link DataStream}. Only in very special cases does the user need to
+	 * support type information. Otherwise use
+	 * {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+	 *
+	 * @param function
+	 * 		the user defined function
+	 * @param sourceName
+	 * 		Name of the data source
+	 * @param <OUT>
+	 * 		type of the returned stream
+	 * @param typeInfo
+	 * 		the user defined type information for the stream
+	 * @return the data stream constructed
+	 */
+	@SuppressWarnings("unchecked")
+	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
+
+		if(typeInfo == null) {
+			if (function instanceof ResultTypeQueryable) {
+				typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
+			} else {
+				try {
+					typeInfo = TypeExtractor.createTypeInfo(
+							SourceFunction.class,
+							function.getClass(), 0, null, null);
+				} catch (final InvalidTypesException e) {
+					typeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
+				}
 			}
 		}
 
 		boolean isParallel = function instanceof ParallelSourceFunction;
 
-		ClosureCleaner.clean(function, true);
+		clean(function);
 		StreamOperator<OUT> sourceOperator = new StreamSource<OUT>(function);
 
 		return new DataStreamSource<OUT>(this, sourceName, typeInfo, sourceOperator,
@@ -1138,17 +1258,16 @@ public abstract class StreamExecutionEnvironment {
 		currentEnvironment = eef.createExecutionEnvironment();
 	}
 
-	private static <OUT> void checkCollection(Collection<OUT> elements, Class<OUT> viewedAs) {
-		Preconditions.checkNotNull(viewedAs);
-
-		for (OUT elem : elements) {
-			Preconditions.checkNotNull(elem, "The collection must not contain null elements.");
-
-			if (!viewedAs.isAssignableFrom(elem.getClass())) {
-				throw new IllegalArgumentException("The elements in the collection are not all subclasses of " +
-						viewedAs.getCanonicalName());
-			}
+	/**
+	 * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
+	 * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
+	 */
+	public <F> F clean(F f) {
+		if (getConfig().isClosureCleanerEnabled()) {
+			ClosureCleaner.clean(f, true);
 		}
+		ClosureCleaner.ensureSerializable(f);
+		return f;
 	}
 
 }

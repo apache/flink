@@ -39,6 +39,7 @@ file require restarting the Flink JobManager and TaskManagers.
 The configuration files for the TaskManagers can be different, Flink does not assume 
 uniform machines in the cluster.
 
+
 * This will be replaced by the TOC
 {:toc}
 
@@ -147,6 +148,27 @@ JVM's heap space for internal data buffers, leaving 20% of the JVM's heap space
 free for objects created by user-defined functions. (DEFAULT: 0.7)
 This parameter is only evaluated, if `taskmanager.memory.size` is not set.
 
+- `env.java.opts`: Set custom JVM options. This value is respected by Flink's start scripts
+and Flink's YARN client.
+This can be used to set different garbage collectors or to include remote debuggers into 
+the JVMs running Flink's services.
+
+- `state.backend`: The backend that will be used to store operator state checkpoints if checkpointing is enabled. 
+  
+  Supported backends: 
+  
+   -  `jobmanager` (in-memory)
+   -  `filesystem` (all filesystems supported by Flink, for example HDFS)
+
+- `state.backend.fs.checkpointdir`: Directory for storing checkpoints in a flink supported filesystem
+Note: State backend must be accessible from the JobManager, use file:// only for local setups. 
+
+- `blob.storage.directory`: Directory for storing blobs (such as user jar's) on the TaskManagers.
+
+- `execution-retries.delay`: Delay between execution retries. Default value "100 s". Note that values
+have to be specified as strings with a unit.
+
+- `execution-retries.default`: Default number of execution retries (Can also be set on a per-job basis).
 
 ## Full Reference
 

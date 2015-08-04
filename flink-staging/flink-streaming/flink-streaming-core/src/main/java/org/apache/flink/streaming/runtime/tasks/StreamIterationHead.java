@@ -18,11 +18,14 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.flink.streaming.api.collector.StreamOutput;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -47,14 +50,18 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 	@Override
 	public void registerInputOutput() {
 		super.registerInputOutput();
-		outputHandler = new OutputHandler<OUT>(this);
 
-		Integer iterationId = configuration.getIterationId();
+		final AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
+		Map<String, Accumulator<?, ?>> accumulatorMap = registry.getUserMap();
+
+		outputHandler = new OutputHandler<OUT>(this, accumulatorMap, outputHandler.reporter);
+
+		String iterationId = configuration.getIterationId();
 		iterationWaitTime = configuration.getIterationWaitTime();
 		shouldWait = iterationWaitTime > 0;
 
 		try {
-			BlockingQueueBroker.instance().handIn(iterationId.toString()+"-" 
+			BlockingQueueBroker.instance().handIn(iterationId+"-" 
 					+getEnvironment().getIndexInSubtaskGroup(), dataChannel);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
@@ -69,7 +76,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 			LOG.debug("Iteration source {} invoked", getName());
 		}
 
-		Collection<StreamOutput<?>> outputs = outputHandler.getOutputs();
+		Collection<RecordWriterOutput<?>> outputs = outputHandler.getOutputs();
 
 		try {
 			StreamRecord<OUT> nextRecord;
@@ -83,8 +90,8 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 				if (nextRecord == null) {
 					break;
 				}
-				for (StreamOutput<?> output : outputs) {
-					((StreamOutput<OUT>) output).collect(nextRecord.getObject());
+				for (RecordWriterOutput<?> output : outputs) {
+					((RecordWriterOutput<OUT>) output).collect(nextRecord);
 				}
 			}
 
@@ -96,6 +103,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 		}
 		finally {
 			// Cleanup
+			isRunning = false;
 			outputHandler.flushOutputs();
 			clearBuffers();
 		}

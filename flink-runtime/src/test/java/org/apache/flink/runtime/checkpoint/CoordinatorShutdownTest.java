@@ -18,13 +18,11 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import akka.actor.ActorRef;
-import akka.pattern.Patterns;
-
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
@@ -55,25 +53,26 @@ public class CoordinatorShutdownTest {
 			cluster = new LocalFlinkMiniCluster(noTaskManagerConfig, true);
 			
 			// build a test graph with snapshotting enabled
-			AbstractJobVertex vertex = new AbstractJobVertex("Test Vertex");
+			JobVertex vertex = new JobVertex("Test Vertex");
 			vertex.setInvokableClass(Tasks.NoOpInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 			
 			JobGraph testGraph = new JobGraph("test job", vertex);
 			testGraph.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList, 5000));
 			
-			ActorRef jobManager = cluster.getJobManager();
+			ActorGateway jobManager = cluster.getJobManagerGateway();
 
 			FiniteDuration timeout = new FiniteDuration(60, TimeUnit.SECONDS);
 			JobManagerMessages.SubmitJob submitMessage = new JobManagerMessages.SubmitJob(testGraph, false);
 			
 			// submit is successful, but then the job dies because no TaskManager / slot is available
-			Future<Object> submitFuture = Patterns.ask(jobManager, submitMessage, timeout.toMillis());
+			Future<Object> submitFuture = jobManager.ask(submitMessage, timeout);
 			Await.result(submitFuture, timeout);
 
 			// get the execution graph and make sure the coordinator is properly shut down
-			Future<Object> jobRequestFuture = Patterns.ask(jobManager,
-					new JobManagerMessages.RequestJob(testGraph.getJobID()), timeout.toMillis());
+			Future<Object> jobRequestFuture = jobManager.ask(
+					new JobManagerMessages.RequestJob(testGraph.getJobID()),
+					timeout);
 			
 			ExecutionGraph graph = ((JobManagerMessages.JobFound) Await.result(jobRequestFuture, timeout)).executionGraph();
 			
@@ -102,25 +101,26 @@ public class CoordinatorShutdownTest {
 			cluster = new LocalFlinkMiniCluster(new Configuration(), true);
 			
 			// build a test graph with snapshotting enabled
-			AbstractJobVertex vertex = new AbstractJobVertex("Test Vertex");
+			JobVertex vertex = new JobVertex("Test Vertex");
 			vertex.setInvokableClass(Tasks.NoOpInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 
 			JobGraph testGraph = new JobGraph("test job", vertex);
 			testGraph.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList, 5000));
 			
-			ActorRef jobManager = cluster.getJobManager();
+			ActorGateway jobManager = cluster.getJobManagerGateway();
 
 			FiniteDuration timeout = new FiniteDuration(60, TimeUnit.SECONDS);
 			JobManagerMessages.SubmitJob submitMessage = new JobManagerMessages.SubmitJob(testGraph, false);
 
 			// submit is successful, but then the job dies because no TaskManager / slot is available
-			Future<Object> submitFuture = Patterns.ask(jobManager, submitMessage, timeout.toMillis());
+			Future<Object> submitFuture = jobManager.ask(submitMessage, timeout);
 			Await.result(submitFuture, timeout);
 
 			// get the execution graph and make sure the coordinator is properly shut down
-			Future<Object> jobRequestFuture = Patterns.ask(jobManager,
-					new JobManagerMessages.RequestJob(testGraph.getJobID()), timeout.toMillis());
+			Future<Object> jobRequestFuture = jobManager.ask(
+					new JobManagerMessages.RequestJob(testGraph.getJobID()),
+					timeout);
 
 			ExecutionGraph graph = ((JobManagerMessages.JobFound) Await.result(jobRequestFuture, timeout)).executionGraph();
 

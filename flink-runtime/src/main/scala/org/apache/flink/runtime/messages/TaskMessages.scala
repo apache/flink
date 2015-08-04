@@ -47,7 +47,7 @@ object TaskMessages {
    * @param tasks Descriptor which contains the information to start the task.
    */
   case class SubmitTask(tasks: TaskDeploymentDescriptor)
-    extends TaskMessage
+    extends TaskMessage with RequiresLeaderSessionID
 
   /**
    * Cancels the task associated with [[attemptID]]. The result is sent back to the sender as a
@@ -56,7 +56,7 @@ object TaskMessages {
    * @param attemptID The task's execution attempt ID.
    */
   case class CancelTask(attemptID: ExecutionAttemptID)
-    extends TaskMessage
+    extends TaskMessage with RequiresLeaderSessionID
 
   /**
    * Triggers a fail of specified task from the outside (as opposed to the task throwing
@@ -86,15 +86,16 @@ object TaskMessages {
    * Answer to a [[RequestPartitionState]] with the state of the respective partition.
    */
   case class PartitionState(
-    taskExecutionId: ExecutionAttemptID,
-    taskResultId: IntermediateDataSetID,
-    partitionId: IntermediateResultPartitionID,
-    state: ExecutionState) extends TaskMessage
+      taskExecutionId: ExecutionAttemptID,
+      taskResultId: IntermediateDataSetID,
+      partitionId: IntermediateResultPartitionID,
+      state: ExecutionState)
+    extends TaskMessage with RequiresLeaderSessionID
 
   /**
    * Base class for messages that update the information about location of input partitions
    */
-  abstract sealed class UpdatePartitionInfo extends TaskMessage {
+  abstract sealed class UpdatePartitionInfo extends TaskMessage with RequiresLeaderSessionID {
     def executionID: ExecutionAttemptID
   }
 
@@ -104,9 +105,10 @@ object TaskMessages {
    * @param resultId The input reader to update.
    * @param partitionInfo The partition info update.
    */
-  case class UpdateTaskSinglePartitionInfo(executionID: ExecutionAttemptID,
-                                           resultId: IntermediateDataSetID,
-                                           partitionInfo: InputChannelDeploymentDescriptor)
+  case class UpdateTaskSinglePartitionInfo(
+      executionID: ExecutionAttemptID,
+      resultId: IntermediateDataSetID,
+      partitionInfo: InputChannelDeploymentDescriptor)
     extends UpdatePartitionInfo
 
   /**
@@ -115,8 +117,8 @@ object TaskMessages {
    * @param partitionInfos List of input gates with channel descriptors to update.
    */
   case class UpdateTaskMultiplePartitionInfos(
-                    executionID: ExecutionAttemptID,
-                    partitionInfos: Seq[(IntermediateDataSetID, InputChannelDeploymentDescriptor)])
+      executionID: ExecutionAttemptID,
+      partitionInfos: Seq[(IntermediateDataSetID, InputChannelDeploymentDescriptor)])
     extends UpdatePartitionInfo
 
   /**
@@ -126,7 +128,7 @@ object TaskMessages {
    * @param executionID The task's execution attempt ID.
    */
   case class FailIntermediateResultPartitions(executionID: ExecutionAttemptID)
-    extends TaskMessage
+    extends TaskMessage with RequiresLeaderSessionID
 
 
   // --------------------------------------------------------------------------
@@ -140,7 +142,7 @@ object TaskMessages {
    * @param taskExecutionState The changed task state
    */
   case class UpdateTaskExecutionState(taskExecutionState: TaskExecutionState)
-    extends TaskMessage
+    extends TaskMessage with RequiresLeaderSessionID
 
   /**
    * Response message to updates in the task state. Send for example as a response to
@@ -152,11 +154,11 @@ object TaskMessages {
    * @param success indicating whether the operation has been successful
    * @param description Optional description for unsuccessful results.
    */
-  case class TaskOperationResult(executionID: ExecutionAttemptID,
-                                 success: Boolean,
-                                 description: String)
-    extends TaskMessage
-  {
+  case class TaskOperationResult(
+      executionID: ExecutionAttemptID,
+      success: Boolean,
+      description: String)
+    extends TaskMessage {
     def this(executionID: ExecutionAttemptID, success: Boolean) = this(executionID, success, "")
   }
 
@@ -166,10 +168,10 @@ object TaskMessages {
   // --------------------------------------------------------------------------
 
   def createUpdateTaskMultiplePartitionInfos(
-                               executionID: ExecutionAttemptID,
-                               resultIDs: java.util.List[IntermediateDataSetID],
-                               partitionInfos: java.util.List[InputChannelDeploymentDescriptor]):
-  UpdateTaskMultiplePartitionInfos = {
+      executionID: ExecutionAttemptID,
+      resultIDs: java.util.List[IntermediateDataSetID],
+      partitionInfos: java.util.List[InputChannelDeploymentDescriptor])
+    : UpdateTaskMultiplePartitionInfos = {
 
     require(resultIDs.size() == partitionInfos.size(),
       "ResultIDs must have the same length as partitionInfos.")

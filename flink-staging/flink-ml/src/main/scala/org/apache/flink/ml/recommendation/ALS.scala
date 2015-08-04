@@ -20,11 +20,12 @@ package org.apache.flink.ml.recommendation
 
 import java.{util, lang}
 
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
+import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Predictor}
 import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner, GroupReduceFunction, CoGroupFunction}
@@ -206,8 +207,9 @@ class ALS extends Predictor[ALS] {
 
     factorsOption match {
       case Some((userFactors, itemFactors)) => {
-        val predictions = data.join(userFactors).where(0).equalTo(0)
-          .join(itemFactors).where("_1._2").equalTo(0).map {
+        val predictions = data.join(userFactors, JoinHint.REPARTITION_HASH_SECOND).where(0)
+          .equalTo(0).join(itemFactors, JoinHint.REPARTITION_HASH_SECOND).where("_1._2")
+          .equalTo(0).map {
           triple => {
             val (((uID, iID), uFactors), iFactors) = triple
 
@@ -388,8 +390,8 @@ object ALS {
   // ===================================== Operations ==============================================
 
   /** Predict operation which calculates the matrix entry for the given indices  */
-  implicit val predictRating = new PredictOperation[ALS, (Int, Int), (Int ,Int, Double)] {
-    override def predict(
+  implicit val predictRating = new PredictDataSetOperation[ALS, (Int, Int), (Int ,Int, Double)] {
+    override def predictDataSet(
         instance: ALS,
         predictParameters: ParameterMap,
         input: DataSet[(Int, Int)])
@@ -397,8 +399,8 @@ object ALS {
 
       instance.factorsOption match {
         case Some((userFactors, itemFactors)) => {
-          input.join(userFactors).where(0).equalTo(0)
-            .join(itemFactors).where("_1._2").equalTo(0).map {
+          input.join(userFactors, JoinHint.REPARTITION_HASH_SECOND).where(0).equalTo(0)
+            .join(itemFactors, JoinHint.REPARTITION_HASH_SECOND).where("_1._2").equalTo(0).map {
             triple => {
               val (((uID, iID), uFactors), iFactors) = triple
 

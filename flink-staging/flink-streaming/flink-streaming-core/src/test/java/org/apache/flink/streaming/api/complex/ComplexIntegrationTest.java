@@ -117,7 +117,22 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Tuple2<Long, Tuple2<String, Long>>> sourceStream1 = env.addSource(new TupleSource()).setParallelism(1);
 
-		IterativeDataStream<Tuple2<Long, Tuple2<String, Long>>> it = sourceStream1.sum(0).setParallelism(1).filter(new FilterFunction
+		IterativeDataStream<Tuple2<Long, Tuple2<String, Long>>> it = sourceStream1.map(new MapFunction<Tuple2<Long, Tuple2<String, Long>>,Tuple2<Long, Tuple2<String, Long>>>(){
+
+					Tuple2<Long, Tuple2<String, Long>> result = new Tuple2<Long, Tuple2<String, Long>>(
+							0L, new Tuple2<String, Long>("", 0L));
+
+					@Override
+					public Tuple2<Long, Tuple2<String, Long>> map(
+							Tuple2<Long, Tuple2<String, Long>> value) throws Exception {
+						result.f0 = result.f0 + value.f0;
+						result.f1 = value.f1;
+						return result;
+			}
+			
+		})
+				
+				.setParallelism(1).filter(new FilterFunction
 				<Tuple2<Long, Tuple2<String, Long>>>() {
 
 			@Override
@@ -182,7 +197,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		DataStream<OuterPojo> sourceStream22 = env.addSource(new PojoSource());
 
 		sourceStream21
-				.sum(3)
 				.groupBy(2, 2)
 				.window(Time.of(10, new MyTimestamp(), 0))
 				.every(Time.of(4, new MyTimestamp(), 0))
@@ -207,6 +221,11 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 				"16937\n" + "11927\n" + "9973\n" + "14431\n" + "19507\n" + "12497\n" + "17497\n" + "14983\n" +
 				"19997\n";
 
+		expected1 = "541\n" + "1223\n" + "1987\n" + "2741\n" + "3571\n" + "10939\n" + "4409\n" +
+				"5279\n" + "11927\n" + "6133\n" + "6997\n" + "12823\n" + "7919\n" + "8831\n" +
+				"13763\n" + "9733\n" + "9973\n" + "14759\n" + "15671\n" + "16673\n" + "17659\n" +
+				"18617\n" + "19697\n" + "19997\n";
+
 		for (int i = 2; i < 100; i++) {
 			expected2 += "(" + i + "," + 20000 / i + ")\n";
 		}
@@ -217,11 +236,15 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		expected2 += "(" + 20000 + "," + 1 + ")";
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		
+
+		// set to parallelism 1 because otherwise we don't know which elements go to which parallel
+		// count-window.
+		env.setParallelism(1);
+
 		env.setBufferTimeout(0);
 
-		DataStream<Long> sourceStream31 = env.generateParallelSequence(1, 10000);
-		DataStream<Long> sourceStream32 = env.generateParallelSequence(10001, 20000);
+		DataStream<Long> sourceStream31 = env.generateSequence(1, 10000);
+		DataStream<Long> sourceStream32 = env.generateSequence(10001, 20000);
 
 		sourceStream31.filter(new PrimeFilterFunction())
 				.window(Count.of(100))
@@ -293,20 +316,22 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 	}
 
 
-	@SuppressWarnings("unchecked")
 	@Test
 	public void complexIntegrationTest5() throws Exception {
 		//Turning on and off chaining
 
 		expected1 = "1\n" + "2\n" + "2\n" + "3\n" + "3\n" + "3\n" + "4\n" + "4\n" + "4\n" + "4\n" + "5\n" + "5\n" +
-				"5\n" + "5\n" + "5\n" + "1\n" + "3\n" + "3\n" + "4\n" + "5\n" + "5\n" + "6\n" + "8\n" + "9\n" + "10\n" +
-				"12\n" + "15\n" + "16\n" + "20\n" + "25\n";
+				"5\n" + "5\n" + "5\n";
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// Set to parallelism 1 to make it deterministic, otherwise, it is not clear which
+		// elements will go to which parallel instance of the fold
+		env.setParallelism(1);
 		
 		env.setBufferTimeout(0);
 
-		DataStream<Long> dataStream51 = env.generateParallelSequence(1, 5)
+		DataStream<Long> dataStream51 = env.generateSequence(1, 5)
 				.map(new MapFunction<Long, Long>() {
 
 					@Override
@@ -323,20 +348,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 				}).disableChaining()
 				.flatMap(new SquareFlatMapFunction());
 
-		DataStream<Long> dataStream52 = dataStream51.fold(0L, new FoldFunction<Long, Long>() {
-
-			@Override
-			public Long fold(Long accumulator, Long value) throws Exception {
-				return accumulator + value;
-			}
-		}).map(new MapFunction<Long, Long>() {
-
-			@Override
-			public Long map(Long value) throws Exception {
-				return value;
-			}
-		}).disableChaining();
-
 		DataStream<Long> dataStream53 = dataStream51.map(new MapFunction<Long, Long>() {
 
 			@Override
@@ -346,8 +357,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		});
 
 
-		dataStream53.union(dataStream52)
-				.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
+		dataStream53.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
 	}

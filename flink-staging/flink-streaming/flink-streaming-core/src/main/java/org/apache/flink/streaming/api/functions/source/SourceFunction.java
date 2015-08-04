@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.streaming.api.watermark.Watermark;
 
 import java.io.Serializable;
 
@@ -28,9 +29,10 @@ import java.io.Serializable;
  * is called with a {@link org.apache.flink.util.Collector} that can be used for emitting elements.
  * The run method can run for as long as necessary. The source must, however, react to an
  * invocation of {@link #cancel} by breaking out of its main loop.
- * 
- * <b>Note about checkpointed sources</b>
+ *
  * <p>
+ * <b>Note about checkpointed sources</b> <br>
+ *
  * Sources that also implement the {@link org.apache.flink.streaming.api.checkpoint.Checkpointed}
  * interface must ensure that state checkpointing, updating of internal state and emission of
  * elements are not done concurrently. This is achieved by using the provided checkpointing lock
@@ -41,18 +43,16 @@ import java.io.Serializable;
  * This is the basic pattern one should follow when implementing a (checkpointed) source:
  * </p>
  *
- * <pre>
  * {@code
  *  public class ExampleSource<T> implements SourceFunction<T>, Checkpointed<Long> {
  *      private long count = 0L;
- *      private volatile boolean isRunning;
+ *      private volatile boolean isRunning = true;
  *
  *      @Override
- *      public void run(Object checkpointLock, Collector<T> out) {
- *          isRunning = true;
+ *      public void run(SourceContext<T> ctx) {
  *          while (isRunning && count < 1000) {
- *              synchronized (checkpointLock) {
- *                  out.collect(count);
+ *              synchronized (ctx.getCheckpointLock()) {
+ *                  ctx.collect(count);
  *                  count++;
  *              }
  *          }
@@ -70,6 +70,14 @@ import java.io.Serializable;
  *      public void restoreState(Long state) { this.count = state; }
  * }
  * </pre>
+ *
+ *
+ * <p>
+ * <b>Note about element timestamps and watermarks:</b> <br>
+ * Sources must only manually emit watermarks when they implement
+ * {@link EventTimeSourceFunction }.
+ * Otherwise, elements automatically get the current timestamp assigned at ingress
+ * and the system automatically emits watermarks.
  *
  * @param <T> The type of the elements produced by this source.
  */
@@ -107,14 +115,48 @@ public interface SourceFunction<T> extends Function, Serializable {
 	public static interface SourceContext<T> {
 
 		/**
-		 * Emits one element from the source.
+		 * Emits one element from the source. The result of {@link System#currentTimeMillis()} is set as
+		 * the timestamp of the emitted element.
+		 *
+		 * @param element The element to emit
 		 */
-		public void collect(T element);
+		void collect(T element);
+
+		/**
+		 * Emits one element from the source with the given timestamp.
+		 *
+		 * @param element The element to emit
+		 * @param timestamp The timestamp in milliseconds
+		 */
+		public void collectWithTimestamp(T element, long timestamp);
+
+		/**
+		 * Emits the given {@link org.apache.flink.streaming.api.watermark.Watermark}.
+		 *
+		 * <p>
+		 * <b>Important:</b>
+		 * Sources must only manually emit watermarks when they implement
+		 * {@link EventTimeSourceFunction}.
+		 * Otherwise, elements automatically get the current timestamp assigned at ingress
+		 * and the system automatically emits watermarks.
+		 *
+		 * @param mark The {@link Watermark} to emit
+		 */
+		void emitWatermark(Watermark mark);
+
 
 		/**
 		 * Returns the checkpoint lock. Please refer to the explanation about checkpointed sources
 		 * in {@link org.apache.flink.streaming.api.functions.source.SourceFunction}.
+		 * 
+		 * @return The object to use as the lock. 
 		 */
-		public Object getCheckpointLock();
+		Object getCheckpointLock();
+
+		/**
+		 * This must be called when closing the source operator to allow the {@link SourceContext}
+		 * to clean up internal state.
+		 */
+		void close();
 	}
 }

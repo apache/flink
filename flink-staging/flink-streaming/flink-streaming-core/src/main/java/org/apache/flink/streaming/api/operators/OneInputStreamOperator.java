@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
 /**
  * Interface for stream operators with one input. Use
  * {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator} as a base class if
@@ -27,5 +30,18 @@ package org.apache.flink.streaming.api.operators;
  * @param <OUT> The output type of the operator
  */
 public interface OneInputStreamOperator<IN, OUT> extends StreamOperator<OUT> {
-	public void processElement(IN element) throws Exception;
+
+	/**
+	 * Processes one element that arrived at this operator.
+	 * This method is guaranteed to not be called concurrently with other methods of the operator.
+	 */
+	public void processElement(StreamRecord<IN> element) throws Exception;
+
+	/**
+	 * Processes a {@link Watermark}.
+	 * This method is guaranteed to not be called concurrently with other methods of the operator.
+	 *
+	 * @see org.apache.flink.streaming.api.watermark.Watermark
+	 */
+	public void processWatermark(Watermark mark) throws Exception;
 }

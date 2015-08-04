@@ -599,8 +599,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public WindowedDataStream<OUT> sum(int positionToSum) {
-		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(positionToSum,
-				getClassAtPos(positionToSum), getType()));
+		return aggregate(new SumAggregator<OUT>(positionToSum, getType(), getExecutionConfig()));
 	}
 
 	/**
@@ -615,8 +614,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public WindowedDataStream<OUT> sum(String field) {
-		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(field, getType(),
-				getExecutionConfig()));
+		return aggregate(new SumAggregator<OUT>(field, getType(), getExecutionConfig()));
 	}
 
 	/**
@@ -628,8 +626,8 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public WindowedDataStream<OUT> min(int positionToMin) {
-		return aggregate(ComparableAggregator.getAggregator(positionToMin, getType(),
-				AggregationType.MIN));
+		return aggregate(new ComparableAggregator<OUT>(positionToMin, getType(), AggregationType.MIN,
+				getExecutionConfig()));
 	}
 
 	/**
@@ -645,7 +643,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public WindowedDataStream<OUT> min(String field) {
-		return aggregate(ComparableAggregator.getAggregator(field, getType(), AggregationType.MIN,
+		return aggregate(new ComparableAggregator<OUT>(field, getType(), AggregationType.MIN,
 				false, getExecutionConfig()));
 	}
 
@@ -689,8 +687,8 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public WindowedDataStream<OUT> minBy(int positionToMinBy, boolean first) {
-		return aggregate(ComparableAggregator.getAggregator(positionToMinBy, getType(),
-				AggregationType.MINBY, first));
+		return aggregate(new ComparableAggregator<OUT>(positionToMinBy, getType(), AggregationType.MINBY, first,
+				getExecutionConfig()));
 	}
 
 	/**
@@ -709,8 +707,8 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public WindowedDataStream<OUT> minBy(String field, boolean first) {
-		return aggregate(ComparableAggregator.getAggregator(field, getType(),
-				AggregationType.MINBY, first, getExecutionConfig()));
+		return aggregate(new ComparableAggregator<OUT>(field, getType(), AggregationType.MINBY,
+				first, getExecutionConfig()));
 	}
 
 	/**
@@ -722,8 +720,8 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public WindowedDataStream<OUT> max(int positionToMax) {
-		return aggregate(ComparableAggregator.getAggregator(positionToMax, getType(),
-				AggregationType.MAX));
+		return aggregate(new ComparableAggregator<OUT>(positionToMax, getType(), AggregationType.MAX,
+				getExecutionConfig()));
 	}
 
 	/**
@@ -739,7 +737,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public WindowedDataStream<OUT> max(String field) {
-		return aggregate(ComparableAggregator.getAggregator(field, getType(), AggregationType.MAX,
+		return aggregate(new ComparableAggregator<OUT>(field, getType(), AggregationType.MAX,
 				false, getExecutionConfig()));
 	}
 
@@ -783,8 +781,8 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public WindowedDataStream<OUT> maxBy(int positionToMaxBy, boolean first) {
-		return aggregate(ComparableAggregator.getAggregator(positionToMaxBy, getType(),
-				AggregationType.MAXBY, first));
+		return aggregate(new ComparableAggregator<OUT>(positionToMaxBy, getType(), AggregationType.MAXBY, first,
+				getExecutionConfig()));
 	}
 
 	/**
@@ -803,8 +801,8 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public WindowedDataStream<OUT> maxBy(String field, boolean first) {
-		return aggregate(ComparableAggregator.getAggregator(field, getType(),
-				AggregationType.MAXBY, first, getExecutionConfig()));
+		return aggregate(new ComparableAggregator<OUT>(field, getType(), AggregationType.MAXBY, first,
+				getExecutionConfig()));
 	}
 
 	private WindowedDataStream<OUT> aggregate(AggregationFunction<OUT> aggregator) {
@@ -862,10 +860,6 @@ public class WindowedDataStream<OUT> {
 
 	public ExecutionConfig getExecutionConfig() {
 		return dataStream.getExecutionConfig();
-	}
-
-	protected Class<?> getClassAtPos(int pos) {
-		return dataStream.getClassAtPos(pos);
 	}
 
 	protected WindowedDataStream<OUT> copy() {

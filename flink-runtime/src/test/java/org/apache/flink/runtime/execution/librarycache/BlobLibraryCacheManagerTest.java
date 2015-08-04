@@ -27,9 +27,11 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.OperatingSystem;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -131,6 +133,8 @@ public class BlobLibraryCacheManagerTest {
 
 	@Test
 	public void testRegisterAndDownload() {
+		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
+
 		BlobServer server = null;
 		BlobCache cache = null;
 		File cacheDir = null;

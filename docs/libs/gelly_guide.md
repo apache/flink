@@ -43,6 +43,8 @@ Add the following dependency to your `pom.xml` to use Gelly.
 </dependency>
 ~~~
 
+Note that Gelly is currently not part of the binary distribution. See linking with it for cluster execution [here](../apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+
 The remaining sections provide a description of available methods and present several examples of how to use Gelly and how to mix it with the Flink Java API. After reading this guide, you might also want to check the {% gh_link /flink-staging/flink-gelly/src/main/java/org/apache/flink/graph/example/ "Gelly examples" %}.
 
 Graph Representation
@@ -234,13 +236,15 @@ Graph<Long, Double, Double> networkWithWeights = network.joinWithEdgesOnSource(v
 
 * <strong>Undirected</strong>: In Gelly, a `Graph` is always directed. Undirected graphs can be represented by adding all opposite-direction edges to a graph. For this purpose, Gelly provides the `getUndirected()` method.
 
-* <strong>Union</strong>: Gelly's `union()` method performs a union on the vertex and edges sets of the input graphs. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exists, these will be maintained.
+* <strong>Union</strong>: Gelly's `union()` method performs a union operation on the vertex and edge sets of the specified graph and current graph. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exists, these will be maintained.
 
 <p class="text-center">
     <img alt="Union Transformation" width="50%" src="fig/gelly-union.png"/>
 </p>
 
-[Back to top](#top)
+* <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the current graph and specified graph.
+
+-[Back to top](#top)
 
 Graph Mutations
 -----------
@@ -271,6 +275,8 @@ Graph<K, VV, EV> removeEdge(Edge<K, EV> edge)
 
 // removes *all* edges that match the edges in the given list
 Graph<K, VV, EV> removeEdges(List<Edge<K, EV>> edgesToBeRemoved)
+
+
 {% endhighlight %}
 
 Neighborhood Methods
@@ -458,7 +464,6 @@ The number of vertices can then be accessed in the vertex update function and in
 * <strong>Degrees</strong>: Accessing the in/out degree for a vertex within an iteration. This property can be set using the `setOptDegrees()` method.
 The in/out degrees can then be accessed in the vertex update function and in the messaging function, per vertex using the `getInDegree()` and `getOutDegree()` methods.
 If the degrees option is not set in the configuration, these methods will return -1.
-
 
 * <strong>Messaging Direction</strong>: By default, a vertex sends messages to its out-neighbors and updates its value based on messages received from its in-neighbors. This configuration option allows users to change the messaging direction to either `EdgeDirection.IN`, `EdgeDirection.OUT`, `EdgeDirection.ALL`. The messaging direction also dictates the update direction which would be `EdgeDirection.OUT`, `EdgeDirection.IN` and `EdgeDirection.ALL`, respectively. This property can be set using the `setDirection()` method.
 
@@ -685,6 +690,70 @@ Currently, the following parameters can be specified:
 
 * <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({{site.baseurl}}/apis/programming_guide.html#broadcast-variables) to the `GatherFunction`, `SumFunction` and `ApplyFunction`, using the methods `addBroadcastSetForGatherFunction()`, `addBroadcastSetForSumFunction()` and `addBroadcastSetForApplyFunction` methods, respectively.
 
+* <strong>Number of Vertices</strong>: Accessing the total number of vertices within the iteration. This property can be set using the `setOptNumVertices()` method.
+The number of vertices can then be accessed in the gather, sum and/or apply functions by using the `getNumberOfVertices()` method. If the option is not set in the configuration, this method will return -1.
+
+* <strong>Neighbor Direction</strong>: By default values are gathered from the out neighbors of the Vertex. This can be modified
+using the `setDirection()` method.
+
+The following example illustrates the usage of the number of vertices option.
+
+{% highlight java %}
+
+Graph<Long, Double, Double> graph = ...
+
+// configure the iteration
+GSAConfiguration parameters = new GSAConfiguration();
+
+// set the number of vertices option to true
+parameters.setOptNumVertices(true);
+
+// run the gather-sum-apply iteration, also passing the configuration parameters
+Graph<Long, Long, Long> result = graph.runGatherSumApplyIteration(
+				new Gather(), new Sum(), new Apply(),
+			    maxIterations, parameters);
+
+// user-defined functions
+public static final class Gather {
+	...
+	// get the number of vertices
+	long numVertices = getNumberOfVertices();
+	...
+}
+
+public static final class Sum {
+	...
+    // get the number of vertices
+    long numVertices = getNumberOfVertices();
+    ...
+}
+
+public static final class Apply {
+	...
+    // get the number of vertices
+    long numVertices = getNumberOfVertices();
+    ...
+}
+
+{% endhighlight %}
+
+The following example illustrates the usage of the edge direction option.
+{% highlight java %}
+
+Graph<Long, HashSet<Long>, Double> graph = ...
+
+// configure the iteration
+GSAConfiguration parameters = new GSAConfiguration();
+
+// set the messaging direction
+parameters.setDirection(EdgeDirection.IN);
+
+// run the gather-sum-apply iteration, also passing the configuration parameters
+DataSet<Vertex<Long, HashSet<Long>>> result =
+			graph.runGatherSumApplyIteration(
+			new Gather(), new Sum(), new Apply(), maxIterations, parameters)
+			.getVertices();
+{% endhighlight %}
 [Back to top](#top)
 
 ### Vertex-centric and GSA Comparison

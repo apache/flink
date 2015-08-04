@@ -19,7 +19,8 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.event.task.AbstractEvent;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -76,6 +77,32 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	public void emit(T record) throws IOException, InterruptedException {
 		for (int targetChannel : channelSelector.selectChannels(record, numChannels)) {
+			// serialize with corresponding serializer and send full buffer
+			RecordSerializer<T> serializer = serializers[targetChannel];
+
+			synchronized (serializer) {
+				SerializationResult result = serializer.addRecord(record);
+				while (result.isFullBuffer()) {
+					Buffer buffer = serializer.getCurrentBuffer();
+
+					if (buffer != null) {
+						writer.writeBuffer(buffer, targetChannel);
+						serializer.clearCurrentBuffer();
+					}
+
+					buffer = writer.getBufferProvider().requestBufferBlocking();
+					result = serializer.setNextBuffer(buffer);
+				}
+			}
+		}
+	}
+
+	/**
+	 * This is used to broadcast Streaming Watermarks in-band with records. This ignores
+	 * the {@link ChannelSelector}.
+	 */
+	public void broadcastEmit(T record) throws IOException, InterruptedException {
+		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
 			// serialize with corresponding serializer and send full buffer
 			RecordSerializer<T> serializer = serializers[targetChannel];
 
@@ -173,4 +200,14 @@ public class RecordWriter<T extends IOReadableWritable> {
 			}
 		}
 	}
+
+	/**
+	 * Counter for the number of records emitted and the records processed.
+	 */
+	public void setReporter(AccumulatorRegistry.Reporter reporter) {
+		for(RecordSerializer<?> serializer : serializers) {
+			serializer.setReporter(reporter);
+		}
+	}
+
 }

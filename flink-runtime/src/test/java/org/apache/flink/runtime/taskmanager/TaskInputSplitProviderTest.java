@@ -18,22 +18,16 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.Status;
-import akka.actor.UntypedActor;
-import akka.testkit.JavaTestKit;
-import akka.util.Timeout;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.instance.BaseTestingActorGateway;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.*;
 
@@ -41,31 +35,19 @@ import java.util.concurrent.TimeUnit;
 
 public class TaskInputSplitProviderTest {
 
-	private static ActorSystem system;
-
-	@BeforeClass
-	public static void setup() throws Exception {
-		system = ActorSystem.create("TestActorSystem", TestingUtils.testConfig());
-	}
-
-	@AfterClass
-	public static void teardown() throws Exception {
-		JavaTestKit.shutdownActorSystem(system);
-		system = null;
-	}
-
 	@Test
 	public void testRequestNextInputSplitWithInvalidExecutionID() {
 
 		final JobID jobID = new JobID();
 		final JobVertexID vertexID = new JobVertexID();
 		final ExecutionAttemptID executionID = new ExecutionAttemptID();
-		final Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
+		final FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
-		final ActorRef jobManagerRef = system.actorOf(Props.create(NullInputSplitJobManager.class));
+		final ActorGateway gateway = new NullInputSplitGateway();
+
 
 		final TaskInputSplitProvider provider = new TaskInputSplitProvider(
-				jobManagerRef,
+				gateway,
 				jobID,
 				vertexID,
 				executionID,
@@ -79,14 +61,18 @@ public class TaskInputSplitProviderTest {
 		assertTrue(nextInputSplit == null);
 	}
 
-	public static class NullInputSplitJobManager extends UntypedActor {
+	public static class NullInputSplitGateway extends BaseTestingActorGateway {
+
+		public NullInputSplitGateway() {
+			super(TestingUtils.defaultExecutionContext());
+		}
 
 		@Override
-		public void onReceive(Object message) throws Exception {
+		public Object handleMessage(Object message) throws Exception {
 			if(message instanceof JobManagerMessages.RequestNextInputSplit) {
-				sender().tell(new JobManagerMessages.NextInputSplit(null), getSelf());
+				return new JobManagerMessages.NextInputSplit(null);
 			} else {
-				sender().tell(new Status.Failure(new Exception("Invalid message type")), getSelf());
+				throw new Exception("Invalid message type");
 			}
 		}
 	}

@@ -74,7 +74,7 @@ public interface PactDriver<S extends Function, OT> {
 	 *                   code typically signal situations where this instance in unable to proceed, exceptions
 	 *                   from the user code should be forwarded.
 	 */
-	void run() throws Exception; 
+	void run() throws Exception;
 	
 	/**
 	 * This method is invoked in any case (clean termination and exception) at the end of the tasks operation.

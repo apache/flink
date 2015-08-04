@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.datastream.temporal.TemporalWindow
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, SingleOutputStreamOperator}
 import org.apache.flink.streaming.api.functions.co.CrossWindowFunction
 import org.apache.flink.streaming.api.operators.co.CoStreamWindow
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 
 import scala.reflect.ClassTag
 
@@ -82,8 +81,12 @@ object StreamCrossOperator {
      */
     def apply[R: TypeInformation: ClassTag](fun: (I1, I2) => R): DataStream[R] = {
 
+      val cleanCrossWindowFunction = clean(getCrossWindowFunction(op, fun))
       val operator = new CoStreamWindow[I1, I2, R](
-        clean(getCrossWindowFunction(op, fun)), op.windowSize, op.slideInterval, op.timeStamp1,
+        cleanCrossWindowFunction,
+        op.windowSize,
+        op.slideInterval,
+        op.timeStamp1,
         op.timeStamp2)
 
       javaStream.getExecutionEnvironment().getStreamGraph().setOperator(javaStream.getId(),
@@ -110,9 +113,8 @@ object StreamCrossOperator {
   CrossWindowFunction[I1, I2, R] = {
     require(crossFunction != null, "Join function must not be null.")
 
+    val cleanFun = op.input1.clean(crossFunction)
     val crossFun = new CrossFunction[I1, I2, R] {
-      val cleanFun = op.input1.clean(crossFunction)
-
       override def cross(first: I1, second: I2): R = {
         cleanFun(first, second)
       }

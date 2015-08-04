@@ -40,7 +40,7 @@ import scala.reflect.ClassTag
  * {{{
  *   val left = ...
  *   val right = ...
- *   val joinResult = left.join(right).where(0, 2).isEqualTo(0, 1) {
+ *   val joinResult = left.join(right).where(0, 2).equalTo(0, 1) {
  *     (left, right) => new MyJoinResult(left, right)
  *   }
  * }}}
@@ -49,7 +49,7 @@ import scala.reflect.ClassTag
  * {{{
  *   val left = ...
  *   val right = ...
- *   val joinResult = left.join(right).where({_._1}).isEqualTo({_._1) {
+ *   val joinResult = left.join(right).where({_._1}).equalTo({_._1) {
  *     (left, right) => new MyJoinResult(left, right)
  *   }
  * }}}
@@ -210,12 +210,12 @@ class JoinDataSet[L, R](
 
 /**
  * An unfinished join operation that results from [[DataSet.join()]] The keys for the left and right
- * side must be specified using first `where` and then `isEqualTo`. For example:
+ * side must be specified using first `where` and then `equalTo`. For example:
  *
  * {{{
  *   val left = ...
  *   val right = ...
- *   val joinResult = left.join(right).where(...).isEqualTo(...)
+ *   val joinResult = left.join(right).where(...).equalTo(...)
  * }}}
  * @tparam L The type of the left input of the join.
  * @tparam R The type of the right input of the join.

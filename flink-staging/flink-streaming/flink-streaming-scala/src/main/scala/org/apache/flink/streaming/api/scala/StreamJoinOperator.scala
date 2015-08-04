@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.datastream.temporal.TemporalWindow
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, SingleOutputStreamOperator}
 import org.apache.flink.streaming.api.functions.co.JoinWindowFunction
 import org.apache.flink.streaming.api.operators.co.CoStreamWindow
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.util.keys.KeySelectorUtil
 
 import scala.Array.canBuildFrom
@@ -86,8 +85,8 @@ object StreamJoinOperator {
      */
     def where[K: TypeInformation](fun: (I1) => K) = {
       val keyType = implicitly[TypeInformation[K]]
+      val cleanFun = op.input1.clean(fun)
       val keyExtractor = new KeySelector[I1, K] {
-        val cleanFun = op.input1.clean(fun)
         def getKey(in: I1) = cleanFun(in)
       }
       new JoinPredicate[I1, I2](op, keyExtractor)
@@ -142,8 +141,8 @@ object StreamJoinOperator {
      */
     def equalTo[K: TypeInformation](fun: (I2) => K): JoinedStream[I1, I2] = {
       val keyType = implicitly[TypeInformation[K]]
+      val cleanFun = op.input1.clean(fun)
       val keyExtractor = new KeySelector[I2, K] {
-        val cleanFun = op.input1.clean(fun)
         def getKey(in: I2) = cleanFun(in)
       }
       finish(keyExtractor)
@@ -194,8 +193,12 @@ object StreamJoinOperator {
      */
     def apply[R: TypeInformation: ClassTag](fun: (I1, I2) => R): DataStream[R] = {
 
+      val cleanFun = clean(getJoinWindowFunction(jp, fun))
       val operator = new CoStreamWindow[I1, I2, R](
-        clean(getJoinWindowFunction(jp, fun)), op.windowSize, op.slideInterval, op.timeStamp1,
+        cleanFun,
+        op.windowSize,
+        op.slideInterval,
+        op.timeStamp1,
         op.timeStamp2)
 
       javaStream.getExecutionEnvironment().getStreamGraph().setOperator(javaStream.getId(),
@@ -210,10 +213,9 @@ object StreamJoinOperator {
     joinFunction: (I1, I2) => R) = {
     require(joinFunction != null, "Join function must not be null.")
 
+    val cleanFun = jp.op.input1.clean(joinFunction)
+
     val joinFun = new JoinFunction[I1, I2, R] {
-
-      val cleanFun = jp.op.input1.clean(joinFunction)
-
       override def join(first: I1, second: I2): R = {
         cleanFun(first, second)
       }

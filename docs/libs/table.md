@@ -37,6 +37,8 @@ The following dependency must be added to your project when using the Table API:
 </dependency>
 {% endhighlight %}
 
+Note that the Table API is currently not part of the binary distribution. See linking with it for cluster execution [here](../apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+
 ## Scala Table API
  
 The Table API can be enabled by importing `org.apache.flink.api.scala.table._`.  This enables
@@ -52,7 +54,7 @@ import org.apache.flink.api.scala.table._
 case class WC(word: String, count: Int)
 val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
 val expr = input.toTable
-val result = expr.groupBy('word).select('word, 'count.sum as 'count).toSet[WC]
+val result = expr.groupBy('word).select('word, 'count.sum as 'count).toDataSet[WC]
 {% endhighlight %}
 
 The expression DSL uses Scala symbols to refer to field names and we use code generation to
@@ -69,7 +71,7 @@ case class MyResult(a: String, d: Int)
 
 val input1 = env.fromElements(...).toTable('a, 'b)
 val input2 = env.fromElements(...).toTable('c, 'd)
-val joined = input1.join(input2).where("b = a && d > 42").select("a, d").toSet[MyResult]
+val joined = input1.join(input2).where("b = a && d > 42").select("a, d").toDataSet[MyResult]
 {% endhighlight %}
 
 Notice, how a DataSet can be converted to a Table by using `as` and specifying new
@@ -108,14 +110,14 @@ DataSet<WC> input = env.fromElements(
         new WC("Ciao", 1),
         new WC("Hello", 1));
 
-Table table = tableEnv.toTable(input);
+Table table = tableEnv.fromDataSet(input);
 
 Table filtered = table
         .groupBy("word")
         .select("word.count as count, word")
         .filter("count = 2");
 
-DataSet<WC> result = tableEnv.toSet(filtered, WC.class);
+DataSet<WC> result = tableEnv.toDataSet(filtered, WC.class);
 {% endhighlight %}
 
 When using Java, the embedded DSL for specifying expressions cannot be used. Only String expressions

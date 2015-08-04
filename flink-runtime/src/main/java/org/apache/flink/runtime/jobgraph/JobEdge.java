@@ -29,7 +29,7 @@ public class JobEdge implements java.io.Serializable {
 	
 	
 	/** The vertex connected to this edge. */
-	private final AbstractJobVertex target;
+	private final JobVertex target;
 
 	/** The distribution pattern that should be used for this job edge. */
 	private final DistributionPattern distributionPattern;
@@ -47,7 +47,7 @@ public class JobEdge implements java.io.Serializable {
 	 * @param target The operation that is at the target of this edge.
 	 * @param distributionPattern The pattern that defines how the connection behaves in parallel.
 	 */
-	public JobEdge(IntermediateDataSet source, AbstractJobVertex target, DistributionPattern distributionPattern) {
+	public JobEdge(IntermediateDataSet source, JobVertex target, DistributionPattern distributionPattern) {
 		if (source == null || target == null || distributionPattern == null) {
 			throw new NullPointerException();
 		}
@@ -65,7 +65,7 @@ public class JobEdge implements java.io.Serializable {
 	 * @param target The operation that is at the target of this edge.
 	 * @param distributionPattern The pattern that defines how the connection behaves in parallel.
 	 */
-	public JobEdge(IntermediateDataSetID sourceId, AbstractJobVertex target, DistributionPattern distributionPattern) {
+	public JobEdge(IntermediateDataSetID sourceId, JobVertex target, DistributionPattern distributionPattern) {
 		if (sourceId == null || target == null || distributionPattern == null) {
 			throw new NullPointerException();
 		}
@@ -90,7 +90,7 @@ public class JobEdge implements java.io.Serializable {
 	 * 
 	 * @return The vertex connected to this edge.
 	 */
-	public AbstractJobVertex getTarget() {
+	public JobVertex getTarget() {
 		return target;
 	}
 	

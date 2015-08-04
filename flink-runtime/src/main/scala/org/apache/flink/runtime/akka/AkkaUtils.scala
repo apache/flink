@@ -41,8 +41,6 @@ object AkkaUtils {
 
   val INF_TIMEOUT = 21474835 seconds
 
-  var globalExecutionContext: ExecutionContext = ExecutionContext.global
-
   /**
    * Creates a local actor system without remoting.
    *
@@ -64,8 +62,10 @@ object AkkaUtils {
    *                         parameter is None, then a local actor system will be created.
    * @return created actor system
    */
-  def createActorSystem(configuration: Configuration,
-                        listeningAddress: Option[(String, Int)]): ActorSystem = {
+  def createActorSystem(
+      configuration: Configuration,
+      listeningAddress: Option[(String, Int)])
+    : ActorSystem = {
     val akkaConfig = getAkkaConfig(configuration, listeningAddress)
     createActorSystem(akkaConfig)
   }

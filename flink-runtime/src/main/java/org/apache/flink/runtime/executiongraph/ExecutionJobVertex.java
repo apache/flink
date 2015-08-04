@@ -24,8 +24,9 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
@@ -57,7 +58,7 @@ public class ExecutionJobVertex implements Serializable {
 	
 	private final ExecutionGraph graph;
 	
-	private final AbstractJobVertex jobVertex;
+	private final JobVertex jobVertex;
 	
 	private final ExecutionVertex[] taskVertices;
 
@@ -81,12 +82,12 @@ public class ExecutionJobVertex implements Serializable {
 	
 	private InputSplitAssigner splitAssigner;
 	
-	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex,
+	public ExecutionJobVertex(ExecutionGraph graph, JobVertex jobVertex,
 							int defaultParallelism, FiniteDuration timeout) throws JobException {
 		this(graph, jobVertex, defaultParallelism, timeout, System.currentTimeMillis());
 	}
 	
-	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex,
+	public ExecutionJobVertex(ExecutionGraph graph, JobVertex jobVertex,
 							int defaultParallelism, FiniteDuration timeout, long createTimestamp)
 			throws JobException
 	{
@@ -169,7 +170,7 @@ public class ExecutionJobVertex implements Serializable {
 		return graph;
 	}
 	
-	public AbstractJobVertex getJobVertex() {
+	public JobVertex getJobVertex() {
 		return jobVertex;
 	}
 
@@ -211,6 +212,36 @@ public class ExecutionJobVertex implements Serializable {
 	
 	public boolean isInFinalState() {
 		return numSubtasksInFinalState == parallelism;
+	}
+	
+	public ExecutionState getAggregateState() {
+		
+		int[] num = new int[ExecutionState.values().length];
+		
+		for (ExecutionVertex vertex : this.taskVertices) {
+			num[vertex.getExecutionState().ordinal()]++;
+		}
+
+		if (num[ExecutionState.FAILED.ordinal()] > 0) {
+			return ExecutionState.FAILED;
+		}
+		if (num[ExecutionState.CANCELING.ordinal()] > 0) {
+			return ExecutionState.CANCELING;
+		}
+		else if (num[ExecutionState.CANCELED.ordinal()] > 0) {
+			return ExecutionState.CANCELED;
+		}
+		else if (num[ExecutionState.RUNNING.ordinal()] > 0) {
+			return ExecutionState.RUNNING;
+		}
+		else if (num[ExecutionState.FINISHED.ordinal()] > 0) {
+			return num[ExecutionState.FINISHED.ordinal()] == parallelism ?
+					ExecutionState.FINISHED : ExecutionState.RUNNING;
+		}
+		else {
+			// all else collapses under created
+			return ExecutionState.CREATED;
+		}
 	}
 	
 	//---------------------------------------------------------------------------------------------

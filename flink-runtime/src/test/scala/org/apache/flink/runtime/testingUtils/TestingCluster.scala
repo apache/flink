@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{ActorRef, Props, ActorSystem}
+import akka.testkit.CallingThreadDispatcher
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.runtime.webmonitor.WebMonitor
 
 /**
  * Testing cluster which starts the [[JobManager]] and [[TaskManager]] actors with testing support
@@ -36,14 +38,22 @@ import org.apache.flink.runtime.taskmanager.TaskManager
  */
 class TestingCluster(userConfiguration: Configuration,
                      singleActorSystem: Boolean,
+                     synchronousDispatcher: Boolean,
                      streamingMode: StreamingMode)
-  extends FlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
+  extends FlinkMiniCluster(userConfiguration,
+                           singleActorSystem,
+                           streamingMode) {
   
 
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean) 
-        = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
+  def this(userConfiguration: Configuration,
+           singleActorSystem: Boolean,
+           synchronousDispatcher: Boolean)
+       = this(userConfiguration, singleActorSystem, synchronousDispatcher, StreamingMode.BATCH_ONLY)
 
-  def this(userConfiguration: Configuration) = this(userConfiguration, true)
+  def this(userConfiguration: Configuration, singleActorSystem: Boolean)
+       = this(userConfiguration, singleActorSystem, false)
+
+  def this(userConfiguration: Configuration) = this(userConfiguration, true, false)
   
   // --------------------------------------------------------------------------
   
@@ -58,20 +68,43 @@ class TestingCluster(userConfiguration: Configuration,
     cfg
   }
 
-  override def startJobManager(actorSystem: ActorSystem): ActorRef = {
+  override def startJobManager(actorSystem: ActorSystem): (ActorRef, Option[WebMonitor]) = {
 
-    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager,
-    executionRetries, delayBetweenRetries,
-    timeout, archiveCount) = JobManager.createJobManagerComponents(configuration)
+    val (executionContext,
+      instanceManager,
+      scheduler,
+      libraryCacheManager,
+      _,
+      executionRetries,
+      delayBetweenRetries,
+      timeout,
+      archiveCount) = JobManager.createJobManagerComponents(configuration)
     
     val testArchiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
     val archive = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
     
-    val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
-      libraryCacheManager, archive, accumulatorManager, executionRetries,
-      delayBetweenRetries, timeout, streamingMode) with TestingJobManager)
+    val jobManagerProps = Props(
+      new JobManager(
+        configuration,
+        executionContext,
+        instanceManager,
+        scheduler,
+        libraryCacheManager,
+        archive,
+        executionRetries,
+        delayBetweenRetries,
+        timeout,
+        streamingMode)
+      with TestingJobManager)
 
-    actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
+    val dispatcherJobManagerProps = if (synchronousDispatcher) {
+      // disable asynchronous futures (e.g. accumulator update in Heartbeat)
+      jobManagerProps.withDispatcher(CallingThreadDispatcher.Id)
+    } else {
+      jobManagerProps
+    }
+
+    (actorSystem.actorOf(dispatcherJobManagerProps, JobManager.JOB_MANAGER_NAME), None)
   }
 
   override def startTaskManager(index: Int, system: ActorSystem) = {
@@ -84,12 +117,14 @@ class TestingCluster(userConfiguration: Configuration,
       None
     }
     
-    TaskManager.startTaskManagerComponentsAndActor(configuration, system,
-                                                   hostname,
-                                                   Some(tmActorName),
-                                                   jobManagerPath,
-                                                   numTaskManagers == 1,
-                                                   streamingMode,
-                                                   classOf[TestingTaskManager])
+    TaskManager.startTaskManagerComponentsAndActor(
+      configuration,
+      system,
+      hostname,
+      Some(tmActorName),
+      jobManagerPath,
+      numTaskManagers == 1,
+      streamingMode,
+      classOf[TestingTaskManager])
   }
 }

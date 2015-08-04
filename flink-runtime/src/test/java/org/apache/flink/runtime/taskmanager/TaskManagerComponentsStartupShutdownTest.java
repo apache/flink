@@ -39,6 +39,7 @@ import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 
 import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 import scala.Option;
 import scala.Tuple2;
@@ -89,7 +90,10 @@ public class TaskManagerComponentsStartupShutdownTest {
 
 			final MemoryManager memManager = new DefaultMemoryManager(32 * BUFFER_SIZE, 1, BUFFER_SIZE, false);
 			final IOManager ioManager = new IOManagerAsync(TMP_DIR);
-			final NetworkEnvironment network = new NetworkEnvironment(timeout, netConf);
+			final NetworkEnvironment network = new NetworkEnvironment(
+				TestingUtils.defaultExecutionContext(),
+				timeout,
+				netConf);
 			final int numberOfSlots = 1;
 
 			// create the task manager

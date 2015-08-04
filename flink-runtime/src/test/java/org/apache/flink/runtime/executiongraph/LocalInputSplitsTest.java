@@ -34,43 +34,18 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import scala.concurrent.duration.FiniteDuration;
-import akka.actor.Actor;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.testkit.JavaTestKit;
-import akka.testkit.TestActorRef;
 
 public class LocalInputSplitsTest {
 	
 	private static final FiniteDuration TIMEOUT = new FiniteDuration(100, TimeUnit.SECONDS);
-	
-	private static ActorSystem system;
-	
-	private static TestActorRef<? extends Actor> taskManager;
-	
-	
-	@BeforeClass
-	public static void setup() {
-		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
-		taskManager = TestActorRef.create(system,
-				Props.create(ExecutionGraphTestUtils.SimpleAcknowledgingTaskManager.class));
-	}
-
-	@AfterClass
-	public static void teardown() {
-		JavaTestKit.shutdownActorSystem(system);
-		system = null;
-	}
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -283,21 +258,25 @@ public class LocalInputSplitsTest {
 		};
 		
 		try {
-			AbstractJobVertex vertex = new AbstractJobVertex("test vertex");
+			JobVertex vertex = new JobVertex("test vertex");
 			vertex.setParallelism(6);
 			vertex.setInvokableClass(DummyInvokable.class);
 			vertex.setInputSplitSource(new TestInputSplitSource(splits));
 			
 			JobGraph jobGraph = new JobGraph("test job", vertex);
 			
-			ExecutionGraph eg = new ExecutionGraph(jobGraph.getJobID(),
-					jobGraph.getName(), jobGraph.getJobConfiguration(), TIMEOUT);
+			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
+					jobGraph.getJobID(),
+					jobGraph.getName(),
+					jobGraph.getJobConfiguration(),
+					TIMEOUT);
 			
 			eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 			eg.setQueuedSchedulingAllowed(false);
 			
 			// create a scheduler with 6 instances where always two are on the same host
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 			Instance i1 = getInstance(new byte[] {10,0,1,1}, 12345, "host1", 1);
 			Instance i2 = getInstance(new byte[] {10,0,1,1}, 12346, "host1", 1);
 			Instance i3 = getInstance(new byte[] {10,0,1,2}, 12345, "host2", 1);
@@ -342,15 +321,19 @@ public class LocalInputSplitsTest {
 			TestLocatableInputSplit[] splits)
 		throws Exception
 	{
-		AbstractJobVertex vertex = new AbstractJobVertex("test vertex");
+		JobVertex vertex = new JobVertex("test vertex");
 		vertex.setParallelism(parallelism);
 		vertex.setInvokableClass(DummyInvokable.class);
 		vertex.setInputSplitSource(new TestInputSplitSource(splits));
 		
 		JobGraph jobGraph = new JobGraph("test job", vertex);
 		
-		ExecutionGraph eg = new ExecutionGraph(jobGraph.getJobID(),
-				jobGraph.getName(), jobGraph.getJobConfiguration(), TIMEOUT);
+		ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				jobGraph.getJobID(),
+				jobGraph.getName(),
+				jobGraph.getJobConfiguration(),
+				TIMEOUT);
 		eg.setQueuedSchedulingAllowed(false);
 		
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
@@ -370,7 +353,7 @@ public class LocalInputSplitsTest {
 	}
 	
 	private static Scheduler getScheduler(int numInstances, int numSlotsPerInstance) throws Exception {
-		Scheduler scheduler = new Scheduler();
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		
 		for (int i = 0; i < numInstances; i++) {
 			byte[] ipAddress = new byte[] { 10, 0, 1, (byte) (1 + i) };
@@ -393,7 +376,13 @@ public class LocalInputSplitsTest {
 		when(connection.getHostname()).thenReturn(hostname);
 		when(connection.getFQDNHostname()).thenReturn(hostname);
 		
-		return new Instance(taskManager, connection, new InstanceID(), hardwareDescription, slots);
+		return new Instance(
+				new ExecutionGraphTestUtils.SimpleActorGateway(
+						TestingUtils.defaultExecutionContext()),
+				connection,
+				new InstanceID(),
+				hardwareDescription,
+				slots);
 	}
 
 	// --------------------------------------------------------------------------------------------

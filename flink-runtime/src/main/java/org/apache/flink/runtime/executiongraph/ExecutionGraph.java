@@ -18,18 +18,21 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import akka.actor.ActorRef;
-
 import akka.actor.ActorSystem;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -39,22 +42,28 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
+import org.apache.flink.runtime.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.Option;
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -134,10 +143,10 @@ public class ExecutionGraph implements Serializable {
 
 	/** Listeners that receive messages when the entire job switches it status (such as from
 	 * RUNNING to FINISHED) */
-	private final List<ActorRef> jobStatusListenerActors;
+	private final List<ActorGateway> jobStatusListenerActors;
 
 	/** Listeners that receive messages whenever a single task execution changes its status */
-	private final List<ActorRef> executionListenerActors;
+	private final List<ActorGateway> executionListenerActors;
 
 	/** Timestamps (in milliseconds as returned by {@code System.currentTimeMillis()} when
 	 * the execution graph transitioned into a certain state. The index into this array is the
@@ -197,8 +206,14 @@ public class ExecutionGraph implements Serializable {
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointCoordinator checkpointCoordinator;
 
+	/** The execution context which is used to execute futures. */
+	@SuppressWarnings("NonSerializableFieldInSerializableClass")
+	private ExecutionContext executionContext;
+
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private ExecutionConfig executionConfig;
+
+	private String jsonPlan;
 
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
@@ -207,16 +222,37 @@ public class ExecutionGraph implements Serializable {
 	/**
 	 * This constructor is for tests only, because it does not include class loading information.
 	 */
-	ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout) {
-		this(jobId, jobName, jobConfig, timeout, new ArrayList<BlobKey>(), ExecutionGraph.class.getClassLoader());
+	ExecutionGraph(
+			ExecutionContext executionContext,
+			JobID jobId,
+			String jobName,
+			Configuration jobConfig,
+			FiniteDuration timeout) {
+		this(
+			executionContext,
+			jobId,
+			jobName,
+			jobConfig,
+			timeout,
+			new ArrayList<BlobKey>(),
+			ExecutionGraph.class.getClassLoader()
+		);
 	}
 
-	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout,
-			List<BlobKey> requiredJarFiles, ClassLoader userClassLoader) {
+	public ExecutionGraph(
+			ExecutionContext executionContext,
+			JobID jobId,
+			String jobName,
+			Configuration jobConfig,
+			FiniteDuration timeout,
+			List<BlobKey> requiredJarFiles,
+			ClassLoader userClassLoader) {
 
-		if (jobId == null || jobName == null || jobConfig == null || userClassLoader == null) {
+		if (executionContext == null || jobId == null || jobName == null || jobConfig == null || userClassLoader == null) {
 			throw new NullPointerException();
 		}
+
+		this.executionContext = executionContext;
 
 		this.jobID = jobId;
 		this.jobName = jobName;
@@ -228,8 +264,8 @@ public class ExecutionGraph implements Serializable {
 		this.verticesInCreationOrder = new ArrayList<ExecutionJobVertex>();
 		this.currentExecutions = new ConcurrentHashMap<ExecutionAttemptID, Execution>();
 
-		this.jobStatusListenerActors  = new CopyOnWriteArrayList<ActorRef>();
-		this.executionListenerActors = new CopyOnWriteArrayList<ActorRef>();
+		this.jobStatusListenerActors  = new CopyOnWriteArrayList<ActorGateway>();
+		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
 
 		this.stateTimestamps = new long[JobStatus.values().length];
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
@@ -281,12 +317,14 @@ public class ExecutionGraph implements Serializable {
 		return scheduleMode;
 	}
 
-	public void enableSnaphotCheckpointing(long interval, long checkpointTimeout,
-											List<ExecutionJobVertex> verticesToTrigger,
-											List<ExecutionJobVertex> verticesToWaitFor,
-											List<ExecutionJobVertex> verticesToCommitTo,
-											ActorSystem actorSystem)
-	{
+	public void enableSnapshotCheckpointing(
+			long interval,
+			long checkpointTimeout,
+			List<ExecutionJobVertex> verticesToTrigger,
+			List<ExecutionJobVertex> verticesToWaitFor,
+			List<ExecutionJobVertex> verticesToCommitTo,
+			ActorSystem actorSystem,
+			Option<UUID> leaderSessionID) {
 		// simple sanity checks
 		if (interval < 10 || checkpointTimeout < 10) {
 			throw new IllegalArgumentException();
@@ -304,12 +342,22 @@ public class ExecutionGraph implements Serializable {
 		
 		// create the coordinator that triggers and commits checkpoints and holds the state 
 		snapshotCheckpointsEnabled = true;
-		checkpointCoordinator = new CheckpointCoordinator(jobID, NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN,
-				checkpointTimeout, tasksToTrigger, tasksToWaitFor, tasksToCommitTo, userClassLoader);
+		checkpointCoordinator = new CheckpointCoordinator(
+				jobID,
+				NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN,
+				checkpointTimeout,
+				tasksToTrigger,
+				tasksToWaitFor,
+				tasksToCommitTo,
+				userClassLoader);
 		
 		// the periodic checkpoint scheduler is activated and deactivated as a result of
 		// job status changes (running -> on, all other states -> off)
-		registerJobStatusListener(checkpointCoordinator.createJobStatusListener(actorSystem, interval));
+		registerJobStatusListener(
+				checkpointCoordinator.createJobStatusListener(
+						actorSystem,
+						interval,
+						leaderSessionID));
 	}
 	
 	public void disableSnaphotCheckpointing() {
@@ -362,6 +410,17 @@ public class ExecutionGraph implements Serializable {
 	 */
 	public List<BlobKey> getRequiredJarFiles() {
 		return this.requiredJarFiles;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+
+	public void setJsonPlan(String jsonPlan) {
+		this.jsonPlan = jsonPlan;
+	}
+
+	public String getJsonPlan() {
+		return jsonPlan;
 	}
 
 	public Scheduler getScheduler() {
@@ -451,11 +510,99 @@ public class ExecutionGraph implements Serializable {
 		return this.stateTimestamps[status.ordinal()];
 	}
 
+	/**
+	 * Returns the ExecutionContext associated with this ExecutionGraph.
+	 *
+	 * @return ExecutionContext associated with this ExecutionGraph
+	 */
+	public ExecutionContext getExecutionContext() {
+		return executionContext;
+	}
+
+	/**
+	 * Gets the internal flink accumulator map of maps which contains some metrics.
+	 * @return A map of accumulators for every executed task.
+	 */
+	public Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?,?>>> getFlinkAccumulators() {
+		Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators =
+				new HashMap<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>>();
+
+		for (ExecutionVertex vertex : getAllExecutionVertices()) {
+			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> taskAccs = vertex.getCurrentExecutionAttempt().getFlinkAccumulators();
+			flinkAccumulators.put(vertex.getCurrentExecutionAttempt().getAttemptId(), taskAccs);
+		}
+
+		return flinkAccumulators;
+	}
+
+	/**
+	 * Merges all accumulator results from the tasks previously executed in the Executions.
+	 * @return The accumulator map
+	 */
+	public Map<String, Accumulator<?,?>> aggregateUserAccumulators() {
+
+		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<String, Accumulator<?, ?>>();
+
+		for (ExecutionVertex vertex : getAllExecutionVertices()) {
+			Map<String, Accumulator<?, ?>> next = vertex.getCurrentExecutionAttempt().getUserAccumulators();
+			if (next != null) {
+				AccumulatorHelper.mergeInto(userAccumulators, next);
+			}
+		}
+
+		return userAccumulators;
+	}
+
+	/**
+	 * Gets a serialized accumulator map.
+	 * @return The accumulator map with serialized accumulator values.
+	 * @throws IOException
+	 */
+	public Map<String, SerializedValue<Object>> getAccumulatorsSerialized() throws IOException {
+
+		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
+
+		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
+		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
+			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue().getLocalValue()));
+		}
+
+		return result;
+	}
+
+	/**
+	 * Returns the a stringified version of the user-defined accumulators.
+	 * @return an Array containing the StringifiedAccumulatorResult objects
+	 */
+	public StringifiedAccumulatorResult[] getAccumulatorResultsStringified() {
+
+		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
+
+		int num = accumulatorMap.size();
+		StringifiedAccumulatorResult[] resultStrings = new StringifiedAccumulatorResult[num];
+
+		int i = 0;
+		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
+
+			StringifiedAccumulatorResult result;
+			Accumulator<?, ?> value = entry.getValue();
+			if (value != null) {
+				result = new StringifiedAccumulatorResult(entry.getKey(), value.getClass().getSimpleName(), value.toString());
+			} else {
+				result = new StringifiedAccumulatorResult(entry.getKey(), "null", "null");
+			}
+
+			resultStrings[i++] = result;
+		}
+
+		return resultStrings;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Actions
 	// --------------------------------------------------------------------------------------------
 
-	public void attachJobGraph(List<AbstractJobVertex> topologiallySorted) throws JobException {
+	public void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(String.format("Attaching %d topologically sorted vertices to existing job graph with %d "
 					+ "vertices and %d intermediate results.", topologiallySorted.size(), tasks.size(), intermediateResults.size()));
@@ -463,7 +610,7 @@ public class ExecutionGraph implements Serializable {
 
 		final long createTimestamp = System.currentTimeMillis();
 
-		for (AbstractJobVertex jobVertex : topologiallySorted) {
+		for (JobVertex jobVertex : topologiallySorted) {
 
 			// create the execution job vertex and attach it to the graph
 			ExecutionJobVertex ejv = new ExecutionJobVertex(this, jobVertex, 1, timeout, createTimestamp);
@@ -629,6 +776,7 @@ public class ExecutionGraph implements Serializable {
 		userClassLoader = null;
 		scheduler = null;
 		checkpointCoordinator = null;
+		executionContext = null;
 
 		for (ExecutionJobVertex vertex : verticesInCreationOrder) {
 			vertex.prepareForArchiving();
@@ -710,6 +858,7 @@ public class ExecutionGraph implements Serializable {
 								@Override
 								public Object call() throws Exception {
 									try {
+										LOG.info("Delaying retry of job execution for {} ms ...", delayBeforeRetrying);
 										Thread.sleep(delayBeforeRetrying);
 									}
 									catch(InterruptedException e){
@@ -718,7 +867,7 @@ public class ExecutionGraph implements Serializable {
 									restart();
 									return null;
 								}
-							}, AkkaUtils.globalExecutionContext());
+							}, executionContext);
 							break;
 						}
 						else if (numberOfRetriesLeft <= 0 && transitionState(current, JobStatus.FAILED, failureCause)) {
@@ -755,14 +904,31 @@ public class ExecutionGraph implements Serializable {
 	//  Callbacks and Callback Utilities
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Updates the state of the Task and sets the final accumulator results.
+	 * @param state
+	 * @return
+	 */
 	public boolean updateState(TaskExecutionState state) {
 		Execution attempt = this.currentExecutions.get(state.getID());
 		if (attempt != null) {
+
 			switch (state.getExecutionState()) {
 				case RUNNING:
 					return attempt.switchToRunning();
 				case FINISHED:
-					attempt.markFinished();
+					Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators = null;
+					Map<String, Accumulator<?, ?>> userAccumulators = null;
+					try {
+						AccumulatorSnapshot accumulators = state.getAccumulators();
+						flinkAccumulators = accumulators.deserializeFlinkAccumulators();
+						userAccumulators = accumulators.deserializeUserAccumulators(userClassLoader);
+					} catch (Exception e) {
+						// Exceptions would be thrown in the future here
+						LOG.error("Failed to deserialize final accumulator results.", e);
+					}
+
+					attempt.markFinished(flinkAccumulators, userAccumulators);
 					return true;
 				case CANCELED:
 					attempt.cancelingComplete();
@@ -817,17 +983,41 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 
+	/**
+	 * Updates the accumulators during the runtime of a job. Final accumulator results are transferred
+	 * through the UpdateTaskExecutionState message.
+	 * @param accumulatorSnapshot The serialized flink and user-defined accumulators
+	 */
+	public void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
+		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
+		Map<String, Accumulator<?, ?>> userAccumulators;
+		try {
+			flinkAccumulators = accumulatorSnapshot.deserializeFlinkAccumulators();
+			userAccumulators = accumulatorSnapshot.deserializeUserAccumulators(userClassLoader);
+
+			ExecutionAttemptID execID = accumulatorSnapshot.getExecutionAttemptID();
+			Execution execution = currentExecutions.get(execID);
+			if (execution != null) {
+				execution.setAccumulators(flinkAccumulators, userAccumulators);
+			} else {
+				LOG.warn("Received accumulator result for unknown execution {}.", execID);
+			}
+		} catch (Exception e) {
+			LOG.error("Cannot update accumulators for job " + jobID, e);
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Listeners & Observers
 	// --------------------------------------------------------------------------------------------
 
-	public void registerJobStatusListener(ActorRef listener) {
+	public void registerJobStatusListener(ActorGateway listener) {
 		if (listener != null) {
 			this.jobStatusListenerActors.add(listener);
 		}
 	}
 
-	public void registerExecutionListener(ActorRef listener) {
+	public void registerExecutionListener(ActorGateway listener) {
 		if (listener != null) {
 			this.executionListenerActors.add(listener);
 		}
@@ -839,8 +1029,8 @@ public class ExecutionGraph implements Serializable {
 			ExecutionGraphMessages.JobStatusChanged message =
 					new ExecutionGraphMessages.JobStatusChanged(jobID, newState, System.currentTimeMillis(), error);
 
-			for (ActorRef listener: jobStatusListenerActors) {
-				listener.tell(message, ActorRef.noSender());
+			for (ActorGateway listener: jobStatusListenerActors) {
+				listener.tell(message);
 			}
 		}
 	}
@@ -858,8 +1048,8 @@ public class ExecutionGraph implements Serializable {
 																	executionID, newExecutionState,
 																	System.currentTimeMillis(), message);
 
-			for (ActorRef listener : executionListenerActors) {
-				listener.tell(actorMessage, ActorRef.noSender());
+			for (ActorGateway listener : executionListenerActors) {
+				listener.tell(actorMessage);
 			}
 		}
 

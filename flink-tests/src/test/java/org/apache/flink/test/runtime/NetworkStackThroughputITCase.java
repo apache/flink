@@ -24,7 +24,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -100,7 +100,7 @@ public class NetworkStackThroughputITCase {
 			JobGraph jobGraph = new JobGraph("Speed Test");
 			SlotSharingGroup sharingGroup = new SlotSharingGroup();
 
-			AbstractJobVertex producer = new AbstractJobVertex("Speed Test Producer");
+			JobVertex producer = new JobVertex("Speed Test Producer");
 			jobGraph.addVertex(producer);
 			producer.setSlotSharingGroup(sharingGroup);
 
@@ -109,9 +109,9 @@ public class NetworkStackThroughputITCase {
 			producer.getConfiguration().setInteger(DATA_VOLUME_GB_CONFIG_KEY, dataVolumeGb);
 			producer.getConfiguration().setBoolean(IS_SLOW_SENDER_CONFIG_KEY, isSlowSender);
 
-			AbstractJobVertex forwarder = null;
+			JobVertex forwarder = null;
 			if (useForwarder) {
-				forwarder = new AbstractJobVertex("Speed Test Forwarder");
+				forwarder = new JobVertex("Speed Test Forwarder");
 				jobGraph.addVertex(forwarder);
 				forwarder.setSlotSharingGroup(sharingGroup);
 
@@ -119,7 +119,7 @@ public class NetworkStackThroughputITCase {
 				forwarder.setParallelism(numSubtasks);
 			}
 
-			AbstractJobVertex consumer = new AbstractJobVertex("Speed Test Consumer");
+			JobVertex consumer = new JobVertex("Speed Test Consumer");
 			jobGraph.addVertex(consumer);
 			consumer.setSlotSharingGroup(sharingGroup);
 

@@ -18,7 +18,10 @@
 
 package org.apache.flink.graph.test.operations;
 
+import java.util.List;
+
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
@@ -27,11 +30,7 @@ import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -42,21 +41,7 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-    private String resultPath;
     private String expectedResult;
-
-    @Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
 
 	@Test
 	public void testJoinWithVertexSet() throws Exception {
@@ -69,17 +54,19 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                 TestGraphUtils.getLongLongEdgeData(env), env);
 
-        Graph<Long, Long, Long> result = graph.joinWithVertices(graph.getVertices()
+        Graph<Long, Long, Long> res = graph.joinWithVertices(graph.getVertices()
                         .map(new VertexToTuple2Map<Long, Long>()), new AddValuesMapper());
 
-        result.getVertices().writeAsCsv(resultPath);
-        env.execute();
+		DataSet<Vertex<Long,Long>> data = res.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
 
        expectedResult = "1,2\n" +
 	                "2,4\n" +
 	                "3,6\n" +
 	                "4,8\n" +
 	                "5,10\n";
+       
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -93,17 +80,19 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                 TestGraphUtils.getLongLongEdgeData(env), env);
 
-        Graph<Long, Long, Long> result = graph.joinWithVertices(graph.getVertices().first(3)
+        Graph<Long, Long, Long> res = graph.joinWithVertices(graph.getVertices().first(3)
                         .map(new VertexToTuple2Map<Long, Long>()), new AddValuesMapper());
 
-        result.getVertices().writeAsCsv(resultPath);
-        env.execute();
+		DataSet<Vertex<Long,Long>> data = res.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
 
         expectedResult = "1,2\n" +
 	                "2,4\n" +
 	                "3,6\n" +
 	                "4,4\n" +
 	                "5,5\n";
+        
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -117,17 +106,19 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                 TestGraphUtils.getLongLongEdgeData(env), env);
 
-        Graph<Long, Long, Long> result = graph.joinWithVertices(graph.getVertices().first(3)
+        Graph<Long, Long, Long> res = graph.joinWithVertices(graph.getVertices().first(3)
                         .map(new ProjectIdWithTrue()), new DoubleIfTrueMapper());
 
-        result.getVertices().writeAsCsv(resultPath);
-        env.execute();
+		DataSet<Vertex<Long,Long>> data = res.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
 
         expectedResult = "1,2\n" +
 	                "2,4\n" +
 	                "3,6\n" +
 	                "4,4\n" +
 	                "5,5\n";
+        
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -141,17 +132,19 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                 TestGraphUtils.getLongLongEdgeData(env), env);
 
-        Graph<Long, Long, Long> result = graph.joinWithVertices(TestGraphUtils.getLongLongTuple2Data(env),
+        Graph<Long, Long, Long> res = graph.joinWithVertices(TestGraphUtils.getLongLongTuple2Data(env),
                 new ProjectSecondMapper());
 
-        result.getVertices().writeAsCsv(resultPath);
-        env.execute();
+		DataSet<Vertex<Long,Long>> data = res.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
 
         expectedResult = "1,10\n" +
 	                "2,20\n" +
 	                "3,30\n" +
 	                "4,40\n" +
 	                "5,5\n";
+        
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -164,17 +157,19 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                 TestGraphUtils.getLongLongEdgeData(env), env);
 
-        Graph<Long, Long, Long> result = graph.joinWithVertices(TestGraphUtils.getLongCustomTuple2Data(env),
+        Graph<Long, Long, Long> res = graph.joinWithVertices(TestGraphUtils.getLongCustomTuple2Data(env),
                 new CustomValueMapper());
 
-        result.getVertices().writeAsCsv(resultPath);
-        env.execute();
+		DataSet<Vertex<Long,Long>> data = res.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
 
         expectedResult = "1,10\n" +
 	                "2,20\n" +
 	                "3,30\n" +
 	                "4,40\n" +
 	                "5,5\n";
+        
+		compareResultAsTuples(result, expectedResult);
     }
 
 	@SuppressWarnings("serial")

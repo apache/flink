@@ -44,7 +44,7 @@ under the License.
             <li class="dropdown{% if page.url contains setup %} active{% endif %}">
               <a href="{{ setup }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Setup <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
-                <li><a href="{{ setup }}/building.html">Get Flink 0.9-SNAPSHOT</a></li>
+                <li><a href="{{ setup }}/building.html">Get Flink {{ site.version }}</a></li>
 
                 <li class="divider"></li>
                 <li role="presentation" class="dropdown-header"><strong>Deployment</strong></li>
@@ -53,6 +53,7 @@ under the License.
                 <li><a href="{{ setup }}/yarn_setup.html">YARN</a></li>
                 <li><a href="{{ setup }}/gce_setup.html">GCloud</a></li>
                 <li><a href="{{ setup }}/flink_on_tez.html">Flink on Tez <span class="badge">Beta</span></a></li>
+                <li><a href="{{ setup }}/jobmanager_high_availability.html">JobManager High Availability<a></li>
 
                 <li class="divider"></li>
                 <li><a href="{{ setup }}/config.html">Configuration</a></li>
@@ -80,6 +81,7 @@ under the License.
                 <li><a href="{{ apis }}/iterations.html">Iterations</a></li>
                 <li><a href="{{ apis }}/java8.html">Java 8</a></li>
                 <li><a href="{{ apis }}/hadoop_compatibility.html">Hadoop Compatability <span class="badge">Beta</span></a></li>
+                <li><a href="{{ apis }}/storm_compatibility.html">Storm Compatability <span class="badge">Beta</span></a></li>
               </ul>
             </li>
 
@@ -106,6 +108,7 @@ under the License.
                 <li class="divider"></li>
                 <li role="presentation" class="dropdown-header"><strong>Internals</strong></li>
                 <li><a href="{{ internals }}/general_arch.html">Architecture &amp; Process Model</a></li>
+                <li><a href="{{ internals }}/stream_checkpointing.html">Fault Tolerance for Data Streaming</a></li>
                 <li><a href="{{ internals }}/types_serialization.html">Type Extraction &amp; Serialization</a></li>
                 <li><a href="{{ internals }}/job_scheduling.html">Jobs &amp; Scheduling</a></li>
                 <li><a href="{{ internals }}/add_operator.html">How-To: Add an Operator</a></li>

@@ -18,17 +18,17 @@
 
 package org.apache.flink.graph.test.operations;
 
+import java.util.List;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -39,21 +39,8 @@ public class FromCollectionITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-    private String resultPath;
     private String expectedResult;
 
-    @Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
 
 	@Test
 	public void testFromCollectionVerticesEdges() throws Exception {
@@ -64,8 +51,9 @@ public class FromCollectionITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
                 TestGraphUtils.getLongLongEdges(), env);
 
-        graph.getEdges().writeAsCsv(resultPath);
-        env.execute();
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
+        
         expectedResult = "1,2,12\n" +
 	                "1,3,13\n" +
 	                "2,3,23\n" +
@@ -73,6 +61,8 @@ public class FromCollectionITCase extends MultipleProgramsTestBase {
 	                "3,5,35\n" +
 	                "4,5,45\n" +
 	                "5,1,51\n";
+        
+        compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -84,13 +74,17 @@ public class FromCollectionITCase extends MultipleProgramsTestBase {
         Graph<Long, NullValue, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongEdges(),
         		env);
 
-        graph.getVertices().writeAsCsv(resultPath);
-        env.execute();
+        
+        DataSet<Vertex<Long,NullValue>> data = graph.getVertices();
+        List<Vertex<Long,NullValue>> result= data.collect();
+        
         expectedResult = "1,(null)\n" +
 	                "2,(null)\n" +
 	                "3,(null)\n" +
 	                "4,(null)\n" +
 	                "5,(null)\n";
+        
+        compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -103,13 +97,16 @@ public class FromCollectionITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongEdges(),
                 new InitVerticesMapper(), env);
 
-        graph.getVertices().writeAsCsv(resultPath);
-        env.execute();
+        DataSet<Vertex<Long,Long>> data = graph.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
+        
         expectedResult = "1,2\n" +
 	                "2,4\n" +
 	                "3,6\n" +
 	                "4,8\n" +
 	                "5,10\n";
+        
+        compareResultAsTuples(result, expectedResult);
     }
 
 	@SuppressWarnings("serial")
