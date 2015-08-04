@@ -27,8 +27,8 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-tachyon</artifactId>
-	<name>flink-tachyon</name>
+	<artifactId>flink-fs-tests</artifactId>
+	<name>flink-fs-tests</name>
 
 	<packaging>jar</packaging>
 
@@ -74,40 +74,5 @@ under the License.
 			<type>test-jar</type>
 			<version>${hadoop.version}</version><!--$NO-MVN-MAN-VER$-->
 		</dependency>
-		<dependency>
-			<groupId>org.tachyonproject</groupId>
-			<artifactId>tachyon</artifactId>
-			<version>0.5.0</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.tachyonproject</groupId>
-			<artifactId>tachyon</artifactId>
-			<version>0.5.0</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-util</artifactId>
-			<version>7.6.8.v20121106</version><!--$NO-MVN-MAN-VER$-->
-			<scope>test</scope>
-		</dependency>
 	</dependencies>
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-server</artifactId>
-				<version>7.6.8.v20121106</version>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-servlet</artifactId>
-				<version>7.6.8.v20121106</version>
-				<scope>test</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 </project>
