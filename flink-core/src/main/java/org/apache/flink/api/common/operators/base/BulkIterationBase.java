@@ -18,7 +18,13 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.flink.api.common.ExecutionConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
@@ -38,12 +44,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 /**
  * 

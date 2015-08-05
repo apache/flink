@@ -24,7 +24,6 @@ import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
-import org.apache.flink.ps.impl.ParameterServerIgniteImpl;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.iterative.event.AggregatorEvent;
@@ -36,11 +35,6 @@ import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Value;
-import org.apache.ignite.Ignite;
-import org.apache.ignite.IgniteCache;
-import org.apache.ignite.Ignition;
-import org.apache.ignite.cache.query.QueryCursor;
-import org.apache.ignite.cache.query.SqlQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,8 +55,6 @@ public class SSPClockSinkTask extends AbstractInvokable implements Terminable {
 
 	private MutableRecordReader<IntValue> headEventReader;
 	
-//	private SyncEventHandler eventHandler;
-	
 	private SSPClockSyncEventHandler eventHandler;
 
 	private ConvergenceCriterion<Value> convergenceCriterion;
@@ -78,8 +70,6 @@ public class SSPClockSinkTask extends AbstractInvokable implements Terminable {
 	private final AtomicBoolean terminated = new AtomicBoolean(false);
 
 	private boolean terminate = false;
-
-	private IgniteCache<String, Boolean> convergenceCache = null;
 
 	private Map<Integer, Boolean> convergenceMap = null;
 
@@ -118,12 +108,8 @@ public class SSPClockSinkTask extends AbstractInvokable implements Terminable {
 		int numEventsTillEndOfSuperstep = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(0);
 		eventHandler = new SSPClockSyncEventHandler(numEventsTillEndOfSuperstep, aggregators, getEnvironment().getUserClassLoader());
 		headEventReader.registerTaskEventListener(eventHandler, WorkerClockEvent.class);
-//		eventHandler = new SyncEventHandler(numEventsTillEndOfSuperstep, aggregators,
-//				getEnvironment().getUserClassLoader());
-//		headEventReader.registerTaskEventListener(eventHandler, WorkerDoneEvent.class);
 
 		IntValue dummy = new IntValue();
-		Ignite ignite = Ignition.ignite(ParameterServerIgniteImpl.GRID_NAME);
 
 		convergenceMap = new HashMap<Integer, Boolean>();
 
@@ -192,7 +178,6 @@ public class SSPClockSinkTask extends AbstractInvokable implements Terminable {
 
 	private boolean checkForConvergence(int slack) {
 
-
 		if (maxNumberOfIterations == currentIteration) {
 			terminate = true;
 			if (log.isInfoEnabled()) {
@@ -201,8 +186,6 @@ public class SSPClockSinkTask extends AbstractInvokable implements Terminable {
 
 			return true;
 		}
-
-
 
 		if (convergenceAggregatorName != null) {
 			@SuppressWarnings("unchecked")
@@ -274,17 +257,6 @@ public class SSPClockSinkTask extends AbstractInvokable implements Terminable {
 		terminated.set(true);
 	}
 
-	private boolean isAllSubtasksConverged() {
-
-//		Iterator res = convergenceCache.iterator();
-
-		if (convergenceCache.size() == getCurrentNumberOfSubtasks()) {
-			SqlQuery sql = new SqlQuery(Boolean.class, "select where booleanValue = false");
-			QueryCursor<Map.Entry<String, Boolean>> cursor = convergenceCache.query(sql);
-			return cursor.getAll().size() == 0;
-		}
-		return false;
-	}
 }
 
 

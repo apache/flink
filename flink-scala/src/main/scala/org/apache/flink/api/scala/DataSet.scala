@@ -537,10 +537,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def collect(): Seq[T] = {
     val id = new AbstractID().toString
     val serializer = getType().createSerializer(getExecutionEnvironment.getConfig)
-
     javaSet.flatMap(new Utils.CollectHelper[T](id, serializer))
            .output(new DiscardingOutputFormat[T])
-
     val res = getExecutionEnvironment.execute()
 
     val accResult: java.util.ArrayList[Array[Byte]] = res.getAccumulatorResult(id)
@@ -884,7 +882,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def join[O](other: DataSet[O], strategy: JoinHint): UnfinishedJoinOperation[T, O] =
     new UnfinishedJoinOperation(this, other, strategy)
-
   /**
    * Special [[join]] operation for explicitly telling the system that the right side is assumed
    * to be a lot smaller than the left side of the join.
@@ -1229,7 +1226,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       partitioner,
       implicitly[TypeInformation[K]],
       getCallLocationName())
-
     wrap(op)
   }
 
@@ -1248,7 +1244,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       partitioner,
       implicitly[TypeInformation[K]],
       getCallLocationName())
-
     wrap(op)
   }
 
@@ -1278,7 +1273,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       partitioner,
       keyType,
       getCallLocationName())
-
     wrap(op)
   }
 

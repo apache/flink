@@ -50,7 +50,9 @@ public class SSPClockHolder implements EventListener<TaskEvent> {
 	private Value[] aggregates;
 
 	private int ownClock = 0;
+
 	private int currentClock = 0;
+
 	private final int slack;
 
 	public boolean isAtSSPLimit() {
