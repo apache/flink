@@ -19,6 +19,12 @@ package org.apache.flink.api.common.operators.util;
 
 import java.util.Iterator;
 
+/**
+ * A data sample is a set of data collected and/or selected from a statistical population by a defined procedure.
+ * RandomSampler is the util which helps to collect data sample randomly.
+ *
+ * @param <T> The type of sampler data.
+ */
 public abstract class RandomSampler<T> {
 	
 	protected final Iterator<T> EMPTY_ITERABLE = new SampledIterator<T>() {
@@ -42,6 +48,10 @@ public abstract class RandomSampler<T> {
 	public abstract Iterator<T> sample(Iterator<T> input);
 }
 
+/**
+ * An abstract iterator which does not support remove.
+ * @param <T> The type of iterator data.
+ */
 abstract class SampledIterator<T> implements Iterator<T> {
 	
 	@Override

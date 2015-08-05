@@ -1201,13 +1201,14 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       fraction: Double,
       seed: Long = Utils.RNG.nextLong()): DataSet[T] = {
 
-    val partitionMapper = new MapPartitionFunction[T, T] {
+    val partitionMapper = new RichMapPartitionFunction[T, T] {
       override def mapPartition(values: java.lang.Iterable[T], out: Collector[T]): Unit = {
         var sampler: RandomSampler[T] = null
+        val seedAndIndex = seed + getRuntimeContext.getIndexOfThisSubtask;
         if (withReplacement) {
-          sampler = new PoissonSampler[T](fraction, seed)
+          sampler = new PoissonSampler[T](fraction, seedAndIndex)
         } else {
-          sampler = new BernoulliSampler[T](fraction, seed)
+          sampler = new BernoulliSampler[T](fraction, seedAndIndex)
         }
 
         sampler.sample(values.iterator()).asScala foreach out.collect
@@ -1233,13 +1234,14 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       numSample: Int,
       seed: Long = Utils.RNG.nextLong()): DataSet[T] = {
 
-    val partitionMapper = new MapPartitionFunction[T, T] {
+    val partitionMapper = new RichMapPartitionFunction[T, T] {
       override def mapPartition(values: java.lang.Iterable[T], out: Collector[T]): Unit = {
         var sampler: RandomSampler[T] = null
+        val seedAndIndex = seed + getRuntimeContext.getIndexOfThisSubtask;
         if (withReplacement) {
-          sampler = new ReservoirSamplerWithReplacement[T](numSample, seed)
+          sampler = new ReservoirSamplerWithReplacement[T](numSample, seedAndIndex)
         } else {
-          sampler = new ReservoirSamplerWithoutReplacement[T](numSample, seed)
+          sampler = new ReservoirSamplerWithoutReplacement[T](numSample, seedAndIndex)
         }
 
         sampler.sample(values.iterator()).asScala foreach out.collect

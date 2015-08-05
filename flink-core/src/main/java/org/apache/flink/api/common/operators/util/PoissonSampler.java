@@ -23,9 +23,9 @@ import org.apache.commons.math3.distribution.PoissonDistribution;
 import java.util.Iterator;
 
 /**
- * A sampler implementation based on Poisson Distribution. While sample elements with replacement,
- * the picked number of each element follow poisson distribution, so we could use poisson distribution
- * to generate random variables for sample.
+ * A sampler implementation based on Poisson Distribution. While sampling elements with replacement,
+ * the picked number of each element follows a given poisson distribution, so we could use poisson
+ * distribution to generate random variables for sample.
  *
  * @param <T> The type of sample.
  * @see <a href="https://en.wikipedia.org/wiki/Poisson_distribution">https://en.wikipedia.org/wiki/Poisson_distribution</a>

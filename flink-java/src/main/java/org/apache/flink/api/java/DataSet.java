@@ -31,6 +31,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.Order;
@@ -1070,7 +1071,7 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Generate a sample of DataSet.
+	 * Generate a sample of DataSet by the probability fraction of each element.
 	 *
 	 * @param withReplacement whether element can be sampled multiple times.
 	 * @param fraction        probability that each element is chosen, should be [0,1] without replacement, 
@@ -1083,7 +1084,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Generate a sample of DataSet.
+	 * Generate a sample of DataSet by the probability fraction of each element.
 	 *
 	 * @param withReplacement whether element can be sampled multiple times.
 	 * @param fraction        probability that each element is chosen, should be [0,1] without replacement, 
@@ -1093,14 +1094,15 @@ public abstract class DataSet<T> {
 	 * @return the sampled DataSet
 	 */
 	public MapPartitionOperator<T, T> sample(final boolean withReplacement, final double fraction, final long seed) {
-		return mapPartition(new MapPartitionFunction<T, T>() {
+		return mapPartition(new RichMapPartitionFunction<T, T>() {
 			@Override
 			public void mapPartition(Iterable<T> values, Collector<T> out) throws Exception {
 				RandomSampler<T> sampler;
+				long seedAndIndex = seed + getRuntimeContext().getIndexOfThisSubtask();
 				if (withReplacement) {
-					sampler = new PoissonSampler<T>(fraction, seed);
+					sampler = new PoissonSampler<T>(fraction, seedAndIndex);
 				} else {
-					sampler = new BernoulliSampler<T>(fraction, seed);
+					sampler = new BernoulliSampler<T>(fraction, seedAndIndex);
 				}
 				
 				Iterator<T> sampled = sampler.sample(values.iterator());
@@ -1112,10 +1114,10 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Generate a sample of DataSet.
+	 * Generate a sample of DataSet which contains fix size elements of each partition.
 	 *
 	 * @param withReplacement whether element can be sampled multiple times.
-	 * @param numSample       the expected sampled size.
+	 * @param numSample       the expected sampled size per partition.
 	 * @return the sampled DataSet
 	 */
 	public MapPartitionOperator<T, T> sampleWithSize(final boolean withReplacement, final int numSample) {
@@ -1123,22 +1125,23 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Generate a sample of DataSet.
+	 * Generate a sample of DataSet which contains fix size elements of each partition.
 	 *
 	 * @param withReplacement whether element can be sampled multiple times.
-	 * @param numSample       the expected sampled size.
+	 * @param numSample       the expected sampled size per partition.
 	 * @param seed            random number generator seed. 
 	 * @return the sampled DataSet
 	 */
 	public MapPartitionOperator<T, T> sampleWithSize(final boolean withReplacement, final int numSample, final long seed) {
-		return mapPartition(new MapPartitionFunction<T, T>() {
+		return mapPartition(new RichMapPartitionFunction<T, T>() {
 			@Override
 			public void mapPartition(Iterable<T> values, Collector<T> out) throws Exception {
 				RandomSampler<T> sampler;
+				long seedAndIndex = seed + getRuntimeContext().getIndexOfThisSubtask();
 				if (withReplacement) {
-					sampler = new ReservoirSamplerWithReplacement<T>(numSample, seed);
+					sampler = new ReservoirSamplerWithReplacement<T>(numSample, seedAndIndex);
 				} else {
-					sampler = new ReservoirSamplerWithoutReplacement<T>(numSample, seed);
+					sampler = new ReservoirSamplerWithoutReplacement<T>(numSample, seedAndIndex);
 				}
 
 				Iterator<T> sampled = sampler.sample(values.iterator());

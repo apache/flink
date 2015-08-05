@@ -29,8 +29,8 @@ import java.util.Random;
 /**
  * A simple in memory implementation of Reservoir Sampling with replacement, and with only one pass through
  * the input iteration whose size is unpredictable.
- * This implementation refers to the algorithm described in "Reservoir-based Random Sampling with Replacement
- * from Data Stream".
+ * This implementation refers to the algorithm described in <a href="epubs.siam.org/doi/pdf/10.1137/1.9781611972740.53">
+ * "Reservoir-based Random Sampling with Replacement from Data Stream"</a>.
  *
  * @param <T> the type of sample.
  */
@@ -63,6 +63,7 @@ public class ReservoirSamplerWithReplacement<T> extends RandomSampler<T> {
 	 * Create a reservoir sampler with fixed sample size and random number generator.
 	 *
 	 * @param numSamples number of samples to retain in reservoir, must be non-negative.
+	 * @param random     random number generator
 	 */
 	public ReservoirSamplerWithReplacement(int numSamples, Random random) {
 		Preconditions.checkArgument(numSamples >= 0, "numSamples should be non-negative.");

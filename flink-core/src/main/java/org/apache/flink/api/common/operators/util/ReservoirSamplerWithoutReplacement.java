@@ -27,7 +27,8 @@ import java.util.Random;
 /**
  * A simple in memory implementation of Reservoir Sampling without replacement, and with only one pass through
  * the input iteration whose size is unpredictable.
- * This implementation refers to the Algorithm R described in "Random Sampling with a Reservoir" Vitter, 1985.
+ * This implementation refers to the Algorithm R described in <a href="www.cs.umd.edu/~samir/498/vitter.pdf">
+ * "Random Sampling with a Reservoir" Vitter, 1985</a>.
  *
  * @param <T> type of the sampler.
  */

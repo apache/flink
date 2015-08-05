@@ -90,8 +90,9 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 					}
 					current = null;
 					return false;
+				} else {
+					return true;
 				}
-				return false;
 			}
 			
 			@Override
