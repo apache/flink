@@ -37,12 +37,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 
 import org.apache.flink.configuration._
-
-import org.apache.flink.ps.impl.ParameterServerIgniteImpl
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessages, LogMessages, StreamingMode}
-//>>>>>>> upstream/master
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobService, BlobCache}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
@@ -67,14 +64,7 @@ import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
-//<<<<<<< HEAD
-//import org.apache.flink.runtime.util.{MathUtils, EnvironmentInformation}
-//import org.apache.flink.util.ExceptionUtils
-import org.apache.ignite.Ignition
-import org.slf4j.LoggerFactory
-//=======
 import org.apache.flink.runtime.util.{ZooKeeperUtil, MathUtils, EnvironmentInformation}
-//>>>>>>> upstream/master
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -178,8 +168,6 @@ class TaskManager(
 
   private var heartbeatScheduler: Option[Cancellable] = None
 
-  private var ps : ParameterServerIgniteImpl = null
-
   protected var leaderSessionID: Option[UUID] = None
 
   private val currentRegistrationSessionID: UUID = UUID.randomUUID()
@@ -201,11 +189,6 @@ class TaskManager(
     log.info(s"Starting TaskManager actor at ${self.path.toSerializationFormat}.")
     log.info(s"TaskManager data connection information: $connectionInfo")
     log.info(s"TaskManager has $numberOfSlots task slot(s).")
-
-    log.info("TaskManager is starting a parameter server")
-    Ignition.stopAll(true);
-    ps = new ParameterServerIgniteImpl(ParameterServerIgniteImpl.GRID_NAME, false)
-
 
     // log the initial memory utilization
     if (log.isInfoEnabled) {
@@ -233,7 +216,7 @@ class TaskManager(
    */
   override def postStop(): Unit = {
     log.info(s"Stopping TaskManager ${self.path.toSerializationFormat}.")
-    
+
     cancelAndClearEverything(new Exception("TaskManager is shutting down."))
 
     if (isConnected) {
@@ -267,9 +250,6 @@ class TaskManager(
     } catch {
       case t: Exception => log.error("FileCache did not shutdown properly.", t)
     }
-
-    log.info("Shutting down own parameter server")
-    ps.shutDown()
 
     log.info(s"Task manager ${self.path} is completely shut down.")
   }
@@ -469,7 +449,7 @@ class TaskManager(
         val taskExecutionId = message.getTaskExecutionId
         val checkpointId = message.getCheckpointId
         val timestamp = message.getTimestamp
-        
+
         log.debug(s"Receiver TriggerCheckpoint ${checkpointId}@${timestamp} for $taskExecutionId.")
 
         val task = runningTasks.get(taskExecutionId)
@@ -869,7 +849,7 @@ class TaskManager(
       }
     }
   }
-  
+
   // --------------------------------------------------------------------------
   //  Task Operations
   // --------------------------------------------------------------------------
@@ -928,14 +908,14 @@ class TaskManager(
         runningTasks.put(execId, prevTask)
         throw new IllegalStateException("TaskManager already contains a task for id " + execId)
       }
-      
+
       // all good, we kick off the task, which performs its own initialization
       task.startTaskThread()
-      
+
       sender ! decorateMessage(Acknowledge)
     }
     catch {
-      case t: Throwable => 
+      case t: Throwable =>
         log.error("SubmitTask failed", t)
         sender ! decorateMessage(Failure(t))
     }
@@ -1009,7 +989,7 @@ class TaskManager(
   private def cancelAndClearEverything(cause: Throwable) {
     if (runningTasks.size > 0) {
       log.info("Cancelling all computations and discarding all cached data.")
-      
+
       for (t <- runningTasks.values().asScala) {
         t.failExternally(cause)
       }
@@ -1183,7 +1163,7 @@ object TaskManager {
     } else {
       LOG.info("Cannot determine the maximum number of open file descriptors")
     }
-    
+
     // try to parse the command line arguments
     val (configuration: Configuration,
          mode: StreamingMode) = try {
@@ -1228,11 +1208,11 @@ object TaskManager {
    */
   @throws(classOf[Exception])
   def parseArgsAndLoadConfig(args: Array[String]): (Configuration, StreamingMode) = {
-    
+
     // set up the command line parser
     val parser = new scopt.OptionParser[TaskManagerCliOptions]("TaskManager") {
       head("Flink TaskManager")
-      
+
       opt[String]("configDir") action { (param, conf) =>
         conf.setConfigDir(param)
         conf
@@ -1263,7 +1243,7 @@ object TaskManager {
     catch {
       case e: Exception => throw new Exception("Could not load configuration", e)
     }
-    
+
     (conf, cliConfig.getMode)
   }
 
@@ -1595,7 +1575,7 @@ object TaskManager {
 
       relativeMemSize
     }
-    
+
     val preAllocateMemory: Boolean = streamingMode == StreamingMode.BATCH_ONLY
 
     // now start the memory manager
@@ -1730,10 +1710,10 @@ object TaskManager {
 
     checkConfigParameter(numNetworkBuffers > 0, numNetworkBuffers,
       ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY)
-    
+
     val pageSizeNew: Int = configuration.getInteger(
       ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, -1)
-    
+
     val pageSizeOld: Int = configuration.getInteger(
       ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY, -1)
 
@@ -1766,7 +1746,7 @@ object TaskManager {
 
         pageSizeOld
       }
-    
+
     val tmpDirs = configuration.getString(
       ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH)
@@ -1952,8 +1932,8 @@ object TaskManager {
 
     // Pre-processing steps for registering cpuLoad
     val osBean: OperatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean()
-        
-    val fetchCPULoadMethod: Option[Method] = 
+
+    val fetchCPULoadMethod: Option[Method] =
       try {
         Class.forName("com.sun.management.OperatingSystemMXBean")
           .getMethods()
