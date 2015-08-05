@@ -18,18 +18,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.ps.model;
+package org.apache.flink.parameterserver.model;
 
 /**
- *  This interface defines a client accessing a parameter server. The client has access to two cache levels:
- *  The partitioned parameter cache: stores parameter subject to writes at each iteration. Furthermore, the new parameter
- * 	      						     is written only if it is associated with a greater convergence degree.
- *  The shared parameter cache: suitable for parameters that are more often read than written.
+ *  This interface defines a client accessing a parameter server.
+ *  The client has access to two cache levels:
+ *  The partitioned parameter cache: for parameters subject to writes at
+ *  	each iteration. Furthermore, the new parameter is written only if
+ *  	it is associated with a greater convergence degree.
+ *  The shared parameter cache: for parameters more often read than written.
  */
 public interface ParameterServerClient {
 	/**
-	 * Update an element in the partitioned parameter cache if the convergence associated with the current element is better than
-	 * the one present on the server.
+	 * Update an element in the partitioned parameter cache if the convergence
+	 * associated with the current element is better than the one currently
+	 * present on the server.
 	 * @param id the id of the parameter element
 	 * @param value the parameter element
 	 * @param opt the convergence associated with the current parameter element

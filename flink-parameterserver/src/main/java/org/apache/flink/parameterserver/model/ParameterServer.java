@@ -17,7 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.ps.model;
+package org.apache.flink.parameterserver.model;
 
 /**
  * This interface defines a parameter server used in Stale Synchronous Parallel iterations
