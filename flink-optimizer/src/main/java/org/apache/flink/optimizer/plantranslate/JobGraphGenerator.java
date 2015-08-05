@@ -29,9 +29,6 @@ import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.base.BulkIterationStrategy;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
@@ -49,6 +46,9 @@ import org.apache.flink.optimizer.plan.SolutionSetPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plan.WorksetPlanNode;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -57,12 +57,12 @@ import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
 import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
 import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.iterative.task.SSPClockSinkTask;
 import org.apache.flink.runtime.iterative.task.SSPIterationHeadPactTask;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.CoGroupDriver;
@@ -92,8 +92,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-
-//import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 
 /**
  * This component translates the optimizer's resulting {@link org.apache.flink.optimizer.plan.OptimizedPlan}
@@ -884,7 +882,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	private JobVertex createBulkIterationHead(BulkPartialSolutionPlanNode pspn) {
 		// get the bulk iteration that corresponds to this partial solution node
 		final BulkIterationPlanNode iteration = pspn.getContainingIterationNode();
-
 		// check whether we need an individual vertex for the partial solution, or whether we
 		// attach ourselves to the vertex of the parent node. We can combine the head with a node of 
 		// the step function, if
@@ -910,7 +907,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		} else {
 			merge = false;
 		}
-
 		// create or adopt the head vertex
 		final JobVertex toReturn;
 		final JobVertex headVertex;
@@ -941,20 +937,14 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			// instantiate the head vertex and give it a no-op driver as the driver strategy.
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
-//<<<<<<< HEAD
-			headVertex = new JobVertex("PartialSolution ("+iteration.getNodeName()+")");
-//			headVertex = new AbstractJobVertex("PartialSolution ("+iteration.getNodeName()+")");
 
+			headVertex = new JobVertex("PartialSolution ("+iteration.getNodeName()+")");
 			if(s.equals(BulkIterationStrategy.PLAIN) ) {
 				headVertex.setInvokableClass(IterationHeadPactTask.class);
 			}
 			else if(s.equals(BulkIterationStrategy.SSP)) {
-//			headVertex.setInvokableClass(ABSPIterationHeadPactTask.class);
 				headVertex.setInvokableClass(SSPIterationHeadPactTask.class);
 			}
-//=======
-//			headVertex.setInvokableClass(IterationHeadPactTask.class);
-//>>>>>>> upstream/master
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);
 			toReturn = headVertex;
@@ -1243,21 +1233,14 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		headConfig.setRelativeBackChannelMemory(relativeMemForBackChannel);
 		
 		// --------------------------- create the sync task ---------------------------
-//<<<<<<< HEAD
 		final JobVertex sync = new JobVertex("Sync(" + bulkNode.getNodeName() + ")");
-//		final AbstractJobVertex sync = new AbstractJobVertex("Sync(" + bulkNode.getNodeName() + ")");
 		BulkIterationStrategy s = ((BulkIterationPlanNode) descr.getIterationNode()).getPartialSolutionPlanNode().getContainingIterationNode().getIterationNode().getIterationContract().getStrategy();
 		if(s.equals(BulkIterationStrategy.PLAIN)) {
 			sync.setInvokableClass(IterationSynchronizationSinkTask.class);
 		}
 		else if(s.equals(BulkIterationStrategy.SSP)){
-//		sync.setInvokableClass(ClockSinkTask.class);
 			sync.setInvokableClass(SSPClockSinkTask.class);
 		}
-//=======
-//
-//		sync.setInvokableClass(IterationSynchronizationSinkTask.class);
-//>>>>>>> upstream/master
 		sync.setParallelism(1);
 		this.auxVertices.add(sync);
 		
@@ -1394,8 +1377,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		{
 			final JobVertex sync = new JobVertex("Sync (" + iterNode.getNodeName() + ")");
 			sync.setInvokableClass(IterationSynchronizationSinkTask.class);
-//			sync.setInvokableClass(ClockSinkTask.class);
-//			sync.setInvokableClass(SSPClockSinkTask.class);
 			sync.setParallelism(1);
 			this.auxVertices.add(sync);
 			

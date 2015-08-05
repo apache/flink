@@ -40,11 +40,9 @@ import org.apache.flink.runtime.iterative.concurrent.SSPClockHolder;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetBroker;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
-import org.apache.flink.runtime.iterative.concurrent.SuperstepBarrier;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker;
 import org.apache.flink.runtime.iterative.event.AggregatorEvent;
-import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.ClockTaskEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.event.WorkerClockEvent;
@@ -231,13 +229,6 @@ public class SSPIterationHeadPactTask<X, Y, S extends Function, OT> extends Abst
 		}
 	}
 
-	private SuperstepBarrier initSuperstepBarrier() {
-		SuperstepBarrier barrier = new SuperstepBarrier(getUserCodeClassLoader());
-		this.toSync.subscribeToEvent(barrier, AllWorkersDoneEvent.class);
-		this.toSync.subscribeToEvent(barrier, TerminationEvent.class);
-		return barrier;
-	}
-
 	private SSPClockHolder initClockHolder(int slack) {
 		SSPClockHolder clockHolder = new SSPClockHolder(getUserCodeClassLoader(), slack);
 
@@ -247,12 +238,6 @@ public class SSPIterationHeadPactTask<X, Y, S extends Function, OT> extends Abst
 		this.toSync.subscribeToEvent(clockHolder, AggregatorEvent.class);
 		return clockHolder;
 	}
-
-//	private SSPAggregatorEventListener initAggListener(){
-//		SSPAggregatorEventListener aggListener = new SSPAggregatorEventListener(getUserCodeClassLoader());
-//		this.toSync.subscribeToEvent(aggListener, AggregatorEvent.class);
-//		return aggListener;
-//	}
 
 	@Override
 	public void run() throws Exception {
@@ -269,9 +254,6 @@ public class SSPIterationHeadPactTask<X, Y, S extends Function, OT> extends Abst
 		boolean waitForSolutionSetUpdate = config.getWaitForSolutionSetUpdate();
 		boolean isWorksetIteration = config.getIsWorksetIteration();
 
-		log.info("Starting own paramater server");
-//		ps = new ParameterServerIgniteImpl(ParameterServerIgniteImpl.GRID_NAME, false);
-
 		try {
 			/* used for receiving the current iteration result from iteration tail */
 			SuperstepKickoffLatch nextStepKickoff = new SuperstepKickoffLatch();
@@ -280,7 +262,6 @@ public class SSPIterationHeadPactTask<X, Y, S extends Function, OT> extends Abst
 			BlockingBackChannel backChannel = initBackChannel();
 //			SuperstepBarrier barrier = initSuperstepBarrier();
 			SSPClockHolder clockHolder = initClockHolder(slack);
-//			SSPAggregatorEventListener aggListener = initAggListener();
 			SolutionSetUpdateBarrier solutionSetUpdateBarrier = null;
 
 			feedbackDataInput = config.getIterationHeadPartialSolutionOrWorksetInputIndex();
@@ -373,11 +354,6 @@ public class SSPIterationHeadPactTask<X, Y, S extends Function, OT> extends Abst
 
 				sendEventToSync(new WorkerClockEvent(workerIndex, clockHolder.getClock(), aggregatorRegistry.getAllAggregators()));
 
-//				if (log.isInfoEnabled()) {
-//					log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
-//				}
-
-//				barrier.waitForOtherWorkers();
 				log.info(formatLogString("Finished one absp step"));
 				clockHolder.waitForNextClock();
 
@@ -417,7 +393,6 @@ public class SSPIterationHeadPactTask<X, Y, S extends Function, OT> extends Abst
 			}
 
 			this.finalOutputCollector.close();
-//			ps.shutDown();
 
 		} finally {
 			// make sure we unregister everything from the broker:
@@ -429,7 +404,6 @@ public class SSPIterationHeadPactTask<X, Y, S extends Function, OT> extends Abst
 			SuperstepKickoffLatchBroker.instance().remove(brokerKey);
 			SolutionSetBroker.instance().remove(brokerKey);
 			SolutionSetUpdateBarrierBroker.instance().remove(brokerKey);
-//			ps.shutDown();
 
 			if (solutionSet != null) {
 				solutionSet.close();
@@ -485,11 +459,5 @@ public class SSPIterationHeadPactTask<X, Y, S extends Function, OT> extends Abst
 		}
 		this.toSync.writeEventToAllChannels(event);
 	}
-
-//	@Override
-//	public void requestTermination() {
-//		ps.shutDown();
-//		super.requestTermination();
-//	}
 
 }
