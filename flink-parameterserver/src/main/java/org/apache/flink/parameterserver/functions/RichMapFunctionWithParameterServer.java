@@ -22,7 +22,7 @@ package org.apache.flink.parameterserver.functions;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.ps.igniteimpl.ParameterServerIgniteImpl;
+import org.apache.flink.parameterserver.impl.ignite.ParameterServerIgniteImpl;
 import org.apache.flink.parameterserver.model.ParameterElement;
 import org.apache.flink.parameterserver.model.ParameterServerClient;
 import org.apache.ignite.Ignite;
@@ -32,16 +32,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class defines a map function with access to a parameter server. The parameter server has two cache levels:
- * The partitioned parameter cache: stores parameter subject to writes at each iteration. Furthermore, the new parameter
- * 	      						    is written only if it is associated with a greater convergence degree.
- * The shared parameter cache: suitable for parameters that are more often read than written.
+ * This class defines a map function with access to a parameter server.
+ * The parameter server has two cache levels:
+ * The partitioned parameter cache: stores parameter subject to writes at each iteration.
+ * 			Furthermore, the new parameter is written only if associated with
+ * 			a greater convergence degree.
+ * The shared parameter cache: suitable for parameters more often read than written.
  *
  */
-public abstract class RichMapFunctionWithParameterServer<IN, OUT> extends RichMapFunction<IN, OUT>
+public abstract class RichMapFunctionWithParameterServer<IN, OUT>
+		extends RichMapFunction<IN, OUT>
 		implements ParameterServerClient {
 
-	private static final Logger log = LoggerFactory.getLogger(RichMapFunctionWithParameterServer.class);
+	private static final Logger log =
+			LoggerFactory.getLogger(RichMapFunctionWithParameterServer.class);
 
 	private IgniteCache<String, ParameterElement> partitionedParameterCache = null;
 	private IgniteCache<String, ParameterElement> sharedParameterCache = null;
@@ -50,14 +54,17 @@ public abstract class RichMapFunctionWithParameterServer<IN, OUT> extends RichMa
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
-		if (partitionedParameterCache == null) {
+		if (partitionedParameterCache == null || sharedParameterCache == null ) {
+			ParameterServerIgniteImpl.prepareInstance(ParameterServerIgniteImpl.GRID_NAME);
 			Ignite ignite = Ignition.ignite(ParameterServerIgniteImpl.GRID_NAME);
-			partitionedParameterCache = ignite.getOrCreateCache(ParameterServerIgniteImpl.getParameterCacheConfiguration());
-		}
-
-		if (sharedParameterCache == null) {
-			Ignite ignite = Ignition.ignite(ParameterServerIgniteImpl.GRID_NAME);
-			sharedParameterCache = ignite.getOrCreateCache(ParameterServerIgniteImpl.getSharedCacheConfiguration());
+			partitionedParameterCache =
+					ignite.getOrCreateCache(
+							ParameterServerIgniteImpl.getParameterCacheConfiguration());
+			partitionedParameterCache.clear();
+			sharedParameterCache =
+					ignite.getOrCreateCache(
+							ParameterServerIgniteImpl.getSharedCacheConfiguration());
+			sharedParameterCache.clear();
 		}
 	}
 
