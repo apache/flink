@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.ps.impl;
+package org.apache.flink.parameterserver.impl.ignite;
 
-import org.apache.flink.ps.model.ParameterElement;
+import org.apache.flink.parameterserver.model.ParameterElement;
 
 /**
- * An implemention of parameter elements stored in a {@link org.apache.flink.ps.model.ParameterServer}
+ * An implemention of parameter elements stored in a {@link org.apache.flink.parameterserver.model.ParameterServer}
  * @param <T> the type of the parameter
  */
 public class ParameterElementImpl<T> implements ParameterElement<T>{

@@ -18,10 +18,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.ps.impl;
+package org.apache.flink.parameterserver.impl.ignite;
 
-import org.apache.flink.ps.model.ParameterElement;
-import org.apache.flink.ps.model.ParameterServer;
+import org.apache.flink.parameterserver.model.ParameterElement;
+import org.apache.flink.parameterserver.model.ParameterServer;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.Ignition;
@@ -32,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An implementation of {@link org.apache.flink.ps.model.ParameterServer} using Apache Ignite
+ * An implementation of {@link org.apache.flink.parameterserver.model.ParameterServer} using Apache Ignite
  */
 public class ParameterServerIgniteImpl implements ParameterServer {
 
@@ -73,7 +73,7 @@ public class ParameterServerIgniteImpl implements ParameterServer {
 			cfg1.setCacheConfiguration(parameterCacheCfg, sharedCacheCfg);
 
 			// Beware that client mode in Ignite have a whole different meaning than what it usually means
-			// You still need to hav a grid instantiated to access the values, though you won't store anything
+			// You still need to have a grid instantiated to access the values, though you won't store anything
 			if (client) {
 				cfg1.setClientMode(true);
 				Ignition.setClientMode(true);
@@ -87,8 +87,12 @@ public class ParameterServerIgniteImpl implements ParameterServer {
 			parameterCache = ignite.getOrCreateCache(parameterCacheCfg).withAsync();
 			sharedCache = ignite.getOrCreateCache(sharedCacheCfg).withAsync();
 
-			log.debug("I hereby confirm that parameter cache is async enabled: " + parameterCache.isAsync());
-			log.debug("I hereby confirm that shared cache is async enabled: " + sharedCache.isAsync());
+			if(log.isDebugEnabled()) {
+				log.debug("I hereby confirm that parameter cache is async enabled: "
+						+ parameterCache.isAsync());
+				log.debug("I hereby confirm that shared cache is async enabled: "
+						+ sharedCache.isAsync());
+			}
 
 		} catch (Exception e) {
 			e.printStackTrace();

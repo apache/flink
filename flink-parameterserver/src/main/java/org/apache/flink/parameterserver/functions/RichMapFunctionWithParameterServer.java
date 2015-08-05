@@ -18,12 +18,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.functions;
+package org.apache.flink.parameterserver.functions;
 
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.ps.impl.ParameterServerIgniteImpl;
-import org.apache.flink.ps.model.ParameterElement;
-import org.apache.flink.ps.model.ParameterServerClient;
+import org.apache.flink.ps.igniteimpl.ParameterServerIgniteImpl;
+import org.apache.flink.parameterserver.model.ParameterElement;
+import org.apache.flink.parameterserver.model.ParameterServerClient;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.Ignition;

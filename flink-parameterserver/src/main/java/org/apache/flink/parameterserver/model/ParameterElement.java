@@ -17,12 +17,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.ps.model;
+package org.apache.flink.parameterserver.model;
 
 import java.io.Serializable;
 
 /**
- * This interface defines a parameter element to be stored and accessed on the {@link org.apache.flink.ps.model.ParameterServer}
+ * This interface defines a parameter element to be stored and accessed on the {@link ParameterServer}
  * in Stale Synchronous Parallel iterations
  * @param <T> the type of the parameter
  */

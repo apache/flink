@@ -64,17 +64,6 @@ under the License.
 			<version>${guava.version}</version>
 		</dependency>
 
-        <dependency>
-          <groupId>org.apache.ignite</groupId>
-          <artifactId>ignite-core</artifactId>
-          <version>1.0.0</version>
-        </dependency>
-
-        <dependency>
-          <groupId>org.apache.ignite</groupId>
-          <artifactId>ignite-spring</artifactId>
-          <version>1.0.0</version>
-        </dependency>
         </dependencies>
 
 	<build>
