@@ -23,12 +23,15 @@ import akka.actor.{ActorRef, ActorSystem, ExtendedActorSystem}
 import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
+import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.JobClient
+import org.apache.flink.runtime.instance.AkkaActorGateway
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
+import org.apache.flink.runtime.webmonitor.WebMonitor
 
 import org.slf4j.LoggerFactory
 
@@ -42,9 +45,10 @@ import org.slf4j.LoggerFactory
  * @param singleActorSystem true if all actors (JobManager and TaskManager) shall be run in the same
  *                          [[ActorSystem]], otherwise false
  */
-class LocalFlinkMiniCluster(userConfiguration: Configuration,
-                            singleActorSystem: Boolean,
-                            streamingMode: StreamingMode)
+class LocalFlinkMiniCluster(
+    userConfiguration: Configuration,
+    singleActorSystem: Boolean,
+    streamingMode: StreamingMode)
   extends FlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
 
   
@@ -74,23 +78,14 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration,
     config
   }
 
-  override def startJobManager(system: ActorSystem): ActorRef = {
+  override def startJobManager(system: ActorSystem): (ActorRef, Option[WebMonitor]) = {
     val config = configuration.clone()
        
     val (jobManager, archiver) = JobManager.startJobManagerActors(config, system, streamingMode)
-    
-    if (config.getBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, false)) {
-      if (userConfiguration.getBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, false)) {
-        // new web frontend
-        JobManager.startWebRuntimeMonitor(userConfiguration, jobManager, archiver)
-      }
-      else {
-        // old web frontend
-        val webServer = new WebInfoServer(configuration, jobManager, archiver)
-        webServer.start()
-      }
-    }
-    jobManager
+
+    val webMonitorOption = startWebServer(config, jobManager, archiver)
+
+    (jobManager, webMonitorOption)
   }
 
   override def startTaskManager(index: Int, system: ActorSystem): ActorRef = {
@@ -125,13 +120,15 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration,
       None
     }
     
-    TaskManager.startTaskManagerComponentsAndActor(config, system,
-                                                   hostname, // network interface to bind to
-                                                   Some(taskManagerActorName), // actor name
-                                                   jobManagerPath, // job manager akka URL
-                                                   localExecution, // start network stack?
-                                                   streamingMode,
-                                                   classOf[TaskManager])
+    TaskManager.startTaskManagerComponentsAndActor(
+      config,
+      system,
+      hostname, // network interface to bind to
+      Some(taskManagerActorName), // actor name
+      jobManagerPath, // job manager akka URL
+      localExecution, // start network stack?
+      streamingMode,
+      classOf[TaskManager])
   }
 
   def getJobClientActorSystem: ActorSystem = jobClientActorSystem

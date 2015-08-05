@@ -107,6 +107,10 @@ function analyzeTime(json, stacked) {
 		$.each(job.executionConfig, function(key, value) {
 			if(key == "userConfig") {
 				return;
+			} else if(key == "Max. number of execution retries" && value == -1) {
+				value = "deactivated";
+			} else if(key == "Job parallelism" && value == -1) {
+				value = "auto";
 			}
 			configTable += "<tr><td>"+key+"</td><td>"+value+"</td></tr>";
 		});

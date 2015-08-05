@@ -61,8 +61,6 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 	@Override
 	public void invoke() throws Exception {
-		this.isRunning = true;
-
 		boolean operatorOpen = false;
 
 		if (LOG.isDebugEnabled()) {

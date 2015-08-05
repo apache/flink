@@ -18,10 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import akka.actor.ActorRef;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
-
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusWithJobIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.StatusWithJobIDsOverview;
 import org.apache.flink.runtime.webmonitor.JsonFactory;
@@ -39,16 +36,16 @@ import java.util.Map;
  */
 public class RequestOverviewHandler implements  RequestHandler, RequestHandler.JsonResponse {
 	
-	private final ActorRef jobManager;
+	private final ActorGateway jobManager;
 	
 	private final FiniteDuration timeout;
 	
 	
-	public RequestOverviewHandler(ActorRef jobManager) {
+	public RequestOverviewHandler(ActorGateway jobManager) {
 		this(jobManager, WebRuntimeMonitor.DEFAULT_REQUEST_TIMEOUT);
 	}
 	
-	public RequestOverviewHandler(ActorRef jobManager, FiniteDuration timeout) {
+	public RequestOverviewHandler(ActorGateway jobManager, FiniteDuration timeout) {
 		if (jobManager == null || timeout == null) {
 			throw new NullPointerException();
 		}
@@ -59,8 +56,7 @@ public class RequestOverviewHandler implements  RequestHandler, RequestHandler.J
 	@Override
 	public String handleRequest(Map<String, String> params) throws Exception {
 		try {
-			Timeout to = new Timeout(timeout); 
-			Future<Object> future = Patterns.ask(jobManager, RequestStatusWithJobIDsOverview.getInstance(), to);
+			Future<Object> future = jobManager.ask(RequestStatusWithJobIDsOverview.getInstance(), timeout);
 			StatusWithJobIDsOverview result = (StatusWithJobIDsOverview) Await.result(future, timeout);
 			return JsonFactory.generateOverviewWithJobIDsJSON(result);
 		}

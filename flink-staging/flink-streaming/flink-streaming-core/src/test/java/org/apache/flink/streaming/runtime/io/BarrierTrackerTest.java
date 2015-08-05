@@ -19,12 +19,13 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.event.EventListener;
-import org.apache.flink.streaming.runtime.tasks.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import org.junit.Test;
 
@@ -39,7 +40,7 @@ import static org.junit.Assert.*;
  * Tests for the behavior of the barrier tracker.
  */
 public class BarrierTrackerTest {
-
+	
 	@Test
 	public void testSingleChannelNoBarriers() {
 		try {
@@ -341,7 +342,7 @@ public class BarrierTrackerTest {
 
 	private static BufferOrEvent createBuffer(int channel) {
 		return new BufferOrEvent(
-				new Buffer(new MemorySegment(new byte[] { 1 }),  DummyBufferRecycler.INSTANCE), channel);
+				new Buffer(new MemorySegment(new byte[] { 1, 2 }), FreeingBufferRecycler.INSTANCE), channel);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -381,6 +382,11 @@ public class BarrierTrackerTest {
 
 		@Override
 		public void registerListener(EventListener<InputGate> listener) {}
+
+		@Override
+		public int getPageSize() {
+			return 2;
+		}
 	}
 
 	private static class CheckpointSequenceValidator implements EventListener<CheckpointBarrier> {

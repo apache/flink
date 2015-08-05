@@ -21,7 +21,7 @@ package org.apache.flink.runtime.io.network.api.reader;
 import java.io.IOException;
 
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.util.event.EventListener;
 
 /**

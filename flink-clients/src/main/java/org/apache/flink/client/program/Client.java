@@ -26,6 +26,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
@@ -189,6 +190,13 @@ public class Client {
 	 */
 	public void setPrintStatusDuringExecution(boolean print) {
 		this.printStatusDuringExecution = print;
+	}
+
+	/**
+	 * @return whether the client will print progress updates during the execution to {@code System.out}
+	 */
+	public boolean getPrintStatusDuringExecution() {
+		return this.printStatusDuringExecution;
 	}
 
 	/**
@@ -434,7 +442,9 @@ public class Client {
 		}
 		finally {
 			actorSystem.shutdown();
-			actorSystem.awaitTermination();
+			
+			// wait at most for 30 seconds, to work around an occasional akka problem
+			actorSystem.awaitTermination(new FiniteDuration(30, TimeUnit.SECONDS));
 		}
 	}
 

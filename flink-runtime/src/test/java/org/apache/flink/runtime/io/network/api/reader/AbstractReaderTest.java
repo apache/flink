@@ -18,11 +18,10 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
-import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -70,7 +69,7 @@ public class AbstractReaderTest {
 	public void testEndOfPartitionEvent() throws Exception {
 		final AbstractReader reader = new MockReader(createInputGate(1));
 
-		assertTrue(reader.handleEvent(new EndOfPartitionEvent()));
+		assertTrue(reader.handleEvent(EndOfPartitionEvent.INSTANCE));
 	}
 
 	/**
@@ -95,7 +94,7 @@ public class AbstractReaderTest {
 		}
 
 		try {
-			reader.handleEvent(new EndOfSuperstepEvent());
+			reader.handleEvent(EndOfSuperstepEvent.INSTANCE);
 
 			fail("Did not throw expected exception when handling end of superstep event with non-iterative reader.");
 		}
@@ -122,7 +121,7 @@ public class AbstractReaderTest {
 			// All good, expected exception.
 		}
 
-		EndOfSuperstepEvent eos = new EndOfSuperstepEvent();
+		EndOfSuperstepEvent eos = EndOfSuperstepEvent.INSTANCE;
 
 		// One end of superstep event for each input channel. The superstep finishes with the last
 		// received event.

@@ -112,8 +112,12 @@ angular.module('flinkApp')
         .success (oldVertices) ->
           data.oldV = oldVertices[0]
 
-          currentJob = data
-          deferreds.job.resolve(data)
+          $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/config"
+          .success (jobConfig) ->
+            data = angular.extend(data, jobConfig)
+
+            currentJob = data
+            deferreds.job.resolve(data)
 
     deferreds.job.promise
 

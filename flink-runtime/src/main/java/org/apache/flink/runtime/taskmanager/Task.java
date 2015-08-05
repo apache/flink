@@ -145,6 +145,9 @@ public class Task implements Runnable {
 	/** The name of the class that holds the invokable code */
 	private final String nameOfInvokableClass;
 
+	/** Access to task manager configuration and host names*/
+	private final TaskManagerRuntimeInfo taskManagerConfig;
+	
 	/** The memory manager to be used by this task */
 	private final MemoryManager memoryManager;
 
@@ -227,7 +230,8 @@ public class Task implements Runnable {
 				ActorGateway jobManagerActor,
 				FiniteDuration actorAskTimeout,
 				LibraryCacheManager libraryCache,
-				FileCache fileCache)
+				FileCache fileCache,
+				TaskManagerRuntimeInfo taskManagerConfig)
 	{
 		checkArgument(tdd.getNumberOfSubtasks() > 0);
 		checkArgument(tdd.getIndexInSubtaskGroup() >= 0);
@@ -258,6 +262,7 @@ public class Task implements Runnable {
 		this.libraryCache = checkNotNull(libraryCache);
 		this.fileCache = checkNotNull(fileCache);
 		this.network = checkNotNull(networkEnvironment);
+		this.taskManagerConfig = checkNotNull(taskManagerConfig);
 
 		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
 
@@ -510,7 +515,7 @@ public class Task implements Runnable {
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
 					splitProvider, distributedCacheEntries,
-					writers, inputGates, jobManager);
+					writers, inputGates, jobManager, taskManagerConfig);
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);

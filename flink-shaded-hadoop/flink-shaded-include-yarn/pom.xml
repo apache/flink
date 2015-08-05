@@ -250,7 +250,7 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>
-					<artifactId>jersey-test-framework-grizzly2+</artifactId>
+					<artifactId>jersey-test-framework-grizzly2</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>
@@ -394,7 +394,7 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>
-					<artifactId>jersey-test-framework-grizzly2+</artifactId>
+					<artifactId>jersey-test-framework-grizzly2</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>
@@ -538,7 +538,7 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>
-					<artifactId>jersey-test-framework-grizzly2+</artifactId>
+					<artifactId>jersey-test-framework-grizzly2</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>
@@ -682,7 +682,7 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>
-					<artifactId>jersey-test-framework-grizzly2+</artifactId>
+					<artifactId>jersey-test-framework-grizzly2</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>

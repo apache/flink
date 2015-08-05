@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
@@ -74,7 +75,7 @@ public class StreamingScalabilityAndLatency {
 		env.getConfig().enableObjectReuse();
 
 		env.setBufferTimeout(5L);
-//		env.enableCheckpointing(1000);
+		env.enableCheckpointing(1000, CheckpointingMode.AT_LEAST_ONCE);
 
 		env
 			.addSource(new TimeStampingSource())

@@ -21,7 +21,7 @@ import java.io.IOException;
 
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.operators.Output;
@@ -111,7 +111,7 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 		recordWriter.clearBuffers();
 	}
 
-	public void broadcastEvent(TaskEvent barrier) throws IOException, InterruptedException {
+	public void broadcastEvent(AbstractEvent barrier) throws IOException, InterruptedException {
 		recordWriter.broadcastEvent(barrier);
 	}
 }

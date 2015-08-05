@@ -117,4 +117,10 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
       details:
         templateUrl: "partials/jobs/job.exceptions.html"
 
+  .state "single-job.config",
+    url: "/config"
+    views:
+      details:
+        templateUrl: "partials/jobs/job.config.html"
+
   $urlRouterProvider.otherwise "/overview"
