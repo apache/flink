@@ -24,6 +24,7 @@ import org.apache.flink.parameterserver.model.ParameterElement;
 import org.apache.flink.parameterserver.model.ParameterServer;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
+import org.apache.ignite.IgniteCluster;
 import org.apache.ignite.Ignition;
 import org.apache.ignite.cache.CacheMode;
 import org.apache.ignite.configuration.CacheConfiguration;
@@ -36,7 +37,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ParameterServerIgniteImpl implements ParameterServer {
 
-	private static final Logger log = LoggerFactory.getLogger(ParameterServerIgniteImpl.class);
+	private final static Logger log = LoggerFactory.getLogger(ParameterServerIgniteImpl.class);
 
 	public final static String CACHE_NAME = ParameterServerIgniteImpl.class.getSimpleName();
 
@@ -57,53 +58,60 @@ public class ParameterServerIgniteImpl implements ParameterServer {
 		return sharedCacheCfg;
 	}
 
-	private Ignite ignite = null;
-	private IgniteCache<String, ParameterElement> parameterCache = null;
-	private IgniteCache<String, ParameterElement> sharedCache = null;
-
-	public ParameterServerIgniteImpl(String name, boolean client) {
-		try {
-			CacheConfiguration<String, ParameterElement> parameterCacheCfg = getParameterCacheConfiguration();
-			CacheConfiguration<String, ParameterElement> sharedCacheCfg =
-					getSharedCacheConfiguration();
-
-			IgniteConfiguration cfg1 = new IgniteConfiguration();
-			cfg1.setGridName(name);
-			cfg1.setPeerClassLoadingEnabled(true);
-			cfg1.setCacheConfiguration(parameterCacheCfg, sharedCacheCfg);
-
-			// Beware that client mode in Ignite have a whole different meaning than what it usually means
-			// You still need to have a grid instantiated to access the values, though you won't store anything
-			if (client) {
-				cfg1.setClientMode(true);
-				Ignition.setClientMode(true);
+	private static boolean isGridAlreadyStarted(String name) {
+		for(Ignite n:Ignition.allGrids()){
+			if (n.name().equals(name)) {
+				return true;
 			}
-			if (log.isInfoEnabled()) {
-				String mode = client ? "client" : "server";
-				log.info("Starting parameter server " + name + " in " + mode + " mode");
+		}
+		return false;
+	}
+
+	public static synchronized void prepareInstance(String name) {
+		if(!isGridAlreadyStarted(name)) {
+			try {
+				CacheConfiguration<String, ParameterElement> parameterCacheCfg = getParameterCacheConfiguration();
+				CacheConfiguration<String, ParameterElement> sharedCacheCfg =
+						getSharedCacheConfiguration();
+
+				IgniteConfiguration cfg1 = new IgniteConfiguration();
+				cfg1.setGridName(name);
+				cfg1.setPeerClassLoadingEnabled(true);
+				cfg1.setCacheConfiguration(parameterCacheCfg, sharedCacheCfg);
+
+				if (log.isInfoEnabled()) {
+					log.info("Starting parameter server " + name);
+				}
+				Ignite ignite = Ignition.start(cfg1);
+
+				IgniteCluster cluster;
+
+				IgniteCache<String, ParameterElement> parameterCache = ignite.getOrCreateCache(parameterCacheCfg).withAsync();
+				IgniteCache<String, ParameterElement> sharedCache = ignite.getOrCreateCache(sharedCacheCfg).withAsync();
+
+				if (log.isDebugEnabled()) {
+					log.debug("I hereby confirm that parameter cache is async enabled: "
+							+ parameterCache.isAsync());
+					log.debug("I hereby confirm that shared cache is async enabled: "
+							+ sharedCache.isAsync());
+				}
+
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
-			this.ignite = Ignition.start(cfg1);
-
-			parameterCache = ignite.getOrCreateCache(parameterCacheCfg).withAsync();
-			sharedCache = ignite.getOrCreateCache(sharedCacheCfg).withAsync();
-
-			if(log.isDebugEnabled()) {
-				log.debug("I hereby confirm that parameter cache is async enabled: "
-						+ parameterCache.isAsync());
-				log.debug("I hereby confirm that shared cache is async enabled: "
-						+ sharedCache.isAsync());
-			}
-
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 
-	@Override
-	public void shutDown() {
-		log.info("Stopping parameter server ...");
-		Ignition.stopAll(true);
-		ignite.close();
-		log.info("Parameter server successfully stopped.");
+	public static void shutDown() {
+		log.info("Stopping the parameter server");
+		Ignite ignite = Ignition.ignite(ParameterServerIgniteImpl.GRID_NAME);
+		IgniteCluster cluster = ignite.cluster();
+		cluster.forServers();
+		cluster.stopNodes();
+
+//		Ignition.stopAll(true);
+		if(log.isInfoEnabled()) {
+			log.info("Parameter server successfully stopped.");
+		}
 	}
 }

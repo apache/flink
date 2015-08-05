@@ -26,5 +26,5 @@ public interface ParameterServer {
 	/**
 	 * Cleanly shuts down the parameter server
 	 */
-	public void shutDown();
+//	public void shutDown();
 }
