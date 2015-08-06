@@ -33,7 +33,7 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends MatchDriver<IT1, IT2, OT> implements ResettablePactDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
+public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends JoinDriver<IT1, IT2, OT> implements ResettablePactDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
 
 	private volatile JoinTaskIterator<IT1, IT2, OT> matchIterator;
 	
@@ -44,7 +44,7 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 	private boolean objectReuseEnabled = false;
 
 
-	protected AbstractCachedBuildSideMatchDriver(int buildSideIndex, int probeSideIndex) {
+	protected AbstractCachedBuildSideJoinDriver(int buildSideIndex, int probeSideIndex) {
 		this.buildSideIndex = buildSideIndex;
 		this.probeSideIndex = probeSideIndex;
 	}

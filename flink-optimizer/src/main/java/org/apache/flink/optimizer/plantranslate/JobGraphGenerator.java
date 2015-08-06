@@ -70,7 +70,7 @@ import org.apache.flink.runtime.operators.DataSourceTask;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.JoinWithSolutionSetFirstDriver;
 import org.apache.flink.runtime.operators.JoinWithSolutionSetSecondDriver;
-import org.apache.flink.runtime.operators.MatchDriver;
+import org.apache.flink.runtime.operators.JoinDriver;
 import org.apache.flink.runtime.operators.NoOpDriver;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
@@ -336,7 +336,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 					}
 					
 					// adjust the driver
-					if (conf.getDriver().equals(MatchDriver.class)) {
+					if (conf.getDriver().equals(JoinDriver.class)) {
 						conf.setDriver(inputNum == 0 ? JoinWithSolutionSetFirstDriver.class : JoinWithSolutionSetSecondDriver.class);
 					}
 					else if (conf.getDriver().equals(CoGroupDriver.class)) {

@@ -19,9 +19,9 @@
 
 package org.apache.flink.runtime.operators;
 
-public class BuildFirstCachedMatchDriver<IT1, IT2, OT> extends AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> {
+public class BuildSecondCachedJoinDriver<IT1, IT2, OT> extends AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> {
 
-	public BuildFirstCachedMatchDriver() {
-		super(0, 1);
+	public BuildSecondCachedJoinDriver() {
+		super(1, 0);
 	}
 }
