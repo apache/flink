@@ -34,17 +34,70 @@ under the License.
 
 	<packaging>jar</packaging>
 
+
 	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>${shading-artifact.name}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-scala</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.hive.hcatalog</groupId>
-			<artifactId>hcatalog-core</artifactId>
-			<version>0.12.0</version>
+			<artifactId>hive-hcatalog-core</artifactId>
+			<version>1.1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hive.hcatalog</groupId>
+			<artifactId>hive-hcatalog-server-extensions</artifactId>
+			<version>1.1.0</version>
+			<scope>test</scope>
+			<type>jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hive.hcatalog</groupId>
+			<artifactId>hive-webhcat-java-client</artifactId>
+			<version>1.1.0</version>
+			<scope>test</scope>
+			<type>jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hive</groupId>
+			<artifactId>hive-cli</artifactId>
+			<version>1.1.0</version>
+			<scope>test</scope>
+			<type>jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hive</groupId>
+			<artifactId>hive-common</artifactId>
+			<version>1.1.0</version>
+			<scope>test</scope>
+			<type>jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hive</groupId>
+			<artifactId>hive-metastore</artifactId>
+			<version>1.1.0</version>
+			<scope>test</scope>
+			<type>jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hive</groupId>
+			<artifactId>hive-exec</artifactId>
+			<version>1.1.0</version>
+			<scope>test</scope>
+			<type>jar</type>
 		</dependency>
 
 	</dependencies>
@@ -170,6 +223,22 @@ under the License.
 					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
 					<outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
 					<outputEncoding>UTF-8</outputEncoding>
+				</configuration>
+			</plugin>
+
+
+			<plugin>
+				<!--The testing hive metastore is not thread safe, throttle the parallelisim for testing-->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
+				<configuration combine.self="override">
+					<forkCount>1</forkCount>
+					<reuseForks>false</reuseForks>
+					<systemPropertyVariables>
+						<forkNumber>0</forkNumber>
+					</systemPropertyVariables>
+					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -XX:-UseGCOverheadLimit</argLine>
 				</configuration>
 			</plugin>
 
