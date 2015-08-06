@@ -158,14 +158,111 @@ echo "PermitUserEnvironment yes" >> /etc/ssh/sshd_config
 /etc/init.d/sshd restart
 ~~~
 
-## Hadoop Distributed Filesystem (HDFS) Setup
 
-The Flink system currently uses the Hadoop Distributed Filesystem (HDFS)
-to read and write data in a distributed fashion. It is possible to use
-Flink without HDFS or other distributed file systems.
+## Flink Setup
 
-Make sure to have a running HDFS installation. The following instructions are
-just a general overview of some required settings. Please consult one of the
+Go to the [downloads page]({{site.baseurl}}/downloads.html) and get the ready to run
+package. Make sure to pick the Flink package **matching your Hadoop
+version**.
+
+After downloading the latest release, copy the archive to your master node and
+extract it:
+
+~~~bash
+tar xzf flink-*.tgz
+cd flink-*
+~~~
+
+### Configuring the Cluster
+
+After having extracted the system files, you need to configure Flink for
+the cluster by editing *conf/flink-conf.yaml*.
+
+Set the `jobmanager.rpc.address` key to point to your master node. Furthermode
+define the maximum amount of main memory the JVM is allowed to allocate on each
+node by setting the `jobmanager.heap.mb` and `taskmanager.heap.mb` keys.
+
+The value is given in MB. If some worker nodes have more main memory which you
+want to allocate to the Flink system you can overwrite the default value
+by setting an environment variable `FLINK_TM_HEAP` on the respective
+node.
+
+Finally you must provide a list of all nodes in your cluster which shall be used
+as worker nodes. Therefore, similar to the HDFS configuration, edit the file
+*conf/slaves* and enter the IP/host name of each worker node. Each worker node
+will later run a TaskManager.
+
+Each entry must be separated by a new line, as in the following example:
+
+~~~
+192.168.0.100
+192.168.0.101
+.
+.
+.
+192.168.0.150
+~~~
+
+The Flink directory must be available on every worker under the same
+path. Similarly as for HDFS, you can use a shared NSF directory, or copy the
+entire Flink directory to every worker node.
+
+Please see the [configuration page](config.html) for details and additional
+configuration options.
+
+In particular, 
+
+ * the amount of available memory per TaskManager (`taskmanager.heap.mb`), 
+ * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
+ * the total number of CPUs in the cluster (`parallelism.default`) and
+ * the temporary directories (`taskmanager.tmp.dirs`)
+
+are very important configuration values.
+
+
+### Starting Flink
+
+The following script starts a JobManager on the local node and connects via
+SSH to all worker nodes listed in the *slaves* file to start the
+TaskManager on each node. Now your Flink system is up and
+running. The JobManager running on the local node will now accept jobs
+at the configured RPC port.
+
+Assuming that you are on the master node and inside the Flink directory:
+
+~~~bash
+bin/start-cluster.sh
+~~~
+
+To stop Flink, there is also a `stop-cluster.sh` script.
+
+
+### Starting Flink in the streaming mode
+
+~~~bash
+bin/start-cluster-streaming.sh
+~~~
+
+The streaming mode changes the startup behavior of Flink: The system is not 
+bringing up the managed memory services with preallocated memory at the beginning.
+Flink streaming is not using the managed memory employed by the batch operators.
+By not starting these services with preallocated memory, streaming jobs can benefit
+from more heap space being available.
+
+Note that you can still start batch jobs in the streaming mode. The memory manager
+will then allocate memory segments from the Java heap as needed.
+
+
+## Optional: Hadoop Distributed Filesystem (HDFS) Setup
+
+**NOTE** Flink does not require HDFS to run; HDFS is simply a typical choice of a distributed data
+store to read data from (in parallel) and write results to.
+If HDFS is already available on the cluster, or Flink is used purely with different storage
+techniques (e.g., Apache Kafka, JDBC, Rabbit MQ, or other storage or message queues), this
+setup step is not needed.
+
+
+The following instructions are a general overview of usual required settings. Please consult one of the
 many installation guides available online for more detailed instructions.
 
 __Note that the following instructions are based on Hadoop 1.2 and might differ 
@@ -271,95 +368,4 @@ like to point you to the [Hadoop Quick
 Start](http://wiki.apache.org/hadoop/QuickStart)
 guide.
 
-## Flink Setup
 
-Go to the [downloads page]({{site.baseurl}}/downloads.html) and get the ready to run
-package. Make sure to pick the Flink package **matching your Hadoop
-version**.
-
-After downloading the latest release, copy the archive to your master node and
-extract it:
-
-~~~bash
-tar xzf flink-*.tgz
-cd flink-*
-~~~
-
-### Configuring the Cluster
-
-After having extracted the system files, you need to configure Flink for
-the cluster by editing *conf/flink-conf.yaml*.
-
-Set the `jobmanager.rpc.address` key to point to your master node. Furthermode
-define the maximum amount of main memory the JVM is allowed to allocate on each
-node by setting the `jobmanager.heap.mb` and `taskmanager.heap.mb` keys.
-
-The value is given in MB. If some worker nodes have more main memory which you
-want to allocate to the Flink system you can overwrite the default value
-by setting an environment variable `FLINK_TM_HEAP` on the respective
-node.
-
-Finally you must provide a list of all nodes in your cluster which shall be used
-as worker nodes. Therefore, similar to the HDFS configuration, edit the file
-*conf/slaves* and enter the IP/host name of each worker node. Each worker node
-will later run a TaskManager.
-
-Each entry must be separated by a new line, as in the following example:
-
-~~~
-192.168.0.100
-192.168.0.101
-.
-.
-.
-192.168.0.150
-~~~
-
-The Flink directory must be available on every worker under the same
-path. Similarly as for HDFS, you can use a shared NSF directory, or copy the
-entire Flink directory to every worker node.
-
-Please see the [configuration page](config.html) for details and additional
-configuration options.
-
-In particular, 
-
- * the amount of available memory per TaskManager (`taskmanager.heap.mb`), 
- * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
- * the total number of CPUs in the cluster (`parallelism.default`) and
- * the temporary directories (`taskmanager.tmp.dirs`)
-
-are very important configuration values.
-
-
-### Starting Flink
-
-The following script starts a JobManager on the local node and connects via
-SSH to all worker nodes listed in the *slaves* file to start the
-TaskManager on each node. Now your Flink system is up and
-running. The JobManager running on the local node will now accept jobs
-at the configured RPC port.
-
-Assuming that you are on the master node and inside the Flink directory:
-
-~~~bash
-bin/start-cluster.sh
-~~~
-
-To stop Flink, there is also a `stop-cluster.sh` script.
-
-
-### Starting Flink in the streaming mode
-
-~~~bash
-bin/start-cluster-streaming.sh
-~~~
-
-The streaming mode changes the startup behavior of Flink: The system is not 
-bringing up the managed memory services with preallocated memory at the beginning.
-Flink streaming is not using the managed memory employed by the batch operators.
-By not starting these services with preallocated memory, streaming jobs can benefit
-from more heap space being available.
-
-Note that you can still start batch jobs in the streaming mode. The memory manager
-will then allocate memory segments from the Java heap as needed.
