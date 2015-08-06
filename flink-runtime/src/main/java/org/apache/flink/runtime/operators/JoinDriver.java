@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -40,25 +39,20 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
- * Match task which is executed by a Task Manager. The task has two inputs and one or multiple outputs.
- * It is provided with a JoinFunction implementation.
- * <p>
- * The MatchTask matches all pairs of records that share the same key and come from different inputs. Each pair of 
- * matching records is handed to the <code>match()</code> method of the JoinFunction.
+ * The join driver implements the logic of a join operator at runtime. It instantiates either
+ * hash or sort-merge based strategies to find joining pairs of records.
  * 
  * @see org.apache.flink.api.common.functions.FlatJoinFunction
  */
-public class MatchDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
+public class JoinDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
 	
-	protected static final Logger LOG = LoggerFactory.getLogger(MatchDriver.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(JoinDriver.class);
 	
 	protected PactTaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
 	
-	private volatile JoinTaskIterator<IT1, IT2, OT> matchIterator;		// the iterator that does the actual matching
+	private volatile JoinTaskIterator<IT1, IT2, OT> joinIterator; // the iterator that does the actual join 
 	
 	protected volatile boolean running;
-
-	private boolean objectReuseEnabled = false;
 
 	// ------------------------------------------------------------------------
 
@@ -112,80 +106,80 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT
 		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = config.getPairComparatorFactory(
 				this.taskContext.getUserCodeClassLoader());
 		if (pairComparatorFactory == null) {
-			throw new Exception("Missing pair comparator factory for Match driver");
+			throw new Exception("Missing pair comparator factory for join driver");
 		}
 
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
-		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+		boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("MatchDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+			LOG.debug("Join Driver object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
 		}
 
-		// create and return MatchTaskIterator according to provided local strategy.
-		if (this.objectReuseEnabled) {
+		// create and return joining iterator according to provided local strategy.
+		if (objectReuseEnabled) {
 			switch (ls) {
 				case MERGE:
-					this.matchIterator = new ReusingMergeInnerJoinIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
+					this.joinIterator = new ReusingMergeInnerJoinIterator<>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
 
 					break;
 				case HYBRIDHASH_BUILD_FIRST:
-					this.matchIterator = new ReusingBuildFirstHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+					this.joinIterator = new ReusingBuildFirstHashMatchIterator<>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
 					break;
 				case HYBRIDHASH_BUILD_SECOND:
-					this.matchIterator = new ReusingBuildSecondHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+					this.joinIterator = new ReusingBuildSecondHashMatchIterator<>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
 					break;
 				default:
-					throw new Exception("Unsupported driver strategy for Match driver: " + ls.name());
+					throw new Exception("Unsupported driver strategy for join driver: " + ls.name());
 			}
 		} else {
 			switch (ls) {
 				case MERGE:
-					this.matchIterator = new NonReusingMergeInnerJoinIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
+					this.joinIterator = new NonReusingMergeInnerJoinIterator<>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
 
 					break;
 				case HYBRIDHASH_BUILD_FIRST:
-					this.matchIterator = new NonReusingBuildFirstHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+					this.joinIterator = new NonReusingBuildFirstHashMatchIterator<>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
 					break;
 				case HYBRIDHASH_BUILD_SECOND:
-					this.matchIterator = new NonReusingBuildSecondHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+					this.joinIterator = new NonReusingBuildSecondHashMatchIterator<>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
 					break;
 				default:
-					throw new Exception("Unsupported driver strategy for Match driver: " + ls.name());
+					throw new Exception("Unsupported driver strategy for join driver: " + ls.name());
 			}
 		}
 		
-		// open MatchTaskIterator - this triggers the sorting or hash-table building
+		// open the iterator - this triggers the sorting or hash-table building
 		// and blocks until the iterator is ready
-		this.matchIterator.open();
+		this.joinIterator.open();
 		
 		if (LOG.isDebugEnabled()) {
-			LOG.debug(this.taskContext.formatLogString("Match task iterator ready."));
+			LOG.debug(this.taskContext.formatLogString("join task iterator ready."));
 		}
 	}
 
 	@Override
 	public void run() throws Exception {
-		final FlatJoinFunction<IT1, IT2, OT> matchStub = this.taskContext.getStub();
+		final FlatJoinFunction<IT1, IT2, OT> joinStub = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
-		final JoinTaskIterator<IT1, IT2, OT> matchIterator = this.matchIterator;
+		final JoinTaskIterator<IT1, IT2, OT> joinIterator = this.joinIterator;
 		
-		while (this.running && matchIterator.callWithNextKey(matchStub, collector));
+		while (this.running && joinIterator.callWithNextKey(joinStub, collector));
 	}
 
 	@Override
 	public void cleanup() throws Exception {
-		if (this.matchIterator != null) {
-			this.matchIterator.close();
-			this.matchIterator = null;
+		if (this.joinIterator != null) {
+			this.joinIterator.close();
+			this.joinIterator = null;
 		}
 	}
 	
 	@Override
 	public void cancel() {
 		this.running = false;
-		if (this.matchIterator != null) {
-			this.matchIterator.abort();
+		if (this.joinIterator != null) {
+			this.joinIterator.abort();
 		}
 	}
 }
