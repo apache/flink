@@ -139,4 +139,7 @@ public class ParallelMerge<OUT> extends
 		this.numberOfDiscretizers = getRuntimeContext().getNumberOfParallelSubtasks();
 	}
 
+	Map<Integer, Tuple2<StreamWindow<OUT>, Integer>> getReceivedWindows() {
+		return receivedWindows;
+	}
 }

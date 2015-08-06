@@ -41,4 +41,8 @@ public class CoStreamFlatMap<IN1, IN2, OUT>
 	public void processElement2(IN2 element) throws Exception {
 		userFunction.flatMap2(element, output);
 	}
+
+	protected TimestampedCollector<OUT> getCollector() {
+		return collector;
+	}
 }
