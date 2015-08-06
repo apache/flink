@@ -16,24 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.io;
+
+package org.apache.flink.api.common.operators.util;
 
 import java.io.IOException;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.api.common.io.GenericInputFormat;
+import org.apache.flink.api.common.io.NonParallelInput;
 
 /**
- * Stores elements by serializing them with their regular serialization/deserialization functionality.
- * 
- * @see SerializedInputFormat
+ * Same as the non rich test input format, except it provide access to runtime context.
  */
-public class SerializedOutputFormat<T extends IOReadableWritable> extends BinaryOutputFormat<T> {
-	
+public class TestRichInputFormat extends GenericInputFormat<String> implements NonParallelInput{
+
 	private static final long serialVersionUID = 1L;
-	
+	private static final int NUM = 5;
+	private static final String[] NAMES = TestIOData.NAMES;
+	private int count = 0;
+
 	@Override
-	protected void serialize(T record, DataOutputView dataOutputView) throws IOException {
-		record.write(dataOutputView);
+	public boolean reachedEnd() throws IOException {
+		return count >= NUM;
+	}
+
+	@Override
+	public String nextRecord(String reuse) throws IOException {
+		count++;
+		return NAMES[count - 1] + getRuntimeContext().getIndexOfThisSubtask() + "" +
+				getRuntimeContext().getNumberOfParallelSubtasks();
+	}
+
+	public void reset(){
+		count = 0;
 	}
 }

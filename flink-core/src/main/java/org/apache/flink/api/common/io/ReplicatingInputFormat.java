@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
@@ -52,6 +53,7 @@ import java.io.IOException;
  * @param <S> The InputSplit type of the wrapped InputFormat.
  *
  * @see org.apache.flink.api.common.io.InputFormat
+ * @see org.apache.flink.api.common.io.RichInputFormat
  * @see org.apache.flink.api.common.operators.base.JoinOperatorBase
  * @see org.apache.flink.api.common.operators.base.CrossOperatorBase
  * @see org.apache.flink.api.common.operators.base.MapOperatorBase
@@ -59,7 +61,7 @@ import java.io.IOException;
  * @see org.apache.flink.api.common.operators.base.FilterOperatorBase
  * @see org.apache.flink.api.common.operators.base.MapPartitionOperatorBase
  */
-public final class ReplicatingInputFormat<OT, S extends InputSplit> implements InputFormat<OT, S> {
+public final class ReplicatingInputFormat<OT, S extends InputSplit> extends RichInputFormat<OT, S> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -111,5 +113,21 @@ public final class ReplicatingInputFormat<OT, S extends InputSplit> implements I
 	@Override
 	public void close() throws IOException {
 		this.replicatedIF.close();
+	}
+
+	@Override
+	public void setRuntimeContext(RuntimeContext context){
+		if(this.replicatedIF instanceof RichInputFormat){
+			((RichInputFormat)this.replicatedIF).setRuntimeContext(context);
+		}
+	}
+
+	@Override
+	public RuntimeContext getRuntimeContext(){
+		if(this.replicatedIF instanceof RichInputFormat){
+			return ((RichInputFormat)this.replicatedIF).getRuntimeContext();
+		} else{
+			throw new RuntimeException("The underlying input format to this ReplicatingInputFormat isn't context aware");
+		}
 	}
 }

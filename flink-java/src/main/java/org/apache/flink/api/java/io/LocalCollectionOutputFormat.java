@@ -26,7 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
@@ -35,7 +35,7 @@ import org.apache.flink.configuration.Configuration;
 /**
  *  An output format that writes record into collection
  */
-public class LocalCollectionOutputFormat<T> implements OutputFormat<T>, InputTypeConfigurable {
+public class LocalCollectionOutputFormat<T> extends RichOutputFormat<T> implements InputTypeConfigurable {
 
 	private static final long serialVersionUID = 1L;
 

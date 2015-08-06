@@ -46,7 +46,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
 /**
- * The base class for {@link InputFormat}s that read from files. For specific input types the 
+ * The base class for {@link RichInputFormat}s that read from files. For specific input types the
  * {@link #nextRecord(Object)} and {@link #reachedEnd()} methods need to be implemented.
  * Additionally, one may override {@link #open(FileInputSplit)} and {@link #close()} to
  * change the life cycle behavior.
@@ -54,7 +54,7 @@ import org.apache.flink.core.fs.Path;
  * <p>After the {@link #open(FileInputSplit)} method completed, the file input data is available
  * from the {@link #stream} field.</p>
  */
-public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSplit> {
+public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputSplit> {
 	
 	// -------------------------------------- Constants -------------------------------------------
 	

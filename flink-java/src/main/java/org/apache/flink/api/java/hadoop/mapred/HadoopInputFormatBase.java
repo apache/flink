@@ -20,7 +20,7 @@
 package org.apache.flink.api.java.hadoop.mapred;
 
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
-import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
@@ -45,7 +45,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
-public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, HadoopInputSplit> {
+public abstract class HadoopInputFormatBase<K, V, T> extends RichInputFormat<T, HadoopInputSplit> {
 
 	private static final long serialVersionUID = 1L;
 
