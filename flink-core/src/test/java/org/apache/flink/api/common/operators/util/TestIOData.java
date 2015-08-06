@@ -16,24 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.io;
 
-import java.io.IOException;
+package org.apache.flink.api.common.operators.util;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataOutputView;
-
-/**
- * Stores elements by serializing them with their regular serialization/deserialization functionality.
- * 
- * @see SerializedInputFormat
- */
-public class SerializedOutputFormat<T extends IOReadableWritable> extends BinaryOutputFormat<T> {
-	
-	private static final long serialVersionUID = 1L;
-	
-	@Override
-	protected void serialize(T record, DataOutputView dataOutputView) throws IOException {
-		record.write(dataOutputView);
-	}
+public class TestIOData {
+	public static final String[] NAMES = { "Peter", "Bob", "Liddy", "Alexander", "Stan" };
+	public static final String[] RICH_NAMES = { "Peter01", "Bob01", "Liddy01", "Alexander01", "Stan01"};
 }

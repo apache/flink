@@ -18,7 +18,7 @@
 
 package org.apache.flink.hcatalog;
 
-import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -63,7 +63,7 @@ import java.util.Map;
  *
  * @param <T>
  */
-public abstract class HCatInputFormatBase<T> implements InputFormat<T, HadoopInputSplit>, ResultTypeQueryable<T> {
+public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopInputSplit> implements ResultTypeQueryable<T> {
 
 	private static final long serialVersionUID = 1L;
 

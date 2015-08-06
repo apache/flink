@@ -19,19 +19,21 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
+import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
@@ -42,7 +44,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
@@ -101,6 +102,13 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Starting data source operator"));
+		}
+
+		if(RichInputFormat.class.isAssignableFrom(this.format.getClass())){
+			((RichInputFormat) this.format).setRuntimeContext(createRuntimeContext());
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(getLogString("Rich Source detected. Initializing runtime context."));
+			}
 		}
 
 		ExecutionConfig executionConfig;
@@ -295,10 +303,8 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		final AccumulatorRegistry accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
 		final AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
 
-		Map<String, Accumulator<?, ?>> accumulatorMap = accumulatorRegistry.getUserMap();
-
 		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs,
-				getExecutionConfig(), reporter, accumulatorMap);
+				getExecutionConfig(), reporter, getEnvironment().getAccumulatorRegistry().getUserMap());
 	}
 
 	// ------------------------------------------------------------------------
@@ -376,5 +382,13 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				throw new UnsupportedOperationException();
 			}
 		};
+	}
+
+	public DistributedRuntimeUDFContext createRuntimeContext() {
+		Environment env = getEnvironment();
+
+		return new DistributedRuntimeUDFContext(env.getTaskName(), env.getNumberOfSubtasks(),
+				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
+				env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap());
 	}
 }

@@ -16,24 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.io;
 
-import java.io.IOException;
+package org.apache.flink.api.common.operators.util;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataOutputView;
+import java.util.LinkedList;
+import java.util.List;
+
+import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.configuration.Configuration;
 
 /**
- * Stores elements by serializing them with their regular serialization/deserialization functionality.
- * 
- * @see SerializedInputFormat
+ * Non rich test output format which stores everything in a list.
  */
-public class SerializedOutputFormat<T extends IOReadableWritable> extends BinaryOutputFormat<T> {
-	
-	private static final long serialVersionUID = 1L;
-	
+public class TestNonRichOutputFormat implements OutputFormat<String> {
+	public List<String> output = new LinkedList<String>();
+
 	@Override
-	protected void serialize(T record, DataOutputView dataOutputView) throws IOException {
-		record.write(dataOutputView);
+	public void configure(Configuration parameters){}
+
+	@Override
+	public void open(int a, int b){}
+
+	@Override
+	public void close(){}
+
+	@Override
+	public void writeRecord(String record){
+		output.add(record);
+	}
+
+	public void clear(){
+		output.clear();
 	}
 }

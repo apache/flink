@@ -17,28 +17,33 @@
  */
 
 
-package org.apache.flink.api.common.io;
+package org.apache.flink.api.common.operators.util;
 
 import java.io.IOException;
 
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.NonParallelInput;
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 
 /**
- * Generic base class for all Rich inputs that are not based on files.
+ * Generic base class for all inputs that are not based on files.
+ * This is copied from {@link org.apache.flink.api.common.io.GenericInputFormat}
+ * This class doesn't provide access to RuntimeContext.
  */
-public abstract class GenericInputFormat<OT> extends RichInputFormat<OT, GenericInputSplit> {
+public abstract class NonRichGenericInputFormat<OT> implements InputFormat<OT, GenericInputSplit> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	/**
 	 * The partition of this split.
 	 */
 	protected int partitionNumber;
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public void configure(Configuration parameters) {
 		//	nothing by default
@@ -63,7 +68,7 @@ public abstract class GenericInputFormat<OT> extends RichInputFormat<OT, Generic
 		}
 		return splits;
 	}
-	
+
 	@Override
 	public DefaultInputSplitAssigner getInputSplitAssigner(GenericInputSplit[] splits) {
 		return new DefaultInputSplitAssigner(splits);

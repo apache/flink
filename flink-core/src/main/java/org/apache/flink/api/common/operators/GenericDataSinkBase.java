@@ -19,15 +19,17 @@
 
 package org.apache.flink.api.common.operators;
 
+import java.util.List;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.distributions.DataDistribution;
-import org.apache.flink.api.common.io.FinalizeOnMaster;
-import org.apache.flink.api.common.io.InitializeOnMaster;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.io.RichOutputFormat;
+import org.apache.flink.api.common.io.InitializeOnMaster;
+import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.AtomicType;
@@ -296,11 +298,11 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 			visitor.postVisit(this);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	
 	@SuppressWarnings("unchecked")
-	protected void executeOnCollections(List<IN> inputData, ExecutionConfig executionConfig) throws Exception {
+	protected void executeOnCollections(List<IN> inputData, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
 		OutputFormat<IN> format = this.formatWrapper.getUserCodeObject();
 		TypeInformation<IN> inputType = getInput().getOperatorInfo().getOutputType();
 
@@ -328,9 +330,11 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 		if(format instanceof InitializeOnMaster) {
 			((InitializeOnMaster)format).initializeGlobal(1);
 		}
-		
 		format.configure(this.parameters);
-		
+
+		if(format instanceof RichOutputFormat){
+			((RichOutputFormat) format).setRuntimeContext(ctx);
+		}
 		format.open(0, 1);
 		for (IN element : inputData) {
 			format.writeRecord(element);

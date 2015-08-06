@@ -40,6 +40,8 @@ import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
+import org.apache.flink.api.common.io.RichInputFormat;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
@@ -128,10 +130,10 @@ public class CollectionExecutor {
 			result = executeBinaryOperator((DualInputOperator<?, ?, ?, ?>) operator, superStep);
 		}
 		else if (operator instanceof GenericDataSourceBase) {
-			result = executeDataSource((GenericDataSourceBase<?, ?>) operator);
+			result = executeDataSource((GenericDataSourceBase<?, ?>) operator, superStep);
 		}
 		else if (operator instanceof GenericDataSinkBase) {
-			executeDataSink((GenericDataSinkBase<?>) operator);
+			executeDataSink((GenericDataSinkBase<?>) operator, superStep);
 			result = Collections.emptyList();
 		}
 		else {
@@ -148,7 +150,7 @@ public class CollectionExecutor {
 	//  Operator class specific execution methods
 	// --------------------------------------------------------------------------------------------
 	
-	private <IN> void executeDataSink(GenericDataSinkBase<?> sink) throws Exception {
+	private <IN> void executeDataSink(GenericDataSinkBase<?> sink, int superStep) throws Exception {
 		Operator<?> inputOp = sink.getInput();
 		if (inputOp == null) {
 			throw new InvalidProgramException("The data sink " + sink.getName() + " has no input.");
@@ -160,13 +162,31 @@ public class CollectionExecutor {
 		@SuppressWarnings("unchecked")
 		GenericDataSinkBase<IN> typedSink = (GenericDataSinkBase<IN>) sink;
 
-		typedSink.executeOnCollections(input, executionConfig);
+		// build the runtime context and compute broadcast variables, if necessary
+		RuntimeUDFContext ctx;
+		if (RichOutputFormat.class.isAssignableFrom(typedSink.getUserCodeWrapper().getUserCodeClass())) {
+			ctx = superStep == 0 ? new RuntimeUDFContext(typedSink.getName(), 1, 0, getClass().getClassLoader(), executionConfig, accumulators) :
+					new IterationRuntimeUDFContext(typedSink.getName(), 1, 0, classLoader, executionConfig, accumulators);
+		} else {
+			ctx = null;
+		}
+
+		typedSink.executeOnCollections(input, ctx, executionConfig);
 	}
 	
-	private <OUT> List<OUT> executeDataSource(GenericDataSourceBase<?, ?> source) throws Exception {
+	private <OUT> List<OUT> executeDataSource(GenericDataSourceBase<?, ?> source, int superStep)
+			throws Exception {
 		@SuppressWarnings("unchecked")
 		GenericDataSourceBase<OUT, ?> typedSource = (GenericDataSourceBase<OUT, ?>) source;
-		return typedSource.executeOnCollections(executionConfig);
+		// build the runtime context and compute broadcast variables, if necessary
+		RuntimeUDFContext ctx;
+		if (RichInputFormat.class.isAssignableFrom(typedSource.getUserCodeWrapper().getUserCodeClass())) {
+			ctx = superStep == 0 ? new RuntimeUDFContext(source.getName(), 1, 0, getClass().getClassLoader(), executionConfig, accumulators) :
+					new IterationRuntimeUDFContext(source.getName(), 1, 0, classLoader, executionConfig, accumulators);
+		} else {
+			ctx = null;
+		}
+		return typedSource.executeOnCollections(ctx, executionConfig);
 	}
 	
 	private <IN, OUT> List<OUT> executeUnaryOperator(SingleInputOperator<?, ?, ?> operator, int superStep) throws Exception {

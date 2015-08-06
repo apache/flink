@@ -20,11 +20,11 @@ package org.apache.flink.api.java.io;
 
 import java.io.PrintStream;
 
-import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.Configuration;
 
 
-public class PrintingOutputFormat<T> implements OutputFormat<T> {
+public class PrintingOutputFormat<T> extends RichOutputFormat<T> {
 
 	private static final long serialVersionUID = 1L;
 
