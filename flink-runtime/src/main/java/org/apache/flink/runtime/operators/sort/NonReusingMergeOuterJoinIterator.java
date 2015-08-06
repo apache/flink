@@ -48,7 +48,7 @@ public class NonReusingMergeOuterJoinIterator<T1, T2, O> extends AbstractMergeOu
 
 	@Override
 	protected <T> KeyGroupedIterator<T> createKeyGroupedIterator(MutableObjectIterator<T> input, TypeSerializer<T> serializer, TypeComparator<T> comparator) {
-		return new NonReusingKeyGroupedIterator<T>(input, comparator);
+		return new NonReusingKeyGroupedIterator<>(input, comparator);
 	}
 
 	@Override

@@ -31,7 +31,8 @@ import org.junit.Test;
 public class ReusingSortMergeOuterJoinIteratorITCase extends AbstractSortMergeOuterJoinIteratorITCase {
 
 	@Override
-	protected <T1, T2> AbstractMergeOuterJoinIterator createOuterJoinIterator(OuterJoinType outerJoinType, MutableObjectIterator<T1> input1,
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	protected <T1, T2, T3> AbstractMergeOuterJoinIterator createOuterJoinIterator(OuterJoinType outerJoinType, MutableObjectIterator<T1> input1,
 																			  MutableObjectIterator<T2> input2, TypeSerializer<T1> serializer1,
 																			  TypeComparator<T1> comparator1, TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2,
 																			  TypePairComparator<T1, T2> pairComparator, MemoryManager memoryManager, IOManager ioManager,

@@ -37,7 +37,7 @@ import java.util.Iterator;
  */
 public abstract class AbstractMergeOuterJoinIterator<T1, T2, O> extends AbstractMergeIterator<T1, T2, O> {
 
-	public static enum OuterJoinType {LEFT, RIGHT, FULL}
+	public enum OuterJoinType {LEFT, RIGHT, FULL}
 
 	private final OuterJoinType outerJoinType;
 
