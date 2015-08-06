@@ -28,7 +28,7 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.junit.Test;
 
 import static java.lang.Thread.sleep;
-//import static org.junit.Assert.*;
+import static org.junit.Assert.*;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -36,16 +36,14 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 
 /**
- * Mock context that collects elements in a List.
- *
- * @param <T> Type of the collected elements.
+ * Tests for the {@link org.apache.flink.streaming.api.functions.sink.SocketClientSink}.
  */
 public class SocketClientSinkTest{
 
 	private final String host = "127.0.0.1";
+	private int port = 9999;
 	private String access;
 	public SocketServer.ServerThread th = null;
-	public boolean isInvoke = false;
 
 	class SocketServer extends Thread {
 
@@ -55,27 +53,32 @@ public class SocketClientSinkTest{
 		private PrintWriter wtr = null;
 
 		private SocketServer(int port) {
-			try {
-				this.server = new ServerSocket(port);
-			} catch (Exception e) {
-				e.printStackTrace();
+			while (port > 0) {
+				try {
+					this.server = new ServerSocket(port);
+					break;
+				} catch (Exception e) {
+					--port;
+					if (port > 0) {
+						continue;
+					}
+					else{
+						e.printStackTrace();
+					}
+				}
 			}
 		}
 
 		public void run() {
-
 			System.out.println("Listenning...");
 			try {
 				sk = server.accept();
 				access = "Connected";
-				if (isInvoke) {
-					th = new ServerThread(sk);
-					th.start();
-				}
+				th = new ServerThread(sk);
+				th.start();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-
 		}
 
 		class ServerThread extends Thread {
@@ -105,42 +108,8 @@ public class SocketClientSinkTest{
 	}
 
 	@Test
-	public void testSocketSinkOpen(){
-
-		int port = 9999;
-
-		isInvoke = false;
+	public void testSocketSink(){
 		SocketServer server = new SocketServer(port);
-		server.start();
-
-		SerializationSchema<String, byte[]> simpleSchema = new SerializationSchema<String, byte[]>() {
-			@Override
-			public byte[] serialize(String element) {
-				return new byte[0];
-			}
-		};
-
-		SocketClientSink<String> simpleSink = new SocketClientSink<String>(host, port, simpleSchema);
-		simpleSink.open(new Configuration());
-		try {
-			server.join();
-			sleep(1000);
-		}
-		catch (Exception e){
-			e.printStackTrace();
-		}
-		//assertEquals(this.access, "Connected");
-		simpleSink.close();
-	}
-
-	@Test
-	public void testSocketSinkInvoke(){
-
-		int port = 9998;
-
-		isInvoke = true;
-
-		SocketServer server = new SocketServer(--port);
 		server.start();
 
 		SerializationSchema<String, byte[]> simpleSchema = new SerializationSchema<String, byte[]>() {
@@ -161,7 +130,7 @@ public class SocketClientSinkTest{
 		catch (Exception e){
 			e.printStackTrace();
 		}
-		//assertEquals(this.access, "Invoked");
+		assertEquals(this.access, "Invoked");
 		simpleSink.close();
 	}
 }
