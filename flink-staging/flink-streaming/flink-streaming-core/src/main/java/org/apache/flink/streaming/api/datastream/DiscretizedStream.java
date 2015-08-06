@@ -30,11 +30,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.functions.WindowMapFunction;
-import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
-import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.windowing.EmptyWindowFilter;
 import org.apache.flink.streaming.api.operators.windowing.ParallelGroupedMerge;
 import org.apache.flink.streaming.api.operators.windowing.ParallelMerge;
@@ -45,6 +43,7 @@ import org.apache.flink.streaming.api.operators.windowing.WindowMerger;
 import org.apache.flink.streaming.api.operators.windowing.WindowPartExtractor;
 import org.apache.flink.streaming.api.operators.windowing.WindowPartitioner;
 import org.apache.flink.streaming.api.operators.windowing.WindowReducer;
+import org.apache.flink.streaming.api.operators.windowing.ParallelMergeOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.StreamWindowTypeInfo;
 import org.apache.flink.streaming.api.windowing.WindowUtils.WindowKey;
@@ -147,7 +146,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 			DataStream<Tuple2<Integer, Integer>> numOfParts, DiscretizedStream<OUT> reduced,
 			ReduceFunction<OUT> reduceFunction) {
 
-		CoFlatMapFunction<StreamWindow<OUT>, Tuple2<Integer, Integer>, StreamWindow<OUT>> parallelMerger = isGrouped() ? new ParallelGroupedMerge<OUT>()
+		ParallelMerge<OUT> parallelMerger = isGrouped() ? new ParallelGroupedMerge<OUT>()
 				: new ParallelMerge<OUT>(reduceFunction);
 
 		return reduced.discretizedStream
@@ -156,8 +155,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 				.transform(
 						"CoFlatMap",
 						reduced.discretizedStream.getType(),
-						new CoStreamFlatMap<StreamWindow<OUT>, Tuple2<Integer, Integer>, StreamWindow<OUT>>(
-								parallelMerger));
+						new ParallelMergeOperator<OUT>(parallelMerger));
 	}
 
 	@Override

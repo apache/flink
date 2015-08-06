@@ -81,4 +81,8 @@ public class CoStreamFlatMap<IN1, IN2, OUT>
 			output.emitWatermark(new Watermark(combinedWatermark));
 		}
 	}
+
+	protected TimestampedCollector<OUT> getCollector() {
+		return collector;
+	}
 }
