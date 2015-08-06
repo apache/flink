@@ -187,7 +187,7 @@ public class HashVsSortMiniBenchmark {
 					new ReusingBuildFirstHashMatchIterator<Record, Record, Record>(
 						input1, input2, this.serializer1.getSerializer(), this.comparator1, 
 							this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
-							this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
+							this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE, true);
 			
 			iterator.open();
 			
@@ -226,7 +226,7 @@ public class HashVsSortMiniBenchmark {
 					new ReusingBuildSecondHashMatchIterator<Record, Record, Record>(
 						input1, input2, this.serializer1.getSerializer(), this.comparator1, 
 						this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
-						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
+						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE, true);
 			
 			iterator.open();
 			

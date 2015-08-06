@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.operators.hash.NonReusingBuildFirstReOpenableHashMatchIterator;
 import org.apache.flink.runtime.operators.hash.NonReusingBuildSecondReOpenableHashMatchIterator;
 import org.apache.flink.runtime.operators.hash.ReusingBuildFirstReOpenableHashMatchIterator;
@@ -74,7 +75,10 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 				this.taskContext.getTaskConfig().getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
 
 		double availableMemory = config.getRelativeMemoryDriver();
-
+		boolean hashJoinUseBitMaps = taskContext.getTaskManagerInfo().getConfiguration().getBoolean(
+				ConfigConstants.RUNTIME_HASH_JOIN_BLOOM_FILTERS_KEY,
+				ConfigConstants.DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS);
+		
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
 		objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
@@ -89,7 +93,8 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 						this.taskContext.getMemoryManager(),
 						this.taskContext.getIOManager(),
 						this.taskContext.getOwningNepheleTask(),
-						availableMemory);
+						availableMemory,
+						hashJoinUseBitMaps);
 
 
 			} else if (buildSideIndex == 1 && probeSideIndex == 0) {
@@ -102,7 +107,8 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 						this.taskContext.getMemoryManager(),
 						this.taskContext.getIOManager(),
 						this.taskContext.getOwningNepheleTask(),
-						availableMemory);
+						availableMemory,
+						hashJoinUseBitMaps);
 
 			} else {
 				throw new Exception("Error: Inconsistent setup for repeatable hash join driver.");
@@ -118,7 +124,8 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 						this.taskContext.getMemoryManager(),
 						this.taskContext.getIOManager(),
 						this.taskContext.getOwningNepheleTask(),
-						availableMemory);
+						availableMemory,
+						hashJoinUseBitMaps);
 
 
 			} else if (buildSideIndex == 1 && probeSideIndex == 0) {
@@ -131,7 +138,8 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 						this.taskContext.getMemoryManager(),
 						this.taskContext.getIOManager(),
 						this.taskContext.getOwningNepheleTask(),
-						availableMemory);
+						availableMemory,
+						hashJoinUseBitMaps);
 
 			} else {
 				throw new Exception("Error: Inconsistent setup for repeatable hash join driver.");
@@ -148,12 +156,10 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 
 	@Override
 	public void run() throws Exception {
-
 		final FlatJoinFunction<IT1, IT2, OT> matchStub = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		while (this.running && matchIterator != null && matchIterator.callWithNextKey(matchStub, collector));
-			
 	}
 
 	@Override

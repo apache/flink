@@ -26,15 +26,14 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 
 /**
- * A runtime task is the task that is executed by the flink engine inside a task vertex.
- * It typically has a {@link PactDriver}, and optionally multiple chained drivers. In addition, it
- * deals with the runtime setup and teardown and the control-flow logic. The latter appears especially
- * in the case of iterations.
+ * The task context gives a driver (e.g., {@link MapDriver}, or {@link JoinDriver}) access to
+ * the runtime components and configuration that they can use to fulfil their task.
  *
  * @param <S> The UDF type.
  * @param <OT> The produced data type.
@@ -44,6 +43,8 @@ import org.apache.flink.util.MutableObjectIterator;
 public interface PactTaskContext<S, OT> {
 	
 	TaskConfig getTaskConfig();
+	
+	TaskManagerRuntimeInfo getTaskManagerInfo();
 
 	ClassLoader getUserCodeClassLoader();
 	

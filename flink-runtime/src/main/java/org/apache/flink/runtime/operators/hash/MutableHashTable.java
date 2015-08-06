@@ -24,10 +24,9 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -46,22 +45,16 @@ import org.apache.flink.runtime.operators.util.BloomFilter;
 import org.apache.flink.runtime.util.MathUtils;
 import org.apache.flink.util.MutableObjectIterator;
 
-
 /**
  * An implementation of a Hybrid Hash Join. The join starts operating in memory and gradually starts
  * spilling contents to disk, when the memory is not sufficient. It does not need to know a priori 
  * how large the input will be.
- * <p>
- * The design of this class follows on many parts the design presented in
+ * 
+ * <p>The design of this class follows on many parts the design presented in
  * "Hash joins and hash teams in Microsoft SQL Server", by Goetz Graefe et al. In its current state, the
- * implementation lacks features like dynamic role reversal, partition tuning, or histogram guided partitioning. 
- *<p>
- *
- *
- * <hr>
+ * implementation lacks features like dynamic role reversal, partition tuning, or histogram guided partitioning.</p>
  * 
- * The layout of the buckets inside a memory segment is as follows:
- * 
+ * <p>The layout of the buckets inside a memory segment is as follows:</p>
  * <pre>
  * +----------------------------- Bucket x ----------------------------
  * |Partition (1 byte) | Status (1 byte) | element count (2 bytes) |
@@ -189,8 +182,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 */
 	private static final long BUCKET_FORWARD_POINTER_NOT_SET = ~0x0L;
 	
-//	private static final byte BUCKET_STATUS_SPILLED = 1;
-	
 	/**
 	 * Constant for the bucket status, indicating that the bucket is in memory.
 	 */
@@ -274,10 +265,13 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 */
 	protected final int bucketsPerSegmentBits;
 	
-	/**
+	/** 
 	 * An estimate for the average record length.
 	 */
 	private final int avgRecordLen;
+	
+	/** Flag to enable/disable bloom filters for spilled partitions */
+	private final boolean useBloomFilters;
 	
 	// ------------------------------------------------------------------------
 	
@@ -295,8 +289,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * Iterator over the elements in the hash table.
 	 */
 	private HashBucketIterator<BT, PT> bucketIterator;
-	
-//	private LazyHashBucketIterator<BT, PT> lazyBucketIterator;
 	
 	/**
 	 * Iterator over the elements from the probe side.
@@ -319,6 +311,10 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * of hash-codes and pointers to the elements.
 	 */
 	protected MemorySegment[] buckets;
+
+	/** The bloom filter utility used to transform hash buckets of spilled partitions into a
+	 * probabilistic filter */
+	private BloomFilter bloomFilter;
 	
 	/**
 	 * The number of buckets in the current table. The bucket array is not necessarily fully
@@ -353,25 +349,35 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	protected boolean furtherPartitioning = false;
 	
 	private boolean running = true;
-
-	private BloomFilter bloomFilter;
 	
 	// ------------------------------------------------------------------------
 	//                         Construction and Teardown
 	// ------------------------------------------------------------------------
+
+	public MutableHashTable(TypeSerializer<BT> buildSideSerializer, TypeSerializer<PT> probeSideSerializer,
+							TypeComparator<BT> buildSideComparator, TypeComparator<PT> probeSideComparator,
+							TypePairComparator<PT, BT> comparator,
+							List<MemorySegment> memorySegments, IOManager ioManager)
+	{
+		this(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, comparator,
+				memorySegments, ioManager, true);
+	}
 	
 	public MutableHashTable(TypeSerializer<BT> buildSideSerializer, TypeSerializer<PT> probeSideSerializer,
 			TypeComparator<BT> buildSideComparator, TypeComparator<PT> probeSideComparator,
-			TypePairComparator<PT, BT> comparator, List<MemorySegment> memorySegments, IOManager ioManager)
+			TypePairComparator<PT, BT> comparator,
+			List<MemorySegment> memorySegments,
+			IOManager ioManager,
+			boolean useBloomFilters)
 	{
 		this(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, comparator,
-			memorySegments, ioManager, DEFAULT_RECORD_LEN);
+			memorySegments, ioManager, DEFAULT_RECORD_LEN, useBloomFilters);
 	}
 	
 	public MutableHashTable(TypeSerializer<BT> buildSideSerializer, TypeSerializer<PT> probeSideSerializer,
 			TypeComparator<BT> buildSideComparator, TypeComparator<PT> probeSideComparator,
 			TypePairComparator<PT, BT> comparator, List<MemorySegment> memorySegments,
-			IOManager ioManager, int avgRecordLen)
+			IOManager ioManager, int avgRecordLen, boolean useBloomFilters)
 	{
 		// some sanity checks first
 		if (memorySegments == null) {
@@ -390,6 +396,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		this.recordComparator = comparator;
 		this.availableMemory = memorySegments;
 		this.ioManager = ioManager;
+		this.useBloomFilters = useBloomFilters;
 		
 		this.avgRecordLen = avgRecordLen > 0 ? avgRecordLen : 
 				buildSideSerializer.getLength() == -1 ? DEFAULT_RECORD_LEN : buildSideSerializer.getLength();
@@ -551,16 +558,12 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	}
 	
 	public boolean nextRecord() throws IOException {
-		
+
 		final boolean probeProcessing = processProbeIter();
-		if(probeProcessing) {
-			return true;
-		}
-		return prepareNextPartition();
+		return probeProcessing || prepareNextPartition();
 	}
 	
-	public HashBucketIterator<BT, PT> getMatchesFor(PT record) throws IOException
-	{
+	public HashBucketIterator<BT, PT> getMatchesFor(PT record) throws IOException {
 		final TypeComparator<PT> probeAccessors = this.probeSideComparator;
 		final int hash = hash(probeAccessors.hash(record), this.currentRecursionDepth);
 		final int posHashCode = hash % this.numBuckets;
@@ -584,32 +587,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			throw new IllegalStateException("Method is not applicable to partially spilled hash tables.");
 		}
 	}
-	
-//	public LazyHashBucketIterator<BT, PT> getLazyMatchesFor(PT record) throws IOException
-//	{
-//		final TypeComparator<PT> probeAccessors = this.probeSideComparator;
-//		final int hash = hash(probeAccessors.hash(record), this.currentRecursionDepth);
-//		final int posHashCode = hash % this.numBuckets;
-//		
-//		// get the bucket for the given hash code
-//		final int bucketArrayPos = posHashCode >> this.bucketsPerSegmentBits;
-//		final int bucketInSegmentOffset = (posHashCode & this.bucketsPerSegmentMask) << NUM_INTRA_BUCKET_BITS;
-//		final MemorySegment bucket = this.buckets[bucketArrayPos];
-//		
-//		// get the basic characteristics of the bucket
-//		final int partitionNumber = bucket.get(bucketInSegmentOffset + HEADER_PARTITION_OFFSET);
-//		final HashPartition<BT, PT> p = this.partitionsBeingBuilt.get(partitionNumber);
-//		
-//		// for an in-memory partition, process set the return iterators, else spill the probe records
-//		if (p.isInMemory()) {
-//			this.recordComparator.setReference(record);
-//			this.lazyBucketIterator.set(bucket, p.overflowSegments, p, hash, bucketInSegmentOffset);
-//			return this.lazyBucketIterator;
-//		}
-//		else {
-//			throw new IllegalStateException("Method is not applicable to partially spilled hash tables.");
-//		}
-//	}
 	
 	public PT getCurrentProbeRecord() {
 		return this.probeIterator.getCurrent();
@@ -739,7 +716,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 	}
 
-	final private int getEstimatedMaxBucketEntries(int numBuffers, int bufferSize, int numBuckets, int recordLenBytes) {
+	private int getEstimatedMaxBucketEntries(int numBuffers, int bufferSize, int numBuckets, int recordLenBytes) {
 		final long totalSize = ((long) bufferSize) * numBuffers;
 		final long numRecordsStorable = totalSize / (recordLenBytes + RECORD_OVERHEAD_BYTES);
 		final long maxNumRecordsStorable = (MAX_RECURSION_DEPTH + 1) * numRecordsStorable;
@@ -1092,9 +1069,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		this.buckets = table;
 		this.numBuckets = numBuckets;
 		
-		boolean enableBloomFilter = GlobalConfiguration.getBoolean(
-			ConfigConstants.HASHJOIN_ENABLE_BLOOMFILTER, ConfigConstants.DEAFULT_HASHJOIN_ENABLE_BLOOMFILTER);
-		if (enableBloomFilter) {
+		if (useBloomFilters) {
 			initBloomFilter(numBuckets);
 		}
 	}
@@ -1107,8 +1082,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		this.numBuckets = 0;
 		
 		if (this.buckets != null) {
-			for (int i = 0; i < this.buckets.length; i++) {
-				this.availableMemory.add(this.buckets[i]);
+			for (MemorySegment bucket : this.buckets) {
+				this.availableMemory.add(bucket);
 			}
 			this.buckets = null;
 		}
@@ -1138,9 +1113,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 		final HashPartition<BT, PT> p = partitions.get(largestPartNum);
 		
-		boolean enableBloomFilter = GlobalConfiguration.getBoolean(
-			ConfigConstants.HASHJOIN_ENABLE_BLOOMFILTER, ConfigConstants.DEAFULT_HASHJOIN_ENABLE_BLOOMFILTER);
-		if (enableBloomFilter) {
+		if (useBloomFilters) {
 			buildBloomFilterForBucketsInPartition(largestPartNum, p);
 		}
 		
@@ -1196,7 +1169,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		buildBloomFilterForExtraOverflowSegments(bucketInSegmentPos, bucket, p);
 	}
 	
-	final private void buildBloomFilterForExtraOverflowSegments(int bucketInSegmentPos, MemorySegment bucket, HashPartition<BT, PT> p) {
+	private void buildBloomFilterForExtraOverflowSegments(int bucketInSegmentPos, MemorySegment bucket, HashPartition<BT, PT> p) {
 		int totalCount = 0;
 		boolean skip = false;
 		long forwardPointer = bucket.getLong(bucketInSegmentPos + HEADER_FORWARD_OFFSET);
@@ -1207,7 +1180,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 				break;
 			}
 			MemorySegment overflowSegment = p.overflowSegments[overflowSegNum];
-			int bucketInOverflowSegmentOffset = (int) (forwardPointer & 0xffffffff);
+			int bucketInOverflowSegmentOffset = (int) forwardPointer;
 			
 			final int count = overflowSegment.getShort(bucketInOverflowSegmentOffset + HEADER_COUNT_OFFSET);
 			totalCount += count;
@@ -1587,93 +1560,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 
 	} // end HashBucketIterator
-	
-
-	// ======================================================================================================
-	
-//	public static final class LazyHashBucketIterator<BT, PT> {
-//		
-//		private final TypePairComparator<PT, BT> comparator;
-//		
-//		private MemorySegment bucket;
-//		
-//		private MemorySegment[] overflowSegments;
-//		
-//		private HashPartition<BT, PT> partition;
-//		
-//		private int bucketInSegmentOffset;
-//		
-//		private int searchHashCode;
-//		
-//		private int posInSegment;
-//		
-//		private int countInSegment;
-//		
-//		private int numInSegment;
-//		
-//		private LazyHashBucketIterator(TypePairComparator<PT, BT> comparator) {
-//			this.comparator = comparator;
-//		}
-//		
-//		
-//		void set(MemorySegment bucket, MemorySegment[] overflowSegments, HashPartition<BT, PT> partition,
-//				int searchHashCode, int bucketInSegmentOffset) {
-//			
-//			this.bucket = bucket;
-//			this.overflowSegments = overflowSegments;
-//			this.partition = partition;
-//			this.searchHashCode = searchHashCode;
-//			this.bucketInSegmentOffset = bucketInSegmentOffset;
-//			
-//			this.posInSegment = this.bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
-//			this.countInSegment = bucket.getShort(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
-//			this.numInSegment = 0;
-//		}
-//
-//		public boolean next(BT target) {
-//			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
-//			while (true) {
-//				
-//				while (this.numInSegment < this.countInSegment) {
-//					
-//					final int thisCode = this.bucket.getInt(this.posInSegment);
-//					this.posInSegment += HASH_CODE_LEN;
-//						
-//					// check if the hash code matches
-//					if (thisCode == this.searchHashCode) {
-//						// get the pointer to the pair
-//						final long pointer = this.bucket.getLong(this.bucketInSegmentOffset + 
-//													BUCKET_POINTER_START_OFFSET + (this.numInSegment * POINTER_LEN));
-//						this.numInSegment++;
-//							
-//						// check whether it is really equal, or whether we had only a hash collision
-//						LazyDeSerializable lds = (LazyDeSerializable) target;
-//						lds.setDeSerializer(this.partition, this.partition.getWriteView(), pointer);
-//						if (this.comparator.equalToReference(target)) {
-//							return true;
-//						}
-//					}
-//					else {
-//						this.numInSegment++;
-//					}
-//				}
-//				
-//				// this segment is done. check if there is another chained bucket
-//				final long forwardPointer = this.bucket.getLong(this.bucketInSegmentOffset + HEADER_FORWARD_OFFSET);
-//				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
-//					return false;
-//				}
-//				
-//				final int overflowSegNum = (int) (forwardPointer >>> 32);
-//				this.bucket = this.overflowSegments[overflowSegNum];
-//				this.bucketInSegmentOffset = (int) (forwardPointer & 0xffffffff);
-//				this.countInSegment = this.bucket.getShort(this.bucketInSegmentOffset + HEADER_COUNT_OFFSET);
-//				this.posInSegment = this.bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
-//				this.numInSegment = 0;
-//			}
-//		}
-//	} 
-	
 
 	// ======================================================================================================
 	

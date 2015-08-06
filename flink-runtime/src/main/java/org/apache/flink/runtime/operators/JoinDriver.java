@@ -19,24 +19,26 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.runtime.operators.hash.NonReusingBuildFirstHashMatchIterator;
-import org.apache.flink.runtime.operators.hash.NonReusingBuildSecondHashMatchIterator;
-import org.apache.flink.runtime.operators.sort.NonReusingMergeInnerJoinIterator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.operators.hash.NonReusingBuildFirstHashMatchIterator;
+import org.apache.flink.runtime.operators.hash.NonReusingBuildSecondHashMatchIterator;
 import org.apache.flink.runtime.operators.hash.ReusingBuildFirstHashMatchIterator;
 import org.apache.flink.runtime.operators.hash.ReusingBuildSecondHashMatchIterator;
+import org.apache.flink.runtime.operators.sort.NonReusingMergeInnerJoinIterator;
 import org.apache.flink.runtime.operators.sort.ReusingMergeInnerJoinIterator;
 import org.apache.flink.runtime.operators.util.JoinTaskIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The join driver implements the logic of a join operator at runtime. It instantiates either
@@ -115,19 +117,40 @@ public class JoinDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Join Driver object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
 		}
+		
+		boolean hashJoinUseBitMaps = taskContext.getTaskManagerInfo().getConfiguration().getBoolean(
+				ConfigConstants.RUNTIME_HASH_JOIN_BLOOM_FILTERS_KEY,
+				ConfigConstants.DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS);
 
 		// create and return joining iterator according to provided local strategy.
 		if (objectReuseEnabled) {
 			switch (ls) {
 				case MERGE:
-					this.joinIterator = new ReusingMergeInnerJoinIterator<>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
-
+					this.joinIterator = new ReusingMergeInnerJoinIterator<>(in1, in2, 
+							serializer1, comparator1,
+							serializer2, comparator2,
+							pairComparatorFactory.createComparator12(comparator1, comparator2),
+							memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
 					break;
 				case HYBRIDHASH_BUILD_FIRST:
-					this.joinIterator = new ReusingBuildFirstHashMatchIterator<>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+					this.joinIterator = new ReusingBuildFirstHashMatchIterator<>(in1, in2,
+							serializer1, comparator1,
+							serializer2, comparator2,
+							pairComparatorFactory.createComparator21(comparator1, comparator2),
+							memoryManager, ioManager,
+							this.taskContext.getOwningNepheleTask(),
+							fractionAvailableMemory,
+							hashJoinUseBitMaps);
 					break;
 				case HYBRIDHASH_BUILD_SECOND:
-					this.joinIterator = new ReusingBuildSecondHashMatchIterator<>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+					this.joinIterator = new ReusingBuildSecondHashMatchIterator<>(in1, in2,
+							serializer1, comparator1,
+							serializer2, comparator2,
+							pairComparatorFactory.createComparator12(comparator1, comparator2),
+							memoryManager, ioManager,
+							this.taskContext.getOwningNepheleTask(),
+							fractionAvailableMemory,
+							hashJoinUseBitMaps);
 					break;
 				default:
 					throw new Exception("Unsupported driver strategy for join driver: " + ls.name());
@@ -135,14 +158,32 @@ public class JoinDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1
 		} else {
 			switch (ls) {
 				case MERGE:
-					this.joinIterator = new NonReusingMergeInnerJoinIterator<>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
+					this.joinIterator = new NonReusingMergeInnerJoinIterator<>(in1, in2,
+							serializer1, comparator1,
+							serializer2, comparator2,
+							pairComparatorFactory.createComparator12(comparator1, comparator2),
+							memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
 
 					break;
 				case HYBRIDHASH_BUILD_FIRST:
-					this.joinIterator = new NonReusingBuildFirstHashMatchIterator<>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+					this.joinIterator = new NonReusingBuildFirstHashMatchIterator<>(in1, in2,
+							serializer1, comparator1,
+							serializer2, comparator2,
+							pairComparatorFactory.createComparator21(comparator1, comparator2),
+							memoryManager, ioManager,
+							this.taskContext.getOwningNepheleTask(),
+							fractionAvailableMemory,
+							hashJoinUseBitMaps);
 					break;
 				case HYBRIDHASH_BUILD_SECOND:
-					this.joinIterator = new NonReusingBuildSecondHashMatchIterator<>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+					this.joinIterator = new NonReusingBuildSecondHashMatchIterator<>(in1, in2,
+							serializer1, comparator1,
+							serializer2, comparator2,
+							pairComparatorFactory.createComparator12(comparator1, comparator2),
+							memoryManager, ioManager,
+							this.taskContext.getOwningNepheleTask(),
+							fractionAvailableMemory,
+							hashJoinUseBitMaps);
 					break;
 				default:
 					throw new Exception("Unsupported driver strategy for join driver: " + ls.name());

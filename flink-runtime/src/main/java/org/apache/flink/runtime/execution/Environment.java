@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -72,14 +73,11 @@ public interface Environment {
 	Configuration getTaskConfiguration();
 
 	/**
-	 * @return The task manager configuration
+	 * Gets the task manager info, with configuration and hostname.
+	 * 
+	 * @return The task manager info, with configuration and hostname. 
 	 */
-	Configuration getTaskManagerConfiguration();
-
-	/**
-	 * @return Hostname of the task manager
-	 */
-	String getHostname();
+	TaskManagerRuntimeInfo getTaskManagerInfo();
 
 	/**
 	 * Returns the job-wide configuration object that was attached to the JobGraph.

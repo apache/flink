@@ -244,11 +244,6 @@ free for objects created by user-defined functions. (DEFAULT: 0.7)
 This parameter is only evaluated, if `taskmanager.memory.size` is not set.
 - `jobclient.polling.interval`: The interval (in seconds) in which the client
 polls the JobManager for the status of its job (DEFAULT: 2).
-- `taskmanager.runtime.max-fan`: The maximal fan-in for external merge joins and
-fan-out for spilling hash tables. Limits the number of file handles per operator,
-but may cause intermediate merging/partitioning, if set too small (DEFAULT: 128).
-- `taskmanager.runtime.sort-spilling-threshold`: A sort operation starts spilling
-when this fraction of its memory budget is full (DEFAULT: 0.8).
 - `taskmanager.heartbeat-interval`: The interval in which the TaskManager sends
 heartbeats to the JobManager.
 - `jobmanager.max-heartbeat-delay-before-failure.msecs`: The maximum time that a
@@ -323,6 +318,16 @@ sample that the compiler takes for delimited inputs. If the length of a single
 sample exceeds this value (possible because of misconfiguration of the parser),
 the sampling aborts. This value can be overridden for a specific input with the
 input format's parameters (DEFAULT: 2097152 (= 2 MiBytes)).
+
+### Runtime Algorithms
+
+- `taskmanager.runtime.max-fan`: The maximal fan-in for external merge joins and
+fan-out for spilling hash tables. Limits the number of file handles per operator,
+but may cause intermediate merging/partitioning, if set too small (DEFAULT: 128).
+- `taskmanager.runtime.sort-spilling-threshold`: A sort operation starts spilling
+when this fraction of its memory budget is full (DEFAULT: 0.8).
+- `taskmanager.runtime.hashjoin-bloom-filters`: If true, the hash join uses bloom filters to pre-filter records against spilled partitions. (DEFAULT: true)
+
 
 ## YARN
 

@@ -24,9 +24,6 @@ import java.util.List;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -40,6 +37,7 @@ import org.apache.flink.runtime.operators.testutils.types.StringPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.StringPairPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.StringPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -192,10 +190,6 @@ public class MutableHashTablePerformanceBenchmark {
 		InputIterator buildIterator = new InputIterator(buildSize, buildStep, buildScope);
 		InputIterator probeIterator = new InputIterator(probeSize, probeStep, probeScope);
 		
-		Configuration conf = new Configuration();
-		conf.setBoolean(ConfigConstants.HASHJOIN_ENABLE_BLOOMFILTER, enableBloomFilter);
-		GlobalConfiguration.includeConfiguration(conf);
-		
 		// allocate the memory for the HashTable
 		List<MemorySegment> memSegments;
 		try {
@@ -212,7 +206,7 @@ public class MutableHashTablePerformanceBenchmark {
 		final MutableHashTable<StringPair, StringPair> join = new MutableHashTable<StringPair, StringPair>(
 			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor,
 			this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
-			memSegments, ioManager);
+			memSegments, ioManager, enableBloomFilter);
 		join.open(buildIterator, probeIterator);
 		
 		final StringPair recordReuse = new StringPair();

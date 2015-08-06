@@ -75,9 +75,7 @@ public class RuntimeEnvironment implements Environment {
 
 	private final AccumulatorRegistry accumulatorRegistry;
 
-	private final Configuration taskManagerConfiguration;
-
-	private final String hostname;
+	private final TaskManagerRuntimeInfo taskManagerInfo;
 
 	// ------------------------------------------------------------------------
 
@@ -124,8 +122,7 @@ public class RuntimeEnvironment implements Environment {
 		this.writers = checkNotNull(writers);
 		this.inputGates = checkNotNull(inputGates);
 		this.jobManager = checkNotNull(jobManager);
-		this.taskManagerConfiguration = checkNotNull(taskManagerInfo).getConfiguration();
-		this.hostname = taskManagerInfo.getHostname();
+		this.taskManagerInfo = checkNotNull(taskManagerInfo);
 	}
 
 	// ------------------------------------------------------------------------
@@ -176,13 +173,8 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public Configuration getTaskManagerConfiguration(){
-		return taskManagerConfiguration;
-	}
-
-	@Override
-	public String getHostname(){
-		return hostname;
+	public TaskManagerRuntimeInfo getTaskManagerInfo() {
+		return taskManagerInfo;
 	}
 
 	@Override

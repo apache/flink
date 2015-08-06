@@ -26,6 +26,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -69,10 +70,10 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	private final List<UnilateralSortMerger<Record>> sorters;
 	
 	private final AbstractInvokable owner;
-	
-	private final Configuration config;
-	
+
 	private final TaskConfig taskConfig;
+	
+	private final TaskManagerRuntimeInfo taskManageInfo;
 	
 	protected final long perSortMem;
 
@@ -111,11 +112,9 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		this.sorters = new ArrayList<UnilateralSortMerger<Record>>();
 		
 		this.owner = new DummyInvokable();
-		
-		this.config = new Configuration();
-		this.taskConfig = new TaskConfig(this.config);
-
+		this.taskConfig = new TaskConfig(new Configuration());
 		this.executionConfig = executionConfig;
+		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
 	}
 
 	@Parameterized.Parameters
@@ -279,7 +278,10 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		return this.taskConfig;
 	}
 
-
+	@Override
+	public TaskManagerRuntimeInfo getTaskManagerInfo() {
+		return this.taskManageInfo;
+	}
 
 	@Override
 	public ExecutionConfig getExecutionConfig() {

@@ -67,16 +67,16 @@ public class NonReusingBuildFirstHashMatchIterator<V1, V2, O> extends HashMatchI
 			TypePairComparator<V2, V1> pairComparator,
 			MemoryManager memManager, IOManager ioManager,
 			AbstractInvokable ownerTask,
-			double memoryFraction)
-	throws MemoryAllocationException
-	{		
+			double memoryFraction,
+			boolean useBitmapFilters) throws MemoryAllocationException {
+		
 		this.memManager = memManager;
 		this.firstInput = firstInput;
 		this.secondInput = secondInput;
 		this.probeSideSerializer = serializer2;
 
 		this.hashJoin = getHashJoin(serializer1, comparator1, serializer2, comparator2,
-				pairComparator, memManager, ioManager, ownerTask, memoryFraction);
+				pairComparator, memManager, ioManager, ownerTask, memoryFraction, useBitmapFilters);
 	}
 	
 	// --------------------------------------------------------------------------------------------

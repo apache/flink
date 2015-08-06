@@ -172,6 +172,8 @@ public final class ConfigConstants {
 	 */
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
 
+	// --------------------------- Runtime Algorithms -------------------------------
+	
 	/**
 	 * Parameter for the maximum fan for out-of-core algorithms.
 	 * Corresponds to the maximum fan-in for merge-sorts and the maximum fan-out
@@ -184,18 +186,17 @@ public final class ConfigConstants {
 	 * sorter will start spilling to disk.
 	 */
 	public static final String DEFAULT_SORT_SPILLING_THRESHOLD_KEY = "taskmanager.runtime.sort-spilling-threshold";
+
+	/**
+	 * Parameter to switch hash join bloom filters for spilled partitions on and off.
+	 */
+	public static final String RUNTIME_HASH_JOIN_BLOOM_FILTERS_KEY = "taskmanager.runtime.hashjoin-bloom-filters";
 	
 	/**
 	 * The config parameter defining the timeout for filesystem stream opening.
 	 * A value of 0 indicates infinite waiting.
 	 */
 	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "taskmanager.runtime.fs_timeout";
-	
-	/**
-	 * While spill probe record to disk during probe phase, whether enable bloom filter to filter the probe records
-	 * to minimize the spilled probe records count.
-	 */
-	public static final String HASHJOIN_ENABLE_BLOOMFILTER = "hashjoin.bloomfilter.enabled";
 
 	// ------------------------ YARN Configuration ------------------------
 
@@ -543,6 +544,13 @@ public final class ConfigConstants {
 	 * The default task manager's maximum registration duration
 	 */
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION = "Inf";
+
+	// ------------------------ Runtime Algorithms ------------------------
+	
+	/**
+	 * Default setting for the switch for hash join bloom filters for spilled partitions.
+	 */
+	public static final boolean DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS = true;
 	
 	/**
 	 * The default value for the maximum spilling fan in/out.
@@ -558,14 +566,8 @@ public final class ConfigConstants {
 	 * The default timeout for filesystem stream opening: infinite (means max long milliseconds).
 	 */
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
-	
-	/**
-	 * Enable bloom filter for hash join as it promote hash join performance most of the time.
-	 */
-	public static final boolean DEAFULT_HASHJOIN_ENABLE_BLOOMFILTER = true;
 
 	// ------------------------ YARN Configuration ------------------------
-
 
 	/**
 	 * Minimum amount of Heap memory to subtract from the requested TaskManager size.

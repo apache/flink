@@ -36,6 +36,7 @@ import org.apache.flink.runtime.operators.PactTaskContext;
 import org.apache.flink.runtime.operators.ResettablePactDriver;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -54,7 +55,9 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> implements PactT
 	
 	protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
 	
-	protected static final int PAGE_SIZE = 32 * 1024; 
+	protected static final int PAGE_SIZE = 32 * 1024;
+
+	private final TaskManagerRuntimeInfo taskManageInfo;
 	
 	private final IOManager ioManager;
 	
@@ -110,6 +113,8 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> implements PactT
 
 		this.executionConfig = executionConfig;
 		this.comparators = new ArrayList<TypeComparator<IN>>(2);
+
+		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
 	}
 
 	@Parameterized.Parameters
@@ -291,6 +296,11 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> implements PactT
 		return this.memManager;
 	}
 
+	@Override
+	public TaskManagerRuntimeInfo getTaskManagerInfo() {
+		return this.taskManageInfo;
+	}
+	
 	@Override
 	public <X> MutableObjectIterator<X> getInput(int index) {
 		MutableObjectIterator<IN> in = this.input;
