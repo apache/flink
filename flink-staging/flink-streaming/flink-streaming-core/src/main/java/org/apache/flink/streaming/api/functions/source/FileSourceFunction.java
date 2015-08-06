@@ -23,12 +23,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
+public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> implements Checkpointed<Long> {
 	private static final long serialVersionUID = 1L;
 
 	private TypeInformation<OUT> typeInfo;
@@ -40,6 +41,9 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	private transient Iterator<InputSplit> splitIterator;
 
 	private volatile boolean isRunning = true;
+
+	private Long splitCount = -1l;
+	private Long currSplit = 0l;
 
 	@SuppressWarnings("unchecked")
 	public FileSourceFunction(InputFormat<OUT, ?> format, TypeInformation<OUT> typeInfo) {
@@ -56,6 +60,7 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 		serializer = typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
 
 		splitIterator = getInputSplits();
+
 		if (splitIterator.hasNext()) {
 			format.open(splitIterator.next());
 		}
@@ -119,19 +124,36 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 		while (isRunning) {
 			OUT nextElement = serializer.createInstance();
 			nextElement =  format.nextRecord(nextElement);
-			if (nextElement == null && splitIterator.hasNext()) {
+			if (nextElement == null && splitIterator.hasNext() ) {
 				format.open(splitIterator.next());
 				continue;
 			} else if (nextElement == null) {
 				break;
 			}
-			ctx.collect(nextElement);
+			if(currSplit < splitCount) {
+				currSplit ++;
+				continue;
+			}
+			synchronized (ctx.getCheckpointLock()){
+				ctx.collect(nextElement);
+				currSplit++;
+			}
 		}
 	}
 
 	@Override
 	public void cancel() {
 		isRunning = false;
+	}
+
+	@Override
+	public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+		return currSplit;
+	}
+
+	@Override
+	public void restoreState(Long state){
+		splitCount = state;
 	}
 
 }
