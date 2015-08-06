@@ -40,7 +40,7 @@ and **Cygwin** (for Windows) and expects the cluster to consist of **one master
 node** and **one or more worker nodes**. Before you start to setup the system,
 make sure you have the following software installed **on each node**:
 
-- **Java 1.6.x** or higher,
+- **Java 1.7.x** or higher,
 - **ssh** (sshd must be running to use the Flink scripts that manage
   remote components)
 
@@ -65,9 +65,9 @@ The command should output something comparable to the following on every node of
 your cluster (depending on your Java version, there may be small differences):
 
 ~~~bash
-java version "1.6.0_22"
-Java(TM) SE Runtime Environment (build 1.6.0_22-b04)
-Java HotSpot(TM) 64-Bit Server VM (build 17.1-b03, mixed mode)
+java version "1.7.0_55"
+Java(TM) SE Runtime Environment (build 1.7.0_55-b13)
+Java HotSpot(TM) 64-Bit Server VM (build 24.55-b03, mixed mode)
 ~~~
 
 To make sure the ssh daemon is running properly, you can use the command
