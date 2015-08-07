@@ -23,7 +23,8 @@ import java.util.Iterator;
 import java.util.Random;
 
 /**
- * A sampler implementation built upon Bernoulli Trail. For sample without replacement, each element sample choice is just a bernoulli trail.
+ * A sampler implementation built upon Bernoulli Trail. For sample with fraction and without replacement,
+ * each element sample choice is just a bernoulli trail.
  *
  * @param <T> The type of sample.
  */
@@ -35,7 +36,7 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 	/**
 	 * Create a bernoulli sampler sample fraction and default random number generator.
 	 *
-	 * @param fraction sample fraction, aka the bernoulli sampler possibility.
+	 * @param fraction Sample fraction, aka the bernoulli sampler possibility.
 	 */
 	public BernoulliSampler(double fraction) {
 		this(fraction, new Random());
@@ -44,8 +45,8 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 	/**
 	 * Create a bernoulli sampler sample fraction and random number generator seed.
 	 *
-	 * @param fraction sample fraction, aka the bernoulli sampler possibility.
-	 * @param seed     random number generator seed.
+	 * @param fraction Sample fraction, aka the bernoulli sampler possibility.
+	 * @param seed     Random number generator seed.
 	 */
 	public BernoulliSampler(double fraction, long seed) {
 		this(fraction, new Random(seed));
@@ -54,8 +55,8 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 	/**
 	 * Create a bernoulli sampler sample fraction and random number generator.
 	 *
-	 * @param fraction sample fraction, aka the bernoulli sampler possibility.
-	 * @param random   the random number generator.
+	 * @param fraction Sample fraction, aka the bernoulli sampler possibility.
+	 * @param random   The random number generator.
 	 */
 	public BernoulliSampler(double fraction, Random random) {
 		Preconditions.checkArgument(fraction >= 0 && fraction <= 1.0d, "fraction fraction must between [0, 1].");
@@ -66,8 +67,8 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 	/**
 	 * Sample the input elements, for each input element, take a Bernoulli Trail for sample.
 	 *
-	 * @param input elements to be sampled.
-	 * @return the sampled result which is lazy computed upon input elements.
+	 * @param input Elements to be sampled.
+	 * @return The sampled result which is lazy computed upon input elements.
 	 */
 	@Override
 	public Iterator<T> sample(final Iterator<T> input) {

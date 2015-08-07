@@ -23,8 +23,8 @@ import org.apache.commons.math3.distribution.PoissonDistribution;
 import java.util.Iterator;
 
 /**
- * A sampler implementation based on Poisson Distribution. While sampling elements with replacement,
- * the picked number of each element follows a given poisson distribution, so we could use poisson
+ * A sampler implementation based on Poisson Distribution. While sampling elements with fraction and replacement,
+ * the selected number of each element follows a given poisson distribution, so we could use poisson
  * distribution to generate random variables for sample.
  *
  * @param <T> The type of sample.
@@ -32,38 +32,42 @@ import java.util.Iterator;
  */
 public class PoissonSampler<T> extends RandomSampler<T> {
 	
-	private final PoissonDistribution poissonDistribution;
+	private PoissonDistribution poissonDistribution;
 	private final double fraction;
 	
 	/**
 	 * Create a poisson sampler which would sample elements with replacement.
 	 *
-	 * @param fraction the expected count of each element.
-	 * @param seed     random number generator seed for internal PoissonDistribution.
+	 * @param fraction The expected count of each element.
+	 * @param seed     Random number generator seed for internal PoissonDistribution.
 	 */
 	public PoissonSampler(double fraction, long seed) {
 		Preconditions.checkArgument(fraction >= 0, "fraction should be positive.");
 		this.fraction = fraction;
-		this.poissonDistribution = new PoissonDistribution(fraction);
-		this.poissonDistribution.reseedRandomGenerator(seed);
+		if (this.fraction > 0) {
+			this.poissonDistribution = new PoissonDistribution(fraction);
+			this.poissonDistribution.reseedRandomGenerator(seed);
+		}
 	}
 	
 	/**
 	 * Create a poisson sampler which would sample elements with replacement.
 	 *
-	 * @param fraction the expected count of each element.
+	 * @param fraction The expected count of each element.
 	 */
 	public PoissonSampler(double fraction) {
 		Preconditions.checkArgument(fraction >= 0, "fraction should be non-negative.");
 		this.fraction = fraction;
-		this.poissonDistribution = new PoissonDistribution(fraction);
+		if (this.fraction > 0) {
+			this.poissonDistribution = new PoissonDistribution(fraction);
+		}
 	}
 	
 	/**
 	 * Sample the input elements, for each input element, generate its count with poisson distribution random variables generation.
 	 *
-	 * @param input elements to be sampled.
-	 * @return the sampled result which is lazy computed upon input elements.
+	 * @param input Elements to be sampled.
+	 * @return The sampled result which is lazy computed upon input elements.
 	 */
 	@Override
 	public Iterator<T> sample(final Iterator<T> input) {

@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala.operators
 
-import java.util.{List => JavaList}
+import java.util.{List => JavaList, Random}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -26,14 +26,20 @@ import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Test}
+import org.junit.{Before, After, Test}
 
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class SampleITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+  private val RNG: Random = new Random
 
   private var result: JavaList[String] = null;
+
+  @Before
+  def initiate {
+    ExecutionEnvironment.getExecutionEnvironment.setParallelism(5)
+  }
 
   @After
   def after() = {
@@ -41,31 +47,91 @@ class SampleITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
   }
 
   @Test
+  @throws(classOf[Exception])
   def testSamplerWithFractionWithoutReplacement {
-    val sampled = getSourceDataSet().sample(false, 0.2d, 1)
-    result = sampled.collect().asJava
+    verifySamplerWithFractionWithoutReplacement(0d)
+    verifySamplerWithFractionWithoutReplacement(0.2d)
+    verifySamplerWithFractionWithoutReplacement(1.0d)
   }
 
   @Test
-  def testSamplerWithFractionWithReplacement: Unit = {
-    val sampled = getSourceDataSet().sample(true, 0.2d, 1)
-    result = sampled.collect().asJava
+  @throws(classOf[Exception])
+  def testSamplerWithFractionWithReplacement {
+    verifySamplerWithFractionWithReplacement(0d)
+    verifySamplerWithFractionWithReplacement(0.2d)
+    verifySamplerWithFractionWithReplacement(1.0d)
+    verifySamplerWithFractionWithReplacement(2.0d)
   }
 
   @Test
+  @throws(classOf[Exception])
   def testSamplerWithSizeWithoutReplacement {
-    val numSamples = 2;
-    val sampled = getSourceDataSet().sampleWithSize(false, numSamples, 1)
-    result = sampled.collect().asJava
-    assertTrue(result.size == numSamples)
+    verifySamplerWithFixedSizeWithoutReplacement(0)
+    verifySamplerWithFixedSizeWithoutReplacement(2)
+    verifySamplerWithFixedSizeWithoutReplacement(21)
   }
 
   @Test
+  @throws(classOf[Exception])
   def testSamplerWithSizeWithReplacement {
-    val numSamples = 2;
-    val sampled = getSourceDataSet().sampleWithSize(true, numSamples, 1)
-    result = sampled.collect().asJava
-    assertTrue(result.size == numSamples)
+    verifySamplerWithFixedSizeWithReplacement(0)
+    verifySamplerWithFixedSizeWithReplacement(2)
+    verifySamplerWithFixedSizeWithReplacement(21)
+  }
+
+  @throws(classOf[Exception])
+  private def verifySamplerWithFractionWithoutReplacement(fraction: Double) {
+    verifySamplerWithFractionWithoutReplacement(fraction, RNG.nextLong)
+  }
+
+  @throws(classOf[Exception])
+  private def verifySamplerWithFractionWithoutReplacement(fraction: Double, seed: Long) {
+    verifySamplerWithFraction(false, fraction, seed)
+  }
+
+  @throws(classOf[Exception])
+  private def verifySamplerWithFractionWithReplacement(fraction: Double) {
+    verifySamplerWithFractionWithReplacement(fraction, RNG.nextLong)
+  }
+
+  @throws(classOf[Exception])
+  private def verifySamplerWithFractionWithReplacement(fraction: Double, seed: Long) {
+    verifySamplerWithFraction(true, fraction, seed)
+  }
+
+  @throws(classOf[Exception])
+  private def verifySamplerWithFraction(withReplacement: Boolean, fraction: Double, seed: Long) {
+    val ds = getSourceDataSet()
+    val sampled = ds.sample(withReplacement, fraction, seed)
+    result = sampled.collect.asJava
+  }
+
+  @throws(classOf[Exception])
+  private def verifySamplerWithFixedSizeWithoutReplacement(numSamples: Int) {
+    verifySamplerWithFixedSizeWithoutReplacement(numSamples, RNG.nextLong)
+  }
+
+  @throws(classOf[Exception])
+  private def verifySamplerWithFixedSizeWithoutReplacement(numSamples: Int, seed: Long) {
+    verifySamplerWithFixedSize(false, numSamples, seed)
+  }
+
+  @throws(classOf[Exception])
+  private def verifySamplerWithFixedSizeWithReplacement(numSamples: Int) {
+    verifySamplerWithFixedSizeWithReplacement(numSamples, RNG.nextLong)
+  }
+
+  @throws(classOf[Exception])
+  private def verifySamplerWithFixedSizeWithReplacement(numSamples: Int, seed: Long) {
+    verifySamplerWithFixedSize(true, numSamples, seed)
+  }
+
+  @throws(classOf[Exception])
+  private def verifySamplerWithFixedSize(withReplacement: Boolean, numSamples: Int, seed: Long) {
+    val ds = getSourceDataSet()
+    val sampled = ds.sampleWithSize(withReplacement, numSamples, seed)
+    result = sampled.collect.asJava
+    assertEquals(numSamples, result.size)
   }
 
   private def getSourceDataSet(): DataSet[String] = {

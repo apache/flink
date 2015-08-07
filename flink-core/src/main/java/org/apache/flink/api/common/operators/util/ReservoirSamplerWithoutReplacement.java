@@ -19,29 +19,33 @@ package org.apache.flink.api.common.operators.util;
 
 import com.google.common.base.Preconditions;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
+import java.util.PriorityQueue;
 import java.util.Random;
 
 /**
  * A simple in memory implementation of Reservoir Sampling without replacement, and with only one pass through
  * the input iteration whose size is unpredictable.
- * This implementation refers to the Algorithm R described in <a href="www.cs.umd.edu/~samir/498/vitter.pdf">
- * "Random Sampling with a Reservoir" Vitter, 1985</a>.
+ * The basic idea behind this sampler implementation is that: generate a random number for each input elements
+ * as its weight, select top K elements with max weight, as the weights are generated randomly, so the selected
+ * top K elements are selected randomly. For implementation, we implemented the two-phases interface of DistributedRandomSampler,
+ * in first phase, generate random number as the weight for each elements, and select top K elements as the output
+ * of each partitions. In second phase, select top K elements from all the outputs in first phase.
+ * This implementation refers to the algorithm described in <a href="researcher.ibm.com/files/us-dpwoodru/tw11.pdf">
+ * "Optimal Random Sampling from Distributed Streams Revisited"</a>.
  *
- * @param <T> type of the sampler.
+ * @param <T> The type of the sampler.
  */
-public class ReservoirSamplerWithoutReplacement<T> extends RandomSampler<T> {
+public class ReservoirSamplerWithoutReplacement<T> extends DistributedRandomSampler<T> {
 	
 	private final int numSamples;
 	private final Random random;
-	
+
 	/**
 	 * Create a new sampler with reservoir size and a supplied random number generator.
 	 *
 	 * @param numSamples Maximum number of samples to retain in reservoir, must be non-negative.
-	 * @param random     instance of random number generator for sampling.
+	 * @param random     Instance of random number generator for sampling.
 	 */
 	public ReservoirSamplerWithoutReplacement(int numSamples, Random random) {
 		Preconditions.checkArgument(numSamples >= 0, "numSamples should be non-negative.");
@@ -62,40 +66,88 @@ public class ReservoirSamplerWithoutReplacement<T> extends RandomSampler<T> {
 	 * Create a new sampler with reservoir size and the seed for random number generator.
 	 *
 	 * @param numSamples Maximum number of samples to retain in reservoir, must be non-negative.
-	 * @param seed       random number generator seed.
+	 * @param seed       Random number generator seed.
 	 */
 	public ReservoirSamplerWithoutReplacement(int numSamples, long seed) {
 		
 		this(numSamples, new Random(seed));
 	}
 	
-	/**
-	 * Sample the input elements, and return the sample result.
-	 *
-	 * @param input the elements which tend to be sampled.
-	 * @return return the reservoir, the reservoir size would less than numSamples while input size is
-	 * less than numSamples.
-	 */
 	@Override
-	public Iterator<T> sample(Iterator<T> input) {
+	public Iterator<IntermediateSampleData<T>> sampleInPartition(Iterator<T> input) {
 		if (numSamples == 0) {
-			return EMPTY_ITERABLE;
+			return EMPTY_INTERMEDIATE_ITERABLE;
 		}
-		
-		List<T> reservoir = new ArrayList<T>();
+
+		// This queue holds fixed number elements with the top K weight for current partition.
+		PriorityQueue<IntermediateSampleData<T>> queue = new PriorityQueue<IntermediateSampleData<T>>(numSamples);
 		int index = 0;
+		IntermediateSampleData<T> smallest = null;
 		while (input.hasNext()) {
 			T element = input.next();
 			if (index < numSamples) {
-				reservoir.add(element);
+				// Fill the queue with first K elements from input.
+				queue.add(new IntermediateSampleData<T>(random.nextDouble(), element));
+				smallest = queue.peek();
 			} else {
-				int rIndex = random.nextInt(index + 1);
-				if (rIndex < numSamples) {
-					reservoir.set(rIndex, element);
+				double rand = random.nextDouble();
+				// Remove the element with the smallest weight, and append current element into the queue.
+				if (rand > smallest.getWeight()) {
+					queue.remove();
+					queue.add(new IntermediateSampleData<T>(rand, element));
+					smallest = queue.peek();
 				}
 			}
 			index++;
 		}
-		return reservoir.iterator();
+		return queue.iterator();
+	}
+
+	@Override
+	public Iterator<T> sampleInCoordinator(Iterator<IntermediateSampleData<T>> input) {
+		if (numSamples == 0) {
+			return EMPTY_ITERABLE;
+		}
+
+		// This queue holds fixed number elements with the top K weight for the coordinator.
+		PriorityQueue<IntermediateSampleData<T>> queue = new PriorityQueue<IntermediateSampleData<T>>(numSamples);
+		int index = 0;
+		IntermediateSampleData<T> smallest = null;
+		while (input.hasNext()) {
+			IntermediateSampleData<T> element = input.next();
+			if (index < numSamples) {
+				// Fill the queue with first K elements from input.
+				queue.add(element);
+				smallest = queue.peek();
+			} else {
+				// If current element weight is larger than the smallest one in queue, remove the element
+				// with the smallest weight, and append current element into the queue.
+				if (element.getWeight() > smallest.getWeight()) {
+					queue.remove();
+					queue.add(element);
+					smallest = queue.peek();
+				}
+			}
+			index++;
+		}
+
+		final Iterator<IntermediateSampleData<T>> itr = queue.iterator();
+
+		return new Iterator<T>() {
+			@Override
+			public boolean hasNext() {
+				return itr.hasNext();
+			}
+
+			@Override
+			public T next() {
+				return itr.next().getElement();
+			}
+
+			@Override
+			public void remove() {
+				itr.remove();
+			}
+		};
 	}
 }

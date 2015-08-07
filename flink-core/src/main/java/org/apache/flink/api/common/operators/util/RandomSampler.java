@@ -20,8 +20,8 @@ package org.apache.flink.api.common.operators.util;
 import java.util.Iterator;
 
 /**
- * A data sample is a set of data collected and/or selected from a statistical population by a defined procedure.
- * RandomSampler is the util which helps to collect data sample randomly.
+ * A data sample is a set of data selected from a statistical population by a defined procedure.
+ * RandomSampler helps to collect data sample randomly.
  *
  * @param <T> The type of sampler data.
  */
@@ -40,22 +40,23 @@ public abstract class RandomSampler<T> {
 	};
 	
 	/**
-	 * Randomly sample the elements from input, and return the result iterator.
+	 * Randomly sample the elements from input in sequence, and return the result iterator.
 	 *
-	 * @param input source data
-	 * @return the sample result.
+	 * @param input Source data
+	 * @return The sample result.
 	 */
 	public abstract Iterator<T> sample(Iterator<T> input);
+
 }
 
 /**
- * An abstract iterator which does not support remove.
+ * A simple abstract iterator which implement the remove method as unsupported operation.
  * @param <T> The type of iterator data.
  */
 abstract class SampledIterator<T> implements Iterator<T> {
-	
 	@Override
 	public void remove() {
 		throw new UnsupportedOperationException("Do not support this operation.");
 	}
+
 }

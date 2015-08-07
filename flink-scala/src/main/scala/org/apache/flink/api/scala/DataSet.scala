@@ -26,14 +26,15 @@ import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
-import org.apache.flink.api.common.operators.util.{BernoulliSampler, PoissonSampler, RandomSampler, ReservoirSamplerWithoutReplacement, ReservoirSamplerWithReplacement}
+import org.apache.flink.api.common.operators.util.IntermediateSampleData
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
-import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
+import org.apache.flink.api.java.functions._
 import org.apache.flink.api.java.io.{DiscardingOutputFormat, PrintingOutputFormat, TextOutputFormat}
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
+import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet => JavaDataSet, Utils}
 import org.apache.flink.api.scala.operators.{ScalaAggregateOperator, ScalaCsvOutputFormat}
 import org.apache.flink.configuration.Configuration
@@ -1186,72 +1187,54 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   //  Sample
   // --------------------------------------------------------------------------------------------
   /**
-   * Generate a sample of DataSet.
+   * Generate a sample of DataSet by the probability fraction of each element.
    *
-   * @param withReplacement whether element can be sampled multiple times.
-   * @param fraction        probability that each element is chosen, should be [0,1] without
+   * @param withReplacement Whether element can be selected more than once.
+   * @param fraction        Probability that each element is chosen, should be [0,1] without
    *                        replacement, and [0, ∞) with replacement. While fraction is larger
    *                        than 1, the elements are expected to be selected multi times into
    *                        sample on average.
-   * @param seed            random number generator seed.
-   * @return the sampled DataSet
+   * @param seed            Random number generator seed.
+   * @return The sampled DataSet
    */
   def sample(
       withReplacement: Boolean,
       fraction: Double,
       seed: Long = Utils.RNG.nextLong()): DataSet[T] = {
 
-    val partitionMapper = new RichMapPartitionFunction[T, T] {
-      override def mapPartition(values: java.lang.Iterable[T], out: Collector[T]): Unit = {
-        var sampler: RandomSampler[T] = null
-        val seedAndIndex = seed + getRuntimeContext.getIndexOfThisSubtask;
-        if (withReplacement) {
-          sampler = new PoissonSampler[T](fraction, seedAndIndex)
-        } else {
-          sampler = new BernoulliSampler[T](fraction, seedAndIndex)
-        }
-
-        sampler.sample(values.iterator()).asScala foreach out.collect
-      }
-    }
-
     wrap(new MapPartitionOperator[T, T](javaSet,
       getType(),
-      partitionMapper,
+      new SampleWithFraction(withReplacement, fraction, seed),
       getCallLocationName()))
   }
 
   /**
-   * Generate a sample of DataSet.
+   * Generate a sample of DataSet by the probability fraction of each element.
    *
-   * @param withReplacement whether element can be sampled multiple times.
-   * @param numSample       the expected sampled size.
-   * @param seed            random number generator seed.
-   * @return the sampled DataSet
+   * @param withReplacement Whether element can be selected more than once.
+   * @param numSample       The expected sample size.
+   * @param seed            Random number generator seed.
+   * @return The sampled DataSet
    */
   def sampleWithSize(
       withReplacement: Boolean,
       numSample: Int,
       seed: Long = Utils.RNG.nextLong()): DataSet[T] = {
 
-    val partitionMapper = new RichMapPartitionFunction[T, T] {
-      override def mapPartition(values: java.lang.Iterable[T], out: Collector[T]): Unit = {
-        var sampler: RandomSampler[T] = null
-        val seedAndIndex = seed + getRuntimeContext.getIndexOfThisSubtask;
-        if (withReplacement) {
-          sampler = new ReservoirSamplerWithReplacement[T](numSample, seedAndIndex)
-        } else {
-          sampler = new ReservoirSamplerWithoutReplacement[T](numSample, seedAndIndex)
-        }
+    val sampleInPartition = new SampleInPartition[T](withReplacement, numSample, seed)
+    val resultType = TypeExtractor.getMapPartitionReturnTypes(sampleInPartition, getType)
+    val mapPartitionOperator = new MapPartitionOperator[T, IntermediateSampleData[T]](javaSet,
+      resultType,
+      sampleInPartition,
+      getCallLocationName())
 
-        sampler.sample(values.iterator()).asScala foreach out.collect
-      }
-    }
-
-    wrap(new MapPartitionOperator[T, T](javaSet,
+    // There is no previous group, so the parallelism of GroupReduceOperator is always 1.
+    val groupReduceOperator = new GroupReduceOperator[IntermediateSampleData[T], T](
+      mapPartitionOperator,
       getType(),
-      partitionMapper,
-      getCallLocationName()))
+      new SampleInCoordinator[T](withReplacement, numSample, seed),
+      getCallLocationName())
+    wrap(groupReduceOperator)
   }
 
   // --------------------------------------------------------------------------------------------

@@ -18,6 +18,7 @@
 package org.apache.flink.test.javaApiOperators;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
@@ -25,65 +26,110 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
+import java.util.Random;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
 public class SampleITCase extends MultipleProgramsTestBase {
+
+	private static final Random RNG = new Random();
+
 	public SampleITCase(TestExecutionMode mode) {
 		super(mode);
 	}
-	
+
+	@Before
+	public void initiate() {
+		ExecutionEnvironment.getExecutionEnvironment().setParallelism(5);
+	}
+
 	@Test
 	public void testSamplerWithFractionWithoutReplacement() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
-		FlatMapOperator<Tuple3<Integer, Long, String>, String> ds = getSourceDataSet(env);
-		MapPartitionOperator<String, String> sampled = ds.sample(false, 0.2d, 1);
-		List<String> result = sampled.collect();
-		containsResultAsText(result, getSourceStrings());
+		verifySamplerWithFractionWithoutReplacement(0d);
+		verifySamplerWithFractionWithoutReplacement(0.2d);
+		verifySamplerWithFractionWithoutReplacement(1.0d);
 	}
-	
+
 	@Test
 	public void testSamplerWithFractionWithReplacement() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
-		FlatMapOperator<Tuple3<Integer, Long, String>, String> ds = getSourceDataSet(env);
-		MapPartitionOperator<String, String> sampled = ds.sample(true, 0.2d, 1);
-		List<String> result = sampled.collect();
-		containsResultAsText(result, getSourceStrings());
+		verifySamplerWithFractionWithReplacement(0d);
+		verifySamplerWithFractionWithReplacement(0.2d);
+		verifySamplerWithFractionWithReplacement(1.0d);
+		verifySamplerWithFractionWithReplacement(2.0d);
 	}
-	
+
 	@Test
 	public void testSamplerWithSizeWithoutReplacement() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
-		FlatMapOperator<Tuple3<Integer, Long, String>, String> ds = getSourceDataSet(env);
-		int numSamples = 2;
-		MapPartitionOperator<String, String> sampled = ds.sampleWithSize(false, numSamples, 1);
-		List<String> result = sampled.collect();
-		assertTrue(result.size() == numSamples);
-		containsResultAsText(result, getSourceStrings());
+		verifySamplerWithFixedSizeWithoutReplacement(0);
+		verifySamplerWithFixedSizeWithoutReplacement(2);
+		verifySamplerWithFixedSizeWithoutReplacement(21);
 	}
-	
+
 	@Test
 	public void testSamplerWithSizeWithReplacement() throws Exception {
+		verifySamplerWithFixedSizeWithReplacement(0);
+		verifySamplerWithFixedSizeWithReplacement(2);
+		verifySamplerWithFixedSizeWithReplacement(21);
+	}
+
+	private void verifySamplerWithFractionWithoutReplacement(double fraction) throws Exception {
+		verifySamplerWithFractionWithoutReplacement(fraction, RNG.nextLong());
+	}
+
+	private void verifySamplerWithFractionWithoutReplacement(double fraction, long seed) throws Exception {
+		verifySamplerWithFraction(false, fraction, seed);
+	}
+
+	private void verifySamplerWithFractionWithReplacement(double fraction) throws Exception {
+		verifySamplerWithFractionWithReplacement(fraction, RNG.nextLong());
+	}
+
+	private void verifySamplerWithFractionWithReplacement(double fraction, long seed) throws Exception {
+		verifySamplerWithFraction(true, fraction, seed);
+	}
+
+	private void verifySamplerWithFraction(boolean withReplacement, double fraction, long seed) throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
 		FlatMapOperator<Tuple3<Integer, Long, String>, String> ds = getSourceDataSet(env);
-		int numSamples = 2;
-		MapPartitionOperator<String, String> sampled = ds.sampleWithSize(true, numSamples, 1);
+		MapPartitionOperator<String, String> sampled = ds.sample(withReplacement, fraction, seed);
 		List<String> result = sampled.collect();
-		assertTrue(result.size() == numSamples);
 		containsResultAsText(result, getSourceStrings());
 	}
-	
+
+	private void verifySamplerWithFixedSizeWithoutReplacement(int numSamples) throws Exception {
+		verifySamplerWithFixedSizeWithoutReplacement(numSamples, RNG.nextLong());
+	}
+
+	private void verifySamplerWithFixedSizeWithoutReplacement(int numSamples, long seed) throws Exception {
+		verifySamplerWithFixedSize(false, numSamples, seed);
+	}
+
+	private void verifySamplerWithFixedSizeWithReplacement(int numSamples) throws Exception {
+		verifySamplerWithFixedSizeWithReplacement(numSamples, RNG.nextLong());
+	}
+
+	private void verifySamplerWithFixedSizeWithReplacement(int numSamples, long seed) throws Exception {
+		verifySamplerWithFixedSize(true, numSamples, seed);
+	}
+
+	private void verifySamplerWithFixedSize(boolean withReplacement, int numSamples, long seed) throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		FlatMapOperator<Tuple3<Integer, Long, String>, String> ds = getSourceDataSet(env);
+		DataSet<String> sampled = ds.sampleWithSize(withReplacement, numSamples, seed);
+		List<String> result = sampled.collect();
+		assertEquals(numSamples, result.size());
+		containsResultAsText(result, getSourceStrings());
+	}
+
 	private FlatMapOperator<Tuple3<Integer, Long, String>, String> getSourceDataSet(ExecutionEnvironment env) {
 		return CollectionDataSets.get3TupleDataSet(env).flatMap(
 			new FlatMapFunction<Tuple3<Integer, Long, String>, String>() {

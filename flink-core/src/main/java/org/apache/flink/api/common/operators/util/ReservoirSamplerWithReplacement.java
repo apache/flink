@@ -18,106 +18,139 @@
 package org.apache.flink.api.common.operators.util;
 
 import com.google.common.base.Preconditions;
-import org.apache.commons.math3.distribution.PoissonDistribution;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.PriorityQueue;
 import java.util.Random;
 
 /**
  * A simple in memory implementation of Reservoir Sampling with replacement, and with only one pass through
  * the input iteration whose size is unpredictable.
- * This implementation refers to the algorithm described in <a href="epubs.siam.org/doi/pdf/10.1137/1.9781611972740.53">
- * "Reservoir-based Random Sampling with Replacement from Data Stream"</a>.
+ * The basic idea behind this sampler implementation is quite similar with ReservoirSamplerWithoutReplacement,
+ * the main difference is that, in first phase, we generate weight for each element K times, so that each elements
+ * get multi times opportunities to be selected.
+ * This implementation refers to the algorithm described in <a href="researcher.ibm.com/files/us-dpwoodru/tw11.pdf">
+ * "Optimal Random Sampling from Distributed Streams Revisited"</a>.
  *
- * @param <T> the type of sample.
+ * @param <T> The type of sample.
  */
-public class ReservoirSamplerWithReplacement<T> extends RandomSampler<T> {
+public class ReservoirSamplerWithReplacement<T> extends DistributedRandomSampler<T> {
 	private final int numSamples;
 	private final Random random;
-	private PoissonDistribution poissonDistribution;
-	private List<Integer> positions;
-	
+
 	/**
-	 * Create a reservoir sampler with fixed sample size and default random number generator.
+	 * Create a sampler with fixed sample size and default random number generator.
 	 *
-	 * @param numSamples number of samples to retain in reservoir, must be non-negative.
+	 * @param numSamples Number of selected elements, must be non-negative.
 	 */
 	public ReservoirSamplerWithReplacement(int numSamples) {
 		this(numSamples, new Random());
 	}
 	
 	/**
-	 * Create a reservoir sampler with fixed sample size and random number generator seed.
+	 * Create a sampler with fixed sample size and random number generator seed.
 	 *
-	 * @param numSamples number of samples to retain in reservoir, must be non-negative.
-	 * @param seed       random number generator seed
+	 * @param numSamples Number of selected elements, must be non-negative.
+	 * @param seed       Random number generator seed
 	 */
 	public ReservoirSamplerWithReplacement(int numSamples, long seed) {
 		this(numSamples, new Random(seed));
 	}
 	
 	/**
-	 * Create a reservoir sampler with fixed sample size and random number generator.
+	 * Create a sampler with fixed sample size and random number generator.
 	 *
-	 * @param numSamples number of samples to retain in reservoir, must be non-negative.
-	 * @param random     random number generator
+	 * @param numSamples Number of selected elements, must be non-negative.
+	 * @param random     Random number generator
 	 */
 	public ReservoirSamplerWithReplacement(int numSamples, Random random) {
 		Preconditions.checkArgument(numSamples >= 0, "numSamples should be non-negative.");
 		this.numSamples = numSamples;
 		this.random = random;
-		this.positions = new LinkedList<Integer>();
-		this.initPositionList();
 	}
-	
-	/**
-	 * Sample the input elements, and return the sample result.
-	 *
-	 * @param input the elements which tend to be sampled.
-	 * @return return the reservoir.
-	 */
+
 	@Override
-	public Iterator<T> sample(Iterator<T> input) {
+	public Iterator<IntermediateSampleData<T>> sampleInPartition(Iterator<T> input) {
+		if (numSamples == 0) {
+			return EMPTY_INTERMEDIATE_ITERABLE;
+		}
+
+		// This queue holds fixed number elements with the top K weight for current partition.
+		PriorityQueue<IntermediateSampleData<T>> queue = new PriorityQueue<IntermediateSampleData<T>>(numSamples);
+
+		IntermediateSampleData<T> smallest = null;
+
+		if (input.hasNext()) {
+			T element = input.next();
+			// Initiate the queue with the first element and random weights.
+			for (int i = 0; i < numSamples; i++) {
+				queue.add(new IntermediateSampleData<T>(random.nextDouble(), element));
+				smallest = queue.peek();
+			}
+		}
+
+		while (input.hasNext()) {
+			T element = input.next();
+			// To sample with replacement, we generate K random weights for each element, so that it's
+			// possible to be selected multi times.
+			for (int i = 0; i < numSamples; i++) {
+				// If current element weight is larger than the smallest one in queue, remove the element
+				// with the smallest weight, and append current element into the queue.
+				double rand = random.nextDouble();
+				if (rand > smallest.getWeight()) {
+					queue.remove();
+					queue.add(new IntermediateSampleData<T>(rand, element));
+					smallest = queue.peek();
+				}
+			}
+		}
+		return queue.iterator();
+	}
+
+	@Override
+	public Iterator<T> sampleInCoordinator(Iterator<IntermediateSampleData<T>> input) {
 		if (numSamples == 0) {
 			return EMPTY_ITERABLE;
 		}
-		
-		List<T> reservoir = new ArrayList<T>(numSamples);
-		int rIndex = 0;
+
+		// This queue holds fixed number elements with the top K weight for the coordinator.
+		PriorityQueue<IntermediateSampleData<T>> reservoir = new PriorityQueue<IntermediateSampleData<T>>(numSamples);
+		int index = 0;
+		IntermediateSampleData<T> smallest = null;
 		while (input.hasNext()) {
-			T element = input.next();
-			if (rIndex == 0) {
-				// fill the reservoir with first element.
-				for (int i = 0; i < numSamples; i++) {
-					reservoir.add(element);
-				}
+			IntermediateSampleData<T> element = input.next();
+			if (index < numSamples) {
+				// Fill the queue with first K elements from input.
+				reservoir.add(element);
+				smallest = reservoir.peek();
 			} else {
-				double expectedCount = numSamples / ((double)rIndex + 1);
-				// create poisson distribution with expect count of current element as mean value, and generate sample value.
-				int seed = random.nextInt();
-				poissonDistribution = new PoissonDistribution(expectedCount);
-				poissonDistribution.reseedRandomGenerator(seed);
-				int sampledCount = poissonDistribution.sample();
-				if (sampledCount > 0) {
-					// select elements in reservoir and update them with current element.
-					ReservoirSamplerWithoutReplacement sampler = new ReservoirSamplerWithoutReplacement(sampledCount, seed);
-					Iterator<Integer> evictedPositions = sampler.sample(positions.iterator());
-					while (evictedPositions.hasNext()) {
-						reservoir.set(evictedPositions.next(), element);
-					}
+				// If current element weight is larger than the smallest one in queue, remove the element
+				// with the smallest weight, and append current element into the queue.
+				if (element.getWeight() > smallest.getWeight()) {
+					reservoir.remove();
+					reservoir.add(element);
+					smallest = reservoir.peek();
 				}
 			}
-			rIndex++;
+			index++;
 		}
-		return reservoir.iterator();
-	}
-	
-	private void initPositionList() {
-		for (int i = 0; i < numSamples; i++) {
-			this.positions.add(i);
-		}
+		final Iterator<IntermediateSampleData<T>> itr = reservoir.iterator();
+
+		return new Iterator<T>() {
+			@Override
+			public boolean hasNext() {
+				return itr.hasNext();
+			}
+
+			@Override
+			public T next() {
+				return itr.next().getElement();
+			}
+
+			@Override
+			public void remove() {
+				itr.remove();
+			}
+		};
 	}
 }

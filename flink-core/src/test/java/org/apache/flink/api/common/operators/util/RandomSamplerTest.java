@@ -25,10 +25,14 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -50,7 +54,9 @@ public class RandomSamplerTest {
 	private final static int SOURCE_SIZE = 10000;
 	private static KolmogorovSmirnovTest ksTest;
 	private static List<Double> source;
-	
+	private final static int DEFFAULT_PARTITION_NUMBER=10;
+	private List<Double>[] sourcePartitions = new List[DEFFAULT_PARTITION_NUMBER];
+
 	@BeforeClass
 	public static void init() {
 		// initiate source data set.
@@ -60,6 +66,16 @@ public class RandomSamplerTest {
 		}
 		
 		ksTest = new KolmogorovSmirnovTest();
+	}
+
+	private void initSourcePartition() {
+		for (int i=0; i<DEFFAULT_PARTITION_NUMBER; i++) {
+			sourcePartitions[i] = new LinkedList<Double>();
+		}
+		for (int i = 0; i< SOURCE_SIZE; i++) {
+			int index = i % DEFFAULT_PARTITION_NUMBER;
+			sourcePartitions[index].add((double)i);
+		}
 	}
 	
 	@Test(expected = java.lang.IllegalArgumentException.class)
@@ -164,18 +180,38 @@ public class RandomSamplerTest {
 	
 	@Test
 	public void testReservoirSamplerWithoutReplacement() {
-		verifyReservoirSamplerWithoutReplacement(100);
-		verifyReservoirSamplerWithoutReplacement(500);
-		verifyReservoirSamplerWithoutReplacement(1000);
-		verifyReservoirSamplerWithoutReplacement(5000);
+		verifyReservoirSamplerWithoutReplacement(100, false);
+		verifyReservoirSamplerWithoutReplacement(500, false);
+		verifyReservoirSamplerWithoutReplacement(1000, false);
+		verifyReservoirSamplerWithoutReplacement(5000, false);
 	}
 	
 	@Test
 	public void testReservoirSamplerWithReplacement() {
-		verifyReservoirSamplerWithReplacement(100);
-		verifyReservoirSamplerWithReplacement(500);
-		verifyReservoirSamplerWithReplacement(1000);
-		verifyReservoirSamplerWithReplacement(5000);
+		verifyReservoirSamplerWithReplacement(100, false);
+		verifyReservoirSamplerWithReplacement(500, false);
+		verifyReservoirSamplerWithReplacement(1000, false);
+		verifyReservoirSamplerWithReplacement(5000, false);
+	}
+
+	@Test
+	public void testReservoirSamplerWithMultiSourcePartitions1() {
+		initSourcePartition();
+
+		verifyReservoirSamplerWithoutReplacement(100, true);
+		verifyReservoirSamplerWithoutReplacement(500, true);
+		verifyReservoirSamplerWithoutReplacement(1000, true);
+		verifyReservoirSamplerWithoutReplacement(5000, true);
+	}
+
+	@Test
+	public void testReservoirSamplerWithMultiSourcePartitions2() {
+		initSourcePartition();
+
+		verifyReservoirSamplerWithReplacement(100, true);
+		verifyReservoirSamplerWithReplacement(500, true);
+		verifyReservoirSamplerWithReplacement(1000, true);
+		verifyReservoirSamplerWithReplacement(5000, true);
 	}
 	
 	private void verifySamplerFixedSampleSize(int numSample, boolean withReplacement) {
@@ -186,7 +222,7 @@ public class RandomSamplerTest {
 			sampler = new ReservoirSamplerWithoutReplacement<Double>(numSample);
 		}
 		Iterator<Double> sampled = sampler.sample(source.iterator());
-		assertTrue(getSize(sampled) == numSample);
+		assertEquals(numSample, getSize(sampled));
 	}
 	
 	private void verifySamplerFraction(double fraction, boolean withReplacement) {
@@ -239,16 +275,16 @@ public class RandomSamplerTest {
 		verifyRandomSamplerWithFraction(fraction, sampler, false);
 	}
 	
-	private void verifyReservoirSamplerWithReplacement(int numSamplers) {
+	private void verifyReservoirSamplerWithReplacement(int numSamplers, boolean sampleOnPartitions) {
 		ReservoirSamplerWithReplacement<Double> sampler = new ReservoirSamplerWithReplacement<Double>(numSamplers);
-		verifyRandomSamplerWithSampleSize(numSamplers, sampler, true);
-		verifyRandomSamplerWithSampleSize(numSamplers, sampler, false);
+		verifyRandomSamplerWithSampleSize(numSamplers, sampler, true, sampleOnPartitions);
+		verifyRandomSamplerWithSampleSize(numSamplers, sampler, false, sampleOnPartitions);
 	}
 	
-	private void verifyReservoirSamplerWithoutReplacement(int numSamplers) {
+	private void verifyReservoirSamplerWithoutReplacement(int numSamplers, boolean sampleOnPartitions) {
 		ReservoirSamplerWithoutReplacement<Double> sampler = new ReservoirSamplerWithoutReplacement<Double>(numSamplers);
-		verifyRandomSamplerWithSampleSize(numSamplers, sampler, true);
-		verifyRandomSamplerWithSampleSize(numSamplers, sampler, false);
+		verifyRandomSamplerWithSampleSize(numSamplers, sampler, true, sampleOnPartitions);
+		verifyRandomSamplerWithSampleSize(numSamplers, sampler, false, sampleOnPartitions);
 	}
 	
 	private void verifyRandomSamplerWithFraction(double fraction, RandomSampler sampler, boolean withDefaultSampler) {
@@ -261,8 +297,8 @@ public class RandomSamplerTest {
 		
 		verifyKSTest(sampler, baseSample, withDefaultSampler);
 	}
-	
-	private void verifyRandomSamplerWithSampleSize(int sampleSize, RandomSampler sampler, boolean withDefaultSampler) {
+
+	private void verifyRandomSamplerWithSampleSize(int sampleSize, RandomSampler sampler, boolean withDefaultSampler, boolean sampleWithPartitions) {
 		double[] baseSample;
 		if (withDefaultSampler) {
 			baseSample = getDefaultSampler(sampleSize);
@@ -270,11 +306,15 @@ public class RandomSamplerTest {
 			baseSample = getWrongSampler(sampleSize);
 		}
 		
-		verifyKSTest(sampler, baseSample, withDefaultSampler);
+		verifyKSTest(sampler, baseSample, withDefaultSampler, sampleWithPartitions);
 	}
-	
+
 	private void verifyKSTest(RandomSampler sampler, double[] defaultSampler, boolean expectSuccess) {
-		double[] sampled = getSampledOutput(sampler);
+		verifyKSTest(sampler, defaultSampler, expectSuccess, false);
+	}
+
+	private void verifyKSTest(RandomSampler sampler, double[] defaultSampler, boolean expectSuccess, boolean sampleOnPartitions) {
+		double[] sampled = getSampledOutput(sampler, sampleOnPartitions);
 		double pValue = ksTest.kolmogorovSmirnovStatistic(sampled, defaultSampler);
 		double dValue = getDValue(sampled.length, defaultSampler.length);
 		if (expectSuccess) {
@@ -284,24 +324,44 @@ public class RandomSamplerTest {
 		}
 	}
 	
-	private double[] getSampledOutput(RandomSampler<Double> sampler) {
-		Iterator<Double> sampled = sampler.sample(source.iterator());
+	private double[] getSampledOutput(RandomSampler<Double> sampler, boolean sampleOnPartitions) {
+		Iterator<Double> sampled = null;
+		if (sampleOnPartitions) {
+			DistributedRandomSampler<Double> reservoirRandomSampler = (DistributedRandomSampler<Double>)sampler;
+			List<IntermediateSampleData<Double>> intermediateResult = Lists.newLinkedList();
+			for (int i=0; i<DEFFAULT_PARTITION_NUMBER; i++) {
+				Iterator<IntermediateSampleData<Double>> partialIntermediateResult = reservoirRandomSampler.sampleInPartition(sourcePartitions[i].iterator());
+				while (partialIntermediateResult.hasNext()) {
+					intermediateResult.add(partialIntermediateResult.next());
+				}
+			}
+			sampled = reservoirRandomSampler.sampleInCoordinator(intermediateResult.iterator());
+		} else {
+			sampled = sampler.sample(source.iterator());
+		}
 		List<Double> list = Lists.newArrayList();
 		while (sampled.hasNext()) {
 			list.add(sampled.next());
 		}
-		double[] result = transferFromListToArray(list);
+		double[] result = transferFromListToArrayWithOrder(list);
 		return result;
 	}
-	
-	private double[] transferFromListToArray(List<Double> list) {
+
+	// Some sample result may not order by the input sequence, we should make it in order to do K-S test.
+	private double[] transferFromListToArrayWithOrder(List<Double> list) {
+		Collections.sort(list, new Comparator<Double>() {
+			@Override
+			public int compare(Double o1, Double o2) {
+				return o1 - o2 >= 0 ? 1 : -1;
+			}
+		});
 		double[] result = new double[list.size()];
 		for (int i = 0; i < list.size(); i++) {
 			result[i] = list.get(i);
 		}
 		return result;
 	}
-	
+
 	private double[] getDefaultSampler(double fraction) {
 		Preconditions.checkArgument(fraction > 0, "Sample fraction should be positive.");
 		int size = (int) (SOURCE_SIZE * fraction);
