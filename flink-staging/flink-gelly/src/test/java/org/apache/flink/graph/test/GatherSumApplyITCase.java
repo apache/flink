@@ -18,20 +18,21 @@
 
 package org.apache.flink.graph.test;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
-import org.apache.flink.graph.example.GSAConnectedComponents;
-import org.apache.flink.graph.example.GSASingleSourceShortestPaths;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.example.utils.ConnectedComponentsDefaultData;
+import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
+import org.apache.flink.graph.library.GSAConnectedComponents;
+import org.apache.flink.graph.library.GSASingleSourceShortestPaths;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
+import org.apache.flink.types.NullValue;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.io.File;
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class GatherSumApplyITCase extends MultipleProgramsTestBase {
@@ -40,28 +41,7 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	private String edgesPath;
-	private String resultPath;
 	private String expectedResult;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-
-		File edgesFile = tempFolder.newFile();
-		Files.write(GatherSumApplyITCase.EDGES, edgesFile, Charsets.UTF_8);
-
-		edgesPath = edgesFile.toURI().toString();
-
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
 
 	// --------------------------------------------------------------------------------------------
 	//  Connected Components Test
@@ -69,15 +49,21 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testConnectedComponents() throws Exception {
-		GSAConnectedComponents.main(new String[]{edgesPath, resultPath, "16"});
-		expectedResult = "1 1\n" +
-				"2 1\n" +
-				"3 1\n" +
-				"4 1\n" +
-				"5 1\n" +
-				"6 6\n" +
-				"7 6\n";
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
+		Graph<Long, Long, NullValue> inputGraph = Graph.fromDataSet(
+				ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
+				new InitMapperCC(), env);
+
+        List<Vertex<Long, Long>> result = inputGraph.run(new GSAConnectedComponents(16))
+        		.getVertices().collect();
+
+		expectedResult = "1,1\n" +
+				"2,1\n" +
+				"3,1\n" +
+				"4,1\n";
+
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -86,26 +72,35 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testSingleSourceShortestPaths() throws Exception {
-		GSASingleSourceShortestPaths.main(new String[]{"1", edgesPath, resultPath, "16"});
-		expectedResult = "1 0.0\n" +
-				"2 12.0\n" +
-				"3 13.0\n" +
-				"4 47.0\n" +
-				"5 48.0\n" +
-				"6 Infinity\n" +
-				"7 Infinity\n";
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
+				SingleSourceShortestPathsData.getDefaultEdgeDataSet(env),
+				new InitMapperSSSP(), env);
+
+        List<Vertex<Long, Double>> result = inputGraph.run(new GSASingleSourceShortestPaths<Long>(1l, 16))
+        		.getVertices().collect();
+
+		expectedResult = "1,0.0\n" +
+				"2,12.0\n" +
+				"3,13.0\n" +
+				"4,47.0\n" +
+				"5,48.0\n";
+
+		compareResultAsTuples(result, expectedResult);
 	}
 
-	// --------------------------------------------------------------------------------------------
-	//  Sample data
-	// --------------------------------------------------------------------------------------------
+	@SuppressWarnings("serial")
+	private static final class InitMapperCC implements MapFunction<Long, Long> {
+		public Long map(Long value) {
+			return value;
+		}
+	}
 
-	private static final String EDGES = "1	2	12.0\n" +
-			"1	3	13.0\n" +
-			"2	3	23.0\n" +
-			"3	4	34.0\n" +
-			"3	5	35.0\n" +
-			"4	5	45.0\n" +
-			"5	1	51.0\n" +
-			"6	7	67.0\n";
+	@SuppressWarnings("serial")
+	private static final class InitMapperSSSP implements MapFunction<Long, Double> {
+		public Double map(Long value) {
+			return 0.0;
+		}
+	}
 }

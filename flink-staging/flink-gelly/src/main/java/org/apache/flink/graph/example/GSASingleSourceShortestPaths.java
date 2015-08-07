@@ -74,7 +74,7 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 
 		// emit result
 		if(fileOutput) {
-			singleSourceShortestPaths.writeAsCsv(outputPath, "\n", " ");
+			singleSourceShortestPaths.writeAsCsv(outputPath, "\n", ",");
 
 			// since file sinks are lazy, we trigger the execution explicitly
 			env.execute("GSA Single Source Shortest Paths");

@@ -36,6 +36,11 @@ public class CommunityDetectionData {
 
 	public static final double DELTA = 0.5f;
 
+	public static final String COMMUNITIES_SINGLE_ITERATION = "1,5\n" + "2,6\n"
+			+ "3,1\n" + "4,1\n" + "5,1\n" + "6,8\n" + "7,8\n" + "8,7"; 
+
+	public static final String COMMUNITIES_WITH_TIE = "1,2\n" + "2,1\n" + "3,1\n" + "4,1\n" + "5,1";
+
 	public static DataSet<Edge<Long, Double>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 
 		List<Edge<Long, Double>> edges = new ArrayList<Edge<Long, Double>>();
@@ -61,5 +66,30 @@ public class CommunityDetectionData {
 		return env.fromCollection(edges);
 	}
 
+	public static DataSet<Edge<Long, Double>> getSimpleEdgeDataSet(ExecutionEnvironment env) {
+
+		List<Edge<Long, Double>> edges = new ArrayList<Edge<Long, Double>>();
+		edges.add(new Edge<Long, Double>(1L, 2L, 1.0));
+		edges.add(new Edge<Long, Double>(1L, 3L, 2.0));
+		edges.add(new Edge<Long, Double>(1L, 4L, 3.0));
+		edges.add(new Edge<Long, Double>(1L, 5L, 4.0));
+		edges.add(new Edge<Long, Double>(2L, 6L, 5.0));
+		edges.add(new Edge<Long, Double>(6L, 7L, 6.0));
+		edges.add(new Edge<Long, Double>(6L, 8L, 7.0));
+		edges.add(new Edge<Long, Double>(7L, 8L, 8.0));
+
+		return env.fromCollection(edges);
+	}
+
 	private CommunityDetectionData() {}
+
+	public static DataSet<Edge<Long, Double>> getTieEdgeDataSet(ExecutionEnvironment env) {
+		List<Edge<Long, Double>> edges = new ArrayList<Edge<Long, Double>>();
+		edges.add(new Edge<Long, Double>(1L, 2L, 1.0));
+		edges.add(new Edge<Long, Double>(1L, 3L, 1.0));
+		edges.add(new Edge<Long, Double>(1L, 4L, 1.0));
+		edges.add(new Edge<Long, Double>(1L, 5L, 1.0));
+
+		return env.fromCollection(edges);
+	}
 }
