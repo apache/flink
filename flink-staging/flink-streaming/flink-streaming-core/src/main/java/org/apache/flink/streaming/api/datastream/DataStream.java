@@ -256,9 +256,11 @@ public class DataStream<OUT> {
 		DataStream<OUT> returnStream = this.copy();
 
 		for (DataStream<OUT> stream : streams) {
-			for (DataStream<OUT> ds : stream.unionedStreams) {
-				validateUnion(ds.getId());
-				returnStream.unionedStreams.add(ds.copy());
+			if (stream != null) {
+				for (DataStream<OUT> ds : stream.unionedStreams) {
+					validateUnion(ds.getId());
+					returnStream.unionedStreams.add(ds.copy());
+				}
 			}
 		}
 		return returnStream;
