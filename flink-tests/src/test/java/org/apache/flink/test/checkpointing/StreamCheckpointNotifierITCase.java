@@ -18,10 +18,11 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
@@ -31,6 +32,8 @@ import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
@@ -41,13 +44,16 @@ import java.util.Random;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Integration test for the {@link CheckpointNotifier} interface. The test ensures that
  * {@link CheckpointNotifier#notifyCheckpointComplete(long)} is called for some completed
  * checkpoints, that it is called at most once for any checkpoint id and that it is not
  * called for a deliberately failed checkpoint.
+ *
+ * <p>
+ * The topology tested here includes a number of {@link OneInputStreamOperator}s and a
+ * {@link TwoInputStreamOperator}.
  *
  * <p>
  * Note that as a result of doing the checks on the task level there is no way to verify
@@ -57,40 +63,37 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase {
 
-	final long NUM_STRINGS = 10_000_000L;
+	final long NUM_LONGS = 10_000_000L;
 
 	/**
 	 * Runs the following program:
 	 *
 	 * <pre>
-	 *     [ (source)->(filter)->(map) ] -> [ (co-map) ] -> [ (map) ] -> [ (groupBy/reduce)->(sink) ]
+	 *     [ (source)->(filter) ] -> [ (co-map) ] -> [ (map) ] -> [ (groupBy/reduce)->(sink) ]
 	 * </pre>
 	 */
 	@Override
 	public void testProgram(StreamExecutionEnvironment env) {
 
-		assertTrue("Broken test setup", NUM_STRINGS % 40 == 0);
-
-		DataStream<String> stream = env.addSource(new StringGeneratingSourceFunction(NUM_STRINGS));
+		DataStream<Long> stream = env.addSource(new GeneratingSourceFunction(NUM_LONGS));
 
 		stream
 				// -------------- first vertex, chained to the src ----------------
-				.filter(new StringRichFilterFunction())
+				.filter(new LongRichFilterFunction())
 
-						// -------------- second vertex, applying the co-map ----------------
+				// -------------- second vertex, applying the co-map ----------------
 				.connect(stream).flatMap(new LeftIdentityCoRichFlatMapFunction())
 
 				// -------------- third vertex - the stateful one that also fails ----------------
-				.map(new StringPrefixCountRichMapFunction())
-				.startNewChain()
 				.map(new IdentityMapFunction())
+				.startNewChain()
 
-						// -------------- fourth vertex - reducer and the sink ----------------
-				.groupBy("prefix")
-				.reduce(new OnceFailingReducer(NUM_STRINGS))
-				.addSink(new SinkFunction<PrefixCount>() {
+				// -------------- fourth vertex - reducer and the sink ----------------
+				.groupBy(0)
+				.reduce(new OnceFailingReducer(NUM_LONGS))
+				.addSink(new SinkFunction<Tuple1<Long>>() {
 					@Override
-					public void invoke(PrefixCount value) {
+					public void invoke(Tuple1<Long> value) {
 						// do nothing
 					}
 				});
@@ -98,10 +101,12 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 
 	@Override
 	public void postSubmit() {
-		List[][] checkList = new List[][]{	StringGeneratingSourceFunction.completedCheckpoints,
+		List[][] checkList = new List[][]{	GeneratingSourceFunction.completedCheckpoints,
 				IdentityMapFunction.completedCheckpoints,
-				StringPrefixCountRichMapFunction.completedCheckpoints,
+				LongRichFilterFunction.completedCheckpoints,
 				LeftIdentityCoRichFlatMapFunction.completedCheckpoints};
+
+		long failureCheckpointID = OnceFailingReducer.failureCheckpointID;
 
 		for(List[] parallelNotifications : checkList) {
 			for (int i = 0; i < PARALLELISM; i++){
@@ -109,7 +114,11 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 				assertTrue("No checkpoint notification was received.",
 						notifications.size() > 0);
 				assertFalse("Failure checkpoint was marked as completed.",
-						notifications.contains(OnceFailingReducer.failureCheckpointID));
+						notifications.contains(failureCheckpointID));
+				assertFalse("No checkpoint received before failure.",
+						notifications.get(0) == failureCheckpointID);
+				assertFalse("No checkpoint received after failure.",
+						notifications.get(notifications.size() - 1) == failureCheckpointID);
 				assertTrue("Checkpoint notification was received multiple times",
 						notifications.size() == new HashSet<Long>(notifications).size());
 			}
@@ -120,17 +129,20 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 	//  Custom Functions
 	// --------------------------------------------------------------------------------------------
 
-	private static class StringGeneratingSourceFunction extends RichSourceFunction<String>
-			implements  ParallelSourceFunction<String>, CheckpointNotifier {
+	/**
+	 * Generates some Long values and as an implementation for the {@link CheckpointNotifier}
+	 * interface it stores all the checkpoint ids it has seen in a static list.
+	 */
+	private static class GeneratingSourceFunction extends RichSourceFunction<Long>
+			implements  ParallelSourceFunction<Long>, CheckpointNotifier {
 
 		// operator life cycle
 		private volatile boolean isRunning;
 
 		// operator behaviour
 		private final long numElements;
-		private Random rnd;
+		private long result;
 
-		private StringBuilder stringBuilder;
 		private OperatorState<Integer> index;
 		private int step;
 
@@ -138,14 +150,12 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 		private int subtaskId;
 		public static List[] completedCheckpoints = new List[PARALLELISM];
 
-		StringGeneratingSourceFunction(long numElements) {
+		GeneratingSourceFunction(long numElements) {
 			this.numElements = numElements;
 		}
 
 		@Override
 		public void open(Configuration parameters) throws IOException {
-			rnd = new Random();
-			stringBuilder = new StringBuilder();
 			step = getRuntimeContext().getNumberOfParallelSubtasks();
 			subtaskId = getRuntimeContext().getIndexOfThisSubtask();
 			index = getRuntimeContext().getOperatorState("index", subtaskId, false);
@@ -159,16 +169,12 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 		}
 
 		@Override
-		public void run(SourceContext<String> ctx) throws Exception {
+		public void run(SourceContext<Long> ctx) throws Exception {
 			final Object lockingObject = ctx.getCheckpointLock();
 
 			while (isRunning && index.value() < numElements) {
-				char first = (char) ((index.value() % 40) + 40);
 
-				stringBuilder.setLength(0);
-				stringBuilder.append(first);
-
-				String result = randomString(stringBuilder, rnd);
+				result = index.value() % 10;
 
 				synchronized (lockingObject) {
 					index.update(index.value() + step);
@@ -182,32 +188,25 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 			isRunning = false;
 		}
 
-		private static String randomString(StringBuilder bld, Random rnd) {
-			final int len = rnd.nextInt(10) + 5;
-
-			for (int i = 0; i < len; i++) {
-				char next = (char) (rnd.nextInt(20000) + 33);
-				bld.append(next);
-			}
-
-			return bld.toString();
-		}
-
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) throws Exception {
 			completedCheckpoints[subtaskId].add(checkpointId);
 		}
 	}
 
-	private static class IdentityMapFunction extends RichMapFunction<PrefixCount, PrefixCount>
+	/**
+	 * Identity transform on Long values wrapping the output in a tuple. As an implementation
+	 * for the {@link CheckpointNotifier} interface it stores all the checkpoint ids it has seen in a static list.
+	 */
+	private static class IdentityMapFunction extends RichMapFunction<Long, Tuple1<Long>>
 			implements CheckpointNotifier {
 
 		public static List[] completedCheckpoints = new List[PARALLELISM];
 		private int subtaskId;
 
 		@Override
-		public PrefixCount map(PrefixCount value) throws Exception {
-			return value;
+		public Tuple1<Long> map(Long value) throws Exception {
+			return Tuple1.of(value);
 		}
 
 		@Override
@@ -226,7 +225,10 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 		}
 	}
 
-	private static class OnceFailingReducer extends RichReduceFunction<PrefixCount> implements Checkpointed<Long>{
+	/**
+	 * Reducer that causes one failure between seeing 40% to 70% of the records.
+	 */
+	private static class OnceFailingReducer extends RichReduceFunction<Tuple1<Long>> implements Checkpointed<Long> {
 
 		private static volatile boolean hasFailed = false;
 		public static volatile long failureCheckpointID;
@@ -251,9 +253,9 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 		}
 
 		@Override
-		public PrefixCount reduce(PrefixCount value1, PrefixCount value2) throws Exception {
+		public Tuple1<Long> reduce(Tuple1<Long> value1, Tuple1<Long> value2) throws Exception {
 			count++;
-			value1.count += value2.count;
+			value1.f0 += value2.f0;
 			return value1;
 		}
 
@@ -273,18 +275,21 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 		}
 	}
 
-	private static class StringRichFilterFunction implements FilterFunction<String> {
-		@Override
-		public boolean filter(String value) {
-			return value.length() < 100;
-		}
-	}
-
-	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount>
+	/**
+	 * Filter on Long values supposedly letting all values through. As an implementation
+	 * for the {@link CheckpointNotifier} interface it stores all the checkpoint ids
+	 * it has seen in a static list.
+	 */
+	private static class LongRichFilterFunction extends RichFilterFunction<Long>
 			implements CheckpointNotifier {
 
 		public static List[] completedCheckpoints = new List[PARALLELISM];
 		private int subtaskId;
+
+		@Override
+		public boolean filter(Long value) {
+			return value < 100;
+		}
 
 		@Override
 		public void open(Configuration conf) throws IOException {
@@ -300,14 +305,14 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 		public void notifyCheckpointComplete(long checkpointId) throws Exception {
 			completedCheckpoints[subtaskId].add(checkpointId);
 		}
-
-		@Override
-		public PrefixCount map(String value) throws IOException {
-			return new PrefixCount(value.substring(0, 1), value, 1L);
-		}
 	}
 
-	private static class LeftIdentityCoRichFlatMapFunction extends RichCoFlatMapFunction<String, String, String>
+	/**
+	 * CoFlatMap on Long values as identity transform on the left input, while ignoring the right.
+	 * As an implementation for the {@link CheckpointNotifier} interface it stores all the checkpoint
+	 * ids it has seen in a static list.
+	 */
+	private static class LeftIdentityCoRichFlatMapFunction extends RichCoFlatMapFunction<Long, Long, Long>
 			implements CheckpointNotifier {
 
 		public static List[] completedCheckpoints = new List[PARALLELISM];
@@ -324,12 +329,12 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 		}
 
 		@Override
-		public void flatMap1(String value, Collector<String> out) throws IOException {
+		public void flatMap1(Long value, Collector<Long> out) throws IOException {
 			out.collect(value);
 		}
 
 		@Override
-		public void flatMap2(String value, Collector<String> out) throws IOException {
+		public void flatMap2(Long value, Collector<Long> out) throws IOException {
 			// we ignore the values from the second input
 		}
 
