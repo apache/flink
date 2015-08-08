@@ -151,10 +151,10 @@ public class DataStream<OUT> {
 		this.iterationWaitTime = dataStream.iterationWaitTime;
 		this.unionedStreams = new ArrayList<DataStream<OUT>>();
 		this.unionedStreams.add(this);
-		if (dataStream.unionedStreams.size() > 1) {
-			for (int i = 1; i < dataStream.unionedStreams.size(); i++) {
-				this.unionedStreams.add(new DataStream<OUT>(dataStream.unionedStreams.get(i)));
-			}
+		
+		int size = dataStream.unionedStreams.size();
+		for (int i = 1; i < size; i++) {
+			this.unionedStreams.add(new DataStream<OUT>(dataStream.unionedStreams.get(i)));
 		}
 
 	}
