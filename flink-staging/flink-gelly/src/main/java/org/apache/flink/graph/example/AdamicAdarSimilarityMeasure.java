@@ -19,24 +19,14 @@
 package org.apache.flink.graph.example;
 
 import org.apache.flink.api.common.ProgramDescription;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
-import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.ReduceNeighborsFunction;
-import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.Triplet;
 import org.apache.flink.graph.example.utils.AdamicAdarSimilarityMeasureData;
-import org.apache.flink.util.Collector;
-
-import java.util.HashSet;
-
+import org.apache.flink.graph.library.AdamicAdarSimilarityMeasureAlgorithm;
 
 /**
  * Given a directed, unweighted graph, return a weighted graph where the edge values are equal
@@ -70,44 +60,23 @@ public class AdamicAdarSimilarityMeasure implements ProgramDescription {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Edge<Long, Double>> edges = AdamicAdarSimilarityMeasure.getEdgesDataSet(env);
-
-		/*Graph is generated without Adamic Adar weights for vertices. Vertices will have a Tuple2 as value
-		where first field will be the weight of the vertex as 1/log(kn) kn is the degree of the vertex
-		Second field is a HashSet whose elements are the VertexIDs of the neighbor
-		*/
-		Graph<Long, Tuple2<Double, HashSet<Long>>, Double> graph = Graph.fromDataSet(edges, new MapVertices(), env);
-
-		DataSet<Tuple2<Long, Long>> degrees = graph.getDegrees();
-
-		//neighbors are computed for all the vertices
-		DataSet<Tuple2<Long, Tuple2<Double, HashSet<Long>>>> computedNeighbors = graph.reduceOnNeighbors(new GatherNeighbors(),
-																										EdgeDirection.ALL);
-
-		//graph is updated with the new vertex values
-		Graph<Long, Tuple2<Double, HashSet<Long>>, Double> graphWithVertexValues = 
-															graph.joinWithVertices(computedNeighbors, new UpdateGraphVertices());
-
-		//vertices are given values in graph in accordance with the Adamic Adar rule
-		graphWithVertexValues = graphWithVertexValues.joinWithVertices(degrees, new AssignWeightToVertices());
-
-		//Partial weights for edges are collected
-		DataSet<Tuple3<Long, Long, Double>> edgesWithAdamicValues = graphWithVertexValues.getTriplets().flatMap(new ComputeAdamic());
-
-		//Partial weights for the edges are added
-		edgesWithAdamicValues = edgesWithAdamicValues.groupBy(0,1).reduce(new AdamGroup());
-
-		//Graph is updated with the Adamic Adar Edges
-		graph = graph.joinWithEdges(edgesWithAdamicValues, new JoinEdge());
-
-		// emit result
-				if (fileOutput) {
-					graph.getEdges().writeAsCsv(outputPath, "\n", ",");
-
-					// since file sinks are lazy, we trigger the execution explicitly
-					env.execute("Executing Adamic Adar Similarity Measure");
-				} else {
-					graph.getEdges().print();
-				}
+		
+		Graph<Long, Long, Double> graph = Graph.fromDataSet(edges,
+				new MapFunction<Long, Long>() {
+			public Long map(Long label) {
+				return label;
+			}
+		}, env);
+		
+		DataSet<Edge<Long, Double>> adamicAdarEdges = graph.run(new AdamicAdarSimilarityMeasureAlgorithm()).getEdges();
+		
+		if(fileOutput) {
+			adamicAdarEdges.writeAsCsv(outputPath);
+			// since file sinks are lazy, we trigger the execution explicitly
+			env.execute("Executing Adamic Adar Similarity Measure Example");
+			} else {
+			adamicAdarEdges.print();
+		}
 	}
 	
 	@Override
@@ -115,109 +84,6 @@ public class AdamicAdarSimilarityMeasure implements ProgramDescription {
 		return "Vertex Adamic Adar Similarity Measure";
 	}
 	
-	/**
-	 * MapFunction to initialise Vertex values from edge dataset
-	 */
-	private static class MapVertices implements MapFunction<Long, Tuple2<Double, HashSet<Long>>> {
-		@Override
-		public Tuple2<Double, HashSet<Long>> map(Long value) {
-			HashSet<Long> neighbors = new HashSet<Long>();
-			neighbors.add(value);
-			Double val = Double.MIN_VALUE;
-			return new Tuple2<Double, HashSet<Long>>(val, neighbors);
-		}
-	}
-	
-	/**
-	 * Each vertex has a Tuple2 as value. The first field of the Tuple is the Adamic Adar weight of the vertex
-	 * The second field is the HashSet containing of all the neighbor IDs
-	 * Neighbors are found for eah vertex
-	 */
-	private static final class GatherNeighbors implements ReduceNeighborsFunction<Tuple2<Double, HashSet<Long>>> {
-		@Override
-		public Tuple2<Double, HashSet<Long>>
-		reduceNeighbors(Tuple2<Double, HashSet<Long>> first, Tuple2<Double, HashSet<Long>> second) {
-			first.f1.addAll(second.f1);
-			return first;
-		}
-	}
-
-	/**
-	 * MapFunction to update values of vertices in the Graph
-	 */
-	private static class UpdateGraphVertices implements MapFunction<Tuple2<Tuple2<Double, HashSet<Long>>,
-			Tuple2<Double, HashSet<Long>>>, Tuple2<Double, HashSet<Long>>> {
-		@Override
-		public Tuple2<Double, HashSet<Long>> map(Tuple2<Tuple2<Double, HashSet<Long>>, Tuple2<Double, HashSet<Long>>> tuple2)
-				throws Exception {
-			return tuple2.f1;
-		}
-	}
-	
-	/**
-	 * MapFunction to assign Adamic Adar weight for each vertex as 1/log(kn) where kn is the degree of the vertex
-	 */
-	private static class AssignWeightToVertices implements
-			MapFunction<Tuple2<Tuple2<Double, HashSet<Long>>, Long>, Tuple2<Double, HashSet<Long>>> {
-		@Override
-		public Tuple2<Double, HashSet<Long>>
-		map(Tuple2<Tuple2<Double, HashSet<Long>>, Long> value) throws Exception {
-
-			value.f0.f0 = 1.0 / Math.log(value.f1);
-			return value.f0;
-		}
-	}
-
-	/**
-	 * Adamic Adar partial edges are found from the edges
-	 * sourceSet is the HashSet of neighbors of source vertex
-	 * targetSet is the HashSet of the neighbors of the target vertex
-	 * intersection is the HashSet calculated from the sourceSet and targetSet and contains the
-	 * common neighbors of source and target vertex
-	 * <p/>
-	 * The Adamic Adar coefficient is then the sum of the weights of these common neighbors
-	 */
-	private static final class ComputeAdamic implements 
-					FlatMapFunction<Triplet<Long, Tuple2<Double, HashSet<Long>>, Double>, Tuple3<Long, Long, Double>> {
-		@Override
-		public void flatMap(Triplet<Long, Tuple2<Double, HashSet<Long>>, Double> triplet, Collector<Tuple3<Long, Long, Double>> out)
-																								throws Exception {
-			Vertex<Long, Tuple2<Double, HashSet<Long>>> srcVertex = triplet.getSrcVertex();
-			Vertex<Long, Tuple2<Double, HashSet<Long>>> trgVertex = triplet.getTrgVertex();
-			HashSet<Long> sourceSet = srcVertex.getValue().f1;
-			HashSet<Long> targetSet = trgVertex.getValue().f1;
-			HashSet<Long> intersection = new HashSet<Long>(sourceSet);
-			intersection.retainAll(targetSet);
-
-			for (Long t : intersection) {
-				out.collect(new Tuple3<Long, Long, Double>(trgVertex.f0, t, srcVertex.f1.f0));
-				out.collect(new Tuple3<Long, Long, Double>(srcVertex.f0, t, trgVertex.f1.f0));
-			}
-		}
-	}
-	
-	/**
-	 *MapFunction to reduce the Grouped DataSet by adding the weights of the partial Edges
-	 */
-	private static final class AdamGroup implements ReduceFunction<Tuple3<Long, Long, Double>> {
-
-		@Override
-		public Tuple3<Long, Long, Double> reduce(Tuple3<Long, Long, Double> value1, Tuple3<Long, Long, Double> value2)
-																			throws Exception {
-				return new Tuple3<Long, Long, Double>(value1.f0, value1.f1, value1.f2+value2.f2);
-		}
-	}
-	
-	/**
-	 * MapFunction to calculate weights of Adamic Adar Edges and update the graph
-	 */
-	private static final class JoinEdge implements MapFunction<Tuple2<Double, Double>, Double> {
-		@Override
-		public Double map(Tuple2<Double, Double> value) {
-			return (value.f0+value.f1);
-		}
-	}
-
 	// *************************************************************************
 	// UTIL METHODS
 	// *************************************************************************
@@ -264,3 +130,4 @@ public class AdamicAdarSimilarityMeasure implements ProgramDescription {
 		}
 	}
 }
+

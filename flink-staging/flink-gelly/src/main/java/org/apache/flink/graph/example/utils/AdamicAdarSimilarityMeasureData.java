@@ -42,7 +42,7 @@ public class AdamicAdarSimilarityMeasureData {
 		edges.add(new Edge<Long, Double>(5L, 3L, 0.0));
 		edges.add(new Edge<Long, Double>(5L, 1L, 0.0));
 		edges.add(new Edge<Long, Double>(3L, 1L, 0.0));
-
+		
 		return env.fromCollection(edges);
 	}
 
