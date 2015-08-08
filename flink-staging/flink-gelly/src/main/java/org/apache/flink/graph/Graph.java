@@ -1145,7 +1145,6 @@ public class Graph<K, VV, EV> {
 	 * @return the new graph containing the existing vertices and edges plus the
 	 *         newly added edge
 	 */
-	@SuppressWarnings("unchecked")
 	public Graph<K, VV, EV> addEdge(Vertex<K, VV> source, Vertex<K, VV> target, EV edgeValue) {
 		Graph<K, VV, EV> partialGraph = fromCollection(Arrays.asList(source, target),
 				Arrays.asList(new Edge<K, EV>(source.f0, target.f0, edgeValue)),

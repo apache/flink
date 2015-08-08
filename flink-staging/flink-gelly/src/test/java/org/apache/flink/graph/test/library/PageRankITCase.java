@@ -22,9 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.PageRankData;
@@ -51,13 +49,8 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
 				PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
-		
-		DataSet<Tuple2<Long, Long>> vertexOutDegrees = inputGraph.outDegrees();
 
-		Graph<Long, Double, Double> networkWithWeights = inputGraph
-				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeightsMapper());
-
-        List<Vertex<Long, Double>> result = networkWithWeights.run(new PageRank<Long>(0.85, 3))
+        List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<Long>(0.85, 3))
         		.getVertices().collect();
         
         compareWithDelta(result, expectedResult, 0.01);
@@ -69,13 +62,34 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
 				PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
-		
-		DataSet<Tuple2<Long, Long>> vertexOutDegrees = inputGraph.outDegrees();
 
-		Graph<Long, Double, Double> networkWithWeights = inputGraph
-				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeightsMapper());
+        List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<Long>(0.85, 3))
+        		.getVertices().collect();
+        
+        compareWithDelta(result, expectedResult, 0.01);
+	}
 
-        List<Vertex<Long, Double>> result = networkWithWeights.run(new GSAPageRank<Long>(0.85, 3))
+	@Test
+	public void testPageRankWithThreeIterationsAndNumOfVertices() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
+				PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
+
+        List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<Long>(0.85, 5, 3))
+        		.getVertices().collect();
+        
+        compareWithDelta(result, expectedResult, 0.01);
+	}
+
+	@Test
+	public void testGSAPageRankWithThreeIterationsAndNumOfVertices() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
+				PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
+
+        List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<Long>(0.85, 5, 3))
         		.getVertices().collect();
         
         compareWithDelta(result, expectedResult, 0.01);
@@ -113,13 +127,6 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 	private static final class InitMapper implements MapFunction<Long, Double> {
 		public Double map(Long value) {
 			return 1.0;
-		}
-	}
-
-	@SuppressWarnings("serial")
-	private static final class InitWeightsMapper implements MapFunction<Tuple2<Double, Long>, Double> {
-		public Double map(Tuple2<Double, Long> value) {
-			return value.f0 / value.f1;
 		}
 	}
 }
