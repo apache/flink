@@ -18,6 +18,9 @@
 
 package org.apache.flink.graph.library;
 
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
@@ -28,23 +31,52 @@ import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
 /**
  * This is an implementation of a simple PageRank algorithm, using a vertex-centric iteration.
+ * The user can define the damping factor and the maximum number of iterations.
+ * If the number of vertices of the input graph is known, it should be provided as a parameter
+ * to speed up computation. Otherwise, the algorithm will first execute a job to count the vertices.
+ * 
+ * The implementation assumes that each page has at least one incoming and one outgoing link.
  */
 public class PageRank<K> implements	GraphAlgorithm<K, Double, Double> {
 
 	private double beta;
 	private int maxIterations;
+	private long numberOfVertices;
 
+	/**
+	 * @param beta the damping factor
+	 * @param maxIterations the maximum number of iterations
+	 */
 	public PageRank(double beta, int maxIterations) {
 		this.beta = beta;
 		this.maxIterations = maxIterations;
+		this.numberOfVertices = 0;
+	}
+
+	/**
+	 * @param beta the damping factor
+	 * @param maxIterations the maximum number of iterations
+	 * @param numVertices the number of vertices in the input
+	 */
+	public PageRank(double beta, long numVertices, int maxIterations) {
+		this.beta = beta;
+		this.maxIterations = maxIterations;
+		this.numberOfVertices = numVertices;
 	}
 
 	@Override
 	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) throws Exception {
 
-		final long numberOfVertices = network.numberOfVertices();
+		if (numberOfVertices == 0) {
+			numberOfVertices = network.numberOfVertices();
+		}
 
-		return network.runVertexCentricIteration(new VertexRankUpdater<K>(beta, numberOfVertices),
+		DataSet<Tuple2<K, Long>> vertexOutDegrees = network.outDegrees();
+
+		Graph<K, Double, Double> networkWithWeights = network
+				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeightsMapper());
+
+		return networkWithWeights.runVertexCentricIteration(new VertexRankUpdater<K>(beta, numberOfVertices),
 				new RankMessenger<K>(numberOfVertices), maxIterations);
 	}
 
@@ -102,4 +134,12 @@ public class PageRank<K> implements	GraphAlgorithm<K, Double, Double> {
 			}
 		}
 	}
+
+	@SuppressWarnings("serial")
+	private static final class InitWeightsMapper implements MapFunction<Tuple2<Double, Long>, Double> {
+		public Double map(Tuple2<Double, Long> value) {
+			return value.f0 / value.f1;
+		}
+	}
+
 }
