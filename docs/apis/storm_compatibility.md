@@ -171,10 +171,10 @@ See [BoltTokenizerWordCountPojo](https://github.com/apache/flink/tree/master/fli
 
 ## Finite Storm Spouts
 
-In Flink streaming, sources can be finite - i.e. emit a finite number of records and stop after emitting the last record -, however, Storm spouts always emit infinite streams.
+In Flink streaming, sources can be finite &ndash; i.e., emit a finite number of records and stop after emitting the last record &ndash;, however, Storm spouts always emit infinite streams.
 The bridge between the two approach is the `FiniteStormSpout` interface which, in addition to `IRichSpout`, contains a `reachedEnd()` method, where the user can specify a stopping-condition.
 The user can create a finite Storm spout by implementing this interface instead of `IRichSpout`, and implementing the `reachedEnd()`method in addition.
-When used as part of a Flink topology, a `FiniteStormSpout` should be wrapped in a `FiniteStormSpoutWrapper` class.
+When used as part of a Flink topology, a `FiniteStormSpout` should be wrapped by `FiniteStormSpoutWrapper`.
 
 Although finite Storm spouts are not necessary to embed Storm spouts into a Flink streaming program or to submit a whole Storm topology to Flink, there are cases where they may come in handy:
 
@@ -186,6 +186,7 @@ Although finite Storm spouts are not necessary to embed Storm spouts into a Flin
 A `FiniteStormSpout` can be still used as a normal, infinite Storm spout by changing its wrapper class to `StormSpoutWraper` in the Flink topology.
 
 An example of a finite Storm spout that emits records for 10 seconds only:
+
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 ~~~java
@@ -203,6 +204,7 @@ public class TimedFiniteStormSpout extends AbstractStormSpout implements FiniteS
 </div>
 
 Using a `FiniteStormSpout` in a Flink topology:
+
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 ~~~java
