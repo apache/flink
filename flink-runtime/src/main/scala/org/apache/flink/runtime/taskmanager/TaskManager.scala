@@ -39,7 +39,9 @@ import grizzled.slf4j.Logger
 import org.apache.flink.configuration._
 
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
+import org.apache.flink.runtime.messages.JobManagerMessages.{ResponseLeaderSessionID, RequestLeaderSessionID}
 import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
+import org.apache.flink.runtime.server.ParameterServer
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessages, LogMessages, StreamingMode}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobService, BlobCache}
@@ -48,8 +50,7 @@ import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, Ta
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
-import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription,
-InstanceConnectionInfo, InstanceID}
+import org.apache.flink.runtime.instance._
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.disk.iomanager.{IOManager, IOManagerAsync}
 import org.apache.flink.runtime.io.network.NetworkEnvironment
@@ -124,7 +125,8 @@ class TaskManager(
     protected val memoryManager: MemoryManager,
     protected val ioManager: IOManager,
     protected val network: NetworkEnvironment,
-    protected val numberOfSlots: Int)
+    protected val numberOfSlots: Int,
+    protected val parameterServerGateway: ActorGateway)
   extends FlinkActor
   with LeaderSessionMessages // Mixin order is important: second we want to filter leader messages
   with LogMessages // Mixin order is important: first we want to support message logging
@@ -175,7 +177,7 @@ class TaskManager(
 
   private val runtimeInfo = new TaskManagerRuntimeInfo(
        connectionInfo.getHostname(),
-       new UnmodifiableConfiguration(config.configuration))
+       new UnmodifiableConfiguration(config.configuration), parameterServerGateway)
 
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
@@ -1601,6 +1603,13 @@ object TaskManager {
       LOG.info("HA mode.")
     }
 
+    val parameterServerActor = ParameterServer.startParameterServerActor(configuration, actorSystem)
+    val futureLeaderSessionID =
+      (parameterServerActor ? RequestLeaderSessionID)(AkkaUtils.getDefaultTimeout)
+        .mapTo[ResponseLeaderSessionID]
+    val leaderSessionID = Await.result(futureLeaderSessionID, AkkaUtils.getDefaultTimeout)
+      .leaderSessionID
+
     // create the actor properties (which define the actor constructor parameters)
     val tmProps = Props(
       taskManagerClass,
@@ -1610,7 +1619,8 @@ object TaskManager {
       memoryManager,
       ioManager,
       network,
-      taskManagerConfig.numberOfSlots)
+      taskManagerConfig.numberOfSlots,
+      new AkkaActorGateway(parameterServerActor, leaderSessionID))
 
     taskManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(tmProps, actorName)

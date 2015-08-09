@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
@@ -73,7 +74,7 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 	
 	public TestTaskContext(long memoryInBytes) {
 		this.memoryManager = new DefaultMemoryManager(memoryInBytes,1 ,32 * 1024, true);
-		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
+		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration(), DummyActorGateway.INSTANCE);
 	}
 	
 	// --------------------------------------------------------------------------------------------

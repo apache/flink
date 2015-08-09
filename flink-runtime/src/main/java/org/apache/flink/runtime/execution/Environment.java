@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -122,6 +123,13 @@ public interface Environment {
 	 * @return the current {@link MemoryManager}.
 	 */
 	MemoryManager getMemoryManager();
+
+	/**
+	 * Returns the {@link org.apache.flink.runtime.server.ParameterServer} for this task manager
+	 *
+	 * @return the {@link org.apache.flink.runtime.server.ParameterServer} for this task manager
+	 */
+	ActorGateway getParameterServer();
 
 	/**
 	 * Returns the name of the task running in this environment.

@@ -159,7 +159,7 @@ public class TaskAsyncCallTest {
 				new FiniteDuration(60, TimeUnit.SECONDS),
 				libCache,
 				mock(FileCache.class),
-				new TaskManagerRuntimeInfo("localhost", new Configuration()));
+				new TaskManagerRuntimeInfo("localhost", new Configuration(), DummyActorGateway.INSTANCE));
 	}
 	
 	public static class CheckpointsInOrderInvokable extends AbstractInvokable

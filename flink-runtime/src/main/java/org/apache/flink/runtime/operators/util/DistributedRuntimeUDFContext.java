@@ -28,11 +28,24 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.AbstractRuntimeUDFContext;
+import org.apache.flink.api.common.server.Parameter;
+import org.apache.flink.api.common.server.Update;
+import org.apache.flink.api.common.server.UpdateStrategy;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.broadcast.InitializationTypeConflictException;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.runtime.instance.ActorGateway;
+
+import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.ServerMessages;
+import scala.concurrent.Await;
+
+import static org.apache.flink.runtime.messages.ServerMessages.getUpdateSuccess;
+import static org.apache.flink.runtime.messages.ServerMessages.getClientRegistrationSuccess;
+import static org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
@@ -41,15 +54,19 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 
 	private final HashMap<String, BroadcastVariableMaterialization<?, ?>> broadcastVars = new HashMap<String, BroadcastVariableMaterialization<?, ?>>();
 	
-	
+	private ActorGateway parameterServer;
+
 	public DistributedRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig, Map<String, Accumulator<?,?>> accumulators) {
+										ExecutionConfig executionConfig, Map<String, Accumulator<?,?>> accumulators, ActorGateway parameterServer) {
 		super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, accumulators);
+		this.parameterServer = parameterServer;
 	}
 	
 	public DistributedRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators) {
+										ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators,
+										ActorGateway parameterServer) {
 		super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, accumulators, cpTasks);
+		this.parameterServer = parameterServer;
 	}
 	
 
@@ -105,5 +122,57 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 	
 	public void clearAllBroadcastVariables() {
 		this.broadcastVars.clear();
+	}
+
+	@Override
+	public void registerBatch(String key, Parameter value) throws Exception{
+		register(decorate(new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, UpdateStrategy.BATCH, 0)));
+	}
+
+	@Override
+	public void registerAsync(String key, Parameter value) throws Exception{
+		register(decorate(new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, UpdateStrategy.ASYNC, 0)));
+	}
+
+	@Override
+	public void registerSSP(String key, Parameter value, int slack) throws Exception{
+		register(decorate(new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, UpdateStrategy.SSP, slack)));
+	}
+
+	@Override
+	public void updateParameter(String key, Update update) throws Exception{
+		scala.concurrent.Future<Object> message = parameterServer.ask(decorate(new ServerMessages.UpdateParameter(key, update)), AkkaUtils.INF_TIMEOUT());
+		Object result = Await.result(message, AkkaUtils.INF_TIMEOUT());
+		if(result instanceof ServerMessages.UpdateFailure){
+			throw new Exception(((ServerMessages.UpdateFailure) result).error());
+		} else if(! result.getClass().isAssignableFrom(getUpdateSuccess().getClass())){
+			throw new Exception("Unknown message received from server");
+		}
+	}
+
+	@Override
+	public Parameter fetchParameter(String key) throws Exception{
+		scala.concurrent.Future<Object> message = parameterServer.ask(decorate(new ServerMessages.PullParameter(key)), AkkaUtils.INF_TIMEOUT());
+		Object result = Await.result(message, AkkaUtils.INF_TIMEOUT());
+		if(result instanceof ServerMessages.PullFailure){
+			throw new Exception(((ServerMessages.PullFailure) result).error());
+		} else if(!(result instanceof ServerMessages.PullSuccess)){
+			throw new Exception("Unknown message received from server");
+		} else{
+			return ((ServerMessages.PullSuccess) result).value();
+		}
+	}
+
+	private void register(LeaderSessionMessage request) throws Exception{
+		scala.concurrent.Future<Object> message = parameterServer.ask(request, AkkaUtils.INF_TIMEOUT());
+		Object result = Await.result(message, AkkaUtils.INF_TIMEOUT());
+		if(result instanceof ServerMessages.ClientRegistrationRefuse){
+			throw new Exception(((ServerMessages.ClientRegistrationRefuse) result).error());
+		} else if(! result.getClass().isAssignableFrom(getClientRegistrationSuccess().getClass())){
+			throw new Exception("Unknown message received from server");
+		}
+	}
+	private JobManagerMessages.LeaderSessionMessage decorate(Object message){
+		return new JobManagerMessages.LeaderSessionMessage(parameterServer.leaderSessionID(), message);
 	}
 }

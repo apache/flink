@@ -19,15 +19,54 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.api.common.server.{UpdateStrategy, Update, Parameter}
+import org.apache.flink.runtime.instance.{InstanceID, ActorGateway}
+
+import scala.collection.mutable
 
 /**
  * The parameter server specific messages
  */
 object ServerMessages {
 
+  // ================= Server - Task Manager - Job Manager =================
+
+  /**
+   * Sent by task manager to its ParameterServer to let it initialize itself and register with
+   * the Job Manager.
+   *
+   * @param jobManager Gateway to Job Manager
+   * @param taskManagerID
+   */
+  case class KickOffParameterServer(jobManager: ActorGateway, taskManagerID: InstanceID)
+
+  /**
+   * Sent by the ParameterServer to the JobManager to register itself. Also used as a heartbeat
+   * message
+   *
+   * @param taskManagerID Instance id of the parent task manager of the server
+   * @param serverGateway Gateway to the server being made available on the network.
+   */
+  case class ServerAvailable(taskManagerID: InstanceID, serverGateway: ActorGateway)
+
+  /**
+   * Sent by the Job Manager to all servers whenever a new server is added. Also, sent when a
+   * server heartbeat message is received.
+   *
+   * @param serverList Map of all currently available servers registered
+   */
+  case class ServerRegistrationAcknowledge(serverList: mutable.HashMap[InstanceID, ActorGateway])
+
+  /**
+   * Refusal to register a Server. This shouldn't happen.
+   *
+   * @param error Reason for refusing registration / heartbeat
+   */
+  case class ServerRegistrationRefuse(error: String)
+
+
   // ================= REGISTRATION RELATED ============================
   /**
-   * This message is sent by the [[org.apache.flink.runtime.client.ParameterClient]]
+   * This message is sent by the [[org.apache.flink.api.common.functions.RuntimeContext]]
    * to register a key
    *
    * @param id Integer id of the client registering
@@ -51,9 +90,9 @@ object ServerMessages {
   /**
    * Refuse to register a client
    *
-   * @param reason Return the reason for refusing the registration
+   * @param error Return the reason for refusing the registration
    */
-  case class ClientRegistrationRefuse(reason: String)
+  case class ClientRegistrationRefuse(error: String)
 
 
   // ================= UPDATE RELATED ==================================

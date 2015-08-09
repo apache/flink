@@ -27,6 +27,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.server.Parameter;
+import org.apache.flink.api.common.server.Update;
 import org.apache.flink.core.fs.Path;
 
 /**
@@ -38,7 +40,8 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
 	
 	private final HashMap<String, List<?>> uninitializedBroadcastVars = new HashMap<String, List<?>>();
 	
-	
+	private final HashMap<String, Parameter> parameterServer = new HashMap<>();
+
 	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
 							ExecutionConfig executionConfig, Map<String, Accumulator<?,?>> accumulators) {
 		super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, accumulators);
@@ -114,5 +117,31 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
 	public void clearAllBroadcastVariables() {
 		this.uninitializedBroadcastVars.clear();
 		this.initializedBroadcastVars.clear();
+	}
+
+	@Override
+	public void registerBatch(String key, Parameter value){
+		parameterServer.put(key, value);
+	}
+
+	@Override
+	public void registerAsync(String key, Parameter value){
+		parameterServer.put(key, value);
+	}
+
+	@Override
+	public void registerSSP(String key, Parameter value, int slack){
+		parameterServer.put(key, value);
+	}
+
+	@Override
+	public void updateParameter(String key, Update update) throws Exception{
+		parameterServer.get(key).update(update);
+		parameterServer.get(key).setClock(update.getClock() + 1);
+	}
+
+	@Override
+	public Parameter fetchParameter(String key){
+		return parameterServer.get(key);
 	}
 }

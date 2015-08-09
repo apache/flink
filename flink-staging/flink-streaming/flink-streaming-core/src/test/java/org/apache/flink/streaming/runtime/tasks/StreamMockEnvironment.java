@@ -29,6 +29,8 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
@@ -201,6 +203,11 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
+	public ActorGateway getParameterServer(){
+		return DummyActorGateway.INSTANCE;
+	}
+
+	@Override
 	public JobID getJobID() {
 		return this.jobID;
 	}
@@ -297,7 +304,7 @@ public class StreamMockEnvironment implements Environment {
 
 	@Override
 	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return new TaskManagerRuntimeInfo("localhost", new UnmodifiableConfiguration(new Configuration()));
+		return new TaskManagerRuntimeInfo("localhost", new UnmodifiableConfiguration(new Configuration()), DummyActorGateway.INSTANCE);
 	}
 }
 
