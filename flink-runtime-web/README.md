@@ -60,14 +60,10 @@ The dashboard files are all pre-built, so one can try it out without building it
 Depending on your version of Linux or MacOS, you may need to manually install *node.js* and *bower*.
 
 
-#### Ubuntu Linux (12.04 and 14.04)
+#### Ubuntu Linux
 
-Install *node.js* via
-```
-sudo add-apt-repository ppa:chris-lea/node.js 
-sudo apt-get update
-sudo apt-get -y install nodejs
-```
+Install *node.js* by following [these instructions](https://github.com/joyent/node/wiki/installing-node.js-via-package-manager).
+
 Verify that the installed version is at least *2.11.3*, via `npm -version`.
 
 
