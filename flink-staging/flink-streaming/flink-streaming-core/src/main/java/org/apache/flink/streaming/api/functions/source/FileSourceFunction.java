@@ -124,7 +124,7 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> imp
 		while (isRunning) {
 			OUT nextElement = serializer.createInstance();
 			nextElement =  format.nextRecord(nextElement);
-			if (nextElement == null && splitIterator.hasNext() ) {
+			if (nextElement == null && splitIterator.hasNext()) {
 				format.open(splitIterator.next());
 				continue;
 			} else if (nextElement == null) {
