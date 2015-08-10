@@ -1075,7 +1075,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *
    * Note: The syntax of delta iterations are very likely going to change soon.
    */
-  def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[String])(
+  def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[String],
+                                solutionSetUnManaged: Boolean = false)(
     stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
 
     val key = new ExpressionKeys[T](keyFields, javaSet.getType)
@@ -1086,6 +1087,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       workset.javaSet,
       key,
       maxIterations)
+
+    iterativeSet.setSolutionSetUnManaged(solutionSetUnManaged)
 
     val (newSolution, newWorkset) = stepFunction(
       wrap(iterativeSet.getSolutionSet),
