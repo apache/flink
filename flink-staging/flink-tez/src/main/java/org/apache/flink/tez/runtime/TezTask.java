@@ -45,6 +45,7 @@ import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.tez.runtime.input.TezReaderIterator;
 import org.apache.flink.tez.runtime.output.TezChannelSelector;
 import org.apache.flink.tez.runtime.output.TezOutputEmitter;
@@ -274,7 +275,7 @@ public class TezTask<S extends Function,OT>  implements PactTaskContext<S, OT> {
 
 	@Override
 	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return new TaskManagerRuntimeInfo("localhost", new Configuration());
+		return new TaskManagerRuntimeInfo("localhost", new Configuration(), DummyActorGateway.INSTANCE);
 	}
 
 	@Override

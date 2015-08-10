@@ -23,6 +23,7 @@ import java.util.UUID
 import akka.actor.ActorRef
 import org.apache.flink.api.common.server.{UpdateStrategy, Update, Parameter}
 import org.apache.flink.runtime.instance.{InstanceID, ActorGateway}
+import org.apache.flink.runtime.server.KeyGatewayMapping
 
 import scala.collection.mutable
 
@@ -80,7 +81,7 @@ object ServerMessages {
    *
    * @param key Key to be mapped to a server gateway
    */
-  case class RequestKeyGateway(key: String, taskManagerID: InstanceID)
+  case class RequestKeyGateway(key: String, serverGateway: ActorGateway)
 
   /**
    * Message to itself to trigger a heart beat to the Job Manager and checking connection to the
@@ -183,7 +184,7 @@ object ServerMessages {
    * @param message Actual request message
    */
 
-  case class ServerRequest(messageID: UUID, message: ClientRequests)
+  case class ServerRequest(messageID: UUID, message: ClientRequests, origin: ActorGateway)
 
   /**
    * Acknowledgement of a successful client request receipt sent back to the original server.
@@ -221,6 +222,4 @@ object ServerMessages {
   case class StoreReply(messageID: UUID, reply: ClientResponses)
 
   class InvalidServerAccessException extends Exception
-
-  class KeyGatewayMapping(val key: String, val server: ActorGateway)
 }

@@ -25,12 +25,11 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
 import akka.actor.ActorRef;
-import org.apache.flink.runtime.messages.ServerMessages;
+import org.apache.flink.runtime.server.KeyGatewayMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -57,9 +56,6 @@ public class InstanceManager {
 
 	/** Mapping of key and corresponding parameter servers */
 	private final Map<String, ActorGateway> keyGatewayMapping;
-
-	/** Random number generator to assign keys to servers */
-	private final Random rnd;
 
 	/** Set of hosts known to run a task manager that are thus able to execute tasks (by connection). */
 	private final Map<ActorRef, Instance> registeredHostsByConnection;
@@ -89,7 +85,6 @@ public class InstanceManager {
 		this.parameterServers = new LinkedHashMap<>();
 		this.keyGatewayMapping = new LinkedHashMap<>();
 		this.deadHosts = new HashSet<ActorRef>();
-		this.rnd = new Random();
 	}
 
 	public void shutdown() {
@@ -305,19 +300,19 @@ public class InstanceManager {
 			synchronized (this.parameterServers) {
 				if (!this.keyGatewayMapping.containsKey(key)) {
 					Object[] activeServers = this.parameterServers.values().toArray();
-					int sample = (int) Math.round(rnd.nextDouble() * activeServers.length);
+					int sample = key.hashCode() % activeServers.length;
 					keyGatewayMapping.put(key, (ActorGateway) activeServers[sample]);
 				}
 			}
 		}
 	}
 
-	public Collection<ServerMessages.KeyGatewayMapping> fetchKeyGatewayMapping(){
+	public Collection<KeyGatewayMapping> fetchKeyGatewayMapping(){
 		synchronized (this.parameterServers) {
 			synchronized (this.keyGatewayMapping) {
-				LinkedList<ServerMessages.KeyGatewayMapping> ret = new LinkedList<>();
+				LinkedList<KeyGatewayMapping> ret = new LinkedList<>();
 				for(String key: this.keyGatewayMapping.keySet()){
-					ret.add(new ServerMessages.KeyGatewayMapping(key, this.keyGatewayMapping.get(key)));
+					ret.add(new KeyGatewayMapping(key, this.keyGatewayMapping.get(key)));
 				}
 				return ret;
 			}

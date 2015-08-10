@@ -22,6 +22,7 @@ import java.util.UUID
 
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID
+import org.apache.flink.runtime.messages.ServerMessages.ServerRegistrationAcknowledge
 
 /** Mixin to filter out [[LeaderSessionMessage]] which contain an invalid leader session id.
   * Messages which contain a valid leader session ID are unwrapped and forwarded to the actor.

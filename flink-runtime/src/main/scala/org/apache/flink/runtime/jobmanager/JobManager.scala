@@ -70,7 +70,6 @@ import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.language.postfixOps
 import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
 
 /**
  * The job manager is responsible for receiving Flink jobs, scheduling the tasks, gathering the
@@ -489,12 +488,13 @@ class JobManager(
 
     case ServerHeartbeat(serverTaskManagerID, serverGateway) =>
       instanceManager.registerServer(serverTaskManagerID, serverGateway)
-      import scala.collection.JavaConverters._
-      sender() ! ServerRegistrationAcknowledge(instanceManager.fetchKeyGatewayMapping.asScala, null)
+      val mappings = instanceManager.fetchKeyGatewayMapping().asScala
+      serverGateway.tell(ServerRegistrationAcknowledge(mappings, serverGateway))
 
-    case RequestKeyGateway(key, serverTaskManagerID) =>
+    case RequestKeyGateway(key, serverGateway) =>
       instanceManager.registerKey(key)
-      sender() ! ServerRegistrationAcknowledge(instanceManager.fetchKeyGatewayMapping.asScala, null)
+      val mappings = instanceManager.fetchKeyGatewayMapping().asScala
+      serverGateway.tell(ServerRegistrationAcknowledge(mappings, serverGateway))
 
     case ServerError(serverTaskManagerID, error) =>
       // what should we do? We can't kill the Job Manager for this! Later.

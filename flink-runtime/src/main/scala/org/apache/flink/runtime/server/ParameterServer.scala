@@ -51,10 +51,13 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
   private var keyGatewayMapping: mutable.HashMap[String, ActorGateway] = _
 
   // used to provide fault tolerance. We send all we have to this server too.
+  // this will be used later on. No use right now.
+  // TODO implement fault tolerance
   private var redundantPartner: ActorGateway = _
 
   override val leaderSessionID: Option[UUID] = Some(UUID.randomUUID())
 
+  private var selfGateway = new AkkaActorGateway(self, leaderSessionID)
   /**
    * Queue of all messages who we haven't sent back the result of.
    * We index the message by the client id and store the request, client's actor ref, time we last
@@ -67,7 +70,7 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
   /**
    * Maintain where we need to send the reply of a request from another server.
    */
-  private var waitingServers: mutable.HashMap[UUID, ActorRef] = _
+  private var waitingServers: mutable.HashMap[UUID, ActorGateway] = _
 
   private var store: mutable.HashMap[String, KeyManager] = _
 
@@ -107,7 +110,7 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
 
     case message: ServerRequest =>
       // sent by another server. Check if we can handle that and then handle it.
-      handleIncoming(message, sender())
+      handleIncoming(message)
 
     case message: ServerResponse =>
       // handle reply and forward to client.
@@ -126,11 +129,12 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
     case ServerClearQueueReminder =>
       handleWaitingQueue()
 
-    case ServerRegistrationAcknowledge(keyGatewayMap, copyPartner) =>
+    case message: ServerRegistrationAcknowledge =>
       // sent by Job Manager with data about where to forward keys
       keyGatewayMapping.clear()
-      keyGatewayMap.foreach(mapping => keyGatewayMapping.put(mapping.key, mapping.server))
-      redundantPartner = copyPartner
+      message.keyGatewayMapping.foreach(mapping =>
+        keyGatewayMapping.put(mapping.key, mapping.server))
+      redundantPartner = message.copyPartner
 
     case message: ServerRetry =>
       handleRequests(message.message, message.sender, message.retryNumber)
@@ -143,7 +147,7 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
       // nothing much to do. We can keep doing our work as long as we can. If the Task Manager also
       // lost connection, we'll anyway have to reset our state and register again, if ever.
 
-    case Disconnect =>
+    case Disconnect(msg) =>
       // lost connection to Job Manager. Kill self. Task Manager will have to restart us.
       handleJobManagerDisconnect()
 
@@ -163,8 +167,8 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
     throw new RuntimeException("Received unknown message " + message)
   }
 
+  /** Clear everything if job manager goes down. */
   private def handleJobManagerDisconnect(): Unit = {
-    println(System.currentTimeMillis() + "Received job manager disconnect")
     heartbeatScheduler.get.cancel()
     statusQueueCheckScheduler.get.cancel()
 
@@ -180,13 +184,14 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
     waitingServers.clear()
   }
 
+  /** Send heart beat to job manager to fetch the key-gateway mappings */
   private def sendHeartbeat(): Unit = {
     // now send a heartbeat
-    println(System.currentTimeMillis() + "Sending heart beat")
     jobManager.get.tell(
-      ServerHeartbeat(taskManagerID.get, new AkkaActorGateway(self, leaderSessionID)))
+      ServerHeartbeat(taskManagerID.get, selfGateway))
   }
 
+  /** Initialize everything when task manager lets us know */
   private def handleKickoff(message: KickOffParameterServer): Unit = {
     // initialize everything
     jobManager = Some(message.jobManager)
@@ -195,7 +200,7 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
 
     keyGatewayMapping = new mutable.HashMap[String, ActorGateway]()
     waitingClients = new mutable.HashMap[UUID, (Boolean, ClientRequests, ActorRef, Long, Int)]()
-    waitingServers = new mutable.HashMap[UUID, ActorRef]()
+    waitingServers = new mutable.HashMap[UUID, ActorGateway]()
     store = new mutable.HashMap[String, KeyManager]()
 
     // schedule a heartbeat to the job manager
@@ -215,13 +220,14 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
     )(context.dispatcher))
   }
 
+  /** handles requests from our clients. Basically, forward them to the appropriate server */
   private def handleRequests(message: ClientRequests, sender: ActorRef, retry: Int): Unit = {
     // we capture all requests from our clients and forward them to appropriate servers
     if(keyGatewayMapping.get(message.key).isEmpty && !message.isInstanceOf[RegisterClient]){
       sender ! ClientFailure(new Exception("The key has not been registered at the server yet."))
     } else if(keyGatewayMapping.get(message.key).isEmpty && message.isInstanceOf[RegisterClient]){
       // ask the Job Manager for where this key belongs and re-send this message
-      jobManager.get.tell(RequestKeyGateway(message.key, taskManagerID.get))
+      jobManager.get.tell(RequestKeyGateway(message.key, selfGateway))
       // we'll retry this
       self ! ServerRetry(message, retry, sender)
     } else{
@@ -237,29 +243,36 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
       } else{
         // now we can send the message.
         waitingClients.put(messageID, (false, message, sender, System.currentTimeMillis(), retry))
-        keyGatewayMapping.get(message.key).get.tell(ServerRequest(messageID, message))
+        keyGatewayMapping.get(message.key).get.tell(ServerRequest(messageID, message, selfGateway))
       }
     }
   }
 
-  private def handleIncoming(message: ServerRequest, sender: ActorRef): Unit = {
+  /** handle requests being forwarded from other servers */
+  private def handleIncoming(message: ServerRequest): Unit = {
     // we capture all requests from all servers
     // first see if we can work on this key.
     if(!store.contains(message.message.key) && !message.message.isInstanceOf[RegisterClient]){
-      sender ! ServerResponse(message.messageID, ClientFailure(new InvalidServerAccessException))
+      message.origin.tell(ServerResponse(
+        message.messageID, ClientFailure(new InvalidServerAccessException)
+      ))
     } else{
-      waitingServers.put(message.messageID, sender)
-      sender ! ServerAcknowledgement(message.messageID, true)
+      waitingServers.put(message.messageID, message.origin)
+      message.origin.tell(ServerAcknowledgement(message.messageID, true))
       // now process the message
       handleClientMessage(message)
     }
   }
 
+  /** Handle reply from our own store Manager. */
   private def handleStoreResponse(message: StoreReply): Unit = {
     // forward the response to an appropriate server
-    waitingServers.remove(message.messageID).get ! ServerResponse(message.messageID, message.reply)
+    waitingServers.remove(message.messageID).get.tell(
+      ServerResponse(message.messageID, message.reply)
+    )
   }
 
+  /** Handle acknowledgement of receipts of ServerRequests we sent */
   private def handleAcknowledgement(message: ServerAcknowledgement): Unit = {
     // all acknowledgement of client requests from respective servers
     val props = waitingClients.get(message.messageID)
@@ -274,6 +287,7 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
         // if the failure was due to invalid key access, maybe the Job Manager changed where this
         // key should have gone. Send again. Our key gateway mapping might have been updated by now.
         if(message.error.isInstanceOf[InvalidServerAccessException]){
+          println("retrying")
           self ! ServerRetry(props.get._2, props.get._5, props.get._3)
         } else {
           props.get._3 ! ClientFailure(message.error)
@@ -283,12 +297,14 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
     // otherwise we most likely got the response first and already removed it.
   }
 
+  /** handle response to the ServerRequests we sent out */
   private def handleResponse(message: ServerResponse): Unit = {
     // handle the responses for every client message we sent.
     // remove from waiting list and send the result back :)
     waitingClients.remove(message.messageID).get._3 ! message.result
   }
 
+  /** clear out the waiting queue for timeouts */
   private def handleWaitingQueue(): Unit = {
     // check if there's any message which has timed out. If so, retry if allowed.
     val waiters = waitingClients.keySet
@@ -300,7 +316,7 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
         // if the status is still false, meaning un-acknowledged, see if we're timed out.
         if(!messageProps._1){
           // timed out
-          if(messageProps._4 - currentTime > ParameterServer.RETRY_DELAY.length){
+          if((currentTime - messageProps._4) > ParameterServer.RETRY_DELAY.length){
             waitingClients.remove(waiter)
             // if already over the limit in retrying, fail
             if(messageProps._5 == ParameterServer.MAX_RETRIES){
@@ -317,6 +333,7 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
     )
   }
 
+  /** handle messages we got from other servers and forward them to the store manager*/
   private def handleClientMessage(message: ServerRequest): Unit = {
     val key = message.message.key
     val manager = store.get(key)
@@ -340,7 +357,7 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
             }
           case None =>
             store.put(key, new KeyManager(
-              key, value, strategy, slack, new AkkaActorGateway(self, leaderSessionID))
+              key, value, strategy, slack, selfGateway)
             )
             store.get(key).get.registerClient(id, message.messageID)
         }

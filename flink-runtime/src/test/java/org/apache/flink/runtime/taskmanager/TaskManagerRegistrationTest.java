@@ -303,6 +303,9 @@ public class TaskManagerRegistrationTest {
 										new InstanceID(),
 										45234),
 								fakeJobManager1);
+
+						// we also expect a message from the Parameter Server
+						ServerMessages.ServerHeartbeat serverMessage= expectMsgClass(ServerMessages.ServerHeartbeat.class);
 					}
 				};
 
