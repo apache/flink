@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamGroupedReduce;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
-import org.apache.flink.streaming.api.operators.co.CoStreamReduce;
 import org.apache.flink.streaming.api.operators.co.CoStreamWindow;
 import org.apache.flink.streaming.api.windowing.helper.SystemTimestamp;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
@@ -62,7 +61,10 @@ public class ConnectedDataStream<IN1, IN2> {
 		this.jobGraphBuilder = input1.streamGraph;
 		this.environment = input1.environment;
 		this.dataStream1 = input1.copy();
-		this.dataStream2 = input2.copy();
+		
+		if (input2 != null) {
+			this.dataStream2 = input2.copy();
+		}
 
 		if ((input1 instanceof GroupedDataStream) && (input2 instanceof GroupedDataStream)) {
 			this.isGrouped = true;
@@ -356,13 +358,9 @@ public class ConnectedDataStream<IN1, IN2> {
 	}
 
 	/**
-	 * Applies a reduce transformation on a {@link ConnectedDataStream} and maps
-	 * the outputs to a common type. If the {@link ConnectedDataStream} is
-	 * batched or windowed then the reduce transformation is applied on every
-	 * sliding batch/window of the data stream. If the connected data stream is
-	 * grouped then the reducer is applied on every group of elements sharing
-	 * the same key. This type of reduce is much faster than reduceGroup since
-	 * the reduce function can be applied incrementally.
+	 * Applies a reduce transformation on a grouped{@link ConnectedDataStream} 
+	 * and maps the outputs to a common type. The reducer is applied on every 
+	 * group of elements sharing the same key. 
 	 * 
 	 * @param coReducer
 	 *            The {@link CoReduceFunction} that will be called for every
@@ -450,14 +448,13 @@ public class ConnectedDataStream<IN1, IN2> {
 
 	protected <OUT> TwoInputStreamOperator<IN1, IN2, OUT> getReduceOperator(
 			CoReduceFunction<IN1, IN2, OUT> coReducer) {
-		CoStreamReduce<IN1, IN2, OUT> operator;
 		if (isGrouped) {
-			operator = new CoStreamGroupedReduce<IN1, IN2, OUT>(clean(coReducer), keySelector1,
+			return new CoStreamGroupedReduce<IN1, IN2, OUT>(clean(coReducer), keySelector1,
 					keySelector2);
 		} else {
-			operator = new CoStreamReduce<IN1, IN2, OUT>(clean(coReducer));
+			throw new UnsupportedOperationException(
+					"Reduce can only be applied on grouped streams.");
 		}
-		return operator;
 	}
 
 	public <OUT> SingleOutputStreamOperator<OUT, ?> addGeneralWindowCombine(

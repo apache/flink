@@ -18,27 +18,27 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.{FlinkActor}
 import org.apache.flink.runtime.jobmanager.MemoryArchivist
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound, RequestExecutionGraph}
 
 /**
  * Mixin for the [[MemoryArchivist]] to support testing messages
  */
-trait TestingMemoryArchivist extends ActorLogMessages {
+trait TestingMemoryArchivist extends FlinkActor {
   self: MemoryArchivist =>
 
-  abstract override def receiveWithLogMessages = {
-    receiveTestingMessages orElse super.receiveWithLogMessages
+  abstract override def handleMessage: Receive = {
+    handleTestingMessage orElse super.handleMessage
   }
 
-  def receiveTestingMessages: Receive = {
+  def handleTestingMessage: Receive = {
     case RequestExecutionGraph(jobID) =>
       val executionGraph = graphs.get(jobID)
       
       executionGraph match {
-        case Some(graph) => sender ! ExecutionGraphFound(jobID, graph)
-        case None => sender ! ExecutionGraphNotFound(jobID)
+        case Some(graph) => sender ! decorateMessage(ExecutionGraphFound(jobID, graph))
+        case None => sender ! decorateMessage(ExecutionGraphNotFound(jobID))
       }
   }
 }

@@ -79,10 +79,15 @@ public abstract class YarnTestBase {
 
 	protected final static int NUM_NODEMANAGERS = 2;
 
-	// The tests are scanning for these strings in the final output.
+	/** The tests are scanning for these strings in the final output. */
 	protected final static String[] PROHIBITED_STRINGS = {
 			"Exception", // we don't want any exceptions to happen
 			"Started SelectChannelConnector@0.0.0.0:8081" // Jetty should start on a random port in YARN mode.
+	};
+
+	/** These strings are white-listed, overriding teh prohibited strings */
+	protected final static String[] WHITELISTED_STRINGS = {
+			"akka.remote.RemoteTransportExceptionNoStackTrace"
 	};
 
 	// Temp directory which is deleted after the unit test.
@@ -232,10 +237,11 @@ public abstract class YarnTestBase {
 	 * So always run "mvn clean" before running the tests here.
 	 *
 	 */
-	public static void ensureNoProhibitedStringInLogFiles(final String[] prohibited) {
+	public static void ensureNoProhibitedStringInLogFiles(final String[] prohibited, final String[] whitelisted) {
 		File cwd = new File("target/"+yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
 		Assert.assertTrue("Expecting directory "+cwd.getAbsolutePath()+" to exist", cwd.exists());
 		Assert.assertTrue("Expecting directory "+cwd.getAbsolutePath()+" to be a directory", cwd.isDirectory());
+		
 		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
 			@Override
 			public boolean accept(File dir, String name) {
@@ -247,10 +253,21 @@ public abstract class YarnTestBase {
 					final String lineFromFile = scanner.nextLine();
 					for (String aProhibited : prohibited) {
 						if (lineFromFile.contains(aProhibited)) {
-							// logging in FATAL to see the actual message in TRAVIS tests.
-							Marker fatal = MarkerFactory.getMarker("FATAL");
-							LOG.error(fatal, "Prohibited String '{}' in line '{}'", aProhibited, lineFromFile);
-							return true;
+							
+							boolean whitelistedFound = false;
+							for (String white : whitelisted) {
+								if (lineFromFile.contains(white)) {
+									whitelistedFound = true;
+									break;
+								}
+							}
+							
+							if (!whitelistedFound) {
+								// logging in FATAL to see the actual message in TRAVIS tests.
+								Marker fatal = MarkerFactory.getMarker("FATAL");
+								LOG.error(fatal, "Prohibited String '{}' in line '{}'", aProhibited, lineFromFile);
+								return true;
+							}
 						}
 					}
 
@@ -408,13 +425,15 @@ public abstract class YarnTestBase {
 		System.setErr(new PrintStream(errContent));
 
 
-		final int START_TIMEOUT_SECONDS = 60;
-
+		// we wait for at most three minutes
+		final int START_TIMEOUT_SECONDS = 180;
+		final long deadline = System.currentTimeMillis() + (START_TIMEOUT_SECONDS * 1000);
+		
 		Runner runner = new Runner(args, type);
 		runner.start();
 
 		boolean expectedStringSeen = false;
-		for(int second = 0; second <  START_TIMEOUT_SECONDS; second++) {
+		do {
 			sleep(1000);
 			String outContentString = outContent.toString();
 			String errContentString = errContent.toString();
@@ -431,8 +450,7 @@ public abstract class YarnTestBase {
 				}
 			}
 			// check output for correct TaskManager startup.
-			if(outContentString.contains(terminateAfterString)
-					|| errContentString.contains(terminateAfterString) ) {
+			if (outContentString.contains(terminateAfterString) || errContentString.contains(terminateAfterString) ) {
 				expectedStringSeen = true;
 				LOG.info("Found expected output in redirected streams");
 				// send "stop" command to command line interface
@@ -440,19 +458,28 @@ public abstract class YarnTestBase {
 				runner.sendStop();
 				// wait for the thread to stop
 				try {
-					runner.join(10000);
-				} catch (InterruptedException e) {
+					runner.join(30000);
+				}
+				catch (InterruptedException e) {
 					LOG.debug("Interrupted while stopping runner", e);
 				}
 				LOG.warn("RunWithArgs runner stopped.");
-				break;
 			}
-			// check if thread died
-			if(!runner.isAlive()) {
-				sendOutput();
-				Assert.fail("Runner thread died before the test was finished. Return value = " +runner.getReturnValue());
+			else {
+				// check if thread died
+				if (!runner.isAlive()) {
+					sendOutput();
+					if (runner.getReturnValue() != 0) {
+						Assert.fail("Runner thread died before the test was finished. Return value = "
+								+ runner.getReturnValue());
+					} else {
+						LOG.info("Runner stopped earlier than expected with return value = 0");
+					}
+				}
 			}
 		}
+		while (!expectedStringSeen && System.currentTimeMillis() < deadline);
+		
 		sendOutput();
 		Assert.assertTrue("During the timeout period of " + START_TIMEOUT_SECONDS + " seconds the " +
 				"expected string did not show up", expectedStringSeen);

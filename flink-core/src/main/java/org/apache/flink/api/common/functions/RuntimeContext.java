@@ -18,9 +18,10 @@
 
 package org.apache.flink.api.common.functions;
 
+import java.io.IOException;
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -29,6 +30,8 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.StateCheckpointer;
 
 /**
  * A RuntimeContext contains information about the context in which functions are executed. Each parallel instance
@@ -55,10 +58,10 @@ public interface RuntimeContext {
 	int getNumberOfParallelSubtasks();
 
 	/**
-	 * Gets the number of the parallel subtask. The numbering starts from 1 and goes up to the parallelism,
-	 * as returned by {@link #getNumberOfParallelSubtasks()}.
+	 * Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
+	 * parallelism-1 (parallelism as returned by {@link #getNumberOfParallelSubtasks()}).
 	 * 
-	 * @return The number of the parallel subtask.
+	 * @return The index of the parallel subtask.
 	 */
 	int getIndexOfThisSubtask();
 
@@ -97,10 +100,12 @@ public interface RuntimeContext {
 	<V, A extends Serializable> Accumulator<V, A> getAccumulator(String name);
 
 	/**
-	 * For system internal usage only. Use getAccumulator(...) to obtain a
-	 * accumulator. Use this as read-only.
+	 * Returns a map of all registered accumulators for this task.
+	 * The returned map must not be modified.
+	 * @deprecated Use getAccumulator(..) to obtain the value of an accumulator.
 	 */
-	HashMap<String, Accumulator<?, ?>> getAllAccumulators();
+	@Deprecated
+	Map<String, Accumulator<?, ?>> getAllAccumulators();
 
 	/**
 	 * Convenience function to create a counter object for integers.
@@ -160,4 +165,69 @@ public interface RuntimeContext {
 	 * @return The distributed cache of the worker executing this instance.
 	 */
 	DistributedCache getDistributedCache();
+	
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Returns the {@link OperatorState} with the given name of the underlying
+	 * operator instance, which can be used to store and update user state in a
+	 * fault tolerant fashion. The state will be initialized by the provided
+	 * default value, and the {@link StateCheckpointer} will be used to draw the
+	 * state snapshots.
+	 * 
+	 * <p>
+	 * When storing a {@link Serializable} state the user can omit the
+	 * {@link StateCheckpointer} in which case the full state will be written as
+	 * the snapshot.
+	 * </p>
+	 * 
+	 * @param name
+	 *            Identifier for the state allowing that more operator states
+	 *            can be used by the same operator.
+	 * @param defaultState
+	 *            Default value for the operator state. This will be returned
+	 *            the first time {@link OperatorState#value()} (for every
+	 *            state partition) is called before
+	 *            {@link OperatorState#update(Object)}.
+	 * @param partitioned
+	 *            Sets whether partitioning should be applied for the given
+	 *            state. If true a partitioner key must be used.
+	 * @param checkpointer
+	 *            The {@link StateCheckpointer} that will be used to draw
+	 *            snapshots from the user state.
+	 * @return The {@link OperatorState} for the underlying operator.
+	 * 
+	 * @throws IOException Thrown if the system cannot access the state.
+	 */
+	<S, C extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
+			boolean partitioned, StateCheckpointer<S, C> checkpointer) throws IOException;
+
+	/**
+	 * Returns the {@link OperatorState} with the given name of the underlying
+	 * operator instance, which can be used to store and update user state in a
+	 * fault tolerant fashion. The state will be initialized by the provided
+	 * default value.
+	 * 
+	 * <p>
+	 * When storing a non-{@link Serializable} state the user needs to specify a
+	 * {@link StateCheckpointer} for drawing snapshots.
+	 * </p>
+	 * 
+	 * @param name
+	 *            Identifier for the state allowing that more operator states
+	 *            can be used by the same operator.
+	 * @param defaultState
+	 *            Default value for the operator state. This will be returned
+	 *            the first time {@link OperatorState#value()} (for every
+	 *            state partition) is called before
+	 *            {@link OperatorState#update(Object)}.
+	 * @param partitioned
+	 *            Sets whether partitioning should be applied for the given
+	 *            state. If true a partitioner key must be used.
+	 * @return The {@link OperatorState} for the underlying operator.
+	 * 
+	 * @throws IOException Thrown if the system cannot access the state.
+	 */
+	<S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
+			boolean partitioned) throws IOException;
 }

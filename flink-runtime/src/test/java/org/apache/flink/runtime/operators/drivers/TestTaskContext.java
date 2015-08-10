@@ -33,6 +33,7 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.PactTaskContext;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -62,6 +63,8 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 
 	private ExecutionConfig executionConfig = new ExecutionConfig();
 
+	private TaskManagerRuntimeInfo taskManageInfo;
+
 	// --------------------------------------------------------------------------------------------
 	//  Constructors
 	// --------------------------------------------------------------------------------------------
@@ -70,6 +73,7 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 	
 	public TestTaskContext(long memoryInBytes) {
 		this.memoryManager = new DefaultMemoryManager(memoryInBytes,1 ,32 * 1024, true);
+		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -153,6 +157,11 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 	@Override
 	public IOManager getIOManager() {
 		return null;
+	}
+
+	@Override
+	public TaskManagerRuntimeInfo getTaskManagerInfo() {
+		return this.taskManageInfo;
 	}
 
 	@Override

@@ -810,4 +810,67 @@ public class PojoTypeExtractionTest {
 						+ ">"));
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
 	}
+
+	public static class RecursivePojo1 {
+		public RecursivePojo1 field;
+	}
+
+	public static class RecursivePojo2 {
+		public Tuple1<RecursivePojo2> field;
+	}
+
+	public static class RecursivePojo3 {
+		public NestedPojo field;
+	}
+
+	public static class NestedPojo {
+		public RecursivePojo3 field;
+	}
+
+	@Test
+	public void testRecursivePojo1() {
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(RecursivePojo1.class);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		Assert.assertEquals(GenericTypeInfo.class, ((PojoTypeInfo) ti).getPojoFieldAt(0).type.getClass());
+	}
+
+	@Test
+	public void testRecursivePojo2() {
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(RecursivePojo2.class);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		PojoField pf = ((PojoTypeInfo) ti).getPojoFieldAt(0);
+		Assert.assertTrue(pf.type instanceof TupleTypeInfo);
+		Assert.assertEquals(GenericTypeInfo.class, ((TupleTypeInfo) pf.type).getTypeAt(0).getClass());
+	}
+
+	@Test
+	public void testRecursivePojo3() {
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(RecursivePojo3.class);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		PojoField pf = ((PojoTypeInfo) ti).getPojoFieldAt(0);
+		Assert.assertTrue(pf.type instanceof PojoTypeInfo);
+		Assert.assertEquals(GenericTypeInfo.class, ((PojoTypeInfo) pf.type).getPojoFieldAt(0).type.getClass());
+	}
+
+	public static class FooBarPojo {
+		public int foo, bar;
+		public FooBarPojo() {}
+	}
+
+	public static class DuplicateMapper implements MapFunction<FooBarPojo, Tuple2<FooBarPojo, FooBarPojo>> {
+		@Override
+		public Tuple2<FooBarPojo, FooBarPojo> map(FooBarPojo value) throws Exception {
+			return null;
+		}
+	}
+
+	@Test
+	public void testDualUseOfPojo() {
+		MapFunction<?, ?> function = new DuplicateMapper();
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeExtractor.createTypeInfo(FooBarPojo.class));
+		Assert.assertTrue(ti instanceof TupleTypeInfo);
+		TupleTypeInfo<?> tti = ((TupleTypeInfo) ti);
+		Assert.assertTrue(tti.getTypeAt(0) instanceof PojoTypeInfo);
+		Assert.assertTrue(tti.getTypeAt(1) instanceof PojoTypeInfo);
+	}
 }

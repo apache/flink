@@ -408,14 +408,16 @@ public abstract class DataSet<T> {
 		JobExecutionResult res = getExecutionEnvironment().execute();
 
 		ArrayList<byte[]> accResult = res.getAccumulatorResult(id);
-		try {
-			return SerializedListAccumulator.deserializeList(accResult, serializer);
-		}
-		catch (ClassNotFoundException e) {
-			throw new RuntimeException("Cannot find type class of collected data type.", e);
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Serialization error while deserializing collected data", e);
+		if (accResult != null) {
+			try {
+				return SerializedListAccumulator.deserializeList(accResult, serializer);
+			} catch (ClassNotFoundException e) {
+				throw new RuntimeException("Cannot find type class of collected data type.", e);
+			} catch (IOException e) {
+				throw new RuntimeException("Serialization error while deserializing collected data", e);
+			}
+		} else {
+			throw new RuntimeException("The call to collect() could not retrieve the DataSet.");
 		}
 	}
 
@@ -604,13 +606,13 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using expression keys.
+	 * Returns a distinct set of a {@link DataSet} using expression keys.
 	 * <p>
-	 * The field position keys specify the fields of Tuples or Pojos on which the decision is made if two elements are distinct or
-	 * not.
-	 * <p>
+	 * The field expression keys specify the fields of a {@link org.apache.flink.api.common.typeutils.CompositeType}
+	 * (e.g., Tuple or Pojo type) on which the decision is made if two elements are distinct or not.
+	 * In case of a {@link org.apache.flink.api.common.typeinfo.AtomicType}, only the wildcard expression ("*") is valid.
 	 *
-	 * @param fields One or more field positions on which the distinction of the DataSet is decided. 
+	 * @param fields One or more field expressions on which the distinction of the DataSet is decided.
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public DistinctOperator<T> distinct(String... fields) {
@@ -618,9 +620,10 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using all fields of the tuple.
+	 * Returns a distinct set of a {@link DataSet}.
 	 * <p>
-	 * Note: This operator can only be applied to Tuple DataSets.
+	 * If the input is a {@link org.apache.flink.api.common.typeutils.CompositeType} (Tuple or Pojo type),
+	 * distinct is performed on all fields and each field must be a key type
 	 * 
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
@@ -1128,14 +1131,14 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Partitions a DataSet on the key returned by the selector, using a custom partitioner.
-	 * This method takes the key selector t get the key to partition on, and a partitioner that
+	 * This method takes the key selector to get the key to partition on, and a partitioner that
 	 * accepts the key type.
 	 * <p>
 	 * Note: This method works only on single field keys, i.e. the selector cannot return tuples
 	 * of fields.
 	 * 
 	 * @param partitioner The partitioner to assign partitions to keys.
-	 * @param keyExtractor The KeyExtractor with which the DataSet is hash-partitioned.
+	 * @param keyExtractor The KeyExtractor with which the DataSet is partitioned.
 	 * @return The partitioned DataSet.
 	 * 
 	 * @see KeySelector

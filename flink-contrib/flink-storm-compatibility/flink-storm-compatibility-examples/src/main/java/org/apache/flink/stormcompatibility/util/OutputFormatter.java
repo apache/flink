@@ -18,12 +18,19 @@
 
 package org.apache.flink.stormcompatibility.util;
 
-import java.io.Serializable;
-
 import backtype.storm.tuple.Tuple;
+
+import java.io.Serializable;
 
 public interface OutputFormatter extends Serializable {
 
+	/**
+	 * Converts a Storm {@link Tuple} to a string. This method is used for formatting the output
+	 * tuples before writing them out to a file or to the consol.
+	 *
+	 * @param input The tuple to be formatted
+	 * @return The string result of the formatting
+	 */
 	public String format(Tuple input);
 
 }

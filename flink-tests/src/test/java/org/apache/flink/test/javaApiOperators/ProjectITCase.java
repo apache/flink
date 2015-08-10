@@ -18,6 +18,8 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import java.util.List;
+
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
@@ -26,14 +28,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 public class ProjectITCase extends JavaProgramTestBase {
-
-	private String resultPath;
-	private String expectedResult;
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
 
 	@Override
 	protected void testProgram() throws Exception {
@@ -45,11 +39,10 @@ public class ProjectITCase extends JavaProgramTestBase {
 
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 		DataSet<Tuple3<String, Long, Integer>> projDs = ds.
-						project(3,4,2);
-		projDs.writeAsCsv(resultPath);
+				project(3,4,2);
+		List<Tuple3<String, Long, Integer>> result = projDs.collect();
 
-		env.execute();
-		expectedResult = "Hallo,1,0\n" +
+		String expectedResult = "Hallo,1,0\n" +
 				"Hallo Welt,2,1\n" +
 				"Hallo Welt wie,1,2\n" +
 				"Hallo Welt wie gehts?,2,3\n" +
@@ -64,10 +57,8 @@ public class ProjectITCase extends JavaProgramTestBase {
 				"IJK,3,12\n" +
 				"JKL,2,13\n" +
 				"KLM,2,14\n";
+
+		compareResultAsTuples(result, expectedResult);
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
+
 }

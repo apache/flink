@@ -32,7 +32,7 @@ import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
-import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestCollector;
+import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestOutput;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.junit.Test;
 
@@ -57,7 +57,7 @@ public class TumblingGroupedPreReducerTest {
 		inputs.add(new Tuple2<Integer, Integer>(1, -1));
 		inputs.add(new Tuple2<Integer, Integer>(1, -2));
 
-		TestCollector<StreamWindow<Tuple2<Integer, Integer>>> collector = new TestCollector<StreamWindow<Tuple2<Integer, Integer>>>();
+		TestOutput<StreamWindow<Tuple2<Integer, Integer>>> collector = new TestOutput<StreamWindow<Tuple2<Integer, Integer>>>();
 		List<StreamWindow<Tuple2<Integer, Integer>>> collected = collector.getCollected();
 
 		WindowBuffer<Tuple2<Integer, Integer>> wb = new TumblingGroupedPreReducer<Tuple2<Integer, Integer>>(
@@ -104,7 +104,7 @@ public class TumblingGroupedPreReducerTest {
 		inputs.add(new Tuple2<Integer, Integer>(1, -1));
 		inputs.add(new Tuple2<Integer, Integer>(1, -2));
 
-		TestCollector<StreamWindow<Tuple2<Integer, Integer>>> collector = new TestCollector<StreamWindow<Tuple2<Integer, Integer>>>();
+		TestOutput<StreamWindow<Tuple2<Integer, Integer>>> collector = new TestOutput<StreamWindow<Tuple2<Integer, Integer>>>();
 		List<StreamWindow<Tuple2<Integer, Integer>>> collected = collector.getCollected();
 
 		WindowBuffer<Tuple2<Integer, Integer>> wb = new TumblingGroupedPreReducer<Tuple2<Integer, Integer>>(

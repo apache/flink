@@ -43,7 +43,7 @@ import org.apache.flink.util.Collector;
  * <p/>
  * This example shows how to:
  * <ul>
- * <li>use a Storm bolt within a Flink Streaming program.
+ * <li>use a Storm spout within a Flink Streaming program.</li>
  * </ul>
  */
 public class SpoutSourceWordCount {
@@ -67,8 +67,8 @@ public class SpoutSourceWordCount {
 		final DataStream<Tuple2<String, Integer>> counts =
 				// split up the lines in pairs (2-tuples) containing: (word,1)
 				text.flatMap(new Tokenizer())
-						// group by the tuple field "0" and sum up tuple field "1"
-						.groupBy(0).sum(1);
+				// group by the tuple field "0" and sum up tuple field "1"
+				.groupBy(0).sum(1);
 
 		// emit result
 		if (fileOutput) {
@@ -145,7 +145,7 @@ public class SpoutSourceWordCount {
 		}
 
 		return env.addSource(new StormFiniteSpoutWrapper<String>(new StormInMemorySpout(WordCountData.WORDS), true),
-				TypeExtractor.getForClass(String.class));
+				TypeExtractor.getForClass(String.class)).setParallelism(1);
 
 	}
 

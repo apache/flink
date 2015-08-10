@@ -37,7 +37,7 @@ import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.operators.BuildSecondCachedMatchDriver;
+import org.apache.flink.runtime.operators.BuildSecondCachedJoinDriver;
 import org.apache.flink.runtime.operators.CoGroupDriver;
 import org.apache.flink.runtime.operators.CollectorMapDriver;
 import org.apache.flink.runtime.operators.DriverStrategy;
@@ -183,7 +183,7 @@ public class CompensatableDanglingPageRank {
 		TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
 		intermediateConfig.setIterationId(ITERATION_ID);
 //		intermediateConfig.setDriver(RepeatableHashjoinMatchDriverWithCachedBuildside.class);
-		intermediateConfig.setDriver(BuildSecondCachedMatchDriver.class);
+		intermediateConfig.setDriver(BuildSecondCachedJoinDriver.class);
 		intermediateConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		intermediateConfig.setRelativeMemoryDriver((double)matchMemory/totalMemoryConsumption);
 		intermediateConfig.addInputToGroup(0);

@@ -21,7 +21,6 @@ package org.apache.flink.client.program;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.Status;
-import akka.actor.UntypedActor;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
@@ -34,6 +33,7 @@ import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -48,8 +48,11 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import scala.Option;
 import scala.Some;
 import scala.Tuple2;
+
+import java.util.UUID;
 
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
@@ -220,25 +223,49 @@ public class ClientTest {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static class SuccessReturningActor extends UntypedActor {
+	public static class SuccessReturningActor extends FlinkUntypedActor {
+
+		private Option<UUID> leaderSessionID = Option.<UUID>apply(UUID.randomUUID());
 
 		@Override
-		public void onReceive(Object message) throws Exception {
+		public void handleMessage(Object message) {
 			if (message instanceof JobManagerMessages.SubmitJob) {
 				JobID jid = ((JobManagerMessages.SubmitJob) message).jobGraph().getJobID();
-				getSender().tell(new Status.Success(jid), getSelf());
+				getSender().tell(
+						decorateMessage(new Status.Success(jid)),
+						getSelf());
+			} else if(message instanceof JobManagerMessages.RequestLeaderSessionID$) {
+				getSender().tell(
+						decorateMessage(new JobManagerMessages.ResponseLeaderSessionID(leaderSessionID)),
+						getSelf());
 			}
 			else {
-				getSender().tell(new Status.Failure(new Exception("Unknown message " + message)), getSelf());
+				getSender().tell(
+						decorateMessage(new Status.Failure(new Exception("Unknown message " + message))),
+						getSelf());
 			}
+		}
+
+		@Override
+		protected Option<UUID> getLeaderSessionID() {
+			return leaderSessionID;
 		}
 	}
 
-	public static class FailureReturningActor extends UntypedActor {
+	public static class FailureReturningActor extends FlinkUntypedActor {
+
+		private Option<UUID> leaderSessionID = Option.<UUID>apply(UUID.randomUUID());
 
 		@Override
-		public void onReceive(Object message) throws Exception {
-			getSender().tell(new Status.Failure(new Exception("test")), getSelf());
+		public void handleMessage(Object message) {
+			getSender().tell(
+					decorateMessage(new Status.Failure(new Exception("test"))),
+					getSelf());
+		}
+
+		@Override
+		protected Option<UUID> getLeaderSessionID() {
+			return leaderSessionID;
 		}
 	}
 }

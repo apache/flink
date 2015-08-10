@@ -26,6 +26,7 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
+import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -47,28 +48,21 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 	private final Keys<T> keys;
 	
 	private final String distinctLocationName;
-	
+
 	public DistinctOperator(DataSet<T> input, Keys<T> keys, String distinctLocationName) {
 		super(input, input.getType());
 
 		this.distinctLocationName = distinctLocationName;
-		
-		// if keys is null distinction is done on all tuple fields
+
+		if (!(input.getType() instanceof CompositeType) &&
+				!(input.getType() instanceof AtomicType && input.getType().isKeyType())){
+			throw new InvalidProgramException("Distinct only possible on composite or atomic key types.");
+		}
+		// if keys is null distinction is done on all fields
 		if (keys == null) {
-			if (input.getType() instanceof CompositeType) {
-				keys = new Keys.ExpressionKeys<T>(new String[] {Keys.ExpressionKeys.SELECT_ALL_CHAR }, input.getType());
-			}
-			else {
-				throw new InvalidProgramException("Distinction on all fields is only possible on composite (pojo / tuple) data types.");
-			}
+			keys = new Keys.ExpressionKeys<T>(new String[] {Keys.ExpressionKeys.SELECT_ALL_CHAR }, input.getType());
 		}
-		
-		
-		// FieldPositionKeys can only be applied on Tuples and POJOs
-		if (keys instanceof Keys.ExpressionKeys && !(input.getType() instanceof CompositeType)) {
-			throw new InvalidProgramException("Distinction on field positions is only possible on composite type DataSets.");
-		}
-		
+
 		this.keys = keys;
 	}
 

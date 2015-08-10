@@ -18,9 +18,11 @@
 package org.apache.flink.api.java.utils;
 
 import com.google.common.base.Preconditions;
+import org.apache.commons.cli.Option;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
+import org.apache.hadoop.util.GenericOptionsParser;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -128,7 +130,9 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 			throw new FileNotFoundException("Properties file "+path+" does not exist");
 		}
 		Properties props = new Properties();
-		props.load(new FileInputStream(propertiesFile));
+		FileInputStream fis = new FileInputStream(propertiesFile);
+		props.load(fis);
+		fis.close();
 		return fromMap((Map)props);
 	}
 
@@ -139,6 +143,16 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	public static ParameterTool fromSystemProperties() {
 		return fromMap((Map) System.getProperties());
+	}
+
+	public static ParameterTool fromGenericOptionsParser(String[] args) throws IOException {
+		Option[] options = new GenericOptionsParser(args).getCommandLine().getOptions();
+		Map<String, String> map = new HashMap<String, String>();
+		for (Option option : options) {
+			String[] split = option.getValue().split("=");
+			map.put(split[0], split[1]);
+		}
+		return fromMap(map);
 	}
 
 	// ------------------ ParameterUtil  ------------------------
@@ -197,7 +211,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return Integer.valueOf(value);
 	}
 
-	public int getLong(String key, int defaultValue) {
+	public int getInt(String key, int defaultValue) {
 		addToDefaults(key, Integer.toString(defaultValue));
 		String value = get(key);
 		if(value == null) {

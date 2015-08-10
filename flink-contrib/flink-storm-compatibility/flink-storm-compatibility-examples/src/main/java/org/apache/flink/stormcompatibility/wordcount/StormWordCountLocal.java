@@ -42,7 +42,7 @@ import org.apache.flink.stormcompatibility.api.FlinkTopologyBuilder;
  * <p/>
  * This example shows how to:
  * <ul>
- * <li>run a regular Storm program locally on Flink
+ * <li>run a regular Storm program locally on Flink</li>
  * </ul>
  */
 public class StormWordCountLocal {
@@ -65,7 +65,7 @@ public class StormWordCountLocal {
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
 		cluster.submitTopology(topologyId, null, builder.createTopology());
 
-		Utils.sleep(5 * 1000);
+		Utils.sleep(10 * 1000);
 
 		// TODO kill does no do anything so far
 		cluster.killTopology(topologyId);

@@ -108,7 +108,7 @@ public class FloatValue implements Key<FloatValue>, ResettableValue<FloatValue>,
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj.getClass() == FloatValue.class) {
+		if (obj instanceof FloatValue) {
 			final FloatValue other = (FloatValue) obj;
 			return Float.floatToIntBits(this.value) == Float.floatToIntBits(other.value);
 		}

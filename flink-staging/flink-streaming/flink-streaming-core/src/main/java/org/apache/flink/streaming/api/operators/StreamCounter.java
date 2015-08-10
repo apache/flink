@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
 public class StreamCounter<IN> extends AbstractStreamOperator<Long> implements OneInputStreamOperator<IN, Long> {
 
 	private static final long serialVersionUID = 1L;
@@ -28,7 +31,12 @@ public class StreamCounter<IN> extends AbstractStreamOperator<Long> implements O
 	}
 
 	@Override
-	public void processElement(IN element) {
-		output.collect(++count);
+	public void processElement(StreamRecord<IN> element) {
+		output.collect(element.replace(++count));
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
 	}
 }

@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public class StreamFilter<IN> extends AbstractUdfStreamOperator<IN, FilterFunction<IN>> implements OneInputStreamOperator<IN, IN> {
 
@@ -29,9 +31,14 @@ public class StreamFilter<IN> extends AbstractUdfStreamOperator<IN, FilterFuncti
 	}
 
 	@Override
-	public void processElement(IN element) throws Exception {
-		if (userFunction.filter(element)) {
+	public void processElement(StreamRecord<IN> element) throws Exception {
+		if (userFunction.filter(element.getValue())) {
 			output.collect(element);
 		}
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
 	}
 }

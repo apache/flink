@@ -102,6 +102,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 							success = true;
 						} catch (ConnectException ce) {
 							Thread.sleep(CONNECTION_RETRY_SLEEP);
+							socket.close();
 						}
 					}
 

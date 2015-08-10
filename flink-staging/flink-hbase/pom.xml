@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-staging</artifactId>
-		<version>0.9-SNAPSHOT</version>
+		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -171,6 +171,18 @@ under the License.
 		
 		<profile>
 			<id>hadoop-2</id>
+			<repositories>
+				<repository>
+					<id>hadoop-2-repo2</id>
+					<url>https://repo.maven.apache.org/maven2</url>
+					<releases>
+						<enabled>true</enabled>
+					</releases>
+					<snapshots>
+						<enabled>false</enabled>
+					</snapshots>
+				</repository>
+			</repositories>
 			<activation>
 				<property>
 					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->

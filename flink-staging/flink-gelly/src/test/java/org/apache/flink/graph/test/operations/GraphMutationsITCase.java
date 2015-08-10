@@ -21,17 +21,14 @@ package org.apache.flink.graph.test.operations;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -42,21 +39,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-    private String resultPath;
     private String expectedResult;
 
-    @Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
 
 	@Test
 	public void testAddVertex() throws Exception {
@@ -70,8 +54,9 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		graph = graph.addVertex(new Vertex<Long, Long>(6L, 6L));
-		graph.getVertices().writeAsCsv(resultPath);
-		env.execute();
+        
+		DataSet<Vertex<Long,Long>> data = graph.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
 
 		expectedResult = "1,1\n" +
 				"2,2\n" +
@@ -79,6 +64,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,4\n" +
 				"5,5\n" +
 				"6,6\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -98,8 +85,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 
 		graph = graph.addVertices(vertices);
 
-		graph.getVertices().writeAsCsv(resultPath);
-		env.execute();
+		DataSet<Vertex<Long,Long>> data = graph.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
 
 		expectedResult = "1,1\n" +
 				"2,2\n" +
@@ -108,6 +95,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"5,5\n" +
 				"6,6\n" +
 				"7,7\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -121,14 +110,17 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		graph = graph.addVertex(new Vertex<Long, Long>(1L, 1L));
-		graph.getVertices().writeAsCsv(resultPath);
-		env.execute();
+		
+		DataSet<Vertex<Long,Long>> data = graph.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
 
 		expectedResult = "1,1\n" +
 				"2,2\n" +
 				"3,3\n" +
 				"4,4\n" +
 				"5,5\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -148,14 +140,16 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 
 		graph = graph.addVertices(vertices);
 
-		graph.getVertices().writeAsCsv(resultPath);
-		env.execute();
+		DataSet<Vertex<Long,Long>> data = graph.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
 
 		expectedResult = "1,1\n" +
 				"2,2\n" +
 				"3,3\n" +
 				"4,4\n" +
 				"5,5\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -175,8 +169,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 
 		graph = graph.addVertices(vertices);
 
-		graph.getVertices().writeAsCsv(resultPath);
-		env.execute();
+		DataSet<Vertex<Long,Long>> data = graph.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
 
 		expectedResult = "1,1\n" +
 				"2,2\n" +
@@ -184,6 +178,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,4\n" +
 				"5,5\n" +
 				"6,6\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -197,13 +193,16 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		graph = graph.removeVertex(new Vertex<Long, Long>(5L, 5L));
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 				"1,3,13\n" +
 				"2,3,23\n" +
 				"3,4,34\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -222,12 +221,15 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		verticesToBeRemoved.add(new Vertex<Long, Long>(2L, 2L));
 
 		graph = graph.removeVertices(verticesToBeRemoved);
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "3,4,34\n" +
 				"3,5,35\n" +
 				"4,5,45\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -241,8 +243,9 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		graph = graph.removeVertex(new Vertex<Long, Long>(6L, 6L));
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 				"1,3,13\n" +
@@ -251,6 +254,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n" +
 				"5,1,51\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -268,13 +273,16 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		verticesToBeRemoved.add(new Vertex<Long, Long>(7L, 7L));
 
 		graph = graph.removeVertices(verticesToBeRemoved);
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "2,3,23\n" +
 				"3,4,34\n" +
 				"3,5,35\n" +
 				"4,5,45\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -292,8 +300,9 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		verticesToBeRemoved.add(new Vertex<Long, Long>(7L, 7L));
 
 		graph = graph.removeVertices(verticesToBeRemoved);
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 				"1,3,13\n" +
@@ -302,6 +311,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n" +
 				"5,1,51\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -319,14 +330,17 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		verticesToBeRemoved.add(new Vertex<Long, Long>(7L, 7L));
 
 		graph = graph.removeVertices(verticesToBeRemoved);
-		graph.getVertices().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Vertex<Long,Long>> data = graph.getVertices();
+        List<Vertex<Long, Long>> result= data.collect();
 
 		expectedResult = "1,1\n" +
 				"2,2\n" +
 				"3,3\n" +
 				"4,4\n" +
 				"5,5\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 	
 	@Test
@@ -341,8 +355,9 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		graph = graph.addEdge(new Vertex<Long, Long>(6L, 6L), new Vertex<Long, Long>(1L, 1L),
 				61L);
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 				"1,3,13\n" +
@@ -352,6 +367,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,5,45\n" +
 				"5,1,51\n" +
 				"6,1,61\n";	
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -371,8 +388,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 
 		graph = graph.addEdges(edgesToBeAdded);
 
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 				"1,3,13\n" +
@@ -383,6 +400,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"4,1,41\n" +
 				"4,5,45\n" +
 				"5,1,51\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -402,8 +421,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 
 		graph = graph.addEdges(edgesToBeAdded);
 
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 				"1,3,13\n" +
@@ -412,6 +431,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n" +
 				"5,1,51\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -426,8 +447,9 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		graph = graph.addEdge(new Vertex<Long, Long>(1L, 1L), new Vertex<Long, Long>(2L, 2L),
 				12L);
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 				"1,2,12\n" +
@@ -437,6 +459,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n" +
 				"5,1,51\n";	
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -450,8 +474,9 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		graph = graph.removeEdge(new Edge<Long, Long>(5L, 1L, 51L));
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 				"1,3,13\n" +
@@ -459,6 +484,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,4,34\n" +
 				"3,5,35\n" +
 				"4,5,45\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -476,14 +503,17 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		edgesToBeRemoved.add(new Edge<Long, Long>(2L, 3L, 23L));
 
 		graph = graph.removeEdges(edgesToBeRemoved);
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 				"1,3,13\n" +
 				"3,4,34\n" +
 				"3,5,35\n" +
 				"4,5,45\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -501,8 +531,9 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		edgesToBeRemoved.add(new Edge<Long, Long>(5L, 1L, 51L));
 
 		graph = graph.removeEdges(edgesToBeRemoved);
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 				"1,3,13\n" +
@@ -510,6 +541,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,4,34\n" +
 				"3,5,35\n" +
 				"4,5,45\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -523,8 +556,9 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		graph = graph.removeEdge(new Edge<Long, Long>(6L, 1L, 61L));
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 				"1,3,13\n" +
@@ -533,6 +567,8 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n" +
 				"5,1,51\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -550,8 +586,9 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		edgesToBeRemoved.add(new Edge<Long, Long>(6L, 1L, 61L));
 
 		graph = graph.removeEdges(edgesToBeRemoved);
-		graph.getEdges().writeAsCsv(resultPath);
-		env.execute();
+
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 				"1,3,13\n" +
@@ -560,5 +597,7 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				"3,5,35\n" +
 				"4,5,45\n" +
 				"5,1,51\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 }

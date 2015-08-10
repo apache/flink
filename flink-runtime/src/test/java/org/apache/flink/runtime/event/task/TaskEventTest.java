@@ -25,12 +25,13 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.util.Iterator;
 
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.junit.Test;
 
 /**
  * This class contains serialization tests concerning task events derived from
- * {@link org.apache.flink.runtime.event.task.AbstractEvent}.
+ * {@link org.apache.flink.runtime.event.AbstractEvent}.
  * 
  */
 public class TaskEventTest {

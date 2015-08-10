@@ -40,7 +40,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * <p/>
  * This example shows how to:
  * <ul>
- * <li>use a Storm bolt within a Flink Streaming program.
+ * <li>use a Storm bolt within a Flink Streaming program.</li>
  * </ul>
  */
 public class BoltTokenizerWordCount {
@@ -67,8 +67,8 @@ public class BoltTokenizerWordCount {
 				.transform("StormBoltTokenizer",
 						TypeExtractor.getForObject(new Tuple2<String, Integer>("", 0)),
 						new StormBoltWrapper<String, Tuple2<String, Integer>>(new StormBoltTokenizer()))
-						// split up the lines in pairs (2-tuples) containing: (word,1)
-						// group by the tuple field "0" and sum up tuple field "1"
+				// split up the lines in pairs (2-tuples) containing: (word,1)
+				// group by the tuple field "0" and sum up tuple field "1"
 				.groupBy(0).sum(1);
 
 		// emit result

@@ -46,6 +46,14 @@ under the License.
 			<!-- Allow imports for JavaDocs -->
 			<property name="processJavadoc" value="true"/>
 		</module>
+		<module name="IllegalImport">
+			<property name="illegalPkgs" value="org.apache.flink.shaded"/>
+		</module>
+		<module name="Regexp">
+			<property name="format" value="org\.apache\.commons\.lang3\.Validate"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use Guava Checks instead of Commons Validate. Please refer coding guidelines."/>
+		</module>
 		<module name="NeedBraces">
 			<property name="tokens" value="LITERAL_IF, LITERAL_ELSE"/>
 		</module>

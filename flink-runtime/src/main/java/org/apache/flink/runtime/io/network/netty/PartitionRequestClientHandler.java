@@ -21,10 +21,11 @@ package org.apache.flink.runtime.io.network.netty;
 import com.google.common.collect.Maps;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.TransportException;
@@ -300,7 +301,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				byte[] byteArray = new byte[bufferOrEvent.getSize()];
 				bufferOrEvent.getNettyBuffer().readBytes(byteArray);
 
-				Buffer buffer = new Buffer(new MemorySegment(byteArray), EventSerializer.RECYCLER, false);
+				Buffer buffer = new Buffer(new MemorySegment(byteArray), FreeingBufferRecycler.INSTANCE, false);
 
 				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber);
 

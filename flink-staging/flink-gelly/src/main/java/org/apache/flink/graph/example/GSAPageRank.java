@@ -31,14 +31,13 @@ import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.Neighbor;
 import org.apache.flink.graph.gsa.SumFunction;
-import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 import org.apache.flink.util.Collector;
 
 /**
  * This example implements a simple PageRank algorithm, using a gather-sum-apply iteration.
  *
- * The edges input file is expected to contain one edge per line, with long IDs and double
- * values, in the following format:"<sourceVertexID>\t<targetVertexID>\t<edgeValue>".
+ * The edges input file is expected to contain one edge per line, with long IDs and no
+ * values, in the following format:"<sourceVertexID>\t<targetVertexID>".
  *
  * If no arguments are provided, the example runs with a random graph of 10 vertices
  * and random edge weights.
@@ -187,8 +186,12 @@ public class GSAPageRank implements ProgramDescription {
 			return env.readCsvFile(edgeInputPath)
 					.fieldDelimiter("\t")
 					.lineDelimiter("\n")
-					.types(Long.class, Long.class, Double.class)
-					.map(new Tuple3ToEdgeMap<Long, Double>());
+					.types(Long.class, Long.class)
+					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, Double>>() {
+						public Edge<Long, Double> map(Tuple2<Long, Long> input) {
+							return new Edge<Long, Double>(input.f0, input.f1, 1.0);
+						}
+					}).withForwardedFields("f0; f1");
 		}
 
 		return env.generateSequence(1, numPages).flatMap(

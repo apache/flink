@@ -40,7 +40,6 @@ import java.io.Serializable;
  *            client
  */
 public interface Accumulator<V, R extends Serializable> extends Serializable, Cloneable {
-
 	/**
 	 * @param value
 	 *            The value to add to the accumulator object

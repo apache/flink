@@ -21,11 +21,13 @@ package org.apache.flink.tez.runtime;
 import com.google.common.base.Preconditions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -39,10 +41,10 @@ import org.apache.flink.runtime.operators.PactTaskContext;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
-import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.tez.runtime.input.TezReaderIterator;
 import org.apache.flink.tez.runtime.output.TezChannelSelector;
 import org.apache.flink.tez.runtime.output.TezOutputEmitter;
@@ -51,6 +53,7 @@ import org.apache.flink.tez.util.DummyInvokable;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.apache.tez.runtime.library.api.KeyValueReader;
 import org.apache.tez.runtime.library.api.KeyValueWriter;
 
@@ -267,6 +270,11 @@ public class TezTask<S extends Function,OT>  implements PactTaskContext<S, OT> {
 	@Override
 	public IOManager getIOManager() {
 		return runtimeEnvironment.getIOManager();
+	}
+
+	@Override
+	public TaskManagerRuntimeInfo getTaskManagerInfo() {
+		return new TaskManagerRuntimeInfo("localhost", new Configuration());
 	}
 
 	@Override

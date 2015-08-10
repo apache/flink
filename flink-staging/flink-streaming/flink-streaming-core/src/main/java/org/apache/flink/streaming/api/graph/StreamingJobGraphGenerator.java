@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -28,17 +29,19 @@ import java.util.Map.Entry;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.streaming.api.graph.StreamGraph.StreamLoop;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator.ChainingStrategy;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -248,6 +251,7 @@ public class StreamingJobGraphGenerator {
 		return retConfig;
 	}
 
+	@SuppressWarnings("unchecked")
 	private void setVertexConfig(Integer vertexID, StreamConfig config,
 			List<StreamEdge> chainableOutputs, List<StreamEdge> nonChainableOutputs) {
 
@@ -266,14 +270,24 @@ public class StreamingJobGraphGenerator {
 		config.setNumberOfOutputs(nonChainableOutputs.size());
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
-		config.setStateMonitoring(streamGraph.isCheckpointingEnabled());
-		config.setStateHandleProvider(streamGraph.getStateHandleProvider());
 
+		config.setCheckpointingEnabled(streamGraph.isCheckpointingEnabled());
+		if (streamGraph.isCheckpointingEnabled()) {
+			config.setCheckpointMode(streamGraph.getCheckpointingMode());
+			config.setStateHandleProvider(streamGraph.getStateHandleProvider());
+		} else {
+			// the at least once input handler is slightly cheaper (in the absence of checkpoints),
+			// so we use that one if checkpointing is not enabled
+			config.setCheckpointMode(CheckpointingMode.AT_LEAST_ONCE);
+		}
+		config.setStatePartitioner((KeySelector<?, Serializable>) vertex.getStatePartitioner());
+
+		
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 
 		if (vertexClass.equals(StreamIterationHead.class)
 				|| vertexClass.equals(StreamIterationTail.class)) {
-			config.setIterationId(streamGraph.getLoopID(vertexID));
+			config.setIterationId(streamGraph.getBrokerID(vertexID));
 			config.setIterationWaitTime(streamGraph.getLoopTimeout(vertexID));
 		}
 
@@ -357,13 +371,19 @@ public class StreamingJobGraphGenerator {
 		}
 
 		for (StreamLoop loop : streamGraph.getStreamLoops()) {
-			CoLocationGroup ccg = new CoLocationGroup();
-			JobVertex tail = jobVertices.get(loop.getSink().getId());
-			JobVertex head = jobVertices.get(loop.getSource().getId());
-			ccg.addVertex(head);
-			ccg.addVertex(tail);
-			tail.updateCoLocationGroup(ccg);
-			head.updateCoLocationGroup(ccg);
+			for (Tuple2<StreamNode, StreamNode> pair : loop.getSourceSinkPairs()) {
+				
+				CoLocationGroup ccg = new CoLocationGroup();
+				
+				JobVertex source = jobVertices.get(pair.f0.getId());
+				JobVertex sink = jobVertices.get(pair.f1.getId());
+				
+				ccg.addVertex(source);
+				ccg.addVertex(sink);
+				source.updateCoLocationGroup(ccg);
+				sink.updateCoLocationGroup(ccg);
+			}
+
 		}
 	}
 	
@@ -384,15 +404,16 @@ public class StreamingJobGraphGenerator {
 			List<JobVertexID> ackVertices = new ArrayList<JobVertexID>(jobVertices.size());
 
 			// collect the vertices that receive "commit checkpoint" messages
-			// currently, these are only the sources
+			// currently, these are all certices
 			List<JobVertexID> commitVertices = new ArrayList<JobVertexID>();
 			
 			
 			for (JobVertex vertex : jobVertices.values()) {
 				if (vertex.isInputVertex()) {
 					triggerVertices.add(vertex.getID());
-					commitVertices.add(vertex.getID());
 				}
+				// TODO: add check whether the user function implements the checkpointing interface
+				commitVertices.add(vertex.getID());
 				ackVertices.add(vertex.getID());
 			}
 

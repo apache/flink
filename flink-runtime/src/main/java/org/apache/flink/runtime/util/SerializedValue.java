@@ -29,7 +29,7 @@ import java.util.Arrays;
  * special class loader, the deserialization fails with a {@code ClassNotFoundException}.
  *
  * To work around that issue, the SerializedValue serialized data immediately into a byte array.
- * When send through RPC or another service that uses serialization, the only the byte array is
+ * When send through RPC or another service that uses serialization, only the byte array is
  * transferred. The object is deserialized later (upon access) and requires the accessor to
  * provide the corresponding class loader.
  *

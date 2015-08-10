@@ -22,8 +22,9 @@ import java.net.InetSocketAddress
 
 import akka.actor._
 import akka.pattern.ask
+import grizzled.slf4j.Logger
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
+import org.apache.flink.runtime.{FlinkActor, LogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
@@ -35,10 +36,10 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 class ApplicationClient(flinkConfig: Configuration)
-  extends Actor
-  with ActorLogMessages
-  with ActorSynchronousLogging {
+  extends FlinkActor with LogMessages {
   import context._
+
+  val log = Logger(getClass)
 
   val INITIAL_POLLING_DELAY = 0 seconds
   val WAIT_FOR_YARN_INTERVAL = 2 seconds
@@ -70,7 +71,7 @@ class ApplicationClient(flinkConfig: Configuration)
     context.system.shutdown()
   }
 
-  override def receiveWithLogMessages: Receive = {
+  override def handleMessage: Receive = {
     // ----------------------------- Registration -> Status updates -> shutdown ----------------
     case LocalRegisterClient(address: InetSocketAddress) =>
       val jmAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(address)
@@ -78,13 +79,13 @@ class ApplicationClient(flinkConfig: Configuration)
       val jobManagerFuture = AkkaUtils.getReference(jmAkkaUrl, system, timeout)
 
       jobManagerFuture.onComplete {
-        case Success(jm) => self ! JobManagerActorRef(jm)
+        case Success(jm) => self ! decorateMessage(JobManagerActorRef(jm))
         case Failure(t) =>
           log.error("Registration at JobManager/ApplicationMaster failed. Shutting " +
             "ApplicationClient down.", t)
 
           // we could not connect to the job manager --> poison ourselves
-          self ! PoisonPill
+          self ! decorateMessage(PoisonPill)
       }
 
     case JobManagerActorRef(jm) =>
@@ -93,40 +94,45 @@ class ApplicationClient(flinkConfig: Configuration)
       // the message came from the FlinkYarnCluster. We send the message to the JobManager.
       // it is important not to forward the message because the JobManager is storing the
       // sender as the Application Client (this class).
-      (jm ? RegisterClient(self))(timeout).onFailure{
+      (jm ? decorateMessage(RegisterClient(self)))(timeout).onFailure{
         case t: Throwable =>
           log.error("Could not register at the job manager.", t)
-          self ! PoisonPill
+          self ! decorateMessage(PoisonPill)
       }
 
       // schedule a periodic status report from the JobManager
       // request the number of task managers and slots from the job manager
-      pollingTimer = Some(context.system.scheduler.schedule(INITIAL_POLLING_DELAY,
-        WAIT_FOR_YARN_INTERVAL, jm, PollYarnClusterStatus))
+      pollingTimer = Some(
+        context.system.scheduler.schedule(
+          INITIAL_POLLING_DELAY,
+          WAIT_FOR_YARN_INTERVAL,
+          jm,
+          PollYarnClusterStatus)
+      )
 
     case LocalUnregisterClient =>
       // unregister client from AM
       yarnJobManager foreach {
-        _ ! UnregisterClient
+        _ ! decorateMessage(UnregisterClient)
       }
       // poison ourselves
-      self ! PoisonPill
+      self ! decorateMessage(PoisonPill)
 
     case msg: StopYarnSession =>
       log.info("Sending StopYarnSession request to ApplicationMaster.")
       stopMessageReceiver = Some(sender)
       yarnJobManager foreach {
-        _ forward msg
+        _ forward decorateMessage(msg)
       }
 
     case JobManagerStopped =>
       log.info("Remote JobManager has been stopped successfully. " +
         "Stopping local application client")
       stopMessageReceiver foreach {
-        _ ! JobManagerStopped
+        _ ! decorateMessage(JobManagerStopped)
       }
       // poison ourselves
-      self ! PoisonPill
+      self ! decorateMessage(PoisonPill)
 
     // handle the responses from the PollYarnClusterStatus messages to the yarn job mgr
     case status: FlinkYarnClusterStatus =>
@@ -135,12 +141,12 @@ class ApplicationClient(flinkConfig: Configuration)
 
     // locally get cluster status
     case LocalGetYarnClusterStatus =>
-      sender() ! latestClusterStatus
+      sender() ! decorateMessage(latestClusterStatus)
 
     // Forward message to Application Master
     case msg: StopAMAfterJob =>
       yarnJobManager foreach {
-        _ forward msg
+        _ forward decorateMessage(msg)
       }
 
     // -----------------  handle messages from the cluster -------------------
@@ -152,9 +158,9 @@ class ApplicationClient(flinkConfig: Configuration)
     // locally forward messages
     case LocalGetYarnMessage =>
       if(messagesQueue.size > 0) {
-        sender() ! Option(messagesQueue.dequeue)
+        sender() ! decorateMessage(Option(messagesQueue.dequeue))
       } else {
-        sender() ! None
+        sender() ! decorateMessage(None)
       }
   }
 

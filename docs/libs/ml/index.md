@@ -24,7 +24,7 @@ FlinkML is the Machine Learning (ML) library for Flink. It is a new effort in th
 with a growing list of algorithms and contributors. With FlinkML we aim to provide
 scalable ML algorithms, an intuitive API, and tools that help minimize glue code in end-to-end ML
 systems. You can see more details about our goals and where the library is headed in our [vision
-and roadmap here](vision_roadmap.html).
+and roadmap here](https://cwiki.apache.org/confluence/display/FLINK/FlinkML%3A+Vision+and+Roadmap).
 
 * This will be replaced by the TOC
 {:toc}
@@ -69,7 +69,8 @@ Next, you have to add the FlinkML dependency to the `pom.xml` of your project.
 </dependency>
 {% endhighlight %}
 
-Note that FlinkML is currently not part of the binary distribution. See linking with it for cluster execution [here](../apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+Note that FlinkML is currently not part of the binary distribution. 
+See linking with it for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
 Now you can start solving your analysis task.
 The following code snippet shows how easy it is to train a multiple linear regression model.

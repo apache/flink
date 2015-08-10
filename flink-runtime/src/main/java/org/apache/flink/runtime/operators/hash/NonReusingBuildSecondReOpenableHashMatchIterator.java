@@ -48,11 +48,12 @@ public class NonReusingBuildSecondReOpenableHashMatchIterator<V1, V2, O> extends
 			MemoryManager memManager,
 			IOManager ioManager,
 			AbstractInvokable ownerTask,
-			double memoryFraction)
-		throws MemoryAllocationException
-	{
+			double memoryFraction,
+			boolean useBitmapFilters) throws MemoryAllocationException {
+		
 		super(firstInput, secondInput, serializer1, comparator1, serializer2,
-				comparator2, pairComparator, memManager, ioManager, ownerTask, memoryFraction);
+				comparator2, pairComparator, memManager, ioManager, ownerTask, memoryFraction, useBitmapFilters);
+		
 		reopenHashTable = (ReOpenableMutableHashTable<V2, V1>) hashJoin;
 	}
 
@@ -62,12 +63,17 @@ public class NonReusingBuildSecondReOpenableHashMatchIterator<V1, V2, O> extends
 			TypeComparator<BT> buildSideComparator,
 			TypeSerializer<PT> probeSideSerializer, TypeComparator<PT> probeSideComparator,
 			TypePairComparator<PT, BT> pairComparator,
-			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, double memoryFraction)
-	throws MemoryAllocationException
-	{
+			MemoryManager memManager, IOManager ioManager,
+			AbstractInvokable ownerTask,
+			double memoryFraction,
+			boolean useBitmapFilters) throws MemoryAllocationException {
+		
 		final int numPages = memManager.computeNumberOfPages(memoryFraction);
 		final List<MemorySegment> memorySegments = memManager.allocatePages(ownerTask, numPages);
-		return new ReOpenableMutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, pairComparator, memorySegments, ioManager);
+		
+		return new ReOpenableMutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer,
+				buildSideComparator, probeSideComparator, pairComparator,
+				memorySegments, ioManager, useBitmapFilters);
 	}
 
 	/**
@@ -77,5 +83,4 @@ public class NonReusingBuildSecondReOpenableHashMatchIterator<V1, V2, O> extends
 	public void reopenProbe(MutableObjectIterator<V1> probeInput) throws IOException {
 		reopenHashTable.reopenProbe(probeInput);
 	}
-
 }

@@ -46,7 +46,7 @@ import com.google.common.base.Preconditions;
  * For each job graph that is submitted to the system the library cache manager maintains
  * a set of libraries (typically JAR files) which the job requires to run. The library cache manager
  * caches library files in order to avoid unnecessary retransmission of data. It is based on a singleton
- * programming pattern, so there exists at most on library manager at a time.
+ * programming pattern, so there exists at most one library manager at a time.
  */
 public final class BlobLibraryCacheManager extends TimerTask implements LibraryCacheManager {
 

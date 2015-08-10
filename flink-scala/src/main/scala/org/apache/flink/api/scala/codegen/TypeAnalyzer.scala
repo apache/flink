@@ -28,7 +28,6 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
   with TypeDescriptors[C] =>
 
   import c.universe._
-  import compat._
 
   // This value is controlled by the udtRecycling compiler option
   var enableMutableUDTs = false
@@ -60,6 +59,8 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
           case NothingType() => NothingDesciptor(id, tpe)
 
           case EitherType(leftTpe, rightTpe) => analyzeEither(id, tpe, leftTpe, rightTpe)
+
+          case EnumValueType(enum) => EnumValueDescriptor(id, tpe, enum)
 
           case TryType(elemTpe) => analyzeTry(id, tpe, elemTpe)
 
@@ -302,6 +303,8 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
           traversable match {
             case TypeRef(_, _, elemTpe :: Nil) =>
 
+              import compat._ // this is needed in order to compile in Scala 2.11
+
               // determine whether we can find an implicit for the CanBuildFrom because
               // TypeInformationGen requires this. This catches the case where a user
               // has a custom class that implements Iterable[], for example.
@@ -347,6 +350,37 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
         } else {
           None
         }
+      }
+    }
+
+    private object EnumValueType {
+      def unapply(tpe: Type): Option[ModuleSymbol] = {
+        // somewhat hacky solution based on the 'org.example.MyEnum.Value' FQN
+        // convention, compatible with Scala 2.10
+        try {
+          val m = c.universe.rootMirror
+          // get fully-qualified type name, e.g. org.example.MyEnum.Value
+          val fqn = tpe.normalize.toString.split('.')
+          // get FQN parent
+          val owner = m.staticModule(fqn.slice(0, fqn.size - 1).mkString("."))
+
+          val enumerationSymbol = typeOf[scala.Enumeration].typeSymbol
+          if (owner.typeSignature.baseClasses.contains(enumerationSymbol)) {
+            Some(owner)
+          } else {
+            None
+          }
+        } catch {
+          case e: Throwable => None
+        }
+        // TODO: use this once 2.10 is no longer supported
+        // tpe is the Enumeration.Value alias, get the owner
+        // val owner = tpe.typeSymbol.owner
+        // if (owner.isModule &&
+        //     owner.typeSignature.baseClasses.contains(typeOf[scala.Enumeration].typeSymbol))
+        //   Some(owner.asModule)
+        // else
+        //   None
       }
     }
 
@@ -441,7 +475,7 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
     def getBoxInfo(prim: Symbol, primName: String, boxName: String) = {
       val (default, wrapper) = primitives(prim)
-      val box = { t: Tree => 
+      val box = { t: Tree =>
         Apply(
           Select(
             Select(Ident(newTermName("scala")), newTermName("Predef")),

@@ -88,7 +88,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Returns the TypeInformation for the elements of this DataSet.
    */
-  def getType(): TypeInformation[T] = set.getType
+  def getType(): TypeInformation[T] = set.getType()
 
   /**
    * Returns the execution environment associated with the current DataSet.
@@ -710,10 +710,12 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   // --------------------------------------------------------------------------------------------
   //  distinct
   // --------------------------------------------------------------------------------------------
-
   /**
    * Creates a new DataSet containing the distinct elements of this DataSet. The decision whether
    * two elements are distinct or not is made using the return value of the given function.
+   *
+   * @param fun The function which extracts the key values from the DataSet on which the
+   *            distinction of the DataSet is decided.
    */
   def distinct[K: TypeInformation](fun: T => K): DataSet[T] = {
     val keyExtractor = new KeySelector[T, K] {
@@ -728,10 +730,24 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Creates a new DataSet containing the distinct elements of this DataSet. The decision whether
-   * two elements are distinct or not is made based on only the specified tuple fields.
+   * Returns a distinct set of this DataSet.
+   * 
+   * <p>If the input is a composite type (Tuple or Pojo type), distinct is performed on all fields
+   * and each field must be a key type.</p>
+   */
+  def distinct(): DataSet[T] = {
+    wrap(new DistinctOperator[T](javaSet, null, getCallLocationName()))
+  }
+
+  /**
+   * Returns a distinct set of a tuple DataSet using field position keys.
+   * 
+   * <p>The field position keys specify the fields of Tuples on which the decision is made if
+   * two Tuples are distinct or not.</p>
+   * 
+   * <p>Note: Field position keys can only be specified for Tuple DataSets.</p>
    *
-   * This only works on tuple DataSets.
+   * @param fields One or more field positions on which the distinction of the DataSet is decided.
    */
   def distinct(fields: Int*): DataSet[T] = {
     wrap(new DistinctOperator[T](
@@ -741,8 +757,20 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Creates a new DataSet containing the distinct elements of this DataSet. The decision whether
-   * two elements are distinct or not is made based on only the specified fields.
+   * Returns a distinct set of this DataSet using expression keys.
+   * 
+   * <p>The field position keys specify the fields of Tuples or Pojos on which the decision is made
+   * if two elements are distinct or not.</p>
+   *
+   * <p>The field expression keys specify the fields of a
+   * [[org.apache.flink.api.common.typeutils.CompositeType]] (e.g., Tuple or Pojo type)
+   * on which the decision is made if two elements are distinct or not.
+   * In case of a [[org.apache.flink.api.common.typeinfo.AtomicType]], only the
+   * wildcard expression ("_") is valid.</p>
+   *
+   * @param firstField First field position on which the distinction of the DataSet is decided
+   * @param otherFields Zero or more field positions on which the distinction of the DataSet
+   *                    is decided
    */
   def distinct(firstField: String, otherFields: String*): DataSet[T] = {
     wrap(new DistinctOperator[T](
@@ -751,15 +779,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       getCallLocationName()))
   }
 
-  /**
-   * Creates a new DataSet containing the distinct elements of this DataSet. The decision whether
-   * two elements are distinct or not is made based on all tuple fields.
-   *
-   * This only works if this DataSet contains Tuples.
-   */
-  def distinct: DataSet[T] = {
-    wrap(new DistinctOperator[T](javaSet, null, getCallLocationName()))
-  }
 
   // --------------------------------------------------------------------------------------------
   //  Keyed DataSet
@@ -1197,7 +1216,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
   /**
    * Partitions a DataSet on the key returned by the selector, using a custom partitioner.
-   * This method takes the key selector t get the key to partition on, and a partitioner that
+   * This method takes the key selector to get the key to partition on, and a partitioner that
    * accepts the key type.
    * <p>
    * Note: This method works only on single field keys, i.e. the selector cannot return tuples

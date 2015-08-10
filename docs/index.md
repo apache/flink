@@ -55,6 +55,7 @@ This is an overview of Flink's stack. Click on any component to go to the respec
   <area shape="rect" coords="770,405,893,455" alt="Tez" href="setup/flink_on_tez.html">
 </map>
 
+
 ## Download
 
 This documentation is for Apache Flink version {{ site.version }}, which is the current development version of the next upcoming major release of Apache Flink.
@@ -62,3 +63,10 @@ This documentation is for Apache Flink version {{ site.version }}, which is the 
 You can download the latest pre-built snapshot version from the [downloads]({{ site.download_url }}#latest) page of the [project website]({{ site.website_url }}).
 
 The Scala API uses Scala {{ site.scala_version }}. Please make sure to use a compatible version.
+
+
+## Flink Architecture
+
+<img src="fig/process_model.svg" width="100%" alt="Flink Process Model">
+
+

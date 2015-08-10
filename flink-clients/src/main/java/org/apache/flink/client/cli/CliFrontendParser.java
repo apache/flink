@@ -43,13 +43,17 @@ public class CliFrontendParser {
 
 	static final Option JAR_OPTION = new Option("j", "jarfile", true, "Flink program JAR file.");
 
-	static final Option CLASS_OPTION = new Option("c", "class", true,
+	public static final Option CLASS_OPTION = new Option("c", "class", true,
 			"Class with the program entry point (\"main\" method or \"getPlan()\" method. Only needed if the " +
 					"JAR file does not specify the class in its manifest.");
 
 	static final Option PARALLELISM_OPTION = new Option("p", "parallelism", true,
 			"The parallelism with which to run the program. Optional flag to override the default value " +
 					"specified in the configuration.");
+
+	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "Whether sysout" +
+			" " +
+			"logging is required or not");
 
 	static final Option ARGS_OPTION = new Option("a", "arguments", true,
 			"Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
@@ -81,6 +85,8 @@ public class CliFrontendParser {
 		PARALLELISM_OPTION.setRequired(false);
 		PARALLELISM_OPTION.setArgName("parallelism");
 
+		LOGGING_OPTION.setRequired(false);
+
 		ARGS_OPTION.setRequired(false);
 		ARGS_OPTION.setArgName("programArgs");
 		ARGS_OPTION.setArgs(Option.UNLIMITED_VALUES);
@@ -107,6 +113,7 @@ public class CliFrontendParser {
 		options.addOption(CLASS_OPTION);
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(ARGS_OPTION);
+		options.addOption(LOGGING_OPTION);
 
 		// also add the YARN options so that the parser can parse them
 		yarnSessionCLi.getYARNSessionCLIOptions(options);
@@ -116,6 +123,7 @@ public class CliFrontendParser {
 	private static Options getProgramSpecificOptionsWithoutDeprecatedOptions(Options options) {
 		options.addOption(CLASS_OPTION);
 		options.addOption(PARALLELISM_OPTION);
+		options.addOption(LOGGING_OPTION);
 		return options;
 	}
 
@@ -141,7 +149,8 @@ public class CliFrontendParser {
 	}
 
 	private static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
-		options = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
+		options.addOption(CLASS_OPTION);
+		options.addOption(PARALLELISM_OPTION);
 		options = getJobManagerAddressOption(options);
 		return options;
 	}

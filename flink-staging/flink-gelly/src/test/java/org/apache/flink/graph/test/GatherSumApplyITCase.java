@@ -20,7 +20,6 @@ package org.apache.flink.graph.test;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.graph.example.GSAPageRank;
 import org.apache.flink.graph.example.GSAConnectedComponents;
 import org.apache.flink.graph.example.GSASingleSourceShortestPaths;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -95,22 +94,6 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 				"5 48.0\n" +
 				"6 Infinity\n" +
 				"7 Infinity\n";
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Page Rank Test
-	// --------------------------------------------------------------------------------------------
-
-	@Test
-	public void testPageRank() throws Exception {
-		GSAPageRank.main(new String[]{edgesPath, resultPath, "16"});
-		expectedResult = "1	7.47880014315678E21\n" +
-				"2	1.6383884499619055E21\n" +
-				"3	3.044048626469292E21\n" +
-				"4	1.6896936994425786E21\n" +
-				"5	4.214827876275491E21\n" +
-				"6	1.0\n" +
-				"7	8.157142857142858";
 	}
 
 	// --------------------------------------------------------------------------------------------

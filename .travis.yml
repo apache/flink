@@ -14,13 +14,13 @@ language: java
 #See https://issues.apache.org/jira/browse/FLINK-1072
 matrix:
   include:
-    - jdk: "oraclejdk7"
+    - jdk: "openjdk7"
       env: PROFILE="-Dhadoop.profile=1 -Dscala-2.11"
-    - jdk: "openjdk6" # this will also deploy a uberjar to s3 at some point
+    - jdk: "oraclejdk7" # this will also deploy a uberjar to s3 at some point
       env: PROFILE="-Dhadoop.profile=1"
     - jdk: "openjdk7"
       env: PROFILE="-P!include-yarn -Dhadoop.version=2.0.0-alpha"
-    - jdk: "openjdk6" # we must use openjdk6 here to deploy a java6 compatible uber-jar for YARN
+    - jdk: "oraclejdk7"
       env: PROFILE="-Dhadoop.version=2.2.0"
     - jdk: "oraclejdk8"
       env: PROFILE="-Dhadoop.version=2.6.0 -Dscala-2.11 -Pinclude-tez -Dmaven.javadoc.skip=true"

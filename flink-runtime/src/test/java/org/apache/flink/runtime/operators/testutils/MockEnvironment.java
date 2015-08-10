@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.mockito.invocation.InvocationOnMock;
@@ -79,6 +81,8 @@ public class MockEnvironment implements Environment {
 
 	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
 
+	private final AccumulatorRegistry accumulatorRegistry;
+
 	private final int bufferSize;
 
 	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
@@ -91,6 +95,8 @@ public class MockEnvironment implements Environment {
 		this.ioManager = new IOManagerAsync();
 		this.inputSplitProvider = inputSplitProvider;
 		this.bufferSize = bufferSize;
+
+		this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
 	}
 
 	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
@@ -187,6 +193,11 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
+	public TaskManagerRuntimeInfo getTaskManagerInfo() {
+		return new TaskManagerRuntimeInfo("localhost", new UnmodifiableConfiguration(new Configuration()));
+	}
+
+	@Override
 	public int getNumberOfSubtasks() {
 		return 1;
 	}
@@ -259,8 +270,8 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public void reportAccumulators(Map<String, Accumulator<?, ?>> accumulators) {
-		// discard, this is only for testing
+	public AccumulatorRegistry getAccumulatorRegistry() {
+		return this.accumulatorRegistry;
 	}
 
 	@Override

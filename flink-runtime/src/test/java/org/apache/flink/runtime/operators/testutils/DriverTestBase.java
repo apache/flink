@@ -26,6 +26,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -61,7 +62,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	private final IOManager ioManager;
 	
 	private final MemoryManager memManager;
-	
+
 	private final List<MutableObjectIterator<Record>> inputs;
 	
 	private final List<TypeComparator<Record>> comparators;
@@ -69,10 +70,10 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	private final List<UnilateralSortMerger<Record>> sorters;
 	
 	private final AbstractInvokable owner;
-	
-	private final Configuration config;
-	
+
 	private final TaskConfig taskConfig;
+	
+	private final TaskManagerRuntimeInfo taskManageInfo;
 	
 	protected final long perSortMem;
 
@@ -105,17 +106,15 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		this.perSortFractionMem = (double)perSortMemory/totalMem;
 		this.ioManager = new IOManagerAsync();
 		this.memManager = totalMem > 0 ? new DefaultMemoryManager(totalMem,1) : null;
-		
+
 		this.inputs = new ArrayList<MutableObjectIterator<Record>>();
 		this.comparators = new ArrayList<TypeComparator<Record>>();
 		this.sorters = new ArrayList<UnilateralSortMerger<Record>>();
 		
 		this.owner = new DummyInvokable();
-		
-		this.config = new Configuration();
-		this.taskConfig = new TaskConfig(this.config);
-
+		this.taskConfig = new TaskConfig(new Configuration());
 		this.executionConfig = executionConfig;
+		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
 	}
 
 	@Parameterized.Parameters
@@ -279,7 +278,10 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		return this.taskConfig;
 	}
 
-
+	@Override
+	public TaskManagerRuntimeInfo getTaskManagerInfo() {
+		return this.taskManageInfo;
+	}
 
 	@Override
 	public ExecutionConfig getExecutionConfig() {
@@ -295,7 +297,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	public IOManager getIOManager() {
 		return this.ioManager;
 	}
-	
+
 	@Override
 	public MemoryManager getMemoryManager() {
 		return this.memManager;

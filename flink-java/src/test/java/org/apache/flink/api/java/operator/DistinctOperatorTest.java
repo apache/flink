@@ -114,18 +114,31 @@ public class DistinctOperatorTest {
 	
 	@Test(expected = IllegalArgumentException.class)
 	public void testDistinctByKeyFields6() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
 		// should not work, negative field position
 		tupleDs.distinct(-1);
 	}
+
+	@Test
+	public void testDistinctByKeyFields7(){
+		final ExecutionEnvironment env  = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
+
+		// should work
+		try {
+			longDs.distinct("*");
+		} catch (Exception e){
+			Assert.fail();
+		}
+	}
 	
 	@Test
 	@SuppressWarnings("serial")
 	public void testDistinctByKeySelector1() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		this.customTypeData.add(new CustomType());
 		
@@ -145,7 +158,53 @@ public class DistinctOperatorTest {
 		}
 		
 	}
-	
+
+	@Test
+	public void  testDistinctByKeyIndices1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		try {
+			DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
+			// should work
+			longDs.distinct();
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testDistinctOnNotKeyDataType() throws Exception {
+    	/*
+     	* should not work. NotComparable data type cannot be used as key
+     	*/
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		NotComparable a = new NotComparable();
+		List<NotComparable> l = new ArrayList<NotComparable>();
+		l.add(a);
+
+		DataSet<NotComparable> ds = env.fromCollection(l);
+		DataSet<NotComparable> reduceDs = ds.distinct();
+
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testDistinctOnNotKeyDataTypeOnSelectAllChar() throws Exception {
+    	/*
+     	* should not work. NotComparable data type cannot be used as key
+     	*/
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		NotComparable a = new NotComparable();
+		List<NotComparable> l = new ArrayList<NotComparable>();
+		l.add(a);
+
+		DataSet<NotComparable> ds = env.fromCollection(l);
+		DataSet<NotComparable> reduceDs = ds.distinct("*");
+	}
+
+	class NotComparable {
+		public List<Integer> myInts;
+	}
 
 	public static class CustomType implements Serializable {
 		

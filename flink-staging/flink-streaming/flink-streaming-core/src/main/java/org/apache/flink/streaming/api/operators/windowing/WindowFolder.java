@@ -18,10 +18,11 @@
 package org.apache.flink.streaming.api.operators.windowing;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.WindowedDataStream;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
@@ -69,11 +70,31 @@ public class WindowFolder<IN, OUT> extends StreamMap<StreamWindow<IN>, StreamWin
 			return outputWindow;
 		}
 
+		// --------------------------------------------------------------------------------------------
+		//  Forwarding calls to the wrapped folder
+		// --------------------------------------------------------------------------------------------
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			FunctionUtils.openFunction(folder, parameters);
+		}
+
+		@Override
+		public void close() throws Exception {
+			FunctionUtils.closeFunction(folder);
+		}
+
 		@Override
 		public void setRuntimeContext(RuntimeContext t) {
 			FunctionUtils.setFunctionRuntimeContext(folder, t);
 		}
 
+		@Override
+		public RuntimeContext getRuntimeContext() {
+			return FunctionUtils.getFunctionRuntimeContext(folder, getRuntimeContext());
+		}
+
+		// streaming does not use iteration runtime context, so that is omitted
 	}
 
 }

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>0.9-SNAPSHOT</version>
+		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -59,10 +59,10 @@ under the License.
 				</property>
 			</activation>
 			<modules>
-				<!-- Include the Flink-tachyon project only for HD2.
+				<!-- Include the flink-fs-tests project only for HD2.
 				 	The HDFS minicluster interfaces changed between the two versions.
 				 -->
-				<module>flink-tachyon</module>
+				<module>flink-fs-tests</module>
 			</modules>
 		</profile>
 		<profile>

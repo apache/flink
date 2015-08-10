@@ -90,6 +90,8 @@ public class JobGraph implements Serializable {
 	private JobSnapshottingSettings snapshotSettings;
 	
 	
+	private String jsonPlan;
+
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -221,6 +223,14 @@ public class JobGraph implements Serializable {
 
 	public ScheduleMode getScheduleMode() {
 		return scheduleMode;
+	}
+
+	public String getJsonPlan() {
+		return jsonPlan;
+	}
+
+	public void setJsonPlan(String jsonPlan) {
+		this.jsonPlan = jsonPlan;
 	}
 
 	/**

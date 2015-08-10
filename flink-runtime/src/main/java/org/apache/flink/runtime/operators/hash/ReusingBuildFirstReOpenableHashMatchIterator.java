@@ -48,25 +48,32 @@ public class ReusingBuildFirstReOpenableHashMatchIterator<V1, V2, O> extends Reu
 			MemoryManager memManager,
 			IOManager ioManager,
 			AbstractInvokable ownerTask,
-			double memoryFraction)
+			double memoryFraction,
+			boolean useBitmapFilters)
 		throws MemoryAllocationException
 	{
 		super(firstInput, secondInput, serializer1, comparator1, serializer2,
 				comparator2, pairComparator, memManager, ioManager, ownerTask,
-				memoryFraction);
+				memoryFraction, useBitmapFilters);
 		reopenHashTable = (ReOpenableMutableHashTable<V1, V2>) hashJoin;
 	}
 
 	@Override
-	public <BT, PT> MutableHashTable<BT, PT> getHashJoin(TypeSerializer<BT> buildSideSerializer, TypeComparator<BT> buildSideComparator,
+	public <BT, PT> MutableHashTable<BT, PT> getHashJoin(
+			TypeSerializer<BT> buildSideSerializer, TypeComparator<BT> buildSideComparator,
 			TypeSerializer<PT> probeSideSerializer, TypeComparator<PT> probeSideComparator,
 			TypePairComparator<PT, BT> pairComparator,
-			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, double memoryFraction)
-	throws MemoryAllocationException
-	{
+			MemoryManager memManager, IOManager ioManager,
+			AbstractInvokable ownerTask,
+			double memoryFraction,
+			boolean useBitmapFilters) throws MemoryAllocationException {
+		
 		final int numPages = memManager.computeNumberOfPages(memoryFraction);
 		final List<MemorySegment> memorySegments = memManager.allocatePages(ownerTask, numPages);
-		return new ReOpenableMutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, pairComparator, memorySegments, ioManager);
+		
+		return new ReOpenableMutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer,
+				buildSideComparator, probeSideComparator, pairComparator,
+				memorySegments, ioManager, useBitmapFilters);
 	}
 	
 	/**
@@ -76,5 +83,4 @@ public class ReusingBuildFirstReOpenableHashMatchIterator<V1, V2, O> extends Reu
 	public void reopenProbe(MutableObjectIterator<V2> probeInput) throws IOException {
 		reopenHashTable.reopenProbe(probeInput);
 	}
-
 }

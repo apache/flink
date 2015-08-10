@@ -301,9 +301,19 @@ public abstract class IOManager {
 	 * 
 	 * @return The number of temporary file directories.
 	 */
-	public int getNumberOfTempDirs() {
+	public int getNumberOfSpillingDirectories() {
 		return this.paths.length;
 	}
+
+	/**
+	 * Gets the directories that the I/O manager spills to.
+	 * 
+	 * @return The directories that the I/O manager spills to.
+	 */
+	public File[] getSpillingDirectories() {
+		return this.paths;
+	}
+	
 	
 	protected int getNextPathNum() {
 		final int next = this.nextPath;

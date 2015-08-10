@@ -172,18 +172,25 @@ public final class ConfigConstants {
 	 */
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
 
+	// --------------------------- Runtime Algorithms -------------------------------
+	
 	/**
 	 * Parameter for the maximum fan for out-of-core algorithms.
 	 * Corresponds to the maximum fan-in for merge-sorts and the maximum fan-out
 	 * for hybrid hash joins. 
 	 */
 	public static final String DEFAULT_SPILLING_MAX_FAN_KEY = "taskmanager.runtime.max-fan";
-
+	
 	/**
 	 * Key for the default spilling threshold. When more than the threshold memory of the sort buffers is full, the
 	 * sorter will start spilling to disk.
 	 */
 	public static final String DEFAULT_SORT_SPILLING_THRESHOLD_KEY = "taskmanager.runtime.sort-spilling-threshold";
+
+	/**
+	 * Parameter to switch hash join bloom filters for spilled partitions on and off.
+	 */
+	public static final String RUNTIME_HASH_JOIN_BLOOM_FILTERS_KEY = "taskmanager.runtime.hashjoin-bloom-filters";
 	
 	/**
 	 * The config parameter defining the timeout for filesystem stream opening.
@@ -236,7 +243,7 @@ public final class ConfigConstants {
 	public static final String YARN_APPLICATION_ATTEMPTS = "yarn.application-attempts";
 
 	/**
-	 * The heartbeat intervall between the Application Master and the YARN Resource Manager.
+	 * The heartbeat interval between the Application Master and the YARN Resource Manager.
 	 *
 	 * The default value is 5 (seconds).
 	 */
@@ -300,9 +307,9 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_WEB_PORT_KEY = "jobmanager.web.port";
 
 	/**
-	 * The config parameter defining the path to the htaccess file protecting the web frontend.
+	 * The option that specifies whether to use the new web frontend
 	 */
-	public static final String JOB_MANAGER_WEB_ACCESS_FILE_KEY = "jobmanager.web.access";
+	public static final String JOB_MANAGER_NEW_WEB_FRONTEND_KEY = "jobmanager.new-web-frontend";
 	
 	/**
 	 * The config parameter defining the number of archived jobs for the jobmanager
@@ -310,6 +317,9 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_WEB_ARCHIVE_COUNT = "jobmanager.web.history";
 	
 	public static final String JOB_MANAGER_WEB_LOG_PATH_KEY = "jobmanager.web.logpath";
+
+	/** The directory where the web server's static contents is stored */
+	public static final String JOB_MANAGER_WEB_DOC_ROOT_KEY = "jobmanager.web.docroot";
 	
 	
 	// ------------------------------ Web Client ------------------------------
@@ -534,6 +544,13 @@ public final class ConfigConstants {
 	 * The default task manager's maximum registration duration
 	 */
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION = "Inf";
+
+	// ------------------------ Runtime Algorithms ------------------------
+	
+	/**
+	 * Default setting for the switch for hash join bloom filters for spilled partitions.
+	 */
+	public static final boolean DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS = true;
 	
 	/**
 	 * The default value for the maximum spilling fan in/out.
@@ -551,7 +568,6 @@ public final class ConfigConstants {
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
 
 	// ------------------------ YARN Configuration ------------------------
-
 
 	/**
 	 * Minimum amount of Heap memory to subtract from the requested TaskManager size.
@@ -604,7 +620,7 @@ public final class ConfigConstants {
 	 * Setting this value to {@code -1} disables the web frontend.
 	 */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
-
+	
 	/**
 	 * The default number of archived jobs for the jobmanager
 	 */
@@ -671,11 +687,61 @@ public final class ConfigConstants {
 	 */
 	public static final String LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER = "localinstancemanager.numtaskmanager";
 
-
 	public static final String LOCAL_INSTANCE_MANAGER_START_WEBSERVER = "localinstancemanager.start-webserver";
-	
-	// ------------------------------------------------------------------------
-	
+
+	// --------------------------- ZooKeeper ----------------------------------
+
+	/** ZooKeeper servers. */
+	public static final String ZOOKEEPER_QUORUM_KEY = "ha.zookeeper.quorum";
+
+	/** ZooKeeper root path. */
+	public static final String ZOOKEEPER_DIR_KEY = "ha.zookeeper.dir";
+
+	public static final String ZOOKEEPER_LATCH_PATH = "ha.zookeeper.dir.latch";
+
+	public static final String ZOOKEEPER_LEADER_PATH = "ha.zookeeper.dir.leader";
+
+	public static final String ZOOKEEPER_SESSION_TIMEOUT = "ha.zookeeper.client.session-timeout";
+
+	public static final String ZOOKEEPER_CONNECTION_TIMEOUT = "ha.zookeeper.client.connection-timeout";
+
+	public static final String ZOOKEEPER_RETRY_WAIT = "ha.zookeeper.client.retry-wait";
+
+	public static final String ZOOKEEPER_MAX_RETRY_ATTEMPTS = "ha.zookeeper.client.max-retry-attempts";
+
+	// - Defaults -------------------------------------------------------------
+
+	public static final String DEFAULT_ZOOKEEPER_ZNODE_ROOT = "/flink";
+
+	public static final String DEFAULT_ZOOKEEPER_LATCH_PATH = "/leaderlatch";
+
+	public static final String DEFAULT_ZOOKEEPER_LEADER_PATH = "/leader";
+
+	public static final int DEFAULT_ZOOKEEPER_SESSION_TIMEOUT = 60000;
+
+	public static final int DEFAULT_ZOOKEEPER_CONNECTION_TIMEOUT = 15000;
+
+	public static final int DEFAULT_ZOOKEEPER_RETRY_WAIT = 5000;
+
+	public static final int DEFAULT_ZOOKEEPER_MAX_RETRY_ATTEMPTS = 3;
+
+	// - Defaults for required ZooKeeper configuration keys -------------------
+
+	/** ZooKeeper default client port. */
+	public static final int DEFAULT_ZOOKEEPER_CLIENT_PORT = 2181;
+
+	/** ZooKeeper default init limit. */
+	public static final int DEFAULT_ZOOKEEPER_INIT_LIMIT = 10;
+
+	/** ZooKeeper default sync limit. */
+	public static final int DEFAULT_ZOOKEEPER_SYNC_LIMIT = 5;
+
+	/** ZooKeeper default peer port. */
+	public static final int DEFAULT_ZOOKEEPER_PEER_PORT = 2888;
+
+	/** ZooKeeper default leader port. */
+	public static final int DEFAULT_ZOOKEEPER_LEADER_PORT = 3888;
+
 	/**
 	 * Not instantiable.
 	 */

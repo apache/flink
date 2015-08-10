@@ -24,10 +24,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.runtime.state.StateHandleProvider
+import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
-import org.apache.flink.streaming.api.functions.source.{FromElementsFunction, SourceFunction}
+import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.SplittableIterator
 
@@ -47,7 +48,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Sets the parallelism for operations executed through this environment.
    * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
    * with x parallel instances. This value can be overridden by specific operations using
-   * [[DataStream.setParallelism]].
+   * [[DataStream#setParallelism(int)]].
    * @deprecated Please use [[setParallelism]]
    */
   @deprecated
@@ -57,7 +58,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * Returns the default parallelism for this execution environment. Note that this
-   * value can be overridden by individual operations using [[DataStream.setParallelism]]
+   * value can be overridden by individual operations using [[DataStream#setParallelism(int)]]
    * @deprecated Please use [[getParallelism]]
    */
   @deprecated
@@ -67,7 +68,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Sets the parallelism for operations executed through this environment.
    * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
    * with x parallel instances. This value can be overridden by specific operations using
-   * [[DataStream.setParallelism]].
+   * [[DataStream#setParallelism(int)]].
    */
   def setParallelism(parallelism: Int): Unit = {
     javaEnv.setParallelism(parallelism)
@@ -75,7 +76,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * Returns the default parallelism for this execution environment. Note that this
-   * value can be overridden by individual operations using [[DataStream.setParallelism]]
+   * value can be overridden by individual operations using [[DataStream#setParallelism(int)]]
    */
   def getParallelism = javaEnv.getParallelism
 
@@ -86,15 +87,10 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * can result in three logical modes:
    *
    * <ul>
-   * <li>
-   * A positive integer triggers flushing periodically by that integer</li>
-   * <li>
-   * 0 triggers flushing after every record thus minimizing latency</li>
-   * <li>
-   * -1 triggers flushing only when the output buffer is full thus maximizing
-   * throughput</li>
+   *   <li>A positive integer triggers flushing periodically by that integer</li>
+   *   <li>0 triggers flushing after every record thus minimizing latency</li>
+   *   <li>-1 triggers flushing only when the output buffer is full thus maximizing throughput</li>
    * </ul>
-   *
    */
   def setBufferTimeout(timeoutMillis: Long): StreamExecutionEnvironment = {
     javaEnv.setBufferTimeout(timeoutMillis)
@@ -117,37 +113,80 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     this
   }
 
+  // ------------------------------------------------------------------------
+  //  Checkpointing Settings
+  // ------------------------------------------------------------------------
   /**
-   * Method for enabling fault-tolerance. Activates monitoring and backup of streaming
-   * operator states. Time interval between state checkpoints is specified in in millis.
-   * 
-   * If the force flag is set to true, checkpointing will be enabled for iterative jobs as
-   * well.Please note that the checkpoint/restore guarantees for iterative jobs are
-   * only best-effort at the moment. Records inside the loops may be lost during failure.
+   * Enables checkpointing for the streaming job. The distributed state of the streaming
+   * dataflow will be periodically snapshotted. In case of a failure, the streaming
+   * dataflow will be restarted from the latest completed checkpoint.
    *
-   * Setting this option assumes that the job is used in production and thus if not stated
-   * explicitly otherwise with calling with the
-   * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method in case of
-   * failure the job will be resubmitted to the cluster indefinitely.
+   * The job draws checkpoints periodically, in the given interval. The state will be
+   * stored in the configured state backend.
+   *
+   * NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+   * the moment. If the "force" parameter is set to true, the system will execute the
+   * job nonetheless.
+   *
+   * @param interval
+   *     Time interval between state checkpoints in millis.
+   * @param mode
+   *     The checkpointing mode, selecting between "exactly once" and "at least once" guarantees.
+   * @param force
+   *           If true checkpointing will be enabled for iterative jobs as well.
    */
   @deprecated
-  def enableCheckpointing(interval : Long, force: Boolean) : StreamExecutionEnvironment = {
-    javaEnv.enableCheckpointing(interval, force)
+  def enableCheckpointing(interval : Long,
+                          mode: CheckpointingMode,
+                          force: Boolean) : StreamExecutionEnvironment = {
+    javaEnv.enableCheckpointing(interval, mode, force)
     this
   }
-  
-   /**
-   * Method for enabling fault-tolerance. Activates monitoring and backup of streaming
-   * operator states. Time interval between state checkpoints is specified in in millis.
-   * 
-   * Setting this option assumes that the job is used in production and thus if not stated
-   * explicitly otherwise with calling with the
-   * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method in case of
-   * failure the job will be resubmitted to the cluster indefinitely.
+
+  /**
+   * Enables checkpointing for the streaming job. The distributed state of the streaming
+   * dataflow will be periodically snapshotted. In case of a failure, the streaming
+   * dataflow will be restarted from the latest completed checkpoint.
+   *
+   * The job draws checkpoints periodically, in the given interval. The system uses the
+   * given [[CheckpointingMode]] for the checkpointing ("exactly once" vs "at least once").
+   * The state will be stored in the configured state backend.
+   *
+   * NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+   * the moment. For that reason, iterative jobs will not be started if used
+   * with enabled checkpointing. To override this mechanism, use the 
+   * [[enableCheckpointing(long, CheckpointingMode, boolean)]] method.
+   *
+   * @param interval 
+   *     Time interval between state checkpoints in milliseconds.
+   * @param mode 
+   *     The checkpointing mode, selecting between "exactly once" and "at least once" guarantees.
+   */
+  def enableCheckpointing(interval : Long,
+                          mode: CheckpointingMode) : StreamExecutionEnvironment = {
+    javaEnv.enableCheckpointing(interval, mode)
+    this
+  }
+
+  /**
+   * Enables checkpointing for the streaming job. The distributed state of the streaming
+   * dataflow will be periodically snapshotted. In case of a failure, the streaming
+   * dataflow will be restarted from the latest completed checkpoint.
+   *
+   * The job draws checkpoints periodically, in the given interval. The program will use
+   * [[CheckpointingMode.EXACTLY_ONCE]] mode. The state will be stored in the
+   * configured state backend.
+   *
+   * NOTE: Checkpointing iterative streaming dataflows in not properly supported at
+   * the moment. For that reason, iterative jobs will not be started if used
+   * with enabled checkpointing. To override this mechanism, use the 
+   * [[enableCheckpointing(long, CheckpointingMode, boolean)]] method.
+   *
+   * @param interval 
+   *           Time interval between state checkpoints in milliseconds.
    */
   def enableCheckpointing(interval : Long) : StreamExecutionEnvironment = {
-    javaEnv.enableCheckpointing(interval)
-    this
+    enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE)
   }
 
   /**
@@ -156,7 +195,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * Setting this option assumes that the job is used in production and thus if not stated
    * explicitly otherwise with calling with the
-   * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method in case of
+   * [[setNumberOfExecutionRetries(int)]] method in case of
    * failure the job will be resubmitted to the cluster indefinitely.
    */
   def enableCheckpointing() : StreamExecutionEnvironment = {
@@ -284,10 +323,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     require(data != null, "Data must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
 
-    val sourceFunction = new FromElementsFunction[T](scala.collection.JavaConversions
-      .asJavaCollection(data))
-
-    javaEnv.addSource(sourceFunction).returns(typeInfo)
+    javaEnv.fromCollection(scala.collection.JavaConversions.asJavaCollection(data), typeInfo)
   }
 
   /**
@@ -460,7 +496,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def getExecutionPlan = javaEnv.getExecutionPlan
 
   /**
-   * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
+   * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job.
    *
    * @return The StreamGraph representing the transformations
    */
@@ -468,7 +504,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
-   * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
+   * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]]
    */
   private[flink] def scalaClean[F <: AnyRef](f: F): F = {
     if (getConfig.isClosureCleanerEnabled) {
@@ -484,7 +520,7 @@ object StreamExecutionEnvironment {
 
   /**
    * Sets the default parallelism that will be used for the local execution
-   * environment created by {@link #createLocalEnvironment()}.
+   * environment created by [[createLocalEnvironment()]].
    *
    * @param parallelism
    * The parallelism to use as the default local parallelism.

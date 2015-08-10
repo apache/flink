@@ -133,8 +133,20 @@ public class Tuple1<T0> extends Tuple {
 	/**
 	* Shallow tuple copy.
 	* @return A new Tuple with the same fields as this.
-	 */
+	*/
 	public Tuple1<T0> copy(){ 
 		return new Tuple1<T0>(this.f0);
+	}
+
+	/**
+	 * Creates a new tuple and assigns the given values to the tuple's fields.
+	 * This is more convenient than using the constructor, because the compiler can
+	 * infer the generic type arguments implicitly. For example:
+	 * {@code Tuple3.of(n, x, s)}
+	 * instead of
+	 * {@code new Tuple3<Integer, Double, String>(n, x, s)}
+	 */
+	public static <T0> Tuple1<T0> of(T0 value0) {
+		return new Tuple1<T0>(value0);
 	}
 }

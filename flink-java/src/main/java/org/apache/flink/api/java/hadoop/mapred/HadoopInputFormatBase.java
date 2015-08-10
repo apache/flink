@@ -34,6 +34,7 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobConfigurable;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.slf4j.Logger;
@@ -82,7 +83,13 @@ public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, H
 	
 	@Override
 	public void configure(Configuration parameters) {
-		// nothing to do
+		// configure MR InputFormat if necessary
+		if(this.mapredInputFormat instanceof Configurable) {
+			((Configurable)this.mapredInputFormat).setConf(this.jobConf);
+		}
+		else if(this.mapredInputFormat instanceof JobConfigurable) {
+			((JobConfigurable)this.mapredInputFormat).configure(this.jobConf);
+		}
 	}
 	
 	@Override

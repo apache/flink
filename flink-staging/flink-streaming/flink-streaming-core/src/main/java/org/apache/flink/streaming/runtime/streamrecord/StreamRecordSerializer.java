@@ -20,26 +20,50 @@ package org.apache.flink.streaming.runtime.streamrecord;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+/**
+ * Serializer for {@link StreamRecord}. This version ignores timestamps and only deals with
+ * the element.
+ *
+ * <p>
+ * {@link MultiplexingStreamRecordSerializer} is a version that deals with timestamps and also
+ * multiplexes {@link org.apache.flink.streaming.api.watermark.Watermark Watermarks} in the same
+ * stream with {@link StreamRecord StreamRecords}.
+ *
+ * @see MultiplexingStreamRecordSerializer
+ *
+ * @param <T> The type of value in the {@link StreamRecord}
+ */
 public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord<T>> {
 
 	private static final long serialVersionUID = 1L;
 
 	private final TypeSerializer<T> typeSerializer;
-	private final boolean isTuple;
+	
 
-	public StreamRecordSerializer(TypeInformation<T> typeInfo, ExecutionConfig executionConfig) {
-		this.typeSerializer = typeInfo.createSerializer(executionConfig);
-		this.isTuple = typeInfo.isTupleType();
+	public StreamRecordSerializer(TypeSerializer<T> serializer) {
+		if (serializer instanceof StreamRecordSerializer) {
+			throw new RuntimeException("StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: " + serializer);
+		}
+		this.typeSerializer = Preconditions.checkNotNull(serializer);
 	}
 
-	public TypeSerializer<T> getObjectSerializer() {
-		return typeSerializer;
+	public TypeSerializer<T> getContainedTypeSerializer() {
+		return this.typeSerializer;
+	}
+	
+	// ------------------------------------------------------------------------
+	//  General serializer and type utils
+	// ------------------------------------------------------------------------
+
+	@Override
+	public StreamRecordSerializer<T> duplicate() {
+		TypeSerializer<T> serializerCopy = typeSerializer.duplicate();
+		return serializerCopy == typeSerializer ? this : new StreamRecordSerializer<T>(serializerCopy);
 	}
 
 	@Override
@@ -48,17 +72,18 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	}
 
 	@Override
-	public StreamRecordSerializer<T> duplicate() {
-		return this;
+	public int getLength() {
+		return typeSerializer.getLength();
 	}
+
+	// ------------------------------------------------------------------------
+	//  Type serialization, copying, instantiation
+	// ------------------------------------------------------------------------
 
 	@Override
 	public StreamRecord<T> createInstance() {
 		try {
-			StreamRecord<T> t = new StreamRecord<T>();
-			t.isTuple = isTuple;
-			t.setObject(typeSerializer.createInstance());
-			return t;
+			return new StreamRecord<T>(typeSerializer.createInstance());
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot instantiate StreamRecord.", e);
 		}
@@ -66,45 +91,35 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	
 	@Override
 	public StreamRecord<T> copy(StreamRecord<T> from) {
-		StreamRecord<T> rec = new StreamRecord<T>();
-		rec.isTuple = from.isTuple;
-		rec.setObject(typeSerializer.copy(from.getObject()));
-		return rec;
+		return new StreamRecord<T>(typeSerializer.copy(from.getValue()), from.getTimestamp());
 	}
 
 	@Override
 	public StreamRecord<T> copy(StreamRecord<T> from, StreamRecord<T> reuse) {
-		reuse.isTuple = from.isTuple;
-		reuse.setObject(typeSerializer.copy(from.getObject(), reuse.getObject()));
+		reuse.replace(typeSerializer.copy(from.getValue(), reuse.getValue()), 0);
 		return reuse;
 	}
 
 	@Override
-	public int getLength() {
-		return -1;
-	}
-
-	@Override
 	public void serialize(StreamRecord<T> value, DataOutputView target) throws IOException {
-		typeSerializer.serialize(value.getObject(), target);
+		typeSerializer.serialize(value.getValue(), target);
 	}
 	
 	@Override
 	public StreamRecord<T> deserialize(DataInputView source) throws IOException {
-		StreamRecord<T> record = new StreamRecord<T>();
-		record.isTuple = this.isTuple;
-		record.setObject(typeSerializer.deserialize(source));
-		return record;
+		T element = typeSerializer.deserialize(source);
+		return new StreamRecord<T>(element, 0);
 	}
 
 	@Override
 	public StreamRecord<T> deserialize(StreamRecord<T> reuse, DataInputView source) throws IOException {
-		reuse.setObject(typeSerializer.deserialize(reuse.getObject(), source));
+		T element = typeSerializer.deserialize(reuse.getValue(), source);
+		reuse.replace(element, 0);
 		return reuse;
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		// Needs to be implemented
+		typeSerializer.copy(source, target);
 	}
 }

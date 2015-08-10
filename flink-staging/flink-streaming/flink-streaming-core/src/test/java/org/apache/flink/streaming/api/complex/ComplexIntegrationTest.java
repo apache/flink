@@ -117,7 +117,22 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Tuple2<Long, Tuple2<String, Long>>> sourceStream1 = env.addSource(new TupleSource()).setParallelism(1);
 
-		IterativeDataStream<Tuple2<Long, Tuple2<String, Long>>> it = sourceStream1.sum(0).setParallelism(1).filter(new FilterFunction
+		IterativeDataStream<Tuple2<Long, Tuple2<String, Long>>> it = sourceStream1.map(new MapFunction<Tuple2<Long, Tuple2<String, Long>>,Tuple2<Long, Tuple2<String, Long>>>(){
+
+					Tuple2<Long, Tuple2<String, Long>> result = new Tuple2<Long, Tuple2<String, Long>>(
+							0L, new Tuple2<String, Long>("", 0L));
+
+					@Override
+					public Tuple2<Long, Tuple2<String, Long>> map(
+							Tuple2<Long, Tuple2<String, Long>> value) throws Exception {
+						result.f0 = result.f0 + value.f0;
+						result.f1 = value.f1;
+						return result;
+			}
+			
+		})
+				
+				.setParallelism(1).filter(new FilterFunction
 				<Tuple2<Long, Tuple2<String, Long>>>() {
 
 			@Override
@@ -182,7 +197,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		DataStream<OuterPojo> sourceStream22 = env.addSource(new PojoSource());
 
 		sourceStream21
-				.sum(3)
 				.groupBy(2, 2)
 				.window(Time.of(10, new MyTimestamp(), 0))
 				.every(Time.of(4, new MyTimestamp(), 0))
@@ -302,14 +316,12 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 	}
 
 
-	@SuppressWarnings("unchecked")
 	@Test
 	public void complexIntegrationTest5() throws Exception {
 		//Turning on and off chaining
 
 		expected1 = "1\n" + "2\n" + "2\n" + "3\n" + "3\n" + "3\n" + "4\n" + "4\n" + "4\n" + "4\n" + "5\n" + "5\n" +
-				"5\n" + "5\n" + "5\n" + "1\n" + "3\n" + "5\n" + "8\n" + "11\n" + "14\n" + "18\n" + "22\n" + "26\n" +
-				"30\n" + "35\n" + "40\n" + "45\n" + "50\n" + "55\n";
+				"5\n" + "5\n" + "5\n";
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -336,20 +348,6 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 				}).disableChaining()
 				.flatMap(new SquareFlatMapFunction());
 
-		DataStream<Long> dataStream52 = dataStream51.fold(0L, new FoldFunction<Long, Long>() {
-
-			@Override
-			public Long fold(Long accumulator, Long value) throws Exception {
-				return accumulator + value;
-			}
-		}).map(new MapFunction<Long, Long>() {
-
-			@Override
-			public Long map(Long value) throws Exception {
-				return value;
-			}
-		}).disableChaining();
-
 		DataStream<Long> dataStream53 = dataStream51.map(new MapFunction<Long, Long>() {
 
 			@Override
@@ -359,10 +357,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		});
 
 
-		dataStream53.union(dataStream52).print();
-
-		dataStream53.union(dataStream52)
-				.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
+		dataStream53.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
 	}

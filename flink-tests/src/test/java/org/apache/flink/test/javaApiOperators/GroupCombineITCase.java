@@ -1,20 +1,20 @@
 /*
-* Licensed to the Apache Software Foundation (ASF) under one
-* or more contributor license agreements.  See the NOTICE file
-* distributed with this work for additional information
-* regarding copyright ownership.  The ASF licenses this file
-* to you under the Apache License, Version 2.0 (the
-* "License"); you may not use this file except in compliance
-* with the License.  You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package org.apache.flink.test.javaApiOperators;
 
@@ -32,37 +32,28 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-
+import java.util.List;
 
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
 /**
-* The GroupCombine operator is not easy to test because it is essentially just a combiner. The result can be
-* the result of a normal groupReduce at any stage its execution. The basic idea is to preserve the grouping key
-* in the partial result, so that we can do a reduceGroup afterwards to finalize the results for verification.
-* In addition, we can use hashPartition to partition the data and check if no shuffling (just combining) has
-* been performed.
-*/
+ * The GroupCombine operator is not easy to test because it is essentially just a combiner. The result can be
+ * the result of a normal groupReduce at any stage its execution. The basic idea is to preserve the grouping key
+ * in the partial result, so that we can do a reduceGroup afterwards to finalize the results for verification.
+ * In addition, we can use hashPartition to partition the data and check if no shuffling (just combining) has
+ * been performed.
+ */
 public class GroupCombineITCase extends MultipleProgramsTestBase {
 
 	public GroupCombineITCase(TestExecutionMode mode) {
 		super(mode);
 	}
-
-	private String resultPath;
-
-	private String expected;
 
 	private static String identityResult = "1,1,Hi\n" +
 			"2,2,Hello\n" +
@@ -86,21 +77,6 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 			"20,6,Comment#14\n" +
 			"21,6,Comment#15\n";
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception {
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception {
-		if (expected != null) {
-			compareResultsByLinesInMemory(expected, resultPath);
-		}
-	}
-
 	@Test
 	public void testAllGroupCombineIdentity() throws Exception {
 
@@ -108,19 +84,15 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds
 				// combine
 				.combineGroup(new IdentityFunction())
 				// fully reduce
 				.reduceGroup(new IdentityFunction());
 
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		reduceDs.writeAsCsv(resultPath);
-
-		env.execute();
-
-		expected = identityResult;
+		compareResultAsTuples(result, identityResult);
 	}
 
 	@Test
@@ -136,11 +108,9 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 				// fully reduce
 				.reduceGroup(new IdentityFunction());
 
-		reduceDs.writeAsCsv(resultPath);
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		env.execute();
-
-		expected = identityResult;
+		compareResultAsTuples(result, identityResult);
 	}
 
 	@Test
@@ -157,12 +127,9 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 				// fully reduce
 				.reduceGroup(new IdentityFunction());
 
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		reduceDs.writeAsCsv(resultPath);
-
-		env.execute();
-
-		expected = identityResult;
+		compareResultAsTuples(result, identityResult);
 	}
 
 	@Test
@@ -182,11 +149,9 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 				// fully reduce
 				.reduceGroup(new IdentityFunction());
 
-		reduceDs.writeAsCsv(resultPath);
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		env.execute();
-
-		expected = identityResult;
+		compareResultAsTuples(result, identityResult);
 	}
 
 	@Test
@@ -201,7 +166,7 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 				// wrap values as Kv pairs with the grouping key as key
 				.map(new Tuple3KvWrapper());
 
-		dsWrapped
+		List<Tuple3<Integer, Long, String>> result = dsWrapped
 				.groupBy(0)
 				// reduce partially
 				.combineGroup(new Tuple3toTuple3GroupReduce())
@@ -214,19 +179,16 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 					public Tuple3<Integer, Long, String> map(Tuple2<Long, Tuple3<Integer, Long, String>> value) throws Exception {
 						return value.f1;
 					}
-				})
-				.writeAsCsv(resultPath);
+				}).collect();
 
-
-
-		env.execute();
-
-		expected = "1,1,combined\n" +
+		String expected = "1,1,combined\n" +
 				"5,4,combined\n" +
 				"15,9,combined\n" +
 				"34,16,combined\n" +
 				"65,25,combined\n" +
 				"111,36,combined\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -241,33 +203,29 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 				// wrap values as Kv pairs with the grouping key as key
 				.map(new Tuple3KvWrapper());
 
-		dsWrapped
+		List<Tuple2<Integer, Long>> result = dsWrapped
 				.groupBy(0)
-						// reduce partially
+				// reduce partially
 				.combineGroup(new Tuple3toTuple2GroupReduce())
 				.groupBy(0)
-						// reduce fully to check result
+				// reduce fully to check result
 				.reduceGroup(new Tuple2toTuple2GroupReduce())
-						//unwrap
+				//unwrap
 				.map(new MapFunction<Tuple2<Long,Tuple2<Integer,Long>>, Tuple2<Integer,Long>>() {
 					@Override
 					public Tuple2<Integer, Long> map(Tuple2<Long, Tuple2<Integer, Long>> value) throws Exception {
 						return value.f1;
 					}
-				})
-				.writeAsCsv(resultPath);
+				}).collect();
 
-
-
-		env.execute();
-
-		expected = "1,3\n" +
+		String expected = "1,3\n" +
 				"5,20\n" +
 				"15,58\n" +
 				"34,52\n" +
 				"65,70\n" +
 				"111,96\n";
 
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -284,7 +242,9 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 		// partition and group data
 		UnsortedGrouping<Tuple3<Integer, Long, String>> partitionedDS = ds.partitionByHash(0).groupBy(1);
 
-		partitionedDS.combineGroup(new GroupCombineFunction<Tuple3<Integer, Long, String>, Tuple2<Long, Integer>>() {
+		List<Tuple2<Long, Integer>> result = partitionedDS
+				.combineGroup(
+						new GroupCombineFunction<Tuple3<Integer, Long, String>, Tuple2<Long, Integer>>() {
 			@Override
 			public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Long, Integer>> out) throws Exception {
 				int count = 0;
@@ -295,29 +255,17 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 				}
 				out.collect(new Tuple2(key, count));
 			}
-		}).writeAsCsv(resultPath);
+		}).collect();
 
-		env.execute();
+		String[] localExpected = new String[] { "(6,6)", "(5,5)" + "(4,4)", "(3,3)", "(2,2)", "(1,1)" };
 
-		String notExpected = "6,6\n" +
-							"5,5\n" +
-							"4,4\n" +
-							"3,3\n" +
-							"2,2\n" +
-							"1,1\n";
+		String[] resultAsStringArray = new String[result.size()];
+		for (int i = 0; i < resultAsStringArray.length; ++i) {
+			resultAsStringArray[i] = result.get(i).toString();
+		}
+		Arrays.sort(resultAsStringArray);
 
-		// check
-
-		ArrayList<String> list = new ArrayList<String>();
-		readAllResultLines(list, resultPath);
-
-		String[] result = list.toArray(new String[list.size()]);
-		Arrays.sort(result);
-
-		String[] expected = notExpected.split("\n");
-		Arrays.sort(expected);
-
-		Assert.assertEquals("The two arrays were identical.", false, Arrays.equals(expected, result));
+		Assert.assertEquals("The two arrays were identical.", false, Arrays.equals(localExpected, resultAsStringArray));
 	}
 
 	@Test
@@ -334,28 +282,29 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 		// partition and group data
 		UnsortedGrouping<Tuple3<Integer, Long, String>> partitionedDS = ds.partitionByHash(0).groupBy(1);
 
-		partitionedDS.combineGroup(new GroupCombineFunction<Tuple3<Integer, Long, String>, Tuple2<Long, Integer>>() {
-			@Override
-			public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Long, Integer>> out) throws Exception {
-				int count = 0;
-				long key = 0;
-				for (Tuple3<Integer, Long, String> value : values) {
-					key = value.f1;
-					count++;
-				}
-				out.collect(new Tuple2(key, count));
-			}
-		}).writeAsCsv(resultPath);
+		List<Tuple2<Long, Integer>> result = partitionedDS
+				.combineGroup(
+				new GroupCombineFunction<Tuple3<Integer, Long, String>, Tuple2<Long, Integer>>() {
+					@Override
+					public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Long, Integer>> out) throws Exception {
+						int count = 0;
+						long key = 0;
+						for (Tuple3<Integer, Long, String> value : values) {
+							key = value.f1;
+							count++;
+						}
+						out.collect(new Tuple2(key, count));
+					}
+				}).collect();
 
-		env.execute();
-
-		expected = "6,6\n" +
+		String expected = "6,6\n" +
 				"5,5\n" +
 				"4,4\n" +
 				"3,3\n" +
 				"2,2\n" +
 				"1,1\n";
 
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -373,15 +322,15 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 
 		// all methods on DataSet
 		ds.combineGroup(new GroupCombineFunctionExample())
-				.output(new DiscardingOutputFormat<Tuple1<String>>());
+		.output(new DiscardingOutputFormat<Tuple1<String>>());
 
 		// all methods on UnsortedGrouping
 		ds.groupBy(0).combineGroup(new GroupCombineFunctionExample())
-				.output(new DiscardingOutputFormat<Tuple1<String>>());
+		.output(new DiscardingOutputFormat<Tuple1<String>>());
 
 		// all methods on SortedGrouping
 		ds.groupBy(0).sortGroup(0, Order.ASCENDING).combineGroup(new GroupCombineFunctionExample())
-				.output(new DiscardingOutputFormat<Tuple1<String>>());
+		.output(new DiscardingOutputFormat<Tuple1<String>>());
 
 		env.execute();
 	}
@@ -407,7 +356,7 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 	}
 
 	public static class IdentityFunction implements GroupCombineFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>,
-													GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
+	GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 
 		@Override
 		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
@@ -427,6 +376,7 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 
 	public static class Tuple3toTuple3GroupReduce implements KvGroupReduce<Long, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 
+		@Override
 		public void combine(Iterable<Tuple2<Long, Tuple3<Integer, Long, String>>> values, Collector<Tuple2<Long, Tuple3<Integer, Long, String>>> out) throws Exception {
 			int i = 0;
 			long l = 0;
@@ -478,6 +428,7 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 
 	public static class Tuple2toTuple2GroupReduce implements KvGroupReduce<Long, Tuple2<Integer, Long>, Tuple2<Integer, Long>, Tuple2<Integer, Long>> {
 
+		@Override
 		public void combine(Iterable<Tuple2<Long, Tuple2<Integer, Long>>> values, Collector<Tuple2<Long, Tuple2<Integer, Long>>> out) throws Exception {
 			int i = 0;
 			long l = 0;
@@ -515,6 +466,5 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 
 	public interface KvGroupReduce<K, V, INT, OUT> extends CombineAndReduceGroup<Tuple2<K, V>, Tuple2<K, INT>, Tuple2<K, OUT>> {
 	}
-
 
 }

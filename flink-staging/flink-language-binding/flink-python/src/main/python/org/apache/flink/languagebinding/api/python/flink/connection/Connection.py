@@ -17,7 +17,6 @@
 ################################################################################
 import mmap
 import socket as SOCKET
-import tempfile
 from struct import pack, unpack
 from collections import deque
 import sys
@@ -38,8 +37,8 @@ else:
 
 
 class OneWayBusyBufferingMappedFileConnection(object):
-    def __init__(self):
-        self._output_file = open(tempfile.gettempdir() + "/flink_data/output", "rb+")
+    def __init__(self, output_path):
+        self._output_file = open(output_path, "rb+")
         self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_WRITE)
 
         self._out = deque()
@@ -61,12 +60,13 @@ class OneWayBusyBufferingMappedFileConnection(object):
 
 
 class BufferingTCPMappedFileConnection(object):
-    def __init__(self, input_file=tempfile.gettempdir() + "/flink_data/input", output_file=tempfile.gettempdir() + "/flink_data/output", socket=None):
+    def __init__(self, input_file, output_file, port):
         self._input_file = open(input_file, "rb+")
         self._output_file = open(output_file, "rb+")
         self._file_input_buffer = mmap.mmap(self._input_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_READ)
         self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_WRITE)
-        self._socket = socket
+        self._socket = SOCKET.socket(family=SOCKET.AF_INET, type=SOCKET.SOCK_STREAM)
+        self._socket.connect((SOCKET.gethostbyname("localhost"), port))
 
         self._out = deque()
         self._out_size = 0
@@ -128,8 +128,8 @@ class BufferingTCPMappedFileConnection(object):
 
 
 class TwinBufferingTCPMappedFileConnection(BufferingTCPMappedFileConnection):
-    def __init__(self, input_file=tempfile.gettempdir() + "/flink/data/input", output_file=tempfile.gettempdir() + "/flink/data/output", socket=None):
-        super(TwinBufferingTCPMappedFileConnection, self).__init__(input_file, output_file, socket)
+    def __init__(self, input_file, output_file, port):
+        super(TwinBufferingTCPMappedFileConnection, self).__init__(input_file, output_file, port)
         self._input = [b"", b""]
         self._input_offset = [0, 0]
         self._input_size = [0, 0]

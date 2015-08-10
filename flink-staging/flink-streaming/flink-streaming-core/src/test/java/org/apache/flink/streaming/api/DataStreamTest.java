@@ -29,7 +29,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -39,7 +39,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.GroupedDataStream;
-import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.datastream.WindowedDataStream;
@@ -50,12 +49,11 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.graph.StreamGraph.StreamLoop;
-import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.FieldsPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
@@ -68,7 +66,7 @@ import org.junit.Test;
 public class DataStreamTest {
 
 	private static final long MEMORYSIZE = 32;
-	private static int PARALLELISM = 1;
+	private static int PARALLELISM = 2;
 
 	/**
 	 * Tests {@link SingleOutputStreamOperator#name(String)} functionality.
@@ -88,12 +86,12 @@ public class DataStreamTest {
 				}).name("testMap");
 
 		DataStream<Long> dataStream2 = env.generateSequence(0, 0).name("testSource2")
-				.reduce(new ReduceFunction<Long>() {
+				.map(new MapFunction<Long, Long>() {
 					@Override
-					public Long reduce(Long value1, Long value2) throws Exception {
+					public Long map(Long value) throws Exception {
 						return null;
 					}
-				}).name("testReduce");
+				}).name("testMap");
 
 		DataStream<Long> connected = dataStream1.connect(dataStream2)
 				.flatMap(new CoFlatMapFunction<Long, Long, Long>() {
@@ -120,7 +118,7 @@ public class DataStreamTest {
 		assertTrue(plan.contains("testSource1"));
 		assertTrue(plan.contains("testSource2"));
 		assertTrue(plan.contains("testMap"));
-		assertTrue(plan.contains("testReduce"));
+		assertTrue(plan.contains("testMap"));
 		assertTrue(plan.contains("testCoFlatMap"));
 		assertTrue(plan.contains("testWindowFold"));
 	}
@@ -170,6 +168,26 @@ public class DataStreamTest {
 		assertFalse(isGrouped(partition3));
 		assertFalse(isGrouped(partition2));
 		assertFalse(isGrouped(partition4));
+
+		// Testing DataStream custom partitioning
+		Partitioner<Long> longPartitioner = new Partitioner<Long>() {
+			@Override
+			public int partition(Long key, int numPartitions) {
+				return 100;
+			}
+		};
+
+		DataStream customPartition1 = src1.partitionCustom(longPartitioner, 0);
+		DataStream customPartition3 = src1.partitionCustom(longPartitioner, "f0");
+		DataStream customPartition4 = src1.partitionCustom(longPartitioner, new FirstSelector());
+
+		assertTrue(isCustomPartitioned(graph.getStreamEdge(customPartition1.getId(), createDownStreamId(customPartition1))));
+		assertTrue(isCustomPartitioned(graph.getStreamEdge(customPartition3.getId(), createDownStreamId(customPartition3))));
+		assertTrue(isCustomPartitioned(graph.getStreamEdge(customPartition4.getId(), createDownStreamId(customPartition4))));
+
+		assertFalse(isGrouped(customPartition1));
+		assertFalse(isGrouped(customPartition3));
+		assertFalse(isGrouped(customPartition4));
 
 		//Testing ConnectedDataStream grouping
 		ConnectedDataStream connectedGroup1 = connected.groupBy(0, 0);
@@ -415,19 +433,10 @@ public class DataStreamTest {
 		StreamEdge splitEdge = streamGraph.getStreamEdge(select.getId(), sink.getId());
 		assertEquals("a", splitEdge.getSelectedNames().get(0));
 
-		FoldFunction<Integer, String> foldFunction = new FoldFunction<Integer, String>() {
+		ConnectedDataStream<Integer, Integer> connect = map.connect(flatMap);
+		CoMapFunction<Integer, Integer, String> coMapper = new CoMapFunction<Integer, Integer, String>() {
 			@Override
-			public String fold(String accumulator, Integer value) throws Exception {
-				return null;
-			}
-		};
-		DataStream<String> fold = map.fold("", foldFunction);
-		assertEquals(foldFunction, getFunctionForDataStream(fold));
-
-		ConnectedDataStream<String, Integer> connect = fold.connect(flatMap);
-		CoMapFunction<String, Integer, String> coMapper = new CoMapFunction<String, Integer, String>() {
-			@Override
-			public String map1(String value) {
+			public String map1(Integer value) {
 				return null;
 			}
 
@@ -440,7 +449,7 @@ public class DataStreamTest {
 		assertEquals(coMapper, getFunctionForDataStream(coMap));
 
 		try {
-			streamGraph.getStreamEdge(fold.getId(), coMap.getId());
+			streamGraph.getStreamEdge(map.getId(), coMap.getId());
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}
@@ -450,6 +459,48 @@ public class DataStreamTest {
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}
+	}
+	
+	@Test
+	public void sinkKeyTest() {
+		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+		StreamGraph streamGraph = env.getStreamGraph();
+
+		DataStream<Long> sink = env.generateSequence(1, 100).print();
+		assertTrue(streamGraph.getStreamNode(sink.getId()).getStatePartitioner() == null);
+		assertTrue(streamGraph.getStreamNode(sink.getId()).getInEdges().get(0).getPartitioner() instanceof RebalancePartitioner);
+
+		KeySelector<Long, Long> key1 = new KeySelector<Long, Long>() {
+
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Long getKey(Long value) throws Exception {
+				return (long) 0;
+			}
+		};
+
+		DataStream<Long> sink2 = env.generateSequence(1, 100).keyBy(key1).print();
+
+		assertTrue(streamGraph.getStreamNode(sink2.getId()).getStatePartitioner() != null);
+		assertEquals(key1, streamGraph.getStreamNode(sink2.getId()).getStatePartitioner());
+		assertTrue(streamGraph.getStreamNode(sink2.getId()).getInEdges().get(0).getPartitioner() instanceof FieldsPartitioner);
+
+		KeySelector<Long, Long> key2 = new KeySelector<Long, Long>() {
+
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Long getKey(Long value) throws Exception {
+				return (long) 0;
+			}
+		};
+
+		DataStream<Long> sink3 = env.generateSequence(1, 100).keyBy(key2).print();
+
+		assertTrue(streamGraph.getStreamNode(sink3.getId()).getStatePartitioner() != null);
+		assertEquals(key2, streamGraph.getStreamNode(sink3.getId()).getStatePartitioner());
+		assertTrue(streamGraph.getStreamNode(sink3.getId()).getInEdges().get(0).getPartitioner() instanceof FieldsPartitioner);
 	}
 
 	@Test
@@ -535,6 +586,10 @@ public class DataStreamTest {
 
 	private static boolean isPartitioned(StreamEdge edge) {
 		return edge.getPartitioner() instanceof FieldsPartitioner;
+	}
+
+	private static boolean isCustomPartitioned(StreamEdge edge) {
+		return edge.getPartitioner() instanceof CustomPartitionerWrapper;
 	}
 
 	private static class FirstSelector implements KeySelector<Tuple2<Long, Long>, Long> {

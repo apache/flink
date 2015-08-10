@@ -115,9 +115,8 @@ public abstract class AbstractFlinkYarnClient {
 	/**
 	 * Trigger the deployment to YARN.
 	 *
-	 * @param clusterName Name to be shown in the YARN resource manager overview.
 	 */
-	public abstract AbstractFlinkYarnCluster deploy(String clusterName) throws Exception;
+	public abstract AbstractFlinkYarnCluster deploy() throws Exception;
 
 	/**
 	 * @param detachedMode If true, the Flink YARN client is non-blocking. That means it returns
@@ -138,4 +137,10 @@ public abstract class AbstractFlinkYarnClient {
 	 * @param streamingMode
 	 */
 	public abstract  void setStreamingMode(boolean streamingMode);
+
+	/**
+	 * Set a name for the YARN application
+	 * @param name
+	 */
+	public abstract void setName(String name);
 }

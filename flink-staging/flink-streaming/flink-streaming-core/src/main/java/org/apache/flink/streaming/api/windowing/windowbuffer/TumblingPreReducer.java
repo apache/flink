@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.windowing.windowbuffer;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 /**
@@ -48,13 +49,13 @@ public class TumblingPreReducer<T> extends WindowBuffer<T> implements PreAggrega
 		this.evict = evict;
 	}
 
-	public void emitWindow(Collector<StreamWindow<T>> collector) {
+	public void emitWindow(Collector<StreamRecord<StreamWindow<T>>> collector) {
 		if (reduced != null) {
 			StreamWindow<T> currentWindow = createEmptyWindow();
 			currentWindow.add(reduced);
-			collector.collect(currentWindow);
+			collector.collect(new StreamRecord<StreamWindow<T>>(currentWindow));
 		} else if (emitEmpty) {
-			collector.collect(createEmptyWindow());
+			collector.collect(new StreamRecord<StreamWindow<T>>(createEmptyWindow()));
 		}
 
 		if (evict) {

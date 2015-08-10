@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util.keys;
 import java.lang.reflect.Array;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -69,6 +70,46 @@ public class KeySelectorUtil {
 		TypeComparator<X> comparator = ((CompositeType<X>) typeInfo).createComparator(
 				logicalKeyPositions, orders, 0, executionConfig);
 		return new ComparableKeySelector<X>(comparator, keyLength);
+	}
+
+	public static <X, K> KeySelector<X, K> getSelectorForOneKey(Keys<X> keys, Partitioner<K> partitioner, TypeInformation<X> typeInfo,
+			ExecutionConfig executionConfig) {
+		if (partitioner != null) {
+			keys.validateCustomPartitioner(partitioner, null);
+		}
+
+		int[] logicalKeyPositions = keys.computeLogicalKeyPositions();
+
+		if (logicalKeyPositions.length != 1) {
+			throw new IllegalArgumentException("There must be exactly 1 key specified");
+		}
+
+		TypeComparator<X> comparator = ((CompositeType<X>) typeInfo).createComparator(
+				logicalKeyPositions, new boolean[1], 0, executionConfig);
+		return new OneKeySelector<X, K>(comparator);
+	}
+
+	public static class OneKeySelector<IN, K> implements KeySelector<IN, K> {
+
+		private static final long serialVersionUID = 1L;
+
+		private TypeComparator<IN> comparator;
+		private Object[] keyArray;
+		private K key;
+
+		public OneKeySelector(TypeComparator<IN> comparator) {
+			this.comparator = comparator;
+			keyArray = new Object[1];
+		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public K getKey(IN value) throws Exception {
+			comparator.extractKeys(value, keyArray, 0);
+			key = (K) keyArray[0];
+			return key;
+		}
+
 	}
 
 	public static class ComparableKeySelector<IN> implements KeySelector<IN, Tuple> {

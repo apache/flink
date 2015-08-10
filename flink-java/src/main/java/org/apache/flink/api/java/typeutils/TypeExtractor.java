@@ -26,9 +26,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.flink.api.common.functions.CoGroupFunction;
@@ -66,15 +64,33 @@ import com.google.common.base.Preconditions;
  * functions.
  */
 public class TypeExtractor {
+
+	/*
+	 * NOTE: Most methods of the TypeExtractor work with a so-called "typeHierarchy".
+	 * The type hierarchy describes all types (Classes, ParameterizedTypes, TypeVariables etc. ) and intermediate
+	 * types from a given type of a function or type (e.g. MyMapper, Tuple2) until a current type
+	 * (depends on the method, e.g. MyPojoFieldType).
+	 *
+	 * Thus, it fully qualifies types until tuple/POJO field level.
+	 *
+	 * A typical typeHierarchy could look like:
+	 *
+	 * UDF: MyMapFunction.class
+	 * top-level UDF: MyMapFunctionBase.class
+	 * RichMapFunction: RichMapFunction.class
+	 * MapFunction: MapFunction.class
+	 * Function's OUT: Tuple1<MyPojo>
+	 * user-defined POJO: MyPojo.class
+	 * user-defined top-level POJO: MyPojoBase.class
+	 * POJO field: Tuple1<String>
+	 * Field type: String.class
+	 *
+	 */
 	
 	private static final Logger LOG = LoggerFactory.getLogger(TypeExtractor.class);
 
-	// We need this to detect recursive types and not get caught
-	// in an endless recursion
-	private Set<Class<?>> alreadySeen;
-
 	protected TypeExtractor() {
-		alreadySeen = new HashSet<Class<?>>();
+		// only create instances for special use cases
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -416,10 +432,12 @@ public class TypeExtractor {
 			
 			TypeInformation<?>[] tupleSubTypes = new TypeInformation<?>[subtypes.length];
 			for (int i = 0; i < subtypes.length; i++) {
+				ArrayList<Type> subTypeHierarchy = new ArrayList<Type>(typeHierarchy);
+				subTypeHierarchy.add(subtypes[i]);
 				// sub type could not be determined with materializing
 				// try to derive the type info of the TypeVariable from the immediate base child input as a last attempt
 				if (subtypes[i] instanceof TypeVariable<?>) {
-					tupleSubTypes[i] = createTypeInfoFromInputs((TypeVariable<?>) subtypes[i], typeHierarchy, in1Type, in2Type);
+					tupleSubTypes[i] = createTypeInfoFromInputs((TypeVariable<?>) subtypes[i], subTypeHierarchy, in1Type, in2Type);
 					
 					// variable could not be determined
 					if (tupleSubTypes[i] == null) {
@@ -430,7 +448,7 @@ public class TypeExtractor {
 								+ "all variables in the return type can be deduced from the input type(s).");
 					}
 				} else {
-					tupleSubTypes[i] = createTypeInfoWithTypeHierarchy(new ArrayList<Type>(typeHierarchy), subtypes[i], in1Type, in2Type);
+					tupleSubTypes[i] = createTypeInfoWithTypeHierarchy(subTypeHierarchy, subtypes[i], in1Type, in2Type);
 				}
 			}
 			
@@ -912,6 +930,19 @@ public class TypeExtractor {
 	// --------------------------------------------------------------------------------------------
 	//  Utility methods
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * @return number of items with equal type or same raw type
+	 */
+	private static int countTypeInHierarchy(ArrayList<Type> typeHierarchy, Type type) {
+		int count = 0;
+		for (Type t : typeHierarchy) {
+			if (t == type || (isClassType(type) && t == typeToClass(type))) {
+				count++;
+			}
+		}
+		return count;
+	}
 	
 	/**
 	 * @param curT : start type
@@ -1183,11 +1214,9 @@ public class TypeExtractor {
 			return (TypeInformation<OUT>) new AvroTypeInfo(clazz);
 		}
 
-		if (alreadySeen.contains(clazz)) {
+		if (countTypeInHierarchy(typeHierarchy, clazz) > 1) {
 			return new GenericTypeInfo<OUT>(clazz);
 		}
-
-		alreadySeen.add(clazz);
 
 		if (Modifier.isInterface(clazz.getModifiers())) {
 			// Interface has no members and is therefore not handled as POJO

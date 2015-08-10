@@ -22,6 +22,27 @@ import org.apache.flink.stormcompatibility.api.FlinkClient;
 import org.apache.flink.stormcompatibility.api.FlinkSubmitter;
 import org.apache.flink.stormcompatibility.api.FlinkTopologyBuilder;
 
+/**
+ * Implements the "Exclamation" program that attaches five exclamation mark to every line of a text
+ * files in a streaming fashion. The program is constructed as a regular {@link StormTopology} and
+ * submitted to Flink for execution in the same way as to a Storm cluster similar to
+ * {@link StormSubmitter}. The Flink cluster can be local or remote.
+ * <p/>
+ * This example shows how to submit the program via Java as well as Flink's command line client (ie, bin/flink).
+ * <p/>
+ * <p/>
+ * The input is a plain text file with lines separated by newline characters.
+ * <p/>
+ * <p/>
+ * Usage: <code>StormExclamationRemoteByClient &lt;text path&gt; &lt;result path&gt;</code><br/>
+ * If no parameters are provided, the program is run with default data from {@link WordCountData}.
+ * <p/>
+ * <p/>
+ * This example shows how to:
+ * <ul>
+ * <li>submit a regular Storm program to a local or remote Flink cluster.</li>
+ * </ul>
+ */
 public class StormExclamationRemoteBySubmitter {
 
 	public final static String topologyId = "Streaming Exclamation";

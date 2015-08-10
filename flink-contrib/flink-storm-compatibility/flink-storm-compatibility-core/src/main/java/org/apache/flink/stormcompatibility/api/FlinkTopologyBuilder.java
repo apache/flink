@@ -30,7 +30,12 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.IRichStateSpout;
 import backtype.storm.topology.SpoutDeclarer;
 import backtype.storm.topology.TopologyBuilder;
+import backtype.storm.tuple.Fields;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.stormcompatibility.wrappers.AbstractStormSpoutWrapper;
+import org.apache.flink.stormcompatibility.wrappers.FiniteStormSpout;
+import org.apache.flink.stormcompatibility.wrappers.FiniteStormSpoutWrapper;
 import org.apache.flink.stormcompatibility.wrappers.StormBoltWrapper;
 import org.apache.flink.stormcompatibility.wrappers.StormSpoutWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -60,6 +65,10 @@ public class FlinkTopologyBuilder {
 	private final HashMap<String, IRichSpout> spouts = new HashMap<String, IRichSpout>();
 	/** All user bolts by their ID */
 	private final HashMap<String, IRichBolt> bolts = new HashMap<String, IRichBolt>();
+	/** All declared output schemas by operator ID */
+	private final HashMap<String, Fields> outputSchemas = new HashMap<String, Fields>();
+	/** All spouts&bolts declarers by their ID */
+	private final HashMap<String, FlinkOutputFieldsDeclarer> declarers = new HashMap<String, FlinkOutputFieldsDeclarer>();
 
 	/**
 	 * Creates a Flink program that used the specified spouts and bolts.
@@ -79,13 +88,23 @@ public class FlinkTopologyBuilder {
 
 			final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
 			userSpout.declareOutputFields(declarer);
+			this.outputSchemas.put(spoutId, declarer.outputSchema);
+			declarers.put(spoutId, declarer);
 
 			/* TODO in order to support multiple output streams, use an additional wrapper (or modify StormSpoutWrapper
 			 * and StormCollector)
 			 * -> add an additional output attribute tagging the output stream, and use .split() and .select() to split
 			 * the streams
 			 */
-			final DataStreamSource source = env.addSource(new StormSpoutWrapper(userSpout), declarer.getOutputType());
+			AbstractStormSpoutWrapper spoutWrapper;
+
+			if (userSpout instanceof FiniteStormSpout) {
+				spoutWrapper = new FiniteStormSpoutWrapper((FiniteStormSpout) userSpout);
+			} else {
+				spoutWrapper = new StormSpoutWrapper(userSpout);
+			}
+
+			final DataStreamSource source = env.addSource(spoutWrapper, declarer.getOutputType());
 			availableOperators.put(spoutId, source);
 
 			int dop = 1;
@@ -118,6 +137,8 @@ public class FlinkTopologyBuilder {
 
 				final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
 				userBolt.declareOutputFields(declarer);
+				this.outputSchemas.put(boltId, declarer.outputSchema);
+				declarers.put(boltId, declarer);
 
 				final ComponentCommon common = stormTopolgoy.get_bolts().get(boltId).get_common();
 
@@ -147,7 +168,8 @@ public class FlinkTopologyBuilder {
 							// global grouping is emulated in Storm via an empty fields grouping list
 							final List<String> fields = grouping.get_fields();
 							if (fields.size() > 0) {
-								inputDataStream = inputDataStream.groupBy(declarer.getGroupingFieldIndexes(grouping
+								FlinkOutputFieldsDeclarer procDeclarer = this.declarers.get(producerId);
+								inputDataStream = inputDataStream.groupBy(procDeclarer.getGroupingFieldIndexes(grouping
 										.get_fields()));
 							} else {
 								inputDataStream = inputDataStream.global();
@@ -162,7 +184,7 @@ public class FlinkTopologyBuilder {
 						final TypeInformation<?> outType = declarer.getOutputType();
 
 						final SingleOutputStreamOperator operator = inputDataStream.transform(boltId, outType,
-								new StormBoltWrapper(userBolt));
+								new StormBoltWrapper(userBolt, this.outputSchemas.get(producerId)));
 						if (outType != null) {
 							// only for non-sink nodes
 							availableOperators.put(boltId, operator);

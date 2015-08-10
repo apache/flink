@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.tez.client.LocalTezEnvironment;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public abstract class TezProgramTestBase extends AbstractTestBase {
@@ -62,6 +63,9 @@ public abstract class TezProgramTestBase extends AbstractTestBase {
     //  Test entry point
     // --------------------------------------------------------------------------------------------
 
+    // Ignored due to deadlocks in Tez 0.6.1 (https://s3.amazonaws.com/archive.travis-ci.org/jobs/67848151/log.txt)
+    // TODO Reactivate with future Tez versions
+    @Ignore
     @Test
     public void testJob() throws Exception {
         // pre-submit

@@ -21,6 +21,8 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public class StreamFold<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, FoldFunction<IN, OUT>>
@@ -40,14 +42,19 @@ public class StreamFold<IN, OUT>
 	}
 
 	@Override
-	public void processElement(IN element) throws Exception {
-		accumulator = userFunction.fold(outTypeSerializer.copy(accumulator), element);
-		output.collect(accumulator);
+	public void processElement(StreamRecord<IN> element) throws Exception {
+		accumulator = userFunction.fold(outTypeSerializer.copy(accumulator), element.getValue());
+		output.collect(element.replace(accumulator));
 	}
 
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
 		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
 	}
 }

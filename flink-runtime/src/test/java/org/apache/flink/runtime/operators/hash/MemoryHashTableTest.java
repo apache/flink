@@ -27,9 +27,6 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.operators.hash.AbstractHashTableProber;
-import org.apache.flink.runtime.operators.hash.AbstractMutableHashTable;
-import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.runtime.operators.testutils.UniformStringPairGenerator;
 import org.apache.flink.runtime.operators.testutils.types.IntList;
 import org.apache.flink.runtime.operators.testutils.types.IntListComparator;
@@ -45,7 +42,9 @@ import org.apache.flink.runtime.operators.testutils.types.StringPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.StringPairPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.StringPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.Test;
+
 import org.powermock.reflect.Whitebox;
 
 import static org.junit.Assert.*;
@@ -235,9 +234,8 @@ public class MemoryHashTableTest {
 			final IntList[] overwriteLists = getRandomizedIntLists(NUM_LISTS, rnd);
 			
 			// test replacing
-			IntList tempHolder = new IntList();
 			for (int i = 0; i < NUM_LISTS; i++) {
-				table.insertOrReplaceRecord(overwriteLists[i], tempHolder);
+				table.insertOrReplaceRecord(overwriteLists[i]);
 			}
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
@@ -278,10 +276,9 @@ public class MemoryHashTableTest {
 			final IntList[] overwriteLists = getRandomizedIntLists(NUM_LISTS, rnd);
 			
 			// test replacing
-			IntList tempHolder = new IntList();
 			for (int i = 0; i < NUM_LISTS; i++) {
 				if( i % 100 != 0) {
-					table.insertOrReplaceRecord(overwriteLists[i], tempHolder);
+					table.insertOrReplaceRecord(overwriteLists[i]);
 					lists[i] = overwriteLists[i];
 				}
 			}
@@ -327,10 +324,9 @@ public class MemoryHashTableTest {
 			final IntList[] overwriteLists = getRandomizedIntLists(NUM_LISTS/STEP_SIZE, rnd);
 			
 			// test replacing
-			IntList tempHolder = new IntList();
 			for (int i = 0; i < NUM_LISTS; i += STEP_SIZE) {
 				overwriteLists[i/STEP_SIZE].setKey(overwriteLists[i/STEP_SIZE].getKey()*STEP_SIZE);
-				table.insertOrReplaceRecord(overwriteLists[i/STEP_SIZE], tempHolder);
+				table.insertOrReplaceRecord(overwriteLists[i/STEP_SIZE]);
 				lists[i] = overwriteLists[i/STEP_SIZE];
 			}
 			
@@ -379,9 +375,8 @@ public class MemoryHashTableTest {
 			for(int k = 0; k < NUM_REWRITES; k++) {
 				overwriteLists = getRandomizedIntLists(NUM_LISTS, rnd);
 				// test replacing
-				IntList tempHolder = new IntList();
 				for (int i = 0; i < NUM_LISTS; i++) {
-					table.insertOrReplaceRecord(overwriteLists[i], tempHolder);
+					table.insertOrReplaceRecord(overwriteLists[i]);
 				}
 			
 				for (int i = 0; i < NUM_LISTS; i++) {
@@ -409,11 +404,7 @@ public class MemoryHashTableTest {
 			table.open();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				try {
-					table.insert(lists[i]);
-				} catch (Exception e) {
-					throw e;
-				}
+				table.insert(lists[i]);
 			}
 
 			final IntList[] overwriteLists = getRandomizedIntLists(NUM_LISTS, rnd);
@@ -630,9 +621,8 @@ public class MemoryHashTableTest {
 			final IntList[] overwriteLists = getRandomizedIntLists(NUM_LISTS, rnd);
 			
 			// test replacing
-			IntList tempHolder = new IntList();
 			for (int i = 0; i < NUM_LISTS; i++) {
-				table.insertOrReplaceRecord(overwriteLists[i], tempHolder);
+				table.insertOrReplaceRecord(overwriteLists[i]);
 			}
 			
 			Field list = Whitebox.getField(CompactingHashTable.class, "partitions");
@@ -691,7 +681,7 @@ public class MemoryHashTableTest {
 			
 			while(updater.next(target) != null) {
 				target.setValue(target.getValue());
-				table.insertOrReplaceRecord(target, temp);
+				table.insertOrReplaceRecord(target);
 			}
 			
 			while (updateTester.next(target) != null) {

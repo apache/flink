@@ -26,13 +26,14 @@ import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * This operator represents the grouped discretization step of a window
  * transformation. The user supplied eviction and trigger policies are applied
  * on a per group basis to create the {@link StreamWindow} that will be further
  * transformed in the next stages. </p> To allow pre-aggregations supply an
- * appropriate {@link WindowBuffer}
+ * appropriate {@link WindowBuffer}.
  */
 public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 
@@ -67,10 +68,10 @@ public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 	}
 
 	@Override
-	public void processElement(IN element) throws Exception {
+	public void processElement(StreamRecord<IN> element) throws Exception {
 
 
-			Object key = keySelector.getKey(element);
+			Object key = keySelector.getKey(element.getValue());
 
 			StreamDiscretizer<IN> groupDiscretizer = groupedDiscretizers.get(key);
 
@@ -97,11 +98,9 @@ public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 		StreamDiscretizer<IN> groupDiscretizer = new StreamDiscretizer<IN>(triggerPolicy.clone(),
 				evictionPolicy.clone());
 
-//		groupDiscretizer.output = taskContext.getOutputCollector();
 		// TODO: this seems very hacky, maybe we can get around this
 		groupDiscretizer.setup(this.output, this.runtimeContext);
 		groupDiscretizer.open(this.parameters);
-
 
 		return groupDiscretizer;
 	}

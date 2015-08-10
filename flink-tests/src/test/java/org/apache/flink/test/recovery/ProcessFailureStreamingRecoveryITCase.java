@@ -20,7 +20,6 @@ package org.apache.flink.test.recovery;
 
 
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,6 +29,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FileStateHandle;
@@ -38,7 +38,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.junit.Assert;
 
 /**
@@ -84,7 +83,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 					}
 				}).startNewChain()
 				// populate the coordinate directory so we can proceed to TaskManager failure
-				.map(new StatefulMapper(coordinateDir));
+				.map(new Mapper(coordinateDir));				
 
 		//write result to temporary file
 		result.addSink(new CheckpointedSink(DATA_COUNT));
@@ -105,18 +104,16 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		}
 	}
 
-	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long>
-			implements Checkpointed<Long> {
-		private static final long serialVersionUID = 1L;
+	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long> {
 
 		private static final long SLEEP_TIME = 50;
 
 		private final File coordinateDir;
 		private final long end;
 
-		private long collected;
-
 		private volatile boolean isRunning = true;
+		
+		private OperatorState<Long> collected;
 
 		public SleepyDurableGenerateSequence(File coordinateDir, long end) {
 			this.coordinateDir = coordinateDir;
@@ -136,7 +133,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 			final File proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
 			boolean checkForProceedFile = true;
 
-			while (isRunning && collected < toCollect) {
+			while (isRunning && collected.value() < toCollect) {
 				// check if the proceed file exists (then we go full speed)
 				// if not, we always recheck and sleep
 				if (checkForProceedFile) {
@@ -149,34 +146,28 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 				}
 
 				synchronized (checkpointLock) {
-					sourceCtx.collect(collected * stepSize + congruence);
-					collected++;
+					sourceCtx.collect(collected.value() * stepSize + congruence);
+					collected.update(collected.value() + 1);
 				}
 			}
+		}
+		
+		@Override
+		public void open(Configuration conf) throws IOException {
+			collected = getRuntimeContext().getOperatorState("count", 0L, false);
 		}
 
 		@Override
 		public void cancel() {
 			isRunning = false;
 		}
-
-		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return collected;
-		}
-
-		@Override
-		public void restoreState(Long state) {
-			collected = state;
-		}
 	}
-	public static class StatefulMapper extends RichMapFunction<Long, Long> implements
-			Checkpointed<Integer> {
+	
+	public static class Mapper extends RichMapFunction<Long, Long> {
 		private boolean markerCreated = false;
 		private File coordinateDir;
-		private boolean restored = false;
 
-		public StatefulMapper(File coordinateDir) {
+		public Mapper(File coordinateDir) {
 			this.coordinateDir = coordinateDir;
 		}
 
@@ -189,23 +180,6 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 			}
 			return value;
 		}
-
-		@Override
-		public void close() {
-			if (!restored) {
-				fail();
-			}
-		}
-
-		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return 1;
-		}
-
-		@Override
-		public void restoreState(Integer state) {
-			restored = true;
-		}
 	}
 
 	private static class CheckpointedSink extends RichSinkFunction<Long> implements Checkpointed<Long> {
@@ -213,7 +187,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		private long stepSize;
 		private long congruence;
 		private long toCollect;
-		private long collected = 0L;
+		private Long collected = 0L;
 		private long end;
 
 		public CheckpointedSink(long end) {

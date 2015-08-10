@@ -311,6 +311,25 @@ Usage: `dataStream.broadcast()`
  * *Global*: All data points are directed to the first instance of the operator. 
 Usage: `dataStream.global()`
 
+Custom partitioning can also be used by giving a Partitioner function and a single field key to partition on, similarly to the batch API.
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<Tuple2<String,Integer>> in = // [...]
+DataStream<Tuple2<String,Integer>> result =in
+    .partitionCustom(Partitioner<K> partitioner, key)
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+
+{% highlight scala %}
+val in: DataSet[(Int, String)] = // [...]
+val result = in
+    .partitionCustom(partitioner: Partitioner[K], key)
+{% endhighlight %}
+</div>
+</div>
+
 By default *Forward* partitioning is used. 
 
 Partitioning does not remain in effect after a transformation, so it needs to be set again for subsequent operations.
@@ -476,7 +495,7 @@ dataStream.filter(new FilterFunction<Integer>() {
       <td><strong>Reduce</strong></td>
       <td>
         <p>Combines a stream of elements into another stream by repeatedly combining two elements
-        into one and emits the current state after every reduction. Reduce may be applied on a full, windowed or grouped data stream.
+        into one and emits the current state after every reduction. Reduce may only be applied on a windowed or grouped data stream.
         <br/>
         
         <strong>IMPORTANT:</strong> The streaming and the batch reduce functions have different semantics. A streaming reduce on a data stream emits the current reduced value for every new element on a data stream. On a windowed data stream it works as a batch reduce: it produces at most one value per window.
@@ -498,7 +517,7 @@ dataStream.reduce(new ReduceFunction<Integer>() {
     <tr>
       <td><strong>Fold</strong></td>
       <td>
-        <p>Combines a stream element by element with an initial aggregator value. Fold may be applied on a full, windowed or grouped data stream.
+        <p>Combines a stream element by element with an initial aggregator value. Fold may only be applied on a windowed or grouped data stream.
         <br/>
          A folder that appends strings one by one to the empty sting:</p>
 {% highlight java %}
@@ -602,10 +621,54 @@ dataStream.filter{ _ != 0 }
     </tr>
 
     <tr>
+      <td><strong>MapWithState</strong></td>
+      <td>
+        <p>Takes one element and produces one element using a stateful function. Note that the user state object needs to be serializable.
+	<br/>
+	<br/>
+	A map that produces a rolling average per key:</p>
+{% highlight scala %}
+dataStream.keyBy(..).mapWithState((in, state: Option[(Long, Int)]) => state match {
+	case Some((sum, count)) => ((sum + in)/(count + 1), Some((sum + in, count + 1)))
+	case None => (in, Some((in, 1)))
+})
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>FlatMapWithState</strong></td>
+      <td>
+        <p>Takes one element and produces zero, one, or more elements using a stateful function. Note that the user state object needs to be serializable.</p>
+{% highlight scala %}
+dataStream.flatMapWithState((I,Option[S]) => (Traversable[O], Option[S]))
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>FilterWithState</strong></td>
+      <td>
+       <p>Evaluates a stateful boolean function for each element and retains those for which the function returns true. Note that the user state object needs to be serializable.
+       	<br/>
+	<br/>
+        A filter that only keeps the first 10 elements at each operator instance:
+        </p>
+{% highlight scala %}
+dataStream.filterWithState((in, count: Option[Int]) => count match {
+	case Some(c) => (c < 10, Some(c+1))
+	case None => (true, Some(1))
+})
+{% endhighlight %}
+      </td>
+    </tr>
+
+
+    <tr>
       <td><strong>Reduce</strong></td>
       <td>
         <p>Combines a stream of elements into another stream by repeatedly combining two elements
-        into one and emits the current state after every reduction. Reduce may be applied on a full, windowed or grouped data stream.
+        into one and emits the current state after every reduction. Reduce may only be applied on a windowed or grouped data stream.
         <br/>
         
         <strong>IMPORTANT:</strong> The streaming and the batch reduce functions have different semantics. A streaming reduce on a data stream emits the current reduced value for every new element on a data stream. On a windowed data stream it works as a batch reduce: it produces at most one value per window.
@@ -621,7 +684,7 @@ dataStream.reduce{ _ + _}
     <tr>
       <td><strong>Fold</strong></td>
         <td>
-        <p>Combines a stream element by element with an initial aggregator value. Fold may be applied on a full, windowed or grouped data stream.
+        <p>Combines a stream element by element with an initial aggregator value. Fold may only be applied windowed or grouped data stream.
         <br/>
          A folder that appends strings one by one to the empty sting:</p>
 {% highlight scala %}
@@ -658,7 +721,7 @@ Aggregation or reduce operators called on `GroupedDataStream`s produce elements 
 
 ### Aggregations
 
-The Flink Streaming API supports different types of pre-defined aggregations of `DataStreams`. A common property of these operators, is that they produce the stream of intermediate aggregate values (just like reduce on streams).
+The Flink Streaming API supports different types of pre-defined aggregations of `GroupedDataStream`s and `WindowedDataStream`s. A common property of these operators, is that they produce the stream of intermediate aggregate values.
 
 Types of aggregations: `sum(field)`, `min(field)`, `max(field)`, `minBy(field, first)`, `maxBy(field, first)`.
 
@@ -1014,7 +1077,7 @@ val dataStream2 : DataStream[String] = ...
 The windowReduce operator applies a user defined `CoWindowFunction` to time aligned windows of the two data streams and return zero or more elements of an arbitrary type. The user can define the window and slide intervals and can also implement custom timestamps to be used for calculating windows.
 
 #### Reduce on ConnectedDataStream
-The Reduce operator for the `ConnectedDataStream` applies a simple reduce transformation on the joined data streams and then maps the reduced elements to a common output type.
+The Reduce operator for the `ConnectedDataStream` applies a group-reduce transformation on the grouped joined data streams and then maps the reduced elements to a common output type. It works only for connected data streams where the inputs are grouped.
 
 ### Output splitting
 <div class="codetabs" markdown="1">
@@ -1108,7 +1171,7 @@ The operator applied on the iteration starting point is the head of the iteratio
 DataStream<Integer> head = iteration.map(new IterationHead());
 {% endhighlight %}
 
-To close an iteration and define the iteration tail, the user calls `closeWith(iterationTail)` method of the `IterativeDataStream`. This iteration tail (the DataStream given to the `closeWith` function) will be fed back to the iteration head. A common pattern is to use [filters](#filter) to separate the output of the iteration from the feedback-stream.
+To close an iteration and define the iteration tail, the user calls `closeWith(feedbackStream)` method of the `IterativeDataStream`. This iteration tail (the DataStream given to the `closeWith` function) will be fed back to the iteration head. A common pattern is to use [filters](#filter) to separate the output of the iteration from the feedback-stream.
 
 {% highlight java %}
 DataStream<Integer> tail = head.map(new IterationTail());
@@ -1116,8 +1179,6 @@ DataStream<Integer> tail = head.map(new IterationTail());
 iteration.closeWith(tail.filter(isFeedback));
 
 DataStream<Integer> output = tail.filter(isOutput);
-
-output.map(…).project(…);
 {% endhighlight %}
 
 In this case, all values passing the `isFeedback` filter will be fed back to the iteration head, and the values passing the `isOutput` filter will produce the output of the iteration that can be transformed further (here with a `map` and a `projection`) outside the iteration.
@@ -1126,6 +1187,22 @@ Because iterative streaming programs do not have a set number of iterations for 
 To use this functionality the user needs to add the maxWaitTimeMillis parameter to the `dataStream.iterate(…)` call to control the max wait time.
 
 By default the partitioning of the feedback stream will be automatically set to be the same as the input of the iteration head. To override this the user can set an optional boolean flag in the `closeWith` method. 
+
+#### Iteration head as a co-operator
+The user can also treat the input and feedback stream of a streaming iteration as a `ConnectedDataStream`. This can be used to distinguish the feedback tuples and also to change the type of the iteration feedback. 
+
+To use this feature the user needs to call the `withFeedbackType(type)` method of the iterative data stream and pass the type of the feedback stream:
+
+{% highlight java %}
+ConnectedIterativeDataStream<Integer, String> coiteration = source.iterate(maxWaitTimeMillis).withFeedbackType(“String”);
+
+DataStream<String> head = coiteration.flatMap(new CoFlatMapFunction<Integer, String, String>(){})
+
+iteration.closeWith(head);
+
+{% endhighlight %}
+
+In this case the original input of the head operator will be used as the first input to the co-operator and the feedback stream will be used as the second input.
 </div>
 <div data-lang="scala" markdown="1">
 The Flink Streaming API supports implementing iterative stream processing dataflows similarly to the batch Flink API. Iterative streaming programs also implement a step function and embed it into an `IterativeDataStream`.
@@ -1134,19 +1211,31 @@ Unlike in the batch API the user does not define the maximum number of iteration
 A common pattern is to use [filters](#filter) to separate the output from the feedback-stream. In this case all values passing the `isFeedback` filter will be fed back to the iteration head, and the values passing the `isOutput` filter will produce the output of the iteration that can be transformed further (here with a `map` and a `projection`) outside the iteration.
 
 {% highlight scala %}
-val iteratedStream = someDataStream.iterate(maxWaitTime) {
+val iteratedStream = someDataStream.iterate(
   iteration => {
     val head = iteration.map(iterationHead)
     val tail = head.map(iterationTail)
     (tail.filter(isFeedback), tail.filter(isOutput))
-  }
-}.map(…).project(…)
+  }, maxWaitTimeMillis).map(…).project(…)
 {% endhighlight %}
 
 Because iterative streaming programs do not have a set number of iterations for each data element, the streaming program has no information on the end of its input. As a consequence iterative streaming programs run until the user manually stops the program. While this is acceptable under normal circumstances a method is provided to allow iterative programs to shut down automatically if no input received by the iteration head for a predefined number of milliseconds.
 To use this functionality the user needs to add the maxWaitTimeMillis parameter to the `dataStream.iterate(…)` call to control the max wait time. 
 
 By default the partitioning of the feedback stream will be automatically set to be the same as the input of the iteration head. To override this the user can set an optional boolean flag in the `iterate` method. 
+
+#### Iteration head as a co-operator
+The user can also treat the input and feedback stream of a streaming iteration as a `ConnectedDataStream`. This can be used to distinguish the feedback tuples and also to change the type of the iteration feedback. 
+
+To use this feature the user needs to call implement a step function that operates on a `ConnectedDataStream` and pass it to the `iterate(…)` call.
+
+{% highlight scala %}
+val iteratedStream = someDataStream.iterate(
+			stepFunction: ConnectedDataStream[T, F] => (DataStream[F], DataStream[R]), 
+			maxWaitTimeMillis)
+{% endhighlight %}
+
+In this case the original input of the head operator will be used as the first input to the co-operator and the feedback stream will be used as the second input.
 </div>
 
 </div>
@@ -1188,18 +1277,99 @@ Rich functions provide, in addition to the user-defined function (`map()`, `redu
 Stateful computation
 ------------
 
-Flink supports the checkpointing and persistence of user defined state, so in case of a failure this state can be restored to the latest checkpoint and the processing can continue from there. This gives exactly once semantics for anything that is stored in the state when the sources are stateful as well and checkpoint their current offset. The `PersistentKafkaSource` provides this stateful functionality for example. 
+Flink supports the checkpointing and persistence of user defined operator states, so in case of a failure this state can be restored to the latest checkpoint and the processing will continue from there. This gives exactly once processing semantics with respect to the operator states when the sources follow this stateful pattern as well. In practice this usually means that sources keep track of their current offset as their OperatorState. The `PersistentKafkaSource` provides this stateful functionality for reading streams from Kafka.
 
-For example when implementing a rolling count over the stream Flink gives you the possibility to safely store the counter. Another common usecase is when reading from a Kafka source to save the latest committed offset to catch up from. To mark a function for checkpointing it has to implement the `flink.streaming.api.checkpoint.Checkpointed` interface or preferably its special case where the checkpointing can be done asynchronously, `CheckpointedAsynchronously`. 
+### OperatorState
 
-Checkpointing can be enabled from the `StreamExecutionEnvironment` using the `enableCheckpointing(…)` where additional parameters can be passed to modify the default 5 second checkpoint interval.
+Flink supports two types of operator states: partitioned and non-partitioned states.
+
+In case of non-partitioned operator state, an operator state is maintained for each parallel instance of a given operator. When `OperatorState.value()` is called, a separate state is returned in each parallel instance. In practice this means if we keep a counter for the received inputs in a mapper, `value()` will return number of inputs processed by each parallel mapper.
+
+In case of of partitioned operator state a separate state is maintained for each received key. This can be used for instance to count received inputs by different keys, or store and update summary statistics of different sub-streams.
+
+Checkpointing of the states needs to be enabled from the `StreamExecutionEnvironment` using the `enableCheckpointing(…)` where additional parameters can be passed to modify the default 5 second checkpoint interval.
+
+Operator states can be accessed from the `RuntimeContext` using the `getOperatorState(“name”, defaultValue, partitioned)` method so it is only accessible in `RichFunction`s. A recommended usage pattern is to retrieve the operator state in the `open(…)` method of the operator and set it as a field in the operator instance for runtime usage. Multiple `OperatorState`s can be used simultaneously by the same operator by using different names to identify them.
+
+Partitioned operator state works only on `KeyedDataStreams`. A `KeyedDataStream` can be created from `DataStream` using the `keyBy` or `groupBy` methods. The `keyBy` method simply takes a `KeySelector` to derive the keys by which the operator state will be partitioned, however, it does not affect the actual partitioning of the `DataStream` records. If data partitioning is also desired then the `groupBy`  method should be used instead to create a `GroupedDataStream` which is a subtype of `KeyedDataStream`. Mind that `KeyedDataStreams` do not support repartitioning (e.g. `shuffle(), forward(), groupBy(...)`).
+
+By default operator states are checkpointed using default java serialization thus they need to be `Serializable`. The user can gain more control over the state checkpoint mechanism by passing a `StateCheckpointer` instance when retrieving the `OperatorState` from the `RuntimeContext`. The `StateCheckpointer` allows custom implementations for the checkpointing logic for increased efficiency and to store arbitrary non-serializable states.
 
 By default state checkpoints will be stored in-memory at the JobManager. Flink also supports storing the checkpoints on any flink-supported file system (such as HDFS or Tachyon) which can be set in the flink-conf.yaml. Note that the state backend must be accessible from the JobManager, use `file://` only for local setups.
 
 For example let us write a reduce function that besides summing the data it also counts have many elements it has seen.
 
 {% highlight java %}
-public class CounterSum implements ReduceFunction<Long>, CheckpointedAsynchronously<Long> {
+public class CounterSum implements RichReduceFunction<Long> {
+    
+    //persistent counter
+    private OperatorState<Long> counter;
+
+    @Override
+    public Long reduce(Long value1, Long value2) throws Exception {
+        counter.update(counter.value() + 1);
+        return value1 + value2;
+    }
+
+    @Override
+    public void open(Configuration config) {
+        counter = getRuntimeContext().getOperatorState(“counter”, 0L, false);
+    }
+}
+{% endhighlight %} 
+
+Stateful sources require a bit more care as opposed to other operators they are not data driven, but their `run(SourceContext)` methods potentially run infinitely. In order to make the updates to the state and output collection atomic the user is required to get a lock from the source's context.
+
+{% highlight java %}
+public static class CounterSource implements RichParallelSourceFunction<Long> {
+
+    // utility for job cancellation
+    private volatile boolean isRunning = false;
+    
+    // maintain the current offset for exactly once semantics
+    private OperatorState<Long> offset;
+    
+    @Override
+    public void run(SourceContext<Long> ctx) throws Exception {
+        isRunning = true;
+        Object lock = ctx.getCheckpointLock();
+        
+        while (isRunning) {
+            // output and state update are atomic
+            synchronized (lock){
+                ctx.collect(offset);
+                offset.update(offset.value() + 1);
+            }
+        }
+    }
+
+    @Override
+    public void open(Configuration config) {
+        offset = getRuntimeContext().getOperatorState(“offset”, 0L);
+    }
+
+    @Override
+    public void cancel() {
+        isRunning = false;
+    }
+}
+{% endhighlight %}
+
+Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `flink.streaming.api.checkpoint.CheckpointComitter` interface.
+
+### Checkpointed interface
+
+Another way of exposing user defined operator state for the Flink runtime for checkpointing is by using the `Checkpointed` interface.
+
+When the user defined function implements the `Checkpointed` interface, the `snapshotState(…)` and `restoreState(…)` methods will be executed to draw and restore function state.
+
+In addition to that, user functions can also implement the `CheckpointNotifier` interface to receive notifications on completed checkpoints via the `notifyCheckpointComplete(long checkpointId)` method.
+Note that there is no guarantee for the user function to receive a notification if a failure happens between checkpoint completion and notification. The notifications should hence be treated in a way that notifications from later checkpoints can subsume missing notifications.
+
+For example the same counting, reduce function shown for `OperatorState`s by using the `Checkpointed` interface instead:
+
+{% highlight java %}
+public class CounterSum implements ReduceFunction<Long>, Checkpointed<Long> {
     
     //persistent counter
     private long counter = 0;
@@ -1224,50 +1394,11 @@ public class CounterSum implements ReduceFunction<Long>, CheckpointedAsynchronou
 }
 {% endhighlight %} 
 
-Stateful sources require a bit more care as opposed to other operators they are not data driven, but their `run(SourceContext)` methods potentially run infinitely. In order to make the updates to the state and output collection atomic the user is required to get a lock from the source's context.
-
-{% highlight java %}
-public static class CounterSource implements SourceFunction<Long>, CheckpointedAsynchronously<Long> {
-
-    // utility for job cancellation
-    private volatile boolean isRunning = false;
-    
-    private long counter;
-    
-    @Override
-    public void run(SourceContext<Long> ctx) throws Exception {
-        isRunning = true;
-        Object lock = ctx.getCheckpointLock();
-        
-        while (isRunning) {
-            // output and state update are atomic
-            synchronized (lock){
-                ctx.collect(counter);
-                counter++;
-            }
-        }
-    }
-
-    @Override
-    public void cancel() {
-        isRunning = false;
-    }
-
-    @Override
-    public Serializable snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-        return new Long(counter);
-    }
-
-    @Override
-    public void restoreState(Serializable state) {
-        counter = (Long) state;
-    }
-}
-{% endhighlight %}
-
-Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `flink.streaming.api.checkpoint.CheckpointComitter` interface.
+### State checkpoints in iterative jobs
 
 Fink currently only provides processing guarantees for jobs without iterations. Enabling checkpointing on an iterative job causes an exception. In order to force checkpointing on an iterative program the user needs to set a special flag when enabling checkpointing: `env.enableCheckpointing(interval, force = true)`.
+
+Please note that records in flight in the loop edges (and the state changes associated with them) will be lost during failure.
 
 [Back to top](#top)
 

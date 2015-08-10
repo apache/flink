@@ -23,7 +23,7 @@ import org.apache.flink.examples.java.wordcount.util.WordCountData;
 /**
  * Implements a Storm Spout that reads data from {@link WordCountData#WORDS}.
  */
-public final class StormInMemorySpout extends AbstractStormSpout {
+public class StormInMemorySpout extends AbstractStormSpout {
 	private static final long serialVersionUID = -4008858647468647019L;
 
 	private String[] source;

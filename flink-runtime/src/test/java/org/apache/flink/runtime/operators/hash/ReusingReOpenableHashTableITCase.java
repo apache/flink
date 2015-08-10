@@ -238,7 +238,7 @@ public class ReusingReOpenableHashTableITCase {
 				new ReusingBuildFirstReOpenableHashMatchIterator<Record, Record, Record>(
 						buildInput, probeInput, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-					this.memoryManager, ioManager, this.parentTask, 1.0);
+					this.memoryManager, ioManager, this.parentTask, 1.0, true);
 		
 		iterator.open();
 		// do first join with both inputs
@@ -276,7 +276,7 @@ public class ReusingReOpenableHashTableITCase {
 	//
 	//
 	
-	private final MutableObjectIterator<Record> getProbeInput(final int numKeys,
+	private MutableObjectIterator<Record> getProbeInput(final int numKeys,
 			final int probeValsPerKey, final int repeatedValue1, final int repeatedValue2) {
 		MutableObjectIterator<Record> probe1 = new UniformRecordGenerator(numKeys, probeValsPerKey, true);
 		MutableObjectIterator<Record> probe2 = new ConstantsKeyValuePairsIterator(repeatedValue1, 17, 5);
@@ -289,8 +289,7 @@ public class ReusingReOpenableHashTableITCase {
 	}
 	
 	@Test
-	public void testSpillingHashJoinWithMassiveCollisions() throws IOException
-	{
+	public void testSpillingHashJoinWithMassiveCollisions() throws IOException {
 		// the following two values are known to have a hash-code collision on the initial level.
 		// we use them to make sure one partition grows over-proportionally large
 		final int REPEATED_VALUE_1 = 40559;
@@ -311,9 +310,6 @@ public class ReusingReOpenableHashTableITCase {
 		builds.add(build2);
 		builds.add(build3);
 		MutableObjectIterator<Record> buildInput = new UnionIterator<Record>(builds);
-	
-		
-		
 
 		// allocate the memory for the HashTable
 		List<MemorySegment> memSegments;
@@ -333,7 +329,7 @@ public class ReusingReOpenableHashTableITCase {
 		final ReOpenableMutableHashTable<Record, Record> join = new ReOpenableMutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
-				memSegments, ioManager);
+				memSegments, ioManager, true);
 		
 		for(int probe = 0; probe < NUM_PROBES; probe++) {
 			// create a probe input that gives 10 million pairs with 10 values sharing a key
@@ -347,9 +343,8 @@ public class ReusingReOpenableHashTableITCase {
 			Record record;
 			final Record recordReuse = new Record();
 
-			while (join.nextRecord())
-			{
-				int numBuildValues = 0;
+			while (join.nextRecord()) {
+				long numBuildValues = 0;
 		
 				final Record probeRec = join.getCurrentProbeRecord();
 				int key = probeRec.getField(0, IntValue.class).getValue();
@@ -369,10 +364,10 @@ public class ReusingReOpenableHashTableITCase {
 				
 				Long contained = map.get(key);
 				if (contained == null) {
-					contained = Long.valueOf(numBuildValues);
+					contained = numBuildValues;
 				}
 				else {
-					contained = Long.valueOf(contained.longValue() + numBuildValues);
+					contained = contained + numBuildValues;
 				}
 				
 				map.put(key, contained);
@@ -449,8 +444,9 @@ public class ReusingReOpenableHashTableITCase {
 		final ReOpenableMutableHashTable<Record, Record> join = new ReOpenableMutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
-				memSegments, ioManager);
-		for(int probe = 0; probe < NUM_PROBES; probe++) {
+				memSegments, ioManager, true);
+		
+		for (int probe = 0; probe < NUM_PROBES; probe++) {
 			// create a probe input that gives 10 million pairs with 10 values sharing a key
 			MutableObjectIterator<Record> probeInput = getProbeInput(NUM_KEYS, PROBE_VALS_PER_KEY, REPEATED_VALUE_1, REPEATED_VALUE_2);
 			if(probe == 0) {
@@ -463,7 +459,7 @@ public class ReusingReOpenableHashTableITCase {
 
 			while (join.nextRecord())
 			{	
-				int numBuildValues = 0;
+				long numBuildValues = 0;
 				
 				final Record probeRec = join.getCurrentProbeRecord();
 				int key = probeRec.getField(0, IntValue.class).getValue();
@@ -483,10 +479,10 @@ public class ReusingReOpenableHashTableITCase {
 				
 				Long contained = map.get(key);
 				if (contained == null) {
-					contained = Long.valueOf(numBuildValues);
+					contained = numBuildValues;
 				}
 				else {
-					contained = Long.valueOf(contained.longValue() + numBuildValues);
+					contained = contained + numBuildValues;
 				}
 				
 				map.put(key, contained);
@@ -526,5 +522,4 @@ public class ReusingReOpenableHashTableITCase {
 		}
 		return copy;
 	}
-	
 }

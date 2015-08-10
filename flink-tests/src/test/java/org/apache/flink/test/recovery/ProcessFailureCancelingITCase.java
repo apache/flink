@@ -118,8 +118,8 @@ public class ProcessFailureCancelingITCase {
 			new AbstractProcessFailureRecoveryTest.PipeForwarder(taskManagerProcess.getErrorStream(), processOutput);
 			
 			// we wait for the JobManager to have the two TaskManagers available
-			// wait for at most 30 seconds
-			waitUntilNumTaskManagersAreRegistered(jmActor, 1, 30000);
+			// since some of the CI environments are very hostile, we need to give this a lot of time (2 minutes)
+			waitUntilNumTaskManagersAreRegistered(jmActor, 1, 120000);
 			
 			final Throwable[] errorRef = new Throwable[1];
 
