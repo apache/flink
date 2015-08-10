@@ -64,12 +64,10 @@ import scala.reflect.ClassTag
  */
 class ExecutionEnvironment(javaEnv: JavaEnv) {
 
-  /**
-   * Gets the config object.
-   */
-  def getConfig: ExecutionConfig = {
-    javaEnv.getConfig
-  }
+    /**
+     * Gets the Java execution environment
+     */
+    def getJavaEnv: JavaEnv = javaEnv
 
   /**
    * Sets the parallelism (parallelism) for operations executed through this environment.
@@ -455,13 +453,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-   * Creates a DataSet from the given non-empty [[Iterable]].
+   * Creates a DataSet from the given non-empty [[Seq]].
    *
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
    */
   def fromCollection[T: ClassTag : TypeInformation](
-      data: Iterable[T]): DataSet[T] = {
+      data: Seq[T]): DataSet[T] = {
     require(data != null, "Data must not be null.")
 
     val typeInfo = implicitly[TypeInformation[T]]

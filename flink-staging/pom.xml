@@ -46,7 +46,8 @@ under the License.
 		<module>flink-table</module>
 		<module>flink-ml</module>
 		<module>flink-language-binding</module>
-	</modules>
+        <module>flink-gelly-scala</module>
+    </modules>
 	
 	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>

@@ -42,7 +42,7 @@ public class UnionOperator<T> extends TwoInputOperator<T, T, T, UnionOperator<T>
 		super(input1, input2, input1.getType());
 		
 		if (!input1.getType().equals(input2.getType())) {
-			throw new InvalidProgramException("Cannot union inputs of different types. Input1=" 
+			throw new InvalidProgramException("Cannot union inputs of different types. Input1="
 					+ input1.getType() + ", input2=" + input2.getType());
 		}
 		

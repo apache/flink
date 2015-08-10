@@ -383,6 +383,17 @@ public class Graph<K, VV, EV> {
 		TypeInformation<Vertex<K, NV>> returnType = (TypeInformation<Vertex<K, NV>>) new TupleTypeInfo(
 				Vertex.class, keyType, valueType);
 
+		return mapVertices(mapper, returnType);
+	}
+
+	/**
+	 * Apply a function to the attribute of each vertex in the graph.
+	 *
+	 * @param mapper     the map function to apply.
+	 * @param returnType the explicit TypeInformation for the return type.
+	 * @return a new graph
+	 */
+	public <NV> Graph<K, NV, EV> mapVertices(final MapFunction<Vertex<K, VV>, NV> mapper, TypeInformation<Vertex<K, NV>> returnType) {
 		DataSet<Vertex<K, NV>> mappedVertices = vertices.map(
 				new MapFunction<Vertex<K, VV>, Vertex<K, NV>>() {
 					public Vertex<K, NV> map(Vertex<K, VV> value) throws Exception {
@@ -411,6 +422,17 @@ public class Graph<K, VV, EV> {
 		TypeInformation<Edge<K, NV>> returnType = (TypeInformation<Edge<K, NV>>) new TupleTypeInfo(
 				Edge.class, keyType, keyType, valueType);
 
+		return mapEdges(mapper, returnType);
+	}
+
+	/**
+	 * Apply a function to the attribute of each edge in the graph
+	 *
+	 * @param mapper     the map function to apply.
+	 * @param returnType the explicit TypeInformation for the return type.
+	 * @return a new graph
+	 */
+	public <NV> Graph<K, VV, NV> mapEdges(final MapFunction<Edge<K, EV>, NV> mapper, TypeInformation<Edge<K, NV>> returnType) {
 		DataSet<Edge<K, NV>> mappedEdges = edges.map(
 				new MapFunction<Edge<K, EV>, Edge<K, NV>>() {
 					public Edge<K, NV> map(Edge<K, EV> value) throws Exception {
@@ -752,6 +774,24 @@ public class Graph<K, VV, EV> {
 		}
 	}
 
+	public <T> DataSet<T> groupReduceOnEdges(EdgesFunctionWithVertexValue<K, VV, EV, T> edgesFunction,
+											EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
+
+		switch (direction) {
+			case IN:
+				return vertices.coGroup(edges).where(0).equalTo(1)
+						.with(new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction)).returns(typeInfo);
+			case OUT:
+				return vertices.coGroup(edges).where(0).equalTo(0)
+						.with(new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction)).returns(typeInfo);
+			case ALL:
+				return vertices.coGroup(edges.flatMap(new EmitOneEdgePerNode<K, VV, EV>()))
+						.where(0).equalTo(0).with(new ApplyCoGroupFunctionOnAllEdges<K, VV, EV, T>(edgesFunction)).returns(typeInfo);
+			default:
+				throw new IllegalArgumentException("Illegal edge direction");
+		}
+	}
+
 	/**
 	 * Compute an aggregate over the edges of each vertex. The function applied
 	 * on the edges only has access to the vertex id (not the vertex value).
@@ -782,6 +822,26 @@ public class Graph<K, VV, EV> {
 					.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction));
 		default:
 			throw new IllegalArgumentException("Illegal edge direction");
+		}
+	}
+
+	public <T> DataSet<T> groupReduceOnEdges(EdgesFunction<K, EV, T> edgesFunction,
+											EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
+
+		switch (direction) {
+			case IN:
+				return edges.map(new ProjectVertexIdMap<K, EV>(1))
+						.withForwardedFields("f1->f0")
+						.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction)).returns(typeInfo);
+			case OUT:
+				return edges.map(new ProjectVertexIdMap<K, EV>(0))
+						.withForwardedFields("f0")
+						.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction)).returns(typeInfo);
+			case ALL:
+				return edges.flatMap(new EmitOneEdgePerNode<K, VV, EV>())
+						.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction)).returns(typeInfo);
+			default:
+				throw new IllegalArgumentException("Illegal edge direction");
 		}
 	}
 
@@ -927,13 +987,7 @@ public class Graph<K, VV, EV> {
 				}
 			};
 
-			Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
-
-			if(vertexIterator.hasNext()) {
-				function.iterateEdges(vertexIterator.next(), edgesIterable, out);
-			} else {
-				throw new NoSuchElementException("The edge src/trg id could not be found within the vertexIds");
-			}
+			function.iterateEdges(vertex.iterator().next(),	edgesIterable, out);
 		}
 
 		@Override
@@ -1025,6 +1079,7 @@ public class Graph<K, VV, EV> {
 	 * @param vertex the vertex to be added
 	 * @return the new graph containing the existing vertices as well as the one just added
 	 */
+	@SuppressWarnings("unchecked")
 	public Graph<K, VV, EV> addVertex(final Vertex<K, VV> vertex) {
 		List<Vertex<K, VV>> newVertex = new ArrayList<Vertex<K, VV>>();
 		newVertex.add(vertex);
@@ -1039,6 +1094,7 @@ public class Graph<K, VV, EV> {
 	 * @param verticesToAdd the list of vertices to add
 	 * @return the new graph containing the existing and newly added vertices
 	 */
+	@SuppressWarnings("unchecked")
 	public Graph<K, VV, EV> addVertices(List<Vertex<K, VV>> verticesToAdd) {
 		// Add the vertices
 		DataSet<Vertex<K, VV>> newVertices = this.vertices.union(this.context.fromCollection(verticesToAdd)).distinct();
@@ -1072,6 +1128,7 @@ public class Graph<K, VV, EV> {
 	 * @param newEdges the data set of edges to be added
 	 * @return a new graph containing the existing edges plus the newly added edges.
 	 */
+	@SuppressWarnings("unchecked")
 	public Graph<K, VV, EV> addEdges(List<Edge<K, EV>> newEdges) {
 
 		DataSet<Edge<K,EV>> newEdgesDataSet = this.context.fromCollection(newEdges);
@@ -1119,6 +1176,7 @@ public class Graph<K, VV, EV> {
 
 		return removeVertices(vertexToBeRemoved);
 	}
+
 	/**
 	 * Removes the given list of vertices and its edges from the graph.
 	 *
@@ -1126,7 +1184,6 @@ public class Graph<K, VV, EV> {
 	 * @return the resulted graph containing the initial vertices and edges minus the vertices
 	 * 		   and edges removed.
 	 */
-
 	public Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved)
 	{
 		return removeVertices(this.context.fromCollection(verticesToBeRemoved));
@@ -1147,7 +1204,7 @@ public class Graph<K, VV, EV> {
 		DataSet < Edge < K, EV >> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
 				// if the edge source was removed, the edge will also be removed
 				.with(new ProjectEdgeToBeRemoved<K, VV, EV>())
-				// if the edge target was removed, the edge will also be removed
+						// if the edge target was removed, the edge will also be removed
 				.join(newVertices).where(1).equalTo(0)
 				.with(new ProjectEdge<K, VV, EV>());
 
@@ -1172,8 +1229,6 @@ public class Graph<K, VV, EV> {
 			}
 		}
 	}
-
-
 
 	@ForwardedFieldsSecond("f0; f1; f2")
 	private static final class ProjectEdgeToBeRemoved<K,VV,EV> implements JoinFunction<Vertex<K, VV>, Edge<K, EV>, Edge<K, EV>> {
@@ -1275,7 +1330,7 @@ public class Graph<K, VV, EV> {
 	 * @param vertexUpdateFunction the vertex update function
 	 * @param messagingFunction the messaging function
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
-	 * 
+	 *
 	 * @return the updated Graph after the vertex-centric iteration has converged or
 	 * after maximumNumberOfIterations.
 	 */
@@ -1410,6 +1465,38 @@ public class Graph<K, VV, EV> {
 		}
 	}
 
+	public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunctionWithVertexValue<K, VV, EV, T> neighborsFunction,
+												 EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
+		switch (direction) {
+			case IN:
+				// create <edge-sourceVertex> pairs
+				DataSet<Tuple2<Edge<K, EV>, Vertex<K, VV>>> edgesWithSources = edges
+						.join(this.vertices).where(0).equalTo(0);
+				return vertices.coGroup(edgesWithSources)
+						.where(0).equalTo("f0.f1")
+						.with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+			case OUT:
+				// create <edge-targetVertex> pairs
+				DataSet<Tuple2<Edge<K, EV>, Vertex<K, VV>>> edgesWithTargets = edges
+						.join(this.vertices).where(1).equalTo(0);
+				return vertices.coGroup(edgesWithTargets)
+						.where(0).equalTo("f0.f0")
+						.with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+			case ALL:
+				// create <edge-sourceOrTargetVertex> pairs
+				DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithNeighbors = edges
+						.flatMap(new EmitOneEdgeWithNeighborPerNode<K, EV>())
+						.join(this.vertices).where(1).equalTo(0)
+						.with(new ProjectEdgeWithNeighbor<K, VV, EV>());
+
+				return vertices.coGroup(edgesWithNeighbors)
+						.where(0).equalTo(0)
+						.with(new ApplyCoGroupFunctionOnAllNeighbors<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+			default:
+				throw new IllegalArgumentException("Illegal edge direction");
+		}
+	}
+
 	/**
 	 * Compute an aggregate over the neighbors (edges and vertices) of each
 	 * vertex. The function applied on the neighbors only has access to the
@@ -1422,7 +1509,7 @@ public class Graph<K, VV, EV> {
 	 * @throws IllegalArgumentException
 	 */
 	public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunction<K, VV, EV, T> neighborsFunction,
-												EdgeDirection direction) throws IllegalArgumentException {
+												 EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 		case IN:
 			// create <edge-sourceVertex> pairs
@@ -1440,8 +1527,8 @@ public class Graph<K, VV, EV> {
 					.withForwardedFieldsFirst("f0");
 			return edgesWithTargets.groupBy(0).reduceGroup(
 					new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction));
-		case ALL:
-			// create <edge-sourceOrTargetVertex> pairs
+			case ALL:
+				// create <edge-sourceOrTargetVertex> pairs
 			DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithNeighbors = edges
 					.flatMap(new EmitOneEdgeWithNeighborPerNode<K, EV>())
 					.join(this.vertices).where(1).equalTo(0)
@@ -1451,6 +1538,39 @@ public class Graph<K, VV, EV> {
 					new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction));
 		default:
 			throw new IllegalArgumentException("Illegal edge direction");
+		}
+	}
+
+	public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunction<K, VV, EV, T> neighborsFunction,
+												EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
+		switch (direction) {
+			case IN:
+				// create <edge-sourceVertex> pairs
+				DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithSources = edges
+						.join(this.vertices).where(0).equalTo(0)
+						.with(new ProjectVertexIdJoin<K, VV, EV>(1))
+						.withForwardedFieldsFirst("f1->f0");
+				return edgesWithSources.groupBy(0).reduceGroup(
+						new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+			case OUT:
+				// create <edge-targetVertex> pairs
+				DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithTargets = edges
+						.join(this.vertices).where(1).equalTo(0)
+						.with(new ProjectVertexIdJoin<K, VV, EV>(0))
+						.withForwardedFieldsFirst("f0");
+				return edgesWithTargets.groupBy(0).reduceGroup(
+						new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+			case ALL:
+				// create <edge-sourceOrTargetVertex> pairs
+				DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithNeighbors = edges
+						.flatMap(new EmitOneEdgeWithNeighborPerNode<K, EV>())
+						.join(this.vertices).where(1).equalTo(0)
+						.with(new ProjectEdgeWithNeighbor<K, VV, EV>());
+
+				return edgesWithNeighbors.groupBy(0).reduceGroup(
+						new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+			default:
+				throw new IllegalArgumentException("Illegal edge direction");
 		}
 	}
 
@@ -1589,13 +1709,7 @@ public class Graph<K, VV, EV> {
 				}
 			};
 
-			Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
-
-			if (vertexIterator.hasNext()) {
-				function.iterateNeighbors(vertexIterator.next(), neighborsIterable, out);
-			} else {
-				throw new NoSuchElementException("The edge src/trg id could not be found within the vertexIds");
-			}
+			function.iterateNeighbors(vertex.iterator().next(), neighborsIterable, out);
 		}
 
 		@Override
