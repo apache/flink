@@ -36,8 +36,7 @@ class YarnTaskManager(
     ioManager: IOManager,
     network: NetworkEnvironment,
     numberOfSlots: Int,
-    parameterServerGateway: AkkaActorGateway,
-    parameterStoreGateway: AkkaActorGateway)
+    parameterServerGateway: AkkaActorGateway)
   extends TaskManager(
     config,
     connectionInfo,
@@ -46,8 +45,7 @@ class YarnTaskManager(
     ioManager,
     network,
     numberOfSlots,
-    parameterServerGateway,
-    parameterStoreGateway) {
+    parameterServerGateway) {
 
   override def handleMessage: Receive = {
     handleYarnMessages orElse super.handleMessage

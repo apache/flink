@@ -136,6 +136,10 @@ class JobManager(
     instanceManager.getAllRegisteredInstances.asScala.foreach {
       _.getActorGateway().tell(Disconnect("JobManager is shutting down"))
     }
+    // let all servers know we longer accept any messages
+    instanceManager.getAllRegisteredServers.asScala.foreach{
+      _.tell(Disconnect("JobManager is shutting down"))
+    }
 
     archive ! decorateMessage(PoisonPill)
 

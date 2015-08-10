@@ -259,6 +259,14 @@ public class InstanceManager {
 		}
 	}
 
+	public Collection<ActorGateway> getAllRegisteredServers() {
+		synchronized (this.lock) {
+			// return a copy (rather than a Collections.unmodifiable(...) wrapper), such that
+			// concurrent modifications do not interfere with the traversals or lookups
+			return new HashSet<ActorGateway>(parameterServers.values());
+		}
+	}
+
 	public Instance getRegisteredInstanceById(InstanceID instanceID) {
 		return registeredHostsById.get(instanceID);
 	}

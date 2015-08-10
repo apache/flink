@@ -127,8 +127,7 @@ class TaskManager(
     protected val ioManager: IOManager,
     protected val network: NetworkEnvironment,
     protected val numberOfSlots: Int,
-    protected val parameterServerGateway: ActorGateway,
-    protected val parameterStoreGateway: ActorGateway)
+    protected val parameterServerGateway: ActorGateway)
   extends FlinkActor
   with LeaderSessionMessages // Mixin order is important: second we want to filter leader messages
   with LogMessages // Mixin order is important: first we want to support message logging
@@ -722,7 +721,7 @@ class TaskManager(
       )
       // tell the parameter server to start contacting Job Manager
       parameterServerGateway.tell(
-        KickOffParameterServer(jobManagerGateway, taskManagerGateway, parameterStoreGateway, id))
+        KickOffParameterServer(jobManagerGateway, taskManagerGateway, id))
 
       // let's wait for that to happen.
       // TODO add a concrete check here that the Server is registered.
@@ -1616,17 +1615,10 @@ object TaskManager {
     }
 
     val parameterServerActor = ParameterServer.startParameterServerActor(configuration, actorSystem)
-    val futureLeaderSessionID1 =
+    val futureLeaderSessionID =
       (parameterServerActor ? RequestLeaderSessionID)(AkkaUtils.getDefaultTimeout)
         .mapTo[ResponseLeaderSessionID]
-    val leaderSessionID1 = Await.result(futureLeaderSessionID1, AkkaUtils.getDefaultTimeout)
-      .leaderSessionID
-
-    val parameterServerStore = ParameterServer.startParameterStoreActor(configuration, actorSystem)
-    val futureLeaderSessionID2 =
-      (parameterServerStore ? RequestLeaderSessionID)(AkkaUtils.getDefaultTimeout)
-        .mapTo[ResponseLeaderSessionID]
-    val leaderSessionID2 = Await.result(futureLeaderSessionID2, AkkaUtils.getDefaultTimeout)
+    val leaderSessionID = Await.result(futureLeaderSessionID, AkkaUtils.getDefaultTimeout)
       .leaderSessionID
 
     // create the actor properties (which define the actor constructor parameters)
@@ -1639,8 +1631,7 @@ object TaskManager {
       ioManager,
       network,
       taskManagerConfig.numberOfSlots,
-      new AkkaActorGateway(parameterServerActor, leaderSessionID1),
-      new AkkaActorGateway(parameterServerStore, leaderSessionID2))
+      new AkkaActorGateway(parameterServerActor, leaderSessionID))
 
     taskManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(tmProps, actorName)

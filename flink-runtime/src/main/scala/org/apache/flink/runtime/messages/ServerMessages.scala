@@ -44,7 +44,6 @@ object ServerMessages {
   case class KickOffParameterServer(
       jobManager: ActorGateway,
       taskManager: ActorGateway,
-      storeManager: ActorGateway,
       taskManagerID: InstanceID)
 
   /**
@@ -125,7 +124,11 @@ object ServerMessages {
    * @param slack Slack to be used for SSP (should match across all clients)
    */
   case class RegisterClient(
-      clientID: Int, key: String, value: Parameter, strategy: UpdateStrategy, slack: Int)
+      clientID: Int,
+      key: String,
+      value: Parameter,
+      strategy: UpdateStrategy,
+      slack: Int)
     extends ClientRequests
 
   /**

@@ -21,19 +21,20 @@ package org.apache.flink.runtime.server
 import java.util.UUID
 
 import _root_.akka.actor._
-import _root_.akka.pattern.ask
 import grizzled.slf4j.Logger
+import org.apache.flink.api.common.server.{Update, UpdateStrategy, Parameter}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway, InstanceID}
+import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.ServerMessages.InvalidServerAccessException
 import org.apache.flink.runtime.messages.JobManagerMessages.{ResponseLeaderSessionID, RequestLeaderSessionID}
 import org.apache.flink.runtime.messages.ServerMessages._
 import org.apache.flink.runtime.{LeaderSessionMessages, FlinkActor, LogMessages}
 
 import scala.collection.mutable
-import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.collection.JavaConverters._
 
 
 class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMessages{
@@ -42,7 +43,6 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
 
   private var jobManager: Option[ActorGateway] = None
   private var taskManager: Option[ActorGateway] = None
-  private var storeManager: Option[ActorGateway] = None
   private var taskManagerID: Option[InstanceID] = None
   private var heartbeatScheduler: Option[Cancellable] = None
   private var statusQueueCheckScheduler: Option[Cancellable] = None
@@ -68,6 +68,8 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
    * Maintain where we need to send the reply of a request from another server.
    */
   private var waitingServers: mutable.HashMap[UUID, ActorRef] = _
+
+  private var store: mutable.HashMap[String, KeyManager] = _
 
   /**
    * Run when the parameter server is started. Simply logs an informational message.
@@ -141,6 +143,10 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
       // nothing much to do. We can keep doing our work as long as we can. If the Task Manager also
       // lost connection, we'll anyway have to reset our state and register again, if ever.
 
+    case Disconnect =>
+      // lost connection to Job Manager. Kill self. Task Manager will have to restart us.
+      handleJobManagerDisconnect()
+
     case RequestLeaderSessionID =>
       sender() ! ResponseLeaderSessionID(leaderSessionID)
   }
@@ -152,39 +158,37 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
     // let everyone know we're crashing
     taskManager.get.tell(ServerError(taskManagerID.get, new Exception("Parameter Server failed")))
     jobManager.get.tell(ServerError(taskManagerID.get, new Exception("Parameter Server failed")))
-    storeManager.get.tell(ServerError(taskManagerID.get, new Exception("Parameter Server failed")))
 
     // now crash
     throw new RuntimeException("Received unknown message " + message)
   }
 
+  private def handleJobManagerDisconnect(): Unit = {
+    println(System.currentTimeMillis() + "Received job manager disconnect")
+    heartbeatScheduler.get.cancel()
+    statusQueueCheckScheduler.get.cancel()
+
+    keyGatewayMapping.clear()
+
+    jobManager = None
+    taskManager = None
+    taskManagerID = None
+
+    store.valuesIterator.foreach(manager => manager.shutdown)
+    store.clear()
+    waitingClients.clear()
+    waitingServers.clear()
+  }
+
   private def sendHeartbeat(): Unit = {
-    // first check connection to the store
-    checkConnectionToStore()
     // now send a heartbeat
+    println(System.currentTimeMillis() + "Sending heart beat")
     jobManager.get.tell(
       ServerHeartbeat(taskManagerID.get, new AkkaActorGateway(self, leaderSessionID)))
   }
 
-  private def checkConnectionToStore(): Unit = {
-    try {
-      val futureLeaderSessionID =
-        (storeManager.get.actor() ? RequestLeaderSessionID)(ParameterServer.STORE_TIMEOUT)
-          .mapTo[ResponseLeaderSessionID]
-      val leaderSessionID = Await.result(futureLeaderSessionID, ParameterServer.STORE_TIMEOUT)
-        .leaderSessionID
-      assert(leaderSessionID == storeManager.get.leaderSessionID())
-    } catch{
-      case e: AnyRef => unhandled(Status.Failure(e))
-    }
-  }
-
   private def handleKickoff(message: KickOffParameterServer): Unit = {
-    // first check if the store is reachable
-    storeManager = Some(message.storeManager)
-    checkConnectionToStore()
-
-    // now initialize everything
+    // initialize everything
     jobManager = Some(message.jobManager)
     taskManagerID = Some(message.taskManagerID)
     taskManager = Some(message.taskManager)
@@ -192,6 +196,7 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
     keyGatewayMapping = new mutable.HashMap[String, ActorGateway]()
     waitingClients = new mutable.HashMap[UUID, (Boolean, ClientRequests, ActorRef, Long, Int)]()
     waitingServers = new mutable.HashMap[UUID, ActorRef]()
+    store = new mutable.HashMap[String, KeyManager]()
 
     // schedule a heartbeat to the job manager
     heartbeatScheduler = Some(context.system.scheduler.schedule(
@@ -239,9 +244,15 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
 
   private def handleIncoming(message: ServerRequest, sender: ActorRef): Unit = {
     // we capture all requests from all servers
-    // first, store where the response to this message must be sent.
-    waitingServers.put(message.messageID, sender)
-    storeManager.get.tell(StoreMessage(message.messageID, message.message))
+    // first see if we can work on this key.
+    if(!store.contains(message.message.key) && !message.message.isInstanceOf[RegisterClient]){
+      sender ! ServerResponse(message.messageID, ClientFailure(new InvalidServerAccessException))
+    } else{
+      waitingServers.put(message.messageID, sender)
+      sender ! ServerAcknowledgement(message.messageID, true)
+      // now process the message
+      handleClientMessage(message)
+    }
   }
 
   private def handleStoreResponse(message: StoreReply): Unit = {
@@ -305,6 +316,36 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
       }
     )
   }
+
+  private def handleClientMessage(message: ServerRequest): Unit = {
+    val key = message.message.key
+    val manager = store.get(key)
+    message.message match{
+      case UpdateParameter(_, update) =>
+        manager.get.update(update, message.messageID)
+
+      case PullParameter(_) =>
+        manager.get.getParameter(message.messageID)
+
+      case RegisterClient(id, _, value, strategy, slack) =>
+        manager match{
+          case Some(managerExists) =>
+            if(slack == managerExists.slack && strategy == managerExists.strategy){
+              managerExists.registerClient(id, message.messageID)
+            } else{
+              self ! StoreReply(
+                message.messageID,
+                ClientFailure(new Exception("Slack and strategy must be the same for all clients"))
+              )
+            }
+          case None =>
+            store.put(key, new KeyManager(
+              key, value, strategy, slack, new AkkaActorGateway(self, leaderSessionID))
+            )
+            store.get(key).get.registerClient(id, message.messageID)
+        }
+    }
+  }
 }
 
 /**
@@ -336,21 +377,83 @@ object ParameterServer {
 
     actorSystem.actorOf(parameterServerProps)
   }
+}
 
-  /**
-   * Starts the ParameterStore based on the given configuration, in the given actor system.
-   *
-   * @param configuration The configuration for the ParameterServerStore
-   * @param actorSystem Teh actor system running the ParameterServerStore
-   * @return A reference to ParameterServerStore
-   */
-  def startParameterStoreActor(
-      configuration: Configuration,
-      actorSystem: ActorSystem)
-  : ActorRef = {
+class KeyManager(
+    val key: String,
+    val value: Parameter,
+    val strategy: UpdateStrategy,
+    val slack: Int,
+    server: ActorGateway){
 
-    val parameterServerStoreProps = Props(classOf[ParameterStore])
+  private val registeredClients = new mutable.ArrayBuffer[Int]()
+  private val waitingUpdates = new mutable.HashMap[Update, UUID]()
 
-    actorSystem.actorOf(parameterServerStoreProps)
+  // the minimum clock is only incremented when we have received all messages from minimumClock + 1
+  private var minimumClock: Int = 0
+
+
+  def registerClient(id: Int, messageID: UUID): Unit = {
+    this.synchronized {
+      registeredClients.synchronized {
+        if (!registeredClients.contains(id)) {
+          registeredClients += id
+        }
+        server.tell(StoreReply(messageID, RegistrationSuccess()))
+      }
+    }
+  }
+
+  def getParameter(messageID: UUID): Unit = {
+    this.synchronized {
+      value.setClock(minimumClock + 1)
+      server.tell(StoreReply(messageID, PullSuccess(value)))
+    }
+  }
+
+  def update(update: Update, messageID: UUID): Unit ={
+    this.synchronized{
+      strategy match{
+        case UpdateStrategy.BATCH =>
+          if(update.getClock != minimumClock + 1){
+            server.tell(StoreReply(
+              messageID, ClientFailure(new Exception("Clock synchronization issue.")))
+            )
+          } else{
+            waitingUpdates.put(update, messageID)
+            if(waitingUpdates.size == registeredClients.length){
+              var messageToSend: ClientResponses = UpdateSuccess()
+              try {
+                value.reduce(waitingUpdates.keySet.toList.asJavaCollection)
+                minimumClock += 1
+              } catch{
+                case e: AnyRef =>
+                  messageToSend = ClientFailure(e)
+              }
+              waitingUpdates.valuesIterator.foreach(
+                messager => server.tell(StoreReply(messager, messageToSend))
+              )
+              waitingUpdates.clear()
+            }
+          }
+        case UpdateStrategy.ASYNC =>
+          try{
+            value.update(update)
+            server.tell(StoreReply(messageID, UpdateSuccess()))
+          } catch{
+            case e: AnyRef =>
+              server.tell(StoreReply(messageID, ClientFailure(e)))
+          }
+        case UpdateStrategy.SSP =>
+        // TODO
+      }
+    }
+  }
+
+  def shutdown: Unit = {
+    this.synchronized{
+      registeredClients.clear()
+      waitingUpdates.clear()
+    }
   }
 }

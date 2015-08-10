@@ -24,17 +24,22 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Kill;
 import akka.actor.Props;
+import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
+import akka.util.Timeout;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.server.ParameterServer;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 
@@ -43,9 +48,12 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 import scala.Option;
 import scala.Tuple2;
+import scala.concurrent.Await;
 import scala.concurrent.duration.FiniteDuration;
+import scala.concurrent.Future;
 
 import java.net.InetAddress;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 public class TaskManagerComponentsStartupShutdownTest {
@@ -96,10 +104,15 @@ public class TaskManagerComponentsStartupShutdownTest {
 				netConf);
 			final int numberOfSlots = 1;
 
+			ActorRef parameterServerActor = ParameterServer.startParameterServerActor(config, actorSystem);
+			Future<Object> futureLeaderSessionID = Patterns.ask(parameterServerActor, JobManagerMessages.getRequestLeaderSessionID(), new Timeout(AkkaUtils.getDefaultTimeout()));
+			JobManagerMessages.ResponseLeaderSessionID leaderSessionID =
+					(JobManagerMessages.ResponseLeaderSessionID) Await.result(futureLeaderSessionID, AkkaUtils.getDefaultTimeout());
+
 			// create the task manager
 			final Props tmProps = Props.create(TaskManager.class,
 					tmConfig, connectionInfo, jobManager.path().toString(),
-					memManager, ioManager, network, numberOfSlots);
+					memManager, ioManager, network, numberOfSlots, new AkkaActorGateway(parameterServerActor, leaderSessionID.leaderSessionID()));
 
 			final ActorRef taskManager = actorSystem.actorOf(tmProps);
 

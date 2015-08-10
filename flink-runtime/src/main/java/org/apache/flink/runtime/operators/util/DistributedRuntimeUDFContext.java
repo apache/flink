@@ -119,17 +119,17 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 
 	@Override
 	public void registerBatch(String key, Parameter value) throws Exception{
-		register(new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, UpdateStrategy.BATCH, 0));
+		register(key, value, UpdateStrategy.BATCH, 0);
 	}
 
 	@Override
 	public void registerAsync(String key, Parameter value) throws Exception{
-		register(new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, UpdateStrategy.ASYNC, 0));
+		register(key, value, UpdateStrategy.ASYNC, 0);
 	}
 
 	@Override
 	public void registerSSP(String key, Parameter value, int slack) throws Exception{
-		register(new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, UpdateStrategy.SSP, slack));
+		register(key, value, UpdateStrategy.SSP, slack);
 	}
 
 	// ====================================================================================
@@ -163,7 +163,8 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 		}
 	}
 
-	private void register(ServerMessages.RegisterClient request) throws Exception{
+	private void register(String key, Parameter value, UpdateStrategy strategy, int slack) throws Exception{
+		ServerMessages.ClientRequests request = new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, strategy, slack);
 		scala.concurrent.Future<Object> message = parameterServer.ask(request, AkkaUtils.INF_TIMEOUT());
 		Object result = Await.result(message, AkkaUtils.INF_TIMEOUT());
 		if(result instanceof ServerMessages.ClientFailure){

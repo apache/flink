@@ -20,7 +20,7 @@
 package org.apache.flink.api.common.server;
 
 import java.io.Serializable;
-import java.util.List;
+import java.util.Collection;
 
 /**
  * Parameter represents the base class of everything that can be stored on the ParameterServer
@@ -42,7 +42,7 @@ public abstract class Parameter implements Serializable{
 	 *
 	 * @param list List of updates received from various clients
 	 */
-	public void reduce(List<Update> list) throws Exception{}
+	public void reduce(Collection<Update> list) throws Exception{}
 
 	/**
 	 * This function returns the clock at the server corresponding to this parameter
