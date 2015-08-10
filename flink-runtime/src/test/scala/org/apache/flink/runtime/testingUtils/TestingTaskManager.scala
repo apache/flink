@@ -56,7 +56,8 @@ class TestingTaskManager(
     ioManager: IOManager,
     network: NetworkEnvironment,
     numberOfSlots: Int,
-    parameterServerGateway: AkkaActorGateway)
+    parameterServerGateway: AkkaActorGateway,
+    parameterStoreGateway: AkkaActorGateway)
   extends TaskManager(
     config,
     connectionInfo,
@@ -65,7 +66,8 @@ class TestingTaskManager(
     ioManager,
     network,
     numberOfSlots,
-    parameterServerGateway) {
+    parameterServerGateway,
+    parameterStoreGateway) {
 
   import scala.collection.JavaConverters._
 

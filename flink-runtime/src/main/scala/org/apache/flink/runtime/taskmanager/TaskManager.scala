@@ -40,6 +40,7 @@ import org.apache.flink.configuration._
 
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.messages.JobManagerMessages.{ResponseLeaderSessionID, RequestLeaderSessionID}
+import org.apache.flink.runtime.messages.ServerMessages.KickOffParameterServer
 import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.server.ParameterServer
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessages, LogMessages, StreamingMode}
@@ -126,7 +127,8 @@ class TaskManager(
     protected val ioManager: IOManager,
     protected val network: NetworkEnvironment,
     protected val numberOfSlots: Int,
-    protected val parameterServerGateway: ActorGateway)
+    protected val parameterServerGateway: ActorGateway,
+    protected val parameterStoreGateway: ActorGateway)
   extends FlinkActor
   with LeaderSessionMessages // Mixin order is important: second we want to filter leader messages
   with LogMessages // Mixin order is important: first we want to support message logging
@@ -709,12 +711,15 @@ class TaskManager(
 
     // start the network stack, now that we have the JobManager actor reference
     try {
+      val jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID)
+      val taskManagerGateway = new AkkaActorGateway(self, leaderSessionID)
       network.associateWithTaskManagerAndJobManager(
-        new AkkaActorGateway(jobManager, leaderSessionID),
-        new AkkaActorGateway(self, leaderSessionID)
+        jobManagerGateway,
+        taskManagerGateway
       )
-
-
+      // tell the parameter server to start contacting Job Manager
+      parameterServerGateway.tell(
+        KickOffParameterServer(jobManagerGateway, taskManagerGateway, parameterStoreGateway, id))
     }
     catch {
       case e: Exception =>
@@ -1604,10 +1609,17 @@ object TaskManager {
     }
 
     val parameterServerActor = ParameterServer.startParameterServerActor(configuration, actorSystem)
-    val futureLeaderSessionID =
+    val futureLeaderSessionID1 =
       (parameterServerActor ? RequestLeaderSessionID)(AkkaUtils.getDefaultTimeout)
         .mapTo[ResponseLeaderSessionID]
-    val leaderSessionID = Await.result(futureLeaderSessionID, AkkaUtils.getDefaultTimeout)
+    val leaderSessionID1 = Await.result(futureLeaderSessionID1, AkkaUtils.getDefaultTimeout)
+      .leaderSessionID
+
+    val parameterServerStore = ParameterServer.startParameterStoreActor(configuration, actorSystem)
+    val futureLeaderSessionID2 =
+      (parameterServerStore ? RequestLeaderSessionID)(AkkaUtils.getDefaultTimeout)
+        .mapTo[ResponseLeaderSessionID]
+    val leaderSessionID2 = Await.result(futureLeaderSessionID2, AkkaUtils.getDefaultTimeout)
       .leaderSessionID
 
     // create the actor properties (which define the actor constructor parameters)
@@ -1620,7 +1632,8 @@ object TaskManager {
       ioManager,
       network,
       taskManagerConfig.numberOfSlots,
-      new AkkaActorGateway(parameterServerActor, leaderSessionID))
+      new AkkaActorGateway(parameterServerActor, leaderSessionID1),
+      new AkkaActorGateway(parameterServerStore, leaderSessionID2))
 
     taskManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(tmProps, actorName)

@@ -32,7 +32,6 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.server.Parameter;
 import org.apache.flink.api.common.server.Update;
-import org.apache.flink.api.common.server.UpdateStrategy;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.StateCheckpointer;
 

@@ -18,11 +18,7 @@
 
 package org.apache.flink.runtime.operators.util;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Future;
-
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
@@ -35,16 +31,16 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.broadcast.InitializationTypeConflictException;
-
-import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.instance.ActorGateway;
-
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.ServerMessages;
 import scala.concurrent.Await;
 
-import static org.apache.flink.runtime.messages.ServerMessages.getUpdateSuccess;
-import static org.apache.flink.runtime.messages.ServerMessages.getClientRegistrationSuccess;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Future;
+
 import static org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 
 /**
@@ -126,36 +122,43 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 
 	@Override
 	public void registerBatch(String key, Parameter value) throws Exception{
-		register(decorate(new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, UpdateStrategy.BATCH, 0)));
+		register(new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, UpdateStrategy.BATCH, 0));
 	}
 
 	@Override
 	public void registerAsync(String key, Parameter value) throws Exception{
-		register(decorate(new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, UpdateStrategy.ASYNC, 0)));
+		register(new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, UpdateStrategy.ASYNC, 0));
 	}
 
 	@Override
 	public void registerSSP(String key, Parameter value, int slack) throws Exception{
-		register(decorate(new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, UpdateStrategy.SSP, slack)));
+		register(new ServerMessages.RegisterClient(getIndexOfThisSubtask(), key, value, UpdateStrategy.SSP, slack));
 	}
+
+	// ====================================================================================
+	// We use hard INF TIMEOUT awaits because it is the responsibility of our server to let us
+	// know if something is not gonna work out. The retries are performed at the server.
+	// ====================================================================================
 
 	@Override
 	public void updateParameter(String key, Update update) throws Exception{
-		scala.concurrent.Future<Object> message = parameterServer.ask(decorate(new ServerMessages.UpdateParameter(key, update)), AkkaUtils.INF_TIMEOUT());
+		scala.concurrent.Future<Object> message = parameterServer.ask(
+				new ServerMessages.UpdateParameter(key, update), AkkaUtils.INF_TIMEOUT());
 		Object result = Await.result(message, AkkaUtils.INF_TIMEOUT());
-		if(result instanceof ServerMessages.UpdateFailure){
-			throw new Exception(((ServerMessages.UpdateFailure) result).error());
-		} else if(! result.getClass().isAssignableFrom(getUpdateSuccess().getClass())){
+		if(result instanceof ServerMessages.ClientFailure){
+			throw new Exception(((ServerMessages.ClientFailure) result).error());
+		} else if(!(result instanceof ServerMessages.UpdateSuccess)){
 			throw new Exception("Unknown message received from server");
 		}
 	}
 
 	@Override
 	public Parameter fetchParameter(String key) throws Exception{
-		scala.concurrent.Future<Object> message = parameterServer.ask(decorate(new ServerMessages.PullParameter(key)), AkkaUtils.INF_TIMEOUT());
+		scala.concurrent.Future<Object> message = parameterServer.ask(
+				new ServerMessages.PullParameter(key), AkkaUtils.INF_TIMEOUT());
 		Object result = Await.result(message, AkkaUtils.INF_TIMEOUT());
-		if(result instanceof ServerMessages.PullFailure){
-			throw new Exception(((ServerMessages.PullFailure) result).error());
+		if(result instanceof ServerMessages.ClientFailure){
+			throw new Exception(((ServerMessages.ClientFailure) result).error());
 		} else if(!(result instanceof ServerMessages.PullSuccess)){
 			throw new Exception("Unknown message received from server");
 		} else{
@@ -163,16 +166,13 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 		}
 	}
 
-	private void register(LeaderSessionMessage request) throws Exception{
+	private void register(ServerMessages.RegisterClient request) throws Exception{
 		scala.concurrent.Future<Object> message = parameterServer.ask(request, AkkaUtils.INF_TIMEOUT());
 		Object result = Await.result(message, AkkaUtils.INF_TIMEOUT());
-		if(result instanceof ServerMessages.ClientRegistrationRefuse){
-			throw new Exception(((ServerMessages.ClientRegistrationRefuse) result).error());
-		} else if(! result.getClass().isAssignableFrom(getClientRegistrationSuccess().getClass())){
+		if(result instanceof ServerMessages.ClientFailure){
+			throw new Exception(((ServerMessages.ClientFailure) result).error());
+		} else if(!(result instanceof ServerMessages.RegistrationSuccess)){
 			throw new Exception("Unknown message received from server");
 		}
-	}
-	private JobManagerMessages.LeaderSessionMessage decorate(Object message){
-		return new JobManagerMessages.LeaderSessionMessage(parameterServer.leaderSessionID(), message);
 	}
 }

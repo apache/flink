@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.messages
 
+import java.util.UUID
+
+import akka.actor.ActorRef
 import org.apache.flink.api.common.server.{UpdateStrategy, Update, Parameter}
 import org.apache.flink.runtime.instance.{InstanceID, ActorGateway}
 
@@ -32,29 +35,38 @@ object ServerMessages {
 
   /**
    * Sent by task manager to its ParameterServer to let it initialize itself and register with
-   * the Job Manager.
+   * the Job Manager as a server.
    *
    * @param jobManager Gateway to Job Manager
-   * @param taskManagerID
+   * @param taskManager Gateway to task manager
+   * @param taskManagerID Instance ID of the task manager
    */
-  case class KickOffParameterServer(jobManager: ActorGateway, taskManagerID: InstanceID)
+  case class KickOffParameterServer(
+      jobManager: ActorGateway,
+      taskManager: ActorGateway,
+      storeManager: ActorGateway,
+      taskManagerID: InstanceID)
 
   /**
    * Sent by the ParameterServer to the JobManager to register itself. Also used as a heartbeat
-   * message
+   * message.
    *
    * @param taskManagerID Instance id of the parent task manager of the server
-   * @param serverGateway Gateway to the server being made available on the network.
+   * @param serverGateway Gateway to the server being made available on the network, i.e. ourselves
    */
-  case class ServerAvailable(taskManagerID: InstanceID, serverGateway: ActorGateway)
+  case class ServerHeartbeat(
+      taskManagerID: InstanceID,
+      serverGateway: ActorGateway)
 
   /**
-   * Sent by the Job Manager to all servers whenever a new server is added. Also, sent when a
-   * server heartbeat message is received.
+   * Sent by JobManager in response to [[ServerHeartbeat]] and [[RequestKeyGateway]]
    *
-   * @param serverList Map of all currently available servers registered
+   * @param keyGatewayMapping Map of where a request about a key must be forwarded
+   * @param copyPartner Where all the data on this server must be copied to.
    */
-  case class ServerRegistrationAcknowledge(serverList: mutable.HashMap[InstanceID, ActorGateway])
+  case class ServerRegistrationAcknowledge(
+      keyGatewayMapping: mutable.HashMap[String, ActorGateway],
+      copyPartner: ActorGateway)
 
   /**
    * Refusal to register a Server. This shouldn't happen.
@@ -63,39 +75,58 @@ object ServerMessages {
    */
   case class ServerRegistrationRefuse(error: String)
 
+  /**
+   * Mechanism for registering a new key at some Server. Job Manager controls where this key will
+   * go based on all the servers available.
+   *
+   * @param key Key to be mapped to a server gateway
+   */
+  case class RequestKeyGateway(key: String)
 
-  // ================= REGISTRATION RELATED ============================
+  /**
+   * Message to itself to trigger a heart beat to the Job Manager and checking connection to the
+   * store manager
+   */
+  case object TriggerHeartbeat
+  /**
+   * Alarm at a server to itself to take care of pending client requests
+   */
+  case object ServerClearQueueReminder
+
+  /**
+   * Sent by the Parameter Server to the parent Task Manager and Job Manager to let them know of a
+   * fatal error
+   *
+   * @param error Error that occurred in the Parameter Server
+   */
+  case class ServerError(serverTaskManagerID: InstanceID, error: Throwable)
+
+
+  // ================ CLIENT MESSAGES ==========================================
+  /**
+   * All messages sent by a client to its parent server and vice-versa
+   */
+
+  sealed trait ClientRequests{
+    def key: String
+  }
+
+  sealed trait ClientResponses
+
   /**
    * This message is sent by the [[org.apache.flink.api.common.functions.RuntimeContext]]
    * to register a key
    *
-   * @param id Integer id of the client registering
-   * @param key Key under which the value is to be registered
+   * @param clientID Integer id of the client sending the request
+   * @param key Key which this client wants to register to
    * @param value The value to be registered
-   * @param strategy Update strategy to be adopted
-   * @param slack Slack to be used for SSP
+   * @param strategy Update strategy to be adopted (should match across all clients)
+   * @param slack Slack to be used for SSP (should match across all clients)
    */
   case class RegisterClient(
-      id: Int, key: String, value: Parameter, strategy: UpdateStrategy, slack: Int)
+      clientID: Int, key: String, value: Parameter, strategy: UpdateStrategy, slack: Int)
+    extends ClientRequests
 
-  /**
-   * Acknowledge the registration of the client
-   */
-  case object ClientRegistrationSuccess
-
-  def getClientRegistrationSuccess: AnyRef = {
-    ClientRegistrationSuccess
-  }
-
-  /**
-   * Refuse to register a client
-   *
-   * @param error Return the reason for refusing the registration
-   */
-  case class ClientRegistrationRefuse(error: String)
-
-
-  // ================= UPDATE RELATED ==================================
   /**
    * Update a parameter at the [[org.apache.flink.runtime.server.ParameterServer]]'s store
    *
@@ -103,46 +134,88 @@ object ServerMessages {
    * @param value Update sent
    */
   case class UpdateParameter(key: String, value: Update)
+    extends ClientRequests
 
-  /**
-   * Update success message
-   */
-  case object UpdateSuccess
-
-  // java convenience object
-
-  def getUpdateSuccess: AnyRef = {
-    UpdateSuccess
-  }
-
-  /**
-   * Update failure
-   *
-   * @param error Reason for failure of update
-   */
-  case class UpdateFailure(error: String)
-
-
-  // ========================= PULL RELATED =========================
   /**
    * Pull a parameter from the [[org.apache.flink.runtime.server.ParameterServer]]
    *
    * @param key Key whose value needs to be pulled
    */
   case class PullParameter(key: String)
+    extends ClientRequests
+
+  /**
+   * Acknowledge the registration of the client
+   */
+  case class RegistrationSuccess() extends ClientResponses
+
+  /**
+   * Update request successful
+   */
+  case class UpdateSuccess() extends ClientResponses
 
   /**
    * Pull request successful
    *
    * @param value The parameter stored under key
    */
-  case class PullSuccess(value: Parameter)
+  case class PullSuccess(value: Parameter) extends ClientResponses
 
   /**
-   * Pull request failure
+   * Any failure response to a message must send back the reason for failure
    *
-   * @param error Reason for unsuccessful pull
+   * @param error Reason for failure of client request
    */
-  case class PullFailure(error: String)
+  case class ClientFailure(error: Throwable) extends ClientResponses
+
+
+  // ==================== DATA MESSAGES ==========================================
+
+  /**
+   * All messages by a client are forwarded by the parent server to an appropriate server under
+   * this encapsulation.
+   *
+   * @param messageID Unique identifier for this message, which must be included in a response too
+   * @param message Actual request message
+   */
+
+  case class ServerRequest(messageID: UUID, message: ClientRequests)
+
+  /**
+   * Acknowledgement of a successful client request receipt sent back to the original server.
+   *
+   * @param messageID What message id is this in response to
+   * @param state Whether we can serve it or not
+   * @param error If not, why not?
+   */
+  case class ServerAcknowledgement(messageID: UUID, state: Boolean, error: Throwable = null)
+
+  /**
+   * Result of a client request sent back to the original server
+   *
+   * @param messageID What message id is this in response to
+   * @param result Response to be forwarded to the client
+   */
+  case class ServerResponse(messageID: UUID, result: ClientResponses)
+
+  /**
+   * Message sent by a server to itself to retry sending a client request
+   *
+   * @param message Actual client message
+   * @param retryNumber Retry number
+   * @param sender Actor Ref to the client who sent this message originally
+   */
+  case class ServerRetry(message: ClientRequests, retryNumber: Int, sender: ActorRef)
+
+  /**
+   * The following two messages are used by the Server to communicate with the store manager which
+   * manages all the data stored at this server.
+   *
+   */
+  case class StoreMessage(messageID: UUID, request: ClientRequests)
+
+  case class StoreReply(messageID: UUID, reply: ClientResponses)
 
 }
+
+class InvalidServerAccessException extends Exception
