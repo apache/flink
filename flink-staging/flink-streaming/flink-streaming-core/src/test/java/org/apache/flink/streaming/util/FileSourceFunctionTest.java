@@ -18,36 +18,45 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.FileInputFormat;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.streaming.api.functions.source.FileSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.apache.flink.types.IntValue;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class FileSourceFunctionTest {
 	@Test
 	public void testFileSourceFunction() {
-		RuntimeContext runtimeContext = new StreamingRuntimeContext("FileSourceTest", new MockEnvironment(3 * 1024 * 1024, new DummyInputSplitProvider(), 1024), null, new ExecutionConfig());
-
 		DummyFileInputFormat inputFormat = new DummyFileInputFormat();
+		RuntimeContext runtimeContext = new StreamingRuntimeContext("MockTask", new MockEnvironment(3 * 1024 * 1024,
+				inputFormat.getDummyInputSplitProvider(), 1024), null, new ExecutionConfig(), new DummyModKey(2),
+				new LocalStateHandle.LocalStateHandleProvider<Serializable>(), new HashMap<String, Accumulator<?, ?>>());
+
 		inputFormat.setFilePath("file:///some/none/existing/directory/");
 		FileSourceFunction<IntValue> fileSourceFunction = new FileSourceFunction<IntValue>(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat));
 
 		fileSourceFunction.setRuntimeContext(runtimeContext);
 		DummyContext<IntValue> ctx = new DummyContext<IntValue>();
-
 		try {
 			fileSourceFunction.open(new Configuration());
 			fileSourceFunction.run(ctx);
@@ -55,22 +64,20 @@ public class FileSourceFunctionTest {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
 		Assert.assertTrue(ctx.getData().size() == 200);
-
 	}
 
 	@Test
 	public void testFileSourceFunctionCheckpoint() {
-		RuntimeContext runtimeContext = new StreamingRuntimeContext("FileSourceTest", new MockEnvironment(3 * 1024 * 1024, new DummyInputSplitProvider(), 1024), null, new ExecutionConfig());
-
 		DummyFileInputFormat inputFormat = new DummyFileInputFormat();
+		RuntimeContext runtimeContext = new StreamingRuntimeContext("MockTask", new MockEnvironment(3 * 1024 * 1024,
+				inputFormat.getDummyInputSplitProvider(), 1024), null, new ExecutionConfig(), new DummyModKey(2),
+				new LocalStateHandle.LocalStateHandleProvider<Serializable>(), new HashMap<String, Accumulator<?, ?>>());
+
 		inputFormat.setFilePath("file:///some/none/existing/directory/");
 		FileSourceFunction<IntValue> fileSourceFunction = new FileSourceFunction<IntValue>(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat));
-
 		fileSourceFunction.setRuntimeContext(runtimeContext);
 		DummyContext<IntValue> ctx = new DummyContext<IntValue>();
-
 		try {
 			fileSourceFunction.open(new Configuration());
 			fileSourceFunction.restoreState(100l);
@@ -79,14 +86,11 @@ public class FileSourceFunctionTest {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
 		Assert.assertTrue(ctx.getData().size() == 100);
-
 	}
 
 	private class DummyFileInputFormat extends FileInputFormat<IntValue> {
 		private static final long serialVersionUID = 1L;
-
 		private List<Integer> data = new ArrayList<Integer>();
 		private int counter = 0;
 
@@ -105,15 +109,32 @@ public class FileSourceFunctionTest {
 			if (counter + 1 > data.size()) return null;
 			else return new IntValue(data.get(counter++));
 		}
-	}
 
-	private class DummyInputSplitProvider extends MockInputSplitProvider {
 		@Override
-		public InputSplit getNextInputSplit() {
-			return null;
+		public void open(FileInputSplit fileSplit) throws IOException {
+
 		}
 
+		public DummyInputSplitProvider getDummyInputSplitProvider() {
+			return new DummyInputSplitProvider();
+		}
+
+		private class DummyInputSplitProvider extends MockInputSplitProvider {
+
+			@Override
+			public InputSplit getNextInputSplit() {
+				try {
+					if (!reachedEnd()) {
+						return new FileInputSplit(0, new Path("/tmp/test1.txt"), 0, 1, null);
+					}
+				} catch (Exception e) {
+					return null;
+				}
+				return null;
+			}
+		}
 	}
+
 
 	private class DummyContext<IntValue> implements SourceFunction.SourceContext<IntValue> {
 
@@ -129,9 +150,39 @@ public class FileSourceFunctionTest {
 			return new Object();
 		}
 
+		@Override
+		public void emitWatermark(Watermark mark) {
+
+		}
+
 		public List<Integer> getData() {
 			return data;
 		}
+
+		@Override
+		public void collectWithTimestamp(IntValue element, long timestamp) {
+
+		}
+
+		@Override
+		public void close() {
+
+		}
 	}
 
+	public static class DummyModKey implements KeySelector<Integer, Serializable> {
+
+		private static final long serialVersionUID = 4193026742083046736L;
+
+		int base;
+
+		public DummyModKey(int base) {
+			this.base = base;
+		}
+
+		@Override
+		public Integer getKey(Integer value) throws Exception {
+			return value % base;
+		}
+	}
 }
