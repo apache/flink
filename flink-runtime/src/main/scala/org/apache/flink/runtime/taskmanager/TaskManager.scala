@@ -40,7 +40,7 @@ import org.apache.flink.configuration._
 
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.messages.JobManagerMessages.{ResponseLeaderSessionID, RequestLeaderSessionID}
-import org.apache.flink.runtime.messages.ServerMessages.KickOffParameterServer
+import org.apache.flink.runtime.messages.ServerMessages.{ServerError, KickOffParameterServer}
 import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.server.ParameterServer
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessages, LogMessages, StreamingMode}
@@ -299,6 +299,9 @@ class TaskManager(
         log.warn(s"Received unrecognized disconnect message " +
           s"from ${if (actor == null) null else actor.path}.")
       }
+
+    case ServerError(_, error) =>
+      self ! decorateMessage(Disconnect(error.toString))
 
     case Disconnect(msg) =>
       handleJobManagerDisconnect(sender(), "JobManager requested disconnect: " + msg)
@@ -720,6 +723,10 @@ class TaskManager(
       // tell the parameter server to start contacting Job Manager
       parameterServerGateway.tell(
         KickOffParameterServer(jobManagerGateway, taskManagerGateway, parameterStoreGateway, id))
+
+      // let's wait for that to happen.
+      // TODO add a concrete check here that the Server is registered.
+      Thread.sleep(1000)
     }
     catch {
       case e: Exception =>

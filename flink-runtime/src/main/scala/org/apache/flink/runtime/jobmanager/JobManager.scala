@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
+import org.apache.flink.runtime.messages.ServerMessages.{ServerRegistrationAcknowledge, ServerError, RequestKeyGateway, ServerHeartbeat}
 import org.apache.flink.runtime.messages.TaskMessages.{PartitionState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint}
@@ -474,13 +475,25 @@ class JobManager(
       )
 
     case Heartbeat(instanceID, metricsReport, accumulators) =>
-      log.debug(s"Received hearbeat message from $instanceID.")
+      log.debug(s"Received heartbeat message from $instanceID.")
 
       Future {
         updateAccumulators(accumulators)
       }(context.dispatcher)
 
       instanceManager.reportHeartBeat(instanceID, metricsReport)
+
+    case ServerHeartbeat(serverTaskManagerID, serverGateway) =>
+      instanceManager.registerServer(serverTaskManagerID, serverGateway)
+      import scala.collection.JavaConverters._
+      sender() ! ServerRegistrationAcknowledge(instanceManager.fetchKeyGatewayMapping.asScala, null)
+
+    case RequestKeyGateway(key, serverTaskManagerID) =>
+      instanceManager.registerKey(key)
+      sender() ! ServerRegistrationAcknowledge(instanceManager.fetchKeyGatewayMapping.asScala, null)
+
+    case ServerError(serverTaskManagerID, error) =>
+      // what should we do? We can't kill the Job Manager for this! Later.
 
     case message: AccumulatorMessage => handleAccumulatorMessage(message)
 

@@ -65,7 +65,7 @@ object ServerMessages {
    * @param copyPartner Where all the data on this server must be copied to.
    */
   case class ServerRegistrationAcknowledge(
-      keyGatewayMapping: mutable.HashMap[String, ActorGateway],
+      keyGatewayMapping: Iterable[KeyGatewayMapping],
       copyPartner: ActorGateway)
 
   /**
@@ -81,13 +81,14 @@ object ServerMessages {
    *
    * @param key Key to be mapped to a server gateway
    */
-  case class RequestKeyGateway(key: String)
+  case class RequestKeyGateway(key: String, taskManagerID: InstanceID)
 
   /**
    * Message to itself to trigger a heart beat to the Job Manager and checking connection to the
    * store manager
    */
   case object TriggerHeartbeat
+
   /**
    * Alarm at a server to itself to take care of pending client requests
    */
@@ -216,6 +217,7 @@ object ServerMessages {
 
   case class StoreReply(messageID: UUID, reply: ClientResponses)
 
-}
+  class InvalidServerAccessException extends Exception
 
-class InvalidServerAccessException extends Exception
+  class KeyGatewayMapping(val key: String, val server: ActorGateway)
+}

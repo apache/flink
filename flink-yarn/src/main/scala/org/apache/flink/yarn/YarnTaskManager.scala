@@ -18,7 +18,7 @@
 
 package org.apache.flink.yarn
 
-import org.apache.flink.runtime.instance.InstanceConnectionInfo
+import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceConnectionInfo}
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
@@ -35,7 +35,9 @@ class YarnTaskManager(
     memoryManager: DefaultMemoryManager,
     ioManager: IOManager,
     network: NetworkEnvironment,
-    numberOfSlots: Int)
+    numberOfSlots: Int,
+    parameterServerGateway: AkkaActorGateway,
+    parameterStoreGateway: AkkaActorGateway)
   extends TaskManager(
     config,
     connectionInfo,
@@ -43,7 +45,9 @@ class YarnTaskManager(
     memoryManager,
     ioManager,
     network,
-    numberOfSlots) {
+    numberOfSlots,
+    parameterServerGateway,
+    parameterStoreGateway) {
 
   override def handleMessage: Receive = {
     handleYarnMessages orElse super.handleMessage

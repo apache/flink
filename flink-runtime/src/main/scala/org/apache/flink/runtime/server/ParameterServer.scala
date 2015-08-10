@@ -25,7 +25,7 @@ import _root_.akka.pattern.ask
 import grizzled.slf4j.Logger
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway, InstanceID}
-import org.apache.flink.runtime.messages.InvalidServerAccessException
+import org.apache.flink.runtime.messages.ServerMessages.InvalidServerAccessException
 import org.apache.flink.runtime.messages.JobManagerMessages.{ResponseLeaderSessionID, RequestLeaderSessionID}
 import org.apache.flink.runtime.messages.ServerMessages._
 import org.apache.flink.runtime.{LeaderSessionMessages, FlinkActor, LogMessages}
@@ -126,7 +126,8 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
 
     case ServerRegistrationAcknowledge(keyGatewayMap, copyPartner) =>
       // sent by Job Manager with data about where to forward keys
-      keyGatewayMapping = keyGatewayMap
+      keyGatewayMapping.clear()
+      keyGatewayMap.foreach(mapping => keyGatewayMapping.put(mapping.key, mapping.server))
       redundantPartner = copyPartner
 
     case message: ServerRetry =>
@@ -215,7 +216,7 @@ class ParameterServer extends FlinkActor with LeaderSessionMessages with LogMess
       sender ! ClientFailure(new Exception("The key has not been registered at the server yet."))
     } else if(keyGatewayMapping.get(message.key).isEmpty && message.isInstanceOf[RegisterClient]){
       // ask the Job Manager for where this key belongs and re-send this message
-      jobManager.get.tell(RequestKeyGateway(message.key))
+      jobManager.get.tell(RequestKeyGateway(message.key, taskManagerID.get))
       // we'll retry this
       self ! ServerRetry(message, retry, sender)
     } else{
