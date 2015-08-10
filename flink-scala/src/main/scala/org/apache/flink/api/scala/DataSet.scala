@@ -1075,6 +1075,36 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *
    * Note: The syntax of delta iterations are very likely going to change soon.
    */
+  def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[Int],
+                                 solutionSetUnManaged: Boolean)(
+    stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
+    val key = new ExpressionKeys[T](keyFields, javaSet.getType, false)
+
+    val iterativeSet = new DeltaIteration[T, R](
+      javaSet.getExecutionEnvironment,
+      javaSet.getType,
+      javaSet,
+      workset.javaSet,
+      key,
+      maxIterations)
+
+    iterativeSet.setSolutionSetUnManaged(solutionSetUnManaged)
+
+    val (newSolution, newWorkset) = stepFunction(
+      wrap(iterativeSet.getSolutionSet),
+      wrap(iterativeSet.getWorkset))
+    val result = iterativeSet.closeWith(newSolution.javaSet, newWorkset.javaSet)
+    wrap(result)
+  }
+
+  /**
+   * Creates a new DataSet by performing delta (or workset) iterations using the given step
+   * function. At the beginning `this` DataSet is the solution set and `workset` is the Workset.
+   * The iteration step function gets the current solution set and workset and must output the
+   * delta for the solution set and the workset for the next iteration.
+   *
+   * Note: The syntax of delta iterations are very likely going to change soon.
+   */
   def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[String])(
     stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
 
@@ -1086,6 +1116,36 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       workset.javaSet,
       key,
       maxIterations)
+
+    val (newSolution, newWorkset) = stepFunction(
+      wrap(iterativeSet.getSolutionSet),
+      wrap(iterativeSet.getWorkset))
+    val result = iterativeSet.closeWith(newSolution.javaSet, newWorkset.javaSet)
+    wrap(result)
+  }
+
+  /**
+   * Creates a new DataSet by performing delta (or workset) iterations using the given step
+   * function. At the beginning `this` DataSet is the solution set and `workset` is the Workset.
+   * The iteration step function gets the current solution set and workset and must output the
+   * delta for the solution set and the workset for the next iteration.
+   *
+   * Note: The syntax of delta iterations are very likely going to change soon.
+   */
+  def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[String],
+                                 solutionSetUnManaged: Boolean)(
+    stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
+
+    val key = new ExpressionKeys[T](keyFields, javaSet.getType)
+    val iterativeSet = new DeltaIteration[T, R](
+      javaSet.getExecutionEnvironment,
+      javaSet.getType,
+      javaSet,
+      workset.javaSet,
+      key,
+      maxIterations)
+
+    iterativeSet.setSolutionSetUnManaged(solutionSetUnManaged)
 
     val (newSolution, newWorkset) = stepFunction(
       wrap(iterativeSet.getSolutionSet),
