@@ -108,7 +108,7 @@ class SpilledSubpartitionViewSyncIO implements ResultSubpartitionView {
 
 	@Override
 	public boolean isReleased() {
-		return isReleased.get();
+		return parent.isReleased() || isReleased.get();
 	}
 
 	@Override
