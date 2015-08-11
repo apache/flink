@@ -61,7 +61,7 @@ public class PageRankTableITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareKeyValueParisWithDelta(expectedResult, resultPath, " ", 0.01);
+		compareKeyValuePairsWithDelta(expectedResult, resultPath, " ", 0.01);
 	}
 
 	@Parameters
