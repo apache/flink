@@ -28,12 +28,10 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static java.lang.Thread.sleep;
 import static org.junit.Assert.*;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 
 /**
