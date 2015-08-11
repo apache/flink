@@ -1,6 +1,4 @@
 /*
- * Copyright 2015 EURA NOVA.
- *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +19,7 @@
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.iterative.event.WorkerClockEvent;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.types.Value;
