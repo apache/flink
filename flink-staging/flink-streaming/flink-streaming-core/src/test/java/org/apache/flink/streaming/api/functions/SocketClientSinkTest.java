@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import static java.lang.Thread.sleep;
@@ -41,49 +42,42 @@ import java.net.ServerSocket;
 public class SocketClientSinkTest{
 
 	private final String host = "127.0.0.1";
-	private int port = 9999;
+	private int port;
 	private String access;
-	public SocketServer.ServerThread th = null;
+	private String value;
+	public SocketServer.ServerThread th;
+
+	public SocketClientSinkTest() {
+	}
 
 	class SocketServer extends Thread {
 
-		private ServerSocket server = null;
-		private Socket sk = null;
-		private BufferedReader rdr = null;
-		private PrintWriter wtr = null;
+		private ServerSocket server;
+		private Socket sk;
+		private BufferedReader rdr;
 
-		private SocketServer(int port) {
-			while (port > 0) {
-				try {
-					this.server = new ServerSocket(port);
-					break;
-				} catch (Exception e) {
-					--port;
-					if (port > 0) {
-						continue;
-					}
-					else{
-						e.printStackTrace();
-					}
-				}
+		private SocketServer() {
+			try {
+				this.server = new ServerSocket(0);
+				port = server.getLocalPort();
+			} catch (Exception e) {
+				Assert.fail();
 			}
 		}
 
 		public void run() {
-			System.out.println("Listenning...");
 			try {
 				sk = server.accept();
 				access = "Connected";
 				th = new ServerThread(sk);
 				th.start();
 			} catch (Exception e) {
-				e.printStackTrace();
+				Assert.fail();
 			}
 		}
 
 		class ServerThread extends Thread {
-
-			Socket sk = null;
+			Socket sk;
 
 			public ServerThread(Socket sk) {
 				this.sk = sk;
@@ -91,46 +85,41 @@ public class SocketClientSinkTest{
 
 			public void run() {
 				try {
-					access = "Invoked";
-					wtr = new PrintWriter(sk.getOutputStream());
 					rdr = new BufferedReader(new InputStreamReader(sk
 							.getInputStream()));
-					String line = rdr.readLine();
-					System.out.println("Info from clients: " + line);
-					wtr.println("Server received info: " + line + "'\n");
-					wtr.flush();
-					System.out.println("Return to client!");
+					value = rdr.readLine();
 				} catch (IOException e) {
-					e.printStackTrace();
+					Assert.fail();
 				}
 			}
 		}
 	}
 
 	@Test
-	public void testSocketSink(){
-		SocketServer server = new SocketServer(port);
+	public void testSocketSink() throws Exception{
+		SocketServer server = new SocketServer();
 		server.start();
 
 		SerializationSchema<String, byte[]> simpleSchema = new SerializationSchema<String, byte[]>() {
 			@Override
 			public byte[] serialize(String element) {
-				return new byte[0];
+				return element.getBytes();
 			}
 		};
 
 		SocketClientSink<String> simpleSink = new SocketClientSink<String>(host, port, simpleSchema);
 		simpleSink.open(new Configuration());
 		simpleSink.invoke("testSocketSinkInvoke");
-
+		simpleSink.close();
 		try {
 			server.join();
-			sleep(1000);
+			th.join();
 		}
 		catch (Exception e){
-			e.printStackTrace();
+			Assert.fail();
 		}
-		assertEquals(this.access, "Invoked");
-		simpleSink.close();
+
+		assertEquals(this.access, "Connected");
+		assertEquals(value, "testSocketSinkInvoke");
 	}
 }
