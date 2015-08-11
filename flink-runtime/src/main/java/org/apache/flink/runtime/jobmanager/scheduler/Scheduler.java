@@ -676,10 +676,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	}
 	
 	private void removeInstance(Instance instance) {
-		if (instance == null) {
-			throw new NullPointerException();
-		}
-
 		allInstances.remove(instance);
 		instancesWithAvailableResources.remove(instance);
 		
