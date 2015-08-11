@@ -61,7 +61,7 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 
 	@After
 	public void after() throws Exception{
-		compareKeyValueParisWithDelta(expected, resultPath, "\t", 0.01);
+		compareKeyValuePairsWithDelta(expected, resultPath, "\t", 0.01);
 	}
 
 	@Test

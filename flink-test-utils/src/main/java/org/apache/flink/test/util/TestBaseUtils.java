@@ -320,16 +320,15 @@ public class TestBaseUtils {
 				Assert.fail(msg);
 			}
 		}
-
 	}
 
-	public static void compareKeyValueParisWithDelta(String expectedLines, String resultPath,
-											String delimiter, double maxDelta) throws Exception {
-		compareKeyValueParisWithDelta(expectedLines, resultPath, new String[]{}, delimiter, maxDelta);
+	public static void compareKeyValuePairsWithDelta(String expectedLines, String resultPath,
+														String delimiter, double maxDelta) throws Exception {
+		compareKeyValuePairsWithDelta(expectedLines, resultPath, new String[]{}, delimiter, maxDelta);
 	}
 
-	public static void compareKeyValueParisWithDelta(String expectedLines, String resultPath,
-											String[] excludePrefixes, String delimiter, double maxDelta) throws Exception {
+	public static void compareKeyValuePairsWithDelta(String expectedLines, String resultPath,
+														String[] excludePrefixes, String delimiter, double maxDelta) throws Exception {
 		ArrayList<String> list = new ArrayList<String>();
 		readAllResultLines(list, resultPath, excludePrefixes, false);
 
