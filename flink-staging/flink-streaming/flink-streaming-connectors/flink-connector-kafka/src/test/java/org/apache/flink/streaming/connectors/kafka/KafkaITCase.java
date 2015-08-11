@@ -72,6 +72,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.SerializableKafka
 import org.apache.flink.streaming.connectors.kafka.util.KafkaLocalSystemTime;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
+import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.util.Collector;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -376,7 +377,7 @@ public class KafkaITCase {
 
 	private void readSequence(StreamExecutionEnvironment env, ConsumerConfig cc, final String topicName, final int valuesStartFrom, final int valuesCount, final int finalCount) throws Exception {
 		LOG.info("Reading sequence for verification until final count {}", finalCount);
-		TestPersistentKafkaSource<Tuple2<Integer, Integer>> pks = new TestPersistentKafkaSource<Tuple2<Integer, Integer>>(topicName, new Utils.TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1, 1), env.getConfig()), cc);
+		TestPersistentKafkaSource<Tuple2<Integer, Integer>> pks = new TestPersistentKafkaSource<Tuple2<Integer, Integer>>(topicName, new TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1, 1), env.getConfig()), cc);
 		DataStream<Tuple2<Integer, Integer>> source = env.addSource(pks).map(new MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
 			// we need to slow down the source so that it can participate in a few checkpoints.
 			// Otherwise it would write its data into buffers and shut down.
@@ -456,7 +457,7 @@ public class KafkaITCase {
 		}).setParallelism(3);
 		stream.addSink(new KafkaSink<Tuple2<Integer, Integer>>(brokerConnectionStrings,
 				topicName,
-				new Utils.TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1, 1), env.getConfig()),
+				new TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1, 1), env.getConfig()),
 				new T2Partitioner()
 		)).setParallelism(3);
 		env.execute("Write sequence from " + from + " to " + to + " to topic " + topicName);
@@ -487,7 +488,7 @@ public class KafkaITCase {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		// add consuming topology:
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(
-				new KafkaSource<Tuple2<Long, String>>(zookeeperConnectionString, topic, "myFlinkGroup", new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()), 5000));
+				new KafkaSource<Tuple2<Long, String>>(zookeeperConnectionString, topic, "myFlinkGroup", new TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()), 5000));
 		consuming.addSink(new SinkFunction<Tuple2<Long, String>>() {
 			private static final long serialVersionUID = 1L;
 
@@ -544,7 +545,7 @@ public class KafkaITCase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig())));
+		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig())));
 
 		tryExecute(env, "regular kafka source test");
 
@@ -563,7 +564,7 @@ public class KafkaITCase {
 		// add consuming topology:
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(
 				new PersistentKafkaSource<Tuple2<Long, String>>(topic,
-						new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()),
+						new TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()),
 						standardCC
 				));
 		consuming.addSink(new RichSinkFunction<Tuple2<Long, String>>() {
@@ -630,7 +631,7 @@ public class KafkaITCase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig())));
+		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig())));
 
 		tryExecute(env, "tupletesttopology");
 
@@ -655,7 +656,7 @@ public class KafkaITCase {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		// add consuming topology:
-		Utils.TypeInformationSerializationSchema<Tuple2<Long, byte[]>> serSchema = new Utils.TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(new Tuple2<Long, byte[]>(0L, new byte[]{0}), env.getConfig());
+		TypeInformationSerializationSchema<Tuple2<Long, byte[]>> serSchema = new TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(new Tuple2<Long, byte[]>(0L, new byte[]{0}), env.getConfig());
 		Properties consumerProps = new Properties();
 		consumerProps.setProperty("fetch.message.max.bytes", Integer.toString(1024 * 1024 * 30));
 		consumerProps.setProperty("zookeeper.connect", zookeeperConnectionString);
@@ -733,7 +734,7 @@ public class KafkaITCase {
 		});
 
 		stream.addSink(new KafkaSink<Tuple2<Long, byte[]>>(brokerConnectionStrings, topic,
-						new Utils.TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(new Tuple2<Long, byte[]>(0L, new byte[]{0}), env.getConfig()))
+						new TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(new Tuple2<Long, byte[]>(0L, new byte[]{0}), env.getConfig()))
 		);
 
 		tryExecute(env, "big topology test");
@@ -755,7 +756,7 @@ public class KafkaITCase {
 		// add consuming topology:
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(
 				new PersistentKafkaSource<Tuple2<Long, String>>(topic,
-						new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()),
+						new TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()),
 						standardCC));
 		consuming.addSink(new SinkFunction<Tuple2<Long, String>>() {
 			private static final long serialVersionUID = 1L;
@@ -828,7 +829,7 @@ public class KafkaITCase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()), new CustomPartitioner()));
+		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()), new CustomPartitioner()));
 
 		tryExecute(env, "custom partitioning test");
 
@@ -1189,7 +1190,7 @@ public class KafkaITCase {
 		newProps.setProperty("zookeeper.connect", standardCC.zkConnect());
 
 		ConsumerConfig printerConfig = new ConsumerConfig(newProps);
-		DeserializationSchema deserializer = new Utils.TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1,1), ec);
+		DeserializationSchema deserializer = new TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1,1), ec);
 		printTopic(topicName, printerConfig, deserializer, elements);
 	}
 
