@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators.co;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.util.Collector;
 
 public class CoStreamFlatMap<IN1, IN2, OUT>
 		extends AbstractUdfStreamOperator<OUT, CoFlatMapFunction<IN1, IN2, OUT>>
@@ -42,7 +43,7 @@ public class CoStreamFlatMap<IN1, IN2, OUT>
 		userFunction.flatMap2(element, output);
 	}
 
-	protected TimestampedCollector<OUT> getCollector() {
-		return collector;
+	protected Collector<OUT> getCollector() {
+		return output;
 	}
 }
