@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -198,12 +199,26 @@ public class StreamConfig implements Serializable {
 			}
 		}
 	}
-
-	@SuppressWarnings({ "unchecked" })
+	
 	public <T> T getStreamOperator(ClassLoader cl) {
 		try {
-			return (T) InstantiationUtil.readObjectFromConfig(this.config, SERIALIZEDUDF, cl);
-		} catch (Exception e) {
+			@SuppressWarnings("unchecked")
+			T result = (T) InstantiationUtil.readObjectFromConfig(this.config, SERIALIZEDUDF, cl);
+			return result;
+		}
+		catch (ClassNotFoundException e) {
+			String classLoaderInfo = ClassLoaderUtil.getUserCodeClassLoaderInfo(cl);
+			boolean loadableDoubleCheck = ClassLoaderUtil.validateClassLoadable(e, cl);
+			
+			String exceptionMessage = "Cannot load user class: " + e.getMessage()
+					+ "\nClassLoader info: " + classLoaderInfo + 
+					(loadableDoubleCheck ? 
+							"Class was actually found in classloader - deserialization issue." :
+							"Class not resolveable through given classloader.");
+			
+			throw new StreamTaskException(exceptionMessage);
+		}
+		catch (Exception e) {
 			throw new StreamTaskException("Cannot instantiate user function.", e);
 		}
 	}
