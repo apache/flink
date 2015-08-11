@@ -81,7 +81,7 @@ upload_artifacts_s3() {
 		# Install artifacts tool
 		curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash
 
-		PATH=$HOME/bin:$PATH
+		PATH=$HOME/bin/artifacts:$HOME/bin:$PATH
 
 		echo "UPLOADING build artifacts."
 
