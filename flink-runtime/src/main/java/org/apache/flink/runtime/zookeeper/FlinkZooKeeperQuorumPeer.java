@@ -79,8 +79,9 @@ public class FlinkZooKeeperQuorumPeer {
 
 		Properties zkProps = new Properties();
 
-		InputStream inStream = new FileInputStream(new File(zkConfigFile));
-		zkProps.load(inStream);
+		try (InputStream inStream = new FileInputStream(new File(zkConfigFile))) {
+			zkProps.load(inStream);
+		}
 
 		LOG.info("Configuration: " + zkProps);
 
