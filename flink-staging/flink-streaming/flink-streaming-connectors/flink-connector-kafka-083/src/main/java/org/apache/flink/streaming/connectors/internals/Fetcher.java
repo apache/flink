@@ -18,7 +18,7 @@ package org.apache.flink.streaming.connectors.internals;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.kafka.copied.common.TopicPartition;
+import org.apache.flink.kafka_backport.common.TopicPartition;
 
 import java.util.List;
 import java.util.Map;
