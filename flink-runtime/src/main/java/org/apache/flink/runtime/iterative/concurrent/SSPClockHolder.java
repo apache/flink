@@ -1,6 +1,4 @@
 /*
- * Copyright 2015 EURA NOVA.
- *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +18,7 @@
 
 package org.apache.flink.runtime.iterative.concurrent;
 
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.iterative.event.ClockTaskEvent;
 import org.apache.flink.runtime.iterative.event.IterationEventWithAggregators;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
