@@ -18,12 +18,12 @@ package org.apache.flink.streaming.connectors.internals;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.kafka.copied.clients.consumer.CommitType;
-import org.apache.kafka.copied.clients.consumer.ConsumerRecord;
-import org.apache.kafka.copied.clients.consumer.ConsumerRecords;
-import org.apache.kafka.copied.clients.consumer.KafkaConsumer;
-import org.apache.kafka.copied.common.TopicPartition;
-import org.apache.kafka.copied.common.serialization.ByteArrayDeserializer;
+import org.apache.flink.kafka_backport.clients.consumer.CommitType;
+import org.apache.flink.kafka_backport.clients.consumer.ConsumerRecord;
+import org.apache.flink.kafka_backport.clients.consumer.ConsumerRecords;
+import org.apache.flink.kafka_backport.clients.consumer.KafkaConsumer;
+import org.apache.flink.kafka_backport.common.TopicPartition;
+import org.apache.flink.kafka_backport.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
