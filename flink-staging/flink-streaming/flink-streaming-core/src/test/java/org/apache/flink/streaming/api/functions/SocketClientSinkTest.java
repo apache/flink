@@ -33,12 +33,14 @@ import static org.junit.Assert.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Tests for the {@link org.apache.flink.streaming.api.functions.sink.SocketClientSink}.
  */
 public class SocketClientSinkTest{
 
+	final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 	private final String host = "127.0.0.1";
 	private int port;
 	private String access;
@@ -59,7 +61,7 @@ public class SocketClientSinkTest{
 				this.server = new ServerSocket(0);
 				port = server.getLocalPort();
 			} catch (Exception e) {
-				Assert.fail();
+				error.set(e);
 			}
 		}
 
@@ -70,7 +72,7 @@ public class SocketClientSinkTest{
 				th = new ServerThread(sk);
 				th.start();
 			} catch (Exception e) {
-				Assert.fail();
+				error.set(e);
 			}
 		}
 
@@ -87,7 +89,7 @@ public class SocketClientSinkTest{
 							.getInputStream()));
 					value = rdr.readLine();
 				} catch (IOException e) {
-					Assert.fail();
+					error.set(e);
 				}
 			}
 		}
@@ -95,6 +97,7 @@ public class SocketClientSinkTest{
 
 	@Test
 	public void testSocketSink() throws Exception{
+
 		SocketServer server = new SocketServer();
 		server.start();
 
@@ -114,7 +117,13 @@ public class SocketClientSinkTest{
 			th.join();
 		}
 		catch (Exception e){
-			Assert.fail();
+			Assert.fail(e.getMessage());
+		}
+
+		if (error.get() != null) {
+			Throwable t = error.get();
+			t.printStackTrace();
+			fail("Error in spawned thread: " + t.getMessage());
 		}
 
 		assertEquals(this.access, "Connected");
