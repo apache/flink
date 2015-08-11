@@ -14,57 +14,89 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors;
 
-import org.apache.flink.streaming.connectors.internals.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
-import java.util.Arrays;
+import org.junit.Ignore;
+import org.junit.Test;
+
 import java.util.Properties;
 
 
-public class Kafka082ITCase extends KafkaTestBase {
+public class Kafka082ITCase extends KafkaConsumerTestBase {
+	
 	@Override
-	<T> FlinkKafkaConsumerBase<T> getConsumer(String topic, DeserializationSchema deserializationSchema, Properties props) {
-		return new TestFlinkKafkaConsumer082<T>(topic, deserializationSchema, props);
+	protected <T> FlinkKafkaConsumer<T> getConsumer(String topic, DeserializationSchema<T> deserializationSchema, Properties props) {
+		return new FlinkKafkaConsumer082<T>(topic, deserializationSchema, props);
 	}
 
-	@Override
-	long[] getFinalOffsets() {
-		return TestFlinkKafkaConsumer082.finalOffset;
+	// ------------------------------------------------------------------------
+	//  Suite of Tests
+	// ------------------------------------------------------------------------
+
+	@Test
+	public void testCheckpointing() {
+		runCheckpointingTest();
 	}
 
-	@Override
-	void resetOffsets() {
-		TestFlinkKafkaConsumer082.finalOffset = null;
+	@Test
+	public void testOffsetInZookeeper() {
+		runOffsetInZookeeperValidationTest();
 	}
 
-
-	public static class TestFlinkKafkaConsumer082<OUT> extends FlinkKafkaConsumer082<OUT> {
-		private final static Object sync = new Object();
-		public static long[] finalOffset;
-		public TestFlinkKafkaConsumer082(String topicName, DeserializationSchema<OUT> deserializationSchema, Properties consumerConfig) {
-			super(topicName, deserializationSchema, consumerConfig);
-		}
-
-		@Override
-		public void close() throws Exception {
-			super.close();
-			synchronized (commitedOffsets) {
-				LOG.info("Setting final offset from "+ Arrays.toString(commitedOffsets));
-				if (finalOffset == null) {
-					finalOffset = new long[commitedOffsets.length];
-				}
-				for(int i = 0; i < commitedOffsets.length; i++) {
-					if(commitedOffsets[i] > 0) {
-						if(finalOffset[i] > 0) {
-							throw new RuntimeException("This is unexpected on i = "+i);
-						}
-						finalOffset[i] = commitedOffsets[i];
-					}
-				}
-			}
-		}
+	@Test
+	public void testConcurrentProducerConsumerTopology() {
+		runSimpleConcurrentProducerConsumerTopology();
 	}
 
+	// --- canceling / failures ---
+
+	@Test
+	public void testCancelingEmptyTopic() {
+		runCancelingOnEmptyInputTest();
+	}
+
+	@Test
+	public void testCancelingFullTopic() {
+		runCancelingOnFullInputTest();
+	}
+
+	@Test
+	public void testFailOnDeploy() {
+		runFailOnDeployTest();
+	}
+
+	// --- source to partition mappings and exactly once ---
+
+	@Test
+	public void testOneToOneSources() {
+		runOneToOneExactlyOnceTest();
+	}
+
+	@Test
+	public void testOneSourceMultiplePartitions() {
+		runOneSourceMultiplePartitionsExactlyOnceTest();
+	}
+
+	@Test
+	public void testMultipleSourcesOnePartition() {
+		runMultipleSourcesOnePartitionExactlyOnceTest();
+	}
+
+	// --- broker failure ---
+
+	@Test
+	public void testBrokerFailure() {
+		runBrokerFailureTest();
+	}
+
+	// --- special executions ---
+
+	@Test
+	@Ignore("this does not work with the new consumer")
+	public void testBigRecordJob() {
+		runBigRecordTestTopology();
+	}
 }

@@ -54,6 +54,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.net.NetUtils;
@@ -91,7 +92,7 @@ import scala.collection.Seq;
  * <p/>
  * https://github.com/sakserv/hadoop-mini-clusters (ASL licensed)
  */
-
+@SuppressWarnings("serial")
 public class KafkaITCase {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaITCase.class);
@@ -377,7 +378,12 @@ public class KafkaITCase {
 
 	private void readSequence(StreamExecutionEnvironment env, ConsumerConfig cc, final String topicName, final int valuesStartFrom, final int valuesCount, final int finalCount) throws Exception {
 		LOG.info("Reading sequence for verification until final count {}", finalCount);
-		TestPersistentKafkaSource<Tuple2<Integer, Integer>> pks = new TestPersistentKafkaSource<Tuple2<Integer, Integer>>(topicName, new TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1, 1), env.getConfig()), cc);
+
+		TypeInformation<Tuple2<Integer, Integer>> tuple2info = TypeInfoParser.parse("Tuple2<Integer, Integer>");
+		
+		TestPersistentKafkaSource<Tuple2<Integer, Integer>> pks = new TestPersistentKafkaSource<>(topicName, 
+				new TypeInformationSerializationSchema<>(tuple2info, env.getConfig()), cc);
+		
 		DataStream<Tuple2<Integer, Integer>> source = env.addSource(pks).map(new MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
 			// we need to slow down the source so that it can participate in a few checkpoints.
 			// Otherwise it would write its data into buffers and shut down.
@@ -428,6 +434,9 @@ public class KafkaITCase {
 
 	private void writeSequence(StreamExecutionEnvironment env, String topicName, final int from, final int to) throws Exception {
 		LOG.info("Writing sequence from {} to {} to topic {}", from, to, topicName);
+
+		TypeInformation<Tuple2<Integer, Integer>> tuple2info = TypeInfoParser.parse("Tuple2<Integer, Integer>");
+		
 		DataStream<Tuple2<Integer, Integer>> stream = env.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
 			private static final long serialVersionUID = 1L;
 			boolean running = true;
@@ -457,7 +466,7 @@ public class KafkaITCase {
 		}).setParallelism(3);
 		stream.addSink(new KafkaSink<Tuple2<Integer, Integer>>(brokerConnectionStrings,
 				topicName,
-				new TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1, 1), env.getConfig()),
+				new TypeInformationSerializationSchema<>(tuple2info, env.getConfig()),
 				new T2Partitioner()
 		)).setParallelism(3);
 		env.execute("Write sequence from " + from + " to " + to + " to topic " + topicName);
@@ -472,6 +481,8 @@ public class KafkaITCase {
 			if(numPartitions != 3) {
 				throw new IllegalArgumentException("Expected three partitions");
 			}
+			
+			@SuppressWarnings("unchecked")
 			Tuple2<Integer, Integer> element = (Tuple2<Integer, Integer>) key;
 			return element.f0;
 		}
@@ -485,10 +496,14 @@ public class KafkaITCase {
 		String topic = "regularKafkaSourceTestTopic";
 		createTestTopic(topic, 1, 1);
 
+		TypeInformation<Tuple2<Long, String>> longStringInfo = TypeInfoParser.parse("Tuple2<Long, String>");
+
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		// add consuming topology:
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(
-				new KafkaSource<Tuple2<Long, String>>(zookeeperConnectionString, topic, "myFlinkGroup", new TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()), 5000));
+				new KafkaSource<Tuple2<Long, String>>(zookeeperConnectionString, topic, "myFlinkGroup",
+						new TypeInformationSerializationSchema<>(longStringInfo, env.getConfig()), 5000));
+		
 		consuming.addSink(new SinkFunction<Tuple2<Long, String>>() {
 			private static final long serialVersionUID = 1L;
 
@@ -545,7 +560,8 @@ public class KafkaITCase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig())));
+		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, 
+				new TypeInformationSerializationSchema<Tuple2<Long, String>>(longStringInfo, env.getConfig())));
 
 		tryExecute(env, "regular kafka source test");
 
@@ -559,12 +575,14 @@ public class KafkaITCase {
 		String topic = "tupleTestTopic";
 		createTestTopic(topic, 1, 1);
 
+		TypeInformation<Tuple2<Long, String>> longStringInfo = TypeInfoParser.parse("Tuple2<Long, String>");
+		
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		// add consuming topology:
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(
-				new PersistentKafkaSource<Tuple2<Long, String>>(topic,
-						new TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()),
+				new PersistentKafkaSource<>(topic,
+						new TypeInformationSerializationSchema<>(longStringInfo, env.getConfig()),
 						standardCC
 				));
 		consuming.addSink(new RichSinkFunction<Tuple2<Long, String>>() {
@@ -631,7 +649,8 @@ public class KafkaITCase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig())));
+		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, 
+				new TypeInformationSerializationSchema<Tuple2<Long, String>>(longStringInfo, env.getConfig())));
 
 		tryExecute(env, "tupletesttopology");
 
@@ -653,10 +672,14 @@ public class KafkaITCase {
 		String topic = "bigRecordTestTopic";
 		createTestTopic(topic, 1, 1);
 
+		final TypeInformation<Tuple2<Long, byte[]>> longBytesInfo = TypeInfoParser.parse("Tuple2<Long, byte[]>");
+		
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		// add consuming topology:
-		TypeInformationSerializationSchema<Tuple2<Long, byte[]>> serSchema = new TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(new Tuple2<Long, byte[]>(0L, new byte[]{0}), env.getConfig());
+		TypeInformationSerializationSchema<Tuple2<Long, byte[]>> serSchema = 
+				new TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(longBytesInfo, env.getConfig());
+		
 		Properties consumerProps = new Properties();
 		consumerProps.setProperty("fetch.message.max.bytes", Integer.toString(1024 * 1024 * 30));
 		consumerProps.setProperty("zookeeper.connect", zookeeperConnectionString);
@@ -734,7 +757,7 @@ public class KafkaITCase {
 		});
 
 		stream.addSink(new KafkaSink<Tuple2<Long, byte[]>>(brokerConnectionStrings, topic,
-						new TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(new Tuple2<Long, byte[]>(0L, new byte[]{0}), env.getConfig()))
+						new TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(longBytesInfo, env.getConfig()))
 		);
 
 		tryExecute(env, "big topology test");
@@ -751,12 +774,14 @@ public class KafkaITCase {
 
 		createTestTopic(topic, 3, 1);
 
+		final TypeInformation<Tuple2<Long, String>> longStringInfo = TypeInfoParser.parse("Tuple2<Long, String>");
+		
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		// add consuming topology:
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(
 				new PersistentKafkaSource<Tuple2<Long, String>>(topic,
-						new TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()),
+						new TypeInformationSerializationSchema<Tuple2<Long, String>>(longStringInfo, env.getConfig()),
 						standardCC));
 		consuming.addSink(new SinkFunction<Tuple2<Long, String>>() {
 			private static final long serialVersionUID = 1L;
@@ -829,7 +854,8 @@ public class KafkaITCase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()), new CustomPartitioner()));
+		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic,
+				new TypeInformationSerializationSchema<Tuple2<Long, String>>(longStringInfo, env.getConfig()), new CustomPartitioner()));
 
 		tryExecute(env, "custom partitioning test");
 
@@ -1138,7 +1164,6 @@ public class KafkaITCase {
 
 	/**
 	 * Read topic to list, only using Kafka code.
-	 * @return
 	 */
 	private static List<MessageAndMetadata<byte[], byte[]>> readTopicToList(String topicName, ConsumerConfig config, final int stopAfter) {
 		ConsumerConnector consumerConnector = Consumer.createJavaConsumerConnector(config);
@@ -1172,7 +1197,7 @@ public class KafkaITCase {
 		return result;
 	}
 
-	private static void printTopic(String topicName, ConsumerConfig config, DeserializationSchema deserializationSchema, int stopAfter){
+	private static void printTopic(String topicName, ConsumerConfig config, DeserializationSchema<?> deserializationSchema, int stopAfter){
 		List<MessageAndMetadata<byte[], byte[]>> contents = readTopicToList(topicName, config, stopAfter);
 		LOG.info("Printing contents of topic {} in consumer group {}", topicName, config.groupId());
 		for(MessageAndMetadata<byte[], byte[]> message: contents) {
@@ -1190,7 +1215,10 @@ public class KafkaITCase {
 		newProps.setProperty("zookeeper.connect", standardCC.zkConnect());
 
 		ConsumerConfig printerConfig = new ConsumerConfig(newProps);
-		DeserializationSchema deserializer = new TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1,1), ec);
+		TypeInformation<Tuple2<Integer, Integer>> typeInfo = TypeInfoParser.parse("Tuple2<Integer, Integer>");
+		
+		DeserializationSchema<Tuple2<Integer, Integer>> deserializer = 
+				new TypeInformationSerializationSchema<>(typeInfo, ec);
 		printTopic(topicName, printerConfig, deserializer, elements);
 	}
 

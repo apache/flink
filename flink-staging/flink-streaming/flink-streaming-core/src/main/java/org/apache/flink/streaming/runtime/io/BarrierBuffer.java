@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * BarrierBuffer continues receiving buffers from the blocked channels and stores them internally until 
  * the blocks are released.</p>
  */
-public class BarrierBuffer implements CheckpointBarrierHandler {
+public class BarrierBuffer implements CheckpointBarrierHandler, Runnable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BarrierBuffer.class);
 	
@@ -78,6 +78,17 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	private boolean endOfStream;
 
 
+	private int returnedBuffers;
+	
+	private int spilledBuffers;
+	
+	private int reReadBuffers;
+	
+	
+	private Thread debugPrinter;
+	
+	private volatile boolean printerRunning = true;
+	
 	/**
 	 * 
 	 * @param inputGate The input gate to draw the buffers and events from.
@@ -92,6 +103,10 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		
 		this.bufferSpiller = new BufferSpiller(ioManager, inputGate.getPageSize());
 		this.queuedBuffered = new ArrayDeque<BufferSpiller.SpilledBufferOrEventSequence>();
+		
+		this.debugPrinter = new Thread(this, "BB debugger");
+		this.debugPrinter.setDaemon(true);
+		this.debugPrinter.start();
 	}
 
 	// ------------------------------------------------------------------------
@@ -112,14 +127,21 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 					completeBufferedSequence();
 					return getNextNonBlocked();
 				}
+				else if (next.isBuffer()) {
+					reReadBuffers++;
+				}
 			}
 			
 			if (next != null) {
 				if (isBlocked(next.getChannelIndex())) {
 					// if the channel is blocked we, we just store the BufferOrEvent
 					bufferSpiller.add(next);
+					if (next.isBuffer()) {
+						spilledBuffers++;
+					}
 				}
 				else if (next.isBuffer()) {
+					returnedBuffers++;
 					return next;
 				}
 				else if (next.getEvent().getClass() == CheckpointBarrier.class) {
@@ -223,6 +245,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	@Override
 	public void cleanup() throws IOException {
+		printerRunning = false;
+		debugPrinter.interrupt();
+		
 		bufferSpiller.close();
 		if (currentBuffered != null) {
 			currentBuffered.cleanup();
@@ -317,5 +342,22 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	public String toString() {
 		return String.format("last checkpoint: %d, current barriers: %d, closed channels: %d",
 				currentCheckpointId, numBarriersReceived, numClosedChannels);
+	}
+	
+	// -------------------------------------
+	// TEMP HACK for debugging
+	
+	public void run() {
+		while (printerRunning) {
+			try {
+				Thread.sleep(5000);
+			}
+			catch (InterruptedException e) {
+				// ignore
+			}
+			
+			LOG.info("=====================> BARRIER BUFFER: returned buffers: {}, spilled buffers: {}, re-read buffers: {}",
+					returnedBuffers, spilledBuffers, reReadBuffers);
+		}
 	}
 }

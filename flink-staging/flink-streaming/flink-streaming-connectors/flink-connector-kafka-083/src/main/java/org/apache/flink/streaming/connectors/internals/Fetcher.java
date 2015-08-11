@@ -14,51 +14,70 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.internals;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.kafka_backport.common.TopicPartition;
 
+import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
+/**
+ * A fetcher pulls data from Kafka, from a fix set of partitions.
+ * The fetcher supports "seeking" inside the partitions, i.e., moving to a different offset.
+ */
 public interface Fetcher {
 
 	/**
-	 * Set which partitions we want to read from
-	 * @param partitions
+	 * Set which partitions the fetcher should pull from.
+	 * 
+	 * @param partitions The list of partitions for a topic that the fetcher will pull from.
 	 */
-	void partitionsToRead(List<TopicPartition> partitions);
+	void setPartitionsToRead(List<TopicPartition> partitions);
 
 	/**
-	 * Ask the run() method to stop reading
+	 * Closes the fetcher. This will stop any operation in the
+	 * {@link #run(SourceFunction.SourceContext, DeserializationSchema, long[])} method and eventually
+	 * close underlying connections and release all resources.
 	 */
-	void stop();
+	void close() throws IOException;
 
 	/**
-	 * Close the underlying connection
+	 * Starts fetch data from Kafka and emitting it into the stream.
+	 * 
+	 * <p>To provide exactly once guarantees, the fetcher needs emit a record and update the update
+	 * of the last consumed offset in one atomic operation:</p>
+	 * <pre>{@code
+	 * 
+	 * while (running) {
+	 *     T next = ...
+	 *     long offset = ...
+	 *     int partition = ...
+	 *     synchronized (sourceContext.getCheckpointLock()) {
+	 *         sourceContext.collect(next);
+	 *         lastOffsets[partition] = offset;
+	 *     }
+	 * }
+	 * }</pre>
+	 * 
+	 * @param sourceContext The source context to emit elements to.
+	 * @param valueDeserializer The deserializer to decode the raw values with.
+	 * @param lastOffsets The array into which to store the offsets foe which elements are emitted. 
+	 * 
+	 * @param <T> The type of elements produced by the fetcher and emitted to the source context.
 	 */
-	void close();
-
+	<T> void run(SourceFunction.SourceContext<T> sourceContext, DeserializationSchema<T> valueDeserializer, 
+					long[] lastOffsets) throws Exception;
+	
 	/**
-	 * Start and fetch indefinitely from the underlying fetcher
-	 * @param sourceContext
-	 * @param valueDeserializer
-	 * @param lastOffsets
-	 * @param <T>
-	 */
-	<T> void run(SourceFunction.SourceContext<T> sourceContext, DeserializationSchema<T> valueDeserializer, long[] lastOffsets);
-
-	/**
-	 * Commit offset (if supported)
-	 * @param offsetsToCommit
-	 */
-	void commit(Map<TopicPartition, Long> offsetsToCommit);
-
-	/**
-	 * Set offsets for the partitions.
-	 * The offset is the next offset to read. So if set to 0, the Fetcher's first result will be the msg with offset=0.
+	 * Set the next offset to read from for the given partition.
+	 * For example, if the partition <i>i</i> offset is set to <i>n</i>, the Fetcher's next result
+	 * will be the message with <i>offset=n</i>.
+	 * 
+	 * @param topicPartition The partition for which to seek the offset.
+	 * @param offsetToRead To offset to seek to.
 	 */
 	void seek(TopicPartition topicPartition, long offsetToRead);
 }
