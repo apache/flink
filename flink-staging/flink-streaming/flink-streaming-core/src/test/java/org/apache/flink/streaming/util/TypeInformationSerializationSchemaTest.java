@@ -19,11 +19,11 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -71,20 +71,6 @@ public class TypeInformationSerializationSchemaTest {
 
 			// this needs to succeed
 			CommonTestUtils.createCopySerializable(schema);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testCreateFromType() {
-		try {
-			TypeInformationSerializationSchema<String> schema = 
-					new TypeInformationSerializationSchema<String>("", new ExecutionConfig());
-			
-			assertEquals(BasicTypeInfo.STRING_TYPE_INFO, schema.getProducedType());
 		}
 		catch (Exception e) {
 			e.printStackTrace();

@@ -14,25 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors;
 
-import org.apache.flink.streaming.connectors.internals.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
 import java.util.Properties;
 
 /**
- * Kafka consumer for Kafka 0.8.2.x
+ * Creates a Kafka consumer compatible with reading from Kafka 0.8.2.x brokers.
+ * The consumer will use the new Kafka consumer API (early Flink backport version),
+ * and manually commit offsets partition offsets to ZooKeeper.
  *
- * It commits the offsets to Zookeeper (Flink code) and uses the consumer of Kafka 0.8.3 (currently WIP).
- *
- * @param <T>
+ * @param <T> The type of elements produced by this consumer.
  */
-public class FlinkKafkaConsumer082<T> extends FlinkKafkaConsumerBase<T> {
+public class FlinkKafkaConsumer082<T> extends FlinkKafkaConsumer<T> {
 
+	private static final long serialVersionUID = -8450689820627198228L;
+
+	/**
+	 * Creates a new Kafka 0.8.2.x streaming source consumer.
+	 * 
+	 * @param topic
+	 *           The name of the topic that should be consumed.
+	 * @param valueDeserializer
+	 *           The de-/serializer used to convert between Kafka's byte messages and Flink's objects. 
+	 * @param props
+	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
+	 */
 	public FlinkKafkaConsumer082(String topic, DeserializationSchema<T> valueDeserializer, Properties props) {
-		super(topic, valueDeserializer, props);
-		this.offsetStore = OffsetStore.FLINK_ZOOKEEPER;
-		this.fetcherType = FetcherType.INCLUDED;
+		super(topic, valueDeserializer, props, OffsetStore.FLINK_ZOOKEEPER, FetcherType.NEW_HIGH_LEVEL);
 	}
 }

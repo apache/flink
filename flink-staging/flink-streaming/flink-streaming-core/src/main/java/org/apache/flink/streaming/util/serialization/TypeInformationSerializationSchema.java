@@ -50,17 +50,6 @@ public class TypeInformationSerializationSchema<T> implements DeserializationSch
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new de-/serialization schema for the type of the given object instance.
-	 * The type will be passed through the {@link TypeExtractor} to create its type information.
-	 *
-	 * @param type A sample type instance for which the type information will be created.
-	 * @param ec The execution config, which is used to parametrize the type serializers.
-	 */
-	public TypeInformationSerializationSchema(T type, ExecutionConfig ec) {
-		this(TypeExtractor.getForObject(type), ec);
-	}
-
-	/**
 	 * Creates a new de-/serialization schema for the given type.
 	 * 
 	 * @param typeInfo The type information for the type de-/serialized by this schema.
