@@ -30,6 +30,7 @@ public class KafkaLocalSystemTime implements Time {
 		return System.currentTimeMillis();
 	}
 
+	@Override
 	public long nanoseconds() {
 		return System.nanoTime();
 	}

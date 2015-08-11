@@ -14,56 +14,87 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors;
 
-import org.apache.flink.streaming.connectors.internals.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
-import java.util.Arrays;
+import org.junit.Test;
+
 import java.util.Properties;
 
 
-public class Kafka081ITCase extends KafkaTestBase {
+public class Kafka081ITCase extends KafkaConsumerTestBase {
+	
 	@Override
-	<T> FlinkKafkaConsumerBase<T> getConsumer(String topic, DeserializationSchema deserializationSchema, Properties props) {
-		return new TestFlinkKafkaConsumer081<T>(topic, deserializationSchema, props);
+	protected <T> FlinkKafkaConsumer<T> getConsumer(String topic, DeserializationSchema<T> deserializationSchema, Properties props) {
+		return new FlinkKafkaConsumer081<T>(topic, deserializationSchema, props);
+	}
+	
+	// ------------------------------------------------------------------------
+	//  Suite of Tests
+	// ------------------------------------------------------------------------
+	
+	@Test
+	public void testCheckpointing() {
+		runCheckpointingTest();
 	}
 
-	@Override
-	long[] getFinalOffsets() {
-		return TestFlinkKafkaConsumer081.finalOffset;
+	@Test
+	public void testOffsetInZookeeper() {
+		runOffsetInZookeeperValidationTest();
+	}
+	
+	@Test
+	public void testConcurrentProducerConsumerTopology() {
+		runSimpleConcurrentProducerConsumerTopology();
 	}
 
-	@Override
-	void resetOffsets() {
-		TestFlinkKafkaConsumer081.finalOffset = null;
+	// --- canceling / failures ---
+	
+	@Test
+	public void testCancelingEmptyTopic() {
+		runCancelingOnEmptyInputTest();
 	}
 
-
-	public static class TestFlinkKafkaConsumer081<OUT> extends FlinkKafkaConsumer081<OUT> {
-		public static long[] finalOffset;
-		public TestFlinkKafkaConsumer081(String topicName, DeserializationSchema<OUT> deserializationSchema, Properties consumerConfig) {
-			super(topicName, deserializationSchema, consumerConfig);
-		}
-
-		@Override
-		public void close() throws Exception {
-			super.close();
-			synchronized (commitedOffsets) {
-				LOG.info("Setting final offset from "+ Arrays.toString(commitedOffsets));
-				if (finalOffset == null) {
-					finalOffset = new long[commitedOffsets.length];
-				}
-				for(int i = 0; i < commitedOffsets.length; i++) {
-					if(commitedOffsets[i] > 0) {
-						if(finalOffset[i] > 0) {
-							throw new RuntimeException("This is unexpected on i = "+i);
-						}
-						finalOffset[i] = commitedOffsets[i];
-					}
-				}
-			}
-		}
+	@Test
+	public void testCancelingFullTopic() {
+		runCancelingOnFullInputTest();
 	}
 
+	@Test
+	public void testFailOnDeploy() {
+		runFailOnDeployTest();
+	}
+
+	// --- source to partition mappings and exactly once ---
+	
+	@Test
+	public void testOneToOneSources() {
+		runOneToOneExactlyOnceTest();
+	}
+
+	@Test
+	public void testOneSourceMultiplePartitions() {
+		runOneSourceMultiplePartitionsExactlyOnceTest();
+	}
+
+	@Test
+	public void testMultipleSourcesOnePartition() {
+		runMultipleSourcesOnePartitionExactlyOnceTest();
+	}
+
+	// --- broker failure ---
+
+	@Test
+	public void testBrokerFailure() {
+		runBrokerFailureTest();
+	}
+
+	// --- special executions ---
+	
+	@Test
+	public void testBigRecordJob() {
+		runBigRecordTestTopology();
+	}
 }
