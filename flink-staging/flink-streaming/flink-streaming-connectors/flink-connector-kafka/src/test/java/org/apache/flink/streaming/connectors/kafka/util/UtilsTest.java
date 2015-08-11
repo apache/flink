@@ -18,7 +18,7 @@ package org.apache.flink.streaming.connectors.kafka.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.connectors.kafka.Utils;
+import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -33,7 +33,7 @@ public class UtilsTest {
 
 		Tuple2<Integer, Integer> test = new Tuple2<Integer, Integer>(1,666);
 
-		Utils.TypeInformationSerializationSchema<Tuple2<Integer, Integer>> ser = new Utils.TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(test, ec);
+		TypeInformationSerializationSchema<Tuple2<Integer, Integer>> ser = new TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(test, ec);
 
 		byte[] res = ser.serialize(test);
 		Assert.assertEquals(8, res.length);
@@ -49,7 +49,7 @@ public class UtilsTest {
 
 		Tuple2<Integer, byte[]> test1 = new Tuple2<Integer, byte[]>(1, new byte[16]);
 
-		Utils.TypeInformationSerializationSchema<Tuple2<Integer, byte[]>> ser = new Utils.TypeInformationSerializationSchema<Tuple2<Integer, byte[]>>(test1, ec);
+		TypeInformationSerializationSchema<Tuple2<Integer, byte[]>> ser = new TypeInformationSerializationSchema<Tuple2<Integer, byte[]>>(test1, ec);
 
 		byte[] res = ser.serialize(test1);
 		Assert.assertEquals(24, res.length);
