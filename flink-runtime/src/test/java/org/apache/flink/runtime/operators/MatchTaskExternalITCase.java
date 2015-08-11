@@ -76,7 +76,7 @@ public class MatchTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Rec
 		addDriverComparator(this.comparator1);
 		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
-		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setDriverStrategy(DriverStrategy.INNER_MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		

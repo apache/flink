@@ -480,7 +480,7 @@ public class PlanJSONDumpGenerator {
 				locString = "Nested Loops (Streamed Outer: " + child2name + ")";
 				break;
 
-			case MERGE:
+			case INNER_MERGE:
 				locString = "Merge";
 				break;
 
