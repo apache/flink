@@ -25,5 +25,5 @@ under the License.
 <suppressions>
 		<suppress files="org[\\/]apache[\\/]flink[\\/]api[\\/]io[\\/]avro[\\/]example[\\/]User.java" checks="[a-zA-Z0-9]*"/>
 		<suppress files="org[\\/]apache[\\/]flink[\\/]api[\\/]io[\\/]avro[\\/]generated[\\/].*.java" checks="[a-zA-Z0-9]*"/>
-		<suppress files="org[\\/]apache[\\/]kafka[\\/]copied.*.java" checks="[a-zA-Z0-9]*"/>
+		<suppress files="org[\\/]apache[\\/]flink[\\/]kafka_backport[\\/].*.java" checks="[a-zA-Z0-9]*"/>
 </suppressions>

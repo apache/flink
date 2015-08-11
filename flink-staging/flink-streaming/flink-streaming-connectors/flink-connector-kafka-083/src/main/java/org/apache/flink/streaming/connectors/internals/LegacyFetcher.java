@@ -31,9 +31,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.util.StringUtils;
-import org.apache.kafka.copied.common.Node;
-import org.apache.kafka.copied.common.PartitionInfo;
-import org.apache.kafka.copied.common.TopicPartition;
+import org.apache.flink.kafka_backport.common.Node;
+import org.apache.flink.kafka_backport.common.PartitionInfo;
+import org.apache.flink.kafka_backport.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
