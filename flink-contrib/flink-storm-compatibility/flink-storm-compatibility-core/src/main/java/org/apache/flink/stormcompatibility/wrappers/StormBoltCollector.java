@@ -72,7 +72,7 @@ class StormBoltCollector<OUT> extends AbstractStormCollector<OUT> implements IOu
 
 	@Override
 	public List<Integer> emit(final String streamId, final Collection<Tuple> anchors, final List<Object> tuple) {
-		return this.tansformAndEmit(tuple);
+		return this.transformAndEmit(tuple);
 	}
 
 	@Override

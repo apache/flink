@@ -68,7 +68,7 @@ class StormSpoutCollector<OUT> extends AbstractStormCollector<OUT> implements IS
 
 	@Override
 	public List<Integer> emit(final String streamId, final List<Object> tuple, final Object messageId) {
-		return this.tansformAndEmit(tuple);
+		return this.transformAndEmit(tuple);
 	}
 
 

@@ -82,7 +82,7 @@ abstract class AbstractStormCollector<OUT> {
 	 * @return the return value of {@link #doEmit(Object)}
 	 */
 	@SuppressWarnings("unchecked")
-	protected final List<Integer> tansformAndEmit(final List<Object> tuple) {
+	protected final List<Integer> transformAndEmit(final List<Object> tuple) {
 		List<Integer> taskIds;
 		if (this.numberOfAttributes > 0) {
 			assert (tuple.size() == this.numberOfAttributes);
