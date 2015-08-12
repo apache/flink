@@ -82,8 +82,8 @@ public class YarnTaskManagerRunner {
 					"specified in the Flink config: " + flinkTempDirs);
 		}
 
-		LOG.info("YARN daemon runs as '" + UserGroupInformation.getCurrentUser().getShortUserName()
-				+"' setting user to execute Flink TaskManager to '"+yarnClientUsername+"'");
+		LOG.info("YARN daemon runs as '" + UserGroupInformation.getCurrentUser().getShortUserName() +
+				"' setting user to execute Flink TaskManager to '" + yarnClientUsername + "'");
 
 		// tell akka to die in case of an error
 		configuration.setBoolean(ConfigConstants.AKKA_JVM_EXIT_ON_FATAL_ERROR, true);

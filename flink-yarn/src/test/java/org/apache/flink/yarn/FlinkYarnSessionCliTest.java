@@ -62,7 +62,7 @@ public class FlinkYarnSessionCliTest {
 			cmd = parser.parse(options, new String[]{"run", "-j", "fake.jar", "-n", "15", "-D", "akka.ask.timeout=5 min"});
 		} catch(Exception e) {
 			e.printStackTrace();
-			Assert.fail("Parsing failed with "+e.getMessage());
+			Assert.fail("Parsing failed with " + e.getMessage());
 		}
 
 		AbstractFlinkYarnClient flinkYarnClient = cli.createFlinkYarnClient(cmd);

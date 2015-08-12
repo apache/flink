@@ -282,7 +282,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		} else if(clusterStatus instanceof Some) {
 			return (FlinkYarnClusterStatus) (((Some) clusterStatus).get());
 		} else {
-			throw new RuntimeException("Unexpected type: "+clusterStatus.getClass().getCanonicalName());
+			throw new RuntimeException("Unexpected type: " + clusterStatus.getClass().getCanonicalName());
 		}
 	}
 
@@ -368,9 +368,9 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 
 					if(obj instanceof Messages.YarnMessage) {
 						Messages.YarnMessage msg = (Messages.YarnMessage) obj;
-						ret.add("["+msg.date()+"] "+msg.message());
+						ret.add("[" + msg.date() + "] " + msg.message());
 					} else {
-						LOG.warn("LocalGetYarnMessage returned unexpected type: "+messageOption);
+						LOG.warn("LocalGetYarnMessage returned unexpected type: " + messageOption);
 					}
 				}
 			}
@@ -429,7 +429,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 			actorSystem = null;
 		}
 
-		LOG.info("Deleting files in "+sessionFilesDir );
+		LOG.info("Deleting files in " + sessionFilesDir );
 		try {
 			FileSystem shutFS = FileSystem.get(hadoopConfig);
 			shutFS.delete(sessionFilesDir, true); // delete conf and jar file.
@@ -522,7 +522,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 			}
 			if(running.get() && !yarnClient.isInState(Service.STATE.STARTED)) {
 				// == if the polling thread is still running but the yarn client is stopped.
-				LOG.warn("YARN client is unexpected in state "+yarnClient.getServiceState());
+				LOG.warn("YARN client is unexpected in state " + yarnClient.getServiceState());
 			}
 		}
 	}

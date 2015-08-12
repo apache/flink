@@ -60,10 +60,10 @@ public class Utils {
 		int minCutoff = conf.getInteger(ConfigConstants.YARN_HEAP_CUTOFF_MIN, ConfigConstants.DEFAULT_YARN_MIN_HEAP_CUTOFF);
 
 		if (memoryCutoffRatio > 1 || memoryCutoffRatio < 0) {
-			throw new IllegalArgumentException("The configuration value '"+ConfigConstants.YARN_HEAP_CUTOFF_RATIO+"' must be between 0 and 1. Value given="+memoryCutoffRatio);
+			throw new IllegalArgumentException("The configuration value '" + ConfigConstants.YARN_HEAP_CUTOFF_RATIO + "' must be between 0 and 1. Value given=" + memoryCutoffRatio);
 		}
 		if (minCutoff > memory) {
-			throw new IllegalArgumentException("The configuration value '"+ConfigConstants.YARN_HEAP_CUTOFF_MIN +"' is higher ("+minCutoff+") than the requested amount of memory "+memory);
+			throw new IllegalArgumentException("The configuration value '" + ConfigConstants.YARN_HEAP_CUTOFF_MIN + "' is higher (" + minCutoff + ") than the requested amount of memory " + memory);
 		}
 
 		int heapLimit = (int)((float)memory * memoryCutoffRatio);
@@ -94,7 +94,7 @@ public class Utils {
 		
 		Path dst = new Path(homedir, suffix);
 		
-		LOG.info("Copying from "+localRsrcPath+" to "+dst );
+		LOG.info("Copying from " + localRsrcPath + " to " + dst );
 		fs.copyFromLocalFile(localRsrcPath, dst);
 		registerLocalResource(fs, dst, appMasterJar);
 		return dst;
@@ -119,7 +119,7 @@ public class Utils {
 		Collection<Token<? extends TokenIdentifier>> usrTok = currUsr.getTokens();
 		for(Token<? extends TokenIdentifier> token : usrTok) {
 			final Text id = new Text(token.getIdentifier());
-			LOG.info("Adding user token "+id+" with "+token);
+			LOG.info("Adding user token " + id + " with " + token);
 			credentials.addToken(id, token);
 		}
 		DataOutputBuffer dob = new DataOutputBuffer();
@@ -138,7 +138,7 @@ public class Utils {
 			
 			@Override
 			public boolean accept(File dir, String name) {
-				logger.info(dir.getAbsolutePath()+"/"+name);
+				logger.info(dir.getAbsolutePath() + "/" + name);
 				return true;
 			}
 		});
