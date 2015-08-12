@@ -729,7 +729,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
   /**
    * Returns a distinct set of this DataSet.
-   * 
+   *
    * <p>If the input is a composite type (Tuple or Pojo type), distinct is performed on all fields
    * and each field must be a key type.</p>
    */
@@ -739,10 +739,10 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
   /**
    * Returns a distinct set of a tuple DataSet using field position keys.
-   * 
+   *
    * <p>The field position keys specify the fields of Tuples on which the decision is made if
    * two Tuples are distinct or not.</p>
-   * 
+   *
    * <p>Note: Field position keys can only be specified for Tuple DataSets.</p>
    *
    * @param fields One or more field positions on which the distinction of the DataSet is decided.
@@ -756,7 +756,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
   /**
    * Returns a distinct set of this DataSet using expression keys.
-   * 
+   *
    * <p>The field position keys specify the fields of Tuples or Pojos on which the decision is made
    * if two elements are distinct or not.</p>
    *
@@ -1005,8 +1005,9 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Creates a new DataSet by performing bulk iterations using the given step function and Stale Synchronous
-   * Parallelism. The iterations terminate when `maxIterations` iterations have been performed.
+   * Creates a new DataSet by performing bulk iterations using the given step function
+   * and Stale Synchronous Parallelism. The iterations terminate when `maxIterations`
+   * iterations have been performed.
    */
   def iterateWithSSP(maxIterations: Int)(stepFunction: (DataSet[T]) => DataSet[T]): DataSet[T] = {
     val iterativeSet =
@@ -1056,8 +1057,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Creates a new DataSet by performing bulk iterations using the given step function and Stale Synchronous
-   * Parallelism.
+   * Creates a new DataSet by performing bulk iterations using the given step function
+   * and Stale Synchronous Parallelism.
    *
    */
   def iterateWithSSPWithTermination(maxIterations: Int)(
@@ -1216,7 +1217,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Partitions a tuple DataSet on the specified key fields using a custom partitioner.
    * This method takes the key position to partition on, and a partitioner that accepts the key
    * type.
-   * <p> 
+   * <p>
    * Note: This method works only on single field keys.
    */
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: Int) : DataSet[T] = {
@@ -1370,7 +1371,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def output(outputFormat: OutputFormat[T]): DataSink[T] = {
     javaSet.output(outputFormat)
   }
-  
+
   /**
    * Prints the elements in a DataSet to the standard output stream [[System.out]] of the
    * JVM that calls the print() method. For programs that are executed in a cluster, this
@@ -1385,7 +1386,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def print(): Unit = {
     javaSet.print()
   }
-  
+
   /**
    * Prints the elements in a DataSet to the standard error stream [[System.err]] of the
    * JVM that calls the print() method. For programs that are executed in a cluster, this
@@ -1412,19 +1413,19 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * For each element of the DataSet the result of [[AnyRef.toString()]] is written.
    *
    * @param prefix The string to prefix each line of the output with. This helps identifying outputs
-   *               from different printing sinks.   
+   *               from different printing sinks.
    * @return The DataSink operator that writes the DataSet.
    */
   def printOnTaskManager(prefix: String): DataSink[T] = {
     javaSet.printOnTaskManager(prefix)
   }
-  
+
   /**
    * *
    * Writes a DataSet to the standard output stream (stdout) with a sink identifier prefixed.
    * This uses [[AnyRef.toString]] on each element.
    * @param sinkIdentifier The string to prefix the output with.
-   * 
+   *
    * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
   @Deprecated
@@ -1437,7 +1438,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Writes a DataSet to the standard error stream (stderr) with a sink identifier prefixed.
    * This uses [[AnyRef.toString]] on each element.
    * @param sinkIdentifier The string to prefix the output with.
-   * 
+   *
    * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
   @Deprecated
