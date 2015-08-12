@@ -100,22 +100,23 @@ public class FlinkSubmitter {
 		final String serConf = JSONValue.toJSONString(stormConf);
 
 		final FlinkClient client = FlinkClient.getConfiguredClient(stormConf);
-		if (client.getTopologyJobId(name) != null) {
-			throw new RuntimeException("Topology with name `" + name + "` already exists on cluster");
-		}
-		String localJar = System.getProperty("storm.jar");
-		if (localJar == null) {
-			try {
-				for (final File file : ((ContextEnvironment) ExecutionEnvironment.getExecutionEnvironment())
-						.getJars()) {
-					// TODO verify that there is onnly one jar
-					localJar = file.getAbsolutePath();
-				}
-			} catch (final ClassCastException e) {
-				// ignore
-			}
-		}
 		try {
+			if (client.getTopologyJobId(name) != null) {
+				throw new RuntimeException("Topology with name `" + name + "` already exists on cluster");
+			}
+			String localJar = System.getProperty("storm.jar");
+			if (localJar == null) {
+				try {
+					for (final File file : ((ContextEnvironment) ExecutionEnvironment.getExecutionEnvironment())
+							.getJars()) {
+						// TODO verify that there is onnly one jar
+						localJar = file.getAbsolutePath();
+					}
+				} catch (final ClassCastException e) {
+					// ignore
+				}
+			}
+
 			logger.info("Submitting topology " + name + " in distributed mode with conf " + serConf);
 			client.submitTopologyWithOpts(name, localJar, topology);
 		} catch (final InvalidTopologyException e) {
