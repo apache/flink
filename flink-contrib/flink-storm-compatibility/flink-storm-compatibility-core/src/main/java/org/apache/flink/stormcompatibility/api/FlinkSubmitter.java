@@ -101,6 +101,7 @@ public class FlinkSubmitter {
 
 		final FlinkClient client = FlinkClient.getConfiguredClient(stormConf);
 		if (client.getTopologyJobId(name) != null) {
+			client.close();
 			throw new RuntimeException("Topology with name `" + name + "` already exists on cluster");
 		}
 		String localJar = System.getProperty("storm.jar");
