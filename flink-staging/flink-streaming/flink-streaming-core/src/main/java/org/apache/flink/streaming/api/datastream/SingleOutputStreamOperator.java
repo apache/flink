@@ -58,7 +58,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 *
 	 * @return The named operator.
 	 */
-	public DataStream<OUT> name(String name){
+	public SingleOutputStreamOperator<OUT, O> name(String name){
 		streamGraph.getStreamNode(id).setOperatorName(name);
 		return this;
 	}
