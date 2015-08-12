@@ -82,6 +82,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 	 */
 	public BulkIterationBase(UnaryOperatorInformation<T, T> operatorInfo) {
 		this(operatorInfo, DEFAULT_NAME);
+		strategy = BulkIterationStrategy.PLAIN;
 	}
 	
 	/**
@@ -90,6 +91,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 	public BulkIterationBase(UnaryOperatorInformation<T, T> operatorInfo, String name) {
 		super(new UserCodeClassWrapper<AbstractRichFunction>(AbstractRichFunction.class), operatorInfo, name);
 		inputPlaceHolder = new PartialSolutionPlaceHolder<T>(this, this.getOperatorInfo());
+		strategy = BulkIterationStrategy.PLAIN;
 	}
 
 	// --------------------------------------------------------------------------------------------
