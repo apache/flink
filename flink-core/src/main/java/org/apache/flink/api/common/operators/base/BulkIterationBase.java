@@ -64,7 +64,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 	
 	private int numberOfIterations = -1;
 
-	private int slack = -1;
+	private int slack = 0;
 	
 	protected Operator<?> terminationCriterion;
 
