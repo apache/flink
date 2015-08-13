@@ -974,7 +974,7 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Same as {@link org.apache.flink.api.java.DataSet#iterate(int)} but using SSP iterations with a default slack of 3.
+	 * Same as {@link org.apache.flink.api.java.DataSet#iterate(int)} but using SSP iterations
 	 *
 	 * @param maxIterations The maximum number of times that the iteration is executed.
 	 * @return An IterativeDataSet that marks the start of the iterative part and needs to be closed by
@@ -982,8 +982,8 @@ public abstract class DataSet<T> {
 	 *
 	 * @see org.apache.flink.api.java.operators.IterativeDataSet
 	 */
-	public IterativeDataSet<T> iterateWithSSP(int maxIterations) {
-		return new IterativeDataSet<T>(getExecutionEnvironment(), getType(), this, maxIterations, IterationStrategy.SSP);
+	public IterativeDataSet<T> iterateWithSSP(int maxIterations, int slack) {
+		return new IterativeDataSet<T>(getExecutionEnvironment(), getType(), this, maxIterations, IterationStrategy.SSP, slack);
 	}
 	
 	/**

@@ -200,8 +200,9 @@ public class OperatorTranslation {
 		}
 		else if (iterationHead.getStrategy().equals(IterationStrategy.SSP)) {
 			iterationOperator.setStrategy(BulkIterationStrategy.SSP);
+			iterationOperator.setSlack(iterationHead.getSlack());
 		}
-		
+
 		iterationOperator.getAggregators().addAll(iterationHead.getAggregators());
 		
 		if(iterationEnd.getTerminationCriterion() != null) {

@@ -1009,14 +1009,15 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * and Stale Synchronous Parallelism. The iterations terminate when `maxIterations`
    * iterations have been performed.
    */
-  def iterateWithSSP(maxIterations: Int)(stepFunction: (DataSet[T]) => DataSet[T]): DataSet[T] = {
+  def iterateWithSSP(maxIterations: Int, slack: Int)(stepFunction: (DataSet[T]) => DataSet[T]): DataSet[T] = {
     val iterativeSet =
       new IterativeDataSet[T](
         javaSet.getExecutionEnvironment,
         javaSet.getType,
         javaSet,
         maxIterations,
-        IterationStrategy.SSP)
+        IterationStrategy.SSP,
+        slack)
 
     val resultSet = stepFunction(wrap(iterativeSet))
     val result = iterativeSet.closeWith(resultSet.javaSet)
@@ -1061,7 +1062,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * and Stale Synchronous Parallelism.
    *
    */
-  def iterateWithSSPWithTermination(maxIterations: Int)(
+  def iterateWithSSPWithTermination(maxIterations: Int, slack: Int)(
     stepFunction: (DataSet[T]) => (DataSet[T], DataSet[_])): DataSet[T] = {
     val iterativeSet =
       new IterativeDataSet[T](
@@ -1069,7 +1070,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
         javaSet.getType,
         javaSet,
         maxIterations,
-        IterationStrategy.SSP)
+        IterationStrategy.SSP,
+        slack)
 
     val (resultSet, terminationCriterion) = stepFunction(wrap(iterativeSet))
     val result = iterativeSet.closeWith(resultSet.javaSet, terminationCriterion.javaSet)

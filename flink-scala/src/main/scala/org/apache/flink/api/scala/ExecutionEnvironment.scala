@@ -71,14 +71,6 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     javaEnv.getConfig
   }
 
-  def getSSPSlack() :Int = {
-    javaEnv.getSSPSlack
-  }
-
-  def setSSPSlack(slack:Int):Unit = {
-    javaEnv.setSSPSlack(slack)
-  }
-
   /**
    * Sets the parallelism (parallelism) for operations executed through this environment.
    * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run

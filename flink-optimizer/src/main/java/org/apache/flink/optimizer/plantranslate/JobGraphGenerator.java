@@ -1231,7 +1231,9 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			throw new CompilerException("Bug: No memory has been assigned to the iteration back channel.");
 		}
 		headConfig.setRelativeBackChannelMemory(relativeMemForBackChannel);
-		
+		final int slack = bulkNode.getIterationNode().getIterationContract().getSlack();
+		headConfig.setSlack(slack);
+
 		// --------------------------- create the sync task ---------------------------
 		final JobVertex sync = new JobVertex("Sync(" + bulkNode.getNodeName() + ")");
 		BulkIterationStrategy s = ((BulkIterationPlanNode) descr.getIterationNode()).getPartialSolutionPlanNode().getContainingIterationNode().getIterationNode().getIterationContract().getStrategy();
@@ -1243,7 +1245,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		}
 		sync.setParallelism(1);
 		this.auxVertices.add(sync);
-		
+
 		final TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
 		syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, headVertex.getParallelism());
 
@@ -1253,7 +1255,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			throw new CompilerException("Cannot create bulk iteration with unspecified maximum number of iterations.");
 		}
 		syncConfig.setNumberOfIterations(maxNumIterations);
-		
+
 		// connect the sync task
 		sync.connectNewDataSetAsInput(headVertex, DistributionPattern.POINTWISE);
 		

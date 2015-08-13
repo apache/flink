@@ -72,8 +72,6 @@ public class ExecutionConfig implements Serializable {
 
 	private int parallelism = -1;
 
-	private int slack = -1;
-
 	private int numberOfExecutionRetries = -1;
 
 	private boolean forceKryo = false;
@@ -145,36 +143,6 @@ public class ExecutionConfig implements Serializable {
 	public boolean isClosureCleanerEnabled() {
 		return useClosureCleaner;
 	}
-
-
-	/**
-	 * Returns the global slack parameter value of Stale Synchronous Parallelism
-	 *
-	 * @return the slack
-	 */
-
-	public int getSSPSlack() {
-		return slack;
-	}
-
-	/**
-	 * Sets the slack parameter of Stale Synchronous Parallelism.
-	 *
-	 * @param slack
-	 * @return The slack used by operations, unless they override that value. This method
-	 *         returns {@code -1}, if the environment's default slack should be used.
-	 */
-
-	public ExecutionConfig setSSPSlack(int slack) {
-		if (slack < 0 && slack != -1) {
-			throw new IllegalArgumentException(
-					"Slack must be at least zero, or -1 (use system default).");
-		}
-		this.slack = slack;
-		return this;
-	}
-
-
 
 	/**
 	 * Sets the interval of the automatic watermark emission. Watermaks are used throughout

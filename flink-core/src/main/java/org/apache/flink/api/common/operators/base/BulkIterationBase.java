@@ -51,10 +51,11 @@ import org.apache.flink.util.Visitor;
 public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRichFunction> implements IterationOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
+
+	private static BulkIterationStrategy DEFAULT_ITERATION_STRATEGY = BulkIterationStrategy.PLAIN;
 	
 	public static final String TERMINATION_CRITERION_AGGREGATOR_NAME = "terminationCriterion.aggregator";
-	
-	
+
 	private Operator<T> iterationResult;
 	
 	private final Operator<T> inputPlaceHolder;
@@ -62,10 +63,31 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 	private final AggregatorRegistry aggregators = new AggregatorRegistry();
 	
 	private int numberOfIterations = -1;
+
+	private int slack = -1;
 	
 	protected Operator<?> terminationCriterion;
 
-	private BulkIterationStrategy strategy;
+	private BulkIterationStrategy strategy = DEFAULT_ITERATION_STRATEGY;
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * 
+	 */
+	public BulkIterationBase(UnaryOperatorInformation<T, T> operatorInfo) {
+		this(operatorInfo, DEFAULT_NAME);
+	}
+	
+	/**
+	 * @param name
+	 */
+	public BulkIterationBase(UnaryOperatorInformation<T, T> operatorInfo, String name) {
+		super(new UserCodeClassWrapper<AbstractRichFunction>(AbstractRichFunction.class), operatorInfo, name);
+		inputPlaceHolder = new PartialSolutionPlaceHolder<T>(this, this.getOperatorInfo());
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	public BulkIterationStrategy getStrategy() {
 		return strategy;
@@ -75,27 +97,18 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 		this.strategy = strategy;
 	}
 
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * 
-	 */
-	public BulkIterationBase(UnaryOperatorInformation<T, T> operatorInfo) {
-		this(operatorInfo, DEFAULT_NAME);
-		strategy = BulkIterationStrategy.PLAIN;
-	}
-	
-	/**
-	 * @param name
-	 */
-	public BulkIterationBase(UnaryOperatorInformation<T, T> operatorInfo, String name) {
-		super(new UserCodeClassWrapper<AbstractRichFunction>(AbstractRichFunction.class), operatorInfo, name);
-		inputPlaceHolder = new PartialSolutionPlaceHolder<T>(this, this.getOperatorInfo());
-		strategy = BulkIterationStrategy.PLAIN;
+	public int getSlack() {
+		return slack;
 	}
 
-	// --------------------------------------------------------------------------------------------
-	
+	public void setSlack(int num) {
+		if (num < 0) {
+			throw new IllegalArgumentException("The slack must be at least zero.");
+		}
+		this.slack = num;
+	}
+
+
 	/**
 	 * @return The operator representing the partial solution.
 	 */
