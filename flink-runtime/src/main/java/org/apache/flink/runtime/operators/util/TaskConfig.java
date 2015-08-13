@@ -172,9 +172,11 @@ public class TaskConfig implements Serializable {
 	// ----------------------------------- Iterations ---------------------------------------------
 	
 	private static final String NUMBER_OF_ITERATIONS = "iterative.num-iterations";
-	
+
+	private static final String ITERATION_SSP_SLACK = "iterative.ssp-slack";
+
 	private static final String NUMBER_OF_EOS_EVENTS_PREFIX = "iterative.num-eos-events.";
-	
+
 	private static final String NUMBER_OF_EOS_EVENTS_BROADCAST_PREFIX = "iterative.num-eos-events.bc.";
 	
 	private static final String ITERATION_HEAD_ID = "iterative.head.id";
@@ -750,7 +752,23 @@ public class TaskConfig implements Serializable {
 		}
 		return numberOfIterations;
 	}
-	
+
+	public void setSlack(int slack) {
+		if (slack < 0) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setInteger(ITERATION_SSP_SLACK, slack);
+	}
+
+	public int getSlack() {
+		int slack = this.config.getInteger(ITERATION_SSP_SLACK, 0);
+		if (slack < 0) {
+			throw new IllegalArgumentException();
+		}
+		return slack;
+	}
+
+
 	public void setIterationHeadPartialSolutionOrWorksetInputIndex(int inputIndex) {
 		if (inputIndex < 0) {
 			throw new IllegalArgumentException();

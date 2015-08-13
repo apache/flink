@@ -83,8 +83,6 @@ public class SSPClockSinkTask extends AbstractInvokable implements Terminable {
 	@Override
 	public void invoke() throws Exception {
 		TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
-		//TODO what follows is very ugly. Pass this to the TaskConfiguration instead
-		int slack = getExecutionConfig().getSSPSlack()> -1 ? getExecutionConfig().getSSPSlack(): 3;
 		tasksInParallel = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(0);
 
 		// store all aggregators
@@ -125,7 +123,7 @@ public class SSPClockSinkTask extends AbstractInvokable implements Terminable {
 				log.info(formatLogString("finishing iteration [" + currentIteration + "]"));
 			}
 
-			if (checkForConvergence(slack)) {
+			if (checkForConvergence()) {
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("signaling that all workers are to terminate in iteration ["
 						+ currentIteration + "]"));
@@ -174,7 +172,7 @@ public class SSPClockSinkTask extends AbstractInvokable implements Terminable {
 //		}
 //	}
 
-	private boolean checkForConvergence(int slack) {
+	private boolean checkForConvergence() {
 
 		if (maxNumberOfIterations == currentIteration) {
 			terminate = true;

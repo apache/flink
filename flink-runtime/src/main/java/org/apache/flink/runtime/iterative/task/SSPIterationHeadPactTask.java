@@ -87,6 +87,8 @@ public class SSPIterationHeadPactTask<X, Y, S extends Function, OT> extends Abst
 
 	private static final Logger log = LoggerFactory.getLogger(SSPIterationHeadPactTask.class);
 
+	private static final int DEFAULT_SLACK = 3;
+
 	private Collector<X> finalOutputCollector;
 
 //	private List<RecordWriter<?>> finalOutputWriters;
@@ -241,8 +243,8 @@ public class SSPIterationHeadPactTask<X, Y, S extends Function, OT> extends Abst
 	public void run() throws Exception {
 		final String brokerKey = brokerKey();
 		final int workerIndex = getEnvironment().getIndexInSubtaskGroup();
-		//TODO very ugly. Pass this to the TaskConfiguration
-		int slack = getExecutionConfig().getSSPSlack()> -1 ? getExecutionConfig().getSSPSlack(): 3;
+
+		int slack = getTaskConfig().getSlack() > -1? getTaskConfig().getSlack():DEFAULT_SLACK;
 
 		final boolean objectSolutionSet = config.isSolutionSetUnmanaged();
 

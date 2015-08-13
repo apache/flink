@@ -140,13 +140,6 @@ public abstract class ExecutionEnvironment {
 		return config;
 	}
 
-
-	public int getSSPSlack() {return config.getSSPSlack();}
-
-	public void setSSPSlack(int slack) {
-		config.setSSPSlack(slack);
-	}
-
 	/**
 	 * Gets the parallelism with which operation are executed by default. Operations can
 	 * individually override this value to use a specific parallelism via

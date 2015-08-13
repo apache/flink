@@ -40,6 +40,8 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 
 	private final IterationStrategy strategy;
 
+	private final int slack;
+
 	@Override
 	public int getParallelism() {
 		return super.getParallelism();
@@ -53,12 +55,14 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 		super(input, type);
 		this.maxIterations = maxIterations;
 		this.strategy = IterationStrategy.PLAIN;
+		this.slack = -1;
 	}
 
-	public IterativeDataSet(ExecutionEnvironment context, TypeInformation<T> type, DataSet<T> input, int maxIterations, IterationStrategy strategy) {
+	public IterativeDataSet(ExecutionEnvironment context, TypeInformation<T> type, DataSet<T> input, int maxIterations, IterationStrategy strategy, int slack) {
 		super(input, type);
 		this.maxIterations = maxIterations;
 		this.strategy = strategy;
+		this.slack = slack;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -66,21 +70,29 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	/**
 	 * Returns the iteration strategy
 	 *
+	 * @return The iteration strategy: plain or Stale Synchronous Paralllel
 	 *
-	 * @return The DataSet that represents the result of the iteration, after the computation has terminated.
-	 *
-	 * @see DataSet#iterate(int)
 	 */
 	public IterationStrategy getStrategy() {
 		return strategy;
 	}
 
 	/**
+	 * Returns the slack used in Stale Synchronous Parallel iterations
+	 *
+	 * @return The slack value or -1 by default
+	 *
+	 */
+	public int getSlack() {
+		return slack;
+	}
+
+	/**
 	 * Closes the iteration. This method defines the end of the iterative program part.
-	 * 
+	 *
 	 * @param iterationResult The data set that will be fed back to the next iteration.
 	 * @return The DataSet that represents the result of the iteration, after the computation has terminated.
-	 * 
+	 *
 	 * @see DataSet#iterate(int)
 	 */
 	public DataSet<T> closeWith(DataSet<T> iterationResult) {
