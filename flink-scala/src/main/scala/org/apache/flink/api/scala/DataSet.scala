@@ -1009,7 +1009,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * and Stale Synchronous Parallelism. The iterations terminate when `maxIterations`
    * iterations have been performed.
    */
-  def iterateWithSSP(maxIterations: Int, slack: Int)(stepFunction: (DataSet[T]) => DataSet[T]): DataSet[T] = {
+  def iterateWithSSP(maxIterations: Int, slack: Int)(
+    stepFunction: (DataSet[T]) => DataSet[T]): DataSet[T] = {
     val iterativeSet =
       new IterativeDataSet[T](
         javaSet.getExecutionEnvironment,
