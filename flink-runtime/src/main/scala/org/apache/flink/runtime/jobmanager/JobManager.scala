@@ -19,14 +19,16 @@
 package org.apache.flink.runtime.jobmanager
 
 import java.io.{File, IOException}
-import java.lang.reflect.{Constructor, InvocationTargetException}
+import java.lang.reflect.{InvocationTargetException, Constructor}
 import java.net.InetSocketAddress
-import java.util.{Collections, UUID}
+import java.util.{UUID, Collections}
 
-import _root_.akka.pattern.ask
 import akka.actor.Status.{Failure, Success}
 import akka.actor._
+import _root_.akka.pattern.ask
+
 import grizzled.slf4j.Logger
+
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.io.InputSplitAssigner
@@ -295,8 +297,8 @@ class JobManager(
                     case ex: Exception =>
                       log.error(s"Could not serialize the next input split of " +
                         s"class ${nextInputSplit.getClass}.", ex)
-                      vertex.fail(new RuntimeException("Could not serialize the next input " +
-                        "split of class " + nextInputSplit.getClass + ".", ex))
+                      vertex.fail(new RuntimeException("Could not serialize the next input split " +
+                        "of class " + nextInputSplit.getClass + ".", ex))
                       null
                   }
 
@@ -323,8 +325,8 @@ class JobManager(
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
 
-          log.info(s"Status of job $jobID (${executionGraph.getJobName}) " +
-            "changed to $newJobStatus.", error)
+          log.info(s"Status of job $jobID (${executionGraph.getJobName}) changed to $newJobStatus.",
+            error)
 
           if (newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp
@@ -356,6 +358,7 @@ class JobManager(
                 
                 val totalSize: Long = smallAccumulatorResults.asScala.map(_._2.getSizeInBytes).sum
                 if (totalSize > AkkaUtils.getLargeAccumulatorThreshold(jobConfig)) {
+
                   // given that the client is going to do the final merging, we serialize and
                   // store the accumulator objects, not only the content
                   val serializedSmallAccumulators = executionGraph.getSmallAccumulatorsSerialized
@@ -364,6 +367,8 @@ class JobManager(
                   val newBlobKeys = LargeAccumulatorHelper.storeSerializedAccumulatorsToBlobCache(
                     getBlobCacheServerAddress, serializedSmallAccumulators)
 
+                  // given that the result is going to be sent through the BlobCache, clear its
+                  // in-memory version.
                   smallAccumulatorResults.clear()
 
                   // and update the blobKeys to send to the client.
@@ -814,9 +819,9 @@ class JobManager(
                 archive.forward(message)
             }
           } catch {
-          case e: Exception =>
-            log.error("Cannot serialize accumulator result.", e)
-            sender() ! decorateMessage(AccumulatorResultsErroneous(jobID, e))
+            case e: Exception =>
+              log.error("Cannot serialize accumulator result.", e)
+              sender() ! decorateMessage(AccumulatorResultsErroneous(jobID, e))
           }
 
         case RequestAccumulatorResultsStringified(jobId) =>

@@ -33,9 +33,10 @@ public class UserAccumulators implements java.io.Serializable {
 	private final SerializedValue<Map<String, Accumulator<?, ?>>> smallUserAccumulators;
 
 	/**
-	 * In case some accumulators do not fit in an Akka message payload, we store them in the blobCache and put
-	 * in the snapshot only the mapping between the name of the accumulator, and its blobKey
-	 * in the cache. This list holds exactly this mapping.
+	 * In case some accumulators do not fit in an Akka message payload, we store them
+	 * in the blobCache. This list holds the mapping between the name of the accumulator,
+	 * and its blobKey in the cache is put in the snapshot. This list holds exactly this
+	 * mapping.
 	 * */
 	private final Map<String, List<BlobKey>> largeUserAccumulatorBlobs;
 
@@ -66,7 +67,7 @@ public class UserAccumulators implements java.io.Serializable {
 	 * These accumulators had to be stored in the BlobCache and their blobKeys are returned here.
 	 * @return the maping between accumulator and its blobKeys.
 	 */
-	public Map<String, List<BlobKey>> getLargeAccumulatorBlobKeys() {
+	public Map<String, List<BlobKey>> getLargeUserAccumulatorBlobKeys() {
 		if(smallUserAccumulators != null) {
 			return Collections.emptyMap();
 		}

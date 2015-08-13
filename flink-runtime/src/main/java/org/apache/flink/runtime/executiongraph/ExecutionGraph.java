@@ -24,8 +24,8 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.accumulators.UserAccumulators;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -78,24 +78,24 @@ import static akka.dispatch.Futures.future;
  * The execution graph is the central data structure that coordinates the distributed
  * execution of a data flow. It keeps representations of each parallel task, each
  * intermediate result, and the communication between them.
- * <p/>
+ *
  * The execution graph consists of the following constructs:
  * <ul>
- * <li>The {@link ExecutionJobVertex} represents one vertex from the JobGraph (usually one operation like
- * "map" or "join") during execution. It holds the aggregated state of all parallel subtasks.
- * The ExecutionJobVertex is identified inside the graph by the {@link JobVertexID}, which it takes
- * from the JobGraph's corresponding JobVertex.</li>
- * <li>The {@link ExecutionVertex} represents one parallel subtask. For each ExecutionJobVertex, there are
- * as many ExecutionVertices as the parallelism. The ExecutionVertex is identified by
- * the ExecutionJobVertex and the number of the parallel subtask</li>
- * <li>The {@link Execution} is one attempt to execute a ExecutionVertex. There may be multiple Executions
- * for the ExecutionVertex, in case of a failure, or in the case where some data needs to be recomputed
- * because it is no longer available when requested by later operations. An Execution is always
- * identified by an {@link ExecutionAttemptID}. All messages between the JobManager and the TaskManager
- * about deployment of tasks and updates in the task status always use the ExecutionAttemptID to
- * address the message receiver.</li>
+ *     <li>The {@link ExecutionJobVertex} represents one vertex from the JobGraph (usually one operation like
+ *         "map" or "join") during execution. It holds the aggregated state of all parallel subtasks.
+ *         The ExecutionJobVertex is identified inside the graph by the {@link JobVertexID}, which it takes
+ *         from the JobGraph's corresponding JobVertex.</li>
+ *     <li>The {@link ExecutionVertex} represents one parallel subtask. For each ExecutionJobVertex, there are
+ *         as many ExecutionVertices as the parallelism. The ExecutionVertex is identified by
+ *         the ExecutionJobVertex and the number of the parallel subtask</li>
+ *     <li>The {@link Execution} is one attempt to execute a ExecutionVertex. There may be multiple Executions
+ *         for the ExecutionVertex, in case of a failure, or in the case where some data needs to be recomputed
+ *         because it is no longer available when requested by later operations. An Execution is always
+ *         identified by an {@link ExecutionAttemptID}. All messages between the JobManager and the TaskManager
+ *         about deployment of tasks and updates in the task status always use the ExecutionAttemptID to
+ *         address the message receiver.</li>
  * </ul>
- * <p/>
+ *
  * <p>The ExecutionGraph implements {@link java.io.Serializable}, because it can be archived by
  * sending it to an archive actor via an actor message. The execution graph does contain some
  * non-serializable fields. These fields are not required in the archived form and are cleared
@@ -108,189 +108,108 @@ public class ExecutionGraph implements Serializable {
 	private static final AtomicReferenceFieldUpdater<ExecutionGraph, JobStatus> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(ExecutionGraph.class, JobStatus.class, "state");
 
-	/**
-	 * The log object used for debugging.
-	 */
+	/** The log object used for debugging. */
 	static final Logger LOG = LoggerFactory.getLogger(ExecutionGraph.class);
 
 	private static final int NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN = 1;
 
 	// --------------------------------------------------------------------------------------------
 
-	/**
-	 * The lock used to secure all access to mutable fields, especially the tracking of progress
-	 * within the job.
-	 */
+	/** The lock used to secure all access to mutable fields, especially the tracking of progress
+	 * within the job. */
 	private final SerializableObject progressLock = new SerializableObject();
 
-	/**
-	 * The ID of the job this graph has been built for.
-	 */
+	/** The ID of the job this graph has been built for. */
 	private final JobID jobID;
 
-	/**
-	 * The name of the original job graph.
-	 */
+	/** The name of the original job graph. */
 	private final String jobName;
 
-	/**
-	 * The job configuration that was originally attached to the JobGraph.
-	 */
+	/** The job configuration that was originally attached to the JobGraph. */
 	private final Configuration jobConfiguration;
 
-	/**
-	 * All job vertices that are part of this graph
-	 */
+	/** All job vertices that are part of this graph */
 	private final ConcurrentHashMap<JobVertexID, ExecutionJobVertex> tasks;
 
-	/**
-	 * All vertices, in the order in which they were created
-	 **/
+	/** All vertices, in the order in which they were created **/
 	private final List<ExecutionJobVertex> verticesInCreationOrder;
 
-	/**
-	 * All intermediate results that are part of this graph
-	 */
+	/** All intermediate results that are part of this graph */
 	private final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult> intermediateResults;
 
-	/**
-	 * The currently executed tasks, for callbacks
-	 */
+	/** The currently executed tasks, for callbacks */
 	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
 
-	/**
-	 * Updates the accumulators during the runtime of a job. Final accumulator results are transferred
-	 * through the UpdateTaskExecutionState message.
-	 *
-	 * @param snapshot The serialized flink and user-defined accumulators
-	 */
-	public void updateAccumulators(AccumulatorSnapshot snapshot) {
-		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
-		UserAccumulators userAccumulators = snapshot.getUserAccumulators();
-		try {
-			flinkAccumulators = snapshot.deserializeFlinkAccumulators();
-
-			ExecutionAttemptID execID = snapshot.getExecutionAttemptID();
-			Execution execution = currentExecutions.get(execID);
-			if (execution != null) {
-				Map<String, List<BlobKey>> largeAccumulators =
-						userAccumulators.getLargeAccumulatorBlobKeys();
-				Map<String, Accumulator<?, ?>> smallAccumulators =
-						userAccumulators.deserializeSmallUserAccumulators(userClassLoader);
-
-				execution.setAccumulators(flinkAccumulators, smallAccumulators, largeAccumulators);
-			} else {
-				LOG.warn("Received accumulator result for unknown execution {}.", execID);
-			}
-		} catch (Exception e) {
-			LOG.error("Cannot update accumulators for job " + jobID, e);
-		}
-	}
-
-	/**
-	 * A list of all libraries required during the job execution. Libraries have to be stored
-	 * inside the BlobService and are referenced via the BLOB keys.
-	 */
+	/** A list of all libraries required during the job execution. Libraries have to be stored
+	 * inside the BlobService and are referenced via the BLOB keys. */
 	private final List<BlobKey> requiredJarFiles;
 
-	/**
-	 * Listeners that receive messages when the entire job switches it status (such as from
-	 * RUNNING to FINISHED)
-	 */
+	/** Listeners that receive messages when the entire job switches it status (such as from
+	 * RUNNING to FINISHED) */
 	private final List<ActorGateway> jobStatusListenerActors;
 
-	/**
-	 * Listeners that receive messages whenever a single task execution changes its status
-	 */
+	/** Listeners that receive messages whenever a single task execution changes its status */
 	private final List<ActorGateway> executionListenerActors;
 
-	/**
-	 * Timestamps (in milliseconds as returned by {@code System.currentTimeMillis()} when
+	/** Timestamps (in milliseconds as returned by {@code System.currentTimeMillis()} when
 	 * the execution graph transitioned into a certain state. The index into this array is the
 	 * ordinal of the enum value, i.e. the timestamp when the graph went into state "RUNNING" is
-	 * at {@code stateTimestamps[RUNNING.ordinal()]}.
-	 */
+	 * at {@code stateTimestamps[RUNNING.ordinal()]}. */
 	private final long[] stateTimestamps;
 
-	/**
-	 * The timeout for all messages that require a response/acknowledgement
-	 */
+	/** The timeout for all messages that require a response/acknowledgement */
 	private final FiniteDuration timeout;
 
 
 	// ------ Configuration of the Execution -------
 
-	/**
-	 * The number of times failed executions should be retried.
-	 */
+	/** The number of times failed executions should be retried. */
 	private int numberOfRetriesLeft;
 
-	/**
-	 * The delay that the system should wait before restarting failed executions.
-	 */
+	/** The delay that the system should wait before restarting failed executions. */
 	private long delayBeforeRetrying;
 
-	/**
-	 * Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
-	 * to deploy them immediately.
-	 */
+	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
+	 * to deploy them immediately. */
 	private boolean allowQueuedScheduling = false;
 
-	/**
-	 * The mode of scheduling. Decides how to select the initial set of tasks to be deployed.
+	/** The mode of scheduling. Decides how to select the initial set of tasks to be deployed.
 	 * May indicate to deploy all sources, or to deploy everything, or to deploy via backtracking
-	 * from results than need to be materialized.
-	 */
+	 * from results than need to be materialized. */
 	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 
-	/**
-	 * Flag that indicate whether the executed dataflow should be periodically snapshotted
-	 */
+	/** Flag that indicate whether the executed dataflow should be periodically snapshotted */
 	private boolean snapshotCheckpointsEnabled;
 
 
 	// ------ Execution status and progress. These values are volatile, and accessed under the lock -------
 
-	/**
-	 * Current status of the job execution
-	 */
+	/** Current status of the job execution */
 	private volatile JobStatus state = JobStatus.CREATED;
 
-	/**
-	 * The exception that caused the job to fail. This is set to the first root exception
-	 * that was not recoverable and triggered job failure
-	 */
+	/** The exception that caused the job to fail. This is set to the first root exception
+	 * that was not recoverable and triggered job failure */
 	private volatile Throwable failureCause;
 
-	/**
-	 * The number of job vertices that have reached a terminal state
-	 */
+	/** The number of job vertices that have reached a terminal state */
 	private volatile int numFinishedJobVertices;
 
 
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
 
-	/**
-	 * The scheduler to use for scheduling new tasks as they are needed
-	 */
+	/** The scheduler to use for scheduling new tasks as they are needed */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private Scheduler scheduler;
 
-	/**
-	 * The classloader for the user code. Needed for calls into user code classes
-	 */
+	/** The classloader for the user code. Needed for calls into user code classes */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private ClassLoader userClassLoader;
 
-	/**
-	 * The coordinator for checkpoints, if snapshot checkpoints are enabled
-	 */
+	/** The coordinator for checkpoints, if snapshot checkpoints are enabled */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointCoordinator checkpointCoordinator;
 
-	/**
-	 * The execution context which is used to execute futures.
-	 */
+	/** The execution context which is used to execute futures. */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private ExecutionContext executionContext;
 
@@ -313,13 +232,13 @@ public class ExecutionGraph implements Serializable {
 			Configuration jobConfig,
 			FiniteDuration timeout) {
 		this(
-				executionContext,
-				jobId,
-				jobName,
-				jobConfig,
-				timeout,
-				new ArrayList<BlobKey>(),
-				ExecutionGraph.class.getClassLoader()
+			executionContext,
+			jobId,
+			jobName,
+			jobConfig,
+			timeout,
+			new ArrayList<BlobKey>(),
+			ExecutionGraph.class.getClassLoader()
 		);
 	}
 
@@ -348,7 +267,7 @@ public class ExecutionGraph implements Serializable {
 		this.verticesInCreationOrder = new ArrayList<ExecutionJobVertex>();
 		this.currentExecutions = new ConcurrentHashMap<ExecutionAttemptID, Execution>();
 
-		this.jobStatusListenerActors = new CopyOnWriteArrayList<ActorGateway>();
+		this.jobStatusListenerActors  = new CopyOnWriteArrayList<ActorGateway>();
 		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
 
 		this.stateTimestamps = new long[JobStatus.values().length];
@@ -471,7 +390,8 @@ public class ExecutionGraph implements Serializable {
 				throw new IllegalArgumentException("Can only use ExecutionJobVertices of this ExecutionGraph");
 			}
 			return jv.getTaskVertices();
-		} else {
+		}
+		else {
 			ArrayList<ExecutionVertex> all = new ArrayList<ExecutionVertex>();
 			for (ExecutionJobVertex jv : jobVertices) {
 				if (jv.getGraph() != this) {
@@ -489,7 +409,6 @@ public class ExecutionGraph implements Serializable {
 
 	/**
 	 * Returns a list of BLOB keys referring to the JAR files required to run this job
-	 *
 	 * @return list of BLOB keys referring to the JAR files required to run this job
 	 */
 	public List<BlobKey> getRequiredJarFiles() {
@@ -605,10 +524,9 @@ public class ExecutionGraph implements Serializable {
 
 	/**
 	 * Gets the internal flink accumulator map of maps which contains some metrics.
-	 *
 	 * @return A map of accumulators for every executed task.
 	 */
-	public Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> getFlinkAccumulators() {
+	public Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?,?>>> getFlinkAccumulators() {
 		Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators =
 				new HashMap<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>>();
 
@@ -621,35 +539,17 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	/**
-	 * This works as cache for already merged accumulators, as, in some cases,
-	 * we do not want to remerge accumulators as this may lead to duplicate entries.
+	 * This works as cache for already merged accumulators. If accumulators are already
+	 * merged, we do not want to re-merge them, as this may lead to duplicate entries.
 	 */
 	private Map<String, Accumulator<?, ?>> mergedSmallUserAccumulators;
 
 	/**
 	 * Merges all accumulator results from the tasks previously executed in the Executions.
-	 *
 	 * @return The accumulator map
 	 */
 	public Map<String, Accumulator<?, ?>> aggregateSmallUserAccumulators() {
-		return aggregateSmallUserAccumulators(true);
-	}
-
-	/**
-	 * Merges all accumulator results from the tasks previously executed in the Executions.
-	 * If <code>reaggregate</code> is set to false, then no aggregation is performed, and
-	 * the cache merge result is returned. Otherwise accumulators are merged.
-	 *
-	 * @param reaggregate <code>true</code> if we want to aggregate accumulators,
-	 *                    <code>false</code> otherwise.
-	 * @return The accumulator map
-	 */
-	public Map<String, Accumulator<?, ?>> aggregateSmallUserAccumulators(boolean reaggregate) {
-		if (!reaggregate) {
-			return mergedSmallUserAccumulators;
-		}
 		this.mergedSmallUserAccumulators = new HashMap<String, Accumulator<?, ?>>();
-
 		for (ExecutionVertex vertex : getAllExecutionVertices()) {
 			Map<String, Accumulator<?, ?>> next = vertex.getCurrentExecutionAttempt().getSmallUserAccumulators();
 			if (next != null) {
@@ -660,43 +560,51 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	/**
-	 * Merges all blobKeys referring to blobs of large accumulators. These refer to blobs in the
-	 * blobCache holding accumulators (results of tasks) that did not fit in an akka frame,
-	 * thus had to be sent through the BlobCache.
+	 * Merges the partial accumulators referring to the same global accumulator received
+	 * from the tasks, and serializes the objects of the accumulators (not only the content as the
+	 * {@link #getSmallAccumulatorsContentSerialized()}. This means that the actual
+	 * objects are serialized, thus merging can still be applied after deserialization.
+	 * Each of the partial accumulators contains the partial result produced by each task,
+	 * for that specific accumulator.
 	 *
-	 * @return The accumulator map
+	 * @return The accumulator map with serialized accumulator objects.
+	 * @throws IOException
 	 */
-	public Map<String, List<BlobKey>> aggregateLargeUserAccumulatorBlobKeys() {
-		Map<String, List<BlobKey>> largeUserAccumulatorRefs = new HashMap<String, List<BlobKey>>();
+	public Map<String, SerializedValue<Object>> getSmallAccumulatorsSerialized() throws IOException {
+		Map<String, Accumulator<?, ?>> accumulatorMap = (mergedSmallUserAccumulators != null) ?
+				mergedSmallUserAccumulators : aggregateSmallUserAccumulators();
 
-		for (ExecutionVertex vertex : getAllExecutionVertices()) {
-			Map<String, List<BlobKey>> next = vertex.getCurrentExecutionAttempt().getLargeUserAccumulatorBlobKeys();
-			mergeLargeUserAccumulatorBlobKeys(largeUserAccumulatorRefs, next);
+		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
+		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
+			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue()));
 		}
-		return largeUserAccumulatorRefs;
+		return result;
 	}
 
 	/**
-	 * Adds new blobKeys referring to blobs of large accumulators to the already existing ones.
-	 * These refer to blobs in the blobCache holding accumulators (results of tasks) that did not
-	 * fit in an akka frame, thus had to be sent through the BlobCache.
+	 * Merges the partial accumulators referring to the same global accumulator received
+	 * from the tasks, and serializes the content of the final accumulator, i.e. the result.
+	 * This is unlike the {@link #getSmallAccumulatorsSerialized()} which serialized the whole
+	 * accumulator object. Each of the partial accumulators contains the partial result
+	 * produced by each task, for that specific accumulator.
 	 *
-	 * @param target  the initial blobKey map
-	 * @param toMerge the new keys to add to the initial map
-	 * @return The resulting accumulator map
+	 * @return The accumulator map with serialized accumulator values.
+	 * @throws IOException
 	 */
-	public Map<String, List<BlobKey>> addLargeUserAccumulatorBlobKeys(
-			Map<String, List<BlobKey>> target, Map<String, List<BlobKey>> toMerge) {
-		if (target == null) {
-			target = new HashMap<String, List<BlobKey>>();
+	public Map<String, SerializedValue<Object>> getSmallAccumulatorsContentSerialized() throws IOException {
+		Map<String, Accumulator<?, ?>> accumulatorMap = (mergedSmallUserAccumulators != null) ?
+				mergedSmallUserAccumulators : aggregateSmallUserAccumulators();
+
+		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
+		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
+			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue().getLocalValue()));
 		}
-		mergeLargeUserAccumulatorBlobKeys(target, toMerge);
-		return target;
+		return result;
 	}
 
-	private void mergeLargeUserAccumulatorBlobKeys(
+	private void aggregateLargeUserAccumulatorBlobKeys(
 			Map<String, List<BlobKey>> target, Map<String, List<BlobKey>> toMerge) {
-		if (toMerge == null || toMerge.isEmpty()) {
+		if (target == null || toMerge == null || toMerge.isEmpty()) {
 			return;
 		}
 
@@ -711,76 +619,48 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	/**
-	 * Merges the partial accumulators referring to the same global accumulator received from the tasks,
-	 * and serializes the final result. Each of the partial accumulators contains the partial result
-	 * produced by each task, for that specific accumulator.
+	 * Merges all blobKeys referring to blobs of large accumulators. These refer to blobs in the
+	 * blobCache holding accumulators (results of tasks) that did not fit in an akka frame,
+	 * thus had to be sent through the BlobCache.
 	 *
-	 * @return The accumulator map with serialized accumulator values.
-	 * @throws IOException
+	 * @return The accumulator map
 	 */
-	public Map<String, SerializedValue<Object>> getSmallAccumulatorsContentSerialized() throws IOException {
-		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateSmallUserAccumulators(true);
+	public Map<String, List<BlobKey>> aggregateLargeUserAccumulatorBlobKeys() {
+		Map<String, List<BlobKey>> largeUserAccumulatorRefs = new HashMap<String, List<BlobKey>>();
 
-		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
-		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
-			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue().getLocalValue()));
+		for (ExecutionVertex vertex : getAllExecutionVertices()) {
+			Map<String, List<BlobKey>> next = vertex.getCurrentExecutionAttempt().getLargeUserAccumulatorBlobKeys();
+			aggregateLargeUserAccumulatorBlobKeys(largeUserAccumulatorRefs, next);
 		}
-		return result;
+		return largeUserAccumulatorRefs;
 	}
 
 	/**
-	 * Serializes the objects of the accumulators (not only the content as the
-	 * {@link #getSmallAccumulatorsContentSerialized()}. This means that the actual
-	 * objects are serialized, thus merging can still be applied after deserialization.
-	 * This method assumes that partial accumulators received from the tasks that refer to
-	 * the same global accumulator have already been merged.
+	 * Adds new blobKeys pointing to blobs of large accumulators in the BlobCache, to the list
+	 * of already received BlobKeys. These refer to blobs in the blobCache holding accumulators
+	 * (results of tasks) that did not fit in an akka framesize, thus had to be sent through
+	 * the BlobCache.
 	 *
-	 * @return The accumulator map with serialized accumulator objects.
-	 * @throws IOException
+	 * @param target  the initial blobKey map
+	 * @param toMerge the new keys to add to the initial map
+	 * @return The resulting accumulator map
 	 */
-	public Map<String, SerializedValue<Object>> getSmallAccumulatorsSerialized() throws IOException {
-		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateSmallUserAccumulators(false);
+	public Map<String, List<BlobKey>> addLargeUserAccumulatorBlobKeys(
+			Map<String, List<BlobKey>> target, Map<String, List<BlobKey>> toMerge) {
 
-		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
-		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
-			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue()));
+		if (target == null) {
+			target = new HashMap<String, List<BlobKey>>();
 		}
-		return result;
+		aggregateLargeUserAccumulatorBlobKeys(target, toMerge);
+		return target;
 	}
-
-//	/**
-//	 * Merges and serializes all accumulator results from the tasks previously executed in
-//	 * the Executions. If <code>onlyContent</code> is set to true, then the Accumulators are
-//	 * merged and the content of the resulting Accumulator is serialized and returned. In other
-//	 * case, the result is assumed to be merged, so no additional merging is performed (as this
-//	 * could lead to duplicate entries), and the whole accumulator object is serialized and
-//	 * returned.
-//	 * @param  onlyContent <code>true</code> if we want to aggregate accumulators and serialize just
-//	 *                     the content of the result, <code>false</code> if (partial) accumulators
-//	 *                     are already merged (so no additional merging is required), and we want the
-//	 *                     whole object serialized.
-//	 * @return The accumulator map
-//	 */
-//	private Map<String,  SerializedValue<Object>> serializeAccumulators(boolean onlyContent) throws IOException {
-//
-//		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateSmallUserAccumulators(onlyContent);
-//
-//		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
-//		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
-//			Object toSerialize = onlyContent ? entry.getValue().getLocalValue() : entry.getValue();
-//			result.put(entry.getKey(), new SerializedValue<Object>(toSerialize));
-//		}
-//
-//		return result;
-//	}
 
 	/**
 	 * Returns the a stringified version of the user-defined accumulators.
-	 *
 	 * @return an Array containing the StringifiedAccumulatorResult objects
 	 */
 	public StringifiedAccumulatorResult[] getAccumulatorResultsStringified() {
-		Map<String, Accumulator<?, ?>> smallAccumulatorMap = aggregateSmallUserAccumulators();
+		Map<String, Accumulator<?, ?>> smallAccumulatorMap = mergedSmallUserAccumulators;
 		Map<String, List<BlobKey>> largeAccumulatorMap = aggregateLargeUserAccumulatorBlobKeys();
 
 		// get the total number of (unique) accumulators
@@ -890,8 +770,11 @@ public class ExecutionGraph implements Serializable {
 				case BACKTRACKING:
 					// go back from vertices that need computation to the ones we need to run
 					throw new JobException("BACKTRACKING is currently not supported as schedule mode.");
+				default:
+					throw new JobException("Schedule mode is invalid.");
 			}
-		} else {
+		}
+		else {
 			throw new IllegalStateException("Job may only be scheduled from state " + JobStatus.CREATED);
 		}
 	}
@@ -907,7 +790,8 @@ public class ExecutionGraph implements Serializable {
 					}
 					return;
 				}
-			} else {
+			}
+			else {
 				// no need to treat other states
 				return;
 			}
@@ -919,7 +803,8 @@ public class ExecutionGraph implements Serializable {
 			JobStatus current = state;
 			if (current == JobStatus.FAILED || current == JobStatus.FAILING) {
 				return;
-			} else if (transitionState(current, JobStatus.FAILING, t)) {
+			}
+			else if (transitionState(current, JobStatus.FAILING, t)) {
 				this.failureCause = t;
 
 				if (!verticesInCreationOrder.isEmpty()) {
@@ -974,7 +859,8 @@ public class ExecutionGraph implements Serializable {
 			}
 
 			scheduleForExecution(scheduler);
-		} catch (Throwable t) {
+		}
+		catch (Throwable t) {
 			fail(t);
 		}
 	}
@@ -988,7 +874,7 @@ public class ExecutionGraph implements Serializable {
 		}
 		// "unpack" execution config before we throw away the usercode classloader.
 		try {
-			executionConfig = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(jobConfiguration, ExecutionConfig.CONFIG_KEY, userClassLoader);
+			executionConfig = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(jobConfiguration, ExecutionConfig.CONFIG_KEY,userClassLoader);
 		} catch (Exception e) {
 			LOG.warn("Error deserializing the execution config while archiving the execution graph", e);
 		}
@@ -1015,7 +901,6 @@ public class ExecutionGraph implements Serializable {
 
 	/**
 	 * For testing: This waits until the job execution has finished.
-	 *
 	 * @throws InterruptedException
 	 */
 	public void waitUntilFinished() throws InterruptedException {
@@ -1039,7 +924,8 @@ public class ExecutionGraph implements Serializable {
 			stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
 			notifyJobStatusChange(newState, error);
 			return true;
-		} else {
+		}
+		else {
 			return false;
 		}
 	}
@@ -1064,12 +950,14 @@ public class ExecutionGraph implements Serializable {
 							postRunCleanup();
 							break;
 						}
-					} else if (current == JobStatus.CANCELLING) {
+					}
+					else if (current == JobStatus.CANCELLING) {
 						if (transitionState(current, JobStatus.CANCELED)) {
 							postRunCleanup();
 							break;
 						}
-					} else if (current == JobStatus.FAILING) {
+					}
+					else if (current == JobStatus.FAILING) {
 						if (numberOfRetriesLeft > 0 && transitionState(current, JobStatus.RESTARTING)) {
 							numberOfRetriesLeft--;
 							future(new Callable<Object>() {
@@ -1078,7 +966,8 @@ public class ExecutionGraph implements Serializable {
 									try {
 										LOG.info("Delaying retry of job execution for {} ms ...", delayBeforeRetrying);
 										Thread.sleep(delayBeforeRetrying);
-									} catch (InterruptedException e) {
+									}
+									catch(InterruptedException e){
 										// should only happen on shutdown
 									}
 									restart();
@@ -1086,11 +975,13 @@ public class ExecutionGraph implements Serializable {
 								}
 							}, executionContext);
 							break;
-						} else if (numberOfRetriesLeft <= 0 && transitionState(current, JobStatus.FAILED, failureCause)) {
+						}
+						else if (numberOfRetriesLeft <= 0 && transitionState(current, JobStatus.FAILED, failureCause)) {
 							postRunCleanup();
 							break;
 						}
-					} else {
+					}
+					else {
 						fail(new Exception("ExecutionGraph went into final state from state " + current));
 					}
 				}
@@ -1109,7 +1000,8 @@ public class ExecutionGraph implements Serializable {
 			if (coord != null) {
 				coord.shutdown();
 			}
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			LOG.error("Error while cleaning up after execution", e);
 		}
 	}
@@ -1120,7 +1012,6 @@ public class ExecutionGraph implements Serializable {
 
 	/**
 	 * Updates the state of the Task and sets the final accumulator results.
-	 *
 	 * @param state
 	 * @return
 	 */
@@ -1141,7 +1032,7 @@ public class ExecutionGraph implements Serializable {
 					try {
 						flinkAccumulators = accumulatorSnapshot.deserializeFlinkAccumulators();
 
-						largeAccumulators = userAccumulators.getLargeAccumulatorBlobKeys();
+						largeAccumulators = userAccumulators.getLargeUserAccumulatorBlobKeys();
 						smallAccumulators = userAccumulators.deserializeSmallUserAccumulators(userClassLoader);
 					} catch (Exception e) {
 						// Exceptions would be thrown in the future here
@@ -1162,7 +1053,8 @@ public class ExecutionGraph implements Serializable {
 					attempt.fail(new Exception("TaskManager sent illegal state update: " + state.getExecutionState()));
 					return false;
 			}
-		} else {
+		}
+		else {
 			return false;
 		}
 	}
@@ -1174,7 +1066,8 @@ public class ExecutionGraph implements Serializable {
 		if (execution == null) {
 			fail(new IllegalStateException("Cannot find execution for execution ID " +
 					partitionId.getPartitionId()));
-		} else if (execution.getVertex() == null) {
+		}
+		else if (execution.getVertex() == null){
 			fail(new IllegalStateException("Execution with execution ID " +
 					partitionId.getPartitionId() + " has no vertex assigned."));
 		} else {
@@ -1201,6 +1094,34 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 
+	/**
+	 * Updates the accumulators during the runtime of a job. Final accumulator results are transferred
+	 * through the UpdateTaskExecutionState message.
+	 * @param accumulatorSnapshot The serialized flink and user-defined accumulators
+	 */
+	public void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
+		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
+		UserAccumulators userAccumulators = accumulatorSnapshot.getUserAccumulators();
+		try {
+			flinkAccumulators = accumulatorSnapshot.deserializeFlinkAccumulators();
+
+			ExecutionAttemptID execID = accumulatorSnapshot.getExecutionAttemptID();
+			Execution execution = currentExecutions.get(execID);
+			if (execution != null) {
+				Map<String, List<BlobKey>> largeAccumulators =
+						userAccumulators.getLargeUserAccumulatorBlobKeys();
+				Map<String, Accumulator<?, ?>> smallAccumulators =
+						userAccumulators.deserializeSmallUserAccumulators(userClassLoader);
+
+				execution.setAccumulators(flinkAccumulators, smallAccumulators, largeAccumulators);
+			} else {
+				LOG.warn("Received accumulator result for unknown execution {}.", execID);
+			}
+		} catch (Exception e) {
+			LOG.error("Cannot update accumulators for job " + jobID, e);
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Listeners & Observers
 	// --------------------------------------------------------------------------------------------
@@ -1223,23 +1144,24 @@ public class ExecutionGraph implements Serializable {
 			ExecutionGraphMessages.JobStatusChanged message =
 					new ExecutionGraphMessages.JobStatusChanged(jobID, newState, System.currentTimeMillis(), error);
 
-			for (ActorGateway listener : jobStatusListenerActors) {
+			for (ActorGateway listener: jobStatusListenerActors) {
 				listener.tell(message);
 			}
 		}
 	}
 
 	void notifyExecutionChange(JobVertexID vertexId, int subtask, ExecutionAttemptID executionID, ExecutionState
-			newExecutionState, Throwable error) {
+							newExecutionState, Throwable error)
+	{
 		ExecutionJobVertex vertex = getJobVertex(vertexId);
 
 		if (executionListenerActors.size() > 0) {
 			String message = error == null ? null : ExceptionUtils.stringifyException(error);
 			ExecutionGraphMessages.ExecutionStateChanged actorMessage =
-					new ExecutionGraphMessages.ExecutionStateChanged(jobID, vertexId, vertex.getJobVertex().getName(),
-							vertex.getParallelism(), subtask,
-							executionID, newExecutionState,
-							System.currentTimeMillis(), message);
+					new ExecutionGraphMessages.ExecutionStateChanged(jobID, vertexId,  vertex.getJobVertex().getName(),
+																	vertex.getParallelism(), subtask,
+																	executionID, newExecutionState,
+																	System.currentTimeMillis(), message);
 
 			for (ActorGateway listener : executionListenerActors) {
 				listener.tell(actorMessage);
