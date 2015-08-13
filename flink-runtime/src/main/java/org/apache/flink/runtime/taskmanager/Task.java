@@ -1094,7 +1094,7 @@ public class Task implements Runnable {
 				// interrupt the running thread initially 
 				executer.interrupt();
 				try {
-					executer.join(10000);
+					executer.join(30000);
 				}
 				catch (InterruptedException e) {
 					// we can ignore this
@@ -1117,7 +1117,7 @@ public class Task implements Runnable {
 
 					executer.interrupt();
 					try {
-						executer.join(10000);
+						executer.join(30000);
 					}
 					catch (InterruptedException e) {
 						// we can ignore this
