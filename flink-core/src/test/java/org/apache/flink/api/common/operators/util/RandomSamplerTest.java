@@ -213,7 +213,10 @@ public class RandomSamplerTest {
 		verifyReservoirSamplerWithReplacement(1000, true);
 		verifyReservoirSamplerWithReplacement(5000, true);
 	}
-	
+
+	/*
+	 * Sample with fixed size, verify whether the sampled result size equals to input size.
+	 */
 	private void verifySamplerFixedSampleSize(int numSample, boolean withReplacement) {
 		RandomSampler<Double> sampler;
 		if (withReplacement) {
@@ -224,7 +227,10 @@ public class RandomSamplerTest {
 		Iterator<Double> sampled = sampler.sample(source.iterator());
 		assertEquals(numSample, getSize(sampled));
 	}
-	
+
+	/*
+	 * Sample with fraction, and verify whether the sampled result close to input fraction.
+	 */
 	private void verifySamplerFraction(double fraction, boolean withReplacement) {
 		RandomSampler<Double> sampler;
 		if (withReplacement) {
@@ -242,7 +248,10 @@ public class RandomSamplerTest {
 		double resultFraction = totalSampledSize / ((double) SOURCE_SIZE * sampleCount);
 		assertTrue(String.format("expected fraction: %f, result fraction: %f", fraction, resultFraction), Math.abs((resultFraction - fraction) / fraction) < 0.1);
 	}
-	
+
+	/*
+	 * Test sampler without replacement, and verify that there should not exist any duplicate element in sampled result.
+	 */
 	private void verifyRandomSamplerDuplicateElements(final RandomSampler<Double> sampler) {
 		List<Double> list = Lists.newLinkedList(new Iterable<Double>() {
 			@Override
@@ -286,7 +295,13 @@ public class RandomSamplerTest {
 		verifyRandomSamplerWithSampleSize(numSamplers, sampler, true, sampleOnPartitions);
 		verifyRandomSamplerWithSampleSize(numSamplers, sampler, false, sampleOnPartitions);
 	}
-	
+
+	/*
+	 * Verify whether random sampler sample with fraction from source data randomly. There are two default sample, one is
+	 * sampled from source data with certain interval, the other is sampled only from the first half region of source data,
+	 * If random sampler select elements randomly from source, it would distributed well-proportioned on source data as well,
+	 * so the K-S Test result would accept the first one, while reject the second one.
+	 */
 	private void verifyRandomSamplerWithFraction(double fraction, RandomSampler sampler, boolean withDefaultSampler) {
 		double[] baseSample;
 		if (withDefaultSampler) {
@@ -298,6 +313,12 @@ public class RandomSamplerTest {
 		verifyKSTest(sampler, baseSample, withDefaultSampler);
 	}
 
+	/*
+	 * Verify whether random sampler sample with fixed size from source data randomly. There are two default sample, one is
+	 * sampled from source data with certain interval, the other is sampled only from the first half region of source data,
+	 * If random sampler select elements randomly from source, it would distributed well-proportioned on source data as well,
+	 * so the K-S Test result would accept the first one, while reject the second one.
+	 */
 	private void verifyRandomSamplerWithSampleSize(int sampleSize, RandomSampler sampler, boolean withDefaultSampler, boolean sampleWithPartitions) {
 		double[] baseSample;
 		if (withDefaultSampler) {
@@ -347,7 +368,9 @@ public class RandomSamplerTest {
 		return result;
 	}
 
-	// Some sample result may not order by the input sequence, we should make it in order to do K-S test.
+	/*
+	 * Some sample result may not order by the input sequence, we should make it in order to do K-S test.
+	 */
 	private double[] transferFromListToArrayWithOrder(List<Double> list) {
 		Collections.sort(list, new Comparator<Double>() {
 			@Override
@@ -386,7 +409,9 @@ public class RandomSamplerTest {
 		return defaultSampler;
 	}
 	
-	// Build a failed sample distribution which only contains elements in the first half of source data.
+	/*
+	 * Build a failed sample distribution which only contains elements in the first half of source data.
+	 */
 	private double[] getWrongSampler(double fraction) {
 		Preconditions.checkArgument(fraction > 0, "Sample size should be positive.");
 		int size = (int) (SOURCE_SIZE * fraction);
@@ -399,7 +424,9 @@ public class RandomSamplerTest {
 		return wrongSampler;
 	}
 	
-	// Build a failed sample distribution which only contains elements in the first half of source data.
+	/*
+	 * Build a failed sample distribution which only contains elements in the first half of source data.
+	 */
 	private double[] getWrongSampler(int fixSize) {
 		Preconditions.checkArgument(fixSize > 0, "Sample size be positive.");
 		int halfSourceSize = SOURCE_SIZE / 2;
@@ -412,7 +439,7 @@ public class RandomSamplerTest {
 		return wrongSampler;
 	}
 	
-	/**
+	/*
 	 * Calculate the D value of K-S test for p-value 0.05, m and n are the sample size
 	 */
 	private double getDValue(int m, int n) {
