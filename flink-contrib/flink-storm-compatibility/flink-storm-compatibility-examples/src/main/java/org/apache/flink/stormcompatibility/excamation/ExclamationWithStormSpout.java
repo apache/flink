@@ -27,6 +27,8 @@ import org.apache.flink.stormcompatibility.wrappers.FiniteStormSpoutWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import backtype.storm.utils.Utils;
+
 /**
  * Implements the "Exclamation" program that attaches five exclamation mark to every line of a text
  * files in a streaming fashion. The program is constructed as a regular {@link StormTopology}.
@@ -84,6 +86,7 @@ public class ExclamationWithStormSpout {
 	// *************************************************************************
 
 	private static class ExclamationMap implements MapFunction<String, String> {
+		private static final long serialVersionUID = -684993133807698042L;
 
 		@Override
 		public String map(String value) throws Exception {
@@ -126,13 +129,14 @@ public class ExclamationWithStormSpout {
 			final String[] tokens = textPath.split(":");
 			final String localFile = tokens[tokens.length - 1];
 			return env.addSource(
-					new FiniteStormSpoutWrapper<String>(new FiniteStormFileSpout(localFile), true),
-					TypeExtractor.getForClass(String.class)).setParallelism(1);
+					new FiniteStormSpoutWrapper<String>(new FiniteStormFileSpout(localFile),
+							new String[] { Utils.DEFAULT_STREAM_ID }),
+							TypeExtractor.getForClass(String.class)).setParallelism(1);
 		}
 
 		return env.addSource(
-				new FiniteStormSpoutWrapper<String>(
-						new FiniteStormInMemorySpout(WordCountData.WORDS), true),
+				new FiniteStormSpoutWrapper<String>(new FiniteStormInMemorySpout(
+						WordCountData.WORDS), new String[] { Utils.DEFAULT_STREAM_ID }),
 				TypeExtractor.getForClass(String.class)).setParallelism(1);
 
 	}

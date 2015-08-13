@@ -18,6 +18,8 @@
 package org.apache.flink.stormcompatibility.wordcount;
 
 import backtype.storm.topology.IRichSpout;
+import backtype.storm.utils.Utils;
+
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -140,11 +142,14 @@ public class SpoutSourceWordCount {
 			final String[] tokens = textPath.split(":");
 			final String localFile = tokens[tokens.length - 1];
 			return env.addSource(
-					new StormFiniteSpoutWrapper<String>(new StormFileSpout(localFile), true),
+					new StormFiniteSpoutWrapper<String>(new StormFileSpout(localFile),
+							new String[] { Utils.DEFAULT_STREAM_ID }),
 					TypeExtractor.getForClass(String.class)).setParallelism(1);
 		}
 
-		return env.addSource(new StormFiniteSpoutWrapper<String>(new StormInMemorySpout(WordCountData.WORDS), true),
+		return env.addSource(
+				new StormFiniteSpoutWrapper<String>(new StormInMemorySpout(WordCountData.WORDS),
+						new String[] { Utils.DEFAULT_STREAM_ID }),
 				TypeExtractor.getForClass(String.class)).setParallelism(1);
 
 	}

@@ -49,7 +49,9 @@ Add the following dependency to your `pom.xml` if you want to execute Storm code
 </dependency>
 ~~~
 
-**Please note**: `flink-storm-compatibility-core` is not part of the provided binary Flink distribution. Thus, you need to include `flink-storm-compatiblitly-core` classes (and their dependencies) in your program jar that is submitted to Flink's JobManager.
+**Please note**: `flink-storm-compatibility-core` is not part of the provided binary Flink distribution.
+Thus, you need to include `flink-storm-compatiblitly-core` classes (and their dependencies) in your program jar that is submitted to Flink's JobManager.
+See *WordCount Storm* within `flink-storm-compatibility-example/pom.xml` for an example how to package a jar correctly.
 
 # Execute Storm Topologies
 
@@ -93,7 +95,7 @@ if(runLocal) { // submit to test cluster
 As an alternative, Spouts and Bolts can be embedded into regular streaming programs.
 The Storm compatibility layer offers a wrapper classes for each, namely `StormSpoutWrapper` and `StormBoltWrapper` (`org.apache.flink.stormcompatibility.wrappers`).
 
-Per default, both wrappers convert Storm output tuples to Flink's [Tuple](programming_guide.html#tuples-and-case-classes) types (ie, `Tuple1` to `Tuple25` according to the number of fields of the Storm tuples).
+Per default, both wrappers convert Storm output tuples to Flink's [Tuple](programming_guide.html#tuples-and-case-classes) types (ie, `Tuple0` to `Tuple25` according to the number of fields of the Storm tuples).
 For single field output tuples a conversion to the field's data type is also possible (eg, `String` instead of `Tuple1<String>`).
 
 Because Flink cannot infer the output field types of Storm operators, it is required to specify the output type manually.
@@ -112,7 +114,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 
 // stream has `raw` type (single field output streams only)
 DataStream<String> rawInput = env.addSource(
-	new StormSpoutWrapper<String>(new StormFileSpout(localFilePath), true), // Spout source, 'true' for raw type
+	new StormSpoutWrapper<String>(new StormFileSpout(localFilePath), new String[] { Utils.DEFAULT_STREAM_ID }), // emit default output stream as raw type
 	TypeExtractor.getForClass(String.class)); // output type
 
 // process data stream
@@ -166,6 +168,38 @@ For this case, the constructor of `StormBoltWrapper` takes an additional argumen
 The input type is `Tuple1<String>` and `Fields("sentence")` specify that `input.getStringByField("sentence")` is equivalent to `input.getString(0)`.
 
 See [BoltTokenizerWordCountPojo](https://github.com/apache/flink/tree/master/flink-contrib/flink-storm-compatibility/flink-storm-compatibility-examples/src/main/java/org/apache/flink/stormcompatibility/wordcount/BoltTokenizerWordCountPojo.java) and [BoltTokenizerWordCountWithNames](https://github.com/apache/flink/tree/master/flink-contrib/flink-storm-compatibility/flink-storm-compatibility-examples/src/main/java/org/apache/flink/stormcompatibility/wordcount/BoltTokenizerWordCountWithNames.java) for examples.  
+
+## Multiple Output Streams
+
+Flink can also handle the declaration of multiple output streams for Spouts and Bolts.
+If a whole topology is executed using `FlinkTopologyBuilder` etc., there is no special attention required &ndash; it works as in regular Storm.
+For embedded usage, the output stream will be of data type `SplitStreamType<T>` and must be split by using `DataStream.split(...)` and `SplitDataStream.select(...)`.
+Flink provides the predefined output selector `FlinkStormStreamSelector<T>` for `.split(...)` already.
+Furthermore, the wrapper type `SplitStreamTuple<T>` can be removed using `SplitStreamMapper<T>`.
+If a data stream of type `SplitStreamTuple<T>` is used as input for a Bolt, `SplitStreamTuple<T>` must **not** be removed &ndash; `StormBoltWrapper` removes it automatically.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+~~~java
+[...]
+
+// get DataStream from Spout or Bolt which declares two output streams s1 and s2 with output type SomeType
+DataStream<SplitStreamType<SomeType>> multiStream = ...
+
+SplitDataStream<SplitStreamType<SomeType>> splitStream = multiStream.split(new FlinkStormStreamSelector<SomeType>());
+
+// remove SplitStreamMapper to get data stream of type SomeType
+DataStream<SomeType> s1 = splitStream.select("s1").map(new SplitStreamMapper<SomeType>).returns(SomeType.classs);
+// apply Bolt directly, without stripping SplitStreamMapper
+DataStream<BoltOutputType> s2 = splitStream.select("s2").transform(/* use Bolt for further processing */);
+
+// do further processing on s1 and s2
+[...]
+~~~
+</div>
+</div>
+
+See [SpoutSplitExample.java](https://github.com/apache/flink/tree/master/flink-contrib/flink-storm-compatibility/flink-storm-compatibility-examples/src/main/java/org/apache/flink/stormcompatibility/split/SpoutSplitExample.java) for a full example.
 
 # Flink Extensions
 

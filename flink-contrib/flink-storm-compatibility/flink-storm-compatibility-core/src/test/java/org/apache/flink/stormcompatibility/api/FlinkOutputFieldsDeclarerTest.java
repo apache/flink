@@ -14,12 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.stormcompatibility.api;
 
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.stormcompatibility.util.AbstractTest;
 import org.junit.Assert;
 import org.junit.Test;
@@ -31,84 +32,111 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 
 
 	@Test
+	public void testNull() {
+		Assert.assertNull(new FlinkOutputFieldsDeclarer().getOutputType(null));
+	}
+
+	@Test
 	public void testDeclare() {
-		for (int i = 0; i < 4; ++i) {
-			for (int j = 0; j <= 25; ++j) {
-				this.runDeclareTest(i, j);
+		for (int i = 0; i < 2; ++i) { // test case: simple / non-direct
+			for (int j = 1; j < 2; ++j) { // number of streams
+				for (int k = 0; k <= 25; ++k) { // number of attributes
+					this.runDeclareTest(i, j, k);
+				}
 			}
 		}
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testDeclareSimpleToManyAttributes() {
-		this.runDeclareTest(0, 26);
+		this.runDeclareTest(0, this.r.nextBoolean() ? 1 : 2, 26);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testDeclareNonDirectToManyAttributes() {
-		this.runDeclareTest(1, 26);
+		this.runDeclareTest(1, this.r.nextBoolean() ? 1 : 2, 26);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testDeclareDefaultStreamToManyAttributes() {
-		this.runDeclareTest(2, 26);
+		this.runDeclareTest(2, this.r.nextBoolean() ? 1 : 2, 26);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testDeclareFullToManyAttributes() {
-		this.runDeclareTest(3, 26);
+		this.runDeclareTest(3, this.r.nextBoolean() ? 1 : 2, 26);
 	}
 
-	private void runDeclareTest(final int testCase, final int numberOfAttributes) {
+	private void runDeclareTest(final int testCase, final int numberOfStreams,
+			final int numberOfAttributes) {
 		final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
 
+		String[] streams = null;
+		if (numberOfStreams > 1 || r.nextBoolean()) {
+			streams = new String[numberOfStreams];
+			for (int i = 0; i < numberOfStreams; ++i) {
+				streams[i] = "stream" + i;
+			}
+		}
+
 		final String[] attributes = new String[numberOfAttributes];
-		for (int i = 0; i < numberOfAttributes; ++i) {
+		for (int i = 0; i < attributes.length; ++i) {
 			attributes[i] = "a" + i;
 		}
 
 		switch (testCase) {
-			case 0:
-				this.declareSimple(declarer, attributes);
-				break;
-			case 1:
-				this.declareNonDirect(declarer, attributes);
-				break;
-			case 2:
-				this.declareDefaultStream(declarer, attributes);
-				break;
-			default:
-				this.declareFull(declarer, attributes);
+		case 0:
+			this.declareSimple(declarer, streams, attributes);
+			break;
+		default:
+			this.declareNonDirect(declarer, streams, attributes);
 		}
 
-		final TypeInformation<?> type = declarer.getOutputType();
+		if (streams == null) {
+			streams = new String[] { Utils.DEFAULT_STREAM_ID };
+		}
 
-		if (numberOfAttributes == 0) {
-			Assert.assertNull(type);
-		} else {
-			Assert.assertEquals(numberOfAttributes, type.getArity());
+		for (String stream : streams) {
+			final TypeInformation<?> type = declarer.getOutputType(stream);
+
 			if (numberOfAttributes == 1) {
-				Assert.assertFalse(type.isTupleType());
+				Assert.assertEquals(type.getClass(), GenericTypeInfo.class);
+				Assert.assertEquals(type.getTypeClass(), Object.class);
 			} else {
+				Assert.assertEquals(numberOfAttributes, type.getArity());
 				Assert.assertTrue(type.isTupleType());
 			}
 		}
 	}
 
-	private void declareSimple(final FlinkOutputFieldsDeclarer declarer, final String[] attributes) {
-		declarer.declare(new Fields(attributes));
+	private void declareSimple(final FlinkOutputFieldsDeclarer declarer, final String[] streams,
+			final String[] attributes) {
+
+		if (streams != null) {
+			for (String stream : streams) {
+				declarer.declareStream(stream, new Fields(attributes));
+			}
+		} else {
+			declarer.declare(new Fields(attributes));
+		}
 	}
 
-	private void declareNonDirect(final FlinkOutputFieldsDeclarer declarer, final String[] attributes) {
-		declarer.declare(false, new Fields(attributes));
+	private void declareNonDirect(final FlinkOutputFieldsDeclarer declarer, final String[] streams,
+			final String[] attributes) {
+
+		if (streams != null) {
+			for (String stream : streams) {
+				declarer.declareStream(stream, false, new Fields(attributes));
+			}
+		} else {
+			declarer.declare(false, new Fields(attributes));
+		}
 	}
 
-	private void declareDefaultStream(final FlinkOutputFieldsDeclarer declarer, final String[] attributes) {
-		declarer.declareStream(Utils.DEFAULT_STREAM_ID, new Fields(attributes));
-	}
-
-	private void declareFull(final FlinkOutputFieldsDeclarer declarer, final String[] attributes) {
-		declarer.declareStream(Utils.DEFAULT_STREAM_ID, false, new Fields(attributes));
+	@Test(expected = IllegalArgumentException.class)
+	public void testUndeclared() {
+		final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
+		declarer.getOutputType("unknownStreamId");
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
@@ -117,18 +145,8 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testDeclareNonDefaultStrem() {
-		new FlinkOutputFieldsDeclarer().declareStream("dummy", null);
-	}
-
-	@Test(expected = UnsupportedOperationException.class)
 	public void testDeclareDirect2() {
 		new FlinkOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, true, null);
-	}
-
-	@Test(expected = UnsupportedOperationException.class)
-	public void testDeclareNonDefaultStrem2() {
-		new FlinkOutputFieldsDeclarer().declareStream("dummy", this.r.nextBoolean(), null);
 	}
 
 	@Test
@@ -163,7 +181,8 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 			}
 		}
 
-		final int[] result = declarer.getGroupingFieldIndexes(groupingFields);
+		final int[] result = declarer.getGroupingFieldIndexes(Utils.DEFAULT_STREAM_ID,
+				groupingFields);
 
 		Assert.assertEquals(expectedResult.length, result.length);
 		for (int i = 0; i < expectedResult.length; ++i) {

@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.HashMap;
 import java.util.List;
 
 import static org.mockito.Mockito.mock;
@@ -35,19 +36,23 @@ public class StormSpoutCollectorTest extends AbstractTest {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testSpoutStormCollector() throws InstantiationException, IllegalAccessException {
-		for (int numberOfAttributes = 0; numberOfAttributes < 26; ++numberOfAttributes) {
+		for (int numberOfAttributes = -1; numberOfAttributes < 26; ++numberOfAttributes) {
 			final SourceContext flinkCollector = mock(SourceContext.class);
 			Tuple flinkTuple = null;
 			final Values tuple = new Values();
 
 			StormSpoutCollector<?> collector;
 
-			if (numberOfAttributes == 0) {
-				collector = new StormSpoutCollector(numberOfAttributes, flinkCollector);
+			final String streamId = "streamId";
+			HashMap<String, Integer> attributes = new HashMap<String, Integer>();
+			attributes.put(streamId, numberOfAttributes);
+
+			if (numberOfAttributes == -1) {
+				collector = new StormSpoutCollector(attributes, flinkCollector);
 				tuple.add(new Integer(this.r.nextInt()));
 
 			} else {
-				collector = new StormSpoutCollector(numberOfAttributes, flinkCollector);
+				collector = new StormSpoutCollector(attributes, flinkCollector);
 				flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
 
 				for (int i = 0; i < numberOfAttributes; ++i) {
@@ -56,7 +61,6 @@ public class StormSpoutCollectorTest extends AbstractTest {
 				}
 			}
 
-			final String streamId = "streamId";
 			final List<Integer> taskIds;
 			final Object messageId = new Integer(this.r.nextInt());
 
@@ -64,7 +68,7 @@ public class StormSpoutCollectorTest extends AbstractTest {
 
 			Assert.assertNull(taskIds);
 
-			if (numberOfAttributes == 0) {
+			if (numberOfAttributes == -1) {
 				verify(flinkCollector).collect(tuple.get(0));
 			} else {
 				verify(flinkCollector).collect(flinkTuple);
@@ -75,13 +79,15 @@ public class StormSpoutCollectorTest extends AbstractTest {
 	@SuppressWarnings("unchecked")
 	@Test(expected = UnsupportedOperationException.class)
 	public void testReportError() {
-		new StormSpoutCollector<Object>(1, mock(SourceContext.class)).reportError(null);
+		new StormSpoutCollector<Object>(mock(HashMap.class), mock(SourceContext.class))
+				.reportError(null);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Test(expected = UnsupportedOperationException.class)
 	public void testEmitDirect() {
-		new StormSpoutCollector<Object>(1, mock(SourceContext.class)).emitDirect(0, null, null,
+		new StormSpoutCollector<Object>(mock(HashMap.class), mock(SourceContext.class)).emitDirect(
+				0, null, null,
 				(Object) null);
 	}
 

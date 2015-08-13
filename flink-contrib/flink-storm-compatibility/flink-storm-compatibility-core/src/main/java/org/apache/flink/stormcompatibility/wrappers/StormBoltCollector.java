@@ -20,12 +20,13 @@ package org.apache.flink.stormcompatibility.wrappers;
 import backtype.storm.task.IOutputCollector;
 import backtype.storm.tuple.Tuple;
 
-import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.util.Collector;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -39,19 +40,19 @@ class StormBoltCollector<OUT> extends AbstractStormCollector<OUT> implements IOu
 	private final Collector<OUT> flinkOutput;
 
 	/**
-	 * Instantiates a new {@link StormBoltCollector} that emits Flink tuples to the given Flink
-	 * output object. If the number of attributes is specified as zero, any output type is
-	 * supported. If the number of attributes is between 1 to 25, the output type is {@link Tuple1}
-	 * to {@link Tuple25}.
+	 * Instantiates a new {@link StormBoltCollector} that emits Flink tuples to the given Flink output object. If the
+	 * number of attributes is negative, any output type is supported (ie, raw type). If the number of attributes is
+	 * between 0 and 25, the output type is {@link Tuple0} to {@link Tuple25}, respectively.
 	 * 
 	 * @param numberOfAttributes
-	 *        The number of attributes of the emitted tuples.
+	 *            The number of attributes of the emitted tuples per output stream.
 	 * @param flinkOutput
-	 *        The Flink output object to be used.
+	 *            The Flink output object to be used.
 	 * @throws UnsupportedOperationException
-	 *         if the specified number of attributes is not in the valid range of [0,25]
+	 *             if the specified number of attributes is greater than 25
 	 */
-	public StormBoltCollector(final int numberOfAttributes, final Collector<OUT> flinkOutput) throws UnsupportedOperationException {
+	public StormBoltCollector(final HashMap<String, Integer> numberOfAttributes,
+			final Collector<OUT> flinkOutput) throws UnsupportedOperationException {
 		super(numberOfAttributes);
 		assert (flinkOutput != null);
 		this.flinkOutput = flinkOutput;
@@ -72,7 +73,7 @@ class StormBoltCollector<OUT> extends AbstractStormCollector<OUT> implements IOu
 
 	@Override
 	public List<Integer> emit(final String streamId, final Collection<Tuple> anchors, final List<Object> tuple) {
-		return this.transformAndEmit(tuple);
+		return this.tansformAndEmit(streamId, tuple);
 	}
 
 	@Override

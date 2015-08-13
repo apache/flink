@@ -26,6 +26,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 
 import static org.mockito.Mockito.mock;
@@ -36,19 +37,23 @@ public class StormBoltCollectorTest extends AbstractTest {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testBoltStormCollector() throws InstantiationException, IllegalAccessException {
-		for (int numberOfAttributes = 0; numberOfAttributes < 26; ++numberOfAttributes) {
+		for (int numberOfAttributes = -1; numberOfAttributes < 26; ++numberOfAttributes) {
 			final Output flinkCollector = mock(Output.class);
 			Tuple flinkTuple = null;
 			final Values tuple = new Values();
 
 			StormBoltCollector<?> collector;
 
-			if (numberOfAttributes == 0) {
-				collector = new StormBoltCollector(numberOfAttributes, flinkCollector);
+			final String streamId = "streamId";
+			HashMap<String, Integer> attributes = new HashMap<String, Integer>();
+			attributes.put(streamId, numberOfAttributes);
+
+			if (numberOfAttributes == -1) {
+				collector = new StormBoltCollector(attributes, flinkCollector);
 				tuple.add(new Integer(this.r.nextInt()));
 
 			} else {
-				collector = new StormBoltCollector(numberOfAttributes, flinkCollector);
+				collector = new StormBoltCollector(attributes, flinkCollector);
 				flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
 
 				for (int i = 0; i < numberOfAttributes; ++i) {
@@ -57,14 +62,13 @@ public class StormBoltCollectorTest extends AbstractTest {
 				}
 			}
 
-			final String streamId = "streamId";
 			final Collection anchors = mock(Collection.class);
 			final List<Integer> taskIds;
 			taskIds = collector.emit(streamId, anchors, tuple);
 
 			Assert.assertNull(taskIds);
 
-			if (numberOfAttributes == 0) {
+			if (numberOfAttributes == -1) {
 				verify(flinkCollector).collect(tuple.get(0));
 			} else {
 				verify(flinkCollector).collect(flinkTuple);
@@ -76,26 +80,26 @@ public class StormBoltCollectorTest extends AbstractTest {
 	@SuppressWarnings("unchecked")
 	@Test(expected = UnsupportedOperationException.class)
 	public void testReportError() {
-		new StormBoltCollector<Object>(1, mock(Output.class)).reportError(null);
+		new StormBoltCollector<Object>(mock(HashMap.class), mock(Output.class)).reportError(null);
 	}
 
-	@SuppressWarnings({"rawtypes", "unchecked"})
+	@SuppressWarnings("unchecked")
 	@Test(expected = UnsupportedOperationException.class)
 	public void testEmitDirect() {
-		new StormBoltCollector<Object>(1, mock(Output.class)).emitDirect(0, null,
+		new StormBoltCollector<Object>(mock(HashMap.class), mock(Output.class)).emitDirect(0, null,
 				null, null);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Test(expected = UnsupportedOperationException.class)
 	public void testAck() {
-		new StormBoltCollector<Object>(1, mock(Output.class)).ack(null);
+		new StormBoltCollector<Object>(mock(HashMap.class), mock(Output.class)).ack(null);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Test(expected = UnsupportedOperationException.class)
 	public void testFail() {
-		new StormBoltCollector<Object>(1, mock(Output.class)).fail(null);
+		new StormBoltCollector<Object>(mock(HashMap.class), mock(Output.class)).fail(null);
 	}
 
 }

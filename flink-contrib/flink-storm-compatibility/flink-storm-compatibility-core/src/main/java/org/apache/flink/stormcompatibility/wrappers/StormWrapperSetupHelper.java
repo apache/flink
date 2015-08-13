@@ -25,11 +25,14 @@ import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.IRichSpout;
+
 import org.apache.flink.stormcompatibility.api.FlinkTopologyContext;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * {@link StormWrapperSetupHelper} is an helper class used by {@link AbstractStormSpoutWrapper} or
@@ -38,52 +41,47 @@ import java.util.Map;
 class StormWrapperSetupHelper {
 
 	/**
-	 * Computes the number of output attributes used by a {@link AbstractStormSpoutWrapper} or
-	 * {@link StormBoltWrapper}. Returns zero for raw output type or a value within range [1;25] for
-	 * output type {@link org.apache.flink.api.java.tuple.Tuple1 Tuple1} to
-	 * {@link org.apache.flink.api.java.tuple.Tuple25 Tuple25} . In case of a data sink, {@code -1}
-	 * is returned.
+	 * Computes the number of output attributes used by a {@link AbstractStormSpoutWrapper} or {@link StormBoltWrapper}
+	 * per declared output stream. The number is {@code -1} for raw output type or a value within range [0;25] for
+	 * output type {@link org.apache.flink.api.java.tuple.Tuple0 Tuple0} to
+	 * {@link org.apache.flink.api.java.tuple.Tuple25 Tuple25}.
 	 * 
 	 * @param spoutOrBolt
-	 * 		The Storm {@link IRichSpout spout} or {@link IRichBolt bolt} to be used.
-	 * @param rawOutput
-	 * 		Set to {@code true} if a single attribute output stream, should not be of type
-	 * 		{@link org.apache.flink.api.java.tuple.Tuple1 Tuple1} but be of a raw type.
-	 * @return The number of attributes to be used.
+	 *            The Storm {@link IRichSpout spout} or {@link IRichBolt bolt} to be used.
+	 * @param rawOutputs
+	 *            Contains stream names if a single attribute output stream, should not be of type
+	 *            {@link org.apache.flink.api.java.tuple.Tuple1 Tuple1} but be of a raw type. (Can be {@code null}.)
+	 * @return The number of attributes to be used for each stream.
 	 * @throws IllegalArgumentException
-	 * 		If {@code rawOuput} is {@code true} and the number of declared output
-	 * 		attributes is not 1 or if {@code rawOuput} is {@code false} and the number
-	 * 		of declared output attributes is not with range [1;25].
+	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             [0;25].
 	 */
-	public static int getNumberOfAttributes(final IComponent spoutOrBolt, final boolean rawOutput)
-			throws IllegalArgumentException {
+	public static HashMap<String, Integer> getNumberOfAttributes(final IComponent spoutOrBolt,
+			final Collection<String> rawOutputs)
+					throws IllegalArgumentException {
 		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
 		spoutOrBolt.declareOutputFields(declarer);
 
-		final int declaredNumberOfAttributes = declarer.getNumberOfAttributes();
-
-		if (declaredNumberOfAttributes == -1) {
-			return -1;
-		}
-
-		if ((declaredNumberOfAttributes < 1) || (declaredNumberOfAttributes > 25)) {
-			throw new IllegalArgumentException(
-					"Provided bolt declares non supported number of output attributes. Must be in range [1;25] but " +
-							"was "
-							+ declaredNumberOfAttributes);
-		}
-
-		if (rawOutput) {
-			if (declaredNumberOfAttributes > 1) {
+		for (Entry<String, Integer> schema : declarer.outputSchemas.entrySet()) {
+			int declaredNumberOfAttributes = schema.getValue();
+			if ((declaredNumberOfAttributes < 0) || (declaredNumberOfAttributes > 25)) {
 				throw new IllegalArgumentException(
-						"Ouput type is requested to be raw type, but provided bolt declares more then one output " +
-						"attribute.");
-
+						"Provided bolt declares non supported number of output attributes. Must be in range [0;25] but "
+								+ "was " + declaredNumberOfAttributes);
 			}
-			return 0;
+
+			if (rawOutputs != null && rawOutputs.contains(schema.getKey())) {
+				if (declaredNumberOfAttributes != 1) {
+					throw new IllegalArgumentException(
+							"Ouput type is requested to be raw type, but provided bolt declares more then one output "
+									+ "attribute.");
+				}
+				schema.setValue(-1);
+			}
 		}
 
-		return declaredNumberOfAttributes;
+		return declarer.outputSchemas;
 	}
 
 	// TODO

@@ -17,82 +17,114 @@
 package org.apache.flink.stormcompatibility.wrappers;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple25;
+import org.apache.flink.stormcompatibility.util.SplitStreamType;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
 
 /**
  * A {@link AbstractStormCollector} transforms Storm tuples to Flink tuples.
  */
 abstract class AbstractStormCollector<OUT> {
 
+	/** Flink output tuple of concrete type {@link Tuple0} to {@link Tuple25} per output stream. */
+	protected final HashMap<String, Tuple> outputTuple = new HashMap<String, Tuple>();
+	/** Flink split tuple. Used, if multiple output streams are declared. */
+	private final SplitStreamType<Object> splitTuple = new SplitStreamType<Object>();
 	/**
-	 * Flink output tuple of concrete type {@link Tuple1} to {@link Tuple25}.
+	 * The number of attributes of the output tuples per stream. (Determines the concrete type of {@link #outputTuple}).
+	 * If {@link #numberOfAttributes} is zero, {@link #outputTuple} is not used and "raw" data type is used.
 	 */
-	protected final Tuple outputTuple;
-	/**
-	 * The number of attributes of the output tuples. (Determines the concrete type of
-	 * {@link #outputTuple}). If {@link #numberOfAttributes} is zero, {@link #outputTuple} is not
-	 * used and "raw" data type is used.
-	 */
-	protected final int numberOfAttributes;
-	/**
-	 * Is set to {@code true} each time a tuple is emitted.
-	 */
+	protected final HashMap<String, Integer> numberOfAttributes;
+	/** Indicates of multiple output stream are declared and thus {@link SplitStreamType} must be used as output. */
+	private final boolean split;
+	/** Is set to {@code true} each time a tuple is emitted. */
 	boolean tupleEmitted = false;
 
 	/**
-	 * Instantiates a new {@link AbstractStormCollector} that emits Flink tuples via
-	 * {@link #doEmit(Object)}. If the number of attributes is specified as zero, any output type is
-	 * supported. If the number of attributes is between 1 to 25, the output type is {@link Tuple1}
-	 * to {@link Tuple25}.
+	 * Instantiates a new {@link AbstractStormCollector} that emits Flink tuples via {@link #doEmit(Object)}. If the
+	 * number of attributes is negative, any output type is supported (ie, raw type). If the number of attributes is
+	 * between 0 and 25, the output type is {@link Tuple0} to {@link Tuple25}, respectively.
 	 * 
 	 * @param numberOfAttributes
-	 * 		The number of attributes of the emitted tuples.
+	 *            The number of attributes of the emitted tuples per output stream.
 	 * @throws UnsupportedOperationException
-	 * 		if the specified number of attributes is not in the valid range of [0,25]
+	 *             if the specified number of attributes is greater than 25
 	 */
-	public AbstractStormCollector(final int numberOfAttributes) throws UnsupportedOperationException {
-		this.numberOfAttributes = numberOfAttributes;
+	public AbstractStormCollector(final HashMap<String, Integer> numberOfAttributes)
+			throws UnsupportedOperationException {
+		assert (numberOfAttributes != null);
 
-		if (this.numberOfAttributes <= 0) {
-			this.outputTuple = null;
-		} else if (this.numberOfAttributes <= 25) {
-			try {
-				this.outputTuple = org.apache.flink.api.java.tuple.Tuple
-						.getTupleClass(this.numberOfAttributes).newInstance();
-			} catch (final InstantiationException e) {
-				throw new RuntimeException(e);
-			} catch (final IllegalAccessException e) {
-				throw new RuntimeException(e);
+		this.numberOfAttributes = numberOfAttributes;
+		this.split = this.numberOfAttributes.size() > 1;
+
+		for (Entry<String, Integer> outputStream : numberOfAttributes.entrySet()) {
+			final int numAtt = outputStream.getValue();
+			assert (numAtt >= -1);
+
+			if (numAtt > 25) {
+				throw new UnsupportedOperationException(
+						"Flink cannot handle more then 25 attributes, but " + numAtt
+						+ " are declared for stream '" + outputStream.getKey()
+						+ "' by the given bolt");
+			} else if (numAtt >= 0) {
+				try {
+					this.outputTuple.put(outputStream.getKey(),
+							org.apache.flink.api.java.tuple.Tuple.getTupleClass(numAtt)
+							.newInstance());
+				} catch (final InstantiationException e) {
+					throw new RuntimeException(e);
+				} catch (final IllegalAccessException e) {
+					throw new RuntimeException(e);
+				}
+
 			}
-		} else {
-			throw new UnsupportedOperationException(
-					"Flink cannot handle more then 25 attributes, but "
-					+ this.numberOfAttributes + " are declared by the given bolt");
 		}
 	}
 
 	/**
-	 * Transforms a Storm tuple into a Flink tuple of type {@code OUT} and emits this tuple via
-	 * {@link #doEmit(Object)}.
+	 * Transforms a Storm tuple into a Flink tuple of type {@code OUT} and emits this tuple via {@link #doEmit(Object)}
+	 * to the specified output stream.
 	 * 
+	 * @param The
+	 *            The output stream id.
 	 * @param tuple
-	 * 		The Storm tuple to be emitted.
+	 *            The Storm tuple to be emitted.
 	 * @return the return value of {@link #doEmit(Object)}
 	 */
 	@SuppressWarnings("unchecked")
-	protected final List<Integer> transformAndEmit(final List<Object> tuple) {
+	protected final List<Integer> tansformAndEmit(final String streamId, final List<Object> tuple) {
 		List<Integer> taskIds;
-		if (this.numberOfAttributes > 0) {
-			assert (tuple.size() == this.numberOfAttributes);
-			for (int i = 0; i < this.numberOfAttributes; ++i) {
-				this.outputTuple.setField(tuple.get(i), i);
+
+		final int numAtt = this.numberOfAttributes.get(streamId);
+		if (numAtt > -1) {
+			assert (tuple.size() == numAtt);
+			Tuple out = this.outputTuple.get(streamId);
+			for (int i = 0; i < numAtt; ++i) {
+				out.setField(tuple.get(i), i);
 			}
-			taskIds = doEmit((OUT) this.outputTuple);
+			if (this.split) {
+				this.splitTuple.streamId = streamId;
+				this.splitTuple.value = out;
+
+				taskIds = doEmit((OUT) this.splitTuple);
+			} else {
+				taskIds = doEmit((OUT) out);
+			}
+
 		} else {
 			assert (tuple.size() == 1);
-			taskIds = doEmit((OUT) tuple.get(0));
+			if (split) {
+				this.splitTuple.streamId = streamId;
+				this.splitTuple.value = tuple.get(0);
+
+				taskIds = doEmit((OUT) this.splitTuple);
+			} else {
+				taskIds = doEmit((OUT) tuple.get(0));
+			}
 		}
 		this.tupleEmitted = true;
 

@@ -26,6 +26,8 @@ import org.apache.flink.stormcompatibility.wrappers.StormBoltWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import backtype.storm.utils.Utils;
+
 /**
  * Implements the "Exclamation" program that attaches five exclamation mark to every line of a text
  * files in a streaming fashion. The program is constructed as a regular {@link StormTopology}.
@@ -65,8 +67,9 @@ public class ExclamationWithStormBolt {
 		final DataStream<String> exclaimed = text
 				.transform("StormBoltTokenizer",
 						TypeExtractor.getForObject(""),
-						new StormBoltWrapper<String, String>(new ExclamationBolt(), true))
-				.map(new ExclamationMap());
+				new StormBoltWrapper<String, String>(new ExclamationBolt(),
+						new String[] { Utils.DEFAULT_STREAM_ID }))
+						.map(new ExclamationMap());
 
 		// emit result
 		if (fileOutput) {

@@ -20,10 +20,16 @@ package org.apache.flink.stormcompatibility.wrappers;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
+import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
+import backtype.storm.tuple.Values;
+import backtype.storm.utils.Utils;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.stormcompatibility.util.AbstractTest;
+import org.apache.flink.stormcompatibility.util.SplitStreamType;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
@@ -34,18 +40,17 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.util.HashSet;
 import java.util.Map;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({StreamRecordSerializer.class, StormWrapperSetupHelper.class})
-public class StormBoltWrapperTest {
+public class StormBoltWrapperTest extends AbstractTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrapperRawType() throws Exception {
@@ -53,7 +58,8 @@ public class StormBoltWrapperTest {
 		declarer.declare(new Fields("dummy1", "dummy2"));
 		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
-		new StormBoltWrapper<Object, Object>(mock(IRichBolt.class), true);
+		new StormBoltWrapper<Object, Object>(mock(IRichBolt.class),
+				new String[] { Utils.DEFAULT_STREAM_ID });
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -79,38 +85,40 @@ public class StormBoltWrapperTest {
 		declarer.declare(new Fields(schema));
 		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
-		new StormBoltWrapper<Object, Object>(mock(IRichBolt.class), false);
+		new StormBoltWrapper<Object, Object>(mock(IRichBolt.class), new String[] {});
 	}
 
 	@Test
 	public void testWrapper() throws Exception {
-		for (int i = 0; i < 26; ++i) {
+		for (int i = -1; i < 26; ++i) {
 			this.testWrapper(i);
 		}
 	}
 
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	private void testWrapper(final int numberOfAttributes) throws Exception {
-		assert ((0 <= numberOfAttributes) && (numberOfAttributes <= 25));
+		assert ((-1 <= numberOfAttributes) && (numberOfAttributes <= 25));
 		Tuple flinkTuple = null;
 		String rawTuple = null;
 
-		if (numberOfAttributes == 0) {
+		if (numberOfAttributes == -1) {
 			rawTuple = "test";
 		} else {
 			flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
 		}
 
-		String[] schema = new String[numberOfAttributes];
-		if (numberOfAttributes == 0) {
+		String[] schema;
+		if (numberOfAttributes == -1) {
 			schema = new String[1];
+		} else {
+			schema = new String[numberOfAttributes];
 		}
 		for (int i = 0; i < schema.length; ++i) {
 			schema[i] = "a" + i;
 		}
 
 		final StreamRecord record = mock(StreamRecord.class);
-		if (numberOfAttributes == 0) {
+		if (numberOfAttributes == -1) {
 			when(record.getValue()).thenReturn(rawTuple);
 		} else {
 			when(record.getValue()).thenReturn(flinkTuple);
@@ -124,17 +132,63 @@ public class StormBoltWrapperTest {
 		declarer.declare(new Fields(schema));
 		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
-		final StormBoltWrapper wrapper = new StormBoltWrapper(bolt, null);
+		final StormBoltWrapper wrapper = new StormBoltWrapper(bolt, (Fields) null);
 		wrapper.setup(mock(Output.class), taskContext);
 		wrapper.open(new Configuration());
 
 		wrapper.processElement(record);
-		if (numberOfAttributes == 0) {
+		if (numberOfAttributes == -1) {
 			verify(bolt).execute(eq(new StormTuple<String>(rawTuple, null)));
 		} else {
 			verify(bolt).execute(eq(new StormTuple<Tuple>(flinkTuple, null)));
 		}
+	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Test
+	public void testMultipleOutputStreams() throws Exception {
+		final boolean rawOutType1 = super.r.nextBoolean();
+		final boolean rawOutType2 = super.r.nextBoolean();
+
+		final StreamRecord record = mock(StreamRecord.class);
+		when(record.getValue()).thenReturn(2).thenReturn(3);
+
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		Output output = mock(Output.class);
+
+		TestBolt bolt = new TestBolt();
+		HashSet<String> raw = new HashSet<String>();
+		if (rawOutType1) {
+			raw.add("stream1");
+		}
+		if (rawOutType2) {
+			raw.add("stream2");
+		}
+
+		final StormBoltWrapper wrapper = new StormBoltWrapper(bolt, (Fields) null, raw);
+		wrapper.setup(output, taskContext);
+		wrapper.open(new Configuration());
+
+		SplitStreamType splitRecord = new SplitStreamType<Integer>();
+		if (rawOutType1) {
+			splitRecord.streamId = "stream1";
+			splitRecord.value = 2;
+		} else {
+			splitRecord.streamId = "stream1";
+			splitRecord.value = new Tuple1<Integer>(2);
+		}
+		wrapper.processElement(record);
+		verify(output).collect(new StreamRecord<SplitStreamType>(splitRecord, 0));
+
+		if (rawOutType2) {
+			splitRecord.streamId = "stream2";
+			splitRecord.value = 3;
+		} else {
+			splitRecord.streamId = "stream2";
+			splitRecord.value = new Tuple1<Integer>(3);
+		}
+		wrapper.processElement(record);
+		verify(output, times(2)).collect(new StreamRecord<SplitStreamType>(splitRecord, 0));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -184,5 +238,41 @@ public class StormBoltWrapperTest {
 		wrapper.close();
 		verify(bolt).cleanup();
 	}
+
+	private static final class TestBolt implements IRichBolt {
+		private static final long serialVersionUID = 7278692872260138758L;
+		private OutputCollector collector;
+
+		@SuppressWarnings("rawtypes")
+		@Override
+		public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
+			this.collector = collector;
+		}
+
+		int counter = 0;
+		@Override
+		public void execute(backtype.storm.tuple.Tuple input) {
+			if (++counter % 2 == 1) {
+				this.collector.emit("stream1", new Values(input.getInteger(0)));
+			} else {
+				this.collector.emit("stream2", new Values(input.getInteger(0)));
+			}
+		}
+
+		@Override
+		public void cleanup() {}
+
+		@Override
+		public void declareOutputFields(OutputFieldsDeclarer declarer) {
+			declarer.declareStream("stream1", new Fields("a1"));
+			declarer.declareStream("stream2", new Fields("a2"));
+		}
+
+		@Override
+		public Map<String, Object> getComponentConfiguration() {
+			return null;
+		}
+	}
+
 
 }

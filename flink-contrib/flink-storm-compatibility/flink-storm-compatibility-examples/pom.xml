@@ -135,6 +135,7 @@ under the License.
 				<executions>
 
 					<!-- WordCount Spout source-->
+					<!-- example for embedded spout - for whole topologies see "WordCount Storm topology" example below -->
 					<execution>
 						<id>WordCount-SpoutSource</id>
 						<phase>package</phase>
@@ -176,6 +177,7 @@ under the License.
 					</execution>
 
 					<!-- WordCount Bolt tokenizer-->
+					<!-- example for embedded bolt - for whole topologies see "WordCount Storm topology" example below -->
 					<execution>
 						<id>WordCount-BoltTokenizer</id>
 						<phase>package</phase>
@@ -222,6 +224,7 @@ under the License.
 			</plugin>
 
 			<!-- WordCount Storm topology-->
+			<!-- example for whole topologies (ie, if FlinkTopologyBuilder is used) -->
 			<!-- Cannot use maven-jar-plugin because 'defaults.yaml' must be included in jar -->
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
