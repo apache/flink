@@ -17,10 +17,14 @@
 
 package org.apache.flink.stormcompatibility.wrappers;
 
+import java.util.HashMap;
+
 import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
+import backtype.storm.utils.Utils;
+
 import org.apache.flink.stormcompatibility.util.AbstractTest;
 import org.junit.Assert;
 import org.junit.Test;
@@ -29,28 +33,13 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.google.common.collect.Sets;
+
 import static org.mockito.Mockito.mock;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(StormWrapperSetupHelper.class)
 public class StormWrapperSetupHelperTest extends AbstractTest {
-
-	@Test(expected = IllegalArgumentException.class)
-	public void testZeroAttributesDeclarerBolt() throws Exception {
-		IComponent boltOrSpout;
-
-		if (this.r.nextBoolean()) {
-			boltOrSpout = mock(IRichSpout.class);
-		} else {
-			boltOrSpout = mock(IRichBolt.class);
-		}
-
-		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
-		declarer.declare(new Fields());
-		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
-
-		StormWrapperSetupHelper.getNumberOfAttributes(boltOrSpout, this.r.nextBoolean());
-	}
 
 	@Test
 	public void testEmptyDeclarerBolt() {
@@ -62,7 +51,8 @@ public class StormWrapperSetupHelperTest extends AbstractTest {
 			boltOrSpout = mock(IRichBolt.class);
 		}
 
-		Assert.assertEquals(-1, StormWrapperSetupHelper.getNumberOfAttributes(boltOrSpout, this.r.nextBoolean()));
+		Assert.assertEquals(new HashMap<String, Integer>(),
+				StormWrapperSetupHelper.getNumberOfAttributes(boltOrSpout, null));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -79,7 +69,8 @@ public class StormWrapperSetupHelperTest extends AbstractTest {
 		declarer.declare(new Fields("dummy1", "dummy2"));
 		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
-		StormWrapperSetupHelper.getNumberOfAttributes(boltOrSpout, true);
+		StormWrapperSetupHelper.getNumberOfAttributes(boltOrSpout,
+				Sets.newHashSet(new String[] { Utils.DEFAULT_STREAM_ID }));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -100,20 +91,22 @@ public class StormWrapperSetupHelperTest extends AbstractTest {
 		declarer.declare(new Fields(schema));
 		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
-		StormWrapperSetupHelper.getNumberOfAttributes(boltOrSpout, false);
+		StormWrapperSetupHelper.getNumberOfAttributes(boltOrSpout, null);
 	}
 
 	@Test
 	public void testTupleTypes() throws Exception {
-		for (int i = 0; i < 26; ++i) {
+		for (int i = -1; i < 26; ++i) {
 			this.testTupleTypes(i);
 		}
 	}
 
 	private void testTupleTypes(final int numberOfAttributes) throws Exception {
-		String[] schema = new String[numberOfAttributes];
-		if (numberOfAttributes == 0) {
+		String[] schema;
+		if (numberOfAttributes == -1) {
 			schema = new String[1];
+		} else {
+			schema = new String[numberOfAttributes];
 		}
 		for (int i = 0; i < schema.length; ++i) {
 			schema[i] = "a" + i;
@@ -130,7 +123,13 @@ public class StormWrapperSetupHelperTest extends AbstractTest {
 		declarer.declare(new Fields(schema));
 		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
-		StormWrapperSetupHelper.getNumberOfAttributes(boltOrSpout, numberOfAttributes == 0);
+		HashMap<String, Integer> attributes = new HashMap<String, Integer>();
+		attributes.put(Utils.DEFAULT_STREAM_ID, numberOfAttributes);
+
+		Assert.assertEquals(attributes, StormWrapperSetupHelper.getNumberOfAttributes(
+				boltOrSpout,
+				numberOfAttributes == -1 ? Sets
+						.newHashSet(new String[] { Utils.DEFAULT_STREAM_ID }) : null));
 	}
 
 }

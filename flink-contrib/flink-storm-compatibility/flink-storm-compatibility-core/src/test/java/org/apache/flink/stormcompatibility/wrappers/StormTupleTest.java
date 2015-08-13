@@ -60,7 +60,7 @@ public class StormTupleTest extends AbstractTest {
 
 	@Test
 	public void tupleTest() throws InstantiationException, IllegalAccessException {
-		final int numberOfAttributes = 1 + this.r.nextInt(25);
+		final int numberOfAttributes = this.r.nextInt(26);
 		final Object[] data = new Object[numberOfAttributes];
 
 		final Tuple flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();

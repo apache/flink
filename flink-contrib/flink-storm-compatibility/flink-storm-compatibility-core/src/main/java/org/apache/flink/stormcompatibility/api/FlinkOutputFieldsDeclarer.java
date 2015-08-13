@@ -20,10 +20,12 @@ package org.apache.flink.stormcompatibility.api;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -36,8 +38,8 @@ import java.util.List;
  */
 final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 
-	/** the declared output schema */
-	Fields outputSchema;
+	/** the declared output streams and schemas */
+	final HashMap<String, Fields> outputStreams = new HashMap<String, Fields>();
 
 	@Override
 	public void declare(final Fields fields) {
@@ -57,15 +59,6 @@ final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 		this.declareStream(Utils.DEFAULT_STREAM_ID, direct, fields);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 * <p/>
-	 * Currently, Flink only supports the default output stream. Thus, parameter {@code streamId} must be equals to
-	 * {@link Utils#DEFAULT_STREAM_ID}.
-	 *
-	 * @throws UnsupportedOperationException
-	 * 		if {@code streamId} is not equal to {@link Utils#DEFAULT_STREAM_ID}
-	 */
 	@Override
 	public void declareStream(final String streamId, final Fields fields) {
 		this.declareStream(streamId, false, fields);
@@ -74,40 +67,45 @@ final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 	/**
 	 * {@inheritDoc}
 	 * <p/>
-	 * Currently, Flink only supports the default output stream. Thus, parameter {@code streamId} must be equals to
-	 * {@link Utils#DEFAULT_STREAM_ID}. Furthermore, direct emit is no supported by Flink and parameter {@code direct}
-	 * must be {@code false}.
+	 * Direct emit is no supported by Flink. Parameter {@code direct} must be {@code false}.
 	 *
 	 * @throws UnsupportedOperationException
-	 * 		if {@code streamId} is not equal to {@link Utils#DEFAULT_STREAM_ID} or {@code direct} is {@code true}
+	 * 		if {@code direct} is {@code true}
 	 */
 	@Override
 	public void declareStream(final String streamId, final boolean direct, final Fields fields) {
-		if (!Utils.DEFAULT_STREAM_ID.equals(streamId)) {
-			throw new UnsupportedOperationException("Currently, only the default output stream is supported by Flink");
-		}
 		if (direct) {
 			throw new UnsupportedOperationException("Direct emit is not supported by Flink");
 		}
 
-		this.outputSchema = fields;
+		this.outputStreams.put(streamId, fields);
 	}
 
 	/**
-	 * Returns {@link TypeInformation} for the declared output schema. If no or an empty output schema was declared,
-	 * {@code null} is returned.
-	 *
-	 * @return output type information for the declared output schema; or {@code null} if no output schema was declared
+	 * Returns {@link TypeInformation} for the declared output schema for a specific stream.
+	 * 
+	 * @param streamId
+	 *            A stream ID.
+	 * 
+	 * @return output type information for the declared output schema of the specified stream; or {@code null} if
+	 *         {@code streamId == null}
+	 * 
 	 * @throws IllegalArgumentException
-	 * 		if more then 25 attributes are declared
+	 *             If no output schema was declared for the specified stream or if more then 25 attributes got declared.
 	 */
-	public TypeInformation<?> getOutputType() throws IllegalArgumentException {
-		if ((this.outputSchema == null) || (this.outputSchema.size() == 0)) {
+	public TypeInformation<?> getOutputType(final String streamId) throws IllegalArgumentException {
+		if (streamId == null) {
 			return null;
 		}
 
+		Fields outputSchema = this.outputStreams.get(streamId);
+		if (outputSchema == null) {
+			throw new IllegalArgumentException("Stream with ID '" + streamId
+					+ "' was not declared.");
+		}
+
 		Tuple t;
-		final int numberOfAttributes = this.outputSchema.size();
+		final int numberOfAttributes = outputSchema.size();
 
 		if (numberOfAttributes == 1) {
 			return TypeExtractor.getForClass(Object.class);
@@ -148,16 +146,22 @@ final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 	}
 
 	/**
-	 * Computes the indexes within the declared output schema, for a list of given field-grouping attributes.
-	 *
-	 * @return array of {@code int}s that contains the index without the output schema for each attribute in the given
-	 * list
+	 * Computes the indexes within the declared output schema of the specified stream, for a list of given
+	 * field-grouping attributes.
+	 * 
+	 * @param streamId
+	 *            A stream ID.
+	 * @param groupingFields
+	 *            The names of the key fields.
+	 * 
+	 * @return array of {@code int}s that contains the index within the output schema for each attribute in the given
+	 *         list
 	 */
-	public int[] getGroupingFieldIndexes(final List<String> groupingFields) {
+	public int[] getGroupingFieldIndexes(final String streamId, final List<String> groupingFields) {
 		final int[] fieldIndexes = new int[groupingFields.size()];
 
 		for (int i = 0; i < fieldIndexes.length; ++i) {
-			fieldIndexes[i] = this.outputSchema.fieldIndex(groupingFields.get(i));
+			fieldIndexes[i] = this.outputStreams.get(streamId).fieldIndex(groupingFields.get(i));
 		}
 
 		return fieldIndexes;

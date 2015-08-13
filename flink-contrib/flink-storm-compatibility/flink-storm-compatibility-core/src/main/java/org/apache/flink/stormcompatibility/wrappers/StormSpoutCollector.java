@@ -19,9 +19,11 @@ package org.apache.flink.stormcompatibility.wrappers;
 
 import backtype.storm.spout.ISpoutOutputCollector;
 
-import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
+
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -31,23 +33,23 @@ import java.util.List;
  */
 class StormSpoutCollector<OUT> extends AbstractStormCollector<OUT> implements ISpoutOutputCollector {
 
-	// The Flink source context object
+	/** The Flink source context object */
 	private final SourceContext<OUT> flinkContext;
 
 	/**
-	 * Instantiates a new {@link StormSpoutCollector} that emits Flink tuples to the given Flink
-	 * source context. If the number of attributes is specified as zero, any output type is
-	 * supported. If the number of attributes is between 1 to 25, the output type is {@link Tuple1}
-	 * to {@link Tuple25}.
+	 * Instantiates a new {@link StormSpoutCollector} that emits Flink tuples to the given Flink source context. If the
+	 * number of attributes is specified as zero, any output type is supported. If the number of attributes is between 0
+	 * to 25, the output type is {@link Tuple0} to {@link Tuple25}, respectively.
 	 * 
 	 * @param numberOfAttributes
-	 *        The number of attributes of the emitted tuples.
+	 *            The number of attributes of the emitted tuples.
 	 * @param flinkContext
-	 *        The Flink source context to be used.
+	 *            The Flink source context to be used.
 	 * @throws UnsupportedOperationException
-	 *         if the specified number of attributes is not in the valid range of [0,25]
+	 *             if the specified number of attributes is greater than 25
 	 */
-	public StormSpoutCollector(final int numberOfAttributes, final SourceContext<OUT> flinkContext) throws UnsupportedOperationException {
+	public StormSpoutCollector(final HashMap<String, Integer> numberOfAttributes,
+			final SourceContext<OUT> flinkContext) throws UnsupportedOperationException {
 		super(numberOfAttributes);
 		assert (flinkContext != null);
 		this.flinkContext = flinkContext;
@@ -68,7 +70,7 @@ class StormSpoutCollector<OUT> extends AbstractStormCollector<OUT> implements IS
 
 	@Override
 	public List<Integer> emit(final String streamId, final List<Object> tuple, final Object messageId) {
-		return this.transformAndEmit(tuple);
+		return this.tansformAndEmit(streamId, tuple);
 	}
 
 

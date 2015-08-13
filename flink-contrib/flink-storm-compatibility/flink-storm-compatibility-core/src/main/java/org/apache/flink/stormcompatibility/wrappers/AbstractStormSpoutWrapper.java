@@ -17,8 +17,13 @@
 
 package org.apache.flink.stormcompatibility.wrappers;
 
+import java.util.Collection;
+import java.util.HashMap;
+
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.topology.IRichSpout;
+
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -37,9 +42,9 @@ public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceF
 	private static final long serialVersionUID = 4993283609095408765L;
 
 	/**
-	 * Number of attributes of the bolt's output tuples.
+	 * Number of attributes of the bolt's output tuples per stream.
 	 */
-	private final int numberOfAttributes;
+	private final HashMap<String, Integer> numberOfAttributes;
 	/**
 	 * The wrapped Storm {@link IRichSpout spout}.
 	 */
@@ -55,38 +60,40 @@ public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceF
 
 	/**
 	 * Instantiates a new {@link AbstractStormSpoutWrapper} that wraps the given Storm {@link IRichSpout spout} such
-	 * that it can be used within a Flink streaming program. The output type will be one of {@link Tuple1} to
+	 * that it can be used within a Flink streaming program. The output type will be one of {@link Tuple0} to
 	 * {@link Tuple25} depending on the spout's declared number of attributes.
 	 *
 	 * @param spout
 	 * 		The Storm {@link IRichSpout spout} to be used.
 	 * @throws IllegalArgumentException
-	 * 		If the number of declared output attributes is not with range [1;25].
+	 * 		If the number of declared output attributes is not with range [0;25].
 	 */
 	public AbstractStormSpoutWrapper(final IRichSpout spout) throws IllegalArgumentException {
-		this(spout, false);
+		this(spout, null);
 	}
 
 	/**
 	 * Instantiates a new {@link AbstractStormSpoutWrapper} that wraps the given Storm {@link IRichSpout spout} such
 	 * that it can be used within a Flink streaming program. The output type can be any type if parameter
 	 * {@code rawOutput} is {@code true} and the spout's number of declared output tuples is 1. If {@code rawOutput} is
-	 * {@code false} the output type will be one of {@link Tuple1} to {@link Tuple25} depending on the spout's declared
+	 * {@code false} the output type will be one of {@link Tuple0} to {@link Tuple25} depending on the spout's declared
 	 * number of attributes.
-	 *
+	 * 
 	 * @param spout
-	 * 		The Storm {@link IRichSpout spout} to be used.
-	 * @param rawOutput
-	 * 		Set to {@code true} if a single attribute output stream, should not be of type {@link Tuple1} but be
-	 * 		of a raw type.
+	 *            The Storm {@link IRichSpout spout} to be used.
+	 * @param rawOutputs
+	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
+	 *            of a raw type.
 	 * @throws IllegalArgumentException
-	 * 		If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 * 		{@code rawOuput} is {@code false} and the number of declared output attributes is not with range
-	 * 		[1;25].
+	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             [0;25].
 	 */
-	public AbstractStormSpoutWrapper(final IRichSpout spout, final boolean rawOutput) throws IllegalArgumentException {
+	public AbstractStormSpoutWrapper(final IRichSpout spout,
+			final Collection<String> rawOutputs)
+					throws IllegalArgumentException {
 		this.spout = spout;
-		this.numberOfAttributes = StormWrapperSetupHelper.getNumberOfAttributes(spout, rawOutput);
+		this.numberOfAttributes = StormWrapperSetupHelper.getNumberOfAttributes(spout, rawOutputs);
 	}
 
 	@Override
@@ -94,7 +101,7 @@ public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceF
 		this.collector = new StormSpoutCollector<OUT>(this.numberOfAttributes, ctx);
 		this.spout.open(null,
 				StormWrapperSetupHelper
-						.convertToTopologyContext((StreamingRuntimeContext) super.getRuntimeContext(), true),
+				.convertToTopologyContext((StreamingRuntimeContext) super.getRuntimeContext(), true),
 				new SpoutOutputCollector(this.collector));
 		this.spout.activate();
 		this.execute();

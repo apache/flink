@@ -19,6 +19,7 @@ package org.apache.flink.stormcompatibility.wrappers;
 
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
+
 import org.apache.flink.stormcompatibility.util.AbstractTest;
 import org.junit.Assert;
 import org.junit.Test;
@@ -31,50 +32,60 @@ public class StormOutputFieldsDeclarerTest extends AbstractTest {
 	public void testDeclare() {
 		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
 
-		Assert.assertEquals(-1, declarer.getNumberOfAttributes());
+		int numberOfAttributes = this.r.nextInt(26);
+		declarer.declare(createSchema(numberOfAttributes));
+		Assert.assertEquals(1, declarer.outputSchemas.size());
+		Assert.assertEquals(numberOfAttributes, declarer.outputSchemas.get(Utils.DEFAULT_STREAM_ID)
+				.intValue());
 
-		final int numberOfAttributes = 1 + this.r.nextInt(25);
+		final String sid = "streamId";
+		numberOfAttributes = 0 + this.r.nextInt(26);
+		declarer.declareStream(sid, createSchema(numberOfAttributes));
+		Assert.assertEquals(2, declarer.outputSchemas.size());
+		Assert.assertEquals(numberOfAttributes, declarer.outputSchemas.get(sid).intValue());
+	}
+
+	private Fields createSchema(final int numberOfAttributes) {
 		final ArrayList<String> schema = new ArrayList<String>(numberOfAttributes);
 		for (int i = 0; i < numberOfAttributes; ++i) {
 			schema.add("a" + i);
 		}
-		declarer.declare(new Fields(schema));
-		Assert.assertEquals(numberOfAttributes, declarer.getNumberOfAttributes());
+		return new Fields(schema);
 	}
 
 	@Test
 	public void testDeclareDirect() {
-		new StormOutputFieldsDeclarer().declare(false, null);
+		new StormOutputFieldsDeclarer().declare(false, new Fields());
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testDeclareDirectFail() {
-		new StormOutputFieldsDeclarer().declare(true, null);
+		new StormOutputFieldsDeclarer().declare(true, new Fields());
 	}
 
 	@Test
 	public void testDeclareStream() {
-		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, null);
+		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, new Fields());
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testDeclareStreamFail() {
-		new StormOutputFieldsDeclarer().declareStream(null, null);
+		new StormOutputFieldsDeclarer().declareStream(null, new Fields());
 	}
 
 	@Test
 	public void testDeclareFullStream() {
-		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, false, null);
+		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, false, new Fields());
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testDeclareFullStreamFailNonDefaultStream() {
-		new StormOutputFieldsDeclarer().declareStream(null, false, null);
+		new StormOutputFieldsDeclarer().declareStream(null, false, new Fields());
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testDeclareFullStreamFailDirect() {
-		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, true, null);
+		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, true, new Fields());
 	}
 
 }

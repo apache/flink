@@ -17,6 +17,14 @@
 
 package org.apache.flink.stormcompatibility.wrappers;
 
+import java.util.Collection;
+
+import org.apache.flink.api.java.tuple.Tuple0;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple25;
+
+import com.google.common.collect.Sets;
+
 /**
  * A {@link FiniteStormSpoutWrapper} is an {@link AbstractStormSpoutWrapper} that calls the wrapped
  * {@link FiniteStormSpout}'s {@link FiniteStormSpout#nextTuple()} method until {@link
@@ -28,16 +36,14 @@ public class FiniteStormSpoutWrapper<OUT> extends AbstractStormSpoutWrapper<OUT>
 	private FiniteStormSpout finiteSpout;
 
 	/**
-	 * Instantiates a new {@link FiniteStormSpoutWrapper} that wraps the given Storm {@link
-	 * FiniteStormSpout spout} such that it can be used within a Flink streaming program. The
-	 * output
-	 * type will be one of {@link Tuple1} to {@link Tuple25} depending on the spout's declared
-	 * number of attributes.
-	 *
+	 * Instantiates a new {@link FiniteStormSpoutWrapper} that wraps the given Storm {@link FiniteStormSpout spout} such
+	 * that it can be used within a Flink streaming program. The output type will be one of {@link Tuple0} to
+	 * {@link Tuple25} depending on the spout's declared number of attributes.
+	 * 
 	 * @param spout
-	 * 		The Storm {@link FiniteStormSpout spout} to be used. @throws
-	 * 		IllegalArgumentException If
-	 * 		the number of declared output attributes is not with range [1;25].
+	 *            The Storm {@link FiniteStormSpout spout} to be used.
+	 * @throws IllegalArgumentException
+	 *             If the number of declared output attributes is not with range [0;25].
 	 */
 	public FiniteStormSpoutWrapper(FiniteStormSpout spout)
 			throws IllegalArgumentException {
@@ -46,36 +52,53 @@ public class FiniteStormSpoutWrapper<OUT> extends AbstractStormSpoutWrapper<OUT>
 	}
 
 	/**
-	 * Instantiates a new {@link FiniteStormSpoutWrapper} that wraps the given Storm {@link
-	 * FiniteStormSpout spout} such that it can be used within a Flink streaming program. The
-	 * output
-	 * type can be any type if parameter {@code rawOutput} is {@code true} and the spout's
-	 * number of
-	 * declared output tuples is 1. If {@code rawOutput} is {@code false} the output type will be
-	 * one of {@link Tuple1} to {@link Tuple25} depending on the spout's declared number of
-	 * attributes.
-	 *
+	 * Instantiates a new {@link FiniteStormSpoutWrapper} that wraps the given Storm {@link FiniteStormSpout spout} such
+	 * that it can be used within a Flink streaming program. The output type can be any type if parameter
+	 * {@code rawOutput} is {@code true} and the spout's number of declared output tuples is 1. If {@code rawOutput} is
+	 * {@code false} the output type will be one of {@link Tuple0} to {@link Tuple25} depending on the spout's declared
+	 * number of attributes.
+	 * 
 	 * @param spout
-	 * 		The Storm {@link FiniteStormSpout spout} to be used.
-	 * @param rawOutput
-	 * 		Set to {@code true} if a single attribute output stream, should not be of type {@link
-	 * 		Tuple1} but be of a raw type.
+	 *            The Storm {@link FiniteStormSpout spout} to be used.
+	 * @param rawOutputs
+	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
+	 *            of a raw type.
 	 * @throws IllegalArgumentException
-	 * 		If {@code rawOuput} is {@code true} and the number of declared output attributes is
-	 * 		not 1
-	 * 		or if {@code rawOuput} is {@code false} and the number of declared output attributes
-	 * 		is not
-	 * 		with range [1;25].
+	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             [0;25].
 	 */
-	public FiniteStormSpoutWrapper(final FiniteStormSpout spout, final boolean rawOutput)
+	public FiniteStormSpoutWrapper(final FiniteStormSpout spout, final String[] rawOutputs)
 			throws IllegalArgumentException {
-		super(spout, rawOutput);
+		this(spout, Sets.newHashSet(rawOutputs));
+	}
+
+	/**
+	 * Instantiates a new {@link FiniteStormSpoutWrapper} that wraps the given Storm {@link FiniteStormSpout spout} such
+	 * that it can be used within a Flink streaming program. The output type can be any type if parameter
+	 * {@code rawOutput} is {@code true} and the spout's number of declared output tuples is 1. If {@code rawOutput} is
+	 * {@code false} the output type will be one of {@link Tuple0} to {@link Tuple25} depending on the spout's declared
+	 * number of attributes.
+	 * 
+	 * @param spout
+	 *            The Storm {@link FiniteStormSpout spout} to be used.
+	 * @param rawOutputs
+	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
+	 *            of a raw type.
+	 * @throws IllegalArgumentException
+	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             [0;25].
+	 */
+	public FiniteStormSpoutWrapper(final FiniteStormSpout spout, final Collection<String> rawOutputs)
+			throws IllegalArgumentException {
+		super(spout, rawOutputs);
 		this.finiteSpout = spout;
 	}
 
 	/**
-	 * Calls the {@link FiniteStormSpout#nextTuple()} method until {@link
-	 * FiniteStormSpout#reachedEnd()} is true or {@link FiniteStormSpout#cancel()} is called.
+	 * Calls the {@link FiniteStormSpout#nextTuple()} method until {@link FiniteStormSpout#reachedEnd()} is true or
+	 * {@link FiniteStormSpout#cancel()} is called.
 	 */
 	@Override
 	protected void execute() {

@@ -125,8 +125,6 @@ public class FlinkSubmitter {
 		} catch (final AlreadyAliveException e) {
 			logger.warn("Topology already alive exception", e);
 			throw e;
-		} finally {
-			client.close();
 		}
 
 		logger.info("Finished submitting topology: " + name);
