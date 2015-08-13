@@ -85,8 +85,6 @@ public class ClassLoaderUtilsTest {
 			assertTrue(info.indexOf(validJar.getAbsolutePath() + "' (valid") > 0);
 			assertTrue(info.indexOf(invalidJar.getAbsolutePath() + "' (invalid JAR") > 0);
 			assertTrue(info.indexOf(nonExisting.getAbsolutePath() + "' (missing") > 0);
-
-			System.out.println(info);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -107,7 +105,6 @@ public class ClassLoaderUtilsTest {
 	@Test
 	public void testWithAppClassLoader() {
 		try {
-			// must return something when invoked with 'null'
 			String result = ClassLoaderUtil.getUserCodeClassLoaderInfo(ClassLoader.getSystemClassLoader());
 			assertTrue(result.toLowerCase().contains("system classloader"));
 		}

@@ -213,8 +213,8 @@ public class StreamConfig implements Serializable {
 			String exceptionMessage = "Cannot load user class: " + e.getMessage()
 					+ "\nClassLoader info: " + classLoaderInfo + 
 					(loadableDoubleCheck ? 
-							"Class was actually found in classloader - deserialization issue." :
-							"Class not resolveable through given classloader.");
+							"\nClass was actually found in classloader - deserialization issue." :
+							"\nClass not resolvable through given classloader.");
 			
 			throw new StreamTaskException(exceptionMessage);
 		}
