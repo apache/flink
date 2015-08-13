@@ -22,6 +22,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -38,7 +39,7 @@ import java.util.List;
  */
 public class CheckpointCoordinatorTest {
 	
-	ClassLoader cl = Thread.currentThread().getContextClassLoader();
+	private static final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 	
 	@Test
 	public void testCheckpointAbortsIfTriggerTasksAreNotExecuted() {
@@ -50,6 +51,50 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex triggerVertex1 = mock(ExecutionVertex.class);
 			ExecutionVertex triggerVertex2 = mock(ExecutionVertex.class);
 			
+			// create some mock Execution vertices that need to ack the checkpoint
+			final ExecutionAttemptID ackAttemptID1 = new ExecutionAttemptID();
+			final ExecutionAttemptID ackAttemptID2 = new ExecutionAttemptID();
+			ExecutionVertex ackVertex1 = mockExecutionVertex(ackAttemptID1);
+			ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptID2);
+
+			// set up the coordinator and validate the initial state
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+					jid, 1, 600000,
+					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
+					new ExecutionVertex[] { ackVertex1, ackVertex2 },
+					new ExecutionVertex[] {}, cl );
+
+			// nothing should be happening
+			assertEquals(0, coord.getNumberOfPendingCheckpoints());
+			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
+
+			// trigger the first checkpoint. this should not succeed
+			assertFalse(coord.triggerCheckpoint(timestamp));
+
+			// still, nothing should be happening
+			assertEquals(0, coord.getNumberOfPendingCheckpoints());
+			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
+
+			coord.shutdown();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testCheckpointAbortsIfTriggerTasksAreFinished() {
+		try {
+			final JobID jid = new JobID();
+			final long timestamp = System.currentTimeMillis();
+
+			// create some mock Execution vertices that receive the checkpoint trigger messages
+			final ExecutionAttemptID triggerAttemptID1 = new ExecutionAttemptID();
+			final ExecutionAttemptID triggerAttemptID2 = new ExecutionAttemptID();
+			ExecutionVertex triggerVertex1 = mockExecutionVertex(triggerAttemptID1);
+			ExecutionVertex triggerVertex2 = mockExecutionVertex(triggerAttemptID2, ExecutionState.FINISHED);
+
 			// create some mock Execution vertices that need to ack the checkpoint
 			final ExecutionAttemptID ackAttemptID1 = new ExecutionAttemptID();
 			final ExecutionAttemptID ackAttemptID2 = new ExecutionAttemptID();
@@ -609,10 +654,15 @@ public class CheckpointCoordinatorTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID) {
+		return mockExecutionVertex(attemptID, ExecutionState.RUNNING);
+	}
+	
+	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID, ExecutionState state) {
 		final Execution exec = mock(Execution.class);
 		when(exec.getAttemptId()).thenReturn(attemptID);
+		when(exec.getState()).thenReturn(state);
 
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		when(vertex.getCurrentExecutionAttempt()).thenReturn(exec);

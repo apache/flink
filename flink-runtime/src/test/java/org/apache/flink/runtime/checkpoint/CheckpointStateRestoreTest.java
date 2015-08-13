@@ -45,13 +45,13 @@ import static org.mockito.Mockito.*;
  */
 public class CheckpointStateRestoreTest {
 	
-	ClassLoader cl = Thread.currentThread().getContextClassLoader();
+	private static final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 	
 	@Test
 	public void testSetState() {
 		try {
 			final SerializedValue<StateHandle<?>> serializedState = new SerializedValue<StateHandle<?>>(
-					new LocalStateHandle(new SerializableObject()));
+					new LocalStateHandle<SerializableObject>(new SerializableObject()));
 			
 			final JobID jid = new JobID();
 			final JobVertexID statefulId = new JobVertexID();
@@ -120,7 +120,7 @@ public class CheckpointStateRestoreTest {
 	public void testStateOnlyPartiallyAvailable() {
 		try {
 			final SerializedValue<StateHandle<?>> serializedState = new SerializedValue<StateHandle<?>>(
-					new LocalStateHandle(new SerializableObject()));
+					new LocalStateHandle<SerializableObject>(new SerializableObject()));
 
 			final JobID jid = new JobID();
 			final JobVertexID statefulId = new JobVertexID();
@@ -208,11 +208,15 @@ public class CheckpointStateRestoreTest {
 	}
 	
 	// ------------------------------------------------------------------------
-	
+
 	private Execution mockExecution() {
+		return mockExecution(ExecutionState.RUNNING);
+	}
+	
+	private Execution mockExecution(ExecutionState state) {
 		Execution mock = mock(Execution.class);
 		when(mock.getAttemptId()).thenReturn(new ExecutionAttemptID());
-		when(mock.getState()).thenReturn(ExecutionState.CREATED);
+		when(mock.getState()).thenReturn(state);
 		return mock;
 	}
 	
