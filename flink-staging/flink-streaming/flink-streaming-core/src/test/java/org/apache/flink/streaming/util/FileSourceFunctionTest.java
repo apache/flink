@@ -60,7 +60,6 @@ public class FileSourceFunctionTest {
 		try {
 			fileSourceFunction.open(new Configuration());
 			fileSourceFunction.run(ctx);
-			;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -80,13 +79,33 @@ public class FileSourceFunctionTest {
 		DummyContext<IntValue> ctx = new DummyContext<IntValue>();
 		try {
 			fileSourceFunction.open(new Configuration());
-			fileSourceFunction.restoreState(100l);
+			fileSourceFunction.restoreState("100:1");
 			fileSourceFunction.run(ctx);
-			;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		Assert.assertTrue(ctx.getData().size() == 100);
+	}
+
+	@Test
+	public void testFileSourceFunctionCheckpointDifferentSplit() {
+		DummyFileInputFormat inputFormat = new DummyFileInputFormat();
+		RuntimeContext runtimeContext = new StreamingRuntimeContext("MockTask", new MockEnvironment(3 * 1024 * 1024,
+				inputFormat.getDummyInputSplitProvider(), 1024), null, new ExecutionConfig(), new DummyModKey(2),
+				new LocalStateHandle.LocalStateHandleProvider<Serializable>(), new HashMap<String, Accumulator<?, ?>>());
+
+		inputFormat.setFilePath("file:///some/none/existing/directory/");
+		FileSourceFunction<IntValue> fileSourceFunction = new FileSourceFunction<IntValue>(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat));
+		fileSourceFunction.setRuntimeContext(runtimeContext);
+		DummyContext<IntValue> ctx = new DummyContext<IntValue>();
+		try {
+			fileSourceFunction.restoreState("100:2");
+			fileSourceFunction.open(new Configuration());
+			fileSourceFunction.run(ctx);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		Assert.assertTrue(ctx.getData().size() == 200);
 	}
 
 	private class DummyFileInputFormat extends FileInputFormat<IntValue> {
@@ -125,13 +144,14 @@ public class FileSourceFunctionTest {
 			public InputSplit getNextInputSplit() {
 				try {
 					if (!reachedEnd()) {
-						return new FileInputSplit(0, new Path("/tmp/test1.txt"), 0, 1, null);
+						return new FileInputSplit(1, new Path("/tmp/test1.txt"), 0, 1, null);
 					}
 				} catch (Exception e) {
 					return null;
 				}
 				return null;
 			}
+
 		}
 	}
 

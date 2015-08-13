@@ -29,7 +29,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> implements Checkpointed<Long> {
+public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> implements Checkpointed<String> {
 	private static final long serialVersionUID = 1L;
 
 	private TypeInformation<OUT> typeInfo;
@@ -42,8 +42,11 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> imp
 
 	private volatile boolean isRunning = true;
 
-	private Long splitCount = -1l;
-	private Long currSplit = 0l;
+	private Long currRecord = 0l;
+	private int splitNumber = 0;
+
+	private int checkpointedSplit = -1;
+	private Long checkpointedRecord = -1l;
 
 	@SuppressWarnings("unchecked")
 	public FileSourceFunction(InputFormat<OUT, ?> format, TypeInformation<OUT> typeInfo) {
@@ -62,7 +65,10 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> imp
 		splitIterator = getInputSplits();
 
 		if (splitIterator.hasNext()) {
-			format.open(splitIterator.next());
+			InputSplit split = splitIterator.next();
+			splitNumber = split.getSplitNumber();
+			currRecord = 0l;
+			format.open(split);
 		}
 		isRunning = true;
 	}
@@ -125,18 +131,23 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> imp
 			OUT nextElement = serializer.createInstance();
 			nextElement =  format.nextRecord(nextElement);
 			if (nextElement == null && splitIterator.hasNext()) {
-				format.open(splitIterator.next());
+				InputSplit split = splitIterator.next();
+				splitNumber = split.getSplitNumber();
+				currRecord = 0l;
+				format.open(split);
 				continue;
 			} else if (nextElement == null) {
 				break;
 			}
-			if(currSplit < splitCount) {
-				currSplit ++;
-				continue;
+			if(splitNumber == checkpointedSplit){
+				if(currRecord < checkpointedRecord) {
+					currRecord++;
+					continue;
+				}
 			}
 			synchronized (ctx.getCheckpointLock()){
 				ctx.collect(nextElement);
-				currSplit++;
+				currRecord++;
 			}
 		}
 	}
@@ -147,13 +158,15 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> imp
 	}
 
 	@Override
-	public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-		return currSplit;
+	public String snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+		return currRecord+":"+ splitNumber;
 	}
 
 	@Override
-	public void restoreState(Long state){
-		splitCount = state;
+	public void restoreState(String state){
+		String[] res = state.split(":");
+		checkpointedRecord = Long.valueOf(res[0]);
+		checkpointedSplit = Integer.valueOf(res[1]);
 	}
 
 }
