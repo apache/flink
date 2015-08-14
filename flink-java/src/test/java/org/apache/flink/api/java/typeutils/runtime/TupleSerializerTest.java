@@ -44,14 +44,14 @@ public class TupleSerializerTest {
 
 	@Test
 	public void testTuple0() {
-		Tuple0[] testTuples = new Tuple0[] { Tuple0.instance, Tuple0.instance, Tuple0.instance };
+		Tuple0[] testTuples = new Tuple0[] { Tuple0.INSTANCE, Tuple0.INSTANCE, Tuple0.INSTANCE };
 
 		runTests(testTuples);
 	}
 
 	@Test
 	public void testTuple1Int() {
-		@SuppressWarnings("unchecked")
+		@SuppressWarnings({"unchecked", "rawtypes"})
 		Tuple1<Integer>[] testTuples = new Tuple1[] {
 			new Tuple1<Integer>(42), new Tuple1<Integer>(1), new Tuple1<Integer>(0), new Tuple1<Integer>(-1),
 			new Tuple1<Integer>(Integer.MAX_VALUE), new Tuple1<Integer>(Integer.MIN_VALUE)
@@ -64,7 +64,7 @@ public class TupleSerializerTest {
 	public void testTuple1String() {
 		Random rnd = new Random(68761564135413L);
 		
-		@SuppressWarnings("unchecked")
+		@SuppressWarnings({"unchecked", "rawtypes"})
 		Tuple1<String>[] testTuples = new Tuple1[] {
 			new Tuple1<String>(StringUtils.getRandomString(rnd, 10, 100)),
 			new Tuple1<String>("abc"),

@@ -21,16 +21,20 @@ import java.io.ObjectStreamException;
 
 /**
  * A tuple with 0 fields.
- * <p>
- * {@code Tuple0} is a singleton.
+ * 
+ * <p>The Tuple0 is a soft singleton, i.e., there is a "singleton" instance, but it does
+ * not prevent creation of additional instances.</p>
  * 
  * @see Tuple
  */
 public class Tuple0 extends Tuple {
 	private static final long serialVersionUID = 1L;
 
-	public static final Tuple0 instance = new Tuple0();
+	/** An immutable reusable Tuple0 instance */
+	public static final Tuple0 INSTANCE = new Tuple0();
 
+	// ------------------------------------------------------------------------
+	
 	@Override
 	public int getArity() {
 		return 0;
@@ -69,13 +73,7 @@ public class Tuple0 extends Tuple {
 	 */
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (!(o instanceof Tuple0)) {
-			return false;
-		}
-		return true;
+		return this == o || o instanceof Tuple0;
 	}
 
 	@Override
@@ -85,7 +83,6 @@ public class Tuple0 extends Tuple {
 
 	// singleton deserialization
 	private Object readResolve() throws ObjectStreamException {
-		return instance;
+		return INSTANCE;
 	}
-
 }

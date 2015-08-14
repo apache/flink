@@ -19,17 +19,18 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 public class Tuple0Serializer extends TupleSerializer<Tuple0> {
+	
 	private static final long serialVersionUID = 1278813169022975971L;
 
-	private static final Tuple0Serializer singleton = new Tuple0Serializer();
+	public static final Tuple0Serializer INSTANCE = new Tuple0Serializer();
 
+	// ------------------------------------------------------------------------
+	
 	private Tuple0Serializer() {
 		super(Tuple0.class, new TypeSerializer<?>[0]);
 	}
 
-	public static Tuple0Serializer getInstance() {
-		return singleton;
-	}
+	// ------------------------------------------------------------------------
 
 	@Override
 	public Tuple0Serializer duplicate() {
@@ -38,13 +39,13 @@ public class Tuple0Serializer extends TupleSerializer<Tuple0> {
 
 	@Override
 	public Tuple0 createInstance() {
-		return Tuple0.instance;
+		return Tuple0.INSTANCE;
 	}
 
 	@Override
 	public Tuple0 createInstance(Object[] fields) {
 		if (fields == null || fields.length == 0) {
-			return Tuple0.instance;
+			return Tuple0.INSTANCE;
 		}
 
 		throw new UnsupportedOperationException(
@@ -53,7 +54,7 @@ public class Tuple0Serializer extends TupleSerializer<Tuple0> {
 
 	@Override
 	public Tuple0 copy(Tuple0 from) {
-		return Tuple0.instance;
+		return from;
 	}
 
 	@Override
@@ -74,7 +75,7 @@ public class Tuple0Serializer extends TupleSerializer<Tuple0> {
 	@Override
 	public Tuple0 deserialize(DataInputView source) throws IOException {
 		source.readByte();
-		return Tuple0.instance;
+		return Tuple0.INSTANCE;
 	}
 
 	@Override
@@ -88,4 +89,21 @@ public class Tuple0Serializer extends TupleSerializer<Tuple0> {
 		target.writeByte(source.readByte());
 	}
 
+	// ------------------------------------------------------------------------
+
+
+	@Override
+	public int hashCode() {
+		return 1837461876;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return obj == this || obj instanceof Tuple0Serializer;
+	}
+
+	@Override
+	public String toString() {
+		return "Tuple0Serializer";
+	}
 }

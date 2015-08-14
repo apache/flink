@@ -77,7 +77,7 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	@Override
 	public TupleSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		if (this.tupleType == Tuple0.class) {
-			return (TupleSerializer<T>) Tuple0Serializer.getInstance();
+			return (TupleSerializer<T>) Tuple0Serializer.INSTANCE;
 		}
 
 		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[getArity()];

@@ -35,7 +35,7 @@ public class Tuple0Builder {
 	private List<Tuple0> tuples = new ArrayList<Tuple0>();
 
 	public Tuple0Builder add() {
-		tuples.add(Tuple0.instance);
+		tuples.add(Tuple0.INSTANCE);
 		return this;
 	}
 
