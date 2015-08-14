@@ -1274,6 +1274,29 @@ Rich functions provide, in addition to the user-defined function (`map()`, `redu
 
 [Back to top](#top)
 
+
+
+Fault Tolerance
+----------------
+
+Flink has a checkpointig mechanism that recovers streaming jobs after failues. The checkpointing mechanism requires a *persistent* or *durable* source that
+can be asked for prior records again (Apache Kafka is a good example of a durable source).
+
+The checkpointing mechanism stores the progress in the source as well as the user-defined state (see [Stateful Computation](#Stateful_computation))
+consistently to provide *exactly once* processing guarantees.
+
+To enable checkpointing, call `enableCheckpointing(n)` on the `StreamExecutionEnvironment`, where *n* is the checkpoint interval, in milliseconds.
+
+Other parameters for checkpointing include:
+
+  - *Number of retries*: The `setNumberOfExecutionRerties()` method defines how many times the job is restarted after a failure. When checkpointing is activated, but this value is not explicitly set, the job is restarted infinitely often.
+  - *exactly-once vs. at-least-once*: You can optionally pass a mode to the `enableCheckpointing(n)` method to choose between the two guarantee levels. Exactly-once is preferrable for most applications. At-least-once may be relevant for certain super-low-latency (consistently few milliseconds) applications.
+
+The [docs on streaming fault tolerance](../internals/stream_checkpointing.html) describe in detail the technique behind Flink's streaming fault tolerance mechanism.
+
+[Back to top](#top)
+
+
 Stateful computation
 ------------
 
@@ -1488,9 +1511,9 @@ env.genereateSequence(1,10).map(myMap).setBufferTimeout(timeoutMillis)
 To maximise the throughput the user can call `setBufferTimeout(-1)` which will remove the timeout and buffers will only be flushed when they are full.
 To minimise latency, set the timeout to a value close to 0 (for example 5 or 10 ms). Theoretically, a buffer timeout of 0 will cause all output to be flushed when produced, but this setting should be avoided, because it can cause severe performance degradation.
 
-
 [Back to top](#top)
-    
+
+
 Stream connectors
 ----------------
 

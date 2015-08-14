@@ -30,7 +30,8 @@ This document describes Flink' fault tolerance mechanism for streaming data flow
 
 Apache Flink offers a fault tolerance mechanism to consistently recover the state of data streaming applications.
 The mechanism ensures that even in the presence of failures, the program's state will eventually reflect every
-record from the data stream **exactly once**.
+record from the data stream **exactly once**. Note that there is a switch to *downgrade* the guarantees to *at least once*
+(described below).
 
 The fault tolerance mechanism continuously draws snapshots of the distributed streaming data flow. For streaming applications
 with small state, these snapshots are very light-weight and can be drawn frequently without impacting the performance much.
@@ -112,6 +113,22 @@ The resulting snapshot now contains:
 <div style="text-align: center">
   <img src="{{ site.baseurl }}/internals/fig/checkpointing.svg" alt="Illustration of the Checkpointing Mechanism" style="width:100%; padding-top:10px; padding-bottom:10px;" />
 </div>
+
+
+### Exactly Once vs. At Least Once
+
+The alignment step may add latency to the streaming program. Usually, this extra latency is in the order of a few milliseconds, but we have seen cases where the latency
+of some outliers increased noticeably. For applications that require consistenty super low latencies (few milliseconds) for all records, Flink has a switch to skip the 
+stream alignment during a checkpoint. Checkpoint snapshots are still drawn as soon as an operator has seen the checkpoint barrier from each input.
+
+When the alignment is skipped, an operator keeps processing all inputs, even after some checkpoint barriers for checkpoint *n* arrived. That way, the operator also processes
+elements that belong to checkpoint *n+1* before the state snapshot for checkpoint *n* was taken.
+On a restore, these records will occur as duplicates, because they are both included in the state snapshot of checkpoint *n*, and will be replayed as part
+of the data after checkoint *n*.
+
+*NOTE*: Alignment happens only for operators wih multiple predecessors (joins) as well as operators with multiple senders (after a stream repartitionging/shuffle).
+Because of that, dataflows with only embarassingly parallel streaming operations (`map()`, `flatMap()`, `filter()`, ...) actually give *exactly once* guarantees even
+in *at least once* mode.
 
 <!--
 
