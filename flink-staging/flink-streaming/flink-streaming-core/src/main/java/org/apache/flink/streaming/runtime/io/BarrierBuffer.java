@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.event.EventListener;
@@ -68,7 +69,10 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	private long currentCheckpointId = -1L;
 
 	/** The number of received barriers (= number of blocked/buffered channels) */
-	private long numReceivedBarriers;
+	private int numBarriersReceived;
+	
+	/** The number of already closed channels */
+	private int numClosedChannels;
 	
 	/** Flag to indicate whether we have drawn all available input */
 	private boolean endOfStream;
@@ -99,19 +103,15 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		while (true) {
 			// process buffered BufferOrEvents before grabbing new ones
 			BufferOrEvent next;
-			if (currentBuffered != null) {
-				next = currentBuffered.getNext();
-				if (next == null) {
-					currentBuffered.cleanup();
-					currentBuffered = queuedBuffered.pollFirst();
-					if (currentBuffered != null) {
-						currentBuffered.open();
-					}
-					return getNextNonBlocked();
-				}
+			if (currentBuffered == null) {
+				next = inputGate.getNextBufferOrEvent();
 			}
 			else {
-				next = inputGate.getNextBufferOrEvent();
+				next = currentBuffered.getNext();
+				if (next == null) {
+					completeBufferedSequence();
+					return getNextNonBlocked();
+				}
 			}
 			
 			if (next != null) {
@@ -119,12 +119,22 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 					// if the channel is blocked we, we just store the BufferOrEvent
 					bufferSpiller.add(next);
 				}
-				else if (next.isBuffer() || next.getEvent().getClass() != CheckpointBarrier.class) {
+				else if (next.isBuffer()) {
 					return next;
 				}
-				else if (!endOfStream) {
-					// process barriers only if there is a chance of the checkpoint completing
-					processBarrier((CheckpointBarrier) next.getEvent(), next.getChannelIndex());
+				else if (next.getEvent().getClass() == CheckpointBarrier.class) {
+					if (!endOfStream) {
+						// process barriers only if there is a chance of the checkpoint completing
+						processBarrier((CheckpointBarrier) next.getEvent(), next.getChannelIndex());
+					}
+				}
+				else {
+					if (next.getEvent().getClass() == EndOfPartitionEvent.class) {
+						numClosedChannels++;
+						// no chance to complete this checkpoint
+						releaseBlocks();
+					}
+					return next;
 				}
 			}
 			else if (!endOfStream) {
@@ -139,10 +149,18 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		}
 	}
 	
+	private void completeBufferedSequence() throws IOException {
+		currentBuffered.cleanup();
+		currentBuffered = queuedBuffered.pollFirst();
+		if (currentBuffered != null) {
+			currentBuffered.open();
+		}
+	}
+	
 	private void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws IOException {
 		final long barrierId = receivedBarrier.getId();
 
-		if (numReceivedBarriers > 0) {
+		if (numBarriersReceived > 0) {
 			// subsequent barrier of a checkpoint.
 			if (barrierId == currentCheckpointId) {
 				// regular case
@@ -174,7 +192,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		}
 
 		// check if we have all barriers
-		if (numReceivedBarriers == totalNumberOfInputChannels) {
+		if (numBarriersReceived + numClosedChannels == totalNumberOfInputChannels) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Received all barrier, triggering checkpoint {} at {}",
 						receivedBarrier.getId(), receivedBarrier.getTimestamp());
@@ -232,7 +250,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	private void onBarrier(int channelIndex) throws IOException {
 		if (!blockedChannels[channelIndex]) {
 			blockedChannels[channelIndex] = true;
-			numReceivedBarriers++;
+			numBarriersReceived++;
 			
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Received barrier from channel " + channelIndex);
@@ -255,7 +273,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		for (int i = 0; i < blockedChannels.length; i++) {
 			blockedChannels[i] = false;
 		}
-		numReceivedBarriers = 0;
+		numBarriersReceived = 0;
 
 		if (currentBuffered == null) {
 			// common case: no more buffered data
@@ -266,13 +284,14 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		}
 		else {
 			// uncommon case: buffered data pending
-			// push back the pending data
-			queuedBuffered.addFirst(currentBuffered);
+			// push back the pending data, if we have any
 			
-			// since we did not fully drain the previous sequence, we need to allocate a new buffer for this one 
-			currentBuffered = bufferSpiller.rollOverWithNewBuffer();
-			if (currentBuffered != null) {
-				currentBuffered.open();
+			// since we did not fully drain the previous sequence, we need to allocate a new buffer for this one
+			BufferSpiller.SpilledBufferOrEventSequence bufferedNow = bufferSpiller.rollOverWithNewBuffer();
+			if (bufferedNow != null) {
+				bufferedNow.open();
+				queuedBuffered.addFirst(currentBuffered);
+				currentBuffered = bufferedNow;
 			}
 		}
 	}
@@ -296,6 +315,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	
 	@Override
 	public String toString() {
-		return String.format("last checkpoint: %d, current barriers: %d", currentCheckpointId, numReceivedBarriers);
+		return String.format("last checkpoint: %d, current barriers: %d, closed channels: %d",
+				currentCheckpointId, numBarriersReceived, numClosedChannels);
 	}
 }

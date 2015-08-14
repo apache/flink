@@ -19,20 +19,15 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import org.junit.Test;
 
-import java.util.ArrayDeque;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Queue;
 
 import static org.junit.Assert.*;
 
@@ -41,12 +36,14 @@ import static org.junit.Assert.*;
  */
 public class BarrierTrackerTest {
 	
+	private static final int PAGE_SIZE = 512;
+	
 	@Test
 	public void testSingleChannelNoBarriers() {
 		try {
 			BufferOrEvent[] sequence = { createBuffer(0), createBuffer(0), createBuffer(0) };
 
-			MockInputGate gate = new MockInputGate(1, Arrays.asList(sequence));
+			MockInputGate gate = new MockInputGate(PAGE_SIZE, 1, Arrays.asList(sequence));
 			BarrierTracker tracker = new BarrierTracker(gate);
 
 			for (BufferOrEvent boe : sequence) {
@@ -70,7 +67,7 @@ public class BarrierTrackerTest {
 					createBuffer(1), createBuffer(1), createBuffer(2)
 			};
 
-			MockInputGate gate = new MockInputGate(4, Arrays.asList(sequence));
+			MockInputGate gate = new MockInputGate(PAGE_SIZE, 4, Arrays.asList(sequence));
 			BarrierTracker tracker = new BarrierTracker(gate);
 
 			for (BufferOrEvent boe : sequence) {
@@ -99,7 +96,7 @@ public class BarrierTrackerTest {
 					createBuffer(0)
 			};
 
-			MockInputGate gate = new MockInputGate(1, Arrays.asList(sequence));
+			MockInputGate gate = new MockInputGate(PAGE_SIZE, 1, Arrays.asList(sequence));
 			BarrierTracker tracker = new BarrierTracker(gate);
 
 			CheckpointSequenceValidator validator =
@@ -134,7 +131,7 @@ public class BarrierTrackerTest {
 					createBuffer(0)
 			};
 
-			MockInputGate gate = new MockInputGate(1, Arrays.asList(sequence));
+			MockInputGate gate = new MockInputGate(PAGE_SIZE, 1, Arrays.asList(sequence));
 			BarrierTracker tracker = new BarrierTracker(gate);
 
 			CheckpointSequenceValidator validator =
@@ -178,7 +175,7 @@ public class BarrierTrackerTest {
 					createBuffer(0)
 			};
 
-			MockInputGate gate = new MockInputGate(3, Arrays.asList(sequence));
+			MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 			BarrierTracker tracker = new BarrierTracker(gate);
 
 			CheckpointSequenceValidator validator =
@@ -226,7 +223,7 @@ public class BarrierTrackerTest {
 					createBuffer(0)
 			};
 
-			MockInputGate gate = new MockInputGate(3, Arrays.asList(sequence));
+			MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 			BarrierTracker tracker = new BarrierTracker(gate);
 
 			CheckpointSequenceValidator validator =
@@ -310,7 +307,7 @@ public class BarrierTrackerTest {
 					createBuffer(1), createBuffer(0), createBuffer(2)
 			};
 
-			MockInputGate gate = new MockInputGate(3, Arrays.asList(sequence));
+			MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 			BarrierTracker tracker = new BarrierTracker(gate);
 
 			CheckpointSequenceValidator validator =
@@ -348,47 +345,7 @@ public class BarrierTrackerTest {
 	// ------------------------------------------------------------------------
 	//  Testing Mocks
 	// ------------------------------------------------------------------------
-
-	private static class MockInputGate implements InputGate {
-
-		private final int numChannels;
-		private final Queue<BufferOrEvent> boes;
-
-		public MockInputGate(int numChannels, List<BufferOrEvent> boes) {
-			this.numChannels = numChannels;
-			this.boes = new ArrayDeque<BufferOrEvent>(boes);
-		}
-
-		@Override
-		public int getNumberOfInputChannels() {
-			return numChannels;
-		}
-
-		@Override
-		public boolean isFinished() {
-			return boes.isEmpty();
-		}
-
-		@Override
-		public void requestPartitions() {}
-
-		@Override
-		public BufferOrEvent getNextBufferOrEvent() {
-			return boes.poll();
-		}
-
-		@Override
-		public void sendTaskEvent(TaskEvent event) {}
-
-		@Override
-		public void registerListener(EventListener<InputGate> listener) {}
-
-		@Override
-		public int getPageSize() {
-			return 2;
-		}
-	}
-
+	
 	private static class CheckpointSequenceValidator implements EventListener<CheckpointBarrier> {
 
 		private final long[] checkpointIDs;
