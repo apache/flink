@@ -355,7 +355,7 @@ class JobManager(
                 * and this code is responsible for detecting it, storing the oversized result in
                 * the BlobCache, and informing the Client accordingly.
                 * */
-                
+
                 val totalSize: Long = smallAccumulatorResults.asScala.map(_._2.getSizeInBytes).sum
                 if (totalSize > AkkaUtils.getLargeAccumulatorThreshold(jobConfig)) {
 
@@ -375,7 +375,7 @@ class JobManager(
                   largeAccumulatorResults = executionGraph.
                     addLargeUserAccumulatorBlobKeys(largeAccumulatorResults, newBlobKeys)
                 }
-                
+
                 val result = new SerializedJobExecutionResult(jobID,
                   jobInfo.duration, smallAccumulatorResults, largeAccumulatorResults)
                 jobInfo.client ! JobResultSuccess(result)

@@ -150,7 +150,7 @@ public class Task implements Runnable {
 
 	/** Access to task manager configuration and host names*/
 	private final TaskManagerRuntimeInfo taskManagerConfig;
-	
+
 	/** The memory manager to be used by this task */
 	private final MemoryManager memoryManager;
 
