@@ -45,7 +45,7 @@ public class StreamEdge implements Serializable {
 	 * A list of output names that the target vertex listens to (if there is
 	 * output selection).
 	 */
-	final private List<String> selectedNames;
+	private final List<String> selectedNames;
 	private StreamPartitioner<?> outputPartitioner;
 
 	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
@@ -108,11 +108,7 @@ public class StreamEdge implements Serializable {
 
 		StreamEdge that = (StreamEdge) o;
 
-		if (!edgeId.equals(that.edgeId)) {
-			return false;
-		}
-
-		return true;
+		return edgeId.equals(that.edgeId);
 	}
 
 	@Override

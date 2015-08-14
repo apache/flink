@@ -57,9 +57,11 @@ public class MockContext<IN, OUT> {
 
 	public static <IN, OUT> List<OUT> createAndExecute(OneInputStreamOperator<IN, OUT> operator, List<IN> inputs) {
 		MockContext<IN, OUT> mockContext = new MockContext<IN, OUT>(inputs);
-		StreamingRuntimeContext runtimeContext = new StreamingRuntimeContext("MockTask",
-				new MockEnvironment(3 * 1024 * 1024, new MockInputSplitProvider(), 1024), null,
-				new ExecutionConfig(), null, null, new HashMap<String, Accumulator<?, ?>>());
+		StreamingRuntimeContext runtimeContext = new StreamingRuntimeContext(
+				new MockEnvironment("MockTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
+				new ExecutionConfig(), 
+				null, null, 
+				new HashMap<String, Accumulator<?, ?>>());
 
 		operator.setup(mockContext.output, runtimeContext);
 		try {

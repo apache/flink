@@ -22,8 +22,6 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Task for executing streaming sources.
@@ -39,61 +37,40 @@ import org.slf4j.LoggerFactory;
  */
 public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(SourceStreamTask.class);
-
 	@Override
-	public void invoke() throws Exception {
-		final SourceOutput<StreamRecord<OUT>> output = new SourceOutput<StreamRecord<OUT>>(outputHandler.getOutput(), checkpointLock);
-
-		boolean operatorOpen = false;
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Task {} invoked", getName());
-		}
-
-		try {
-			openOperator();
-			operatorOpen = true;
-
-			streamOperator.run(checkpointLock, output);
-
-			closeOperator();
-			operatorOpen = false;
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Task {} invocation finished", getName());
-			}
-
-		}
-		catch (Exception e) {
-			LOG.error(getEnvironment().getTaskNameWithSubtasks() + " failed", e);
-
-			if (operatorOpen) {
-				try {
-					closeOperator();
-				}
-				catch (Throwable t) {
-					LOG.warn("Exception while closing operator.", t);
-				}
-			}
-			throw e;
-		}
-		finally {
-			this.isRunning = false;
-			// Cleanup
-			outputHandler.flushOutputs();
-			clearBuffers();
-		}
-
+	protected void init() {
+		// does not hold any resources, so no initialization needed
 	}
 
 	@Override
-	public void cancel() {
-		super.cancel();
+	protected void cleanup() {
+		// does not hold any resources, so no cleanup needed
+	}
+	
+
+	@Override
+	protected void run() throws Exception {
+		final Object checkpointLock = getCheckpointLock();
+		
+		final SourceOutput<StreamRecord<OUT>> output = 
+				new SourceOutput<StreamRecord<OUT>>(outputHandler.getOutput(), checkpointLock);
+		
+		streamOperator.run(checkpointLock, output);
+	}
+	
+	@Override
+	protected void cancelTask() throws Exception {
 		streamOperator.cancel();
 	}
 
+	// ------------------------------------------------------------------------
+	
+	// TODO:
+	// does this help with anything? The losk should be already held by the source function that
+	// emits. If that one does not hold the lock, then this does not help either.
+	
 	private static class SourceOutput<T> implements Output<T> {
+		
 		private final Output<T> output;
 		private final Object lockObject;
 
@@ -114,7 +91,6 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 			synchronized (lockObject) {
 				output.collect(record);
 			}
-
 		}
 
 		@Override

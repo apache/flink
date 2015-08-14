@@ -20,22 +20,12 @@ package org.apache.flink.streaming.runtime.io;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.flink.runtime.iterative.concurrent.Broker;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-@SuppressWarnings("rawtypes")
-public class BlockingQueueBroker extends Broker<BlockingQueue<StreamRecord>> {
-	/**
-	 * Singleton instance
-	 */
-	private static final BlockingQueueBroker INSTANCE = new BlockingQueueBroker();
+public class BlockingQueueBroker extends Broker<BlockingQueue<?>> {
+	
+	/** Singleton instance */
+	public static final BlockingQueueBroker INSTANCE = new BlockingQueueBroker();
 
-	private BlockingQueueBroker() {
-	}
-
-	/**
-	 * retrieve singleton instance
-	 */
-	public static Broker<BlockingQueue<StreamRecord>> instance() {
-		return INSTANCE;
-	}
+	/** Cannot instantiate */
+	private BlockingQueueBroker() {}
 }

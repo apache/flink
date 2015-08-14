@@ -58,15 +58,18 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 		
 		super(writer, channelSelector);
 		
-		checkArgument(timeout >= 0);
+		checkArgument(timeout >= -1);
 		
-		if (timeout == 0) {
+		if (timeout == -1) {
+			flushAlways = false;
+			outputFlusher = null;
+		}
+		else if (timeout == 0) {
 			flushAlways = true;
 			outputFlusher = null;
 		}
 		else {
 			flushAlways = false;
-
 			String threadName = taskName == null ?
 								DEFAULT_OUTPUT_FLUSH_THREAD_NAME : "Output Timeout Flusher - " + taskName;
 			
@@ -94,34 +97,27 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 	}
 
 	/**
-	 * Closes the writer. This stops the flushing thread (if there is one) and flushes all pending outputs.
-	 * 
-	 * @throws IOException I/O errors may happen during the final flush of the buffers.
+	 * Closes the writer. This stops the flushing thread (if there is one).
 	 */
-	public void close() throws IOException {
-		// propagate exceptions
-		flush();
-		
+	public void close() {
+		// make sure we terminate the thread in any case
 		if (outputFlusher != null) {
+			outputFlusher.terminate();
 			try {
-				outputFlusher.terminate();
 				outputFlusher.join();
 			}
 			catch (InterruptedException e) {
 				// ignore on close
 			}
 		}
-
-		// final check for asynchronous errors, before we exit with a green light
-		checkErroneous();
 	}
 
 	/**
-	 * Notifies the writer that teh output flusher thread encountered an exception.
+	 * Notifies the writer that the output flusher thread encountered an exception.
 	 * 
 	 * @param t The exception to report.
 	 */
-	void notifyFlusherException(Throwable t) {
+	private void notifyFlusherException(Throwable t) {
 		if (this.flusherException == null) {
 			this.flusherException = t;
 		}

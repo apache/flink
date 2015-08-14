@@ -52,13 +52,11 @@ public abstract class TaskTestBase {
 	public void initEnvironment(long memorySize, int bufferSize) {
 		this.memorySize = memorySize;
 		this.inputSplitProvider = new MockInputSplitProvider();
-		this.mockEnv = new MockEnvironment(this.memorySize, this.inputSplitProvider, bufferSize);
+		this.mockEnv = new MockEnvironment("mock task", this.memorySize, this.inputSplitProvider, bufferSize);
 	}
 
 	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> input, int groupId) {
-		final IteratorWrappingTestSingleInputGate<Record> reader = addInput(input, groupId, true);
-
-		return reader;
+		return addInput(input, groupId, true);
 	}
 
 	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> input, int groupId, boolean read) {
@@ -89,19 +87,32 @@ public abstract class TaskTestBase {
 		return this.mockEnv.getTaskConfiguration();
 	}
 
-	public void registerTask(AbstractInvokable task, @SuppressWarnings("rawtypes") Class<? extends PactDriver> driver, Class<? extends RichFunction> stubClass) {
+	public void registerTask(AbstractInvokable task, 
+								@SuppressWarnings("rawtypes") Class<? extends PactDriver> driver,
+								Class<? extends RichFunction> stubClass) {
+		
 		final TaskConfig config = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		config.setDriver(driver);
 		config.setStubWrapper(new UserCodeClassWrapper<RichFunction>(stubClass));
 		
 		task.setEnvironment(this.mockEnv);
 
-		task.registerInputOutput();
+		try {
+			task.registerInputOutput();
+		}
+		catch (Exception e) {
+			throw new RuntimeException(e.getMessage(), e);
+		}
 	}
 
 	public void registerTask(AbstractInvokable task) {
 		task.setEnvironment(this.mockEnv);
-		task.registerInputOutput();
+		try {
+			task.registerInputOutput();
+		}
+		catch (Exception e) {
+			throw new RuntimeException(e.getMessage(), e);
+		}
 	}
 
 	public void registerFileOutputTask(AbstractInvokable outTask, Class<? extends FileOutputFormat> stubClass, String outPath) {
@@ -118,7 +129,12 @@ public abstract class TaskTestBase {
 
 		outTask.setEnvironment(this.mockEnv);
 
-		outTask.registerInputOutput();
+		try {
+			outTask.registerInputOutput();
+		}
+		catch (Exception e) {
+			throw new RuntimeException(e.getMessage(), e);
+		}
 	}
 
 	public void registerFileInputTask(AbstractInvokable inTask,
@@ -142,7 +158,12 @@ public abstract class TaskTestBase {
 
 		inTask.setEnvironment(this.mockEnv);
 
-		inTask.registerInputOutput();
+		try {
+			inTask.registerInputOutput();
+		}
+		catch (Exception e) {
+			throw new RuntimeException(e.getMessage(), e);
+		}
 	}
 
 	public MemoryManager getMemoryManager() {

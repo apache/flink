@@ -62,7 +62,6 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	 */
 	public OneInputStreamTaskTestHarness(OneInputStreamTask<IN, OUT> task,
 			int numInputGates,
-
 			int numInputChannelsPerGate,
 			TypeInformation<IN> inputType,
 			TypeInformation<OUT> outputType) {

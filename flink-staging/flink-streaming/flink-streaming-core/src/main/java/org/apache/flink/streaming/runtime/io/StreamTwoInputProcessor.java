@@ -261,7 +261,6 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 				}
 			}
 		}
-
 	}
 
 	@Override
@@ -271,17 +270,17 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 		}
 	}
 
-	public void clearBuffers() {
+	@Override
+	public void cleanup() throws IOException {
+		// clear the buffers first. this part should not ever fail
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
 			Buffer buffer = deserializer.getCurrentBuffer();
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycle();
 			}
 		}
-	}
 
-	@Override
-	public void cleanup() throws IOException {
+		// cleanup the barrier handler resources
 		barrierHandler.cleanup();
 	}
 }
