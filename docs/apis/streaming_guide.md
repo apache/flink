@@ -1597,7 +1597,7 @@ A class providing an interface for sending data to Kafka.
 
 The followings have to be provided for the `KafkaSink(…)` constructor in order:
 
-1. Zookeeper hostname
+1. Broker address (in hostname:port format, can be a comma separated list)
 2. The topic name
 3. Serialization schema
 
@@ -1606,12 +1606,12 @@ Example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-stream.addSink(new KafkaSink<String>("localhost:2181", "test", new SimpleStringSchema()));
+stream.addSink(new KafkaSink<String>("localhost:9092", "test", new SimpleStringSchema()));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-stream.addSink(new KafkaSink[String]("localhost:2181", "test", new SimpleStringSchema))
+stream.addSink(new KafkaSink[String]("localhost:9092", "test", new SimpleStringSchema))
 {% endhighlight %}
 </div>
 </div>
@@ -1633,7 +1633,7 @@ public KafkaSink(String zookeeperAddress, String topicId, Properties producerCon
 </div>
 </div>
 
-If this constructor is used, the user needs to make sure to set the broker with the "metadata.broker.list" property. Also the serializer configuration should be left default, the serialization should be set via SerializationSchema.
+If this constructor is used, the user needs to make sure to set the broker(s) with the "metadata.broker.list" property. Also the serializer configuration should be left default, the serialization should be set via SerializationSchema.
 
 More about Kafka can be found [here](https://kafka.apache.org/documentation.html).
 
