@@ -25,18 +25,18 @@ import static org.junit.Assert.fail;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 /**
  * This class contains test for the configuration package. In particular, the serialization of {@link Configuration}
  * objects is tested.
  */
-public class ConfigurationTest {
+public class ConfigurationTest extends TestLogger {
 	
 	private static final byte[] EMPTY_BYTES = new byte[0];
 	private static final long TOO_LONG = Integer.MAX_VALUE + 10L;
 	private static final double TOO_LONG_DOUBLE = Double.MAX_VALUE;
-	
 
 	/**
 	 * This test checks the serialization/deserialization of configuration objects.

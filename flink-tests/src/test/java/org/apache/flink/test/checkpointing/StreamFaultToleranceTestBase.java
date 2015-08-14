@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -34,7 +35,7 @@ import static org.junit.Assert.fail;
 /**
  * Test base for fault tolerant streaming programs
  */
-public abstract class StreamFaultToleranceTestBase {
+public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
 	protected static final int NUM_TASK_MANAGERS = 2;
 	protected static final int NUM_TASK_SLOTS = 3;
