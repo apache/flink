@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
@@ -27,7 +28,7 @@ import static org.mockito.Mockito.mock;
 /**
  * Basic subpartition behaviour tests.
  */
-public abstract class SubpartitionTestBase {
+public abstract class SubpartitionTestBase extends TestLogger {
 
 	/**
 	 * Return the subpartition to be tested.

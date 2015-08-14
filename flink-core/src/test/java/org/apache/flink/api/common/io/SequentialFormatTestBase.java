@@ -33,6 +33,7 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -42,7 +43,7 @@ import org.junit.runners.Parameterized.Parameters;
 /**
  * Test base for {@link org.apache.flink.api.common.io.BinaryInputFormat} and {@link org.apache.flink.api.common.io.BinaryOutputFormat}.
  */
-public abstract class SequentialFormatTestBase<T> {
+public abstract class SequentialFormatTestBase<T> extends TestLogger {
 
 	public class InputSplitSorter implements Comparator<FileInputSplit> {
 		@Override

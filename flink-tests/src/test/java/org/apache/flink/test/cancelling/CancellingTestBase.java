@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 
 import org.slf4j.Logger;
@@ -45,7 +46,7 @@ import org.junit.Before;
 /**
  * 
  */
-public abstract class CancellingTestBase {
+public abstract class CancellingTestBase extends TestLogger {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(CancellingTestBase.class);
 

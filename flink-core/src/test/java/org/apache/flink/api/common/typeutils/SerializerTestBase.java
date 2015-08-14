@@ -31,6 +31,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 
 import org.apache.commons.lang3.SerializationException;
@@ -47,7 +48,7 @@ import org.junit.Test;
  * (JodaTime DataTime) with the default KryoSerializer used to pass this test but the
  * internal state would be corrupt, which becomes evident when toString is called.
  */
-public abstract class SerializerTestBase<T> {
+public abstract class SerializerTestBase<T> extends TestLogger {
 	
 	protected abstract TypeSerializer<T> createSerializer();
 	
