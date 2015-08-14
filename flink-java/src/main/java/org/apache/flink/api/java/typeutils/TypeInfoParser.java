@@ -36,7 +36,7 @@ public class TypeInfoParser {
 	private static final String VALUE_PACKAGE = "org.apache.flink.types";
 	private static final String WRITABLE_PACKAGE = "org.apache.hadoop.io";
 
-	private static final Pattern tuplePattern = Pattern.compile("^((" + TUPLE_PACKAGE.replaceAll("\\.", "\\\\.") + "\\.)?Tuple[0-9]+)<");
+	private static final Pattern tuplePattern = Pattern.compile("^(" + TUPLE_PACKAGE.replaceAll("\\.", "\\\\.") + "\\.)?((Tuple[1-9][0-9]?)<|(Tuple0))");
 	private static final Pattern writablePattern = Pattern.compile("^((" + WRITABLE_PACKAGE.replaceAll("\\.", "\\\\.") + "\\.)?Writable)<([^\\s,>]*)(,|>|$|\\[)");
 	private static final Pattern enumPattern = Pattern.compile("^((java\\.lang\\.)?Enum)<([^\\s,>]*)(,|>|$|\\[)");
 	private static final Pattern basicTypePattern = Pattern
@@ -124,17 +124,22 @@ public class TypeInfoParser {
 
 		// tuples
 		if (tupleMatcher.find()) {
-			String className = tupleMatcher.group(1);
-			sb.delete(0, className.length() + 1);
-			int arity = Integer.parseInt(className.replaceAll("\\D", ""));
-
-			Class<?> clazz;
-			// check if fully qualified
-			if (className.startsWith(TUPLE_PACKAGE)) {
-				clazz = loadClass(className);
+			boolean isGenericTuple = true;
+			String className = tupleMatcher.group(3);
+			if(className == null) { // matched Tuple0
+				isGenericTuple = false;
+				className = tupleMatcher.group(2);
+				sb.delete(0, className.length());
 			} else {
-				clazz = loadClass(TUPLE_PACKAGE + "." + className);
+				sb.delete(0, className.length() + 1); // +1 for "<"
 			}
+
+			if (infoString.startsWith(TUPLE_PACKAGE)) {
+				sb.delete(0, TUPLE_PACKAGE.length() + 1); // +1 for trailing "."
+			}
+
+			int arity = Integer.parseInt(className.replaceAll("\\D", ""));
+			Class<?> clazz = loadClass(TUPLE_PACKAGE + "." + className);
 
 			TypeInformation<?>[] types = new TypeInformation<?>[arity];
 			for (int i = 0; i < arity; i++) {
@@ -143,11 +148,13 @@ public class TypeInfoParser {
 					throw new IllegalArgumentException("Tuple arity does not match given parameters.");
 				}
 			}
-			if (sb.charAt(0) != '>') {
-				throw new IllegalArgumentException("Tuple arity does not match given parameters.");
+			if (isGenericTuple) {
+				if(sb.charAt(0) != '>') {
+					throw new IllegalArgumentException("Tuple arity does not match given parameters.");
+				}
+				// remove '>'
+				sb.deleteCharAt(0);
 			}
-			// remove '>'
-			sb.deleteCharAt(0);
 			returnType = new TupleTypeInfo(clazz, types);
 		}
 		// writable types

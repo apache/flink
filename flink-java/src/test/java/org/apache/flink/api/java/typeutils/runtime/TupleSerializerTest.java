@@ -25,6 +25,7 @@ import java.util.Random;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -40,7 +41,14 @@ import org.junit.Assert;
 import org.junit.Test;
 
 public class TupleSerializerTest {
-	
+
+	@Test
+	public void testTuple0() {
+		Tuple0[] testTuples = new Tuple0[] { Tuple0.instance, Tuple0.instance, Tuple0.instance };
+
+		runTests(testTuples);
+	}
+
 	@Test
 	public void testTuple1Int() {
 		@SuppressWarnings("unchecked")
@@ -214,7 +222,11 @@ public class TupleSerializerTest {
 			
 			Class<T> tupleClass = tupleTypeInfo.getTypeClass();
 			
-			TupleSerializerTestInstance<T> test = new TupleSerializerTestInstance<T>(serializer, tupleClass, -1, instances);
+			int length = -1;
+			if(tupleClass == Tuple0.class) {
+				length = 1;
+			}
+			TupleSerializerTestInstance<T> test = new TupleSerializerTestInstance<T>(serializer, tupleClass, length, instances);
 			test.testAll();
 		}
 		catch (Exception e) {
