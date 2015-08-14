@@ -458,45 +458,26 @@ public class TestBaseUtils extends TestLogger {
 	// --------------------------------------------------------------------------------------------
 	// Comparison methods for tests using sample
 	// --------------------------------------------------------------------------------------------
-	
-	public static <T> void containsResultAsTuples(List<T> result, String expected) {
-		isExpectedContainsResult(result, expected, true);
-	}
-	
+
+	/**
+	 * The expected string contains all expected results separate with line break, check whether all elements in result
+	 * are contained in the expected string.
+	 * @param result The test result.
+	 * @param expected The expected string value combination.
+	 * @param <T> The result type.
+	 */
 	public static <T> void containsResultAsText(List<T> result, String expected) {
-		isExpectedContainsResult(result, expected, false);
-	}
-	
-	private static <T> void isExpectedContainsResult(List<T> result, String expected, boolean asTuple) {
 		String[] expectedStrings = expected.split("\n");
 		List<String> resultStrings = Lists.newLinkedList();
-		
+
 		for (int i = 0; i < result.size(); i++) {
 			T val = result.get(i);
-			
-			if (asTuple) {
-				if (val instanceof Tuple) {
-					Tuple t = (Tuple) val;
-					Object first = t.getField(0);
-					StringBuilder bld = new StringBuilder(first == null ? "null" : first.toString());
-					for (int pos = 1; pos < t.getArity(); pos++) {
-						Object next = t.getField(pos);
-						bld.append(',').append(next == null ? "null" : next.toString());
-					}
-					resultStrings.add(bld.toString());
-				}
-				else {
-					throw new IllegalArgumentException(val + " is no tuple");
-				}
-			}
-			else {
-				String str = (val == null) ? "null" : val.toString();
-				resultStrings.add(str);
-			}
+			String str = (val == null) ? "null" : val.toString();
+			resultStrings.add(str);
 		}
-		
+
 		List<String> expectedStringList = Arrays.asList(expectedStrings);
-		
+
 		for (String element : resultStrings) {
 			assertTrue(expectedStringList.contains(element));
 		}

@@ -1095,6 +1095,10 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Generate a sample of DataSet which contains fixed size elements.
+	 * <p>
+	 * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
+	 * fraction unless you need exact precision.
+	 * <p/>
 	 *
 	 * @param withReplacement Whether element can be selected more than once.
 	 * @param numSample       The expected sample size.
@@ -1106,6 +1110,10 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Generate a sample of DataSet which contains fixed size elements.
+	 * <p>
+	 * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
+	 * fraction unless you need exact precision.
+	 * <p/>
 	 *
 	 * @param withReplacement Whether element can be selected more than once.
 	 * @param numSample       The expected sample size.

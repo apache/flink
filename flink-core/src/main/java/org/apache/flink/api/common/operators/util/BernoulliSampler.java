@@ -23,8 +23,8 @@ import java.util.Iterator;
 import java.util.Random;
 
 /**
- * A sampler implementation built upon Bernoulli Trail. For sample with fraction and without replacement,
- * each element sample choice is just a bernoulli trail.
+ * A sampler implementation built upon Bernoulli trail. For sample with fraction and without replacement,
+ * each element sample choice is just a Bernoulli trail.
  *
  * @param <T> The type of sample.
  */
@@ -34,18 +34,18 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 	private final Random random;
 	
 	/**
-	 * Create a bernoulli sampler sample fraction and default random number generator.
+	 * Create a Bernoulli sampler sample fraction and default random number generator.
 	 *
-	 * @param fraction Sample fraction, aka the bernoulli sampler possibility.
+	 * @param fraction Sample fraction, aka the Bernoulli sampler possibility.
 	 */
 	public BernoulliSampler(double fraction) {
 		this(fraction, new Random());
 	}
 	
 	/**
-	 * Create a bernoulli sampler sample fraction and random number generator seed.
+	 * Create a Bernoulli sampler sample fraction and random number generator seed.
 	 *
-	 * @param fraction Sample fraction, aka the bernoulli sampler possibility.
+	 * @param fraction Sample fraction, aka the Bernoulli sampler possibility.
 	 * @param seed     Random number generator seed.
 	 */
 	public BernoulliSampler(double fraction, long seed) {
@@ -53,9 +53,9 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 	}
 	
 	/**
-	 * Create a bernoulli sampler sample fraction and random number generator.
+	 * Create a Bernoulli sampler sample fraction and random number generator.
 	 *
-	 * @param fraction Sample fraction, aka the bernoulli sampler possibility.
+	 * @param fraction Sample fraction, aka the Bernoulli sampler possibility.
 	 * @param random   The random number generator.
 	 */
 	public BernoulliSampler(double fraction, Random random) {
@@ -65,7 +65,7 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 	}
 	
 	/**
-	 * Sample the input elements, for each input element, take a Bernoulli Trail for sample.
+	 * Sample the input elements, for each input element, take a Bernoulli trail for sample.
 	 *
 	 * @param input Elements to be sampled.
 	 * @return The sampled result which is lazy computed upon input elements.
@@ -77,30 +77,37 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 		}
 		
 		return new SampledIterator<T>() {
-			T current;
+			T current = null;
 			
 			@Override
 			public boolean hasNext() {
 				if (current == null) {
-					while (input.hasNext()) {
-						T element = input.next();
-						if (random.nextDouble() <= fraction) {
-							current = element;
-							return true;
-						}
-					}
-					current = null;
-					return false;
-				} else {
-					return true;
+					current = next();
 				}
+
+				return current != null;
 			}
 			
 			@Override
 			public T next() {
-				T result = current;
-				current = null;
+				T result;
+				if (current == null) {
+					result = getNextSampledElement();
+				} else {
+					result = current;
+					current = null;
+				}
 				return result;
+			}
+
+			private T getNextSampledElement() {
+				while (input.hasNext()) {
+					T element = input.next();
+					if (random.nextDouble() <= fraction) {
+						return element;
+					}
+				}
+				return null;
 			}
 		};
 	}

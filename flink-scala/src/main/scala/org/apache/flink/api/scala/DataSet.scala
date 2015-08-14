@@ -1209,7 +1209,11 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Generate a sample of DataSet by the probability fraction of each element.
+   * Generate a sample of DataSet with fixed sample size.
+   * <p>
+   * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction,
+   * use sample with fraction unless you need exact precision.
+   * <p/>
    *
    * @param withReplacement Whether element can be selected more than once.
    * @param numSample       The expected sample size.
