@@ -60,6 +60,7 @@ import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.FiniteDuration;
+import scala.runtime.AbstractFunction0;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

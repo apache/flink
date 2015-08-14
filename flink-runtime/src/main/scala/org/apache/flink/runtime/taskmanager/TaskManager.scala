@@ -893,7 +893,8 @@ class TaskManager(
         jobManagerGateway,
         config.timeout,
         libCache,
-        fileCache)
+        fileCache,
+        runtimeInfo)
 
       log.info(s"Received task ${task.getTaskNameWithSubtasks}")
 
@@ -1047,7 +1048,7 @@ class TaskManager(
       val metricsReport: Array[Byte] = metricRegistryMapper.writeValueAsBytes(metricRegistry)
 
       val accumulatorEvents =
-        scala.collection.mutable.Buffer[BaseAccumulatorSnapshot]()
+        scala.collection.mutable.Buffer[AccumulatorSnapshot]()
 
       runningTasks foreach {
         case (execID, task) =>
