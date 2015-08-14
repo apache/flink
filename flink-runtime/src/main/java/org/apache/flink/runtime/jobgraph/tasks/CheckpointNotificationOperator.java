@@ -18,8 +18,18 @@
 
 package org.apache.flink.runtime.jobgraph.tasks;
 
-
+/**
+ * This interface needs to be implemented by runtime tasks that want to be able to receive
+ * notifications about completed checkpoints.
+ */
 public interface CheckpointNotificationOperator {
-	
+
+	/**
+	 * Invoked when a checkpoint has been completed, i.e., when the checkpoint coordinator has received
+	 * the notification from all participating tasks.
+	 * 
+	 * @param checkpointId The ID of the checkpoint that is complete..
+	 * @throws Exception The notification method may forward its exceptions.
+	 */
 	void notifyCheckpointComplete(long checkpointId) throws Exception;
 }

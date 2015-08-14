@@ -226,7 +226,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * and as a setup method on the TaskManager.
 	 */
 	@Override
-	public void registerInputOutput() {
+	public void registerInputOutput() throws Exception {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Start registering input and output."));
 		}
@@ -239,26 +239,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		final Class<? extends PactDriver<S, OT>> driverClass = this.config.getDriver();
 		this.driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
 
-		// initialize the readers. this is necessary for nephele to create the input gates
-		// however, this does not trigger any local processing.
-		try {
-			initInputReaders();
-			initBroadcastInputReaders();
-		} catch (Exception e) {
-			throw new RuntimeException("Initializing the input streams failed in Task " + getEnvironment().getTaskName() +
-					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
-		}
+		// initialize the readers.
+		// this does not yet trigger any stream consuming or processing.
+		initInputReaders();
+		initBroadcastInputReaders();
 
-		// initialize the writers. this is necessary for nephele to create the output gates.
-		// because in the presence of chained tasks, the tasks writers depend on the last task in the chain,
-		// we need to initialize the chained tasks as well. the chained tasks are only set up, but no work
-		// (such as setting up a sorter, etc.) starts
-		try {
-			initOutputs();
-		} catch (Exception e) {
-			throw new RuntimeException("Initializing the output handlers failed" +
-					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
-		}
+		// initialize the writers.
+		initOutputs();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Finished registering input and output."));

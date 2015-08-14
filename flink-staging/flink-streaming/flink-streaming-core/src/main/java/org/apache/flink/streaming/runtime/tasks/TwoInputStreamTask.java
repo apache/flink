@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,114 +26,65 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputStreamOperator<IN1, IN2, OUT>> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(TwoInputStreamTask.class);
-
 	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
+	
+	private volatile boolean running = true;
 
 	@Override
-	public void registerInputOutput() {
-		try {
-			super.registerInputOutput();
+	public void init() throws Exception {
+		TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
+		TypeSerializer<IN2> inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
 	
-			TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
-			TypeSerializer<IN2> inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
+		int numberOfInputs = configuration.getNumberOfInputs();
 	
-			int numberOfInputs = configuration.getNumberOfInputs();
+		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
+		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
 	
-			ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
-			ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
+		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
 	
-			List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
-	
-			for (int i = 0; i < numberOfInputs; i++) {
-				int inputType = inEdges.get(i).getTypeNumber();
-				InputGate reader = getEnvironment().getInputGate(i);
-				switch (inputType) {
-					case 1:
-						inputList1.add(reader);
-						break;
-					case 2:
-						inputList2.add(reader);
-						break;
-					default:
-						throw new RuntimeException("Invalid input type number: " + inputType);
-				}
+		for (int i = 0; i < numberOfInputs; i++) {
+			int inputType = inEdges.get(i).getTypeNumber();
+			InputGate reader = getEnvironment().getInputGate(i);
+			switch (inputType) {
+				case 1:
+					inputList1.add(reader);
+					break;
+				case 2:
+					inputList2.add(reader);
+					break;
+				default:
+					throw new RuntimeException("Invalid input type number: " + inputType);
 			}
+		}
 	
-			this.inputProcessor = new StreamTwoInputProcessor<IN1, IN2>(inputList1, inputList2,
-					inputDeserializer1, inputDeserializer2,
-					getCheckpointBarrierListener(),
-					configuration.getCheckpointMode(),
-					getEnvironment().getIOManager(),
-					getExecutionConfig().areTimestampsEnabled());
+		this.inputProcessor = new StreamTwoInputProcessor<IN1, IN2>(inputList1, inputList2,
+				inputDeserializer1, inputDeserializer2,
+				getCheckpointBarrierListener(),
+				configuration.getCheckpointMode(),
+				getEnvironment().getIOManager(),
+				getExecutionConfig().areTimestampsEnabled());
 
-			// make sure that stream tasks report their I/O statistics
-			AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
-			AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
-			this.inputProcessor.setReporter(reporter);
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Failed to initialize stream operator: " + e.getMessage(), e);
-		}
+		// make sure that stream tasks report their I/O statistics
+		AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
+		AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
+		this.inputProcessor.setReporter(reporter);
 	}
 
 	@Override
-	public void invoke() throws Exception {
-		boolean operatorOpen = false;
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Task {} invoked", getName());
-		}
-
-		try {
-
-			openOperator();
-			operatorOpen = true;
-
-			while (inputProcessor.processInput(streamOperator)) {
-				// do nothing, just keep processing
-			}
-
-			closeOperator();
-			operatorOpen = false;
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Task {} invocation finished", getName());
-			}
-
-		}
-		catch (Exception e) {
-			LOG.error(getEnvironment().getTaskNameWithSubtasks() + " failed", e);
-
-			if (operatorOpen) {
-				try {
-					closeOperator();
-				}
-				catch (Throwable t) {
-					LOG.warn("Exception while closing operator.", t);
-				}
-			}
-
-			throw e;
-		}
-		finally {
-			this.isRunning = false;
-			// Cleanup
-			outputHandler.flushOutputs();
-			clearBuffers();
-		}
-
+	protected void run() throws Exception {
+		while (running && inputProcessor.processInput(streamOperator));
 	}
 
 	@Override
-	public void clearBuffers() throws IOException {
-		super.clearBuffers();
-		inputProcessor.clearBuffers();
+	protected void cleanup() throws Exception {
 		inputProcessor.cleanup();
+	}
+
+	@Override
+	protected void cancelTask() {
+		running = false;
 	}
 }

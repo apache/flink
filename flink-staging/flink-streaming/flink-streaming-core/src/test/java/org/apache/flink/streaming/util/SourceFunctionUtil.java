@@ -42,8 +42,13 @@ public class SourceFunctionUtil<T> {
 	public static <T> List<T> runSourceFunction(SourceFunction<T> sourceFunction) throws Exception {
 		List<T> outputs = new ArrayList<T>();
 		if (sourceFunction instanceof RichFunction) {
-			RuntimeContext runtimeContext =  new StreamingRuntimeContext("MockTask", new MockEnvironment(3 * 1024 * 1024, new MockInputSplitProvider(), 1024), null,
-					new ExecutionConfig(), null, new LocalStateHandle.LocalStateHandleProvider<Serializable>(), new HashMap<String, Accumulator<?, ?>>());
+			RuntimeContext runtimeContext =  new StreamingRuntimeContext(
+					new MockEnvironment("MockTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
+					new ExecutionConfig(), 
+					null, 
+					new LocalStateHandle.LocalStateHandleProvider<Serializable>(),
+					new HashMap<String, Accumulator<?, ?>>());
+			
 			((RichFunction) sourceFunction).setRuntimeContext(runtimeContext);
 
 			((RichFunction) sourceFunction).open(new Configuration());

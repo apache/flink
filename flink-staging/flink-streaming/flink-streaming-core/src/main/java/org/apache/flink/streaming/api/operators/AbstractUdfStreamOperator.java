@@ -98,7 +98,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 	public Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> getStateSnapshotFromFunction(long checkpointId, long timestamp)
 			throws Exception {
 		// Get all the states for the operator
-		Map<String, StreamOperatorState> operatorStates = runtimeContext.getOperatorStates();
+		Map<String, StreamOperatorState<?, ?>> operatorStates = runtimeContext.getOperatorStates();
 		
 		Map<String, OperatorStateHandle> operatorStateSnapshots;
 		if (operatorStates.isEmpty()) {
@@ -108,7 +108,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 			// Checkpoint the states and store the handles in a map
 			Map<String, OperatorStateHandle> snapshots = new HashMap<String, OperatorStateHandle>();
 
-			for (Entry<String, StreamOperatorState> state : operatorStates.entrySet()) {
+			for (Entry<String, StreamOperatorState<?, ?>> state : operatorStates.entrySet()) {
 				boolean isPartitioned = state.getValue() instanceof PartitionedStreamOperatorState;
 				snapshots.put(state.getKey(),
 						new OperatorStateHandle(state.getValue().snapshotState(checkpointId, timestamp),

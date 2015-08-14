@@ -18,13 +18,11 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import java.util.Collection;
-import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -36,76 +34,91 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationHead.class);
 
+	private volatile boolean running = true;
 
-	@SuppressWarnings("rawtypes")
-	private BlockingQueue<StreamRecord> dataChannel;
-	private long iterationWaitTime;
-	private boolean shouldWait;
-
-	@SuppressWarnings("rawtypes")
-	public StreamIterationHead() {
-		dataChannel = new ArrayBlockingQueue<StreamRecord>(1);
-	}
-
+	// ------------------------------------------------------------------------
+	
 	@Override
-	public void registerInputOutput() {
-		super.registerInputOutput();
-
-		final AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
-		Map<String, Accumulator<?, ?>> accumulatorMap = registry.getUserMap();
-
-		outputHandler = new OutputHandler<OUT>(this, accumulatorMap, outputHandler.reporter);
-
-		String iterationId = configuration.getIterationId();
-		iterationWaitTime = configuration.getIterationWaitTime();
-		shouldWait = iterationWaitTime > 0;
-
-		try {
-			BlockingQueueBroker.instance().handIn(iterationId+"-" 
-					+getEnvironment().getIndexInSubtaskGroup(), dataChannel);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
+	protected void run() throws Exception {
+		
+		final String iterationId = configuration.getIterationId();
+		if (iterationId == null || iterationId.length() == 0) {
+			throw new Exception("Missing iteration ID in the task configuration");
 		}
+		
+		final String brokerID = createBrokerIdString(getEnvironment().getJobID(), iterationId ,
+				getEnvironment().getIndexInSubtaskGroup());
+		
+		final long iterationWaitTime = configuration.getIterationWaitTime();
+		final boolean shouldWait = iterationWaitTime > 0;
 
-	}
+		final BlockingQueue<StreamRecord<OUT>> dataChannel = new ArrayBlockingQueue<StreamRecord<OUT>>(1);
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public void invoke() throws Exception {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Iteration source {} invoked", getName());
-		}
+		// offer the queue for the tail
+		BlockingQueueBroker.INSTANCE.handIn(brokerID, dataChannel);
+		LOG.info("Iteration head {} added feedback queue under {}", getName(), brokerID);
 
-		Collection<RecordWriterOutput<?>> outputs = outputHandler.getOutputs();
-
+		// do the work 
 		try {
-			StreamRecord<OUT> nextRecord;
+			@SuppressWarnings("unchecked")
+			Collection<RecordWriterOutput<OUT>> outputs = 
+					(Collection<RecordWriterOutput<OUT>>) (Collection<?>) outputHandler.getOutputs();
 
-			while (true) {
-				if (shouldWait) {
-					nextRecord = dataChannel.poll(iterationWaitTime, TimeUnit.MILLISECONDS);
-				} else {
-					nextRecord = dataChannel.take();
+			while (running) {
+				StreamRecord<OUT> nextRecord = shouldWait ?
+					dataChannel.poll(iterationWaitTime, TimeUnit.MILLISECONDS) :
+					dataChannel.take();
+
+				if (nextRecord != null) {
+					for (RecordWriterOutput<OUT> output : outputs) {
+						output.collect(nextRecord);
+					}
 				}
-				if (nextRecord == null) {
+				else {
+					// done
 					break;
 				}
-				for (RecordWriterOutput<?> output : outputs) {
-					((RecordWriterOutput<OUT>) output).collect(nextRecord);
-				}
 			}
-
-		}
-		catch (Exception e) {
-			LOG.error("Iteration Head " + getEnvironment().getTaskNameWithSubtasks() + " failed", e);
-			
-			throw e;
 		}
 		finally {
-			// Cleanup
-			isRunning = false;
-			outputHandler.flushOutputs();
-			clearBuffers();
+			// make sure that we remove the queue from the broker, to prevent a resource leak
+			BlockingQueueBroker.INSTANCE.remove(brokerID);
+			LOG.info("Iteration head {} removed feedback queue under {}", getName(), brokerID);
 		}
+	}
+
+	@Override
+	protected void cancelTask() {
+		running = false;
+	}
+
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void init() {
+		// does not hold any resources, no initialization necessary
+	}
+
+	@Override
+	protected void cleanup() throws Exception {
+		// does not hold any resources, no cleanup necessary
+	}
+	
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Creates the identification string with which head and tail task find the shared blocking
+	 * queue for the back channel. The identification string is unique per parallel head/tail pair
+	 * per iteration per job.
+	 * 
+	 * @param jid The job ID.
+	 * @param iterationID The id of the iteration in the job.
+	 * @param subtaskIndex The parallel subtask number
+	 * @return The identification string.
+	 */
+	public static String createBrokerIdString(JobID jid, String iterationID, int subtaskIndex) {
+		return jid + "-" + iterationID + "-" + subtaskIndex;
 	}
 }

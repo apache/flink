@@ -60,9 +60,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		executionConfig = new ExecutionConfig();
 
 		StreamingRuntimeContext runtimeContext =  new StreamingRuntimeContext(
-				"MockTwoInputTask",
-				new MockEnvironment(3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
-				getClass().getClassLoader(),
+				new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
 				executionConfig,
 				null,
 				new LocalStateHandle.LocalStateHandleProvider<Serializable>(),

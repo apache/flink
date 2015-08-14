@@ -83,7 +83,7 @@ public class StreamTaskTestHarness<OUT> {
 
 	private ConcurrentLinkedQueue<Object> outputList;
 
-	protected Thread taskThread;
+	protected TaskThread taskThread;
 
 	// These don't get initialized, the one-input/two-input specific test harnesses
 	// must initialize these if they want to simulate input. We have them here so that all the
@@ -161,32 +161,19 @@ public class StreamTaskTestHarness<OUT> {
 
 		task.registerInputOutput();
 
-		taskThread = new Thread(new Runnable() {
-			@Override
-			public void run() {
-
-
-
-				try {
-					task.invoke();
-					shutdownIOManager();
-					shutdownMemoryManager();
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-
-			}
-		});
-
+		taskThread = new TaskThread(task);
 		taskThread.start();
 	}
 
-	public void waitForTaskCompletion() throws InterruptedException {
+	public void waitForTaskCompletion() throws Exception {
 		if (taskThread == null) {
 			throw new IllegalStateException("Task thread was not started.");
 		}
 
 		taskThread.join();
+		if (taskThread.getError() != null) {
+			throw new Exception("error in task", taskThread.getError());
+		}
 	}
 
 	/**
@@ -298,6 +285,37 @@ public class StreamTaskTestHarness<OUT> {
 	public void endInput() {
 		for (int i = 0; i < numInputGates; i++) {
 			inputGates[i].endInput();
+		}
+	}
+	
+	// ------------------------------------------------------------------------
+	
+	private class TaskThread extends Thread {
+		
+		private final AbstractInvokable task;
+		
+		private volatile Throwable error;
+
+
+		TaskThread(AbstractInvokable task) {
+			super("Task Thread");
+			this.task = task;
+		}
+
+		@Override
+		public void run() {
+			try {
+				task.invoke();
+				shutdownIOManager();
+				shutdownMemoryManager();
+			}
+			catch (Throwable t) {
+				this.error = t;
+			}
+		}
+
+		public Throwable getError() {
+			return error;
 		}
 	}
 }

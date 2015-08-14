@@ -25,7 +25,7 @@ import org.apache.flink.util.Collector;
  * of this interface that can be used to emit elements and other messages, such as barriers
  * and watermarks, from an operator.
  *
- * @param <T> The type of the elments that can be emitted.
+ * @param <T> The type of the elements that can be emitted.
  */
 public interface Output<T> extends Collector<T> {
 
@@ -33,9 +33,8 @@ public interface Output<T> extends Collector<T> {
 	 * Emits a {@link Watermark} from an operator. This watermark is broadcast to all downstream
 	 * operators.
 	 *
-	 * <p>
-	 * A watermark specifies that no element with a timestamp older or equal to the watermark
-	 * timestamp will be emitted in the future.
+	 * <p>A watermark specifies that no element with a timestamp older or equal to the watermark
+	 * timestamp will be emitted in the future.</p>
 	 */
 	void emitWatermark(Watermark mark);
 }
