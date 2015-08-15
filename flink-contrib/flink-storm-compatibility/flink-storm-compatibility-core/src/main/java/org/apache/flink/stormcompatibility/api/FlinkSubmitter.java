@@ -99,8 +99,8 @@ public class FlinkSubmitter {
 
 		final String serConf = JSONValue.toJSONString(stormConf);
 
+		final FlinkClient client = FlinkClient.getConfiguredClient(stormConf);
 		try {
-			final FlinkClient client = FlinkClient.getConfiguredClient(stormConf);
 			if (client.getTopologyJobId(name) != null) {
 				throw new RuntimeException("Topology with name `" + name + "` already exists on cluster");
 			}
