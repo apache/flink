@@ -284,15 +284,12 @@ This will create a new DataSet by converting every String in the original
 set to an Integer. For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
-Once you have a DataSet containing your final results, you can write the result
-to a file system (HDFS or local) or socket or print it.
+Once you have a DataSet containing your final results, you can either write the result to a file system (HDFS or local) or print it.
 
 {% highlight java %}
 writeAsText(String path)
 writeAsCsv(String path)
 write(FileOutputFormat<T> outputFormat, String filePath)
-
-writeToSocket(String hostName, int port, SerializationSchema<OUT, byte[]> schema)
 
 print()
 printOnTaskManager()
@@ -372,8 +369,7 @@ This will create a new DataSet by converting every String in the original
 set to an Integer. For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
-Once you have a DataSet containing your final results, you can write the result
-to a file system (HDFS or local) or socket or print it.
+Once you have a DataSet containing your final results, you can either write the result to a file system (HDFS or local) or print it.
 
 {% highlight scala %}
 def writeAsText(path: String, writeMode: WriteMode = WriteMode.NO_OVERWRITE)
@@ -385,8 +381,6 @@ def writeAsCsv(
 def write(outputFormat: FileOutputFormat[T],
     path: String,
     writeMode: WriteMode = WriteMode.NO_OVERWRITE)
-
-def writeToSocket(hostname: String, port: Integer, schema: SerializationSchema[T, Array[Byte]])
 
 def printOnTaskManager()
 
