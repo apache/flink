@@ -52,6 +52,10 @@ public class CosineDistance<DATA> extends ExtractionAwareDeltaFunction<DATA, dou
 			return 0;
 		}
 
+		if (oldDataPoint.length != newDataPoint.length) {
+			return 0;
+		}
+
 		double sum1 = 0;
 		double sum2 = 0;
 		for (int i = 0; i < oldDataPoint.length; i++) {
