@@ -100,9 +100,27 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			this.isRunning = false;
 			// Cleanup
 			inputProcessor.clearBuffers();
-			inputProcessor.cleanup();
-			outputHandler.flushOutputs();
-			clearBuffers();
+
+			try {
+				inputProcessor.cleanup();
+			}
+			catch (Exception e) {
+				LOG.warn("Clean up input processor failed.");
+			}
+
+			try {
+				outputHandler.flushOutputs();
+			}
+			catch (Exception e) {
+				LOG.warn("Flush outputs failed.");
+			}
+
+			try {
+				clearBuffers();
+			}
+			catch (Exception e) {
+				LOG.warn("Clear buffers failed.");
+			}
 		}
 
 	}
