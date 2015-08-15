@@ -217,19 +217,19 @@ programs with a `main()` method. Each program consists of the same basic parts:
 1. Obtain an `ExecutionEnvironment`,
 2. Load/create the initial data,
 3. Specify transformations on this data,
-4. Specify where to put the results of your computations, and
+4. Specify where to put the results of your computations,
 5. Trigger the program execution
 
 We will now give an overview of each of those steps, please refer to the respective sections for
-more details. Note that all
-{% gh_link /flink-java/src/main/java/org/apache/flink/api/java "core classes of the Java API" %}
-are found in the package `org.apache.flink.api.java`.
+more details. Note that all core classes of the Java API are found in the package {% gh_link /flink-java/src/main/java/org/apache/flink/api/java "org.apache.flink.api.java" %}.
 
 The `ExecutionEnvironment` is the basis for all Flink programs. You can
 obtain one using these static methods on class `ExecutionEnvironment`:
 
 {% highlight java %}
 getExecutionEnvironment()
+
+createCollectionsEnvironment()
 
 createLocalEnvironment()
 createLocalEnvironment(int parallelism)
@@ -272,7 +272,7 @@ a map transformation looks like this:
 {% highlight java %}
 DataSet<String> input = ...;
 
-DataSet<Integer> tokenized = text.map(new MapFunction<String, Integer>() {
+DataSet<Integer> tokenized = input.map(new MapFunction<String, Integer>() {
     @Override
     public Integer map(String value) {
         return Integer.parseInt(value);
@@ -284,13 +284,15 @@ This will create a new DataSet by converting every String in the original
 set to an Integer. For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
-Once you have a DataSet containing your final results, you can either write the result
-to a file system (HDFS or local) or print it.
+Once you have a DataSet containing your final results, you can write the result
+to a file system (HDFS or local) or socket or print it.
 
 {% highlight java %}
 writeAsText(String path)
 writeAsCsv(String path)
 write(FileOutputFormat<T> outputFormat, String filePath)
+
+writeToSocket(String hostName, int port, SerializationSchema<OUT, byte[]> schema)
 
 print()
 printOnTaskManager()
@@ -307,10 +309,10 @@ programs with a `main()` method. Each program consists of the same basic parts:
 1. Obtain an `ExecutionEnvironment`,
 2. Load/create the initial data,
 3. Specify transformations on this data,
-4. Specify where to put the results of your computations, and
+4. Specify where to put the results of your computations,
 5. Trigger the program execution
 
-We will now give an overview of each of those steps but please refer to the respective sections for
+We will now give an overview of each of those steps, please refer to the respective sections for
 more details. Note that all core classes of the Scala API are found in the package 
 {% gh_link /flink-scala/src/main/scala/org/apache/flink/api/scala "org.apache.flink.api.scala" %}.
 
@@ -323,6 +325,8 @@ def getExecutionEnvironment
 
 def createLocalEnvironment(parallelism: Int = Runtime.getRuntime.availableProcessors()))
 def createLocalEnvironment(customConfiguration: Configuration)
+
+def createCollectionsEnvironment
 
 def createRemoteEnvironment(host: String, port: String, jarFiles: String*)
 def createRemoteEnvironment(host: String, port: String, parallelism: Int, jarFiles: String*)
@@ -361,15 +365,15 @@ a map transformation looks like this:
 {% highlight scala %}
 val input: DataSet[String] = ...
 
-val mapped = text.map { x => x.toInt }
+val mapped = input.map { x => x.toInt }
 {% endhighlight %}
 
 This will create a new DataSet by converting every String in the original
 set to an Integer. For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
-Once you have a DataSet containing your final results, you can either write the result
-to a file system (HDFS or local) or print it.
+Once you have a DataSet containing your final results, you can write the result
+to a file system (HDFS or local) or socket or print it.
 
 {% highlight scala %}
 def writeAsText(path: String, writeMode: WriteMode = WriteMode.NO_OVERWRITE)
@@ -381,6 +385,8 @@ def writeAsCsv(
 def write(outputFormat: FileOutputFormat[T],
     path: String,
     writeMode: WriteMode = WriteMode.NO_OVERWRITE)
+
+def writeToSocket(hostname: String, port: Integer, schema: SerializationSchema[T, Array[Byte]])
 
 def printOnTaskManager()
 
