@@ -98,7 +98,8 @@ The latter version is recommended as it respects the classloader management in F
 
 To provide these dependencies not included by Flink we suggest two options with Maven.
 
-1. The maven assembly plugin builds a so called fat jar cointaining all your dependencies.
+1. The maven assembly plugin builds a so-called uber-jar(executable jar) 
+containing all your dependencies.
 Assembly configuration is straight-forward, but the resulting jar might become bulky. See 
 [usage](http://maven.apache.org/plugins/maven-assembly-plugin/usage.html).
 2. The maven unpack plugin, for unpacking the relevant parts of the dependencies and
