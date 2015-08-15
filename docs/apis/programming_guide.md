@@ -284,7 +284,8 @@ This will create a new DataSet by converting every String in the original
 set to an Integer. For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
-Once you have a DataSet containing your final results, you can either write the result to a file system (HDFS or local) or print it.
+Once you have a DataSet containing your final results, you can either write the result 
+to a file system (HDFS or local) or print it.
 
 {% highlight java %}
 writeAsText(String path)
@@ -369,7 +370,8 @@ This will create a new DataSet by converting every String in the original
 set to an Integer. For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
-Once you have a DataSet containing your final results, you can either write the result to a file system (HDFS or local) or print it.
+Once you have a DataSet containing your final results, you can either write the result
+to a file system (HDFS or local) or print it.
 
 {% highlight scala %}
 def writeAsText(path: String, writeMode: WriteMode = WriteMode.NO_OVERWRITE)
