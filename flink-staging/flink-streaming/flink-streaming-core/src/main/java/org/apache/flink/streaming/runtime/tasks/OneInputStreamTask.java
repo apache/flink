@@ -105,21 +105,21 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 				inputProcessor.cleanup();
 			}
 			catch (Exception e) {
-				LOG.warn("Clean up input processor failed.");
+				LOG.warn("Clean up input processor failed.", e);
 			}
 
 			try {
 				outputHandler.flushOutputs();
 			}
 			catch (Exception e) {
-				LOG.warn("Flush outputs failed.");
+				LOG.warn("Flush outputs failed.", e);
 			}
 
 			try {
 				clearBuffers();
 			}
 			catch (Exception e) {
-				LOG.warn("Clear buffers failed.");
+				LOG.warn("Clear buffers failed.", e);
 			}
 		}
 
