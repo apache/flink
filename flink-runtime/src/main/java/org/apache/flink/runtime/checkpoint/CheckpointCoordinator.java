@@ -332,22 +332,22 @@ public class CheckpointCoordinator {
 			
 			checkpoint = pendingCheckpoints.get(checkpointId);
 			
-			if (checkpoint != null && !checkpoint.isDiscarded()) {
+			if (checkpoint != null && !checkpoint.isDiscarded() && checkpoint.isFullyAcknowledged()) {
 				if (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getState())) {
 					
-					if (checkpoint.isFullyAcknowledged()) {
-						LOG.info("Completed checkpoint " + checkpointId);
+					
+					LOG.info("Completed checkpoint " + checkpointId);
 
-						completed = checkpoint.toCompletedCheckpoint();
-						completedCheckpoints.addLast(completed);
-						if (completedCheckpoints.size() > numSuccessfulCheckpointsToRetain) {
-							completedCheckpoints.removeFirst().discard(userClassLoader);
-						}
-						pendingCheckpoints.remove(checkpointId);
-						rememberRecentCheckpointId(checkpointId);
-						
-						dropSubsumedCheckpoints(completed.getTimestamp());
+					completed = checkpoint.toCompletedCheckpoint();
+					completedCheckpoints.addLast(completed);
+					if (completedCheckpoints.size() > numSuccessfulCheckpointsToRetain) {
+						completedCheckpoints.removeFirst().discard(userClassLoader);
 					}
+					pendingCheckpoints.remove(checkpointId);
+					rememberRecentCheckpointId(checkpointId);
+						
+					dropSubsumedCheckpoints(completed.getTimestamp());
+		
 				}
 				else {
 					// checkpoint did not accept message
