@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
+import org.apache.flink.runtime.messages.ServerMessages.{ServerRegistrationAcknowledge, ServerError, RequestKeyGateway, ServerHeartbeat}
 import org.apache.flink.runtime.messages.TaskMessages.{PartitionState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint}
@@ -69,7 +70,6 @@ import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.language.postfixOps
 import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
 
 /**
  * The job manager is responsible for receiving Flink jobs, scheduling the tasks, gathering the
@@ -134,6 +134,10 @@ class JobManager(
     // disconnect the registered task managers
     instanceManager.getAllRegisteredInstances.asScala.foreach {
       _.getActorGateway().tell(Disconnect("JobManager is shutting down"))
+    }
+    // let all servers know we longer accept any messages
+    instanceManager.getAllRegisteredServers.asScala.foreach{
+      _.tell(Disconnect("JobManager is shutting down"))
     }
 
     archive ! decorateMessage(PoisonPill)
@@ -474,13 +478,26 @@ class JobManager(
       )
 
     case Heartbeat(instanceID, metricsReport, accumulators) =>
-      log.debug(s"Received hearbeat message from $instanceID.")
+      log.debug(s"Received heartbeat message from $instanceID.")
 
       Future {
         updateAccumulators(accumulators)
       }(context.dispatcher)
 
       instanceManager.reportHeartBeat(instanceID, metricsReport)
+
+    case ServerHeartbeat(serverTaskManagerID, serverGateway) =>
+      instanceManager.registerServer(serverTaskManagerID, serverGateway)
+      val mappings = instanceManager.fetchKeyGatewayMapping().asScala
+      serverGateway.tell(ServerRegistrationAcknowledge(mappings, serverGateway))
+
+    case RequestKeyGateway(key, serverGateway) =>
+      instanceManager.registerKey(key)
+      val mappings = instanceManager.fetchKeyGatewayMapping().asScala
+      serverGateway.tell(ServerRegistrationAcknowledge(mappings, serverGateway))
+
+    case ServerError(serverTaskManagerID, error) =>
+      // what should we do? We can't kill the Job Manager for this! Later.
 
     case message: AccumulatorMessage => handleAccumulatorMessage(message)
 

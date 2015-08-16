@@ -30,6 +30,8 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.server.Parameter;
+import org.apache.flink.api.common.server.Update;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.StateCheckpointer;
 
@@ -230,4 +232,27 @@ public interface RuntimeContext {
 	 */
 	<S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
 			boolean partitioned) throws IOException;
+
+	/**
+	 * Register a key with some initial parameter value at the parameter server
+	 * This must be called from all parallel instances and the strategy used must be exactly the
+	 * same.
+	 * The initial parameter value used will be randomly set based on which task manages to get
+	 * through to the server first.
+	 */
+	void registerBatch(String key, Parameter value) throws Exception;
+
+	void registerAsync(String key, Parameter value) throws Exception;
+
+	void registerSSP(String key, Parameter value, int slack) throws Exception;
+
+	/**
+	 * Update the parameter value based on the strategy specified at the time of registration
+	 */
+	void updateParameter(String key, Update update) throws Exception;
+
+	/**
+	 * Fetch the current parameter value at the server.
+	 */
+	Parameter fetchParameter(String key) throws Exception;
 }

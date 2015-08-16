@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.instance.ActorGateway;
 
 /**
  * Encapsulation of TaskManager runtime information, like hostname and configuration.
@@ -33,14 +34,19 @@ public class TaskManagerRuntimeInfo implements java.io.Serializable {
 	/** configuration that the TaskManager was started with */
 	private final Configuration configuration;
 
+	/** Gateway to the parameter server for this task manager */
+	private final ActorGateway parameterServer;
+
 	/**
 	 * Creates a runtime info.
 	 * @param hostname The host name of the interface that the TaskManager uses to communicate.
 	 * @param configuration The configuration that the TaskManager was started with.
+	 * @param parameterServer Gateway to the parameter server
 	 */
-	public TaskManagerRuntimeInfo(String hostname, Configuration configuration) {
+	public TaskManagerRuntimeInfo(String hostname, Configuration configuration, ActorGateway parameterServer) {
 		this.hostname = hostname;
 		this.configuration = configuration;
+		this.parameterServer = parameterServer;
 	}
 
 	/**
@@ -58,4 +64,13 @@ public class TaskManagerRuntimeInfo implements java.io.Serializable {
 	public Configuration getConfiguration() {
 		return configuration;
 	}
+
+	/**
+	 * Gets the parameter server gateway for this task manager.
+	 * @return The Parameter Server gateway for this task manager.
+	 */
+	public ActorGateway getParameterServer(){
+		return parameterServer;
+	}
+
 }

@@ -22,12 +22,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 import akka.actor.ActorRef;
+import org.apache.flink.runtime.server.KeyGatewayMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -48,6 +50,12 @@ public class InstanceManager {
 
 	/** Set of hosts known to run a task manager that are thus able to execute tasks (by ID). */
 	private final Map<InstanceID, Instance> registeredHostsById;
+
+	/** Set of hosts registered to act as Parameter Servers */
+	private final Map<InstanceID, ActorGateway> parameterServers;
+
+	/** Mapping of key and corresponding parameter servers */
+	private final Map<String, ActorGateway> keyGatewayMapping;
 
 	/** Set of hosts known to run a task manager that are thus able to execute tasks (by connection). */
 	private final Map<ActorRef, Instance> registeredHostsByConnection;
@@ -74,6 +82,8 @@ public class InstanceManager {
 	public InstanceManager() {
 		this.registeredHostsById = new LinkedHashMap<InstanceID, Instance>();
 		this.registeredHostsByConnection = new LinkedHashMap<ActorRef, Instance>();
+		this.parameterServers = new LinkedHashMap<>();
+		this.keyGatewayMapping = new LinkedHashMap<>();
 		this.deadHosts = new HashSet<ActorRef>();
 	}
 
@@ -90,6 +100,8 @@ public class InstanceManager {
 
 			this.registeredHostsById.clear();
 			this.registeredHostsByConnection.clear();
+			this.parameterServers.clear();
+			this.keyGatewayMapping.clear();
 			this.deadHosts.clear();
 			this.totalNumberOfAliveTaskSlots = 0;
 		}
@@ -242,6 +254,14 @@ public class InstanceManager {
 		}
 	}
 
+	public Collection<ActorGateway> getAllRegisteredServers() {
+		synchronized (this.lock) {
+			// return a copy (rather than a Collections.unmodifiable(...) wrapper), such that
+			// concurrent modifications do not interfere with the traversals or lookups
+			return new HashSet<ActorGateway>(parameterServers.values());
+		}
+	}
+
 	public Instance getRegisteredInstanceById(InstanceID instanceID) {
 		return registeredHostsById.get(instanceID);
 	}
@@ -261,6 +281,41 @@ public class InstanceManager {
 	public void removeInstanceListener(InstanceListener listener) {
 		synchronized (this.instanceListeners) {
 			this.instanceListeners.remove(listener);
+		}
+	}
+
+	public void registerServer(InstanceID instanceID, ActorGateway serverGateway){
+		synchronized (this.parameterServers){
+			if(!this.parameterServers.containsKey(instanceID)){
+				this.parameterServers.put(instanceID, serverGateway);
+			}
+		}
+	}
+
+	public void registerKey(String key){
+		synchronized (this.keyGatewayMapping){
+			if(this.keyGatewayMapping.containsKey(key)){
+				return;
+			}
+			synchronized (this.parameterServers) {
+				if (!this.keyGatewayMapping.containsKey(key)) {
+					Object[] activeServers = this.parameterServers.values().toArray();
+					int sample = key.hashCode() % activeServers.length;
+					keyGatewayMapping.put(key, (ActorGateway) activeServers[sample]);
+				}
+			}
+		}
+	}
+
+	public Collection<KeyGatewayMapping> fetchKeyGatewayMapping(){
+		synchronized (this.parameterServers) {
+			synchronized (this.keyGatewayMapping) {
+				LinkedList<KeyGatewayMapping> ret = new LinkedList<>();
+				for(String key: this.keyGatewayMapping.keySet()){
+					ret.add(new KeyGatewayMapping(key, this.keyGatewayMapping.get(key)));
+				}
+				return ret;
+			}
 		}
 	}
 

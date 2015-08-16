@@ -1032,7 +1032,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 		return new DistributedRuntimeUDFContext(taskName, env.getNumberOfSubtasks(),
 				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
-				env.getDistributedCacheEntries(), this.accumulatorMap);
+				env.getDistributedCacheEntries(), this.accumulatorMap, env.getParameterServer());
 	}
 
 	// --------------------------------------------------------------------------------------------

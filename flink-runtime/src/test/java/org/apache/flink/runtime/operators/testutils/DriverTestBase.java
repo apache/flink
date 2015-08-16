@@ -26,6 +26,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.instance.AkkaActorGateway;
+import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.Function;
@@ -114,7 +116,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		this.owner = new DummyInvokable();
 		this.taskConfig = new TaskConfig(new Configuration());
 		this.executionConfig = executionConfig;
-		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
+		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration(), DummyActorGateway.INSTANCE);
 	}
 
 	@Parameterized.Parameters

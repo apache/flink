@@ -36,6 +36,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.RegistrationMessages.AcknowledgeRegistration;
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager;
 import org.apache.flink.runtime.messages.RegistrationMessages.RefuseRegistration;
+import org.apache.flink.runtime.messages.ServerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManager;
 import org.junit.AfterClass;
@@ -302,6 +303,9 @@ public class TaskManagerRegistrationTest {
 										new InstanceID(),
 										45234),
 								fakeJobManager1);
+
+						// we also expect a message from the Parameter Server
+						ServerMessages.ServerHeartbeat serverMessage= expectMsgClass(ServerMessages.ServerHeartbeat.class);
 					}
 				};
 
@@ -470,7 +474,8 @@ public class TaskManagerRegistrationTest {
 							message = expectMsgAnyClassOf(
 									TaskManagerMessages.getRegisteredAtJobManagerMessage().getClass(),
 									RegisterTaskManager.class,
-									TaskManagerMessages.Heartbeat.class);
+									TaskManagerMessages.Heartbeat.class,
+									ServerMessages.ServerHeartbeat.class);
 						}
 
 						tm.tell(JobManagerMessages.getRequestLeaderSessionID(), getTestActor());

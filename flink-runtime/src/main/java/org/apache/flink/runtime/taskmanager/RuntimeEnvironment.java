@@ -193,6 +193,11 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
+	public ActorGateway getParameterServer(){
+		return this.taskManagerInfo.getParameterServer();
+	}
+
+	@Override
 	public BroadcastVariableManager getBroadcastVariableManager() {
 		return bcVarManager;
 	}
