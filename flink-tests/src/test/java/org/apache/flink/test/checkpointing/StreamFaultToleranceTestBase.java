@@ -18,38 +18,22 @@
 
 package org.apache.flink.test.checkpointing;
 
-
-import org.apache.flink.api.common.functions.RichFilterFunction;
-import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
 
 /**
  * Test base for fault tolerant streaming programs
  */
-@SuppressWarnings("serial")
 public abstract class StreamFaultToleranceTestBase {
 
 	protected static final int NUM_TASK_MANAGERS = 2;
@@ -127,6 +111,7 @@ public abstract class StreamFaultToleranceTestBase {
 	//  Frequently used utilities
 	// --------------------------------------------------------------------------------------------
 
+	@SuppressWarnings("serial")
 	public static class PrefixCount implements Serializable {
 
 		public String prefix;
@@ -146,5 +131,4 @@ public abstract class StreamFaultToleranceTestBase {
 			return prefix + " / " + value;
 		}
 	}
-
 }
