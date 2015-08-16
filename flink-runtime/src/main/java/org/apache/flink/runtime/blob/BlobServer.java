@@ -247,7 +247,7 @@ public class BlobServer extends Thread implements BlobService {
 
 			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
 			// shutdown hook itself
-			if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
+			if (shutdownHook != Thread.currentThread()) {
 				try {
 					Runtime.getRuntime().removeShutdownHook(shutdownHook);
 				}

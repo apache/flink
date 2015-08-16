@@ -497,8 +497,6 @@ public class Execution implements Serializable {
 					@Override
 					public Boolean call() throws Exception {
 						try {
-							final ExecutionGraph consumerGraph = consumerVertex.getExecutionGraph();
-
 							consumerVertex.scheduleForExecution(
 									consumerVertex.getExecutionGraph().getScheduler(),
 									consumerVertex.getExecutionGraph().isQueuedSchedulingAllowed());
