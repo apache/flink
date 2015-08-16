@@ -79,7 +79,7 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 	
 	/**
 	 * This method is invoked once per vertex per superstep. It receives the current state of the vertex, as well as
-	 * the incoming messages. It may set a new vertex state via {@link #setNewVV(Object)}. If the vertex
+	 * the incoming messages. It may set a new vertex state via {@link #setNewVertexValue(Object)}. If the vertex
 	 * state is changed, it will trigger the sending of messages via the {@link MessagingFunction}.
 	 * 
 	 * @param vertex The vertex.
@@ -105,10 +105,16 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 	
 	/**
 	 * Sets the new value of this vertex. Setting a new value triggers the sending of outgoing messages from this vertex.
+	 *
+	 * This should be called at most once per updateVertex.
 	 * 
 	 * @param newValue The new vertex value.
 	 */
 	public void setNewVertexValue(VV newValue) {
+		if(setNewVertexValueCalled) {
+			throw new IllegalStateException("setNewVertexValue should only be called at most once per updateVertex");
+		}
+		setNewVertexValueCalled = true;
 		if(isOptDegrees()) {
 			outValWithDegrees.f1.f0 = newValue;
 			outWithDegrees.collect(outValWithDegrees);
@@ -178,6 +184,8 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 
 	private long outDegree = -1;
 
+	private boolean setNewVertexValueCalled;
+
 	void init(IterationRuntimeContext context) {
 		this.runtimeContext = context;
 	}
@@ -185,6 +193,7 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 	void setOutput(Vertex<K, VV> outVal, Collector<Vertex<K, VV>> out) {
 		this.outVal = outVal;
 		this.out = out;
+		setNewVertexValueCalled = false;
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -192,6 +201,7 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 			Collector out) {
 		this.outValWithDegrees = (Vertex<K, Tuple3<VV, Long, Long>>) outVal;
 		this.outWithDegrees = out;
+		setNewVertexValueCalled = false;
 	}
 
 	/**
