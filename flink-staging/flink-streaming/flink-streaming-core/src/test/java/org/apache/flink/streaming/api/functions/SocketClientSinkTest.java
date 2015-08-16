@@ -112,13 +112,9 @@ public class SocketClientSinkTest{
 		simpleSink.open(new Configuration());
 		simpleSink.invoke("testSocketSinkInvoke");
 		simpleSink.close();
-		try {
-			server.join();
-			th.join();
-		}
-		catch (Exception e){
-			Assert.fail(e.getMessage());
-		}
+
+		server.join();
+		th.join();
 
 		if (error.get() != null) {
 			Throwable t = error.get();
@@ -126,7 +122,7 @@ public class SocketClientSinkTest{
 			fail("Error in spawned thread: " + t.getMessage());
 		}
 
-		assertEquals(this.access, "Connected");
-		assertEquals(value, "testSocketSinkInvoke");
+		assertEquals("Connected", this.access);
+		assertEquals("testSocketSinkInvoke", value);
 	}
 }
