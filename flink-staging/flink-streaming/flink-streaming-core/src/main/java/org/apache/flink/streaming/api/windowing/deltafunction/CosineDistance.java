@@ -53,7 +53,8 @@ public class CosineDistance<DATA> extends ExtractionAwareDeltaFunction<DATA, dou
 		}
 
 		if (oldDataPoint.length != newDataPoint.length) {
-			return 0;
+			throw new IllegalArgumentException(
+					"The size of two input arrays are not same, can not compute cosine distance");
 		}
 
 		double sum1 = 0;
