@@ -79,7 +79,7 @@ public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 				// first vertex, chained to the source
 				// this filter throttles the flow until at least one checkpoint
 				// is complete, to make sure this program does not run without 
-				.filter(new StringRichFilterFunction())
+				.filter(new StringRichFilterFunction(failurePos))
 
 						// -------------- seconds vertex - one-to-one connected ----------------
 				.map(new StringPrefixCountRichMapFunction())
@@ -200,15 +200,26 @@ public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 	}
 
 	private static class StringRichFilterFunction extends RichFilterFunction<String> 
-			implements Checkpointed<Long> {
+			implements Checkpointed<Long>, CheckpointNotifier
+	{
 
 		static final long[] counts = new long[PARALLELISM];
-		
+
+		private final long failurePos;
 		private long count;
-		
+		private int numTimesCheckpointed;
+
+		private StringRichFilterFunction(long failurePos) {
+			this.failurePos = failurePos;
+		}
+
+
 		@Override
 		public boolean filter(String value) throws Exception {
 			count++;
+			if (count < failurePos && numTimesCheckpointed < 2) {
+				Thread.sleep(1);
+			}
 			return value.length() < 100; // should be always true
 		}
 
@@ -225,6 +236,11 @@ public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 		@Override
 		public void restoreState(Long state) {
 			count = state;
+		}
+
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) {
+			numTimesCheckpointed++;
 		}
 	}
 
