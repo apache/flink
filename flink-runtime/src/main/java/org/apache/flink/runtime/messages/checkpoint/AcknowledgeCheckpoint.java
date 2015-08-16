@@ -59,8 +59,7 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 		}
 		else if (o instanceof AcknowledgeCheckpoint) {
 			AcknowledgeCheckpoint that = (AcknowledgeCheckpoint) o;
-			return super.equals(o) && (this.state == null ? that.state == null :
-					(that.state != null && this.state.equals(that.state)));
+			return super.equals(o) && (this.state == null || this.state.equals(that.state));
 		}
 		else {
 			return false;
