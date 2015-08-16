@@ -588,7 +588,9 @@ public class CheckpointCoordinatorTest {
 			do {
 				Thread.sleep(250);
 			}
-			while (!checkpoint.isDiscarded() && System.currentTimeMillis() < deadline);
+			while (!checkpoint.isDiscarded() &&
+					coord.getNumberOfPendingCheckpoints() > 0 &&
+					System.currentTimeMillis() < deadline);
 			
 			assertTrue("Checkpoint was not canceled by the timeout", checkpoint.isDiscarded());
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
