@@ -223,7 +223,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 		// check the size of the first buffer and record it. all further buffers must have the same size.
 		// the size must also be a power of 2
 		this.segmentSize = memorySegments.get(0).size();
-		if ((this.segmentSize & this.segmentSize - 1) != 0) {
+		if ( (this.segmentSize & this.segmentSize - 1) != 0) {
 			throw new IllegalArgumentException("Hash Table requires buffers whose size is a power of 2.");
 		}
 		
