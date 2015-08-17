@@ -22,6 +22,8 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
+import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -194,16 +196,5 @@ public class MemoryManagerLazyAllocationTest {
 			}
 		}
 		return true;
-	}
-	
-	/**
-	 * Utility class to serve as owner for the memory.
-	 */
-	public static final class DummyInvokable extends AbstractInvokable {
-		@Override
-		public void registerInputOutput() {}
-
-		@Override
-		public void invoke() throws Exception {}
 	}
 }

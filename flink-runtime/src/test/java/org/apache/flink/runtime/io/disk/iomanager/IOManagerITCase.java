@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
+import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.junit.Assert;
 import org.junit.After;
 import org.junit.Before;
@@ -34,7 +35,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.MemoryManagerTest;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 
 /**
@@ -82,7 +82,7 @@ public class IOManagerITCase {
 	@SuppressWarnings("unchecked")
 	public void parallelChannelsTest() throws Exception {
 		final Random rnd = new Random(SEED);
-		final AbstractInvokable memOwner = new MemoryManagerTest.DummyInvokable();
+		final AbstractInvokable memOwner = new DummyInvokable();
 		
 		FileIOChannel.ID[] ids = new FileIOChannel.ID[NUM_CHANNELS];
 		BlockChannelWriter<MemorySegment>[] writers = new BlockChannelWriter[NUM_CHANNELS];
