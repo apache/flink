@@ -41,7 +41,7 @@ public class FlinkLocalCluster {
 
 	public void submitTopologyWithOpts(final String topologyName, final Map<?, ?> conf, final FlinkTopology topology,
 			final SubmitOptions submitOpts) throws Exception {
-		ClusterUtil.startOnMiniCluster(topology.getStreamGraph().getJobGraph(topologyName), topology.getNumberOfTasks(), -1);
+		ClusterUtil.startOnMiniCluster(topology.getStreamGraph().getJobGraph(topologyName), topology.getNumberOfTasks());
 	}
 
 	public void killTopology(final String topologyName) {
@@ -60,9 +60,7 @@ public class FlinkLocalCluster {
 	public void rebalance(final String name, final RebalanceOptions options) {
 	}
 
-	public void shutdown() {
-		ClusterUtil.stopOnMiniCluster();
-	}
+	public void shutdown() {}
 
 	public String getTopologyConf(final String id) {
 		return null;

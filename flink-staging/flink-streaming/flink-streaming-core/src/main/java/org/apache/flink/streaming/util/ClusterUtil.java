@@ -27,11 +27,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-
 public class ClusterUtil {
+	
 	private static final Logger LOG = LoggerFactory.getLogger(ClusterUtil.class);
-
-	private static LocalFlinkMiniCluster exec = null;
 
 	/**
 	 * Executes the given JobGraph locally, on a FlinkMiniCluster
@@ -42,8 +40,6 @@ public class ClusterUtil {
 	 *            numberOfTaskTrackers
 	 * @param memorySize
 	 *            memorySize
-	 * @param printDuringExecution
-	 * @param detached
 	 * @param customConf
 	 * 		Custom configuration for the LocalExecutor. Can be null.
 	 * @return The result of the job execution, containing elapsed time and accumulators.
@@ -67,7 +63,7 @@ public class ClusterUtil {
 
 		try {
 			exec = new LocalFlinkMiniCluster(configuration, true);
-			if(detached) {
+			if (detached) {
 				exec.submitJobDetached(jobGraph);
 				return null;
 			} else {
@@ -84,17 +80,7 @@ public class ClusterUtil {
 	/**
 	 * Start a job in a detached mode on a local mini cluster.
 	 */
-	public static void startOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize) throws Exception {
-		runOnMiniCluster(jobGraph, parallelism, memorySize, true, true, null);
+	public static void startOnMiniCluster(JobGraph jobGraph, int parallelism) throws Exception {
+		runOnMiniCluster(jobGraph, parallelism, -1, true, true, null);
 	}
-
-	public static void stopOnMiniCluster() {
-		if(exec != null) {
-			exec.stop();
-			exec = null;
-		} else {
-			throw new IllegalStateException("Cluster was not started via .start(...)");
-		}
-	}
-
 }

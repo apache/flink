@@ -53,7 +53,8 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		JobExecutionResult result = ClusterUtil.runOnMiniCluster(getStreamGraph().getJobGraph(), getParallelism(), -1, getConfig().isSysoutLoggingEnabled());
+		JobExecutionResult result = ClusterUtil.runOnMiniCluster(getStreamGraph().getJobGraph(),
+				getParallelism(), -1, getConfig().isSysoutLoggingEnabled(), false, this.conf);
 		transformations.clear();
 		return result;
 	}
