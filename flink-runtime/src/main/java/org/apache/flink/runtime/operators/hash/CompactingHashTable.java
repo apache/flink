@@ -388,7 +388,6 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 				
 				final int thisCode = bucket.getInt(posInSegment);
 				posInSegment += HASH_CODE_LEN;
-				numInSegment++;
 					
 				// check if the hash code matches
 				if (thisCode == searchHashCode) {
@@ -404,6 +403,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 						return;
 					}
 				}
+				numInSegment++;
 			}
 			
 			// this segment is done. check if there is another chained bucket
