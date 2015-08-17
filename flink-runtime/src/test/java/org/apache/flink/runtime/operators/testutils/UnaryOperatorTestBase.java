@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.taskmanager.TaskManagerContext;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -35,7 +36,6 @@ import org.apache.flink.runtime.operators.TaskContext;
 import org.apache.flink.runtime.operators.ResettableDriver;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -57,7 +57,7 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 	
 	protected static final int PAGE_SIZE = 32 * 1024;
 
-	private final TaskManagerRuntimeInfo taskManageInfo;
+	private final TaskManagerContext taskManageContext;
 	
 	private final IOManager ioManager;
 	
@@ -114,7 +114,7 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 		this.executionConfig = executionConfig;
 		this.comparators = new ArrayList<TypeComparator<IN>>(2);
 
-		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
+		this.taskManageContext = new TaskManagerContext("localhost", new Configuration(), ioManager, memManager, null);
 	}
 
 	@Parameterized.Parameters
@@ -297,8 +297,8 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 	}
 
 	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return this.taskManageInfo;
+	public TaskManagerContext getTaskManagerContext() {
+		return this.taskManageContext;
 	}
 	
 	@Override

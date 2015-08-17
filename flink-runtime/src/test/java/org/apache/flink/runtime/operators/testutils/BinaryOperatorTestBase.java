@@ -35,7 +35,7 @@ import org.apache.flink.runtime.operators.TaskContext;
 import org.apache.flink.runtime.operators.ResettableDriver;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerContext;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TestLogger;
@@ -69,7 +69,7 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 	
 	private final TaskConfig taskConfig;
 	
-	private final TaskManagerRuntimeInfo taskManageInfo;
+	private final TaskManagerContext taskManagerContext;
 	
 	protected final long perSortMem;
 	
@@ -108,7 +108,7 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 		this.owner = new DummyInvokable();
 		this.taskConfig = new TaskConfig(new Configuration());
 		this.executionConfig = executionConfig;
-		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
+		this.taskManagerContext = new TaskManagerContext("localhost", new Configuration(), ioManager, memManager, null);
 	}
 	
 	@Parameterized.Parameters
@@ -290,8 +290,8 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 	}
 	
 	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return this.taskManageInfo;
+	public TaskManagerContext getTaskManagerContext() {
+		return this.taskManagerContext;
 	}
 	
 	@Override

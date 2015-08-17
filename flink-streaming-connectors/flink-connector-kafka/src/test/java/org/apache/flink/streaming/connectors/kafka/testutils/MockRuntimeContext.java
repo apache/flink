@@ -29,6 +29,7 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.Configuration;
 
 import java.io.Serializable;
 import java.util.List;
@@ -58,6 +59,16 @@ public class MockRuntimeContext implements RuntimeContext {
 	@Override
 	public int getIndexOfThisSubtask() {
 		return indexOfThisSubtask;
+	}
+
+	@Override
+	public String getTaskNameWithSubtasks() {
+		return String.format("%s (%d/%d)", null, indexOfThisSubtask + 1, numberOfParallelSubtasks);
+	}
+
+	@Override
+	public int getAttemptNumber() {
+		return 1;
 	}
 
 	@Override
@@ -128,5 +139,10 @@ public class MockRuntimeContext implements RuntimeContext {
 	@Override
 	public <S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Configuration getTaskManagerConfiguration() {
+		return null;
 	}
 }

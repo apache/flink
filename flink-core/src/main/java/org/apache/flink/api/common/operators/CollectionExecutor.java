@@ -36,6 +36,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.TaskRuntimeInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -180,9 +181,10 @@ public class CollectionExecutor {
 
 		// build the runtime context and compute broadcast variables, if necessary
 		RuntimeUDFContext ctx;
+		TaskRuntimeInfo runtimeInfo = new TaskRuntimeInfo(typedSink.getName(), 0, 1, 1);
 		if (RichOutputFormat.class.isAssignableFrom(typedSink.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(typedSink.getName(), 1, 0, getClass().getClassLoader(), executionConfig, cachedFiles, accumulators) :
-					new IterationRuntimeUDFContext(typedSink.getName(), 1, 0, classLoader, executionConfig, cachedFiles, accumulators);
+			ctx = superStep == 0 ? new RuntimeUDFContext(runtimeInfo, getClass().getClassLoader(), executionConfig, cachedFiles, accumulators) :
+					new IterationRuntimeUDFContext(runtimeInfo, classLoader, executionConfig, cachedFiles, accumulators);
 		} else {
 			ctx = null;
 		}
@@ -196,9 +198,10 @@ public class CollectionExecutor {
 		GenericDataSourceBase<OUT, ?> typedSource = (GenericDataSourceBase<OUT, ?>) source;
 		// build the runtime context and compute broadcast variables, if necessary
 		RuntimeUDFContext ctx;
+		TaskRuntimeInfo runtimeInfo = new TaskRuntimeInfo(source.getName(), 0, 1, 1);
 		if (RichInputFormat.class.isAssignableFrom(typedSource.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(source.getName(), 1, 0, getClass().getClassLoader(), executionConfig, cachedFiles, accumulators) :
-					new IterationRuntimeUDFContext(source.getName(), 1, 0, classLoader, executionConfig, cachedFiles, accumulators);
+			ctx = superStep == 0 ? new RuntimeUDFContext(runtimeInfo, getClass().getClassLoader(), executionConfig, cachedFiles, accumulators) :
+					new IterationRuntimeUDFContext(runtimeInfo, classLoader, executionConfig, cachedFiles, accumulators);
 		} else {
 			ctx = null;
 		}
@@ -219,11 +222,10 @@ public class CollectionExecutor {
 		
 		// build the runtime context and compute broadcast variables, if necessary
 		RuntimeUDFContext ctx;
+		TaskRuntimeInfo runtimeInfo = new TaskRuntimeInfo(operator.getName(), 0, 1, 1);
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, getClass()
-					.getClassLoader(), executionConfig, cachedFiles, accumulators) :
-					new IterationRuntimeUDFContext(operator.getName(), 1, 0, classLoader,
-							executionConfig, cachedFiles, accumulators);
+			ctx = superStep == 0 ? new RuntimeUDFContext(runtimeInfo, getClass().getClassLoader(), executionConfig, cachedFiles, accumulators) :
+					new IterationRuntimeUDFContext(runtimeInfo, classLoader, executionConfig, cachedFiles, accumulators);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -260,11 +262,10 @@ public class CollectionExecutor {
 		
 		// build the runtime context and compute broadcast variables, if necessary
 		RuntimeUDFContext ctx;
+		TaskRuntimeInfo runtimeInfo = new TaskRuntimeInfo(operator.getName(), 0, 1, 1);
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, classLoader,
-					executionConfig, cachedFiles, accumulators) :
-				new IterationRuntimeUDFContext(operator.getName(), 1, 0, classLoader,
-						executionConfig, cachedFiles, accumulators);
+			ctx = superStep == 0 ? new RuntimeUDFContext(runtimeInfo, classLoader, executionConfig, cachedFiles, accumulators) :
+				new IterationRuntimeUDFContext(runtimeInfo, classLoader, executionConfig, cachedFiles, accumulators);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -519,10 +520,10 @@ public class CollectionExecutor {
 	
 	private class IterationRuntimeUDFContext extends RuntimeUDFContext implements IterationRuntimeContext {
 
-		public IterationRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader classloader,
+		public IterationRuntimeUDFContext(TaskRuntimeInfo runtimeInfo, ClassLoader classloader,
 										ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks, Map<String,
 				Accumulator<?,?>> accumulators) {
-			super(name, numParallelSubtasks, subtaskIndex, classloader, executionConfig, cpTasks, accumulators);
+			super(runtimeInfo, classloader, executionConfig, cpTasks, accumulators);
 		}
 
 		@Override

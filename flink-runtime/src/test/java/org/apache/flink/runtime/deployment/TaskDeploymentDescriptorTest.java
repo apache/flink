@@ -55,7 +55,7 @@ public class TaskDeploymentDescriptorTest {
 			final List<URL> requiredClasspaths = new ArrayList<URL>(0);
 	
 			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, vertexID, execId, taskName,
-				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
+				indexInSubtaskGroup, currentNumberOfSubtasks, 0, jobConfiguration, taskConfiguration,
 				invokableClass.getName(), producedResults, inputGates, requiredJars, requiredClasspaths, 47);
 	
 			final TaskDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);

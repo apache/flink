@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.taskmanager.TaskManagerContext;
+import org.apache.flink.api.common.TaskRuntimeInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -170,9 +172,8 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	@Override
 	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
-		return new IterativeRuntimeUdfContext(taskName, env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
-				env.getDistributedCacheEntries(), this.accumulatorMap);
+		return new IterativeRuntimeUdfContext(env.getTaskRuntimeInfo(), env.getTaskManagerContext(),
+				getUserCodeClassLoader(), getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -361,10 +362,10 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 
 	private class IterativeRuntimeUdfContext extends DistributedRuntimeUDFContext implements IterationRuntimeContext {
 
-		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
+		public IterativeRuntimeUdfContext(TaskRuntimeInfo runtimeInfo, TaskManagerContext managerContext, ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks,
 										Map<String, Accumulator<?,?>> accumulatorMap) {
-			super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, cpTasks, accumulatorMap);
+			super(runtimeInfo, managerContext, userCodeClassLoader, executionConfig, cpTasks, accumulatorMap);
 		}
 
 		@Override

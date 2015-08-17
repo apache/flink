@@ -83,13 +83,16 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	private final List<URL> requiredClasspaths;
 
 	private final SerializedValue<StateHandle<?>> operatorState;
+
+	/** Attempt number of the task */
+	private final int attemptNumber;
 	
 	/**
 	 * Constructs a task deployment descriptor.
 	 */
 	public TaskDeploymentDescriptor(
 			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId, String taskName,
-			int indexInSubtaskGroup, int numberOfSubtasks, Configuration jobConfiguration,
+			int indexInSubtaskGroup, int numberOfSubtasks, int attemptNumber, Configuration jobConfiguration,
 			Configuration taskConfiguration, String invokableClassName,
 			List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
@@ -99,6 +102,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		checkArgument(indexInSubtaskGroup >= 0);
 		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
 		checkArgument(targetSlotNumber >= 0);
+		checkArgument(attemptNumber >= 0);
 
 		this.jobID = checkNotNull(jobID);
 		this.vertexID = checkNotNull(vertexID);
@@ -106,6 +110,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.taskName = checkNotNull(taskName);
 		this.indexInSubtaskGroup = indexInSubtaskGroup;
 		this.numberOfSubtasks = numberOfSubtasks;
+		this.attemptNumber = attemptNumber + 1;
 		this.jobConfiguration = checkNotNull(jobConfiguration);
 		this.taskConfiguration = checkNotNull(taskConfiguration);
 		this.invokableClassName = checkNotNull(invokableClassName);
@@ -119,14 +124,14 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	public TaskDeploymentDescriptor(
 			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId, String taskName,
-			int indexInSubtaskGroup, int numberOfSubtasks, Configuration jobConfiguration,
+			int indexInSubtaskGroup, int numberOfSubtasks, int attemptNumber, Configuration jobConfiguration,
 			Configuration taskConfiguration, String invokableClassName,
 			List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
 			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
 			int targetSlotNumber) {
 
-		this(jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks,
+		this(jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks, attemptNumber,
 				jobConfiguration, taskConfiguration, invokableClassName, producedPartitions,
 				inputGates, requiredJarFiles, requiredClasspaths, targetSlotNumber, null);
 	}
@@ -170,6 +175,13 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 */
 	public int getNumberOfSubtasks() {
 		return numberOfSubtasks;
+	}
+
+	/**
+	 * Returns the attempt number of the task.
+	 */
+	public int getAttemptNumber() {
+		return attemptNumber;
 	}
 
 	/**

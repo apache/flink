@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskRuntimeInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -780,6 +781,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		Environment env = mock(Environment.class);
 		when(env.getIndexInSubtaskGroup()).thenReturn(0);
 		when(env.getNumberOfSubtasks()).thenReturn(1);
+		when(env.getTaskRuntimeInfo()).thenReturn(new TaskRuntimeInfo(null, 0, 1, 1));
 		when(env.getUserClassLoader()).thenReturn(AggregatingAlignedProcessingTimeWindowOperatorTest.class.getClassLoader());
 
 		when(task.getEnvironment()).thenReturn(env);

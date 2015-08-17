@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskRuntimeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -51,18 +52,11 @@ public class RuntimeEnvironment implements Environment {
 	private final JobVertexID jobVertexId;
 	private final ExecutionAttemptID executionId;
 	
-	private final String taskName;
-	private final String taskNameWithSubtasks;
-	private final int subtaskIndex;
-	private final int parallelism;
-	
 	private final Configuration jobConfiguration;
 	private final Configuration taskConfiguration;
 	
 	private final ClassLoader userCodeClassLoader;
 
-	private final MemoryManager memManager;
-	private final IOManager ioManager;
 	private final BroadcastVariableManager bcVarManager;
 	private final InputSplitProvider splitProvider;
 	
@@ -75,7 +69,9 @@ public class RuntimeEnvironment implements Environment {
 
 	private final AccumulatorRegistry accumulatorRegistry;
 
-	private final TaskManagerRuntimeInfo taskManagerInfo;
+	private final TaskManagerContext taskManagerContext;
+
+	private final TaskRuntimeInfo taskRuntimeInfo;
 
 	// ------------------------------------------------------------------------
 
@@ -83,15 +79,9 @@ public class RuntimeEnvironment implements Environment {
 			JobID jobId,
 			JobVertexID jobVertexId,
 			ExecutionAttemptID executionId,
-			String taskName,
-			String taskNameWithSubtasks,
-			int subtaskIndex,
-			int parallelism,
 			Configuration jobConfiguration,
 			Configuration taskConfiguration,
 			ClassLoader userCodeClassLoader,
-			MemoryManager memManager,
-			IOManager ioManager,
 			BroadcastVariableManager bcVarManager,
 			AccumulatorRegistry accumulatorRegistry,
 			InputSplitProvider splitProvider,
@@ -99,22 +89,15 @@ public class RuntimeEnvironment implements Environment {
 			ResultPartitionWriter[] writers,
 			InputGate[] inputGates,
 			ActorGateway jobManager,
-			TaskManagerRuntimeInfo taskManagerInfo) {
-		
-		checkArgument(parallelism > 0 && subtaskIndex >= 0 && subtaskIndex < parallelism);
+			TaskManagerContext taskManagerContext,
+			TaskRuntimeInfo taskRuntimeInfo) {
 
 		this.jobId = checkNotNull(jobId);
 		this.jobVertexId = checkNotNull(jobVertexId);
 		this.executionId = checkNotNull(executionId);
-		this.taskName = checkNotNull(taskName);
-		this.taskNameWithSubtasks = checkNotNull(taskNameWithSubtasks);
-		this.subtaskIndex = subtaskIndex;
-		this.parallelism = parallelism;
 		this.jobConfiguration = checkNotNull(jobConfiguration);
 		this.taskConfiguration = checkNotNull(taskConfiguration);
 		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
-		this.memManager = checkNotNull(memManager);
-		this.ioManager = checkNotNull(ioManager);
 		this.bcVarManager = checkNotNull(bcVarManager);
 		this.accumulatorRegistry = checkNotNull(accumulatorRegistry);
 		this.splitProvider = checkNotNull(splitProvider);
@@ -122,7 +105,11 @@ public class RuntimeEnvironment implements Environment {
 		this.writers = checkNotNull(writers);
 		this.inputGates = checkNotNull(inputGates);
 		this.jobManager = checkNotNull(jobManager);
-		this.taskManagerInfo = checkNotNull(taskManagerInfo);
+		this.taskManagerContext = checkNotNull(taskManagerContext);
+		this.taskRuntimeInfo = checkNotNull(taskRuntimeInfo);
+
+		checkArgument(taskRuntimeInfo.getNumParallelTasks() > 0 && taskRuntimeInfo.getSubTaskIndex() >= 0 &&
+				taskRuntimeInfo.getSubTaskIndex() < taskRuntimeInfo.getNumParallelTasks());
 	}
 
 	// ------------------------------------------------------------------------
@@ -144,22 +131,22 @@ public class RuntimeEnvironment implements Environment {
 
 	@Override
 	public String getTaskName() {
-		return taskName;
+		return taskRuntimeInfo.getTaskName();
 	}
 
 	@Override
 	public String getTaskNameWithSubtasks() {
-		return taskNameWithSubtasks;
+		return taskRuntimeInfo.getTaskNameWithSubTaskIndex();
 	}
 
 	@Override
 	public int getNumberOfSubtasks() {
-		return parallelism;
+		return taskRuntimeInfo.getNumParallelTasks();
 	}
 
 	@Override
 	public int getIndexInSubtaskGroup() {
-		return subtaskIndex;
+		return taskRuntimeInfo.getSubTaskIndex();
 	}
 
 	@Override
@@ -173,8 +160,13 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return taskManagerInfo;
+	public TaskManagerContext getTaskManagerContext() {
+		return taskManagerContext;
+	}
+
+	@Override
+	public TaskRuntimeInfo getTaskRuntimeInfo() {
+		return taskRuntimeInfo;
 	}
 
 	@Override
@@ -184,12 +176,12 @@ public class RuntimeEnvironment implements Environment {
 
 	@Override
 	public MemoryManager getMemoryManager() {
-		return memManager;
+		return taskManagerContext.getMemoryManager();
 	}
 
 	@Override
 	public IOManager getIOManager() {
-		return ioManager;
+		return taskManagerContext.getIoManager();
 	}
 
 	@Override

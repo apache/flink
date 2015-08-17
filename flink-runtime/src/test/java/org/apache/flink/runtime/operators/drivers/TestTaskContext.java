@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.drivers;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.taskmanager.TaskManagerContext;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -32,7 +33,6 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.TaskContext;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -62,7 +62,7 @@ public class TestTaskContext<S, T> implements TaskContext<S, T> {
 
 	private ExecutionConfig executionConfig = new ExecutionConfig();
 
-	private TaskManagerRuntimeInfo taskManageInfo;
+	private TaskManagerContext taskManagerContext;
 
 	// --------------------------------------------------------------------------------------------
 	//  Constructors
@@ -72,7 +72,7 @@ public class TestTaskContext<S, T> implements TaskContext<S, T> {
 	
 	public TestTaskContext(long memoryInBytes) {
 		this.memoryManager = new MemoryManager(memoryInBytes, 1, 32 * 1024, MemoryType.HEAP, true);
-		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
+		this.taskManagerContext = new TaskManagerContext("localhost", new Configuration(), null, memoryManager, null);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -159,8 +159,8 @@ public class TestTaskContext<S, T> implements TaskContext<S, T> {
 	}
 
 	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return this.taskManageInfo;
+	public TaskManagerContext getTaskManagerContext() {
+		return this.taskManagerContext;
 	}
 
 	@Override

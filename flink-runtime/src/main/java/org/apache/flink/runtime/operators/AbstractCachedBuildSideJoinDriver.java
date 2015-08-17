@@ -75,7 +75,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 				this.taskContext.getTaskConfig().getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
 
 		double availableMemory = config.getRelativeMemoryDriver();
-		boolean hashJoinUseBitMaps = taskContext.getTaskManagerInfo().getConfiguration().getBoolean(
+		boolean hashJoinUseBitMaps = taskContext.getTaskManagerContext().getConfiguration().getBoolean(
 				ConfigConstants.RUNTIME_HASH_JOIN_BLOOM_FILTERS_KEY,
 				ConfigConstants.DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS);
 		

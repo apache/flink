@@ -25,6 +25,7 @@ import java.util.concurrent.Future;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
+import org.apache.flink.api.common.functions.util.utils.TestRuntimeUDFContext;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Value;
 import org.junit.Assert;
@@ -38,7 +39,7 @@ public class RichInputFormatTest {
 	@Test
 	public void testCheckRuntimeContextAccess() {
 		final SerializedInputFormat<Value> inputFormat = new SerializedInputFormat<Value>();
-		inputFormat.setRuntimeContext(new RuntimeUDFContext("test name", 3, 1, getClass().getClassLoader(), new ExecutionConfig(), new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>()));
+		inputFormat.setRuntimeContext(TestRuntimeUDFContext.instance("test", 1, 3, null));
 
 		Assert.assertEquals(inputFormat.getRuntimeContext().getIndexOfThisSubtask(), 1);
 		Assert.assertEquals(inputFormat.getRuntimeContext().getNumberOfParallelSubtasks(),3);

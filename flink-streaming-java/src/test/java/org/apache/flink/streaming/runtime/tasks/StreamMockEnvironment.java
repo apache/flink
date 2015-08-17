@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskRuntimeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
@@ -45,7 +46,7 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerContext;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -297,8 +298,13 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return new TaskManagerRuntimeInfo("localhost", new UnmodifiableConfiguration(new Configuration()));
+	public TaskManagerContext getTaskManagerContext() {
+		return new TaskManagerContext("localhost", new UnmodifiableConfiguration(new
+				Configuration()), getIOManager(), getMemoryManager(), null);
+	}
+
+	@Override
+	public TaskRuntimeInfo getTaskRuntimeInfo() {
+		return new TaskRuntimeInfo(getTaskName(), getIndexInSubtaskGroup(), getNumberOfSubtasks(), 1);
 	}
 }
-

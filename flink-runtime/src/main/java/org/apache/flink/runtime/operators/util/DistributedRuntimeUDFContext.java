@@ -24,6 +24,9 @@ import java.util.Map;
 import java.util.concurrent.Future;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.taskmanager.TaskManagerContext;
+import org.apache.flink.api.common.TaskRuntimeInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -40,12 +43,14 @@ import com.google.common.base.Preconditions;
 public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 
 	private final HashMap<String, BroadcastVariableMaterialization<?, ?>> broadcastVars = new HashMap<String, BroadcastVariableMaterialization<?, ?>>();
+
+	private final TaskManagerContext managerContext;
 	
-	public DistributedRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
+	public DistributedRuntimeUDFContext(TaskRuntimeInfo runtimeInfo, TaskManagerContext managerContext, ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators) {
-		super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, accumulators, cpTasks);
+		super(runtimeInfo, userCodeClassLoader, executionConfig, accumulators, cpTasks);
+		this.managerContext = managerContext;
 	}
-	
 
 	@Override
 	public <T> List<T> getBroadcastVariable(String name) {
@@ -99,5 +104,9 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 	
 	public void clearAllBroadcastVariables() {
 		this.broadcastVars.clear();
+	}
+
+	public Configuration getTaskManagerConfiguration() {
+		return managerContext.getConfiguration();
 	}
 }

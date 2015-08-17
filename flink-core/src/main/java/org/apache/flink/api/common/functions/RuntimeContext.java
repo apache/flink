@@ -31,6 +31,7 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * A RuntimeContext contains information about the context in which functions are executed. Each parallel instance
@@ -63,6 +64,30 @@ public interface RuntimeContext {
 	 * @return The index of the parallel subtask.
 	 */
 	int getIndexOfThisSubtask();
+
+	/**
+	 * Returns the name of the task running in this environment, appended
+	 * with the subtask indicator, such as "MyTask (3/6)", where
+	 * 3 would be ({@link #getIndexOfThisSubtask()} + 1), and 6 would be
+	 * {@link #getNumberOfParallelSubtasks()}.
+	 *
+	 * @return The name of the task associated with this context, with subtask indicator.
+	 */
+	String getTaskNameWithSubtasks();
+
+	/**
+	 * Gets the attempt number of the task associated with this context
+	 *
+	 * @return Attempt number of the task
+	 */
+	int getAttemptNumber();
+
+	/**
+	 * Return the configuration with which the task manager was started
+	 *
+	 * @return Task Manager Configuration
+	 */
+	Configuration getTaskManagerConfiguration();
 
 	/**
 	 * Returns the {@link org.apache.flink.api.common.ExecutionConfig} for the currently executing

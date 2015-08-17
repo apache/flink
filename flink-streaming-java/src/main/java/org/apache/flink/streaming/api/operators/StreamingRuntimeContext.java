@@ -24,8 +24,10 @@ import org.apache.flink.api.common.functions.util.AbstractRuntimeUDFContext;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.taskmanager.TaskManagerContext;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 
 import java.util.HashMap;
@@ -52,12 +54,11 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	/** Type of the values stored in the state, to make sure repeated requests of the state are consistent */
 	private HashMap<String, TypeInformation<?>> stateTypeInfos;
 	
-	
+	private final TaskManagerContext managerContext;
+
 	public StreamingRuntimeContext(AbstractStreamOperator<?> operator,
 									Environment env, Map<String, Accumulator<?, ?>> accumulators) {
-		super(env.getTaskName(),
-				env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(),
+		super(env.getTaskRuntimeInfo(),
 				env.getUserClassLoader(),
 				operator.getExecutionConfig(),
 				accumulators,
@@ -65,6 +66,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		
 		this.operator = operator;
 		this.taskEnvironment = env;
+		this.managerContext = env.getTaskManagerContext();
 	}
 
 	// ------------------------------------------------------------------------
@@ -172,5 +174,10 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 				throw new RuntimeException("Cannot initialize the key/value state", e);
 			}
 		}
+	}
+
+	@Override
+	public Configuration getTaskManagerConfiguration() {
+		return managerContext.getConfiguration();
 	}
 }
