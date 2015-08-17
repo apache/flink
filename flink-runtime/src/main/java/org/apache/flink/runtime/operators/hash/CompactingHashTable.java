@@ -380,8 +380,6 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 		int countInSegment = bucket.getInt(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
 		int numInSegment = 0;
 		int posInSegment = bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
-		
-		long currentForwardPointer = BUCKET_FORWARD_POINTER_NOT_SET;
 
 		// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
 		while (true) {
@@ -396,7 +394,6 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 					// get the pointer to the pair
 					final int pointerOffset = bucketInSegmentOffset + BUCKET_POINTER_START_OFFSET + (numInSegment * POINTER_LEN);
 					final long pointer = bucket.getLong(pointerOffset);
-					numInSegment++;
 					
 					// deserialize the key to check whether it is really equal, or whether we had only a hash collision
 					T valueAtPosition = partition.readRecordAt(pointer);
@@ -406,9 +403,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 						return;
 					}
 				}
-				else {
-					numInSegment++;
-				}
+				numInSegment++;
 			}
 			
 			// this segment is done. check if there is another chained bucket
@@ -436,7 +431,6 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 			countInSegment = bucket.getInt(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
 			posInSegment = bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
 			numInSegment = 0;
-			currentForwardPointer = newForwardPointer;
 		}
 	}
 	
@@ -869,9 +863,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 		final long numRecordsStorable = totalSize / (recordLenBytes + RECORD_OVERHEAD_BYTES);
 		final long bucketBytes = numRecordsStorable * RECORD_OVERHEAD_BYTES;
 		long numBuckets = bucketBytes / (2 * HASH_BUCKET_SIZE) + 1;
-		while(numBuckets % numPartitions != 0) {
-			numBuckets++;
-		}
+		numBuckets += numPartitions - numBuckets % numPartitions;
 		return numBuckets > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) numBuckets;
 	}
 	
