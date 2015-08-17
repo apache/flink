@@ -23,12 +23,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
+public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> implements Checkpointed<String> {
 	private static final long serialVersionUID = 1L;
 
 	private TypeInformation<OUT> typeInfo;
@@ -40,6 +41,12 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	private transient Iterator<InputSplit> splitIterator;
 
 	private volatile boolean isRunning = true;
+
+	private Long currRecord = 0l;
+	private int splitNumber = 0;
+
+	private int checkpointedSplit = -1;
+	private Long checkpointedRecord = -1l;
 
 	@SuppressWarnings("unchecked")
 	public FileSourceFunction(InputFormat<OUT, ?> format, TypeInformation<OUT> typeInfo) {
@@ -56,8 +63,12 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 		serializer = typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
 
 		splitIterator = getInputSplits();
+
 		if (splitIterator.hasNext()) {
-			format.open(splitIterator.next());
+			InputSplit split = splitIterator.next();
+			splitNumber = split.getSplitNumber();
+			currRecord = 0l;
+			format.open(split);
 		}
 		isRunning = true;
 	}
@@ -120,18 +131,42 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 			OUT nextElement = serializer.createInstance();
 			nextElement =  format.nextRecord(nextElement);
 			if (nextElement == null && splitIterator.hasNext()) {
-				format.open(splitIterator.next());
+				InputSplit split = splitIterator.next();
+				splitNumber = split.getSplitNumber();
+				currRecord = 0l;
+				format.open(split);
 				continue;
 			} else if (nextElement == null) {
 				break;
 			}
-			ctx.collect(nextElement);
+			if(splitNumber == checkpointedSplit){
+				if(currRecord < checkpointedRecord) {
+					currRecord++;
+					continue;
+				}
+			}
+			synchronized (ctx.getCheckpointLock()){
+				ctx.collect(nextElement);
+				currRecord++;
+			}
 		}
 	}
 
 	@Override
 	public void cancel() {
 		isRunning = false;
+	}
+
+	@Override
+	public String snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+		return currRecord+":"+ splitNumber;
+	}
+
+	@Override
+	public void restoreState(String state){
+		String[] res = state.split(":");
+		checkpointedRecord = Long.valueOf(res[0]);
+		checkpointedSplit = Integer.valueOf(res[1]);
 	}
 
 }
