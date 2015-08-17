@@ -84,8 +84,8 @@ public class ClusterUtil {
 	/**
 	 * Start a job in a detached mode on a local mini cluster.
 	 */
-	public static void startOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize) throws Exception {
-		runOnMiniCluster(jobGraph, parallelism, memorySize, true, true, null);
+	public static void startOnMiniCluster(JobGraph jobGraph, int parallelism) throws Exception {
+		runOnMiniCluster(jobGraph, parallelism, -1, true, true, null);
 	}
 
 	public static void stopOnMiniCluster() {

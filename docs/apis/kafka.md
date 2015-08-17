@@ -57,8 +57,7 @@ Please pick a package (maven artifact id) and class name for your use-case and e
 | -------------               |-------------| -----| ------ | ------ |
 | flink-connector-kafka       | 0.9, 0.10 | `KafkaSource` | 0.8.1, 0.8.2 | **No**, does not participate in checkpointing at all. | Uses the old, high level KafkaConsumer API, autocommits to ZK by Kafka |
 | flink-connector-kafka       | 0.9, 0.10 | `PersistentKafkaSource` | 0.8.1, 0.8.2 | **No**, does not guarantee exactly-once processing, element order or strict partition assignment | Uses the old, high level KafkaConsumer API, offsets are committed into ZK manually |
-| flink-connector-kafka-083   | 0.10      | `FlinkKafkaConsumer081` | 0.8.1  | **yes** | Uses the [SimpleConsumer](https://cwiki.apache.org/confluence/display/KAFKA/0.8.0+SimpleConsumer+Example) API of Kafka internally. Offsets are committed to ZK manually |
-| flink-connector-kafka-083   | 0.10      | `FlinkKafkaConsumer082` | 0.8.2  | **yes** | Uses the new, unreleased consumer API of Kafka 0.9.3 internally. Offsets are committed to ZK manually |
-| flink-connector-kafka-083   | 0.10      | `FlinkKafkaConsumer083` | 0.8.3  | **yes** | **EXPERIMENTAL** Uses the new, unreleased consumer of Kafka 0.9.3. Offsets are committed using the Consumer API |
+| flink-connector-kafka-083   | 0.9.1 0.10 | `FlinkKafkaConsumer081` | 0.8.1  | **yes** | Uses the [SimpleConsumer](https://cwiki.apache.org/confluence/display/KAFKA/0.8.0+SimpleConsumer+Example) API of Kafka internally. Offsets are committed to ZK manually |
+| flink-connector-kafka-083   | 0.9.1 0.10 | `FlinkKafkaConsumer082` | 0.8.2  | **yes** | Uses the [SimpleConsumer](https://cwiki.apache.org/confluence/display/KAFKA/0.8.0+SimpleConsumer+Example) API of Kafka internally. Offsets are committed to ZK manually |
 
 

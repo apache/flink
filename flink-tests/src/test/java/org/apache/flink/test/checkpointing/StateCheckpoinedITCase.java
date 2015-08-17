@@ -31,6 +31,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 import java.io.IOException;
@@ -55,6 +57,8 @@ import static org.junit.Assert.assertTrue;
 @SuppressWarnings("serial")
 public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 
+	private static final Logger LOG = LoggerFactory.getLogger(StateCheckpoinedITCase.class);
+
 	final long NUM_STRINGS = 10_000_000L;
 
 	/**
@@ -72,7 +76,9 @@ public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 		final long failurePosMax = (long) (0.7 * NUM_STRINGS / PARALLELISM);
 
 		final long failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
-		
+
+		env.enableCheckpointing(200);
+
 		DataStream<String> stream = env.addSource(new StringGeneratingSourceFunction(NUM_STRINGS));
 
 		stream
@@ -95,8 +101,10 @@ public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 	@Override
 	public void postSubmit() {
 		
-		if (!OnceFailingAggregator.wasCheckpointedBeforeFailure) {
-			System.err.println("Test inconclusive: failure occurred before first checkpoint");
+		//assertTrue("Test inconclusive: failure occurred before first checkpoint",
+		//		OnceFailingAggregator.wasCheckpointedBeforeFailure);
+		if(!OnceFailingAggregator.wasCheckpointedBeforeFailure) {
+			LOG.warn("Test inconclusive: failure occurred before first checkpoint");
 		}
 		
 		long filterSum = 0;
