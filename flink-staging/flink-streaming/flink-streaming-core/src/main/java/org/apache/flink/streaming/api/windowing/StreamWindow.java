@@ -153,24 +153,24 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 		if (n > numElements) {
 			return split(window, numElements);
 		} else {
-			List<StreamWindow<X>> listStreamWindow = new ArrayList<StreamWindow<X>>();
+			List<StreamWindow<X>> splitsList = new ArrayList<StreamWindow<X>>();
 			int splitSize = numElements / n;
 
 			int index = -1;
 
 			StreamWindow<X> currentSubWindow = new StreamWindow<X>(window.windowID, n);
-			listStreamWindow.add(currentSubWindow);
+			splitsList.add(currentSubWindow);
 
 			for (X element : window) {
 				index++;
-				if (index == splitSize && listStreamWindow.size() < n) {
+				if (index == splitSize && splitsList.size() < n) {
 					currentSubWindow = new StreamWindow<X>(window.windowID, n);
-					listStreamWindow.add(currentSubWindow);
+					splitsList.add(currentSubWindow);
 					index = 0;
 				}
 				currentSubWindow.add(element);
 			}
-			return listStreamWindow;
+			return splitsList;
 		}
 	}
 
