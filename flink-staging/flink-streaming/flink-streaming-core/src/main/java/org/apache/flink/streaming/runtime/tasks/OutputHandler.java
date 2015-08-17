@@ -28,7 +28,6 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -40,7 +39,7 @@ import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.runtime.io.RecordWriterFactory;
+import org.apache.flink.streaming.runtime.io.StreamRecordWriter;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -218,37 +217,59 @@ public class OutputHandler<OUT> {
 
 		TypeSerializer<T> outSerializer = upStreamConfig.getTypeSerializerOut1(vertex.userClassLoader);
 
-
 		@SuppressWarnings("unchecked")
 		StreamPartitioner<T> outputPartitioner = (StreamPartitioner<T>) edge.getPartitioner();
 
 		ResultPartitionWriter bufferWriter = vertex.getEnvironment().getWriter(outputIndex);
 
-		RecordWriter<SerializationDelegate<StreamRecord<T>>> output =
-				RecordWriterFactory.createRecordWriter(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
+		StreamRecordWriter<SerializationDelegate<StreamRecord<T>>> output = 
+				new StreamRecordWriter<>(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
 
 		output.setReporter(reporter);
+		
+		RecordWriterOutput<T> streamOutput = 
+				new RecordWriterOutput<T>(output, outSerializer, vertex.getExecutionConfig().areTimestampsEnabled());
 
-		@SuppressWarnings("unchecked")
-		RecordWriterOutput<T> streamOutput = new RecordWriterOutput<T>(output, outSerializer, vertex.getExecutionConfig().areTimestampsEnabled());
-
-		if (LOG.isTraceEnabled()) {
-			LOG.trace("Partitioner set: {} with {} outputs for {}", outputPartitioner.getClass()
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Partitioner set: {} with {} outputs for {}", outputPartitioner.getClass()
 					.getSimpleName(), outputIndex, vertex.getClass().getSimpleName());
 		}
 
 		return streamOutput;
 	}
 
-	public void flushOutputs() throws IOException, InterruptedException {
+	/**
+	 * 
+	 * This method should be called before finishing the record emission, to make sure any data
+	 * that is still buffered will be sent. It also ensures that all data sending related
+	 * exceptions are recognized.
+	 * 
+	 * @throws IOException Thrown, if the buffered data cannot be pushed into the output streams.
+	 */
+	public void flushOutputs() throws IOException {
 		for (RecordWriterOutput<?> streamOutput : getOutputs()) {
-			streamOutput.close();
+			streamOutput.flush();
 		}
 	}
 
-	public void clearWriters() {
-		for (RecordWriterOutput<?> output : outputMap.values()) {
-			output.clearBuffers();
+	/**
+	 * This method releases all resources of the record writer output. It stops the output
+	 * flushing thread (if there is one) and releases all buffers currently held by the output
+	 * serializers.
+	 *
+	 * This method should never fail.
+	 */
+	public void releaseOutputs() {
+		try {
+			for (RecordWriterOutput<?> streamOutput : getOutputs()) {
+				streamOutput.close();
+			}
+		}
+		finally {
+			// make sure that we release the buffers in any case
+			for (RecordWriterOutput<?> output : getOutputs()) {
+				output.clearBuffers();
+			}
 		}
 	}
 
@@ -265,11 +286,9 @@ public class OutputHandler<OUT> {
 			try {
 				operator.getRuntimeContext().setNextInput(record);
 				operator.processElement(record);
-			} catch (Exception e) {
-				if (LOG.isErrorEnabled()) {
-					LOG.error("Could not forward element to operator.", e);
-				}
-				throw new RuntimeException(e);
+			}
+			catch (Exception e) {
+				throw new RuntimeException("Could not forward element to next operator", e);
 			}
 		}
 
@@ -279,10 +298,7 @@ public class OutputHandler<OUT> {
 				operator.processWatermark(mark);
 			}
 			catch (Exception e) {
-				if (LOG.isErrorEnabled()) {
-					LOG.error("Could not forward element to operator: {}", e);
-				}
-				throw new RuntimeException(e);
+				throw new RuntimeException("Could not forward watermark to next operator", e);
 			}
 		}
 
@@ -292,10 +308,7 @@ public class OutputHandler<OUT> {
 				operator.close();
 			}
 			catch (Exception e) {
-				if (LOG.isErrorEnabled()) {
-					LOG.error("Could not forward close call to operator.", e);
-				}
-				throw new RuntimeException(e);
+				throw new RuntimeException("Could not close() call to next operator", e);
 			}
 		}
 	}
@@ -316,10 +329,7 @@ public class OutputHandler<OUT> {
 				operator.processElement(serializer.copy(record));
 			}
 			catch (Exception e) {
-				if (LOG.isErrorEnabled()) {
-					LOG.error("Could not forward element to operator.", e);
-				}
-				throw new RuntimeException(e);
+				throw new RuntimeException("Could not forward element to next operator", e);
 			}
 		}
 	}

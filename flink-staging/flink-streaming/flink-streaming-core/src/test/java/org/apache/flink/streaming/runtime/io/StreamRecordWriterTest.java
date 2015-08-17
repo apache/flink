@@ -85,12 +85,7 @@ public class StreamRecordWriterTest {
 		}
 		finally {
 			if (testWriter != null) {
-				try {
-					testWriter.close();
-				}
-				catch (IOException e) {
-					// ignore in tests
-				}
+				testWriter.close();
 			}
 		}
 	}

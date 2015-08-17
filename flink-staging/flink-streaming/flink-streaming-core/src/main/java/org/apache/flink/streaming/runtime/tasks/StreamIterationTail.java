@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,57 +32,61 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationTail.class);
 
-	private String iterationId;
-
-	@SuppressWarnings("rawtypes")
-	private BlockingQueue<StreamRecord> dataChannel;
-	private long iterationWaitTime;
-	private boolean shouldWait;
-
-	public StreamIterationTail() {
-	}
-
 	@Override
-	public void registerInputOutput() {
-		super.registerInputOutput();
-
-		try {
-			iterationId = configuration.getIterationId();
-			iterationWaitTime = configuration.getIterationWaitTime();
-			shouldWait = iterationWaitTime > 0;
-			dataChannel = BlockingQueueBroker.instance().get(iterationId+"-"
-					+getEnvironment().getIndexInSubtaskGroup());
-		} catch (Exception e) {
-			throw new StreamTaskException(String.format(
-					"Cannot register inputs of StreamIterationSink %s", iterationId), e);
+	public void init() throws Exception {
+		super.init();
+		
+		final String iterationId = configuration.getIterationId();
+		if (iterationId == null || iterationId.length() == 0) {
+			throw new Exception("Missing iteration ID in the task configuration");
 		}
-		this.streamOperator = new RecordPusher();
+
+		final String brokerID = StreamIterationHead.createBrokerIdString(getEnvironment().getJobID(), iterationId,
+				getEnvironment().getIndexInSubtaskGroup());
+
+		final long iterationWaitTime = configuration.getIterationWaitTime();
+
+		LOG.info("Iteration tail {} trying to acquire feedback queue under {}", getName(), brokerID);
+		
+		@SuppressWarnings("unchecked")
+		BlockingQueue<StreamRecord<IN>> dataChannel =
+				(BlockingQueue<StreamRecord<IN>>) BlockingQueueBroker.INSTANCE.get(brokerID);
+		
+		LOG.info("Iteration tail {} acquired feedback queue {}", getName(), brokerID);
+		
+		this.streamOperator = new RecordPusher<>(dataChannel, iterationWaitTime);
 	}
 
-	class RecordPusher extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
+	private static class RecordPusher<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
+		
 		private static final long serialVersionUID = 1L;
+
+		@SuppressWarnings("NonSerializableFieldInSerializableClass")
+		private final BlockingQueue<StreamRecord<IN>> dataChannel;
+		
+		private final long iterationWaitTime;
+		
+		private final boolean shouldWait;
+
+		RecordPusher(BlockingQueue<StreamRecord<IN>> dataChannel, long iterationWaitTime) {
+			this.dataChannel = dataChannel;
+			this.iterationWaitTime = iterationWaitTime;
+			this.shouldWait =  iterationWaitTime > 0;
+		}
 
 		@Override
 		public void processElement(StreamRecord<IN> record) throws Exception {
-			try {
-				if (shouldWait) {
-					dataChannel.offer(record, iterationWaitTime, TimeUnit.MILLISECONDS);
-				} else {
-					dataChannel.put(record);
-				}
-			} catch (InterruptedException e) {
-				if (LOG.isErrorEnabled()) {
-					LOG.error("Pushing back record at iteration %s failed due to: {}", iterationId,
-							StringUtils.stringifyException(e));
-				}
-				throw e;
+			if (shouldWait) {
+				dataChannel.offer(record, iterationWaitTime, TimeUnit.MILLISECONDS);
+			}
+			else {
+				dataChannel.put(record);
 			}
 		}
 
 		@Override
-		public void processWatermark(Watermark mark) throws Exception {
+		public void processWatermark(Watermark mark) {
 			// ignore
 		}
 	}
-
 }

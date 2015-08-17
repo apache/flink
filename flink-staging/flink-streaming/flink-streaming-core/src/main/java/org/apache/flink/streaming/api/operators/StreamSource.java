@@ -41,24 +41,23 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
-	public void run(final Object lockingObject, final Output<StreamRecord<T>> collector) throws Exception {
+	public void run(Object lockingObject, Output<StreamRecord<T>> collector) throws Exception {
 
-		SourceFunction.SourceContext<T> ctx = null;
+		SourceFunction.SourceContext<T> ctx;
 		if (userFunction instanceof EventTimeSourceFunction) {
 			ctx = new ManualWatermarkContext<T>(lockingObject, collector);
 		} else if (executionConfig.getAutoWatermarkInterval() > 0) {
 			ctx = new AutomaticWatermarkContext<T>(lockingObject, collector, executionConfig);
 		} else if (executionConfig.areTimestampsEnabled()) {
-			ctx = new NonTimestampContext<T>(lockingObject, collector);
-		} else {
 			ctx = new NonWatermarkContext<T>(lockingObject, collector);
+		} else {
+			ctx = new NonTimestampContext<T>(lockingObject, collector);
 		}
 
 		userFunction.run(ctx);
 	}
 
 	public void cancel() {
-
 		userFunction.cancel();
 	}
 
@@ -69,10 +68,9 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 	 */
 	public static class NonTimestampContext<T> implements SourceFunction.SourceContext<T> {
 
-
 		private final Object lockingObject;
 		private final Output<StreamRecord<T>> output;
-		StreamRecord<T> reuse;
+		private final StreamRecord<T> reuse;
 
 		public NonTimestampContext(Object lockingObjectParam, Output<StreamRecord<T>> outputParam) {
 			this.lockingObject = lockingObjectParam;
@@ -105,8 +103,7 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		}
 
 		@Override
-		public void close() {
-		}
+		public void close() {}
 	}
 
 	/**
@@ -114,10 +111,9 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 	 */
 	public static class NonWatermarkContext<T> implements SourceFunction.SourceContext<T> {
 
-
 		private final Object lockingObject;
 		private final Output<StreamRecord<T>> output;
-		StreamRecord<T> reuse;
+		private final StreamRecord<T> reuse;
 
 		public NonWatermarkContext(Object lockingObjectParam, Output<StreamRecord<T>> outputParam) {
 			this.lockingObject = lockingObjectParam;
@@ -151,8 +147,7 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		}
 
 		@Override
-		public void close() {
-		}
+		public void close() {}
 	}
 
 	/**
@@ -161,12 +156,13 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 	 */
 	public static class AutomaticWatermarkContext<T> implements SourceFunction.SourceContext<T> {
 
-		private transient ScheduledFuture<?> watermarkTimer = null;
+		private final ScheduledExecutorService scheduleExecutor;
+		private final ScheduledFuture<?> watermarkTimer;
 		private final long watermarkInterval;
 
 		private final Object lockingObject;
 		private final Output<StreamRecord<T>> output;
-		StreamRecord<T> reuse;
+		private final StreamRecord<T> reuse;
 
 		private volatile long lastWatermarkTime;
 
@@ -179,9 +175,9 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 
 			watermarkInterval = executionConfig.getAutoWatermarkInterval();
 
-			ScheduledExecutorService service = Executors.newScheduledThreadPool(2);
+			scheduleExecutor = Executors.newScheduledThreadPool(1);
 
-			watermarkTimer = service.scheduleAtFixedRate(new Runnable() {
+			watermarkTimer = scheduleExecutor.scheduleAtFixedRate(new Runnable() {
 				@Override
 				public void run() {
 					long currentTime = System.currentTimeMillis();
@@ -237,9 +233,8 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 
 		@Override
 		public void close() {
-			if (watermarkTimer != null && !watermarkTimer.isDone()) {
-				watermarkTimer.cancel(true);
-			}
+			watermarkTimer.cancel(true);
+			scheduleExecutor.shutdownNow();
 		}
 	}
 
@@ -251,7 +246,7 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 
 		private final Object lockingObject;
 		private final Output<StreamRecord<T>> output;
-		StreamRecord<T> reuse;
+		private final StreamRecord<T> reuse;
 
 		public ManualWatermarkContext(Object lockingObject, Output<StreamRecord<T>> output) {
 			this.lockingObject = lockingObject;
@@ -283,8 +278,6 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		}
 
 		@Override
-		public void close() {
-
-		}
+		public void close() {}
 	}
 }

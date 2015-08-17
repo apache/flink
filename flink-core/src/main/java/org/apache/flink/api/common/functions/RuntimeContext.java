@@ -78,7 +78,7 @@ public interface RuntimeContext {
 	 * @return The ClassLoader for user code classes.
 	 */
 	ClassLoader getUserCodeClassLoader();
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	/**

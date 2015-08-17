@@ -49,7 +49,7 @@ public abstract class AbstractInvokable {
 	/**
 	 * Must be overwritten by the concrete task to instantiate the required record reader and record writer.
 	 */
-	public abstract void registerInputOutput();
+	public abstract void registerInputOutput() throws Exception;
 
 	/**
 	 * Must be overwritten by the concrete task. This method is called by the task manager

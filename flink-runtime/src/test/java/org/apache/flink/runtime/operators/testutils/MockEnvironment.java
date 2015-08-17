@@ -63,6 +63,8 @@ import static org.mockito.Mockito.when;
 
 public class MockEnvironment implements Environment {
 	
+	private final String taskName;
+	
 	private final MemoryManager memManager;
 
 	private final IOManager ioManager;
@@ -85,7 +87,8 @@ public class MockEnvironment implements Environment {
 
 	private final int bufferSize;
 
-	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
+	public MockEnvironment(String taskName, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
+		this.taskName = taskName;
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
 		this.inputs = new LinkedList<InputGate>();
@@ -214,12 +217,12 @@ public class MockEnvironment implements Environment {
 
 	@Override
 	public String getTaskName() {
-		return null;
+		return taskName;
 	}
 
 	@Override
 	public String getTaskNameWithSubtasks() {
-		return null;
+		return taskName + "(0/1)";
 	}
 
 	@Override

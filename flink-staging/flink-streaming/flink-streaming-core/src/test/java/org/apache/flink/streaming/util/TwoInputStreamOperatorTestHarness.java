@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -33,7 +34,6 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 import java.io.Serializable;
 import java.util.HashMap;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -60,9 +60,7 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 		executionConfig = new ExecutionConfig();
 
 		StreamingRuntimeContext runtimeContext =  new StreamingRuntimeContext(
-				"MockTwoInputTask",
-				new MockEnvironment(3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
-				getClass().getClassLoader(),
+				new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
 				new ExecutionConfig(),
 				null,
 				new LocalStateHandle.LocalStateHandleProvider<Serializable>(),

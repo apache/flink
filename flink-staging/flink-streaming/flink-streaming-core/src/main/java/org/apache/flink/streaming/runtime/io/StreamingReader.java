@@ -18,10 +18,11 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import org.apache.flink.runtime.io.network.api.reader.ReaderBase;
+
 import java.io.IOException;
 
-public interface StreamingReader {
+public interface StreamingReader extends ReaderBase {
 
-	public void cleanup() throws IOException;
-
+	void cleanup() throws IOException;
 }

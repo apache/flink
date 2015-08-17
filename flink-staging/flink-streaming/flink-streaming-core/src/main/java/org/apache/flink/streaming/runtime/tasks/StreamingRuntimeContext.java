@@ -45,28 +45,32 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * Implementation of the {@link RuntimeContext}, created by runtime stream UDF
  * operators.
  */
-@SuppressWarnings("rawtypes")
 public class StreamingRuntimeContext extends RuntimeUDFContext {
 
 	private final Environment env;
-	private final Map<String, StreamOperatorState> states;
-	private final List<PartitionedStreamOperatorState> partitionedStates;
+	private final Map<String, StreamOperatorState<?, ?>> states;
+	private final List<PartitionedStreamOperatorState<?, ?, ?>> partitionedStates;
 	private final KeySelector<?, ?> statePartitioner;
 	private final StateHandleProvider<Serializable> provider;
-	private final ClassLoader cl;
-
+	
+	
 	@SuppressWarnings("unchecked")
-	public StreamingRuntimeContext(String name, Environment env, ClassLoader userCodeClassLoader,
-			ExecutionConfig executionConfig, KeySelector<?, ?> statePartitioner,
-			StateHandleProvider<?> provider, Map<String, Accumulator<?, ?>> accumulatorMap) {
-		super(name, env.getNumberOfSubtasks(), env.getIndexInSubtaskGroup(), userCodeClassLoader,
-				executionConfig, env.getDistributedCacheEntries(), accumulatorMap);
+	public StreamingRuntimeContext(
+			Environment env,
+			ExecutionConfig executionConfig,
+			KeySelector<?, ?> statePartitioner,
+			StateHandleProvider<?> provider,
+			Map<String, Accumulator<?, ?>> accumulatorMap) {
+		
+		super(env.getTaskName(), env.getNumberOfSubtasks(), env.getIndexInSubtaskGroup(),
+				env.getUserClassLoader(), executionConfig,
+				env.getDistributedCacheEntries(), accumulatorMap);
+		
 		this.env = env;
 		this.statePartitioner = statePartitioner;
-		this.states = new HashMap<String, StreamOperatorState>();
-		this.partitionedStates = new LinkedList<PartitionedStreamOperatorState>();
+		this.states = new HashMap<>();
+		this.partitionedStates = new LinkedList<>();
 		this.provider = (StateHandleProvider<Serializable>) provider;
-		this.cl = userCodeClassLoader;
 	}
 
 	/**
@@ -121,14 +125,14 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 
 	public StreamOperatorState<?, ?> getState(String name, boolean partitioned) {
 		// Try fetching state from the map
-		StreamOperatorState state = states.get(name);
+		StreamOperatorState<?, ?> state = states.get(name);
 		if (state == null) {
 			// If not found, create empty state and add to the map
 			state = createRawState(partitioned);
 			states.put(name, state);
 			// We keep a reference to all partitioned states for registering input
 			if (state instanceof PartitionedStreamOperatorState) {
-				partitionedStates.add((PartitionedStreamOperatorState) state);
+				partitionedStates.add((PartitionedStreamOperatorState<?, ?, ?>) state);
 			}
 		}
 		return state;
@@ -139,11 +143,11 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	 * 
 	 * @return An empty operator state.
 	 */
-	@SuppressWarnings("unchecked")
-	public StreamOperatorState createRawState(boolean partitioned) {
+	@SuppressWarnings({"rawtypes", "unchecked"})
+	public StreamOperatorState<?, ?> createRawState(boolean partitioned) {
 		if (partitioned) {
 			if (statePartitioner != null) {
-				return new PartitionedStreamOperatorState(provider, statePartitioner, cl);
+				return new PartitionedStreamOperatorState(provider, statePartitioner, getUserCodeClassLoader());
 			} else {
 				throw new RuntimeException(
 						"Partitioned state can only be used with KeyedDataStreams.");
@@ -158,7 +162,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	 * 
 	 * @return All the states for the underlying operator.
 	 */
-	public Map<String, StreamOperatorState> getOperatorStates() {
+	public Map<String, StreamOperatorState<?, ?>> getOperatorStates() {
 		return states;
 	}
 
@@ -169,7 +173,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	 * @param nextRecord
 	 *            Next input of the operator.
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void setNextInput(StreamRecord<?> nextRecord) {
 		if (statePartitioner != null) {
 			for (PartitionedStreamOperatorState state : partitionedStates) {
