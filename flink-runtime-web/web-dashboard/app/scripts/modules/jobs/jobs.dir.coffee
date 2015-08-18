@@ -235,11 +235,6 @@ angular.module('flinkApp')
         'node-iteration'
 
       else
-        if el.pact is "Data Source"
-          'node-source'
-        else if el.pact is "Data Sink"
-          'node-sink'
-        else
           'node-normal'
       
     # creates the label of a node, in info is stored, whether it is a special node (like a mirror in an iteration)
@@ -248,13 +243,13 @@ angular.module('flinkApp')
 
       # Nodename
       if info is "mirror"
-        labelValue += "<h3 class='node-name'>Mirror of " + el.pact + "</h3>"
+        labelValue += "<h3 class='node-name'>Mirror of " + el.operator + "</h3>"
       else
-        labelValue += "<h3 class='node-name'>" + el.pact + "</h3>"
-      if el.contents is ""
+        labelValue += "<h3 class='node-name'>" + el.operator + "</h3>"
+      if el.description is ""
         labelValue += ""
       else
-        stepName = el.contents
+        stepName = el.description
         
         # clean stepName
         stepName = shortenString(stepName)
@@ -268,7 +263,7 @@ angular.module('flinkApp')
         # Otherwise add infos    
         labelValue += "<h5>" + info + " Node</h5>"  if isSpecialIterationNode(info)
         labelValue += "<h5>Parallelism: " + el.parallelism + "</h5>"  unless el.parallelism is ""
-        labelValue += "<h5>Driver Strategy: " + shortenString(el.driver_strategy) + "</h5"  unless el.driver_strategy is `undefined`
+        labelValue += "<h5>Operation: " + shortenString(el.operator_strategy) + "</h5>"  unless el.operator is `undefined`
       
       labelValue += "</a>"
       labelValue
@@ -398,9 +393,9 @@ angular.module('flinkApp')
 
         existingNodes.push el.id
         
-        # create edges from predecessors to current node
-        if el.predecessors?
-          for pred in el.predecessors
+        # create edges from inputs to current node
+        if el.inputs?
+          for pred in el.inputs
             createEdge(g, data, el, existingNodes, pred)
 
       g

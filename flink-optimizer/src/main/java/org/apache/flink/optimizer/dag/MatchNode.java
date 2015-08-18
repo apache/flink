@@ -63,7 +63,7 @@ public class MatchNode extends TwoInputNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Join";
 	}
 

@@ -18,18 +18,18 @@
 .panel.panel-default.panel-multi(ng-if="node")
   .panel-heading.clearfix
     .panel-title
-      | {{ node.pact }}
+      | {{ node.operator }}
 
     .panel-info.first
       | ID: {{ node.id }}
 
-    .panel-info(ng-if="node.contents")
+    .panel-info(ng-if="node.description")
       .label-group
         bs-label(status="{{status}}" ng-repeat="(index, status) in stateList") {{node.vertex.groupvertex[status]}}
 
   .panel-heading.clearfix
-    .panel-info.first.last(ng-if="node.contents")
-      span {{ node.contents }}
+    .panel-info.first.last(ng-if="node.description")
+      span {{ node.description }}
 
   .panel-body
     table.table.table-hover.table-clickable
@@ -79,20 +79,16 @@
         thead
           tr
             th(colspan="2")
-              | Pact Properties
+              | Properties
 
         tbody
           tr
             td Operator
-            td(table-property value="node.driver_strategy")
+            td(table-property value="node.operator_strategy")
 
           tr
             td Parallelism
             td(table-property value="node.parallelism")
-
-          tr
-            td Subtasks-per-instance
-            td(table-property value="node.subtasks_per_instance")
 
 
   .hidden-sm.col-md-4
@@ -100,20 +96,17 @@
       thead
         tr
           th(colspan="2")
-            | Pact Properties
+            | Properties
 
       tbody
         tr
           td Operator
-          td(table-property value="node.driver_strategy")
+          td(table-property value="node.operator_strategy")
 
         tr
           td Parallelism
           td(table-property value="node.parallelism")
 
-        tr
-          td Subtasks-per-instance
-          td(table-property value="node.subtasks_per_instance")
 
     table.table.table-properties(ng-if="node.estimates")
       thead

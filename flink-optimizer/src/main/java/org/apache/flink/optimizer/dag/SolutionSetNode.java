@@ -79,7 +79,7 @@ public class SolutionSetNode extends AbstractPartialSolutionNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Solution Set";
 	}
 	

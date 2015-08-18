@@ -24,7 +24,6 @@ import java.util.List;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SemanticProperties;
-import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.optimizer.CompilerException;
@@ -45,6 +44,8 @@ public class GroupReduceNode extends SingleInputNode {
 	
 	private final List<OperatorDescriptorSingle> possibleProperties;
 	
+	private final String operatorName;
+	
 	private GroupReduceNode combinerUtilityNode;
 	
 	/**
@@ -54,6 +55,7 @@ public class GroupReduceNode extends SingleInputNode {
 	 */
 	public GroupReduceNode(GroupReduceOperatorBase<?, ?, ?> operator) {
 		super(operator);
+		this.operatorName = "GroupReduce";
 		
 		if (this.keys == null) {
 			// case of a key-less reducer. force a parallelism of 1
@@ -63,8 +65,9 @@ public class GroupReduceNode extends SingleInputNode {
 		this.possibleProperties = initPossibleProperties(operator.getCustomPartitioner());
 	}
 	
-	public GroupReduceNode(GroupReduceNode reducerToCopyForCombiner) {
+	private GroupReduceNode(GroupReduceNode reducerToCopyForCombiner) {
 		super(reducerToCopyForCombiner);
+		this.operatorName = "GroupCombine";
 		
 		this.possibleProperties = Collections.emptyList();
 	}
@@ -95,7 +98,7 @@ public class GroupReduceNode extends SingleInputNode {
 		// check if we can work with a grouping (simple reducer), or if we need ordering because of a group order
 		Ordering groupOrder = null;
 		if (getOperator() instanceof GroupReduceOperatorBase) {
-			groupOrder = ((GroupReduceOperatorBase<?, ?, ?>) getOperator()).getGroupOrder();
+			groupOrder = getOperator().getGroupOrder();
 			if (groupOrder != null && groupOrder.getNumberOfFields() == 0) {
 				groupOrder = null;
 			}
@@ -131,8 +134,8 @@ public class GroupReduceNode extends SingleInputNode {
 	}
 
 	@Override
-	public String getName() {
-		return "GroupReduce";
+	public String getOperatorName() {
+		return this.operatorName;
 	}
 	
 	@Override
@@ -142,10 +145,8 @@ public class GroupReduceNode extends SingleInputNode {
 
 	@Override
 	protected SemanticProperties getSemanticPropertiesForLocalPropertyFiltering() {
-
 		// Local properties for GroupReduce may only be preserved on key fields.
-		SingleInputSemanticProperties origProps =
-				((SingleInputOperator<?,?,?>) getOperator()).getSemanticProperties();
+		SingleInputSemanticProperties origProps = getOperator().getSemanticProperties();
 		SingleInputSemanticProperties filteredProps = new SingleInputSemanticProperties();
 		FieldSet readSet = origProps.getReadFields(0);
 		if(readSet != null) {
