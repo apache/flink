@@ -390,19 +390,22 @@ svg.graph .node-label {
   margin: 0;
   text-decoration: none;
 }
+.timeline {
+  overflow: hidden;
+}
 .timeline-canvas {
   overflow: hidden;
   padding: 10px;
 }
-svg.timeline {
+.timeline-canvas .bar-container {
   overflow: hidden;
 }
-svg.timeline .timeline-insidelabel,
-svg.timeline .timeline-series {
+.timeline-canvas .timeline-insidelabel,
+.timeline-canvas .timeline-series {
   cursor: pointer;
 }
-svg.timeline.secondary .timeline-insidelabel,
-svg.timeline.secondary .timeline-series {
+.timeline-canvas.secondary .timeline-insidelabel,
+.timeline-canvas.secondary .timeline-series {
   cursor: auto;
 }
 @media (min-width: 768px) {

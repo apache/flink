@@ -27,7 +27,6 @@ angular.module('flinkApp')
     data: "="
 
   link: (scope, elem, attrs) ->
-    zoom = d3.behavior.zoom()
     svgEl = elem.children()[0]
 
     containerW = elem.width()
@@ -63,28 +62,25 @@ angular.module('flinkApp')
           ]
         }
 
-      chart = d3.timeline().stack().tickFormat({
-        format: d3.time.format("%S"),
-        # tickTime: d3.time.milliseconds,
-        tickInterval: 1,
+      chart = d3.timeline().stack()
+      .tickFormat({
+        format: d3.time.format("%L")
+        # tickInterval: 1
         tickSize: 1
-      }).labelFormat((label) ->
+      })
+      .prefix("single")
+      .labelFormat((label) ->
         label
-      ).margin({ left: 100, right: 0, top: 0, bottom: 0 })
+      )
+      .margin({ left: 100, right: 0, top: 0, bottom: 0 })
+      .itemHeight(24)
+      .relativeTime()
 
       svg = d3.select(svgEl)
       .datum(testData)
       .call(chart)
-      .call(zoom)
 
       svgG = svg.select("g")
-
-      zoom.on("zoom", ->
-        ev = d3.event
-
-        svgG.selectAll('rect').attr("transform", "translate(" + ev.translate[0] + ",0) scale(" + ev.scale + ",1)")
-        svgG.selectAll('text').attr("transform", "translate(" + ev.translate[0] + ",0) scale(" + ev.scale + ",1)")
-      )
 
       bbox = svgG[0][0].getBBox()
       svg.attr('height', bbox.height + 30)
@@ -102,11 +98,13 @@ angular.module('flinkApp')
     job: "="
 
   link: (scope, elem, attrs) ->
-    zoom = d3.behavior.zoom()
     svgEl = elem.children()[0]
 
     containerW = elem.width()
     angular.element(svgEl).attr('width', containerW - 16)
+
+    translateLabel = (label) ->
+      label.replace("&gt;", ">")
 
     analyzeTime = (data) ->
       testData = []
@@ -118,8 +116,8 @@ angular.module('flinkApp')
 
         testData.push 
           times: [
-            label: vertex.groupvertexname
-            color: "#3fb6d8"
+            label: translateLabel(vertex.groupvertexname)
+            color: "#62cdea"
             starting_time: vTime["STARTED"]
             ending_time: vTime["ENDED"]
             link: vertex.groupvertexid
@@ -128,26 +126,24 @@ angular.module('flinkApp')
       chart = d3.timeline().stack().click((d, i, datum) ->
         $state.go "single-job.timeline.vertex", { jobid: data.jid, vertexId: d.link }
 
-      ).tickFormat({
-        format: d3.time.format("%S")
-        # tickTime: d3.time.milliseconds
-        tickInterval: 1
+      )
+      .tickFormat({
+        format: d3.time.format("%L")
+        # tickTime: d3.time.second
+        # tickInterval: 0.5
         tickSize: 1
-      }).margin({ left: 0, right: 0, top: 0, bottom: 0 })
+      })
+      .prefix("main")
+      .margin({ left: 0, right: 0, top: 0, bottom: 0 })
+      .itemHeight(24)
+      .showBorderLine()
+      .showHourTimeline()
 
       svg = d3.select(svgEl)
       .datum(testData)
       .call(chart)
-      .call(zoom)
 
       svgG = svg.select("g")
-
-      zoom.on("zoom", ->
-        ev = d3.event
-
-        svgG.selectAll('rect').attr("transform", "translate(" + ev.translate[0] + ",0) scale(" + ev.scale + ",1)")
-        svgG.selectAll('text').attr("transform", "translate(" + ev.translate[0] + ",0) scale(" + ev.scale + ",1)")
-      )
 
       bbox = svgG[0][0].getBBox()
       svg.attr('height', bbox.height + 30)

@@ -41,9 +41,9 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
 .run (JobsService, flinkConfig, $interval) ->
   JobsService.listJobs()
 
-  $interval ->
-    JobsService.listJobs()
-  , flinkConfig.refreshInterval
+  # $interval ->
+  #   JobsService.listJobs()
+  # , flinkConfig.refreshInterval
 
 
 # --------------------------------------
