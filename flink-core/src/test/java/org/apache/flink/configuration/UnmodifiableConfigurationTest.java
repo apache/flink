@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
@@ -34,7 +35,7 @@ import java.util.Map;
  * This class verifies that the Unmodifiable Configuration class overrides all setter methods in
  * Configuration.
  */
-public class UnmodifiableConfigurationTest {
+public class UnmodifiableConfigurationTest extends TestLogger {
 	
 	@Test
 	public void testOverrideAddMethods() {

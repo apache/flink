@@ -36,12 +36,13 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Assert;
 
 import java.util.List;
 
-public abstract class TaskTestBase {
+public abstract class TaskTestBase extends TestLogger {
 	
 	protected long memorySize = 0;
 

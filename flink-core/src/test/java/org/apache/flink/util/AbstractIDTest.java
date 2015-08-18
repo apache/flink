@@ -30,7 +30,7 @@ import java.nio.ByteBuffer;
 /**
  * This class contains tests for the {@link org.apache.flink.util.AbstractID} class.
  */
-public class AbstractIDTest {
+public class AbstractIDTest extends TestLogger {
 	/**
 	 * Tests the serialization/deserialization of an abstract ID.
 	 */
