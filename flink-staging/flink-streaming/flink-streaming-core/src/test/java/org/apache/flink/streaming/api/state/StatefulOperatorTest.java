@@ -52,7 +52,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.Test;
 
@@ -170,9 +169,9 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 		}, context);
 
 		if (serializedState != null) {
+			ClassLoader cl = Thread.currentThread().getContextClassLoader();
 			op.restoreInitialState((Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>) InstantiationUtil
-					.deserializeObject(serializedState, Thread.currentThread()
-							.getContextClassLoader()));
+					.deserializeObject(serializedState, cl));
 		}
 
 		op.open(null);

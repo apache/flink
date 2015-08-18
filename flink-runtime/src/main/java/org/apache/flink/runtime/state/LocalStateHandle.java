@@ -34,7 +34,8 @@ public class LocalStateHandle<T extends Serializable> implements StateHandle<T> 
 	}
 
 	@Override
-	public T getState() {
+	public T getState(ClassLoader userCodeClassLoader) {
+		// The object has been deserialized correctly before
 		return state;
 	}
 

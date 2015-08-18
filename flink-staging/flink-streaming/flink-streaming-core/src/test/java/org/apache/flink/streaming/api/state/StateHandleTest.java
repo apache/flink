@@ -45,7 +45,7 @@ public class StateHandleTest {
 		MockHandle<Serializable> h1 = new MockHandle<Serializable>(1);
 
 		OperatorStateHandle opHandle = new OperatorStateHandle(h1, true);
-		assertEquals(1, opHandle.getState());
+		assertEquals(1, opHandle.getState(this.getClass().getClassLoader()));
 
 		OperatorStateHandle dsHandle = serializeDeserialize(opHandle);
 		MockHandle<Serializable> h2 = (MockHandle<Serializable>) dsHandle.getHandle();
@@ -60,6 +60,7 @@ public class StateHandleTest {
 
 	@Test
 	public void wrapperStateHandleTest() throws Exception {
+		final ClassLoader cl = this.getClass().getClassLoader();
 
 		MockHandle<Serializable> h1 = new MockHandle<Serializable>(1);
 		MockHandle<Serializable> h2 = new MockHandle<Serializable>(2);
@@ -82,16 +83,16 @@ public class StateHandleTest {
 
 		@SuppressWarnings("unchecked")
 		Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> dsFullState = ((List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>>) dsWrapper
-				.getState()).get(0);
+				.getState(cl)).get(0);
 
 		Map<String, OperatorStateHandle> dsOpHandles = dsFullState.f1;
 
-		assertNull(dsFullState.f0.getState());
+		assertNull(dsFullState.f0.getState(cl));
 		assertFalse(((MockHandle<?>) dsFullState.f0).discarded);
 		assertFalse(((MockHandle<?>) dsOpHandles.get("h1").getHandle()).discarded);
-		assertNull(dsOpHandles.get("h1").getState());
+		assertNull(dsOpHandles.get("h1").getState(cl));
 		assertFalse(((MockHandle<?>) dsOpHandles.get("h2").getHandle()).discarded);
-		assertNull(dsOpHandles.get("h2").getState());
+		assertNull(dsOpHandles.get("h2").getState(cl));
 
 		dsWrapper.discardState();
 
@@ -126,7 +127,7 @@ public class StateHandleTest {
 		}
 
 		@Override
-		public T getState() {
+		public T getState(ClassLoader userCodeClassLoader) {
 			return state;
 		}
 	}

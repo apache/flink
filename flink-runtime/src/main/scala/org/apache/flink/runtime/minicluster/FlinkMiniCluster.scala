@@ -24,7 +24,7 @@ import akka.pattern.Patterns.gracefulStop
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.Config
-import org.apache.flink.api.common.JobSubmissionResult
+import org.apache.flink.api.common.{JobExecutionResult, JobSubmissionResult}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
@@ -239,7 +239,7 @@ abstract class FlinkMiniCluster(
 
   @throws(classOf[JobExecutionException])
   def submitJobAndWait(jobGraph: JobGraph, printUpdates: Boolean)
-                                                                : SerializedJobExecutionResult = {
+                                                                : JobExecutionResult = {
 
     submitJobAndWait(jobGraph, printUpdates, timeout)
   }
@@ -249,7 +249,7 @@ abstract class FlinkMiniCluster(
       jobGraph: JobGraph,
       printUpdates: Boolean,
       timeout: FiniteDuration)
-    : SerializedJobExecutionResult = {
+    : JobExecutionResult = {
 
     val clientActorSystem = if (singleActorSystem) jobManagerActorSystem
     else JobClient.startJobClientActorSystem(configuration)
@@ -259,7 +259,8 @@ abstract class FlinkMiniCluster(
       getJobManagerGateway(),
       jobGraph,
       timeout,
-      printUpdates)
+      printUpdates,
+      this.getClass.getClassLoader)
   }
 
   @throws(classOf[JobExecutionException])

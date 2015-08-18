@@ -50,7 +50,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -418,15 +417,8 @@ public class Client {
 
 		try{
 			if (wait) {
-				SerializedJobExecutionResult result = JobClient.submitJobAndWait(actorSystem, 
-						jobManagerGateway, jobGraph, timeout, printStatusDuringExecution);
-				try {
-					return result.toJobExecutionResult(this.userCodeClassLoader);
-				}
-				catch (Exception e) {
-					throw new ProgramInvocationException(
-							"Failed to deserialize the accumulator result after the job execution", e);
-				}
+				return JobClient.submitJobAndWait(actorSystem,
+						jobManagerGateway, jobGraph, timeout, printStatusDuringExecution, this.userCodeClassLoader);
 			}
 			else {
 				JobClient.submitJobDetached(jobManagerGateway, jobGraph, timeout);

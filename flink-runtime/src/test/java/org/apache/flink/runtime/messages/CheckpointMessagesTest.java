@@ -83,7 +83,7 @@ public class CheckpointMessagesTest {
 		private static final long serialVersionUID = 8128146204128728332L;
 
 		@Override
-		public Serializable getState() {
+		public Serializable getState(ClassLoader userCodeClassLoader) {
 			return null;
 		}
 

@@ -47,11 +47,10 @@ import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.util.ZooKeeperUtil
-import org.apache.flink.runtime.util.{SerializedValue, EnvironmentInformation}
+import org.apache.flink.runtime.util.{SerializedThrowable, ZooKeeperUtil, SerializedValue, EnvironmentInformation}
 import org.apache.flink.runtime.webmonitor.WebMonitor
 import org.apache.flink.runtime.{FlinkActor, StreamingMode, LeaderSessionMessages}
-import org.apache.flink.runtime.{LogMessages}
+import org.apache.flink.runtime.LogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway, InstanceManager}
@@ -327,8 +326,11 @@ class JobManager(
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
 
+          val deserializedError = if(error != null) {
+            error.deserializeError(executionGraph.getUserClassLoader)
+          } else null
           log.info(s"Status of job $jobID (${executionGraph.getJobName}) changed to $newJobStatus.",
-            error)
+            deserializedError)
 
           if (newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp
@@ -349,27 +351,29 @@ class JobManager(
 
               case JobStatus.CANCELED =>
                 jobInfo.client ! decorateMessage(
-                  Failure(
-                    new JobCancellationException(
-                      jobID,
-                    "Job was cancelled.", error)
+                  Failure(new SerializedThrowable(
+                      new JobCancellationException(
+                        jobID,
+                      "Job was cancelled.", deserializedError)
+                    )
                   )
                 )
 
               case JobStatus.FAILED =>
                 jobInfo.client ! decorateMessage(
-                  Failure(
-                    new JobExecutionException(
-                      jobID,
-                      "Job execution failed.",
-                      error)
+                  Failure(new SerializedThrowable(
+                      new JobExecutionException(
+                        jobID,
+                        "Job execution failed.",
+                        deserializedError)
+                    )
                   )
                 )
 
               case x =>
                 val exception = new JobExecutionException(jobID, s"$x is not a " +
                   "terminal state.")
-                jobInfo.client ! decorateMessage(Failure(exception))
+                jobInfo.client ! decorateMessage(Failure(new SerializedThrowable(exception)))
                 throw exception
             }
 

@@ -20,7 +20,6 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.slf4j.Logger;
@@ -31,7 +30,6 @@ import org.slf4j.LoggerFactory;
 public class ClusterUtil {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClusterUtil.class);
-	public static final String CANNOT_EXECUTE_EMPTY_JOB = "Cannot execute empty job";
 
 	/**
 	 * Executes the given JobGraph locally, on a FlinkMiniCluster
@@ -59,10 +57,7 @@ public class ClusterUtil {
 
 		try {
 			exec = new LocalFlinkMiniCluster(configuration, true);
-			SerializedJobExecutionResult result = exec.submitJobAndWait(jobGraph, printDuringExecution);
-			return result.toJobExecutionResult(ClusterUtil.class.getClassLoader());
-		} catch (Exception e) {
-			throw e;
+			return exec.submitJobAndWait(jobGraph, printDuringExecution);
 		} finally {
 			if (exec != null) {
 				exec.stop();
@@ -87,12 +82,8 @@ public class ClusterUtil {
 				LOG.info("Running on mini cluster");
 			}
 
-			try {
-				exec = new LocalFlinkMiniCluster(configuration, true);
-				exec.submitJobDetached(jobGraph);
-			} catch (Exception e) {
-				throw e;
-			}
+			exec = new LocalFlinkMiniCluster(configuration, true);
+			exec.submitJobDetached(jobGraph);
 	}
 
 	public static void startOnMiniCluster(JobGraph jobGraph, int numOfSlots) throws Exception {

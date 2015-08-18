@@ -96,8 +96,8 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 	}
 
 	@SuppressWarnings("unchecked")
-	public void restoreState(StateHandle<Serializable> snapshot) throws Exception {
-		update((S) checkpointer.restoreState((C) snapshot.getState()));
+	public void restoreState(StateHandle<Serializable> snapshot, ClassLoader userCodeClassLoader) throws Exception {
+		update(checkpointer.restoreState((C) snapshot.getState(userCodeClassLoader)));
 	}
 
 	public Map<Serializable, S> getPartitionedState() throws Exception {
