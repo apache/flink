@@ -23,6 +23,7 @@ import akka.actor.ActorSystem;
 import akka.actor.InvalidActorNameException;
 import akka.actor.Kill;
 import akka.actor.Props;
+import akka.actor.Terminated;
 import akka.actor.UntypedActor;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManage
 import org.apache.flink.runtime.messages.RegistrationMessages.RefuseRegistration;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManager;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -60,7 +62,7 @@ import static org.junit.Assert.*;
  * when connecting to the JobManager, and when the JobManager
  * is unreachable.
  */
-public class TaskManagerRegistrationTest {
+public class TaskManagerRegistrationTest extends TestLogger {
 
 	private static final Option<String> NONE_STRING = Option.empty();
 
@@ -310,11 +312,22 @@ public class TaskManagerRegistrationTest {
 				stopActor(fakeJobManager1);
 
 				// wait for the killing to be completed
-				new Within(new FiniteDuration(2, TimeUnit.SECONDS)) {
+				final FiniteDuration timeout = new FiniteDuration(2, TimeUnit.SECONDS);
+
+				new Within(timeout) {
 
 					@Override
 					protected void run() {
-						expectTerminated(fakeJobManager1);
+						Object message = null;
+
+						// we might also receive RegisterTaskManager and Heartbeat messages which
+						// are queued up in the testing actor's mailbox
+						while(message == null || !(message instanceof Terminated)) {
+							message = receiveOne(timeout);
+						}
+
+						Terminated terminatedMessage = (Terminated) message;
+						assertEquals(fakeJobManager1, terminatedMessage.actor());
 					}
 				};
 
