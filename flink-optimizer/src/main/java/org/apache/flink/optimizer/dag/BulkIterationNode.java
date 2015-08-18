@@ -184,7 +184,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Bulk Iteration";
 	}
 
@@ -352,7 +352,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		// 5) Create a candidate for the Iteration Node for every remaining plan of the step function.
 		if (terminationCriterion == null) {
 			for (PlanNode candidate : candidates) {
-				BulkIterationPlanNode node = new BulkIterationPlanNode(this, "BulkIteration ("+this.getOperator().getName()+")", in, pspn, candidate);
+				BulkIterationPlanNode node = new BulkIterationPlanNode(this, this.getOperator().getName(), in, pspn, candidate);
 				GlobalProperties gProps = candidate.getGlobalProperties().clone();
 				LocalProperties lProps = candidate.getLocalProperties().clone();
 				node.initProperties(gProps, lProps);

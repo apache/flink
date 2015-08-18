@@ -59,7 +59,7 @@ public class PartitionNode extends SingleInputNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Partition";
 	}
 

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
+import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService}
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
@@ -647,7 +648,15 @@ class JobManager(
         executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
         executionGraph.setScheduleMode(jobGraph.getScheduleMode())
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling())
-        executionGraph.setJsonPlan(jobGraph.getJsonPlan())
+        
+        try {
+          executionGraph.setJsonPlan(JsonPlanGenerator.generatePlan(jobGraph))
+        }
+        catch {
+          case t: Throwable =>
+            log.warn("Cannot create JSON plan for job", t)
+            executionGraph.setJsonPlan("{}")
+        }
         
         // initialize the vertices that have a master initialization hook
         // file output formats create directories here, input formats create splits
