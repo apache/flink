@@ -102,6 +102,40 @@ case class DenseVector(
     }
   }
 
+  /** Returns the outer product of the recipient and the argument
+    *
+    *
+    * @param other
+    * @return
+    *
+    * TODO: Dense x Dense should yield Dense,
+    * Sparse x Sparse should yield Sparse,
+    * Dense x Sparse (and the other way around) should yield Sparse
+    */
+  override def outer(other: Vector): Matrix = {
+    val numRows = size
+    val numCols = other.size
+
+    other match {
+      case SparseVector(size, indices, data_) =>
+        val entries: Array[(Int, Int, Double)] = for {
+          i <- (0 until numRows).toArray
+          j <- indices
+          value = this(i) * other(j)
+          if value != 0
+        } yield (i, j, value)
+
+        SparseMatrix.fromCOO(numRows, numCols, entries)
+      case _ =>
+        val values = for {
+          i <- (0 until numRows)
+          j <- (0 until numCols)
+        } yield this(i) * other(j)
+
+        DenseMatrix(numRows, numCols, values.toArray)
+    }
+  }
+
   /** Magnitude of a vector
     *
     * @return
