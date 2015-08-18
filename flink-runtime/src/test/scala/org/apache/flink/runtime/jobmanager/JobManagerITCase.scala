@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGra
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
+import org.apache.flink.runtime.util.SerializedThrowable
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -84,11 +85,13 @@ class JobManagerITCase(_system: ActorSystem)
 
         within(2 second) {
           val response = expectMsgType[Failure]
-          val exception = response.cause
+          val exception = SerializedThrowable.get(response.cause, this.getClass.getClassLoader)
           exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
-              new NoResourceAvailableException(1,1,0) should equal(e.getCause)
+              val cause = e.getCause.asInstanceOf[SerializedThrowable].deserializeError(
+                this.getClass.getClassLoader)
+              new NoResourceAvailableException(1,1,0) should equal(cause)
             case e => fail(s"Received wrong exception of type $e.")
           }
         }
@@ -261,8 +264,9 @@ class JobManagerITCase(_system: ActorSystem)
 
           expectMsg(Success(jobGraph.getJobID))
           val failure = expectMsgType[Failure]
+          val exception = SerializedThrowable.get(failure.cause, this.getClass.getClassLoader)
 
-          failure.cause match {
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -388,8 +392,8 @@ class JobManagerITCase(_system: ActorSystem)
           expectMsg(Success(jobGraph.getJobID))
 
           val failure = expectMsgType[Failure]
-
-          failure.cause match {
+          val exception = SerializedThrowable.get(failure.cause, this.getClass.getClassLoader)
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -434,9 +438,10 @@ class JobManagerITCase(_system: ActorSystem)
         within(TestingUtils.TESTING_DURATION) {
           jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
 
-          failure.cause match {
+          val failure = expectMsgType[Failure]
+          val exception = SerializedThrowable.get(failure.cause, this.getClass.getClassLoader)
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -473,9 +478,10 @@ class JobManagerITCase(_system: ActorSystem)
         within(TestingUtils.TESTING_DURATION) {
           jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
 
-          failure.cause match {
+          val failure = expectMsgType[Failure]
+          val exception = SerializedThrowable.get(failure.cause, this.getClass.getClassLoader)
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -515,9 +521,10 @@ class JobManagerITCase(_system: ActorSystem)
 
           jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
 
-          failure.cause match {
+          val failure = expectMsgType[Failure]
+          val exception = SerializedThrowable.get(failure.cause, this.getClass.getClassLoader)
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -562,9 +569,10 @@ class JobManagerITCase(_system: ActorSystem)
 
           jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
 
-          failure.cause match {
+          val failure = expectMsgType[Failure]
+          val exception = SerializedThrowable.get(failure.cause, this.getClass.getClassLoader)
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 

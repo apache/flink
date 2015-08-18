@@ -69,10 +69,10 @@ public class EagerStateStore<S, C extends Serializable> implements PartitionedSt
 	}
 
 	@Override
-	public void restoreStates(StateHandle<Serializable> snapshot) throws Exception {
+	public void restoreStates(StateHandle<Serializable> snapshot, ClassLoader userCodeClassLoader) throws Exception {
 		
 		@SuppressWarnings("unchecked")
-		Map<Serializable, C> checkpoints = (Map<Serializable, C>) snapshot.getState();
+		Map<Serializable, C> checkpoints = (Map<Serializable, C>) snapshot.getState(userCodeClassLoader);
 		
 		// we map the values back to the state from the checkpoints
 		for (Entry<Serializable, C> snapshotEntry : checkpoints.entrySet()) {

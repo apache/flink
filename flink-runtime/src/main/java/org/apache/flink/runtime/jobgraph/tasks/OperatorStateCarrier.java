@@ -33,6 +33,6 @@ public interface OperatorStateCarrier<T extends StateHandle<?>> {
 	 * 
 	 * @param stateHandle The handle to the state.
 	 */
-	public void setInitialState(T stateHandle) throws Exception;
+	void setInitialState(T stateHandle) throws Exception;
 
 }

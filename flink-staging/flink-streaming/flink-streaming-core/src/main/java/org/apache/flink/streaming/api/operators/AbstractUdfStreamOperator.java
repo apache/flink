@@ -78,9 +78,10 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 	@Override
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public void restoreInitialState(Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> snapshots) throws Exception {
+
 		// Restore state using the Checkpointed interface
 		if (userFunction instanceof Checkpointed && snapshots.f0 != null) {
-			((Checkpointed) userFunction).restoreState(snapshots.f0.getState());
+			((Checkpointed) userFunction).restoreState(snapshots.f0.getState(runtimeContext.getUserCodeClassLoader()));
 		}
 		
 		if (snapshots.f1 != null) {
@@ -88,7 +89,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 			for (Entry<String, OperatorStateHandle> snapshot : snapshots.f1.entrySet()) {
 				StreamOperatorState restoredOpState = runtimeContext.getState(snapshot.getKey(), snapshot.getValue().isPartitioned());
 				StateHandle<Serializable> checkpointHandle = snapshot.getValue();
-				restoredOpState.restoreState(checkpointHandle);
+				restoredOpState.restoreState(checkpointHandle, runtimeContext.getUserCodeClassLoader());
 			}
 		}
 		

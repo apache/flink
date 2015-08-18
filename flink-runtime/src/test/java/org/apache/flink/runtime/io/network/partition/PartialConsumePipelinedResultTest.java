@@ -105,7 +105,7 @@ public class PartialConsumePipelinedResultTest {
 				flink.getJobManagerGateway(),
 				jobGraph,
 				TestingUtils.TESTING_DURATION(),
-				false);
+				false, this.getClass().getClassLoader());
 	}
 
 	// ---------------------------------------------------------------------------------------------

@@ -33,6 +33,7 @@ import org.apache.flink.runtime.messages.TaskManagerMessages.{RegisteredAtJobMan
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
+import org.apache.flink.runtime.util.SerializedThrowable
 import org.apache.flink.test.util.ForkableFlinkMiniCluster
 
 import org.junit.runner.RunWith
@@ -126,8 +127,8 @@ class TaskManagerFailsITCase(_system: ActorSystem)
           }
 
           val failure = expectMsgType[Failure]
-
-          failure.cause match {
+          val exception = SerializedThrowable.get(failure.cause, this.getClass.getClassLoader)
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -169,8 +170,8 @@ class TaskManagerFailsITCase(_system: ActorSystem)
           taskManagers(0) ! Kill
 
           val failure = expectMsgType[Failure]
-
-          failure.cause match {
+          val exception = SerializedThrowable.get(failure.cause, this.getClass.getClassLoader)
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -208,8 +209,8 @@ class TaskManagerFailsITCase(_system: ActorSystem)
           tm ! PoisonPill
 
           val failure = expectMsgType[Failure]
-
-          failure.cause match {
+          val exception = SerializedThrowable.get(failure.cause, this.getClass.getClassLoader)
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 

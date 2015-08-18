@@ -46,7 +46,7 @@ public class InstantiationUtil {
 	 * user-code ClassLoader.
 	 *
 	 */
-	private static class ClassLoaderObjectInputStream extends ObjectInputStream {
+	public static class ClassLoaderObjectInputStream extends ObjectInputStream {
 		private ClassLoader classLoader;
 
 		private static final HashMap<String, Class<?>> primitiveClasses

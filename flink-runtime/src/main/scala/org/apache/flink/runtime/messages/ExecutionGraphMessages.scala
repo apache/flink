@@ -25,6 +25,7 @@ import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID}
+import org.apache.flink.runtime.util.SerializedThrowable
 
 /**
  * This object contains the execution graph specific messages.
@@ -74,13 +75,13 @@ object ExecutionGraphMessages {
    * @param jobID identifying the corresponding job
    * @param newJobStatus
    * @param timestamp
-   * @param error
+   * @param serializedError
    */
   case class JobStatusChanged(
       jobID: JobID,
       newJobStatus: JobStatus,
       timestamp: Long,
-      error: Throwable)
+      serializedError: SerializedThrowable)
     extends RequiresLeaderSessionID {
     override def toString: String = {
       s"${timestampToString(timestamp)}\tJob execution switched to status $newJobStatus."
