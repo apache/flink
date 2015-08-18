@@ -27,7 +27,7 @@ import breeze.linalg.{SparseVector => BreezeSparseVector, DenseVector => BreezeD
  * @param data Array of doubles to store the vector elements
  */
 case class DenseVector(
-    val data: Array[Double])
+    data: Array[Double])
   extends Vector
   with Serializable {
 
@@ -76,8 +76,8 @@ case class DenseVector(
 
   /** Updates the element at the given index with the provided value
     *
-    * @param index
-    * @param value
+    * @param index Index whose value is updated.
+    * @param value The value used to update the index.
     */
   override def update(index: Int, value: Double): Unit = {
     require(0 <= index && index < data.length, index + " not in [0, " + data.length + ")")
@@ -99,6 +99,38 @@ case class DenseVector(
           case (idx, sparseIdx) => data(idx) * otherData(sparseIdx)
         }.sum
       case _ => (0 until size).map(i => data(i) * other(i)).sum
+    }
+  }
+
+  /** Returns the outer product (a.k.a. Kronecker product) of `this`
+    * with `other`. The result will given in [[org.apache.flink.ml.math.SparseMatrix]]
+    * representation if `other` is sparse and as [[org.apache.flink.ml.math.DenseMatrix]] otherwise.
+    *
+    * @param other a Vector
+    * @return the [[org.apache.flink.ml.math.Matrix]] which equals the outer product of `this`
+    *         with `other.`
+    */
+  override def outer(other: Vector): Matrix = {
+    val numRows = size
+    val numCols = other.size
+
+    other match {
+      case sv: SparseVector =>
+        val entries = for {
+          i <- 0 until numRows
+          (j, k) <- sv.indices.zipWithIndex
+          value = this(i) * sv.data(k)
+          if value != 0
+        } yield (i, j, value)
+
+        SparseMatrix.fromCOO(numRows, numCols, entries)
+      case _ =>
+        val values = for {
+          i <- 0 until numRows
+          j <- 0 until numCols
+        } yield this(i) * other(j)
+
+        DenseMatrix(numRows, numCols, values.toArray)
     }
   }
 
