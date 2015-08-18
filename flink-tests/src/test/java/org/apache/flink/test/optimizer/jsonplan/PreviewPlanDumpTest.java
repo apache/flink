@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.compiler.plandump;
+package org.apache.flink.test.optimizer.jsonplan;
 
 import java.util.List;
 

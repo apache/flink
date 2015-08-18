@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.test.compiler.iterations;
+package org.apache.flink.test.optimizer.iterations;
 
 import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
 import static org.junit.Assert.fail;

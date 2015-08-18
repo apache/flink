@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.compiler.examples;
+package org.apache.flink.test.optimizer.examples;
 
 import java.util.Arrays;
 

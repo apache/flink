@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.compiler.plandump;
+package org.apache.flink.test.optimizer.jsonplan;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;

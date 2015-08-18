@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.compiler.iterations;
+package org.apache.flink.test.optimizer.iterations;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
