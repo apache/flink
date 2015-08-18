@@ -154,6 +154,7 @@ gulp.task('styles', function () {
 gulp.task('watch', function () {
   livereload.listen();
 
+  gulp.watch(paths.vendorLocal + '**', ['vendor-scripts']);
   gulp.watch(paths.src + 'partials/**', ['partials']);
   gulp.watch(paths.src + 'scripts/**', ['scripts']);
   gulp.watch(paths.src + 'styles/**/*.styl', ['styles']);
