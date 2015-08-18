@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
+import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -1028,8 +1029,12 @@ public class ExecutionGraph implements Serializable {
 	
 	private void notifyJobStatusChange(JobStatus newState, Throwable error) {
 		if (jobStatusListenerActors.size() > 0) {
+			SerializedThrowable serializedThrowable = null;
+			if(error != null) {
+				serializedThrowable = new SerializedThrowable(error);
+			}
 			ExecutionGraphMessages.JobStatusChanged message =
-					new ExecutionGraphMessages.JobStatusChanged(jobID, newState, System.currentTimeMillis(), error);
+					new ExecutionGraphMessages.JobStatusChanged(jobID, newState, System.currentTimeMillis(), serializedThrowable);
 
 			for (ActorGateway listener: jobStatusListenerActors) {
 				listener.tell(message);

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.runtime.jobgraph.JobGraph
+import org.apache.flink.runtime.util.SerializedThrowable
 
 /**
  * This object contains the [[org.apache.flink.runtime.client.JobClient]] specific messages

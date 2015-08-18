@@ -387,6 +387,25 @@ under the License.
 							</descriptors>
 						</configuration>
 					</execution>
+					<execution>
+						<id>create-streaming-state-checkpointed-classloader-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram</mainClass>
+								</manifest>
+							</archive>
+							<finalName>streaming-checkpointed-classloader</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-streaming-state-checkpointed-classloader-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 

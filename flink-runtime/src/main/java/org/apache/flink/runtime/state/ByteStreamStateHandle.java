@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.util.InstantiationUtil;
+
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -56,9 +58,9 @@ public abstract class ByteStreamStateHandle implements StateHandle<Serializable>
 	protected abstract InputStream getInputStream() throws Exception;
 
 	@Override
-	public Serializable getState() throws Exception {
+	public Serializable getState(ClassLoader userCodeClassLoader) throws Exception {
 		if (!stateFetched()) {
-			ObjectInputStream stream = new ObjectInputStream(getInputStream());
+			ObjectInputStream stream = new InstantiationUtil.ClassLoaderObjectInputStream(getInputStream(), userCodeClassLoader);
 			try {
 				state = (Serializable) stream.readObject();
 			} finally {

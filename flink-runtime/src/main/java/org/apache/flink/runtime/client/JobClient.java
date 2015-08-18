@@ -23,10 +23,10 @@ import akka.actor.ActorSystem;
 import akka.actor.Address;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
-import akka.actor.Status;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import com.google.common.base.Preconditions;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 
+import org.apache.flink.runtime.util.SerializedThrowable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,8 +65,7 @@ public class JobClient {
 	public static ActorSystem startJobClientActorSystem(Configuration config)
 			throws IOException {
 		LOG.info("Starting JobClient actor system");
-		Option<Tuple2<String, Object>> remoting =
-				new Some<Tuple2<String, Object>>(new Tuple2<String, Object>("", 0));
+		Option<Tuple2<String, Object>> remoting = new Some<>(new Tuple2<String, Object>("", 0));
 
 		// start a remote actor system to listen on an arbitrary port
 		ActorSystem system = AkkaUtils.createActorSystem(config, remoting);
@@ -123,12 +123,13 @@ public class JobClient {
 	 * @throws org.apache.flink.runtime.client.JobExecutionException Thrown if the job
 	 *                                                               execution fails.
 	 */
-	public static SerializedJobExecutionResult submitJobAndWait(
+	public static JobExecutionResult submitJobAndWait(
 			ActorSystem actorSystem,
 			ActorGateway jobManagerGateway,
 			JobGraph jobGraph,
 			FiniteDuration timeout,
-			boolean sysoutLogUpdates) throws JobExecutionException {
+			boolean sysoutLogUpdates,
+			ClassLoader userCodeClassloader) throws JobExecutionException {
 
 		Preconditions.checkNotNull(actorSystem, "The actorSystem must not be null.");
 		Preconditions.checkNotNull(jobManagerGateway, "The jobManagerGateway must not be null.");
@@ -160,26 +161,30 @@ public class JobClient {
 
 				SerializedJobExecutionResult result = ((JobManagerMessages.JobResultSuccess) answer).result();
 				if (result != null) {
-					return result;
+					return result.toJobExecutionResult(userCodeClassloader);
 				} else {
 					throw new Exception("Job was successfully executed but result contained a null JobExecutionResult.");
 				}
-			} else if (answer instanceof Status.Failure) {
-				throw ((Status.Failure) answer).cause();
 			} else {
 				throw new Exception("Unknown answer after submitting the job: " + answer);
 			}
 		}
 		catch (JobExecutionException e) {
-			throw e;
+			if(e.getCause() instanceof SerializedThrowable) {
+				SerializedThrowable serializedThrowable = (SerializedThrowable)e.getCause();
+				Throwable deserialized = serializedThrowable.deserializeError(userCodeClassloader);
+				throw new JobExecutionException(jobGraph.getJobID(), "Job execution failed " + deserialized.getMessage(), deserialized);
+			} else {
+				throw e;
+			}
 		}
 		catch (TimeoutException e) {
 			throw new JobTimeoutException(jobGraph.getJobID(), "Timeout while waiting for JobManager answer. " +
 					"Job time exceeded " + AkkaUtils.INF_TIMEOUT(), e);
 		}
-		catch (Throwable t) {
+		catch (Throwable throwable) {
 			throw new JobExecutionException(jobGraph.getJobID(),
-					"Communication with JobManager failed: " + t.getMessage(), t);
+					"Communication with JobManager failed: " + throwable.getMessage(), throwable);
 		}
 		finally {
 			// failsafe shutdown of the client actor

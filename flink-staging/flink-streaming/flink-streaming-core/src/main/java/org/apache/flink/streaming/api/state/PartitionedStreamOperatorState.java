@@ -128,8 +128,8 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 	}
 
 	@Override
-	public void restoreState(StateHandle<Serializable> snapshots) throws Exception {
-		stateStore.restoreStates(snapshots);
+	public void restoreState(StateHandle<Serializable> snapshots, ClassLoader userCodeClassLoader) throws Exception {
+		stateStore.restoreStates(snapshots, userCodeClassLoader);
 	}
 
 	@Override

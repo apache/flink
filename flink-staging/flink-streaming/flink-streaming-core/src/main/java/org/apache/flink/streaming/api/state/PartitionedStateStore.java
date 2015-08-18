@@ -43,7 +43,7 @@ public interface PartitionedStateStore<S, C extends Serializable> {
 
 	StateHandle<Serializable> snapshotStates(long checkpointId, long checkpointTimestamp) throws Exception;
 
-	void restoreStates(StateHandle<Serializable> snapshot) throws Exception;
+	void restoreStates(StateHandle<Serializable> snapshot, ClassLoader userCodeClassLoader) throws Exception;
 
 	boolean containsKey(Serializable key);
 	

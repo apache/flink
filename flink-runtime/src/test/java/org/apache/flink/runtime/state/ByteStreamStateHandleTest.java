@@ -36,6 +36,7 @@ public class ByteStreamStateHandleTest {
 
 	@Test
 	public void testHandle() throws Exception {
+		final ClassLoader cl = this.getClass().getClassLoader();
 		MockHandle handle;
 
 		try {
@@ -47,14 +48,14 @@ public class ByteStreamStateHandleTest {
 
 		handle = new MockHandle(1);
 
-		assertEquals(1, handle.getState());
+		assertEquals(1, handle.getState(cl));
 		assertTrue(handle.stateFetched());
 		assertFalse(handle.isWritten());
 		assertFalse(handle.discarded);
 
 		MockHandle handleDs = serializeDeserialize(handle);
 
-		assertEquals(1, handle.getState());
+		assertEquals(1, handle.getState(cl));
 		assertTrue(handle.stateFetched());
 		assertTrue(handle.isWritten());
 		assertTrue(handle.generatedOutput);
@@ -66,7 +67,7 @@ public class ByteStreamStateHandleTest {
 		assertFalse(handle.discarded);
 
 		try {
-			handleDs.getState();
+			handleDs.getState(cl);
 			fail();
 		} catch (UnsupportedOperationException e) {
 			// good
