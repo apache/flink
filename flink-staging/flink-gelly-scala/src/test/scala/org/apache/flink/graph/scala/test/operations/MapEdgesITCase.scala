@@ -92,6 +92,30 @@ MultipleProgramsTestBase(mode) {
       "5,1,52\n"
   }
 
+  @Test
+  @throws(classOf[Exception])
+  def testWithSameValueAlgorithm {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+      .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+
+   class SameValueAlgorithm extends GraphAlgorithm[Long, Long, Long] {
+     override def run(graph: Graph[Long, Long, Long]): Graph[Long, Long, Long] = {
+       graph.mapEdges(edge => edge.getValue + 1)
+     }
+   }
+
+    graph.run(new SameValueAlgorithm).getEdgesAsTuple3().writeAsCsv(resultPath)
+    env.execute
+    expectedResult = "1,2,13\n" +
+      "1,3,14\n" + "" +
+      "2,3,24\n" +
+      "3,4,35\n" +
+      "3,5,36\n" +
+      "4,5,46\n" +
+      "5,1,52\n"
+  }
+
   final class AddOneMapper extends MapFunction[Edge[Long, Long], Long] {
     @throws(classOf[Exception])
     def map(edge: Edge[Long, Long]): Long = {
