@@ -39,11 +39,6 @@ limitations under the License.
         </tr>
       </thead>
       <tbody>
-        <tr colspan="2">
-          <td>
-            <center><i>WARNING! This is a sample</i></center>
-          </td>
-        </tr>
         <tr ng-repeat="vertex in node.vertex.groupvertex.groupmembers">
           <td>{{vertex.vertexname}}</td>
           <td> 
@@ -56,27 +51,27 @@ limitations under the License.
 </div>
 <div ng-if="node" class="row">
   <div class="col-sm-6 col-md-4">
-    <table ng-if="node.global_properties" class="table table-properties">
+    <table ng-if="node.optimizer_properties.global_properties" class="table table-properties">
       <thead>
         <tr>
           <th colspan="2">Global Data Properties</th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="property in node.global_properties">
+        <tr ng-repeat="property in node.optimizer_properties.global_properties">
           <td>{{property.name}}</td>
           <td table-property="table-property" value="property.value"></td>
         </tr>
       </tbody>
     </table>
-    <table ng-if="node.local_properties" class="table table-properties">
+    <table ng-if="node.optimizer_properties.local_properties" class="table table-properties">
       <thead>
         <tr>
           <th colspan="2">Local Data Properties</th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="property in node.local_properties">
+        <tr ng-repeat="property in node.optimizer_properties.local_properties">
           <td>{{property.name}}</td>
           <td table-property="table-property" value="property.value"></td>
         </tr>
@@ -120,14 +115,14 @@ limitations under the License.
         </tr>
       </tbody>
     </table>
-    <table ng-if="node.estimates" class="table table-properties">
+    <table ng-if="node.optimizer_properties.estimates" class="table table-properties">
       <thead>
         <tr>
           <th colspan="2">Size Estimates</th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="property in node.estimates">
+        <tr ng-repeat="property in node.optimizer_properties.estimates">
           <td>{{property.name}}</td>
           <td table-property="table-property" value="property.value"></td>
         </tr>
@@ -136,28 +131,28 @@ limitations under the License.
   </div>
   <div class="col-sm-6 col-md-4">
     <div class="visible-xs visible-sm">
-      <table ng-if="node.estimates" class="table table-properties">
+      <table ng-if="node.optimizer_properties.estimates" class="table table-properties">
         <thead>
           <tr>
             <th colspan="2">Size Estimates</th>
           </tr>
         </thead>
         <tbody>
-          <tr ng-repeat="property in node.estimates">
+          <tr ng-repeat="property in node.optimizer_properties.estimates">
             <td>{{property.name}}</td>
             <td table-property="table-property" value="property.value"></td>
           </tr>
         </tbody>
       </table>
     </div>
-    <table ng-if="node.costs" class="table table-properties">
+    <table ng-if="node.optimizer_properties.costs" class="table table-properties">
       <thead>
         <tr>
           <th colspan="2">Cost Estimates</th>
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="property in node.costs">
+        <tr ng-repeat="property in node.optimizer_properties.costs">
           <td>{{property.name}}</td>
           <td table-property="table-property" value="property.value"></td>
         </tr>
