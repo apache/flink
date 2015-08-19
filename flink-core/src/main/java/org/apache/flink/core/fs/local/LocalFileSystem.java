@@ -71,7 +71,7 @@ public class LocalFileSystem extends FileSystem {
 	 * Constructs a new <code>LocalFileSystem</code> object.
 	 */
 	public LocalFileSystem() {
-		this.workingDir = FileSystemUtil.makeQualified(new Path(System.getProperty("user.dir")),this);
+		this.workingDir = FileSystemUtil.makeQualified(new Path(System.getProperty("user.dir")), this);
 
 		String tmp = "unknownHost";
 

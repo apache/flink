@@ -295,7 +295,7 @@ public class PathTest {
 		path = "/test/test";
 		p = new Path(path);
 		u = p.toUri();
-		p = FileSystemUtil.makeQualified(p,FileSystem.get(u));
+		p = FileSystemUtil.makeQualified(p, FileSystem.get(u));
 		u = p.toUri();
 		assertEquals("file", u.getScheme());
 		assertEquals(null, u.getAuthority());
