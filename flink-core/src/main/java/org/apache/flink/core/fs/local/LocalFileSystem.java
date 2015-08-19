@@ -41,6 +41,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.FileSystemUtil;
 
 /**
  * The class <code>LocalFile</code> provides an implementation of the {@link FileSystem} interface for the local file
@@ -70,7 +71,7 @@ public class LocalFileSystem extends FileSystem {
 	 * Constructs a new <code>LocalFileSystem</code> object.
 	 */
 	public LocalFileSystem() {
-		this.workingDir = new Path(System.getProperty("user.dir")).makeQualified(this);
+		this.workingDir = FileSystemUtil.makeQualified(new Path(System.getProperty("user.dir")), this);
 
 		String tmp = "unknownHost";
 
