@@ -201,7 +201,7 @@
           }
 
           var nel = g.selectAll("svg").data(data).enter().append("g")
-            .attr("class", "bar-container")
+            .attr("class", function(d, i) { return "bar-container bar-type-" + d.type; } )
             .attr("width", getBarWidth);
 
           nel
@@ -303,22 +303,22 @@
             g.selectAll("svg").data(data).enter().append("svg:line")
               .attr("class", "line-" + 'start')
               .attr("x1", getBorderStart)
-              // .attr("y1", showBorderFormat.marginTop)
               .attr("y1", getStackPosition)
               .attr("x2", getBorderStart)
               .attr("y2", margin.top + (itemHeight + itemMargin) * maxStack)
-              .style("stroke", showBorderFormat.color)
+              .style("stroke", function(d, i) { return d.color; })
               .style("stroke-width", showBorderFormat.width);
 
-            g.selectAll("svg").data(data).enter().append("svg:line")
-              .attr("class", "line-" + 'end')
-              .attr("x1", getBorderEnd)
-              // .attr("y1", showBorderFormat.marginTop)
-              .attr("y1", getStackPosition)
-              .attr("x2", getBorderEnd)
-              .attr("y2", margin.top + (itemHeight + itemMargin) * maxStack)
-              .style("stroke", showBorderFormat.color)
-              .style("stroke-width", showBorderFormat.width);
+            if (data[0].type != "scheduled") {
+              g.selectAll("svg").data(data).enter().append("svg:line")
+                .attr("class", "line-" + 'end')
+                .attr("x1", getBorderEnd)
+                .attr("y1", getStackPosition)
+                .attr("x2", getBorderEnd)
+                .attr("y2", margin.top + (itemHeight + itemMargin) * maxStack)
+                .style("stroke", function(d, i) { return d.color; })
+                .style("stroke-width", showBorderFormat.width);
+            }
           }
 
           // add the label
@@ -356,60 +356,51 @@
         });
       });
 
-      // if (width > gParentSize.width) {
-        var move = function() {
+      var move = function() {
+        g.selectAll(".bar-type-scheduled .timeline-series")
+          .attr("x", getXPos);
 
-          // var x = Math.min(0, Math.max(gParentSize.width - width, d3.event.translate[0]));
-          // zoom.translate([x, 0]);
-          // g.attr("transform", "translate(" + x + ",0)");
+        g.selectAll(".bar-type-regular .timeline-series")
+          .attr("x", getXPos)
+          .attr("width", getBarWidth);
 
-          // console.log('zoom', d3.event.translate, d3.event.scale);
-  
-          g.selectAll(".timeline-series")
-            .attr("x", getXPos)
-            .attr("width", getBarWidth);
+        g.selectAll(".timeline-insidelabel")
+          .attr("x", getXTextPos);
+          // .attr("width", getTextWidth);
 
-          g.selectAll(".timeline-insidelabel")
-            .attr("x", getXTextPos)
-            .attr("width", getTextWidth);
+        // g.selectAll(".timeline-clip")
+        //   .attr("x", getXPos)
+        //   .attr("width", getTextWidth);
 
-          g.selectAll(".timeline-clip")
-            .attr("x", getXPos)
-            .attr("width", getTextWidth);
+        g.selectAll(".bar-type-scheduled .timeline-clip").select('rect')
+          .attr("x", getXPos);
 
-          g.selectAll(".timeline-clip").select('rect')
-            .attr("x", getXPos)
-            .attr("width", getTextWidth);
+        g.selectAll(".bar-type-regular .timeline-clip").select('rect')
+          .attr("x", getXPos)
+          .attr("width", getTextWidth);
 
-          g.selectAll("g.axis")
-            .call(xAxis);
+        g.selectAll("g.axis")
+          .call(xAxis);
 
-          if (showHourTimeline) {
-            g.selectAll("g.axis-hour")
-              .call(xAxis2);
-          }
+        if (showHourTimeline) {
+          g.selectAll("g.axis-hour")
+            .call(xAxis2);
+        }
 
-          if (showBorderLine) {
-            g.selectAll("line.line-start")
-              .attr("x1", getBorderStart)
-              .attr("x2", getBorderStart);
+        if (showBorderLine) {
+          g.selectAll("line.line-start")
+            .attr("x1", getBorderStart)
+            .attr("x2", getBorderStart);
 
-            g.selectAll("line.line-end")
-              .attr("x1", getBorderEnd)
-              .attr("x2", getBorderEnd);
-          }
+          g.selectAll("line.line-end")
+            .attr("x1", getBorderEnd)
+            .attr("x2", getBorderEnd);
+        }
+      };
 
-          // scroll(x*scaleFactor, xScale);
-        };
+      var zoom = d3.behavior.zoom().x(xScale).on("zoom", move);
 
-        var zoom = d3.behavior.zoom().x(xScale).on("zoom", move);
-
-        // gParent
-        //   .attr("class", "scrollable")
-        //   .call(zoom);
-
-        gParent.call(zoom);
-      // }
+      gParent.call(zoom);
 
       if (rotateTicks) {
         g.selectAll(".tick text")
