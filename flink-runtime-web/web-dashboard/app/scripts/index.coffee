@@ -86,7 +86,7 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
         controller: 'JobPlanController'
 
   .state "single-job.plan.node",
-    url: "/{nodeid:int}"
+    url: "/vertex/{nodeid}"
     views:
       node:
         templateUrl: "partials/jobs/job.plan.node.html"

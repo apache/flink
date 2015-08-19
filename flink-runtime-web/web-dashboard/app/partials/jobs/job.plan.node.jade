@@ -39,10 +39,6 @@
           th Status
 
       tbody
-        tr(colspan="2")
-          td
-            center
-              i WARNING! This is a sample
         tr(ng-repeat="vertex in node.vertex.groupvertex.groupmembers")
           td {{vertex.vertexname}}
           td 
@@ -52,25 +48,25 @@
 
 .row(ng-if="node")
   .col-sm-6.col-md-4
-    table.table.table-properties(ng-if="node.global_properties")
+    table.table.table-properties(ng-if="node.optimizer_properties.global_properties")
       thead
         tr
           th(colspan="2")
             | Global Data Properties
 
       tbody
-        tr(ng-repeat="property in node.global_properties")
+        tr(ng-repeat="property in node.optimizer_properties.global_properties")
           td {{property.name}}
           td(table-property value="property.value")
 
-    table.table.table-properties(ng-if="node.local_properties")
+    table.table.table-properties(ng-if="node.optimizer_properties.local_properties")
       thead
         tr
           th(colspan="2")
             | Local Data Properties
 
       tbody
-        tr(ng-repeat="property in node.local_properties")
+        tr(ng-repeat="property in node.optimizer_properties.local_properties")
           td {{property.name}}
           td(table-property value="property.value")
 
@@ -108,37 +104,37 @@
           td(table-property value="node.parallelism")
 
 
-    table.table.table-properties(ng-if="node.estimates")
+    table.table.table-properties(ng-if="node.optimizer_properties.estimates")
       thead
         tr
           th(colspan="2")
             | Size Estimates
 
       tbody
-        tr(ng-repeat="property in node.estimates")
+        tr(ng-repeat="property in node.optimizer_properties.estimates")
           td {{property.name}}
           td(table-property value="property.value")
 
   .col-sm-6.col-md-4
     .visible-xs.visible-sm
-      table.table.table-properties(ng-if="node.estimates")
+      table.table.table-properties(ng-if="node.optimizer_properties.estimates")
         thead
           tr
             th(colspan="2")
               | Size Estimates
 
         tbody
-          tr(ng-repeat="property in node.estimates")
+          tr(ng-repeat="property in node.optimizer_properties.estimates")
             td {{property.name}}
             td(table-property value="property.value")
 
-    table.table.table-properties(ng-if="node.costs")
+    table.table.table-properties(ng-if="node.optimizer_properties.costs")
       thead
         tr
           th(colspan="2")
             | Cost Estimates
 
       tbody
-        tr(ng-repeat="property in node.costs")
+        tr(ng-repeat="property in node.optimizer_properties.costs")
           td {{property.name}}
           td(table-property value="property.value")

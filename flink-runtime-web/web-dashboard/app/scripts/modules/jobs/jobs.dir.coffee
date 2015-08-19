@@ -239,7 +239,7 @@ angular.module('flinkApp')
       
     # creates the label of a node, in info is stored, whether it is a special node (like a mirror in an iteration)
     createLabelNode = (el, info, maxW, maxH) ->
-      labelValue = "<a href='#/jobs/" + jobid + "/" + el.id + "' class='node-label " + getNodeType(el, info) + "'>"
+      labelValue = "<a href='#/jobs/" + jobid + "/vertex/" + el.id + "' class='node-label " + getNodeType(el, info) + "'>"
 
       # Nodename
       if info is "mirror"

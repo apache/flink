@@ -135,8 +135,6 @@ angular.module('flinkApp')
 
   @getNode = (nodeid) ->
     seekNode = (nodeid, data) ->
-      nodeid = parseInt(nodeid)
-
       for node in data
         return node if node.id is nodeid
         sub = seekNode(nodeid, node.step_function) if node.step_function
@@ -157,8 +155,8 @@ angular.module('flinkApp')
     $q.all([deferreds.plan.promise, deferreds.job.promise]).then (data) =>
       foundNode = seekNode(nodeid, currentPlan.nodes)
 
-      # TODO link to real vertex. for now there is no way to get the right one, so we are showing the first one - just for testing
-      @getVertex(currentJob.jid, currentJob.oldV.groupvertices[0].groupvertexid).then (vertex) ->
+      # @getVertex(currentJob.jid, currentJob.oldV.groupvertices[0].groupvertexid).then (vertex) ->
+      @getVertex(currentJob.jid, nodeid).then (vertex) ->
         foundNode.vertex = vertex
         deferred.resolve(foundNode)
 
