@@ -81,28 +81,40 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 			
 			@Override
 			public boolean hasNext() {
-				if (currentElement == null || currentCount == 0) {
-					while (input.hasNext()) {
-						currentElement = input.next();
-						currentCount = poissonDistribution.sample();
-						if (currentCount > 0) {
-							return true;
-						}
+				if (currentCount > 0) {
+					return true;
+				} else {
+					moveToNextElement();
+					if (currentCount > 0) {
+						return true;
+					} else {
+						return false;
 					}
-					return false;
 				}
-				return true;
+			}
+
+			private void moveToNextElement() {
+				while (input.hasNext()) {
+					currentElement = input.next();
+					currentCount = poissonDistribution.sample();
+					if (currentCount > 0) {
+						break;
+					}
+				}
 			}
 			
 			@Override
 			public T next() {
-				T result = currentElement;
 				if (currentCount == 0) {
-					currentElement = null;
-					return null;
+					moveToNextElement();
 				}
-				currentCount--;
-				return result;
+
+				if (currentCount == 0) {
+					return null;
+				} else {
+					currentCount--;
+					return currentElement;
+				}
 			}
 		};
 	}
