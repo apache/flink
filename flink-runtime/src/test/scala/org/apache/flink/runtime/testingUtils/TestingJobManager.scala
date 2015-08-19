@@ -21,10 +21,14 @@ package org.apache.flink.runtime.testingUtils
 import akka.actor.{Cancellable, Terminated, ActorRef}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
-import org.apache.flink.runtime.FlinkActor
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.{StreamingMode, FlinkActor}
 import org.apache.flink.runtime.execution.ExecutionState
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
+import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
@@ -32,15 +36,46 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.AccumulatorsChanged
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 import scala.language.postfixOps
 
-/** Mixin for [[TestingJobManager]] to support testing messages
- */
-trait TestingJobManager extends FlinkActor {
-  that: JobManager =>
+/** JobManager implementation extended by testing messages
+  *
+  * @param flinkConfiguration
+  * @param executionContext
+  * @param instanceManager
+  * @param scheduler
+  * @param libraryCacheManager
+  * @param archive
+  * @param defaultExecutionRetries
+  * @param delayBetweenRetries
+  * @param timeout
+  * @param mode
+  */
+class TestingJobManager(
+    flinkConfiguration: Configuration,
+    executionContext: ExecutionContext,
+    instanceManager: InstanceManager,
+    scheduler: Scheduler,
+    libraryCacheManager: BlobLibraryCacheManager,
+    archive: ActorRef,
+    defaultExecutionRetries: Int,
+    delayBetweenRetries: Long,
+    timeout: FiniteDuration,
+    mode: StreamingMode)
+  extends JobManager(
+    flinkConfiguration,
+    executionContext,
+    instanceManager,
+    scheduler,
+    libraryCacheManager,
+    archive,
+    defaultExecutionRetries,
+    delayBetweenRetries,
+    timeout,
+    mode) {
 
   import scala.collection.JavaConverters._
   import context._
@@ -60,7 +95,7 @@ trait TestingJobManager extends FlinkActor {
 
   var disconnectDisabled = false
 
-  abstract override def handleMessage: Receive = {
+  override def handleMessage: Receive = {
     handleTestingMessage orElse super.handleMessage
   }
 

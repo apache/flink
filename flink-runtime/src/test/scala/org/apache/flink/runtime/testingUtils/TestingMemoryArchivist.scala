@@ -22,13 +22,13 @@ import org.apache.flink.runtime.{FlinkActor}
 import org.apache.flink.runtime.jobmanager.MemoryArchivist
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound, RequestExecutionGraph}
 
-/**
- * Mixin for the [[MemoryArchivist]] to support testing messages
- */
-trait TestingMemoryArchivist extends FlinkActor {
-  self: MemoryArchivist =>
+/** Memory archivist extended by testing messages
+  *
+  * @param maxEntries number of maximum number of archived jobs
+  */
+class TestingMemoryArchivist(maxEntries: Int) extends MemoryArchivist(maxEntries) {
 
-  abstract override def handleMessage: Receive = {
+  override def handleMessage: Receive = {
     handleTestingMessage orElse super.handleMessage
   }
 

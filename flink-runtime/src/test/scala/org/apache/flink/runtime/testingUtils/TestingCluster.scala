@@ -22,7 +22,7 @@ import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.testkit.CallingThreadDispatcher
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
-import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
+import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
@@ -80,11 +80,11 @@ class TestingCluster(userConfiguration: Configuration,
       timeout,
       archiveCount) = JobManager.createJobManagerComponents(configuration)
     
-    val testArchiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
+    val testArchiveProps = Props(new TestingMemoryArchivist(archiveCount))
     val archive = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
     
     val jobManagerProps = Props(
-      new JobManager(
+      new TestingJobManager(
         configuration,
         executionContext,
         instanceManager,
@@ -94,8 +94,7 @@ class TestingCluster(userConfiguration: Configuration,
         executionRetries,
         delayBetweenRetries,
         timeout,
-        streamingMode)
-      with TestingJobManager)
+        streamingMode))
 
     val dispatcherJobManagerProps = if (synchronousDispatcher) {
       // disable asynchronous futures (e.g. accumulator update in Heartbeat)

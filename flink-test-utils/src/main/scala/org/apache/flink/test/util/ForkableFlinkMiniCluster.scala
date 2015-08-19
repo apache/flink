@@ -22,10 +22,7 @@ import akka.actor.{Props, ActorRef, ActorSystem}
 import akka.pattern.Patterns._
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
-import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.instance.AkkaActorGateway
-import org.apache.flink.runtime.jobmanager.web.WebInfoServer
-import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
+import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingJobManager,
@@ -95,14 +92,12 @@ class ForkableFlinkMiniCluster(
       archiveCount) = JobManager.createJobManagerComponents(configuration)
 
     val testArchiveProps = Props(
-      new MemoryArchivist(
-        archiveCount)
-      with TestingMemoryArchivist)
+      new TestingMemoryArchivist(archiveCount))
 
     val archiver = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
     
     val jobManagerProps = Props(
-      new JobManager(
+      new TestingJobManager(
         configuration,
         executionContext,
         instanceManager,
@@ -112,8 +107,7 @@ class ForkableFlinkMiniCluster(
         executionRetries,
         delayBetweenRetries,
         timeout,
-        streamingMode)
-      with TestingJobManager)
+        streamingMode))
 
     val jobManager = actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
 

@@ -25,7 +25,6 @@ import java.util.{UUID, Collections}
 
 import akka.actor.Status.{Failure, Success}
 import akka.actor._
-import _root_.akka.pattern.ask
 
 import grizzled.slf4j.Logger
 
@@ -69,7 +68,6 @@ import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.language.postfixOps
 import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
 
 /**
  * The job manager is responsible for receiving Flink jobs, scheduling the tasks, gathering the
