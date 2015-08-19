@@ -21,17 +21,23 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.runtime.webmonitor.JsonFactory;
 
 import java.util.Map;
+import java.util.TimeZone;
 
 /**
  * Responder that returns the parameters that define how the asynchronous requests
- * against this web server should behave. It defines for example the refresh interval.
+ * against this web server should behave. It defines for example the refresh interval,
+ * and time zone of the server timestamps.
  */
 public class RequestConfigHandler implements RequestHandler, RequestHandler.JsonResponse {
 	
 	private final String configString;
 	
 	public RequestConfigHandler(long refreshInterval) {
-		this.configString = JsonFactory.generateConfigJSON(refreshInterval);
+		TimeZone timeZome = TimeZone.getDefault();
+		String timeZoneName = timeZome.getDisplayName();
+		long timeZoneOffset= timeZome.getRawOffset();
+		
+		this.configString = JsonFactory.generateConfigJSON(refreshInterval, timeZoneOffset, timeZoneName);
 	}
 	
 	@Override

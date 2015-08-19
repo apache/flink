@@ -48,7 +48,6 @@ import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsErroneou
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsNotFound;
 import org.apache.flink.runtime.messages.accumulators.RequestAccumulatorResultsStringified;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.runtime.webmonitor.JobManagerArchiveRetriever;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.util.StringUtils;
@@ -76,15 +75,14 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 	private static final Charset ENCODING = Charset.forName("UTF-8");
 
 	/** Underlying JobManager */
-	private final JobManagerArchiveRetriever retriever;
+	private final ActorGateway jobmanager;
+	private final ActorGateway archive;
 	private final FiniteDuration timeout;
 
-	private ActorGateway jobmanager;
-	private ActorGateway archive;
 
-
-	public JobManagerInfoHandler(JobManagerArchiveRetriever retriever, FiniteDuration timeout) {
-		this.retriever = retriever;
+	public JobManagerInfoHandler(ActorGateway jobmanager, ActorGateway archive, FiniteDuration timeout) {
+		this.jobmanager = jobmanager;
+		this.archive = archive;
 		this.timeout = timeout;
 	}
 
@@ -92,18 +90,6 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
 		DefaultFullHttpResponse response;
 		try {
-			jobmanager = retriever.getJobManagerGateway();
-
-			if (jobmanager == null) {
-				throw new Exception("No connection to leading JobManager.");
-			}
-
-			archive = retriever.getArchiveGateway();
-
-			if (archive == null) {
-				throw new Exception("No connection to leading JobManager.");
-			}
-
 			String result = handleRequest(routed);
 			byte[] bytes = result.getBytes(ENCODING);
 
@@ -121,15 +107,13 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 
 		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
-		
+
 		KeepAliveWrite.flush(ctx, routed.request(), response);
 	}
-	
-	
+
+
 	@SuppressWarnings("unchecked")
 	private String handleRequest(Routed routed) throws Exception {
-
-
 		if ("archive".equals(routed.queryParam("get"))) {
 			Future<Object> response = archive.ask(ArchiveMessages.getRequestArchivedJobs(), timeout);
 
@@ -302,7 +286,7 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 			}
 		}
 		bld.append("]");
-		
+
 		return bld.toString();
 	}
 
@@ -555,7 +539,7 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 		bld.append("}");
 		bld.append("}");
 		bld.append("]");
-		
+
 		return bld.toString();
 	}
 
@@ -584,7 +568,7 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 
 			//Serialize job to json
 			final StringBuilder bld = new StringBuilder();
-			
+
 			bld.append("{");
 			bld.append("\"jobid\": \"").append(jobId).append("\",");
 			bld.append("\"timestamp\": \"").append(System.currentTimeMillis()).append("\",");
@@ -667,15 +651,15 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 					bld.append("}");
 				}
 			}
-			
+
 			return bld.toString();
 		}
 	}
-	
+
 	private String writeJsonForArchivedJobGroupvertex(ExecutionGraph graph, JobVertexID vertexId) {
 		ExecutionJobVertex jobVertex = graph.getJobVertex(vertexId);
 		StringBuilder bld = new StringBuilder();
-		
+
 		bld.append("{\"groupvertex\": ").append(JsonFactory.toJson(jobVertex)).append(",");
 
 		bld.append("\"verticetimes\": {");
@@ -710,9 +694,9 @@ public class JobManagerInfoHandler extends SimpleChannelInboundHandler<Routed> {
 		return bld.toString();
 	}
 
-	
+
 	private String writeJsonForVersion() {
-		return "{\"version\": \"" + EnvironmentInformation.getVersion() + "\",\"revision\": \"" + 
+		return "{\"version\": \"" + EnvironmentInformation.getVersion() + "\",\"revision\": \"" +
 				EnvironmentInformation.getRevisionInformation().commitId + "\"}";
 	}
 }
