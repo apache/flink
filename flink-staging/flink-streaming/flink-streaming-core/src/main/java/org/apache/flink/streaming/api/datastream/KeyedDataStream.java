@@ -19,7 +19,11 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 /**
@@ -28,11 +32,10 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
  * are also possible on a KeyedDataStream, with the exception of partitioning methods such as shuffle, forward and groupBy.
  * 
  * 
- * @param <OUT>
- *            The output type of the {@link KeyedDataStream}.
+ * @param <T> The type of the elements in the Keyed Stream
  */
-public class KeyedDataStream<OUT> extends DataStream<OUT> {
-	KeySelector<OUT, ?> keySelector;
+public class KeyedDataStream<T> extends DataStream<T> {
+	KeySelector<T, ?> keySelector;
 
 	/**
 	 * Creates a new {@link KeyedDataStream} using the given {@link KeySelector}
@@ -43,35 +46,35 @@ public class KeyedDataStream<OUT> extends DataStream<OUT> {
 	 * @param keySelector
 	 *            Function for determining state partitions
 	 */
-	public KeyedDataStream(DataStream<OUT> dataStream, KeySelector<OUT, ?> keySelector) {
-		super(dataStream.partitionByHash(keySelector));
+	public KeyedDataStream(DataStream<T> dataStream, KeySelector<T, ?> keySelector) {
+		super(dataStream.getExecutionEnvironment(), new PartitionTransformation<T>(dataStream.getTransformation(), new HashPartitioner<T>(keySelector)));
 		this.keySelector = keySelector;
 	}
 
-	protected KeyedDataStream(KeyedDataStream<OUT> dataStream) {
-		super(dataStream);
-		this.keySelector = dataStream.keySelector;
-	}
-
-	public KeySelector<OUT, ?> getKeySelector() {
+	public KeySelector<T, ?> getKeySelector() {
 		return this.keySelector;
 	}
 
 	@Override
-	protected DataStream<OUT> setConnectionType(StreamPartitioner<OUT> partitioner) {
+	protected DataStream<T> setConnectionType(StreamPartitioner<T> partitioner) {
 		throw new UnsupportedOperationException("Cannot override partitioning for KeyedDataStream.");
 	}
 
 	@Override
-	public KeyedDataStream<OUT> copy() {
-		return new KeyedDataStream<OUT>(this);
+	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
+			TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
+
+		SingleOutputStreamOperator<R, ?> returnStream = super.transform(operatorName, outTypeInfo,operator);
+
+		((OneInputTransformation<T, R>) returnStream.getTransformation()).setStateKeySelector(
+				keySelector);
+		return returnStream;
 	}
 
 	@Override
-	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
-			TypeInformation<R> outTypeInfo, OneInputStreamOperator<OUT, R> operator) {
-		SingleOutputStreamOperator<R, ?> returnStream = super.transform(operatorName, outTypeInfo,operator);
-		streamGraph.setKey(returnStream.getId(), keySelector);
-		return returnStream;
+	public DataStreamSink<T> addSink(SinkFunction<T> sinkFunction) {
+		DataStreamSink<T> result = super.addSink(sinkFunction);
+		result.getTransformation().setStateKeySelector(keySelector);
+		return result;
 	}
 }

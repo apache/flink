@@ -27,14 +27,14 @@ import org.junit.Test;
 
 public class ForwardPartitionerTest {
 
-	private RebalancePartitioner<Tuple> forwardPartitioner;
+	private ForwardPartitioner<Tuple> forwardPartitioner;
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>(null);
 	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(
 			null);
 
 	@Before
 	public void setPartitioner() {
-		forwardPartitioner = new RebalancePartitioner<Tuple>(true);
+		forwardPartitioner = new ForwardPartitioner<Tuple>();
 	}
 
 	@Test
@@ -49,7 +49,7 @@ public class ForwardPartitionerTest {
 	public void testSelectChannelsInterval() {
 		sd.setInstance(streamRecord);
 		assertEquals(0, forwardPartitioner.selectChannels(sd, 1)[0]);
-		assertEquals(1, forwardPartitioner.selectChannels(sd, 2)[0]);
-		assertEquals(2, forwardPartitioner.selectChannels(sd, 1024)[0]);
+		assertEquals(0, forwardPartitioner.selectChannels(sd, 2)[0]);
+		assertEquals(0, forwardPartitioner.selectChannels(sd, 1024)[0]);
 	}
 }

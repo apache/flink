@@ -30,10 +30,9 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.co.CrossWindowFunction;
-import org.apache.flink.streaming.api.operators.co.CoStreamWindow;
 
 public class StreamCrossOperator<I1, I2> extends
-		TemporalOperator<I1, I2, StreamCrossOperator.CrossWindow<I1, I2>> {
+		TemporalOperator<I1, I2, StreamCrossOperator.CrossWindow<I1, I2, Tuple2<I1, I2>>> {
 
 	public StreamCrossOperator(DataStream<I1> input1, DataStream<I2> input2) {
 		super(input1, input2);
@@ -48,37 +47,42 @@ public class StreamCrossOperator<I1, I2> extends
 	}
 
 	@Override
-	protected CrossWindow<I1, I2> createNextWindowOperator() {
+	protected CrossWindow<I1, I2, Tuple2<I1, I2>> createNextWindowOperator() {
 
 		CrossWindowFunction<I1, I2, Tuple2<I1, I2>> crossWindowFunction = new CrossWindowFunction<I1, I2, Tuple2<I1, I2>>(
 				clean(new CrossOperator.DefaultCrossFunction<I1, I2>()));
 
-		return new CrossWindow<I1, I2>(this, input1.connect(input2).addGeneralWindowCombine(
+		return new CrossWindow<I1, I2, Tuple2<I1, I2>>(this, input1.connect(input2).addGeneralWindowCombine(
 				crossWindowFunction,
 				new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()), windowSize,
 				slideInterval, timeStamp1, timeStamp2));
 	}
 
-	public static class CrossWindow<I1, I2> extends
-			SingleOutputStreamOperator<Tuple2<I1, I2>, CrossWindow<I1, I2>> implements
-			TemporalWindow<CrossWindow<I1, I2>> {
+	public static class CrossWindow<I1, I2, R> extends
+			SingleOutputStreamOperator<R, CrossWindow<I1, I2, R>> implements
+			TemporalWindow<CrossWindow<I1, I2, R>> {
 
 		private StreamCrossOperator<I1, I2> op;
 
-		public CrossWindow(StreamCrossOperator<I1, I2> op, DataStream<Tuple2<I1, I2>> ds) {
-			super(ds);
+		public CrossWindow(StreamCrossOperator<I1, I2> op, DataStream<R> ds) {
+			super(ds.getExecutionEnvironment(), ds.getTransformation());
 			this.op = op;
 		}
 
-		public CrossWindow<I1, I2> every(long length, TimeUnit timeUnit) {
+		public CrossWindow<I1, I2, R> every(long length, TimeUnit timeUnit) {
 			return every(timeUnit.toMillis(length));
 		}
 
 		@SuppressWarnings("unchecked")
-		public CrossWindow<I1, I2> every(long length) {
-			((CoStreamWindow<I1, I2, ?>) streamGraph.getStreamNode(id).getOperator())
-					.setSlideSize(length);
-			return this;
+		public CrossWindow<I1, I2, R> every(long length) {
+
+			CrossWindowFunction<I1, I2, Tuple2<I1, I2>> crossWindowFunction = new CrossWindowFunction<I1, I2, Tuple2<I1, I2>>(
+					clean(new CrossOperator.DefaultCrossFunction<I1, I2>()));
+
+			return (CrossWindow<I1, I2, R>) new CrossWindow<I1, I2, Tuple2<I1, I2>>(op, op.input1.connect(op.input2).addGeneralWindowCombine(
+					crossWindowFunction,
+					new TupleTypeInfo<Tuple2<I1, I2>>(op.input1.getType(), op.input2.getType()), op.windowSize,
+					length, op.timeStamp1, op.timeStamp2));
 		}
 
 		/**
@@ -97,13 +101,12 @@ public class StreamCrossOperator<I1, I2> extends
 			TypeInformation<R> outTypeInfo = TypeExtractor.getCrossReturnTypes(function,
 					op.input1.getType(), op.input2.getType());
 
-			CoStreamWindow<I1, I2, R> operator = new CoStreamWindow<I1, I2, R>(
-					new CrossWindowFunction<I1, I2, R>(clean(function)), op.windowSize,
-					op.slideInterval, op.timeStamp1, op.timeStamp2);
+			CrossWindowFunction<I1, I2, R> crossWindowFunction = new CrossWindowFunction<I1, I2, R>(clean(function));
 
-			streamGraph.setOperator(id, operator);
-
-			return ((SingleOutputStreamOperator<R, ?>) this).returns(outTypeInfo);
+			return new CrossWindow<I1, I2, R>(op, op.input1.connect(op.input2).addGeneralWindowCombine(
+					crossWindowFunction,
+					outTypeInfo, op.windowSize,
+					op.slideInterval, op.timeStamp1, op.timeStamp2));
 
 		}
 

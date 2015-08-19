@@ -24,19 +24,23 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.util.NoOpSink;
+import org.apache.flink.streaming.util.ReceiveCheckNoOpSink;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.Test;
 
 @SuppressWarnings("serial")
-public class ChainedRuntimeContextTest {
-	private static final long MEMORYSIZE = 32;
+public class ChainedRuntimeContextTest extends StreamingMultipleProgramsTestBase {
 	private static RuntimeContext srcContext;
 	private static RuntimeContext mapContext;
 
 	@Test
 	public void test() throws Exception {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORYSIZE);
-		env.addSource(new TestSource()).map(new TestMap());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+
+		env.addSource(new TestSource()).map(new TestMap()).addSink(new NoOpSink<Integer>());
 		env.execute();
 
 		assertNotEquals(srcContext, mapContext);

@@ -99,7 +99,7 @@ public class WindowedDataStream<OUT> {
 	protected EvictionPolicy<OUT> userEvicter;
 
 	protected WindowedDataStream(DataStream<OUT> dataStream, WindowingHelper<OUT> policyHelper) {
-		this.dataStream = dataStream.copy();
+		this.dataStream = dataStream;
 		this.triggerHelper = policyHelper;
 
 		if (dataStream instanceof GroupedDataStream) {
@@ -109,7 +109,7 @@ public class WindowedDataStream<OUT> {
 
 	protected WindowedDataStream(DataStream<OUT> dataStream, TriggerPolicy<OUT> trigger,
 			EvictionPolicy<OUT> evicter) {
-		this.dataStream = dataStream.copy();
+		this.dataStream = dataStream;
 
 		this.userTrigger = trigger;
 		this.userEvicter = evicter;
@@ -120,7 +120,7 @@ public class WindowedDataStream<OUT> {
 	}
 
 	protected WindowedDataStream(WindowedDataStream<OUT> windowedDataStream) {
-		this.dataStream = windowedDataStream.dataStream.copy();
+		this.dataStream = windowedDataStream.dataStream;
 		this.discretizerKey = windowedDataStream.discretizerKey;
 		this.groupByKey = windowedDataStream.groupByKey;
 		this.triggerHelper = windowedDataStream.triggerHelper;

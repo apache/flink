@@ -24,6 +24,7 @@ import org.apache.flink.client.program.Client.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 
 public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 
@@ -55,9 +56,11 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		currentEnvironment = null;
 
+		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
+
+		transformations.clear();
 
 		if (env instanceof OptimizerPlanEnvironment) {
 			((OptimizerPlanEnvironment) env).setPlan(streamGraph);

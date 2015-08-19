@@ -54,19 +54,20 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
-import org.apache.flink.streaming.runtime.partitioner.FieldsPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.util.NoOpSink;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class DataStreamTest {
+public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
-	private static final long MEMORYSIZE = 32;
-	private static int PARALLELISM = 2;
 
 	/**
 	 * Tests {@link SingleOutputStreamOperator#name(String)} functionality.
@@ -75,7 +76,7 @@ public class DataStreamTest {
 	 */
 	@Test
 	public void testNaming() throws Exception {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Long> dataStream1 = env.generateSequence(0, 0).name("testSource1")
 				.map(new MapFunction<Long, Long>() {
@@ -93,7 +94,7 @@ public class DataStreamTest {
 					}
 				}).name("testMap");
 
-		DataStream<Long> connected = dataStream1.connect(dataStream2)
+		DataStreamSink<Long> connected = dataStream1.connect(dataStream2)
 				.flatMap(new CoFlatMapFunction<Long, Long, Long>() {
 					@Override
 					public void flatMap1(Long value, Collector<Long> out) throws Exception {
@@ -110,7 +111,8 @@ public class DataStreamTest {
 						return null;
 					}
 				}).name("testWindowFold")
-				.flatten();
+				.flatten()
+				.print();
 
 		//test functionality through the operator names in the execution plan
 		String plan = env.getExecutionPlan();
@@ -130,8 +132,7 @@ public class DataStreamTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testPartitioning() {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
-		StreamGraph graph = env.getStreamGraph();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream src1 = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
 		DataStream src2 = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
@@ -143,10 +144,15 @@ public class DataStreamTest {
 		DataStream group3 = src1.groupBy("f0");
 		DataStream group4 = src1.groupBy(new FirstSelector());
 
-		assertTrue(isPartitioned(graph.getStreamEdge(group1.getId(), createDownStreamId(group1))));
-		assertTrue(isPartitioned(graph.getStreamEdge(group2.getId(), createDownStreamId(group2))));
-		assertTrue(isPartitioned(graph.getStreamEdge(group3.getId(), createDownStreamId(group3))));
-		assertTrue(isPartitioned(graph.getStreamEdge(group4.getId(), createDownStreamId(group4))));
+		int id1 = createDownStreamId(group1);
+		int id2 = createDownStreamId(group2);
+		int id3 = createDownStreamId(group3);
+		int id4 = createDownStreamId(group4);
+
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), id1)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), id2)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), id3)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), id4)));
 
 		assertTrue(isGrouped(group1));
 		assertTrue(isGrouped(group2));
@@ -159,10 +165,15 @@ public class DataStreamTest {
 		DataStream partition3 = src1.partitionByHash("f0");
 		DataStream partition4 = src1.partitionByHash(new FirstSelector());
 
-		assertTrue(isPartitioned(graph.getStreamEdge(partition1.getId(), createDownStreamId(partition1))));
-		assertTrue(isPartitioned(graph.getStreamEdge(partition2.getId(), createDownStreamId(partition2))));
-		assertTrue(isPartitioned(graph.getStreamEdge(partition3.getId(), createDownStreamId(partition3))));
-		assertTrue(isPartitioned(graph.getStreamEdge(partition4.getId(), createDownStreamId(partition4))));
+		int pid1 = createDownStreamId(partition1);
+		int pid2 = createDownStreamId(partition2);
+		int pid3 = createDownStreamId(partition3);
+		int pid4 = createDownStreamId(partition4);
+
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), pid1)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), pid2)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), pid3)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), pid4)));
 
 		assertFalse(isGrouped(partition1));
 		assertFalse(isGrouped(partition3));
@@ -181,9 +192,13 @@ public class DataStreamTest {
 		DataStream customPartition3 = src1.partitionCustom(longPartitioner, "f0");
 		DataStream customPartition4 = src1.partitionCustom(longPartitioner, new FirstSelector());
 
-		assertTrue(isCustomPartitioned(graph.getStreamEdge(customPartition1.getId(), createDownStreamId(customPartition1))));
-		assertTrue(isCustomPartitioned(graph.getStreamEdge(customPartition3.getId(), createDownStreamId(customPartition3))));
-		assertTrue(isCustomPartitioned(graph.getStreamEdge(customPartition4.getId(), createDownStreamId(customPartition4))));
+		int cid1 = createDownStreamId(customPartition1);
+		int cid2 = createDownStreamId(customPartition3);
+		int cid3 = createDownStreamId(customPartition4);
+
+		assertTrue(isCustomPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), cid1)));
+		assertTrue(isCustomPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), cid2)));
+		assertTrue(isCustomPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), cid3)));
 
 		assertFalse(isGrouped(customPartition1));
 		assertFalse(isGrouped(customPartition3));
@@ -205,20 +220,20 @@ public class DataStreamTest {
 		ConnectedDataStream connectedGroup5 = connected.groupBy(new FirstSelector(), new FirstSelector());
 		Integer downStreamId5 = createDownStreamId(connectedGroup5);
 
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedGroup1.getFirst().getId(), downStreamId1)));
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedGroup1.getSecond().getId(), downStreamId1)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), downStreamId1)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src2.getId(), downStreamId1)));
 
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedGroup2.getFirst().getId(), downStreamId2)));
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedGroup2.getSecond().getId(), downStreamId2)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), downStreamId2)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src2.getId(), downStreamId2)));
 
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedGroup3.getFirst().getId(), downStreamId3)));
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedGroup3.getSecond().getId(), downStreamId3)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), downStreamId3)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src2.getId(), downStreamId3)));
 
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedGroup4.getFirst().getId(), downStreamId4)));
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedGroup4.getSecond().getId(), downStreamId4)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), downStreamId4)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src2.getId(), downStreamId4)));
 
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedGroup5.getFirst().getId(), downStreamId5)));
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedGroup5.getSecond().getId(), downStreamId5)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(), downStreamId5)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src2.getId(), downStreamId5)));
 
 		assertTrue(isGrouped(connectedGroup1));
 		assertTrue(isGrouped(connectedGroup2));
@@ -242,20 +257,30 @@ public class DataStreamTest {
 		ConnectedDataStream connectedPartition5 = connected.partitionByHash(new FirstSelector(), new FirstSelector());
 		Integer connectDownStreamId5 = createDownStreamId(connectedPartition5);
 
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedPartition1.getFirst().getId(), connectDownStreamId1)));
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedPartition1.getSecond().getId(), connectDownStreamId1)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(),
+				connectDownStreamId1)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src2.getId(),
+				connectDownStreamId1)));
 
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedPartition2.getFirst().getId(), connectDownStreamId2)));
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedPartition2.getSecond().getId(), connectDownStreamId2)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(),
+				connectDownStreamId2)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src2.getId(),
+				connectDownStreamId2)));
 
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedPartition3.getFirst().getId(), connectDownStreamId3)));
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedPartition3.getSecond().getId(), connectDownStreamId3)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(),
+				connectDownStreamId3)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src2.getId(),
+				connectDownStreamId3)));
 
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedPartition4.getFirst().getId(), connectDownStreamId4)));
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedPartition4.getSecond().getId(), connectDownStreamId4)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(),
+				connectDownStreamId4)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src2.getId(),
+				connectDownStreamId4)));
 
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedPartition5.getFirst().getId(), connectDownStreamId5)));
-		assertTrue(isPartitioned(graph.getStreamEdge(connectedPartition5.getSecond().getId(), connectDownStreamId5)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src1.getId(),
+				connectDownStreamId5)));
+		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdge(src2.getId(),
+				connectDownStreamId5)));
 
 		assertFalse(isGrouped(connectedPartition1));
 		assertFalse(isGrouped(connectedPartition2));
@@ -269,17 +294,17 @@ public class DataStreamTest {
 	 */
 	@Test
 	public void testParallelism() {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(10, MEMORYSIZE);
-		StreamGraph graph = env.getStreamGraph();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStreamSource<Tuple2<Long, Long>> src = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
+		env.setParallelism(10);
 
 		SingleOutputStreamOperator<Long, ?> map = src.map(new MapFunction<Tuple2<Long, Long>, Long>() {
 			@Override
 			public Long map(Tuple2<Long, Long> value) throws Exception {
 				return null;
 			}
-		});
+		}).name("MyMap");
 
 		DataStream<Long> windowed = map
 				.window(Count.of(10))
@@ -288,7 +313,10 @@ public class DataStreamTest {
 					public Long fold(Long accumulator, Long value) throws Exception {
 						return null;
 					}
-				}).flatten();
+				})
+				.flatten();
+
+		windowed.addSink(new NoOpSink<Long>());
 
 		DataStreamSink<Long> sink = map.addSink(new SinkFunction<Long>() {
 			@Override
@@ -296,16 +324,21 @@ public class DataStreamTest {
 			}
 		});
 
-		assertEquals(1, graph.getStreamNode(src.getId()).getParallelism());
-		assertEquals(10, graph.getStreamNode(map.getId()).getParallelism());
-		assertEquals(10, graph.getStreamNode(windowed.getId()).getParallelism());
-		assertEquals(10, graph.getStreamNode(sink.getId()).getParallelism());
+		assertEquals(1, env.getStreamGraph().getStreamNode(src.getId()).getParallelism());
+		assertEquals(10, env.getStreamGraph().getStreamNode(map.getId()).getParallelism());
+		assertEquals(1, env.getStreamGraph().getStreamNode(windowed.getId()).getParallelism());
+		assertEquals(10,
+				env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getParallelism());
 
 		env.setParallelism(7);
-		assertEquals(1, graph.getStreamNode(src.getId()).getParallelism());
-		assertEquals(7, graph.getStreamNode(map.getId()).getParallelism());
-		assertEquals(7, graph.getStreamNode(windowed.getId()).getParallelism());
-		assertEquals(7, graph.getStreamNode(sink.getId()).getParallelism());
+
+		// Some parts, such as windowing rely on the fact that previous operators have a parallelism
+		// set when instantiating the Discretizer. This would break if we dynamically changed
+		// the parallelism of operations when changing the setting on the Execution Environment.
+		assertEquals(1, env.getStreamGraph().getStreamNode(src.getId()).getParallelism());
+		assertEquals(10, env.getStreamGraph().getStreamNode(map.getId()).getParallelism());
+		assertEquals(1, env.getStreamGraph().getStreamNode(windowed.getId()).getParallelism());
+		assertEquals(10, env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getParallelism());
 
 		try {
 			src.setParallelism(3);
@@ -314,21 +347,22 @@ public class DataStreamTest {
 		}
 
 		DataStreamSource<Long> parallelSource = env.generateSequence(0, 0);
-		assertEquals(7, graph.getStreamNode(parallelSource.getId()).getParallelism());
+		parallelSource.addSink(new NoOpSink<Long>());
+		assertEquals(7, env.getStreamGraph().getStreamNode(parallelSource.getId()).getParallelism());
 
 		parallelSource.setParallelism(3);
-		assertEquals(3, graph.getStreamNode(parallelSource.getId()).getParallelism());
+		assertEquals(3, env.getStreamGraph().getStreamNode(parallelSource.getId()).getParallelism());
 
 		map.setParallelism(2);
-		assertEquals(2, graph.getStreamNode(map.getId()).getParallelism());
+		assertEquals(2, env.getStreamGraph().getStreamNode(map.getId()).getParallelism());
 
 		sink.setParallelism(4);
-		assertEquals(4, graph.getStreamNode(sink.getId()).getParallelism());
+		assertEquals(4, env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getParallelism());
 	}
 
 	@Test
 	public void testTypeInfo() {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Long> src1 = env.generateSequence(0, 0);
 		assertEquals(TypeExtractor.getForClass(Long.class), src1.getType());
@@ -366,9 +400,7 @@ public class DataStreamTest {
 
 	@Test
 	public void operatorTest() {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
-
-		StreamGraph streamGraph = env.getStreamGraph();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStreamSource<Long> src = env.generateSequence(0, 0);
 
@@ -379,6 +411,7 @@ public class DataStreamTest {
 			}
 		};
 		DataStream<Integer> map = src.map(mapFunction);
+		map.addSink(new NoOpSink<Integer>());
 		assertEquals(mapFunction, getFunctionForDataStream(map));
 
 
@@ -388,6 +421,7 @@ public class DataStreamTest {
 			}
 		};
 		DataStream<Integer> flatMap = src.flatMap(flatMapFunction);
+		flatMap.addSink(new NoOpSink<Integer>());
 		assertEquals(flatMapFunction, getFunctionForDataStream(flatMap));
 
 		FilterFunction<Integer> filterFunction = new FilterFunction<Integer>() {
@@ -401,16 +435,18 @@ public class DataStreamTest {
 				.union(flatMap)
 				.filter(filterFunction);
 
+		unionFilter.addSink(new NoOpSink<Integer>());
+
 		assertEquals(filterFunction, getFunctionForDataStream(unionFilter));
 
 		try {
-			streamGraph.getStreamEdge(map.getId(), unionFilter.getId());
+			env.getStreamGraph().getStreamEdge(map.getId(), unionFilter.getId());
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}
 
 		try {
-			streamGraph.getStreamEdge(flatMap.getId(), unionFilter.getId());
+			env.getStreamGraph().getStreamEdge(flatMap.getId(), unionFilter.getId());
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}
@@ -423,14 +459,15 @@ public class DataStreamTest {
 		};
 
 		SplitDataStream<Integer> split = unionFilter.split(outputSelector);
-		List<OutputSelector<?>> outputSelectors = streamGraph.getStreamNode(split.getId()).getOutputSelectors();
+		split.select("dummy").addSink(new NoOpSink<Integer>());
+		List<OutputSelector<?>> outputSelectors = env.getStreamGraph().getStreamNode(unionFilter.getId()).getOutputSelectors();
 		assertEquals(1, outputSelectors.size());
 		assertEquals(outputSelector, outputSelectors.get(0));
 
 		DataStream<Integer> select = split.select("a");
 		DataStreamSink<Integer> sink = select.print();
 
-		StreamEdge splitEdge = streamGraph.getStreamEdge(select.getId(), sink.getId());
+		StreamEdge splitEdge = env.getStreamGraph().getStreamEdge(unionFilter.getId(), sink.getTransformation().getId());
 		assertEquals("a", splitEdge.getSelectedNames().get(0));
 
 		ConnectedDataStream<Integer, Integer> connect = map.connect(flatMap);
@@ -446,16 +483,17 @@ public class DataStreamTest {
 			}
 		};
 		DataStream<String> coMap = connect.map(coMapper);
+		coMap.addSink(new NoOpSink<String>());
 		assertEquals(coMapper, getFunctionForDataStream(coMap));
 
 		try {
-			streamGraph.getStreamEdge(map.getId(), coMap.getId());
+			env.getStreamGraph().getStreamEdge(map.getId(), coMap.getId());
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}
 
 		try {
-			streamGraph.getStreamEdge(flatMap.getId(), coMap.getId());
+			env.getStreamGraph().getStreamEdge(flatMap.getId(), coMap.getId());
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}
@@ -463,12 +501,11 @@ public class DataStreamTest {
 	
 	@Test
 	public void sinkKeyTest() {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
-		StreamGraph streamGraph = env.getStreamGraph();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStream<Long> sink = env.generateSequence(1, 100).print();
-		assertTrue(streamGraph.getStreamNode(sink.getId()).getStatePartitioner() == null);
-		assertTrue(streamGraph.getStreamNode(sink.getId()).getInEdges().get(0).getPartitioner() instanceof RebalancePartitioner);
+		DataStreamSink<Long> sink = env.generateSequence(1, 100).print();
+		assertTrue(env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getStatePartitioner() == null);
+		assertTrue(env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof ForwardPartitioner);
 
 		KeySelector<Long, Long> key1 = new KeySelector<Long, Long>() {
 
@@ -480,11 +517,11 @@ public class DataStreamTest {
 			}
 		};
 
-		DataStream<Long> sink2 = env.generateSequence(1, 100).keyBy(key1).print();
+		DataStreamSink<Long> sink2 = env.generateSequence(1, 100).keyBy(key1).print();
 
-		assertTrue(streamGraph.getStreamNode(sink2.getId()).getStatePartitioner() != null);
-		assertEquals(key1, streamGraph.getStreamNode(sink2.getId()).getStatePartitioner());
-		assertTrue(streamGraph.getStreamNode(sink2.getId()).getInEdges().get(0).getPartitioner() instanceof FieldsPartitioner);
+		assertTrue(env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getStatePartitioner() != null);
+		assertEquals(key1, env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getStatePartitioner());
+		assertTrue(env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof HashPartitioner);
 
 		KeySelector<Long, Long> key2 = new KeySelector<Long, Long>() {
 
@@ -496,49 +533,52 @@ public class DataStreamTest {
 			}
 		};
 
-		DataStream<Long> sink3 = env.generateSequence(1, 100).keyBy(key2).print();
+		DataStreamSink<Long> sink3 = env.generateSequence(1, 100).keyBy(key2).print();
 
-		assertTrue(streamGraph.getStreamNode(sink3.getId()).getStatePartitioner() != null);
-		assertEquals(key2, streamGraph.getStreamNode(sink3.getId()).getStatePartitioner());
-		assertTrue(streamGraph.getStreamNode(sink3.getId()).getInEdges().get(0).getPartitioner() instanceof FieldsPartitioner);
+		assertTrue(env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getStatePartitioner() != null);
+		assertEquals(key2, env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getStatePartitioner());
+		assertTrue(env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof HashPartitioner);
 	}
 
 	@Test
 	public void testChannelSelectors() {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
-
-		StreamGraph streamGraph = env.getStreamGraph();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStreamSource<Long> src = env.generateSequence(0, 0);
 
 		DataStream<Long> broadcast = src.broadcast();
 		DataStreamSink<Long> broadcastSink = broadcast.print();
 		StreamPartitioner<?> broadcastPartitioner =
-				streamGraph.getStreamEdge(broadcast.getId(), broadcastSink.getId()).getPartitioner();
+				env.getStreamGraph().getStreamEdge(src.getId(),
+						broadcastSink.getTransformation().getId()).getPartitioner();
 		assertTrue(broadcastPartitioner instanceof BroadcastPartitioner);
 
 		DataStream<Long> shuffle = src.shuffle();
 		DataStreamSink<Long> shuffleSink = shuffle.print();
 		StreamPartitioner<?> shufflePartitioner =
-				streamGraph.getStreamEdge(shuffle.getId(), shuffleSink.getId()).getPartitioner();
+				env.getStreamGraph().getStreamEdge(src.getId(),
+						shuffleSink.getTransformation().getId()).getPartitioner();
 		assertTrue(shufflePartitioner instanceof ShufflePartitioner);
 
 		DataStream<Long> forward = src.forward();
 		DataStreamSink<Long> forwardSink = forward.print();
 		StreamPartitioner<?> forwardPartitioner =
-				streamGraph.getStreamEdge(forward.getId(), forwardSink.getId()).getPartitioner();
-		assertTrue(forwardPartitioner instanceof RebalancePartitioner);
+				env.getStreamGraph().getStreamEdge(src.getId(),
+						forwardSink.getTransformation().getId()).getPartitioner();
+		assertTrue(forwardPartitioner instanceof ForwardPartitioner);
 
 		DataStream<Long> rebalance = src.rebalance();
 		DataStreamSink<Long> rebalanceSink = rebalance.print();
 		StreamPartitioner<?> rebalancePartitioner =
-				streamGraph.getStreamEdge(rebalance.getId(), rebalanceSink.getId()).getPartitioner();
+				env.getStreamGraph().getStreamEdge(src.getId(),
+						rebalanceSink.getTransformation().getId()).getPartitioner();
 		assertTrue(rebalancePartitioner instanceof RebalancePartitioner);
 
 		DataStream<Long> global = src.global();
 		DataStreamSink<Long> globalSink = global.print();
 		StreamPartitioner<?> globalPartitioner =
-				streamGraph.getStreamEdge(global.getId(), globalSink.getId()).getPartitioner();
+				env.getStreamGraph().getStreamEdge(src.getId(),
+						globalSink.getTransformation().getId()).getPartitioner();
 		assertTrue(globalPartitioner instanceof GlobalPartitioner);
 	}
 
@@ -559,7 +599,7 @@ public class DataStreamTest {
 	}
 
 	private static Integer createDownStreamId(DataStream dataStream) {
-		return dataStream.print().getId();
+		return dataStream.print().getTransformation().getId();
 	}
 
 	private static boolean isGrouped(DataStream dataStream) {
@@ -567,7 +607,7 @@ public class DataStreamTest {
 	}
 
 	private static Integer createDownStreamId(ConnectedDataStream dataStream) {
-		return dataStream.map(new CoMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Object>() {
+		SingleOutputStreamOperator coMap = dataStream.map(new CoMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Object>() {
 			@Override
 			public Object map1(Tuple2<Long, Long> value) {
 				return null;
@@ -577,7 +617,9 @@ public class DataStreamTest {
 			public Object map2(Tuple2<Long, Long> value) {
 				return null;
 			}
-		}).getId();
+		});
+		coMap.addSink(new NoOpSink());
+		return coMap.getId();
 	}
 
 	private static boolean isGrouped(ConnectedDataStream dataStream) {
@@ -585,7 +627,7 @@ public class DataStreamTest {
 	}
 
 	private static boolean isPartitioned(StreamEdge edge) {
-		return edge.getPartitioner() instanceof FieldsPartitioner;
+		return edge.getPartitioner() instanceof HashPartitioner;
 	}
 
 	private static boolean isCustomPartitioned(StreamEdge edge) {

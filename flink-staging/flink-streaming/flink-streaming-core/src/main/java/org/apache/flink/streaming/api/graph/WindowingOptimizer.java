@@ -28,7 +28,6 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.windowing.StreamDiscretizer;
 import org.apache.flink.streaming.api.operators.windowing.WindowFlattener;
 import org.apache.flink.streaming.api.operators.windowing.WindowMerger;
-import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 
 public class WindowingOptimizer {
 
@@ -64,8 +63,7 @@ public class WindowingOptimizer {
 				StreamNode mergeInput = input.getInEdges().get(0).getSourceVertex();
 
 				// We connect the merge input to the flattener directly
-				streamGraph.addEdge(mergeInput.getId(), flattenerId,
-						new RebalancePartitioner(true), 0, new ArrayList<String>());
+				streamGraph.addEdge(mergeInput.getId(), flattenerId, 0);
 
 				// If the merger is only connected to the flattener we delete it
 				// completely, otherwise we only remove the edge
@@ -107,8 +105,7 @@ public class WindowingOptimizer {
 
 				for (StreamEdge edge1 : discretizer.getInEdges()) {
 					for (StreamEdge edge2 : candidate.f1.get(0).getInEdges()) {
-						if (edge1.getPartitioner().getStrategy() != edge2.getPartitioner()
-								.getStrategy()) {
+						if (edge1.getPartitioner().getClass() != edge2.getPartitioner().getClass()) {
 							partitionersMatch = false;
 						}
 					}
@@ -155,8 +152,7 @@ public class WindowingOptimizer {
 		for (int i = 0; i < numOutputs; i++) {
 			StreamEdge outEdge = outEdges.get(i);
 
-			streamGraph.addEdge(replaceWithId, outEdge.getTargetId(), outEdge.getPartitioner(), 0,
-					new ArrayList<String>());
+			streamGraph.addEdge(replaceWithId, outEdge.getTargetId(), 0);
 		}
 
 		// Remove the other discretizer

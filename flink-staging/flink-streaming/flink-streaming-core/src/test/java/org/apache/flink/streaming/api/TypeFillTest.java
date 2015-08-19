@@ -33,11 +33,12 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoReduceFunction;
 import org.apache.flink.streaming.api.functions.co.CoWindowFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
 @SuppressWarnings("serial")
-public class TypeFillTest {
+public class TypeFillTest extends StreamingMultipleProgramsTestBase {
 
 	@Test
 	public void test() {

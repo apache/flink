@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.windowing.EmptyWindowFilter;
 import org.apache.flink.streaming.api.operators.windowing.ParallelGroupedMerge;
 import org.apache.flink.streaming.api.operators.windowing.ParallelMerge;
+import org.apache.flink.streaming.api.operators.windowing.ParallelMergeOperator;
 import org.apache.flink.streaming.api.operators.windowing.WindowFlattener;
 import org.apache.flink.streaming.api.operators.windowing.WindowFolder;
 import org.apache.flink.streaming.api.operators.windowing.WindowMapper;
@@ -43,7 +44,7 @@ import org.apache.flink.streaming.api.operators.windowing.WindowMerger;
 import org.apache.flink.streaming.api.operators.windowing.WindowPartExtractor;
 import org.apache.flink.streaming.api.operators.windowing.WindowPartitioner;
 import org.apache.flink.streaming.api.operators.windowing.WindowReducer;
-import org.apache.flink.streaming.api.operators.windowing.ParallelMergeOperator;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.StreamWindowTypeInfo;
 import org.apache.flink.streaming.api.windowing.WindowUtils.WindowKey;
@@ -96,7 +97,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	}
 
 	public DataStream<OUT> flatten() {
-		return discretizedStream.transform("Window Flatten", getType(), new WindowFlattener<OUT>());
+		return discretizedStream.transform("Window Flatten", getType(), new WindowFlattener<OUT>()).setParallelism(discretizedStream.getParallelism());
 	}
 
 	public DataStream<StreamWindow<OUT>> getDiscretizedStream() {
@@ -112,7 +113,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
 		// If we merged a non-grouped reduce transformation we need to reduce
 		// again
-		if (!isGrouped() && out.discretizedStream.operator instanceof WindowMerger) {
+		if (!isGrouped() && ((OneInputTransformation<?, ?>)out.discretizedStream.getTransformation()).getOperator() instanceof WindowMerger) {
 			return out.transform(WindowTransformation.REDUCEWINDOW, "Window Reduce", out.getType(),
 					new WindowReducer<OUT>(discretizedStream.clean(reduceFunction)));
 		} else {
@@ -171,7 +172,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 			TypeInformation<R> returnType) {
 		DiscretizedStream<R> out = partition(transformation).transform(
 				WindowTransformation.MAPWINDOW, "Window Map", returnType,
-				new WindowMapper<OUT, R>(discretizedStream.clean(windowMapFunction))).merge();
+				new WindowMapper<OUT, R>(discretizedStream.clean(windowMapFunction))).setParallelism(discretizedStream.getParallelism()).merge();
 
 		return out;
 	}
@@ -183,6 +184,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 		DiscretizedStream<R> out = partition(transformation).transform(
 				WindowTransformation.FOLDWINDOW, "Fold Window", outType,
 				new WindowFolder<OUT, R>(discretizedStream.clean(foldFunction), initialValue))
+				.setParallelism(discretizedStream.getParallelism())
 				.merge();
 		return out;
 	}
@@ -192,7 +194,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 			OneInputStreamOperator<StreamWindow<OUT>, StreamWindow<R>> operator) {
 
 		return wrap(discretizedStream.transform(operatorName, new StreamWindowTypeInfo<R>(retType),
-				operator), transformation);
+				operator).setParallelism(discretizedStream.getParallelism()), transformation);
 	}
 
 	private DiscretizedStream<OUT> filterEmpty(DiscretizedStream<OUT> input) {
@@ -246,7 +248,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 		if (isPartitioned) {
 			return wrap(
 					discretizedStream.groupBy(new WindowKey<OUT>()).transform("Window Merger",
-							type, new WindowMerger<OUT>()), false);
+							type, new WindowMerger<OUT>()).setParallelism(discretizedStream.getParallelism()), false);
 		} else {
 			return this;
 		}
@@ -327,8 +329,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	}
 
 	protected DiscretizedStream<OUT> copy() {
-		return new DiscretizedStream<OUT>(discretizedStream.copy(), groupByKey, transformation,
-				isPartitioned);
+		return new DiscretizedStream<OUT>(discretizedStream, groupByKey, transformation, isPartitioned);
 	}
 
 	@Override

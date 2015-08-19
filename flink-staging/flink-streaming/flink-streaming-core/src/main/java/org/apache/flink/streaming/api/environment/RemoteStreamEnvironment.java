@@ -84,15 +84,15 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute() throws ProgramInvocationException {
-
-		JobGraph jobGraph = streamGraph.getJobGraph();
+		JobGraph jobGraph = getStreamGraph().getJobGraph();
+		transformations.clear();
 		return executeRemotely(jobGraph);
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws ProgramInvocationException {
-
-		JobGraph jobGraph = streamGraph.getJobGraph(jobName);
+		JobGraph jobGraph = getStreamGraph().getJobGraph(jobName);
+		transformations.clear();
 		return executeRemotely(jobGraph);
 	}
 

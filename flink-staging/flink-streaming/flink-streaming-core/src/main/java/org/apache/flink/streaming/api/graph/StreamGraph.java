@@ -23,14 +23,15 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -44,11 +45,11 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
@@ -84,11 +85,15 @@ public class StreamGraph extends StreamingPlan {
 
 	private Map<Integer, StreamNode> streamNodes;
 	private Set<Integer> sources;
+	private Set<Integer> sinks;
+	private Map<Integer, Tuple2<Integer, List<String>>> virtualSelectNodes;
+	private Map<Integer, Tuple2<Integer, StreamPartitioner<?>>> virtuaPartitionNodes;
 
-	private Map<Integer, StreamLoop> streamLoops;
-	protected Map<Integer, StreamLoop> vertexIDtoLoop;
 	protected Map<Integer, String> vertexIDtoBrokerID;
+	protected Map<Integer, Long> vertexIDtoLoopTimeout;
 	private StateHandleProvider<?> stateHandleProvider;
+	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
+
 	private boolean forceCheckpoint = false;
 
 	public StreamGraph(StreamExecutionEnvironment environment) {
@@ -104,11 +109,14 @@ public class StreamGraph extends StreamingPlan {
 	 * Remove all registered nodes etc.
 	 */
 	public void clear() {
-		streamNodes = new HashMap<Integer, StreamNode>();
-		streamLoops = new HashMap<Integer, StreamLoop>();
-		vertexIDtoLoop = new HashMap<Integer, StreamLoop>();
-		vertexIDtoBrokerID = new HashMap<Integer, String>();
-		sources = new HashSet<Integer>();
+		streamNodes = Maps.newHashMap();
+		virtualSelectNodes = Maps.newHashMap();
+		virtuaPartitionNodes = Maps.newHashMap();
+		vertexIDtoBrokerID = Maps.newHashMap();
+		vertexIDtoLoopTimeout = Maps.newHashMap();
+		iterationSourceSinkPairs = Sets.newHashSet();
+		sources = Sets.newHashSet();
+		sinks = Sets.newHashSet();
 	}
 
 	protected ExecutionConfig getExecutionConfig() {
@@ -167,13 +175,19 @@ public class StreamGraph extends StreamingPlan {
 	
 
 	public boolean isIterative() {
-		return !streamLoops.isEmpty();
+		return!vertexIDtoLoopTimeout.isEmpty();
 	}
 
 	public <IN, OUT> void addSource(Integer vertexID, StreamOperator<OUT> operatorObject,
 			TypeInformation<IN> inTypeInfo, TypeInformation<OUT> outTypeInfo, String operatorName) {
 		addOperator(vertexID, operatorObject, inTypeInfo, outTypeInfo, operatorName);
 		sources.add(vertexID);
+	}
+
+	public <IN, OUT> void addSink(Integer vertexID, StreamOperator<OUT> operatorObject,
+			TypeInformation<IN> inTypeInfo, TypeInformation<OUT> outTypeInfo, String operatorName) {
+		addOperator(vertexID, operatorObject, inTypeInfo, outTypeInfo, operatorName);
+		sinks.add(vertexID);
 	}
 
 	public <IN, OUT> void addOperator(Integer vertexID, StreamOperator<OUT> operatorObject,
@@ -212,195 +226,12 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	public void addIterationHead(Integer iterationHead, Integer iterationID, long timeOut,
-			TypeInformation<?> feedbackType) {
-		// If there is no loop object created for this iteration create one
-		StreamLoop loop = streamLoops.get(iterationID);
-		if (loop == null) {
-			loop = new StreamLoop(iterationID, timeOut, feedbackType);
-			streamLoops.put(iterationID, loop);
-		}
-
-		loop.addHeadOperator(getStreamNode(iterationHead));
-	}
-
-	public void addIterationTail(List<DataStream<?>> feedbackStreams, Integer iterationID,
-			boolean keepPartitioning) {
-
-		if (!streamLoops.containsKey(iterationID)) {
-			throw new RuntimeException("Cannot close iteration without head operator.");
-		}
-
-		StreamLoop loop = streamLoops.get(iterationID);
-
-		for (DataStream<?> stream : feedbackStreams) {
-			loop.addTailOperator(getStreamNode(stream.getId()), stream.getPartitioner(),
-					stream.getSelectedNames());
-		}
-
-		if (keepPartitioning) {
-			loop.applyTailPartitioning();
-		}
-	}
-
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public void finalizeLoops() {
-		
-		// We create each loop separately, the order does not matter as sinks
-		// and sources don't interact
-		for (StreamLoop loop : streamLoops.values()) {
-
-			// We make sure not to re-create the loops if the method is called
-			// multiple times
-			if (loop.getSourceSinkPairs().isEmpty()) {
-
-				List<StreamNode> headOps = loop.getHeads();
-				List<StreamNode> tailOps = loop.getTails();
-
-				// This means that the iteration was not closed. It should not
-				// be
-				// allowed.
-				if (tailOps.isEmpty()) {
-					throw new RuntimeException("Cannot execute job with empty iterations.");
-				}
-
-				// Check whether we keep the feedback partitioning
-				if (loop.keepsPartitioning()) {
-					// This is the complicated case as we need to enforce
-					// partitioning on the tail -> sink side, which
-					// requires strict forward connections at source -> head
-
-					// We need one source/sink pair per different head
-					// parallelism
-					// as we depend on strict forwards connections
-					Map<Integer, List<StreamNode>> parallelismToHeads = new HashMap<Integer, List<StreamNode>>();
-
-					// Group head operators by parallelism
-					for (StreamNode head : headOps) {
-						int p = head.getParallelism();
-						if (!parallelismToHeads.containsKey(p)) {
-							parallelismToHeads.put(p, new ArrayList<StreamNode>());
-						}
-						parallelismToHeads.get(p).add(head);
-					}
-
-					// We create the sink/source pair for each parallelism
-					// group,
-					// tails will forward to all sinks but each head operator
-					// will
-					// only receive from one source (corresponding to its
-					// parallelism)
-					int c = 0;
-					for (Entry<Integer, List<StreamNode>> headGroup : parallelismToHeads.entrySet()) {
-						List<StreamNode> headOpsInGroup = headGroup.getValue();
-
-						Tuple2<StreamNode, StreamNode> sourceSinkPair = createItSourceAndSink(loop,
-								c);
-						StreamNode source = sourceSinkPair.f0;
-						StreamNode sink = sourceSinkPair.f1;
-
-						// We connect the source to the heads in this group
-						// (forward), setting
-						// type to 2 in case we have a coIteration (this sets
-						// the
-						// input as the second input of the co-operator)
-						for (StreamNode head : headOpsInGroup) {
-							int inputType = loop.isCoIteration() ? 2 : 0;
-							addEdge(source.getId(), head.getId(), new RebalancePartitioner(true),
-									inputType, new ArrayList<String>());
-						}
-
-						// We connect all the tails to the sink keeping the
-						// partitioner
-						for (int i = 0; i < tailOps.size(); i++) {
-							StreamNode tail = tailOps.get(i);
-							StreamPartitioner<?> partitioner = loop.getTailPartitioners().get(i);
-							addEdge(tail.getId(), sink.getId(), partitioner.copy(), 0, loop
-									.getTailSelectedNames().get(i));
-						}
-
-						// We set the sink/source parallelism to the group
-						// parallelism
-						source.setParallelism(headGroup.getKey());
-						sink.setParallelism(source.getParallelism());
-
-						// We set the proper serializers for the sink/source
-						setSerializersFrom(tailOps.get(0).getId(), sink.getId());
-						if (loop.isCoIteration()) {
-							source.setSerializerOut(loop.getFeedbackType().createSerializer(executionConfig));
-						} else {
-							setSerializersFrom(headOpsInGroup.get(0).getId(), source.getId());
-						}
-
-						c++;
-					}
-
-				} else {
-					// This is the most simple case, we add one iteration
-					// sink/source pair with the parallelism of the first tail
-					// operator. Tail operators will forward the records and
-					// partitioning will be enforced from source -> head
-
-					Tuple2<StreamNode, StreamNode> sourceSinkPair = createItSourceAndSink(loop, 0);
-					StreamNode source = sourceSinkPair.f0;
-					StreamNode sink = sourceSinkPair.f1;
-
-					// We get the feedback partitioner from the first input of
-					// the
-					// first head.
-					StreamPartitioner<?> partitioner = headOps.get(0).getInEdges().get(0)
-							.getPartitioner();
-
-					// Connect the sources to heads using this partitioner
-					for (StreamNode head : headOps) {
-						addEdge(source.getId(), head.getId(), partitioner.copy(), 0,
-								new ArrayList<String>());
-					}
-
-					// The tails are connected to the sink with forward
-					// partitioning
-					for (int i = 0; i < tailOps.size(); i++) {
-						StreamNode tail = tailOps.get(i);
-						addEdge(tail.getId(), sink.getId(), new RebalancePartitioner(true), 0, loop
-								.getTailSelectedNames().get(i));
-					}
-
-					// We set the parallelism to match the first tail op to make
-					// the
-					// forward more efficient
-					sink.setParallelism(tailOps.get(0).getParallelism());
-					source.setParallelism(sink.getParallelism());
-
-					// We set the proper serializers
-					setSerializersFrom(headOps.get(0).getId(), source.getId());
-					setSerializersFrom(tailOps.get(0).getId(), sink.getId());
-				}
-
-			}
-
-		}
-
-	}
-
-	private Tuple2<StreamNode, StreamNode> createItSourceAndSink(StreamLoop loop, int c) {
-		StreamNode source = addNode(-1 * streamNodes.size(), StreamIterationHead.class, null, null);
-		sources.add(source.getId());
-
-		StreamNode sink = addNode(-1 * streamNodes.size(), StreamIterationTail.class, null, null);
-
-		source.setOperatorName("IterationSource-" + loop.getID() + "_" + c);
-		sink.setOperatorName("IterationSink-" + loop.getID() + "_" + c);
-		vertexIDtoBrokerID.put(source.getId(), loop.getID() + "_" + c);
-		vertexIDtoBrokerID.put(sink.getId(), loop.getID() + "_" + c);
-		vertexIDtoLoop.put(source.getId(), loop);
-		vertexIDtoLoop.put(sink.getId(), loop);
-		loop.addSourceSinkPair(source, sink);
-
-		return new Tuple2<StreamNode, StreamNode>(source, sink);
-	}
-
 	protected StreamNode addNode(Integer vertexID, Class<? extends AbstractInvokable> vertexClass,
 			StreamOperator<?> operatorObject, String operatorName) {
+
+		if (streamNodes.containsKey(vertexID)) {
+			throw new RuntimeException("Duplicate vertexID " + vertexID);
+		}
 
 		StreamNode vertex = new StreamNode(environemnt, vertexID, operatorObject, operatorName,
 				new ArrayList<OutputSelector<?>>(), vertexClass);
@@ -410,26 +241,126 @@ public class StreamGraph extends StreamingPlan {
 		return vertex;
 	}
 
-	public void addEdge(Integer upStreamVertexID, Integer downStreamVertexID,
-			StreamPartitioner<?> partitionerObject, int typeNumber, List<String> outputNames) {
+	/**
+	 * Adds a new virtual node that is used to connect a downstream vertex to only the outputs
+	 * with the selected names.
+	 *
+	 * When adding an edge from the virtual node to a downstream node the connection will be made
+	 * to the original node, only with the selected names given here.
+	 *
+	 * @param originalId ID of the node that should be connected to.
+	 * @param virtualId ID of the virtual node.
+	 * @param selectedNames The selected names.
+	 */
+	public void addVirtualSelectNode(Integer originalId, Integer virtualId, List<String> selectedNames) {
 
-		StreamEdge edge = new StreamEdge(getStreamNode(upStreamVertexID),
-				getStreamNode(downStreamVertexID), typeNumber, outputNames, partitionerObject);
-		getStreamNode(edge.getSourceId()).addOutEdge(edge);
-		getStreamNode(edge.getTargetId()).addInEdge(edge);
+		if (virtualSelectNodes.containsKey(virtualId)) {
+			throw new IllegalStateException("Already has virtual select node with id " + virtualId);
+		}
+
+		virtualSelectNodes.put(virtualId,
+				new Tuple2<Integer, List<String>>(originalId, selectedNames));
+	}
+
+	/**
+	 * Adds a new virtual node that is used to connect a downstream vertex to an input with a certain
+	 * partitioning.
+	 *
+	 * When adding an edge from the virtual node to a downstream node the connection will be made
+	 * to the original node, but with the partitioning given here.
+	 *
+	 * @param originalId ID of the node that should be connected to.
+	 * @param virtualId ID of the virtual node.
+	 * @param partitioner The partitioner
+	 */
+	public void addVirtualPartitionNode(Integer originalId, Integer virtualId, StreamPartitioner<?> partitioner) {
+
+		if (virtuaPartitionNodes.containsKey(virtualId)) {
+			throw new IllegalStateException("Already has virtual partition node with id " + virtualId);
+		}
+
+		virtuaPartitionNodes.put(virtualId,
+				new Tuple2<Integer, StreamPartitioner<?>>(originalId, partitioner));
+	}
+
+	public void addEdge(Integer upStreamVertexID, Integer downStreamVertexID, int typeNumber) {
+		addEdgeInternal(upStreamVertexID,
+				downStreamVertexID,
+				typeNumber,
+				null,
+				Lists.<String>newArrayList());
+
+	}
+
+	private void addEdgeInternal(Integer upStreamVertexID,
+			Integer downStreamVertexID,
+			int typeNumber,
+			StreamPartitioner<?> partitioner,
+			List<String> outputNames) {
+
+
+		if (virtualSelectNodes.containsKey(upStreamVertexID)) {
+			int virtualId = upStreamVertexID;
+			upStreamVertexID = virtualSelectNodes.get(virtualId).f0;
+			if (outputNames.isEmpty()) {
+				// selections that happen downstream override earlier selections
+				outputNames = virtualSelectNodes.get(virtualId).f1;
+			}
+			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames);
+		} else if (virtuaPartitionNodes.containsKey(upStreamVertexID)) {
+			int virtualId = upStreamVertexID;
+			upStreamVertexID = virtuaPartitionNodes.get(virtualId).f0;
+			if (partitioner == null) {
+				partitioner = virtuaPartitionNodes.get(virtualId).f1;
+			}
+			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames);
+		} else {
+			StreamNode upstreamNode = getStreamNode(upStreamVertexID);
+			StreamNode downstreamNode = getStreamNode(downStreamVertexID);
+
+			// If no partitioner was specified and the parallelism of upstream and downstream
+			// operator matches use forward partitioning, use rebalance otherwise.
+			if (partitioner == null && upstreamNode.getParallelism() == downstreamNode.getParallelism()) {
+				partitioner = new ForwardPartitioner<Object>();
+			} else if (partitioner == null) {
+				partitioner = new RebalancePartitioner<Object>();
+			}
+
+			if (partitioner instanceof ForwardPartitioner) {
+				if (upstreamNode.getParallelism() != downstreamNode.getParallelism()) {
+					throw new UnsupportedOperationException("Forward partitioning does not allow " +
+							"change of parallelism. Upstream operation: " + upstreamNode + " parallelism: " + upstreamNode.getParallelism() +
+							", downstream operation: " + downstreamNode + " parallelism: " + downstreamNode.getParallelism() +
+							" You must use another partitioning strategy, such as broadcast, rebalance, shuffle or global.");
+				}
+			}
+
+			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner);
+
+			getStreamNode(edge.getSourceId()).addOutEdge(edge);
+			getStreamNode(edge.getTargetId()).addInEdge(edge);
+		}
 	}
 
 	public <T> void addOutputSelector(Integer vertexID, OutputSelector<T> outputSelector) {
-		getStreamNode(vertexID).addOutputSelector(outputSelector);
+		if (virtuaPartitionNodes.containsKey(vertexID)) {
+			addOutputSelector(virtuaPartitionNodes.get(vertexID).f0, outputSelector);
+		} else if (virtualSelectNodes.containsKey(vertexID)) {
+			addOutputSelector(virtualSelectNodes.get(vertexID).f0, outputSelector);
+		} else {
+			getStreamNode(vertexID).addOutputSelector(outputSelector);
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Outputselector set for {}", vertexID);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Outputselector set for {}", vertexID);
+			}
 		}
 
 	}
 
 	public void setParallelism(Integer vertexID, int parallelism) {
-		getStreamNode(vertexID).setParallelism(parallelism);
+		if (getStreamNode(vertexID) != null) {
+			getStreamNode(vertexID).setParallelism(parallelism);
+		}
 	}
 
 	public void setKey(Integer vertexID, KeySelector<?, ?> key) {
@@ -437,17 +368,19 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public void setBufferTimeout(Integer vertexID, long bufferTimeout) {
-		getStreamNode(vertexID).setBufferTimeout(bufferTimeout);
+		if (getStreamNode(vertexID) != null) {
+			getStreamNode(vertexID).setBufferTimeout(bufferTimeout);
+		}
 	}
 
-	private void setSerializers(Integer vertexID, TypeSerializer<?> in1, TypeSerializer<?> in2, TypeSerializer<?> out) {
+	public void setSerializers(Integer vertexID, TypeSerializer<?> in1, TypeSerializer<?> in2, TypeSerializer<?> out) {
 		StreamNode vertex = getStreamNode(vertexID);
 		vertex.setSerializerIn1(in1);
 		vertex.setSerializerIn2(in2);
 		vertex.setSerializerOut(out);
 	}
 
-	private void setSerializersFrom(Integer from, Integer to) {
+	public void setSerializersFrom(Integer from, Integer to) {
 		StreamNode fromVertex = getStreamNode(from);
 		StreamNode toVertex = getStreamNode(to);
 
@@ -469,6 +402,10 @@ public class StreamGraph extends StreamingPlan {
 
 	public void setResourceStrategy(Integer vertexID, ResourceStrategy strategy) {
 		StreamNode node = getStreamNode(vertexID);
+		if (node == null) {
+			return;
+		}
+
 		switch (strategy) {
 		case ISOLATE:
 			node.isolateSlot();
@@ -506,6 +443,11 @@ public class StreamGraph extends StreamingPlan {
 		return sources;
 	}
 
+
+	public Collection<Integer> getSinkIDs() {
+		return sinks;
+	}
+
 	public Collection<StreamNode> getStreamNodes() {
 		return streamNodes.values();
 	}
@@ -519,20 +461,44 @@ public class StreamGraph extends StreamingPlan {
 		return operatorSet;
 	}
 
-	public Collection<StreamLoop> getStreamLoops() {
-		return streamLoops.values();
-	}
-
-	public Integer getLoopID(Integer vertexID) {
-		return vertexIDtoLoop.get(vertexID).getID();
-	}
-
 	public String getBrokerID(Integer vertexID) {
 		return vertexIDtoBrokerID.get(vertexID);
 	}
 
 	public long getLoopTimeout(Integer vertexID) {
-		return vertexIDtoLoop.get(vertexID).getTimeout();
+		return vertexIDtoLoopTimeout.get(vertexID);
+	}
+
+	public  Tuple2<StreamNode, StreamNode> createIterationSourceAndSink(int loopId, int sourceId, int sinkId, long timeout, int parallelism) {
+
+		StreamNode source = this.addNode(sourceId,
+				StreamIterationHead.class,
+				null,
+				null);
+		sources.add(source.getId());
+		setParallelism(source.getId(), parallelism);
+
+		StreamNode sink = this.addNode(sinkId,
+				StreamIterationTail.class,
+				null,
+				null);
+		sinks.add(sink.getId());
+		setParallelism(sink.getId(), parallelism);
+
+		iterationSourceSinkPairs.add(new Tuple2<StreamNode, StreamNode>(source, sink));
+
+		source.setOperatorName("IterationSource-" + loopId);
+		sink.setOperatorName("IterationSink-" + loopId);
+		this.vertexIDtoBrokerID.put(source.getId(), "broker-" + loopId);
+		this.vertexIDtoBrokerID.put(sink.getId(), "broker-" + loopId);
+		this.vertexIDtoLoopTimeout.put(source.getId(), timeout);
+		this.vertexIDtoLoopTimeout.put(sink.getId(), timeout);
+
+		return new Tuple2<StreamNode, StreamNode>(source, sink);
+	}
+
+	public Set<Tuple2<StreamNode, StreamNode>> getIterationSourceSinkPairs() {
+		return iterationSourceSinkPairs;
 	}
 
 	protected void removeEdge(StreamEdge edge) {
@@ -570,7 +536,6 @@ public class StreamGraph extends StreamingPlan {
 	 *            name of the jobGraph
 	 */
 	public JobGraph getJobGraph(String jobGraphName) {
-		finalizeLoops();
 		// temporarily forbid checkpointing for iterative jobs
 		if (isIterative() && isCheckpointingEnabled() && !forceCheckpoint) {
 			throw new UnsupportedOperationException(

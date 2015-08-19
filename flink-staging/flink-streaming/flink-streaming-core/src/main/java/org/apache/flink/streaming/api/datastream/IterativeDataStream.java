@@ -17,40 +17,41 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import java.util.List;
-
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
+import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
+import org.apache.flink.streaming.api.transformations.StreamTransformation;
+
+import java.util.Collection;
 
 /**
- * The iterative data stream represents the start of an iteration in a
- * {@link DataStream}.
+ * The iterative data stream represents the start of an iteration in a {@link DataStream}.
  * 
- * @param <IN>
- *            Type of the DataStream
+ * @param <T> Type of the elements in this Stream
  */
-public class IterativeDataStream<IN> extends
-		SingleOutputStreamOperator<IN, IterativeDataStream<IN>> {
-	
-	protected boolean closed = false;
+public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, IterativeDataStream<T>> {
 
-	static Integer iterationCount = 0;
+	// We store these so that we can create a co-iteration if we need to
+	private DataStream<T> originalInput;
+	private long maxWaitTime;
 	
-	protected IterativeDataStream(DataStream<IN> dataStream, long maxWaitTime) {
-		super(dataStream);
+	protected IterativeDataStream(DataStream<T> dataStream, long maxWaitTime) {
+		super(dataStream.getExecutionEnvironment(),
+				new FeedbackTransformation<T>(dataStream.getTransformation(), maxWaitTime));
+		this.originalInput = dataStream;
+		this.maxWaitTime = maxWaitTime;
 		setBufferTimeout(dataStream.environment.getBufferTimeout());
-		iterationID = iterationCount;
-		iterationCount++;
-		iterationWaitTime = maxWaitTime;
 	}
 
 	/**
 	 * Closes the iteration. This method defines the end of the iterative
-	 * program part that will be fed back to the start of the iteration. </br>
-	 * </br>A common usage pattern for streaming iterations is to use output
+	 * program part that will be fed back to the start of the iteration.
+	 *
+	 * <p>
+	 * A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
 	 * {@link DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)}
 	 * for more information.
@@ -58,50 +59,30 @@ public class IterativeDataStream<IN> extends
 	 * @param feedbackStream
 	 *            {@link DataStream} that will be used as input to the iteration
 	 *            head.
-	 * @param keepPartitioning
-	 *            If true the feedback partitioning will be kept as it is (not
-	 *            changed to match the input of the iteration head)
+	 *
 	 * @return The feedback stream.
 	 * 
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public DataStream<IN> closeWith(DataStream<IN> iterationTail, boolean keepPartitioning) {
-		
-		if (closed) {
-			throw new IllegalStateException(
-					"An iterative data stream can only be closed once. Use union to close with multiple stream.");
-		}
-		closed = true;
-		
-		streamGraph.addIterationTail((List) iterationTail.unionedStreams, iterationID,
-				keepPartitioning);
+	public DataStream<T> closeWith(DataStream<T> feedbackStream) {
 
-		return iterationTail;
-	}
-	
-	/**
-	 * Closes the iteration. This method defines the end of the iterative
-	 * program part that will be fed back to the start of the iteration. </br>
-	 * </br>A common usage pattern for streaming iterations is to use output
-	 * splitting to send a part of the closing data stream to the head. Refer to
-	 * {@link DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)}
-	 * for more information.
-	 * 
-	 * 
-	 * @param feedbackStream
-	 *            {@link DataStream} that will be used as input to the
-	 *            iteration head.
-	 * @return The feedback stream.
-	 * 
-	 */
-	public DataStream<IN> closeWith(DataStream<IN> iterationTail) {
-		return closeWith(iterationTail,false);
+		Collection<StreamTransformation<?>> predecessors = feedbackStream.getTransformation().getTransitivePredecessors();
+
+		if (!predecessors.contains(this.transformation)) {
+			throw new UnsupportedOperationException(
+					"Cannot close an iteration with a feedback DataStream that does not originate from said iteration.");
+		}
+
+		((FeedbackTransformation) getTransformation()).addFeedbackEdge(feedbackStream.getTransformation());
+
+		return feedbackStream;
 	}
 
 	/**
 	 * Changes the feedback type of the iteration and allows the user to apply
 	 * co-transformations on the input and feedback stream, as in a
 	 * {@link ConnectedDataStream}.
+	 *
 	 * <p>
 	 * For type safety the user needs to define the feedback type
 	 * 
@@ -109,7 +90,7 @@ public class IterativeDataStream<IN> extends
 	 *            String describing the type information of the feedback stream.
 	 * @return A {@link ConnectedIterativeDataStream}.
 	 */
-	public <F> ConnectedIterativeDataStream<IN, F> withFeedbackType(String feedbackTypeString) {
+	public <F> ConnectedIterativeDataStream<T, F> withFeedbackType(String feedbackTypeString) {
 		return withFeedbackType(TypeInfoParser.<F> parse(feedbackTypeString));
 	}
 
@@ -117,6 +98,7 @@ public class IterativeDataStream<IN> extends
 	 * Changes the feedback type of the iteration and allows the user to apply
 	 * co-transformations on the input and feedback stream, as in a
 	 * {@link ConnectedDataStream}.
+	 *
 	 * <p>
 	 * For type safety the user needs to define the feedback type
 	 * 
@@ -124,7 +106,7 @@ public class IterativeDataStream<IN> extends
 	 *            Class of the elements in the feedback stream.
 	 * @return A {@link ConnectedIterativeDataStream}.
 	 */
-	public <F> ConnectedIterativeDataStream<IN, F> withFeedbackType(Class<F> feedbackTypeClass) {
+	public <F> ConnectedIterativeDataStream<T, F> withFeedbackType(Class<F> feedbackTypeClass) {
 		return withFeedbackType(TypeExtractor.getForClass(feedbackTypeClass));
 	}
 
@@ -132,6 +114,7 @@ public class IterativeDataStream<IN> extends
 	 * Changes the feedback type of the iteration and allows the user to apply
 	 * co-transformations on the input and feedback stream, as in a
 	 * {@link ConnectedDataStream}.
+	 *
 	 * <p>
 	 * For type safety the user needs to define the feedback type
 	 * 
@@ -139,9 +122,8 @@ public class IterativeDataStream<IN> extends
 	 *            The type information of the feedback stream.
 	 * @return A {@link ConnectedIterativeDataStream}.
 	 */
-	public <F> ConnectedIterativeDataStream<IN, F> withFeedbackType(TypeInformation<F> feedbackType) {
-		return new ConnectedIterativeDataStream<IN, F>(new IterativeDataStream<IN>(this,
-				iterationWaitTime), feedbackType);
+	public <F> ConnectedIterativeDataStream<T, F> withFeedbackType(TypeInformation<F> feedbackType) {
+		return new ConnectedIterativeDataStream<T, F>(originalInput, feedbackType, maxWaitTime);
 	}
 	
 	/**
@@ -149,6 +131,7 @@ public class IterativeDataStream<IN> extends
 	 * iterative part of a streaming program, where the original input of the
 	 * iteration and the feedback of the iteration are connected as in a
 	 * {@link ConnectedDataStream}.
+	 *
 	 * <p>
 	 * The user can distinguish between the two inputs using co-transformation,
 	 * thus eliminating the need for mapping the inputs and outputs to a common
@@ -161,38 +144,18 @@ public class IterativeDataStream<IN> extends
 	 */
 	public static class ConnectedIterativeDataStream<I, F> extends ConnectedDataStream<I, F>{
 
-		private IterativeDataStream<I> input;
-		private TypeInformation<F> feedbackType;
+		private CoFeedbackTransformation<F> coFeedbackTransformation;
 
-		public ConnectedIterativeDataStream(IterativeDataStream<I> input, TypeInformation<F> feedbackType) {
-			super(input, null);
-			this.input = input;
-			this.feedbackType = feedbackType;
+		public ConnectedIterativeDataStream(DataStream<I> input, TypeInformation<F> feedbackType, long waitTime) {
+			super(input.getExecutionEnvironment(),
+					input,
+					new DataStream<F>(input.getExecutionEnvironment(),
+							new CoFeedbackTransformation<F>(input.getParallelism(),
+									feedbackType,
+									waitTime)));
+			this.coFeedbackTransformation = (CoFeedbackTransformation<F>) getSecond().getTransformation();
 		}
-		
-		@Override
-		public TypeInformation<F> getType2() {
-			return feedbackType;
-		}
-		
-		@Override
-		public <OUT> SingleOutputStreamOperator<OUT, ?> transform(String functionName,
-				TypeInformation<OUT> outTypeInfo, TwoInputStreamOperator<I, F, OUT> operator) {
 
-			@SuppressWarnings({ "unchecked", "rawtypes" })
-			SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(
-					input.environment, outTypeInfo, operator);
-
-			input.streamGraph.addCoOperator(returnStream.getId(), operator, input.getType(),
-					feedbackType, outTypeInfo, functionName);
-
-			input.connectGraph(input, returnStream.getId(), 1);
-			
-			input.addIterationSource(returnStream, feedbackType);
-
-			return returnStream;
-		}
-		
 		/**
 		 * Closes the iteration. This method defines the end of the iterative
 		 * program part that will be fed back to the start of the iteration as
@@ -206,14 +169,16 @@ public class IterativeDataStream<IN> extends
 		 */
 		@SuppressWarnings({ "rawtypes", "unchecked" })
 		public DataStream<F> closeWith(DataStream<F> feedbackStream) {
-			if (input.closed) {
-				throw new IllegalStateException(
-						"An iterative data stream can only be closed once. Use union to close with multiple stream.");
+
+			Collection<StreamTransformation<?>> predecessors = feedbackStream.getTransformation().getTransitivePredecessors();
+
+			if (!predecessors.contains(this.coFeedbackTransformation)) {
+				throw new UnsupportedOperationException(
+						"Cannot close an iteration with a feedback DataStream that does not originate from said iteration.");
 			}
-			input.closed = true;
-			
-			input.streamGraph.addIterationTail((List) feedbackStream.unionedStreams,
-					input.iterationID, true);
+
+			coFeedbackTransformation.addFeedbackEdge(feedbackStream.getTransformation());
+
 			return feedbackStream;
 		}
 		

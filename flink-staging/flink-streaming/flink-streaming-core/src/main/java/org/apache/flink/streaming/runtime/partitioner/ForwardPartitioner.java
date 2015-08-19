@@ -17,39 +17,30 @@
 
 package org.apache.flink.streaming.runtime.partitioner;
 
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * Partitioner that selects the same (one) channel for two Tuples having a
- * specified fields equal.
+ * Partitioner that forwards elements only to the locally running downstream operation.
  * 
- * @param <T>
- *            Type of the Tuple
+ * @param <T> Type of the elements in the Stream
  */
-public class FieldsPartitioner<T> extends StreamPartitioner<T> {
+public class ForwardPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private int[] returnArray = new int[1];
-	KeySelector<T, ?> keySelector;
-
-	public FieldsPartitioner(KeySelector<T, ?> keySelector) {
-		super(PartitioningStrategy.GROUPBY);
-		this.keySelector = keySelector;
-	}
+	private int[] returnArray = new int[] {0};
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
-			int numberOfOutputChannels) {
-		Object key;
-		try {
-			key = keySelector.getKey(record.getInstance().getValue());
-		} catch (Exception e) {
-			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
-		}
-		returnArray[0] = Math.abs(key.hashCode() % numberOfOutputChannels);
-
+	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record, int numberOfOutputChannels) {
 		return returnArray;
+	}
+	
+	public StreamPartitioner<T> copy() {
+		return this;
+	}
+	
+	@Override
+	public String toString() {
+		return "FORWARD";
 	}
 }

@@ -82,18 +82,14 @@ object StreamCrossOperator {
     def apply[R: TypeInformation: ClassTag](fun: (I1, I2) => R): DataStream[R] = {
 
       val cleanCrossWindowFunction = clean(getCrossWindowFunction(op, fun))
-      val operator = new CoStreamWindow[I1, I2, R](
+
+      op.input1.connect(op.input2).addGeneralWindowCombine(
         cleanCrossWindowFunction,
+        implicitly[TypeInformation[R]],
         op.windowSize,
         op.slideInterval,
         op.timeStamp1,
         op.timeStamp2)
-
-      javaStream.getExecutionEnvironment().getStreamGraph().setOperator(javaStream.getId(),
-        operator)
-        
-      val js = javaStream.asInstanceOf[SingleOutputStreamOperator[R,_]]
-      js.returns(implicitly[TypeInformation[R]]).asInstanceOf[SingleOutputStreamOperator[R,_]]
     }
     
     override def every(length: Long, timeUnit: TimeUnit): CrossWindow[I1, I2] = {

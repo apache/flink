@@ -40,8 +40,8 @@ public abstract class TemporalOperator<I1, I2, OP extends TemporalWindow<OP>> {
 		if (input1 == null || input2 == null) {
 			throw new NullPointerException();
 		}
-		this.input1 = input1.copy();
-		this.input2 = input2.copy();
+		this.input1 = input1;
+		this.input2 = input2;
 	}
 
 	/**

@@ -17,23 +17,23 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import java.util.Arrays;
-
+import com.google.common.collect.Lists;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.transformations.SelectTransformation;
+import org.apache.flink.streaming.api.transformations.SplitTransformation;
 
 /**
  * The SplitDataStream represents an operator that has been split using an
  * {@link OutputSelector}. Named outputs can be selected using the
  * {@link #select} function. To apply transformation on the whole output simply
  * call the transformation on the SplitDataStream
- * 
- * @param <OUT>
- *            The type of the output.
+ *
+ * @param <OUT> The type of the elements in the Stream
  */
 public class SplitDataStream<OUT> extends DataStream<OUT> {
 
-	protected SplitDataStream(DataStream<OUT> dataStream) {
-		super(dataStream);
+	protected SplitDataStream(DataStream<OUT> dataStream, OutputSelector<OUT> outputSelector) {
+		super(dataStream.getExecutionEnvironment(), new SplitTransformation<OUT>(dataStream.getTransformation(), outputSelector));
 	}
 
 	/**
@@ -55,12 +55,8 @@ public class SplitDataStream<OUT> extends DataStream<OUT> {
 			}
 		}
 
-		DataStream<OUT> returnStream = copy();
-
-		for (DataStream<OUT> ds : returnStream.unionedStreams) {
-			ds.selectedNames = Arrays.asList(outputNames);
-		}
-		return returnStream;
+		SelectTransformation<OUT> selectTransform = new SelectTransformation<OUT>(this.getTransformation(), Lists.newArrayList(outputNames));
+		return new DataStream<OUT>(this.getExecutionEnvironment(), selectTransform);
 	}
 
 }

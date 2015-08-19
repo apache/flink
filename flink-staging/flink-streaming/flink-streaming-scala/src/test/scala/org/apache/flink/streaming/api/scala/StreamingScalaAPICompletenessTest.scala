@@ -41,6 +41,7 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.datastream.DataStream.getType",
       "org.apache.flink.streaming.api.datastream.DataStream.copy",
       "org.apache.flink.streaming.api.datastream.DataStream.transform",
+      "org.apache.flink.streaming.api.datastream.DataStream.getTransformation",
       "org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.copy",
       "org.apache.flink.streaming.api.datastream.ConnectedDataStream.getExecutionEnvironment",
       "org.apache.flink.streaming.api.datastream.ConnectedDataStream.getType1",
@@ -49,6 +50,16 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.datastream.ConnectedDataStream.transform",
       "org.apache.flink.streaming.api.datastream.WindowedDataStream.getType",
       "org.apache.flink.streaming.api.datastream.WindowedDataStream.getExecutionConfig",
+
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.isChainingEnabled",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment." +
+        "getStateHandleProvider",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getCheckpointInterval",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.addOperator",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getCheckpointingMode",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment." +
+        "isForceCheckpointing",
+
 
       // TypeHints are only needed for Java API, Scala API doesn't need them
       "org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.returns"

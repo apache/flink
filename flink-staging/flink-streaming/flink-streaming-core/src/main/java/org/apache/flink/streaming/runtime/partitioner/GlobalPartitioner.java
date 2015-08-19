@@ -20,19 +20,29 @@ package org.apache.flink.streaming.runtime.partitioner;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-//Group to the partitioner with the lowest id
+/**
+ * Partitioner that sends all elements to the downstream operator with subtask ID=0;
+ *
+ * @param <T> Type of the elements in the Stream being partitioned
+ */
 public class GlobalPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
 	private int[] returnArray = new int[] { 0 };
 
-	public GlobalPartitioner() {
-		super(PartitioningStrategy.GLOBAL);
-	}
-
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {
 		return returnArray;
+	}
+
+	@Override
+	public StreamPartitioner<T> copy() {
+		return this;
+	}
+
+	@Override
+	public String toString() {
+		return "GLOBAL";
 	}
 }
