@@ -30,7 +30,7 @@ angular.module('flinkApp')
     svgEl = elem.children()[0]
 
     containerW = elem.width()
-    angular.element(svgEl).attr('width', containerW - 16)
+    angular.element(svgEl).attr('width', containerW)
 
     analyzeTime = (data) ->
       testData = []
@@ -46,18 +46,21 @@ angular.module('flinkApp')
               color: "#666"
               starting_time: vTime["SCHEDULED"] * 100
               ending_time: vTime["DEPLOYING"] * 100
+              type: 'regular'
             }
             {
               label: "Deploying"
               color: "#aaa"
               starting_time: vTime["DEPLOYING"] * 100
               ending_time: vTime["RUNNING"] * 100
+              type: 'regular'
             }
             {
               label: "Running"
               color: "#ddd"
               starting_time: vTime["RUNNING"] * 100
               ending_time: vTime["FINISHED"] * 100
+              type: 'regular'
             }
           ]
         }
@@ -101,13 +104,24 @@ angular.module('flinkApp')
     svgEl = elem.children()[0]
 
     containerW = elem.width()
-    angular.element(svgEl).attr('width', containerW - 16)
+    angular.element(svgEl).attr('width', containerW)
 
     translateLabel = (label) ->
       label.replace("&gt;", ">")
 
     analyzeTime = (data) ->
       testData = []
+
+      testData.push 
+        times: [
+          label: "Scheduled"
+          color: "#cccccc"
+          starting_time: data.oldV["SCHEDULED"]
+          ending_time: data.oldV["SCHEDULED"] + 30
+          # link: vertex.groupvertexid
+          type: 'scheduled'
+        ]
+
 
       angular.forEach data.oldV.groupvertices, (vertex) ->
         vTime = data.oldV.groupverticetimes[vertex.groupvertexid]
@@ -121,10 +135,12 @@ angular.module('flinkApp')
             starting_time: vTime["STARTED"]
             ending_time: vTime["ENDED"]
             link: vertex.groupvertexid
+            type: 'regular'
           ]
 
       chart = d3.timeline().stack().click((d, i, datum) ->
-        $state.go "single-job.timeline.vertex", { jobid: data.jid, vertexId: d.link }
+        if d.link
+          $state.go "single-job.timeline.vertex", { jobid: data.jid, vertexId: d.link }
 
       )
       .tickFormat({
