@@ -871,6 +871,9 @@ class JobManager(
 
   /**
    * Dedicated handler for monitor info request messages.
+   * 
+   * Note that this handler does not fail. Errors while responding to info messages are logged,
+   * but will not cause the actor to crash.
    *
    * @param actorMessage The info request message.
    */
@@ -918,23 +921,7 @@ class JobManager(
                 ourJobs, archiveOverview)
           }(context.dispatcher)
 
-        case _ : RequestStatusWithJobIDsOverview =>
-
-          val ourJobs = createJobStatusWithIDsOverview()
-
-          val numTMs = instanceManager.getNumberOfRegisteredTaskManagers()
-          val numSlotsTotal = instanceManager.getTotalNumberOfSlots()
-          val numSlotsAvailable = instanceManager.getNumberOfAvailableSlots()
-
-          // add to that the jobs from the archive
-          val future = (archive ? RequestJobsWithIDsOverview.getInstance())(timeout)
-          future.onSuccess {
-            case archiveOverview: JobsWithIDsOverview =>
-              theSender ! new StatusWithJobIDsOverview(numTMs, numSlotsTotal, numSlotsAvailable,
-                ourJobs, archiveOverview)
-          }(context.dispatcher)
-
-        case _ => throw new Exception("Unrecognized info message " + actorMessage)
+        case _ => log.error("Unrecognized info message " + actorMessage)
       }
     }
     catch {

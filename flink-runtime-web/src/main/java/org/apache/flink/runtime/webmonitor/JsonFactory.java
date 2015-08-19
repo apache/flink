@@ -18,95 +18,70 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
-import org.apache.flink.runtime.messages.webmonitor.StatusWithJobIDsOverview;
+
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
-
 
 /**
  * This class implements the utility methods that convert the responses into JSON strings.
  */
 public class JsonFactory {
 
-	public static String generateConfigJSON(long refreshInterval) {
+	private static final com.fasterxml.jackson.core.JsonFactory jacksonFactory =
+			new com.fasterxml.jackson.core.JsonFactory();
+
+	public static String generateConfigJSON(long refreshInterval, long timeZoneOffset, String timeZoneName) {
 		try {
-			JSONObject response = new JSONObject();
-			response.put("refresh-interval", refreshInterval);
-			return response.toString(2);
+			StringWriter writer = new StringWriter();
+			JsonGenerator gen = jacksonFactory.createJsonGenerator(writer);
+			
+			gen.writeStartObject();
+			gen.writeNumberField("refresh-interval", refreshInterval);
+			gen.writeNumberField("timezone-offset", timeZoneOffset);
+			gen.writeStringField("timezone-name", timeZoneName);
+			gen.writeEndObject();
+			
+			gen.close();
+			return writer.toString();
 		}
-		catch (JSONException e) {
+		catch (Exception e) {
 			// this should not happen
-			throw new RuntimeException(e);
+			throw new RuntimeException(e.getMessage(), e);
 		}
 	}
 	
 	public static String generateOverviewJSON(StatusOverview overview) {
 		try {
-			JSONObject response = new JSONObject();
-			response.put("taskmanagers", overview.getNumTaskManagersConnected());
-			response.put("slots-total", overview.getNumSlotsTotal());
-			response.put("slots-available", overview.getNumSlotsAvailable());
-			response.put("jobs-running", overview.getNumJobsRunningOrPending());
-			response.put("jobs-finished", overview.getNumJobsFinished());
-			response.put("jobs-cancelled", overview.getNumJobsCancelled());
-			response.put("jobs-failed", overview.getNumJobsFailed());
-			return response.toString(2);
+			StringWriter writer = new StringWriter();
+			JsonGenerator gen = jacksonFactory.createJsonGenerator(writer);
+
+			gen.writeStartObject();
+			gen.writeNumberField("taskmanagers", overview.getNumTaskManagersConnected());
+			gen.writeNumberField("slots-total", overview.getNumSlotsTotal());
+			gen.writeNumberField("slots-available", overview.getNumSlotsAvailable());
+			gen.writeNumberField("jobs-running", overview.getNumJobsRunningOrPending());
+			gen.writeNumberField("jobs-finished", overview.getNumJobsFinished());
+			gen.writeNumberField("jobs-cancelled", overview.getNumJobsCancelled());
+			gen.writeNumberField("jobs-failed", overview.getNumJobsFailed());
+			gen.writeEndObject();
+
+			gen.close();
+			return writer.toString();
 		}
-		catch (JSONException e) {
+		catch (Exception e) {
 			// this should not happen
-			throw new RuntimeException(e);
+			throw new RuntimeException(e.getMessage(), e);
 		}
 	}
 
-	public static String generateOverviewWithJobIDsJSON(StatusWithJobIDsOverview overview) {
-		try {
-			List<JobID> runningIDs = overview.getJobsRunningOrPending();
-			List<String> runningStrings = new ArrayList<String>(runningIDs.size());
-			for (JobID jid : runningIDs) {
-				runningStrings.add(jid.toString());
-			}
-
-			List<JobID> finishedIDs = overview.getJobsFinished();
-			List<String> finishedStrings = new ArrayList<String>(finishedIDs.size());
-			for (JobID jid : finishedIDs) {
-				finishedStrings.add(jid.toString());
-			}
-
-			List<JobID> canceledIDs = overview.getJobsCancelled();
-			List<String> canceledStrings = new ArrayList<String>(canceledIDs.size());
-			for (JobID jid : canceledIDs) {
-				canceledStrings.add(jid.toString());
-			}
-
-			List<JobID> failedIDs = overview.getJobsFailed();
-			List<String> failedStrings = new ArrayList<String>(failedIDs.size());
-			for (JobID jid : failedIDs) {
-				failedStrings.add(jid.toString());
-			}
-			
-			JSONObject response = new JSONObject();
-			response.put("taskmanagers", overview.getNumTaskManagersConnected());
-			response.put("slots-total", overview.getNumSlotsTotal());
-			response.put("slots-available", overview.getNumSlotsAvailable());
-			
-			
-			response.put("jobs-running", runningStrings);
-			response.put("jobs-finished", finishedStrings);
-			response.put("jobs-cancelled", canceledStrings);
-			response.put("jobs-failed", failedStrings);
-			return response.toString(2);
-		}
-		catch (JSONException e) {
-			// this should not happen
-			throw new RuntimeException(e);
-		}
-	}
 	
 	public static String generateJobsOverviewJSON(JobsWithIDsOverview overview) {
 		try {
