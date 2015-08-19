@@ -78,6 +78,15 @@ public class Path implements IOReadableWritable, Serializable {
 	}
 
 	/**
+	 * Converts the path object to a {@link URI}.
+	 *
+	 * @return the {@link URI} object converted from the path object
+	 */
+	public URI toUri() {
+		return uri;
+	}
+
+	/**
 	 * Resolve a child path against a parent path.
 	 * 
 	 * @param parent
@@ -143,27 +152,6 @@ public class Path implements IOReadableWritable, Serializable {
 	}
 
 	/**
- 	 * Checks if the provided path string is either null or has zero length and throws
-	 * a {@link IllegalArgumentException} if any of the two conditions apply.
-	 * In addition, leading and tailing whitespaces are removed.
-	 *
-	 * @param path
-	 *        the path string to be checked
-	 * @return The checked and trimmed path.
-	 */
-	private String checkAndTrimPathArg(String path) {
-		// disallow construction of a Path from an empty string
-		if (path == null) {
-			throw new IllegalArgumentException("Can not create a Path from a null string");
-		}
-		path = path.trim();
-		if (path.length() == 0) {
-			throw new IllegalArgumentException("Can not create a Path from an empty string");
-		}
-		return path;
-	}
-
-	/**
 	 * Construct a path from a String. Path strings are URIs, but with unescaped
 	 * elements and some additional normalization.
 	 * 
@@ -223,79 +211,6 @@ public class Path implements IOReadableWritable, Serializable {
 	public Path(String scheme, String authority, String path) {
 		path = checkAndTrimPathArg(path);
 		initialize(scheme, authority, path);
-	}
-
-	/**
-	 * Initializes a path object given the scheme, authority and path string.
-	 * 
-	 * @param scheme
-	 *        the scheme string.
-	 * @param authority
-	 *        the authority string.
-	 * @param path
-	 *        the path string.
-	 */
-	private void initialize(String scheme, String authority, String path) {
-		try {
-			this.uri = new URI(scheme, authority, normalizePath(path), null, null).normalize();
-		} catch (URISyntaxException e) {
-			throw new IllegalArgumentException(e);
-		}
-	}
-
-	/**
-	 * Normalizes a path string.
-	 * 
-	 * @param path
-	 *        the path string to normalize
-	 * @return the normalized path string
-	 */
-	private String normalizePath(String path) {
-
-		// remove leading and tailing whitespaces
-		path = path.trim();
-
-		// remove consecutive slashes & backslashes
-		path = path.replace("\\", "/");
-		path = path.replaceAll("/+", "/");
-
-		// remove tailing separator
-		if(!path.equals(SEPARATOR) &&         		// UNIX root path
-				!path.matches("/\\p{Alpha}+:/") &&  // Windows root path
-				path.endsWith(SEPARATOR))
-		{
-			// remove tailing slash
-			path = path.substring(0, path.length() - SEPARATOR.length());
-		}
-
-		return path;
-	}
-
-	/**
-	 * Checks if the provided path string contains a windows drive letter.
-	 * 
-	 * @param path
-	 *        the path to check
-	 * @param slashed
-	 *        <code>true</code> to indicate the first character of the string is a slash, <code>false</code> otherwise
-	 * @return <code>true</code> if the path string contains a windows drive letter, <code>false</code> otherwise
-	 */
-	private boolean hasWindowsDrive(String path, boolean slashed) {
-		final int start = slashed ? 1 : 0;
-		return path.length() >= start + 2
-			&& (!slashed || path.charAt(0) == '/')
-			&& path.charAt(start + 1) == ':'
-			&& ((path.charAt(start) >= 'A' && path.charAt(start) <= 'Z') || (path.charAt(start) >= 'a' && path
-				.charAt(start) <= 'z'));
-	}
-
-	/**
-	 * Converts the path object to a {@link URI}.
-	 * 
-	 * @return the {@link URI} object converted from the path object
-	 */
-	public URI toUri() {
-		return uri;
 	}
 
 	/**
@@ -364,6 +279,108 @@ public class Path implements IOReadableWritable, Serializable {
 		return new Path(getParent(), getName() + suffix);
 	}
 
+	/**
+	 * Returns the number of elements in this path.
+	 *
+	 * @return the number of elements in this path
+	 */
+	public int depth() {
+		String path = uri.getPath();
+		int depth = 0;
+		int slash = path.length() == 1 && path.charAt(0) == '/' ? -1 : 0;
+		while (slash != -1) {
+			depth++;
+			slash = path.indexOf(SEPARATOR, slash + 1);
+		}
+		return depth;
+	}
+
+	/**
+	 * Checks if the provided path string is either null or has zero length and throws
+	 * a {@link IllegalArgumentException} if any of the two conditions apply.
+	 * In addition, leading and tailing whitespaces are removed.
+	 *
+	 * @param path
+	 *        the path string to be checked
+	 * @return The checked and trimmed path.
+	 */
+	private String checkAndTrimPathArg(String path) {
+		// disallow construction of a Path from an empty string
+		if (path == null) {
+			throw new IllegalArgumentException("Can not create a Path from a null string");
+		}
+		path = path.trim();
+		if (path.length() == 0) {
+			throw new IllegalArgumentException("Can not create a Path from an empty string");
+		}
+		return path;
+	}
+
+	/**
+	 * Initializes a path object given the scheme, authority and path string.
+	 *
+	 * @param scheme
+	 *        the scheme string.
+	 * @param authority
+	 *        the authority string.
+	 * @param path
+	 *        the path string.
+	 */
+	private void initialize(String scheme, String authority, String path) {
+		try {
+			this.uri = new URI(scheme, authority, normalizePath(path), null, null).normalize();
+		} catch (URISyntaxException e) {
+			throw new IllegalArgumentException(e);
+		}
+	}
+
+	/**
+	 * Normalizes a path string.
+	 *
+	 * @param path
+	 *        the path string to normalize
+	 * @return the normalized path string
+	 */
+	private String normalizePath(String path) {
+
+		// remove leading and tailing whitespaces
+		path = path.trim();
+
+		// remove consecutive slashes & backslashes
+		path = path.replace("\\", "/");
+		path = path.replaceAll("/+", "/");
+
+		// remove tailing separator
+		if(!path.equals(SEPARATOR) &&         		// UNIX root path
+				!path.matches("/\\p{Alpha}+:/") &&  // Windows root path
+				path.endsWith(SEPARATOR))
+		{
+			// remove tailing slash
+			path = path.substring(0, path.length() - SEPARATOR.length());
+		}
+
+		return path;
+	}
+
+	/**
+	 * Checks if the provided path string contains a windows drive letter.
+	 *
+	 * @param path
+	 *        the path to check
+	 * @param slashed
+	 *        <code>true</code> to indicate the first character of the string is a slash, <code>false</code> otherwise
+	 * @return <code>true</code> if the path string contains a windows drive letter, <code>false</code> otherwise
+	 */
+	private boolean hasWindowsDrive(String path, boolean slashed) {
+		final int start = slashed ? 1 : 0;
+		return path.length() >= start + 2
+				&& (!slashed || path.charAt(0) == '/')
+				&& path.charAt(start + 1) == ':'
+				&& ((path.charAt(start) >= 'A' && path.charAt(start) <= 'Z') || (path.charAt(start) >= 'a' && path
+				.charAt(start) <= 'z'));
+	}
+
+
 	@Override
 	public String toString() {
 		// we can't use uri.toString(), which escapes everything, because we
@@ -400,23 +417,6 @@ public class Path implements IOReadableWritable, Serializable {
 		}
 		Path that = (Path) o;
 		return this.uri.equals(that.uri);
-	}
-
-
-	/**
-	 * Returns the number of elements in this path.
-	 * 
-	 * @return the number of elements in this path
-	 */
-	public int depth() {
-		String path = uri.getPath();
-		int depth = 0;
-		int slash = path.length() == 1 && path.charAt(0) == '/' ? -1 : 0;
-		while (slash != -1) {
-			depth++;
-			slash = path.indexOf(SEPARATOR, slash + 1);
-		}
-		return depth;
 	}
 
 
