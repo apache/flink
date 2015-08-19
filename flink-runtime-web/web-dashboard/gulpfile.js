@@ -44,7 +44,7 @@ var environment = 'development';
 var paths = {
   src: './app/',
   dest: './web/',
-  vendor: './vendor/',
+  vendor: './bower_components/',
   vendorLocal: './vendor-local/',
   assets: './assets/',
   tmp: './tmp/'
@@ -76,7 +76,7 @@ gulp.task('bootstrap', function () {
 });
 
 gulp.task('vendor-styles', [ 'bootstrap' ], function() {
-  stream = gulp.src(mainBowerFiles().concat([paths.tmp + 'css/bootstrap_custom.css']))
+  stream = gulp.src(mainBowerFiles().concat([paths.tmp + 'css/bootstrap_custom.css']).concat([paths.vendor + 'qtip2/jquery.qtip.css']))
     .pipe(filter(['*.css', '!bootstrap.css']))
     .pipe(sourcemaps.init())
     .pipe(concat("vendor.css"))

@@ -83,11 +83,6 @@ angular.module('flinkApp')
       .datum(testData)
       .call(chart)
 
-      svgG = svg.select("g")
-
-      bbox = svgG[0][0].getBBox()
-      svg.attr('height', bbox.height + 30)
-
     analyzeTime(scope.data)
 
     return
@@ -158,11 +153,6 @@ angular.module('flinkApp')
       svg = d3.select(svgEl)
       .datum(testData)
       .call(chart)
-
-      svgG = svg.select("g")
-
-      bbox = svgG[0][0].getBBox()
-      svg.attr('height', bbox.height + 30)
 
     scope.$watch attrs.job, (data) ->
       analyzeTime(data) if data

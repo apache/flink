@@ -408,6 +408,10 @@ svg.graph .node-label {
 .timeline-canvas.secondary .timeline-series {
   cursor: auto;
 }
+.qtip-timeline-bar {
+  font-size: 14px;
+  line-height: 1.4;
+}
 @media (min-width: 768px) {
   #sidebar {
     left: 0;

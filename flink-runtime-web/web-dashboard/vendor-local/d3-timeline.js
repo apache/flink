@@ -159,8 +159,6 @@
       }
 
       if (timeAxisTick) {
-        console.log('here');
-
         g.append("g")
           .attr("class", "axis axis-tick")
           .attr("transform", "translate(" + 0 +","+
@@ -215,7 +213,7 @@
             .attr("width", getTextWidth)
             .attr("height", itemHeight);
 
-          nel
+          var bar = nel
             .append(function(d, i) {
               return document.createElementNS(d3.ns.prefix.svg, "display" in d? d.display:display);
             })
@@ -273,11 +271,6 @@
             .attr("width", getTextWidth)
             .attr("height", itemHeight)
             .attr("clip-path", "url(#" + prefix + "-timeline-textclip-" + i + "-" + index + ")")
-
-            // .attr("width", function (d, i) {
-            //   // console.log((d.ending_time - d.starting_time) * scaleFactor);
-            //   return (d.ending_time - d.starting_time) * scaleFactor;
-            // })
             .text(function(d) {
               return d.label;
             })
@@ -285,6 +278,22 @@
               click(d, index, datum);
             });
           ;
+
+          g.selectAll("svg .bar-container").each(function(d, i) {
+            $(this).qtip({
+              content: {
+                text: d.label
+              },
+              position: {
+                my: 'bottom left',
+                at: 'top left'
+              },
+              style: {
+                classes: 'qtip-light qtip-timeline-bar'
+              }
+            });
+          });
+
 
           if (rowSeperatorsColor) {
             var lineYAxis = ( itemHeight + itemMargin / 2 + margin.top + (itemHeight + itemMargin) * yAxisMapping[index]);
@@ -357,6 +366,8 @@
       });
 
       var move = function() {
+        $('.qtip.qtip-timeline-bar').qtip('hide');
+
         g.selectAll(".bar-type-scheduled .timeline-series")
           .attr("x", getXPos);
 
@@ -413,6 +424,9 @@
 
       var gSize = g[0][0].getBoundingClientRect();
       setHeight();
+
+      bbox = g[0][0].getBBox();
+      gParent.attr('height', bbox.height + 30);
 
       function getBorderStart(d, i) {
         return xScale(d.starting_time);
