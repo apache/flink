@@ -441,7 +441,7 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 	@Override
 	public Class<?> getHadoopWrapperClassNameForFileSystem(String scheme) {
 		Configuration hadoopConf = getHadoopConfiguration();
-		Class<? extends org.apache.hadoop.fs.FileSystem> clazz =  null;
+		Class<? extends org.apache.hadoop.fs.FileSystem> clazz;
 		// We can activate this block once we drop Hadoop1 support (only hd2 has the getFileSystemClass-method)
 //		try {
 //			clazz = org.apache.hadoop.fs.FileSystem.getFileSystemClass(scheme, hadoopConf);
