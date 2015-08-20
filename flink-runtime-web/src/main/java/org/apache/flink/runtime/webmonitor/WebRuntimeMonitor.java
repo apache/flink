@@ -35,16 +35,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
-import org.apache.flink.runtime.webmonitor.handlers.ExecutionPlanHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobPlanHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobConfigHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobSummaryHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobVerticesOverviewHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobsOverviewHandler;
-import org.apache.flink.runtime.webmonitor.handlers.RequestConfigHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobDetailsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.CurrentJobsOverviewHandler;
+import org.apache.flink.runtime.webmonitor.handlers.DashboardConfigHandler;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
-import org.apache.flink.runtime.webmonitor.handlers.RequestJobIdsHandler;
-import org.apache.flink.runtime.webmonitor.handlers.RequestOverviewHandler;
+import org.apache.flink.runtime.webmonitor.handlers.CurrentJobIdsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.ClusterOverviewHandler;
+import org.apache.flink.runtime.webmonitor.handlers.SubtasksTimesHandler;
 import org.apache.flink.runtime.webmonitor.legacy.JobManagerInfoHandler;
 
 import org.slf4j.Logger;
@@ -124,28 +124,30 @@ public class WebRuntimeMonitor implements WebMonitor {
 		
 		router = new Router()
 			// config how to interact with this web server
-			.GET("/config", handler(new RequestConfigHandler(cfg.getRefreshInterval())))
-			
+			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval())))
+
 			// the overview - how many task managers, slots, free slots, ...
-			.GET("/overview", handler(new RequestOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT)))
+			.GET("/overview", handler(new ClusterOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT)))
 
 			// overview over jobs
-			.GET("/joboverview", handler(new JobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, true, true)))
-			.GET("/joboverview/running", handler(new JobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, true, false)))
-			.GET("/joboverview/completed", handler(new JobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, false, true)))
+			.GET("/joboverview", handler(new CurrentJobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, true, true)))
+			.GET("/joboverview/running", handler(new CurrentJobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, true, false)))
+			.GET("/joboverview/completed", handler(new CurrentJobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, false, true)))
 
-			.GET("/jobs", handler(new RequestJobIdsHandler(jobManager, DEFAULT_REQUEST_TIMEOUT)))
-			.GET("/jobs/:jobid", handler(new JobSummaryHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices", handler(new JobVerticesOverviewHandler(currentGraphs)))
-			.GET("/jobs/:jobid/plan", handler(new ExecutionPlanHandler(currentGraphs)))
+			.GET("/jobs", handler(new CurrentJobIdsHandler(jobManager, DEFAULT_REQUEST_TIMEOUT)))
+
+			.GET("/jobs/:jobid", handler(new JobDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices", handler(new JobDetailsHandler(currentGraphs)))
+
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasktimes", handler(new SubtasksTimesHandler(currentGraphs)))
+
+			.GET("/jobs/:jobid/plan", handler(new JobPlanHandler(currentGraphs)))
 			.GET("/jobs/:jobid/config", handler(new JobConfigHandler(currentGraphs)))
 			.GET("/jobs/:jobid/exceptions", handler(new JobExceptionsHandler(currentGraphs)))
 
-//			.GET("/running/:jobid/:jobvertex", handler(new ExecutionPlanHandler(currentGraphs)))
-
 			// the handler for the legacy requests
-				.GET("/jobsInfo", new JobManagerInfoHandler(jobManager, archive, DEFAULT_REQUEST_TIMEOUT))
-					
+			.GET("/jobsInfo", new JobManagerInfoHandler(jobManager, archive, DEFAULT_REQUEST_TIMEOUT))
+
 			// this handler serves all the static contents
 			.GET("/:*", new StaticFileServerHandler(webRootDir));
 	}

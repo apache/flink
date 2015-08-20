@@ -27,7 +27,7 @@ import java.util.Map;
 
 /**
  * Base class for request handlers whose response depends on an ExecutionGraph
- * that can be retrieved via {@link Parameters#JOB_ID} parameter.
+ * that can be retrieved via "jobid" parameter.
  */
 public abstract class AbstractExecutionGraphRequestHandler implements RequestHandler {
 	
@@ -41,7 +41,7 @@ public abstract class AbstractExecutionGraphRequestHandler implements RequestHan
 	
 	@Override
 	public String handleRequest(Map<String, String> params) throws Exception {
-		String jidString = params.get(Parameters.JOB_ID);
+		String jidString = params.get("jobid");
 		if (jidString == null) {
 			throw new RuntimeException("JobId parameter missing");
 		}

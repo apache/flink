@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.io.StrictlyLocalAssignment;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -490,6 +493,45 @@ public class ExecutionJobVertex implements Serializable {
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Accumulators / Metrics
+	// --------------------------------------------------------------------------------------------
+	
+	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getAggregatedMetricAccumulators() {
+		// some specialized code to speed things up
+		long bytesRead = 0;
+		long bytesWritten = 0;
+		long recordsRead = 0;
+		long recordsWritten = 0;
+		
+		for (ExecutionVertex v : getTaskVertices()) {
+			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> metrics = v.getCurrentExecutionAttempt().getFlinkAccumulators();
+			
+			if (metrics != null) {
+				LongCounter br = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_IN);
+				LongCounter bw = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_OUT);
+				LongCounter rr = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_IN);
+				LongCounter rw = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT);
+				
+				bytesRead += br != null ? br.getLocalValuePrimitive() : 0;
+				bytesWritten += bw != null ? bw.getLocalValuePrimitive() : 0;
+				recordsRead += rr != null ? rr.getLocalValuePrimitive() : 0;
+				recordsWritten += rw != null ? rw.getLocalValuePrimitive() : 0;
+			}
+		}
+
+		HashMap<AccumulatorRegistry.Metric, Accumulator<?, ?>> agg = new HashMap<>();
+		agg.put(AccumulatorRegistry.Metric.NUM_BYTES_IN, new LongCounter(bytesRead));
+		agg.put(AccumulatorRegistry.Metric.NUM_BYTES_OUT, new LongCounter(bytesWritten));
+		agg.put(AccumulatorRegistry.Metric.NUM_RECORDS_IN, new LongCounter(recordsRead));
+		agg.put(AccumulatorRegistry.Metric.NUM_RECORDS_OUT, new LongCounter(recordsWritten));
+		return agg;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Static / pre-assigned input splits
+	// --------------------------------------------------------------------------------------------
+
 	private List<LocatableInputSplit>[] computeLocalInputSplitsPerTask(InputSplit[] splits) throws JobException {
 		
 		final int numSubTasks = getParallelism();
@@ -593,10 +635,10 @@ public class ExecutionJobVertex implements Serializable {
 		return subTaskSplitAssignment;
 	}
 	
-	//---------------------------------------------------------------------------------------------
-	//  Predetermined InputSplitAssigner
-	//---------------------------------------------------------------------------------------------
 
+	/**
+	 * An InputSplitAssigner that assigns to pre-determined hosts.
+	 */
 	public static class PredeterminedInputSplitAssigner implements InputSplitAssigner {
 
 		private List<LocatableInputSplit>[] inputSplitsPerSubtask;
@@ -604,7 +646,7 @@ public class ExecutionJobVertex implements Serializable {
 		@SuppressWarnings("unchecked")
 		public PredeterminedInputSplitAssigner(List<LocatableInputSplit>[] inputSplitsPerSubtask) {
 			// copy input split assignment
-			this.inputSplitsPerSubtask = (List<LocatableInputSplit>[]) new List[inputSplitsPerSubtask.length];
+			this.inputSplitsPerSubtask = (List<LocatableInputSplit>[]) new List<?>[inputSplitsPerSubtask.length];
 			for (int i = 0; i < inputSplitsPerSubtask.length; i++) {
 				List<LocatableInputSplit> next = inputSplitsPerSubtask[i];
 				

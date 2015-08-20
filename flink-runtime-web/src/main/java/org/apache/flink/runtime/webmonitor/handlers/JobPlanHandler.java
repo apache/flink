@@ -18,23 +18,23 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+
+import java.util.Map;
+
 /**
- * Parameter name constants.
+ * Request handler that returns the JSON program plan of a job graph.
  */
-public class Parameters {
+public class JobPlanHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
 
-	/**
-	 * The path parameter name for job ids. 
-	 */
-	public static final String JOB_ID = "jobid";
+	
+	public JobPlanHandler(ExecutionGraphHolder executionGraphHolder) {
+		super(executionGraphHolder);
+	}
 
-	/**
-	 * The path parameter name for job vertex id ids. 
-	 */
-	public static final String JOB_VERTEX_ID = "jobvertex";
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/** Do not instantiate */
-	private Parameters() {}
+	@Override
+	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
+		return graph.getJsonPlan();
+	}
 }

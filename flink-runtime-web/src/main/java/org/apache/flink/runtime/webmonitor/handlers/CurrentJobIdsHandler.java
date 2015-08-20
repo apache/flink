@@ -18,16 +18,17 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
-import org.apache.flink.runtime.webmonitor.JsonFactory;
-import org.apache.flink.runtime.webmonitor.WebRuntimeMonitor;
 
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.StringWriter;
 import java.util.Map;
 
 /**
@@ -35,31 +36,61 @@ import java.util.Map;
  * May serve the IDs of current jobs, or past jobs, depending on whether this handler is
  * given the JobManager or Archive Actor Reference.
  */
-public class RequestJobIdsHandler implements RequestHandler, RequestHandler.JsonResponse {
-
+public class CurrentJobIdsHandler implements RequestHandler, RequestHandler.JsonResponse {
+	
 	private final ActorGateway target;
-
+	
 	private final FiniteDuration timeout;
-
-	public RequestJobIdsHandler(ActorGateway target) {
-		this(target, WebRuntimeMonitor.DEFAULT_REQUEST_TIMEOUT);
-	}
-
-	public RequestJobIdsHandler(ActorGateway target, FiniteDuration timeout) {
+	
+	
+	public CurrentJobIdsHandler(ActorGateway target, FiniteDuration timeout) {
 		if (target == null || timeout == null) {
 			throw new NullPointerException();
 		}
 		this.target = target;
 		this.timeout = timeout;
 	}
-
+	
 	@Override
 	public String handleRequest(Map<String, String> params) throws Exception {
 		// we need no parameters, get all requests
 		try {
 			Future<Object> future = target.ask(RequestJobsWithIDsOverview.getInstance(), timeout);
-			JobsWithIDsOverview result = (JobsWithIDsOverview) Await.result(future, timeout);
-			return JsonFactory.generateJobsOverviewJSON(result);
+			JobsWithIDsOverview overview = (JobsWithIDsOverview) Await.result(future, timeout);
+
+			StringWriter writer = new StringWriter();
+			JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+
+			gen.writeStartObject();
+
+			gen.writeArrayFieldStart("jobs-running");
+			for (JobID jid : overview.getJobsRunningOrPending()) {
+				gen.writeString(jid.toString());
+			}
+			gen.writeEndArray();
+
+			gen.writeArrayFieldStart("jobs-finished");
+			for (JobID jid : overview.getJobsFinished()) {
+				gen.writeString(jid.toString());
+			}
+			gen.writeEndArray();
+
+			gen.writeArrayFieldStart("jobs-cancelled");
+			for (JobID jid : overview.getJobsCancelled()) {
+				gen.writeString(jid.toString());
+			}
+			gen.writeEndArray();
+
+			gen.writeArrayFieldStart("jobs-failed");
+			for (JobID jid : overview.getJobsFailed()) {
+				gen.writeString(jid.toString());
+			}
+			gen.writeEndArray();
+
+			gen.writeEndObject();
+
+			gen.close();
+			return writer.toString();
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Failed to fetch list of all running jobs: " + e.getMessage(), e);

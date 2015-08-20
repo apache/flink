@@ -59,4 +59,26 @@ public class WebMonitorUtils {
 				started, finished, status, lastChanged,  
 				countsPerStatus, numTotalTasks);
 	}
+	
+	public static void aggregateExecutionStateTimestamps(long[] timestamps, long[] other) {
+		timestamps[CREATED_POS] = Math.min(timestamps[CREATED_POS], other[CREATED_POS]);
+		timestamps[SCHEDULED_POS] = Math.min(timestamps[SCHEDULED_POS], other[SCHEDULED_POS]);
+		timestamps[DEPLOYING_POS] = Math.min(timestamps[DEPLOYING_POS], other[DEPLOYING_POS]);
+		timestamps[RUNNING_POS] = Math.min(timestamps[RUNNING_POS], other[RUNNING_POS]);
+		timestamps[FINISHED_POS] = Math.max(timestamps[FINISHED_POS], other[FINISHED_POS]);
+		timestamps[CANCELING_POS] = Math.min(timestamps[CANCELING_POS], other[CANCELING_POS]);
+		timestamps[CANCELED_POS] = Math.max(timestamps[CANCELED_POS], other[CANCELED_POS]);
+		timestamps[FAILED_POS] = Math.min(timestamps[FAILED_POS], other[FAILED_POS]);
+	}
+	
+	// ------------------------------------------------------------------------
+
+	private static final int CREATED_POS = ExecutionState.CREATED.ordinal();
+	private static final int SCHEDULED_POS = ExecutionState.SCHEDULED.ordinal();
+	private static final int DEPLOYING_POS = ExecutionState.DEPLOYING.ordinal();
+	private static final int RUNNING_POS = ExecutionState.RUNNING.ordinal();
+	private static final int FINISHED_POS = ExecutionState.FINISHED.ordinal();
+	private static final int CANCELING_POS = ExecutionState.CANCELING.ordinal();
+	private static final int CANCELED_POS = ExecutionState.CANCELED.ordinal();
+	private static final int FAILED_POS = ExecutionState.FAILED.ordinal();
 }
