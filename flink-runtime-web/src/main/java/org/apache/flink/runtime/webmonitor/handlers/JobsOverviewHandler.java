@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
-import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
+import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.webmonitor.JsonFactory;
 
 import scala.concurrent.Await;
@@ -30,30 +30,42 @@ import scala.concurrent.duration.FiniteDuration;
 import java.util.Map;
 
 /**
- * Responder that returns the status of the Flink cluster, such as how many
- * TaskManagers are currently connected, and how many jobs are running.
+ * Request handler that returns a summary of the job status.
  */
-public class RequestOverviewHandler implements  RequestHandler, RequestHandler.JsonResponse {
+public class JobsOverviewHandler implements RequestHandler, RequestHandler.JsonResponse {
 	
 	private final ActorGateway jobManager;
 	
 	private final FiniteDuration timeout;
 	
+	private final boolean includeRunningJobs;
+	private final boolean includeFinishedJobs;
+
 	
-	public RequestOverviewHandler(ActorGateway jobManager, FiniteDuration timeout) {
-		if (jobManager == null || timeout == null) {
-			throw new NullPointerException();
-		}
+	public JobsOverviewHandler(ActorGateway jobManager, FiniteDuration timeout,
+								boolean includeRunningJobs, boolean includeFinishedJobs) {
 		this.jobManager = jobManager;
 		this.timeout = timeout;
+		this.includeRunningJobs = includeRunningJobs;
+		this.includeFinishedJobs = includeFinishedJobs;
 	}
-	
+
 	@Override
 	public String handleRequest(Map<String, String> params) throws Exception {
 		try {
-			Future<Object> future = jobManager.ask(RequestStatusOverview.getInstance(), timeout);
-			StatusOverview result = (StatusOverview) Await.result(future, timeout);
-			return JsonFactory.generateOverviewJSON(result);
+			Future<Object> future = jobManager.ask(
+					new RequestJobDetails(includeRunningJobs, includeFinishedJobs), timeout);
+			
+			MultipleJobsDetails result = (MultipleJobsDetails) Await.result(future, timeout);
+			
+			if (includeRunningJobs && includeFinishedJobs) {
+				return JsonFactory.generateRunningAndFinishedJobDetailsJSON(
+						result.getRunningJobs(), result.getFinishedJobs());
+			}
+			else {
+				return JsonFactory.generateMultipleJobsDetailsJSON(
+						includeRunningJobs ? result.getRunningJobs() : result.getFinishedJobs());
+			}
 		}
 		catch (Exception e) {
 			throw new Exception("Failed to fetch the status overview: " + e.getMessage(), e);
