@@ -280,6 +280,14 @@ public class ExecutionGraph implements Serializable {
 	//  Configuration of Data-flow wide execution settings  
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Gets the number of job vertices currently held by this execution graph.
+	 * @return The current number of job vertices.
+	 */
+	public int getNumberOfExecutionJobVertices() {
+		return this.verticesInCreationOrder.size();
+	}
+	
 	public void setNumberOfRetriesLeft(int numberOfRetriesLeft) {
 		if (numberOfRetriesLeft < -1) {
 			throw new IllegalArgumentException();

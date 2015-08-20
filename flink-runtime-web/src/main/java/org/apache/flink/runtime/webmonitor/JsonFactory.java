@@ -20,6 +20,8 @@ package org.apache.flink.runtime.webmonitor;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 
@@ -37,7 +39,8 @@ public class JsonFactory {
 
 	private static final com.fasterxml.jackson.core.JsonFactory jacksonFactory =
 			new com.fasterxml.jackson.core.JsonFactory();
-
+	
+	
 	public static String generateConfigJSON(long refreshInterval, long timeZoneOffset, String timeZoneName) {
 		try {
 			StringWriter writer = new StringWriter();
@@ -82,6 +85,103 @@ public class JsonFactory {
 		}
 	}
 
+	public static String generateJobDetailsJSON(JobDetails job) {
+		try {
+			StringWriter writer = new StringWriter();
+			JsonGenerator gen = jacksonFactory.createJsonGenerator(writer);
+			
+			generateSingleJobDetails(job, gen);
+			
+			gen.close();
+			return writer.toString();
+		}
+		catch (Exception e) {
+			// this should not happen
+			throw new RuntimeException(e.getMessage(), e);
+		}
+	}
+	
+	public static String generateMultipleJobsDetailsJSON(JobDetails[] jobs) {
+		try {
+			StringWriter writer = new StringWriter();
+			JsonGenerator gen = jacksonFactory.createJsonGenerator(writer);
+
+			gen.writeStartObject();
+			gen.writeArrayFieldStart("jobs");
+			for (JobDetails detail : jobs) {
+				generateSingleJobDetails(detail, gen);
+			}
+			gen.writeEndArray();
+			gen.writeEndObject();
+
+			gen.close();
+			return writer.toString();
+		}
+		catch (Exception e) {
+			// this should not happen
+			throw new RuntimeException(e.getMessage(), e);
+		}
+	}
+	
+	public static String generateRunningAndFinishedJobDetailsJSON(JobDetails[] runningJobs, JobDetails[] finishedJobs) {
+		try {
+			StringWriter writer = new StringWriter();
+			JsonGenerator gen = jacksonFactory.createJsonGenerator(writer);
+
+			gen.writeStartObject();
+
+			gen.writeArrayFieldStart("running");
+			for (JobDetails detail : runningJobs) {
+				generateSingleJobDetails(detail, gen);
+			}
+			gen.writeEndArray();
+
+			gen.writeArrayFieldStart("finished");
+			for (JobDetails detail : finishedJobs) {
+				generateSingleJobDetails(detail, gen);
+			}
+			gen.writeEndArray();
+			
+			gen.writeEndObject();
+
+			gen.close();
+			return writer.toString();
+		}
+		catch (Exception e) {
+			// this should not happen
+			throw new RuntimeException(e.getMessage(), e);
+		}
+	}
+	
+	private static void generateSingleJobDetails(JobDetails details, JsonGenerator gen) throws Exception {
+		gen.writeStartObject();
+		
+		gen.writeStringField("jid", details.getJobId().toString());
+		gen.writeStringField("name", details.getJobName());
+		gen.writeStringField("state", details.getStatus().name());
+		gen.writeNumberField("start-time", details.getStartTime());
+		gen.writeNumberField("end-time", details.getEndTime());
+		gen.writeNumberField("last-modification", details.getLastUpdateTime());
+
+		gen.writeObjectFieldStart("tasks");
+		gen.writeNumberField("total", details.getNumTasks());
+
+		final int[] perState = details.getNumVerticesPerExecutionState();
+		gen.writeNumberField("pending", perState[ExecutionState.CREATED.ordinal()] +
+				perState[ExecutionState.SCHEDULED.ordinal()] +
+										perState[ExecutionState.DEPLOYING.ordinal()]);
+		gen.writeNumberField("running", perState[ExecutionState.RUNNING.ordinal()]);
+		gen.writeNumberField("finished", perState[ExecutionState.FINISHED.ordinal()]);
+		gen.writeNumberField("canceling", perState[ExecutionState.CANCELING.ordinal()]);
+		gen.writeNumberField("canceled", perState[ExecutionState.CANCELED.ordinal()]);
+		gen.writeNumberField("failed", perState[ExecutionState.FAILED.ordinal()]);
+		gen.writeEndObject();
+
+		gen.writeEndObject();
+	}
+	
+	
+	
 	
 	public static String generateJobsOverviewJSON(JobsWithIDsOverview overview) {
 		try {
@@ -115,40 +215,6 @@ public class JsonFactory {
 			response.put("jobs-cancelled", canceledStrings);
 			response.put("jobs-failed", failedStrings);
 			return response.toString(2);
-		}
-		catch (JSONException e) {
-			// this should not happen
-			throw new RuntimeException(e);
-		}
-	}
-	
-	public static String createJobSummaryJSON(JobID jid, String jobName, String state,
-												String start, String end, String duration,
-												int numOperators, int numOperatorsPending,
-												int numOperatorsRunning, int numOperatorsFinished,
-												int numOperatorsCanceling, int numOperatorsCanceled,
-												int numOperatorsFailed) {
-		try {
-			JSONObject json = new JSONObject();
-
-			json.put("jid", jid.toString());
-			json.put("name", jobName);
-			json.put("state", state);
-			json.put("start-time", start);
-			json.put("end-time", end);
-			json.put("duration", duration);
-			
-			JSONObject operators = new JSONObject();
-			operators.put("total", numOperators);
-			operators.put("pending", numOperatorsPending);
-			operators.put("running", numOperatorsRunning);
-			operators.put("finished", numOperatorsFinished);
-			operators.put("canceling", numOperatorsCanceling);
-			operators.put("canceled", numOperatorsCanceled);
-			operators.put("failed", numOperatorsFailed);
-			json.put("operators", operators);
-			
-			return json.toString(2);
 		}
 		catch (JSONException e) {
 			// this should not happen

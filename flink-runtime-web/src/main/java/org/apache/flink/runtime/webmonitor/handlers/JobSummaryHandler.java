@@ -18,24 +18,18 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.JsonFactory;
+import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Map;
 
 /**
  * Request handler that returns a summary of the job status.
  */
 public class JobSummaryHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
-
-	private final SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	
 	public JobSummaryHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
@@ -43,61 +37,7 @@ public class JobSummaryHandler extends AbstractExecutionGraphRequestHandler impl
 
 	@Override
 	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
-
-		JobID jid = graph.getJobID();
-		String name = graph.getJobName();
-		
-		long startTime = graph.getStatusTimestamp(JobStatus.CREATED);
-		long endTime = graph.getState().isTerminalState() ?
-				graph.getStatusTimestamp(graph.getState()) : -1;
-		
-		long duration = endTime == -1 ? System.currentTimeMillis() - startTime :
-				endTime - startTime;
-		
-		String startTimeString;
-		String endTimeTimeString;
-		String durationString = duration + " msecs";
-		
-		synchronized (dateFormatter) {
-			startTimeString = dateFormatter.format(new Date(startTime));
-			endTimeTimeString =  endTime == -1 ? "(pending)" : dateFormatter.format(new Date(endTime));
-		}
-		
-		String status = graph.getState().name();
-		
-		int pending = 0;
-		int running = 0;
-		int finished = 0;
-		int canceling = 0;
-		int canceled = 0;
-		int failed = 0;
-		
-		for (ExecutionJobVertex vertex : graph.getVerticesTopologically()) {
-			ExecutionState aggState = vertex.getAggregateState();
-			switch (aggState) {
-				case FINISHED:
-					finished++;
-					break;
-				case FAILED:
-					failed++;
-					break;
-				case CANCELED:
-					canceled++;
-					break;
-				case RUNNING:
-					running++;
-					break;
-				case CANCELING:
-					canceling++;
-					break;
-				default:
-					pending++;
-			}
-		}
-		
-		int total = pending + running + finished + canceling + canceled + failed;
-		
-		return JsonFactory.createJobSummaryJSON(jid, name, status, startTimeString, endTimeTimeString, durationString, 
-				total, pending, running, finished, canceling, canceled, failed);
+		JobDetails details = WebMonitorUtils.createDetailsForJob(graph);
+		return JsonFactory.generateJobDetailsJSON(details);
 	}
 }
