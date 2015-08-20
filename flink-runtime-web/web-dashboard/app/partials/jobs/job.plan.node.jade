@@ -29,7 +29,7 @@
 
   .panel-heading.clearfix
     .panel-info.first.last(ng-if="node.description")
-      span {{ node.description }}
+      span {{ node.description | humanizeTaskName }}
 
   .panel-body
     table.table.table-hover.table-clickable
@@ -40,7 +40,7 @@
 
       tbody
         tr(ng-repeat="vertex in node.vertex.groupvertex.groupmembers")
-          td {{vertex.vertexname}}
+          td {{ vertex.vertexname | humanizeTaskName }}
           td 
             bs-label(status="{{vertex.vertexstatus}}") {{vertex.vertexstatus}}
 

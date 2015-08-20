@@ -18,7 +18,7 @@
 .panel.panel-default.panel-multi(ng-if="vertex")
   .panel-heading.clearfix
     .panel-title
-      | {{ vertex.groupvertex.groupvertexname }}
+      | {{ vertex.groupvertex.groupvertexname | humanizeTaskName }}
 
     //- .panel-info.first
     //-   | Vertex ID: {{ vertex.groupvertex.groupvertexid }}

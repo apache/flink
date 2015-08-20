@@ -202,16 +202,18 @@
             .attr("class", function(d, i) { return "bar-container bar-type-" + d.type; } )
             .attr("width", getBarWidth);
 
-          nel
-            .append("svg:clipPath")
-            .attr("id", prefix + "-timeline-textclip-" + i + "-" + index)
-            .attr("class", "timeline-clip")
-            .append("svg:rect")
-            .attr("clipPathUnits","objectBoundingBox")
-            .attr("x", getXPos)
-            .attr("y", getStackPosition)
-            .attr("width", getTextWidth)
-            .attr("height", itemHeight);
+          if (data[0].type != "scheduled") {
+            nel
+              .append("svg:clipPath")
+              .attr("id", prefix + "-timeline-textclip-" + i + "-" + index)
+              .attr("class", "timeline-clip")
+              .append("svg:rect")
+              .attr("clipPathUnits","objectBoundingBox")
+              .attr("x", getXPos)
+              .attr("y", getStackPosition)
+              .attr("width", getTextWidth)
+              .attr("height", itemHeight);
+          }
 
           var bar = nel
             .append(function(d, i) {
@@ -219,6 +221,8 @@
             })
             .attr("x", getXPos)
             .attr("y", getStackPosition)
+            .attr("rx", 5)
+            .attr("ry", 5)
             .attr("width", getBarWidth)
             .attr("cy", function(d, i) {
                 return getStackPosition(d, i) + itemHeight/2;
@@ -226,6 +230,8 @@
             .attr("cx", getXPos)
             .attr("r", itemHeight / 2)
             .attr("height", itemHeight)
+            .style("stroke", function(d, i){ return d.borderColor; })
+            .style("stroke-width", 1)
             .style("fill", function(d, i){
               var dColorPropName;
               if (d.color) return d.color;
@@ -263,12 +269,12 @@
               return d.id ? d.id : "timelineItem_"+index+"_"+i;
             })
 
-          nel
+          var barText = nel
             .append("text")
             .attr("class", "timeline-insidelabel")
             .attr("x", getXTextPos)
             .attr("y", getStackTextPosition)
-            .attr("width", getTextWidth)
+            // .attr("width", getTextWidth)
             .attr("height", itemHeight)
             .attr("clip-path", "url(#" + prefix + "-timeline-textclip-" + i + "-" + index + ")")
             .text(function(d) {
@@ -278,6 +284,10 @@
               click(d, index, datum);
             });
           ;
+
+          if (data[0].type == "scheduled") {
+            bar.attr('width', barText.node().getComputedTextLength() + 10);
+          }
 
           g.selectAll("svg .bar-container").each(function(d, i) {
             $(this).qtip({
@@ -309,16 +319,19 @@
           }
 
           if (showBorderLine) {
-            g.selectAll("svg").data(data).enter().append("svg:line")
-              .attr("class", "line-" + 'start')
-              .attr("x1", getBorderStart)
-              .attr("y1", getStackPosition)
-              .attr("x2", getBorderStart)
-              .attr("y2", margin.top + (itemHeight + itemMargin) * maxStack)
-              .style("stroke", function(d, i) { return d.color; })
-              .style("stroke-width", showBorderFormat.width);
+            if (data[0].type == "scheduled") {
+              g.selectAll("svg").data(data).enter().append("svg:line")
+                .attr("class", "line-" + 'start')
+                .attr("x1", getBorderStart)
+                .attr("y1", getStackBorderPosition)
+                .attr("x2", getBorderStart)
+                .attr("y2", margin.top + (itemHeight + itemMargin) * maxStack)
+                .style("stroke", function(d, i) { return d.color; })
+                .style("stroke-width", showBorderFormat.width);
+            }
 
-            if (data[0].type != "scheduled") {
+            // if (data[0].type != "scheduled") {
+            if (false) {
               g.selectAll("svg").data(data).enter().append("svg:line")
                 .attr("class", "line-" + 'end')
                 .attr("x1", getBorderEnd)
@@ -358,9 +371,15 @@
           }
           function getStackTextPosition(d, i) {
             if (stacked) {
-              return margin.top + (itemHeight + itemMargin) * yAxisMapping[index] + itemHeight * 0.70;
+              return margin.top + (itemHeight + itemMargin) * yAxisMapping[index] + itemHeight * 0.65;
             }
-            return margin.top + itemHeight * 0.70;
+            return margin.top + itemHeight * 0.65;
+          }
+          function getStackBorderPosition(d, i) {
+            if (stacked) {
+              return margin.top + (itemHeight + itemMargin) * yAxisMapping[index] + itemHeight - 3;
+            }
+            return margin.top + itemHeight - 3;
           }
         });
       });
@@ -426,7 +445,7 @@
       setHeight();
 
       bbox = g[0][0].getBBox();
-      gParent.attr('height', bbox.height + 30);
+      gParent.attr('height', bbox.height + 40);
 
       function getBorderStart(d, i) {
         return xScale(d.starting_time);

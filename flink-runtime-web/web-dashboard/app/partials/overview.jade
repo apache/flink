@@ -31,7 +31,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
             .col-xs-3
               i.fa.fa-tasks.fa-3x
             .col-xs-9.text-right
-              .huge 3
+              .huge {{overview.taskmanagers}}
               div Task Managers
 
         .panel-heading
@@ -39,7 +39,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
             .col-xs-3
               i.fa.fa-folder.fa-3x
             .col-xs-9.text-right
-              .huge 5
+              .huge {{overview["slots-total"]}}
               div Task Slots
 
         .panel-heading
@@ -47,7 +47,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
             .col-xs-3
               i.fa.fa-folder-o.fa-3x
             .col-xs-9.text-right
-              .huge 2
+              .huge {{overview["slots-available"]}}
               div Available Task Slots
 
     .col-md-6
@@ -56,16 +56,16 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
           | Total Jobs
         .list-group
           .list-group-item
-            .badge.badge-primary 3
+            .badge.badge-primary {{overview["jobs-running"]}}
             | Running
           .list-group-item
-            .badge.badge-success 6
+            .badge.badge-success {{overview["jobs-finished"]}}
             | Finished
           .list-group-item
-            .badge.badge-info 0
+            .badge.badge-info {{overview["jobs-cancelled"]}}
             | Canceled
           .list-group-item
-            .badge.badge-danger 2
+            .badge.badge-danger {{overview["jobs-failed"]}}
             | Failed
 
   //- .row
@@ -96,13 +96,13 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
 
         tbody
           tr(ng-repeat="job in runningJobs" ui-sref="single-job.plan({ jobid: job.jid })")
-            td {{job['start-time']}}
-            td {{job['end-time']}}
+            td {{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
+            td {{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
             td {{job.duration}}
-            td {{job.jobname}}
+            td {{job.name}}
             td {{job.jid}}
             td.label-group
-              bs-label(status="{{status}}" ng-repeat="(status, value) in job.operators") {{value}}
+              bs-label(status="{{status}}" ng-repeat="(status, value) in job.tasks") {{value}}
             td 
               bs-label(status="{{job.state}}") {{job.state}}
 
@@ -124,12 +124,12 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
 
         tbody
           tr(ng-repeat="job in finishedJobs" ui-sref="single-job.plan({ jobid: job.jid })")
-            td {{job['start-time']}}
-            td {{job['end-time']}}
-            td {{job.duration}}
-            td {{job.jobname}}
+            td {{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
+            td {{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
+            td {{job['end-time'] - job['start-time']}} ms
+            td {{job.name}}
             td {{job.jid}}
             td.label-group
-              bs-label(status="{{status}}" ng-repeat="(status, value) in job.operators") {{value}}
+              bs-label(status="{{status}}" ng-repeat="(status, value) in job.tasks") {{value}}
             td 
               bs-label(status="{{job.state}}") {{job.state}}

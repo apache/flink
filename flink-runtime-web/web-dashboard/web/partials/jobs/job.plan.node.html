@@ -28,7 +28,7 @@ limitations under the License.
     </div>
   </div>
   <div class="panel-heading clearfix">
-    <div ng-if="node.description" class="panel-info first last"><span>{{ node.description }}</span></div>
+    <div ng-if="node.description" class="panel-info first last"><span>{{ node.description | humanizeTaskName }}</span></div>
   </div>
   <div class="panel-body">
     <table class="table table-hover table-clickable">
@@ -40,7 +40,7 @@ limitations under the License.
       </thead>
       <tbody>
         <tr ng-repeat="vertex in node.vertex.groupvertex.groupmembers">
-          <td>{{vertex.vertexname}}</td>
+          <td>{{ vertex.vertexname | humanizeTaskName }}</td>
           <td> 
             <bs-label status="{{vertex.vertexstatus}}">{{vertex.vertexstatus}}</bs-label>
           </td>

@@ -28,15 +28,15 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="job")
 
   .navbar-info.first.last
     .label-group
-      bs-label(status="{{status}}" ng-repeat="(status, value) in job.operators") {{value}}
+      bs-label(status="{{status}}" ng-repeat="(status, value) in job.tasks") {{value}}
 
   .navbar-info.first.last.hidden-xs.hidden-sm
-    | {{ job['start-time'] }}
+    | {{ job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
     | - 
-    | {{ job['end-time'] }}
+    | {{ job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
   
   .navbar-info.last.first
-    | {{job.duration}}
+    | {{job['end-time'] - job['start-time']}} ms
 
 nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional(ng-if="job")
   ul.nav.nav-tabs

@@ -28,22 +28,25 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
 
 # --------------------------------------
 
-.constant 'flinkConfig', {
+.value 'flinkConfig', {
   jobServer: 'http://localhost:8081'
   newServer: 'http://localhost:8081'
 #  jobServer: 'http://localhost:3000/new-server'
 #  newServer: 'http://localhost:3000/new-server'
-  refreshInterval: 10000
+  "refresh-interval": 10000
 }
 
 # --------------------------------------
 
-.run (JobsService, flinkConfig, $interval) ->
-  JobsService.listJobs()
+.run (JobsService, MainService, flinkConfig, $interval) ->
+  MainService.loadConfig().then (config) ->
+    angular.extend flinkConfig, config
 
-  # $interval ->
-  #   JobsService.listJobs()
-  # , flinkConfig.refreshInterval
+    JobsService.listJobs()
+
+    $interval ->
+      JobsService.listJobs()
+    , flinkConfig["refresh-interval"]
 
 
 # --------------------------------------
