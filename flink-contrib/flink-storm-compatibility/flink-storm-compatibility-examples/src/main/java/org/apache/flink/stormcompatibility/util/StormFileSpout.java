@@ -33,8 +33,8 @@ import java.util.Map;
 public class StormFileSpout extends AbstractStormSpout {
 	private static final long serialVersionUID = -6996907090003590436L;
 
-	private final String path;
-	private BufferedReader reader;
+	protected final String path;
+	protected BufferedReader reader;
 
 	public StormFileSpout(final String path) {
 		this.path = path;

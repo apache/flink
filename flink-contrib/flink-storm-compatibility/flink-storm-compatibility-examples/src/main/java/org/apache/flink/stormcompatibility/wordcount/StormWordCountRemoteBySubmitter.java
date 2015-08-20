@@ -71,7 +71,7 @@ public class StormWordCountRemoteBySubmitter {
 		// conf.put(Config.NIMBUS_THRIFT_PORT, new Integer(6123));
 
 		// The user jar file must be specified via JVM argument if executed via Java.
-		// => -Dstorm.jar=target/flink-storm-examples-0.9-SNAPSHOT-WordCountStorm.jar
+		// => -Dstorm.jar=target/WordCount-StormTopology.jar
 		// If bin/flink is used, the jar file is detected automatically.
 		FlinkSubmitter.submitTopology(topologyId, conf, builder.createTopology());
 

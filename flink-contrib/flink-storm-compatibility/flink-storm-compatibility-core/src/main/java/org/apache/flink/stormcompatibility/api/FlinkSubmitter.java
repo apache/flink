@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.stormcompatibility.api;
 
 import backtype.storm.Config;
@@ -60,7 +59,7 @@ public class FlinkSubmitter {
 	 */
 	public static void submitTopology(final String name, final Map<?, ?> stormConf, final FlinkTopology topology,
 			final SubmitOptions opts)
-			throws AlreadyAliveException, InvalidTopologyException {
+					throws AlreadyAliveException, InvalidTopologyException {
 		submitTopology(name, stormConf, topology);
 	}
 
@@ -109,7 +108,7 @@ public class FlinkSubmitter {
 				try {
 					for (final File file : ((ContextEnvironment) ExecutionEnvironment.getExecutionEnvironment())
 							.getJars()) {
-						// TODO verify that there is onnly one jar
+						// TODO verify that there is only one jar
 						localJar = file.getAbsolutePath();
 					}
 				} catch (final ClassCastException e) {
@@ -147,7 +146,7 @@ public class FlinkSubmitter {
 	 */
 	public static void submitTopologyWithProgressBar(final String name, final Map<?, ?> stormConf,
 			final FlinkTopology topology)
-			throws AlreadyAliveException, InvalidTopologyException {
+					throws AlreadyAliveException, InvalidTopologyException {
 		submitTopology(name, stormConf, topology);
 	}
 
@@ -180,7 +179,7 @@ public class FlinkSubmitter {
 		if (localJar == null) {
 			throw new RuntimeException(
 					"Must submit topologies using the 'storm' client script so that StormSubmitter knows which jar " +
-							"to upload");
+					"to upload");
 		}
 
 		return localJar;

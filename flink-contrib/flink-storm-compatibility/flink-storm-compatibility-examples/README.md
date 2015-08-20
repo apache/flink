@@ -15,5 +15,6 @@ This module contains multiple versions of a simple word-count-example to illustr
       * `StormWordCountRemoteBySubmitter` submits the topology to a remote Flink cluster (simliar to the usage of `StormSubmitter` in Storm)
 
 Additionally, this module package the three examples word-count programs as jar files to be submitted to a Flink cluster via `bin/flink run example.jar`.
+(Valid jars are `WordCount-SpoutSource.jar`, `WordCount-BoltTokenizer.jar`, and `WordCount-StormTopology.jar`)
 
-The package `org.apache.flink.stormcompatiblitly.stormoperators` contain original Storm spouts and bolts that can be used unmodified within Storm or Flink.  
+The package `org.apache.flink.stormcompatiblitly.wordcount.stormoperators` contain original Storm spouts and bolts that can be used unmodified within Storm or Flink.
