@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.webmonitor.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 
+import java.io.StringWriter;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -28,16 +29,32 @@ import java.util.TimeZone;
  * against this web server should behave. It defines for example the refresh interval,
  * and time zone of the server timestamps.
  */
-public class RequestConfigHandler implements RequestHandler, RequestHandler.JsonResponse {
+public class DashboardConfigHandler implements RequestHandler, RequestHandler.JsonResponse {
 	
 	private final String configString;
 	
-	public RequestConfigHandler(long refreshInterval) {
+	public DashboardConfigHandler(long refreshInterval) {
 		TimeZone timeZome = TimeZone.getDefault();
 		String timeZoneName = timeZome.getDisplayName();
 		long timeZoneOffset= timeZome.getRawOffset();
-		
-		this.configString = JsonFactory.generateConfigJSON(refreshInterval, timeZoneOffset, timeZoneName);
+
+		try {
+			StringWriter writer = new StringWriter();
+			JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+	
+			gen.writeStartObject();
+			gen.writeNumberField("refresh-interval", refreshInterval);
+			gen.writeNumberField("timezone-offset", timeZoneOffset);
+			gen.writeStringField("timezone-name", timeZoneName);
+			gen.writeEndObject();
+	
+			gen.close();
+			this.configString = writer.toString();
+		}
+		catch (Exception e) {
+			// should never happen
+			throw new RuntimeException(e.getMessage(), e);
+		}
 	}
 	
 	@Override

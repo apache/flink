@@ -18,29 +18,30 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
-import org.apache.flink.runtime.webmonitor.JsonFactory;
 
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.StringWriter;
 import java.util.Map;
 
 /**
  * Responder that returns the status of the Flink cluster, such as how many
  * TaskManagers are currently connected, and how many jobs are running.
  */
-public class RequestOverviewHandler implements  RequestHandler, RequestHandler.JsonResponse {
+public class ClusterOverviewHandler implements  RequestHandler, RequestHandler.JsonResponse {
 	
 	private final ActorGateway jobManager;
 	
 	private final FiniteDuration timeout;
 	
 	
-	public RequestOverviewHandler(ActorGateway jobManager, FiniteDuration timeout) {
+	public ClusterOverviewHandler(ActorGateway jobManager, FiniteDuration timeout) {
 		if (jobManager == null || timeout == null) {
 			throw new NullPointerException();
 		}
@@ -52,8 +53,23 @@ public class RequestOverviewHandler implements  RequestHandler, RequestHandler.J
 	public String handleRequest(Map<String, String> params) throws Exception {
 		try {
 			Future<Object> future = jobManager.ask(RequestStatusOverview.getInstance(), timeout);
-			StatusOverview result = (StatusOverview) Await.result(future, timeout);
-			return JsonFactory.generateOverviewJSON(result);
+			StatusOverview overview = (StatusOverview) Await.result(future, timeout);
+
+			StringWriter writer = new StringWriter();
+			JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+
+			gen.writeStartObject();
+			gen.writeNumberField("taskmanagers", overview.getNumTaskManagersConnected());
+			gen.writeNumberField("slots-total", overview.getNumSlotsTotal());
+			gen.writeNumberField("slots-available", overview.getNumSlotsAvailable());
+			gen.writeNumberField("jobs-running", overview.getNumJobsRunningOrPending());
+			gen.writeNumberField("jobs-finished", overview.getNumJobsFinished());
+			gen.writeNumberField("jobs-cancelled", overview.getNumJobsCancelled());
+			gen.writeNumberField("jobs-failed", overview.getNumJobsFailed());
+			gen.writeEndObject();
+
+			gen.close();
+			return writer.toString();
 		}
 		catch (Exception e) {
 			throw new Exception("Failed to fetch the status overview: " + e.getMessage(), e);

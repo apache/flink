@@ -18,25 +18,14 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
-import java.util.Map;
+public class JsonFactory {
 
-/**
- * Request handler that returns the JSON program plan of a job graph.
- */
-public class JobVertexDetailsHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
-
+	public static final com.fasterxml.jackson.core.JsonFactory jacksonFactory =
+			new com.fasterxml.jackson.core.JsonFactory();
 	
-	public JobVertexDetailsHandler(ExecutionGraphHolder executionGraphHolder) {
-		super(executionGraphHolder);
-	}
-
-	@Override
-	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
-		String vertexId = params.get(Parameters.JOB_VERTEX_ID);
-		
-		return "vertex: " + vertexId;
-	}
+	// --------------------------------------------------------------------------------------------
+	
+	/** Don't instantiate */
+	private JsonFactory() {}
 }

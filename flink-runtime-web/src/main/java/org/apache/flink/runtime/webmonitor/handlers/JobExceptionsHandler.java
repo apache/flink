@@ -18,14 +18,14 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
-import org.apache.flink.runtime.webmonitor.JsonFactory;
+import org.apache.flink.util.ExceptionUtils;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.StringWriter;
 import java.util.Map;
 
 /**
@@ -41,67 +41,48 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler i
 
 	@Override
 	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
+		StringWriter writer = new StringWriter();
+		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+
+		gen.writeStartObject();
+		
 		// most important is the root failure cause
 		Throwable rootException = graph.getFailureCause();
+		if (rootException != null) {
+			gen.writeStringField("root-exception", ExceptionUtils.stringifyException(rootException));
+		}
 
 		// we additionally collect all exceptions (up to a limit) that occurred in the individual tasks
-		List<ExceptionWithContext> localExceptions = new ArrayList<>();
+		gen.writeArrayFieldStart("all-exceptions");
+
+		int numExceptionsSoFar = 0;
 		boolean truncated = false;
 		
 		for (ExecutionVertex task : graph.getAllExecutionVertices()) {
 			Throwable t = task.getFailureCause();
 			if (t != null) {
-				if (localExceptions.size() >= MAX_NUMBER_EXCEPTION_TO_REPORT) {
+				if (numExceptionsSoFar >= MAX_NUMBER_EXCEPTION_TO_REPORT) {
 					truncated = true;
 					break;
 				}
 
 				InstanceConnectionInfo location = task.getCurrentAssignedResourceLocation();
 				String locationString = location != null ?
-						location.getFQDNHostname() + ':' + location.dataPort() :
-						"(unassigned)";
-				
-				localExceptions.add(new ExceptionWithContext(t, task.getTaskName(), locationString));
+						location.getFQDNHostname() + ':' + location.dataPort() : "(unassigned)";
+
+				gen.writeStartObject();
+				gen.writeStringField("exception", ExceptionUtils.stringifyException(t));
+				gen.writeStringField("task", task.getSimpleName());
+				gen.writeStringField("location", locationString);
+				gen.writeEndObject();
 			}
 		}
-		
-		// if only one exception occurred in a task, and that is the root exception,
-		// there is no need to display it twice
-		if (localExceptions.size() == 1 && localExceptions.get(0).getException() == rootException) {
-			localExceptions = null;
-		}
-		
-		return JsonFactory.generateExceptionsJson(rootException, localExceptions, truncated);
-	}
-	
-	// ------------------------------------------------------------------------
+		gen.writeEndArray();
 
-	/**
-	 * Class that encapsulated an exception, together with the name of the throwing task, and
-	 * the instance on which the exception occurred.
-	 */
-	public static class ExceptionWithContext {
-		
-		private final Throwable exception;
-		private final String taskName;
-		private final String location;
+		gen.writeBooleanField("truncated", truncated);
+		gen.writeEndObject();
 
-		public ExceptionWithContext(Throwable exception, String taskName, String location) {
-			this.exception = exception;
-			this.taskName = taskName;
-			this.location = location;
-		}
-
-		public Throwable getException() {
-			return exception;
-		}
-
-		public String getTaskName() {
-			return taskName;
-		}
-
-		public String getLocation() {
-			return location;
-		}
+		gen.close();
+		return writer.toString();
 	}
 }
