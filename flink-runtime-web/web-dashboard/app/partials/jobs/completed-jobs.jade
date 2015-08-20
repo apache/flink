@@ -36,12 +36,12 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
 
     tbody
       tr(ng-repeat="job in jobs" ui-sref="single-job.plan({ jobid: job.jid })")
-        td {{job['start-time']}}
-        td {{job['end-time']}}
-        td {{job.duration}}
+        td {{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
+        td {{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
+        td {{job['end-time'] - job['start-time']}} ms
         td {{job.name}}
         td {{job.jid}}
         td.label-group
-          bs-label(status="{{status}}" ng-repeat="(status, value) in job.operators") {{value}}
+          bs-label(status="{{status}}" ng-repeat="(status, value) in job.tasks") {{value}}
         td 
           bs-label(status="{{job.state}}") {{job.state}}

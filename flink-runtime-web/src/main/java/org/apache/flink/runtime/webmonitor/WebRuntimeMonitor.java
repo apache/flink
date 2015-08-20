@@ -128,14 +128,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 			// the overview - how many task managers, slots, free slots, ...
 			.GET("/overview", handler(new RequestOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT)))
 
-			// list of job ids for all jobs in each status
-			.GET("/jobids", handler(new RequestJobIdsHandler(jobManager, DEFAULT_REQUEST_TIMEOUT)))
-
 			// overview over jobs
 			.GET("/joboverview", handler(new JobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, true, true)))
-			.GET("/joboverview/running",handler(new JobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, true, false)))
+			.GET("/joboverview/running", handler(new JobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, true, false)))
 			.GET("/joboverview/completed", handler(new JobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, false, true)))
 
+			.GET("/jobs", handler(new RequestJobIdsHandler(jobManager, DEFAULT_REQUEST_TIMEOUT)))
 			.GET("/jobs/:jobid", handler(new JobSummaryHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices", handler(new JobVerticesOverviewHandler(currentGraphs)))
 			.GET("/jobs/:jobid/plan", handler(new ExecutionPlanHandler(currentGraphs)))

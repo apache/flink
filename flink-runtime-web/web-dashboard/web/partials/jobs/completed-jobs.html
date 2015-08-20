@@ -36,13 +36,13 @@ limitations under the License.
     </thead>
     <tbody>
       <tr ng-repeat="job in jobs" ui-sref="single-job.plan({ jobid: job.jid })">
-        <td>{{job['start-time']}}</td>
-        <td>{{job['end-time']}}</td>
-        <td>{{job.duration}}</td>
+        <td>{{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
+        <td>{{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
+        <td>{{job['end-time'] - job['start-time']}} ms</td>
         <td>{{job.name}}</td>
         <td>{{job.jid}}</td>
         <td class="label-group">
-          <bs-label status="{{status}}" ng-repeat="(status, value) in job.operators">{{value}}</bs-label>
+          <bs-label status="{{status}}" ng-repeat="(status, value) in job.tasks">{{value}}</bs-label>
         </td>
         <td> 
           <bs-label status="{{job.state}}">{{job.state}}</bs-label>

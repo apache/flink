@@ -18,16 +18,17 @@
 
 angular.module('flinkApp')
 
-.controller 'OverviewController', ($scope, OverviewService, JobsService) ->
-  $scope.jobObserver = ->
-    $scope.runningJobs = JobsService.getJobs('running')
-    $scope.finishedJobs = JobsService.getJobs('finished')
+.service 'MainService', ($http, flinkConfig, $q) ->
+  jobObservers = []
 
-  JobsService.registerObserver($scope.jobObserver)
-  $scope.$on '$destroy', ->
-    JobsService.unRegisterObserver($scope.jobObserver)
+  @loadConfig = ->
+    deferred = $q.defer()
 
-  $scope.jobObserver()
+    $http.get flinkConfig.newServer + "/config"
+    .success (data, status, headers, config) ->
+      deferred.resolve(data)
 
-  OverviewService.loadOverview().then (data) ->
-    $scope.overview = data
+    deferred.promise
+
+
+  @

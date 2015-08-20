@@ -19,7 +19,7 @@ limitations under the License.
 -->
 <div ng-if="vertex" class="panel panel-default panel-multi">
   <div class="panel-heading clearfix">
-    <div class="panel-title">{{ vertex.groupvertex.groupvertexname }}</div>
+    <div class="panel-title">{{ vertex.groupvertex.groupvertexname | humanizeTaskName }}</div>
   </div>
   <div class="panel-body">
     <div class="canvas-wrapper">

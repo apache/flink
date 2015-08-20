@@ -44,6 +44,7 @@ angular.module('flinkApp')
             {
               label: "Scheduled"
               color: "#666"
+              borderColor: "#555"
               starting_time: vTime["SCHEDULED"] * 100
               ending_time: vTime["DEPLOYING"] * 100
               type: 'regular'
@@ -51,6 +52,7 @@ angular.module('flinkApp')
             {
               label: "Deploying"
               color: "#aaa"
+              borderColor: "#555"
               starting_time: vTime["DEPLOYING"] * 100
               ending_time: vTime["RUNNING"] * 100
               type: 'regular'
@@ -58,6 +60,7 @@ angular.module('flinkApp')
             {
               label: "Running"
               color: "#ddd"
+              borderColor: "#555"
               starting_time: vTime["RUNNING"] * 100
               ending_time: vTime["FINISHED"] * 100
               type: 'regular'
@@ -76,7 +79,7 @@ angular.module('flinkApp')
         label
       )
       .margin({ left: 100, right: 0, top: 0, bottom: 0 })
-      .itemHeight(24)
+      .itemHeight(30)
       .relativeTime()
 
       svg = d3.select(svgEl)
@@ -111,8 +114,9 @@ angular.module('flinkApp')
         times: [
           label: "Scheduled"
           color: "#cccccc"
+          borderColor: "#555"
           starting_time: data.oldV["SCHEDULED"]
-          ending_time: data.oldV["SCHEDULED"] + 30
+          ending_time: data.oldV["SCHEDULED"] + 1
           # link: vertex.groupvertexid
           type: 'scheduled'
         ]
@@ -126,7 +130,8 @@ angular.module('flinkApp')
         testData.push 
           times: [
             label: translateLabel(vertex.groupvertexname)
-            color: "#62cdea"
+            color: "#d9f1f7"
+            borderColor: "#62cdea"
             starting_time: vTime["STARTED"]
             ending_time: vTime["ENDED"]
             link: vertex.groupvertexid
@@ -146,7 +151,7 @@ angular.module('flinkApp')
       })
       .prefix("main")
       .margin({ left: 0, right: 0, top: 0, bottom: 0 })
-      .itemHeight(24)
+      .itemHeight(30)
       .showBorderLine()
       .showHourTimeline()
 
