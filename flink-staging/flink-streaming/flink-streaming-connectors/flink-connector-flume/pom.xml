@@ -152,7 +152,6 @@ under the License.
 				<!-- Override artifactSet configuration to build fat-jar with all dependencies packed. -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>2.3</version>
 				<executions>
 					<execution>
 						<id>shade-flink</id>

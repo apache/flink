@@ -15,34 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.api.java.hadoop.common;
 
-package org.apache.flink.api.java.hadoop.mapreduce;
+import org.apache.flink.api.common.io.RichOutputFormat;
+import org.apache.hadoop.security.Credentials;
 
 import java.io.IOException;
-
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.hadoop.mapreduce.Job;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 /**
- * OutputFormat implementation allowing to use Hadoop (mapreduce) OutputFormats with Flink.
+ * A common base for both "mapred" and "mapreduce" Hadoop output formats.
  *
- * @param <K> Key Type
- * @param <V> Value Type
+ * The base is taking care of handling (serializing) security credentials.
  */
-public class HadoopOutputFormat<K, V> extends HadoopOutputFormatBase<K, V, Tuple2<K, V>> {
-	
-	private static final long serialVersionUID = 1L;
+public abstract class HadoopOutputFormatCommonBase<T> extends RichOutputFormat<T> {
+	protected transient Credentials credentials;
 
-	public HadoopOutputFormat(org.apache.hadoop.mapreduce.OutputFormat<K,V> mapreduceOutputFormat, Job job) {
-		super(mapreduceOutputFormat, job);
+	protected HadoopOutputFormatCommonBase(Credentials creds) {
+		this.credentials = creds;
 	}
-	
-	@Override
-	public void writeRecord(Tuple2<K, V> record) throws IOException {
-		try {
-			this.recordWriter.write(record.f0, record.f1);
-		} catch (InterruptedException e) {
-			throw new IOException("Could not write Record.", e);
-		}
+
+	protected void write(ObjectOutputStream out) throws IOException {
+		this.credentials.write(out);
+	}
+
+	public void read(ObjectInputStream in) throws IOException {
+		this.credentials = new Credentials();
+		credentials.readFields(in);
 	}
 }

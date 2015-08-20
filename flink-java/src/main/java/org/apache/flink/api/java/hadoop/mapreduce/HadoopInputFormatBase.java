@@ -19,9 +19,9 @@
 package org.apache.flink.api.java.hadoop.mapreduce;
 
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
-import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
 import org.apache.flink.api.java.hadoop.mapreduce.utils.HadoopUtils;
 import org.apache.flink.api.java.hadoop.mapreduce.wrapper.HadoopInputSplit;
 import org.apache.flink.configuration.Configuration;
@@ -37,6 +37,8 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,12 +50,17 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public abstract class HadoopInputFormatBase<K, V, T> extends RichInputFormat<T, HadoopInputSplit> {
+/**
+ * Base class shared between the Java and Scala API of Flink
+ */
+public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCommonBase<T, HadoopInputSplit> {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormatBase.class);
 
+	// NOTE: this class is using a custom serialization logic, without a defaultWriteObject() method.
+	// Hence, all fields here are "transient".
 	private org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat;
 	protected Class<K> keyClass;
 	protected Class<V> valueClass;
@@ -64,11 +71,11 @@ public abstract class HadoopInputFormatBase<K, V, T> extends RichInputFormat<T, 
 	protected boolean hasNext;
 
 	public HadoopInputFormatBase(org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
-		super();
+		super(checkNotNull(job, "Job can not be null").getCredentials());
 		this.mapreduceInputFormat = checkNotNull(mapreduceInputFormat);
 		this.keyClass = checkNotNull(key);
 		this.valueClass = checkNotNull(value);
-		this.configuration = checkNotNull(job).getConfiguration();
+		this.configuration = job.getConfiguration();
 		HadoopUtils.mergeHadoopConf(configuration);
 	}
 
@@ -94,7 +101,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends RichInputFormat<T, 
 			return null;
 		}
 
-		JobContext jobContext = null;
+		JobContext jobContext;
 		try {
 			jobContext = HadoopUtils.instantiateJobContext(configuration, null);
 		} catch (Exception e) {
@@ -104,23 +111,23 @@ public abstract class HadoopInputFormatBase<K, V, T> extends RichInputFormat<T, 
 		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
 				(FileBaseStatistics) cachedStats : null;
 				
-				try {
-					final org.apache.hadoop.fs.Path[] paths = FileInputFormat.getInputPaths(jobContext);
-					return getFileStats(cachedFileStats, paths, new ArrayList<FileStatus>(1));
-				} catch (IOException ioex) {
-					if (LOG.isWarnEnabled()) {
-						LOG.warn("Could not determine statistics due to an io error: " 
-								+ ioex.getMessage());
-					}
-				} catch (Throwable t) {
-					if (LOG.isErrorEnabled()) {
-						LOG.error("Unexpected problem while getting the file statistics: "
-								+ t.getMessage(), t);
-					}
-				}
-				
-				// no statistics available
-				return null;
+		try {
+			final org.apache.hadoop.fs.Path[] paths = FileInputFormat.getInputPaths(jobContext);
+			return getFileStats(cachedFileStats, paths, new ArrayList<FileStatus>(1));
+		} catch (IOException ioex) {
+			if (LOG.isWarnEnabled()) {
+				LOG.warn("Could not determine statistics due to an io error: "
+						+ ioex.getMessage());
+			}
+		} catch (Throwable t) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Unexpected problem while getting the file statistics: "
+						+ t.getMessage(), t);
+			}
+		}
+
+		// no statistics available
+		return null;
 	}
 
 	@Override
@@ -128,11 +135,17 @@ public abstract class HadoopInputFormatBase<K, V, T> extends RichInputFormat<T, 
 			throws IOException {
 		configuration.setInt("mapreduce.input.fileinputformat.split.minsize", minNumSplits);
 
-		JobContext jobContext = null;
+		JobContext jobContext;
 		try {
 			jobContext = HadoopUtils.instantiateJobContext(configuration, new JobID());
 		} catch (Exception e) {
 			throw new RuntimeException(e);
+		}
+
+		jobContext.getCredentials().addAll(this.credentials);
+		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
+		if(currentUserCreds != null) {
+			jobContext.getCredentials().addAll(currentUserCreds);
 		}
 
 		List<org.apache.hadoop.mapreduce.InputSplit> splits;
@@ -156,7 +169,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends RichInputFormat<T, 
 
 	@Override
 	public void open(HadoopInputSplit split) throws IOException {
-		TaskAttemptContext context = null;
+		TaskAttemptContext context;
 		try {
 			context = HadoopUtils.instantiateTaskAttemptContext(configuration, new TaskAttemptID());
 		} catch(Exception e) {
@@ -255,6 +268,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends RichInputFormat<T, 
 	// --------------------------------------------------------------------------------------------
 
 	private void writeObject(ObjectOutputStream out) throws IOException {
+		super.write(out);
 		out.writeUTF(this.mapreduceInputFormat.getClass().getName());
 		out.writeUTF(this.keyClass.getName());
 		out.writeUTF(this.valueClass.getName());
@@ -263,6 +277,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends RichInputFormat<T, 
 
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		super.read(in);
 		String hadoopInputFormatClassName = in.readUTF();
 		String keyClassName = in.readUTF();
 		String valueClassName = in.readUTF();
