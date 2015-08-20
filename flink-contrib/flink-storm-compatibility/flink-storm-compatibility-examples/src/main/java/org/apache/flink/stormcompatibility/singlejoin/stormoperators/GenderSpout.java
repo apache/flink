@@ -23,6 +23,8 @@ import backtype.storm.tuple.Values;
 import org.apache.flink.stormcompatibility.util.AbstractStormSpout;
 
 public class GenderSpout extends AbstractStormSpout {
+	private static final long serialVersionUID = -5079110197950743927L;
+
 	private int counter = 9;
 	private Fields outFields;
 

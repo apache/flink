@@ -103,6 +103,10 @@ under the License.
 									<type>jar</type>
 									<overWrite>false</overWrite>
 									<outputDirectory>${project.build.directory}/classes</outputDirectory>
+									<!-- need to exclude to be able to run
+									       * StormWordCountRemoteByClient and
+									       * StormWordCountRemoteBySubmitter
+									     within Eclipse -->
 									<excludes>defaults.yaml</excludes>
 								</artifactItem>
 								<artifactItem>
@@ -112,7 +116,7 @@ under the License.
 									<type>jar</type>
 									<overWrite>false</overWrite>
 									<outputDirectory>${project.build.directory}/classes</outputDirectory>
-								</artifactItem>snakeyaml
+								</artifactItem>
 								<artifactItem>
 									<groupId>org.yaml</groupId>
 									<artifactId>snakeyaml</artifactId>
@@ -143,7 +147,8 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>WordCountSpoutSource</classifier>
+							<finalName>WordCount</finalName>
+							<classifier>SpoutSource</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -168,9 +173,11 @@ under the License.
 								<!-- Word Count -->
 								<include>org/apache/flink/stormcompatibility/wordcount/SpoutSourceWordCount.class</include>
 								<include>org/apache/flink/stormcompatibility/wordcount/SpoutSourceWordCount$*.class</include>
-								<include>org/apache/flink/stormcompatibility/wordcount/stormoperators/AbstractStormSpout.class</include>
-								<include>org/apache/flink/stormcompatibility/wordcount/stormoperators/StormFileSpout.class</include>
-								<include>org/apache/flink/stormcompatibility/wordcount/stormoperators/StormInMemorySpout.class</include>
+								<include>org/apache/flink/stormcompatibility/wordcount/stormoperators/StormWordCountFileSpout.class</include>
+								<include>org/apache/flink/stormcompatibility/wordcount/stormoperators/StormWordCountInMemorySpout.class</include>
+								<include>org/apache/flink/stormcompatibility/util/AbstractStormSpout.class</include>
+								<include>org/apache/flink/stormcompatibility/util/StormFileSpout.class</include>
+								<include>org/apache/flink/stormcompatibility/util/StormInMemorySpout.class</include>
 								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>
 							</includes>
 						</configuration>
@@ -185,7 +192,8 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>WordCountBoltTokenizer</classifier>
+							<finalName>WordCount</finalName>
+							<classifier>BoltTokenizer</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -215,6 +223,25 @@ under the License.
 						</configuration>
 					</execution>
 
+					<!-- WordCount Storm topology-->
+					<!-- Example for whole topologies (ie, if FlinkTopologyBuilder is used) -->
+					<!-- We cannot use maven-jar-plugin because 'defaults.yaml' must be included in jar.
+					     However, we excluded 'defaults.yaml' in dependency-plugin to get clean Eclipse environment.
+					     Thus, 'defaults.yaml' is not available for maven-jar-plugin.
+					     Nevertheless, we register an empty jar with corresponding name, such that the final jar can be installed to local maven repository.
+					     We use maven-shade-plugin to build the actual jar (which will replace the empty jar). -->
+					<execution>
+						<id>WordCount-StormTopology</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<finalName>WordCount</finalName>
+							<classifier>StormTopology</classifier>
+						</configuration>
+					</execution>
+
 					<execution>
 						<goals>
 							<goal>test-jar</goal>
@@ -224,28 +251,77 @@ under the License.
 			</plugin>
 
 			<!-- WordCount Storm topology-->
-			<!-- example for whole topologies (ie, if FlinkTopologyBuilder is used) -->
 			<!-- Cannot use maven-jar-plugin because 'defaults.yaml' must be included in jar -->
+			<!-- Build StormTopolgy jar to overwrite empty jar created with maven-jar-plugin. -->
 			<plugin>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<configuration>
-					<descriptors>
-						<descriptor>src/assembly/word-count-storm.xml</descriptor>
-					</descriptors>
-					<archive>
-						<manifestEntries>
-							<program-class>org.apache.flink.stormcompatibility.wordcount.StormWordCountRemoteBySubmitter</program-class>
-						</manifestEntries>
-					</archive>
-				</configuration>
-
+				<artifactId>maven-shade-plugin</artifactId>
+				<groupId>org.apache.maven.plugins</groupId>
+				<version>2.4.1</version>
 				<executions>
 					<execution>
-						<id>WordCountStorm</id>
+						<id>WordCount-StormTopology</id>
 						<phase>package</phase>
 						<goals>
-							<goal>single</goal>
+							<goal>shade</goal>
 						</goals>
+						<configuration>
+							<finalName>WordCount-StormTopology</finalName>
+
+							<artifactSet>
+								<includes>
+									<include>org.apache.storm:storm-core</include>
+									<!-- Storm's recursive dependencies -->
+									<include>org.yaml:snakeyaml</include>
+									<include>com.googlecode.json-simple:json-simple</include>
+									<include>org.apache.flink:flink-storm-compatibility-core</include>
+									<include>org.apache.flink:flink-storm-compatibility-examples</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.storm:storm-core</artifact>
+									<includes>
+										<include>defaults.yaml</include>
+										<include>backtype/storm/*.class</include>
+										<include>backtype/storm/topology/*.class</include>
+										<include>backtype/storm/spout/*.class</include>
+										<include>backtype/storm/task/*.class</include>
+										<include>backtype/storm/tuple/*.class</include>
+										<include>backtype/storm/generated/*.class</include>
+										<include>backtype/storm/metric/**/*.class</include>
+										<include>backtype/storm/utils/*.class</include>
+										<include>backtype/storm/serialization/*.class</include>
+										<include>org/apache/storm/curator/**/*.class</include>
+										<include>org/apache/thrift7/**/*.class</include>
+										<!-- Storm's recursive dependencies -->
+										<include>org/json/simple/**/*.class</include>
+										<include>org/yaml/snakeyaml/**/*.class</include>
+									</includes>
+								</filter>
+								<filter>
+									<artifact>org.apache.flink:flink-storm-compatibility-examples</artifact>
+									<includes>
+										<include>org/apache/flink/stormcompatibility/wordcount/StormWordCountRemoteBySubmitter.class</include>
+										<include>org/apache/flink/stormcompatibility/wordcount/WordCountTopology.class</include>
+										<include>org/apache/flink/stormcompatibility/wordcount/stormoperators/*.class</include>
+										<include>org/apache/flink/stormcompatibility/util/*.class</include>
+										<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>
+									</includes>
+								</filter>
+								<filter>
+									<artifact>org.apache.flink:flink-storm-compatibility-core</artifact>
+									<includes>
+										<include>org/apache/flink/stormcompatibility/api/*.class</include>
+										<include>org/apache/flink/stormcompatibility/wrappers/*.class</include>
+									</includes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.stormcompatibility.wordcount.StormWordCountRemoteBySubmitter</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

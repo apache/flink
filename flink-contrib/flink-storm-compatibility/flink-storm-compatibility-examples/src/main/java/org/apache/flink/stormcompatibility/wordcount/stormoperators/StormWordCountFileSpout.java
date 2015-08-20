@@ -15,21 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.stormcompatibility.util;
+package org.apache.flink.stormcompatibility.wordcount.stormoperators;
 
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
+import org.apache.flink.stormcompatibility.util.StormFileSpout;
 
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 
 /**
- * Implements a Storm Spout that reads data from {@link WordCountData#WORDS}.
+ * Implements a Storm Spout that reads data from a given local file.
  */
-public final class StormWordCountInMemorySpout extends StormInMemorySpout {
-	private static final long serialVersionUID = 8832143302409465843L;
+public final class StormWordCountFileSpout extends StormFileSpout {
+	private static final long serialVersionUID = 2372251989250954503L;
 
-	public StormWordCountInMemorySpout(String[] source) {
-		super(source);
+	public StormWordCountFileSpout(String path) {
+		super(path);
 	}
 
 	@Override

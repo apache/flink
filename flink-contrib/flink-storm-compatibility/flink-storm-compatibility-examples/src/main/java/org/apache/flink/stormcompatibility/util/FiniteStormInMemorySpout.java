@@ -18,29 +18,21 @@
 
 package org.apache.flink.stormcompatibility.util;
 
-import backtype.storm.tuple.Values;
 import org.apache.flink.stormcompatibility.wrappers.FiniteStormSpout;
 
 /**
  * Implements a Storm Spout that reads String[] data stored in the memory. The spout stops
  * automatically when it emitted all of the data.
  */
-public class FiniteStormInMemorySpout extends AbstractStormSpout implements FiniteStormSpout {
-
+public class FiniteStormInMemorySpout extends StormInMemorySpout<String> implements
+		FiniteStormSpout {
 	private static final long serialVersionUID = -4008858647468647019L;
 
-	private String[] source;
-	private int counter = 0;
-
 	public FiniteStormInMemorySpout(String[] source) {
-		this.source = source;
+		super(source);
 	}
 
 	@Override
-	public void nextTuple() {
-			this.collector.emit(new Values(source[this.counter++]));
-	}
-
 	public boolean reachedEnd() {
 		return counter >= source.length;
 	}

@@ -25,13 +25,13 @@ import org.apache.flink.stormcompatibility.api.FlinkTopologyBuilder;
 import org.apache.flink.stormcompatibility.util.OutputFormatter;
 import org.apache.flink.stormcompatibility.util.StormBoltFileSink;
 import org.apache.flink.stormcompatibility.util.StormBoltPrintSink;
-import org.apache.flink.stormcompatibility.util.StormWordCountFileSpout;
-import org.apache.flink.stormcompatibility.util.StormWordCountInMemorySpout;
 import org.apache.flink.stormcompatibility.util.TupleOutputFormatter;
 import org.apache.flink.stormcompatibility.wordcount.stormoperators.StormBoltCounter;
 import org.apache.flink.stormcompatibility.wordcount.stormoperators.StormBoltCounterByName;
 import org.apache.flink.stormcompatibility.wordcount.stormoperators.StormBoltTokenizer;
 import org.apache.flink.stormcompatibility.wordcount.stormoperators.StormBoltTokenizerByName;
+import org.apache.flink.stormcompatibility.wordcount.stormoperators.StormWordCountFileSpout;
+import org.apache.flink.stormcompatibility.wordcount.stormoperators.StormWordCountInMemorySpout;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
@@ -72,7 +72,7 @@ public class WordCountTopology {
 			final String inputFile = tokens[tokens.length - 1];
 			builder.setSpout(spoutId, new StormWordCountFileSpout(inputFile));
 		} else {
-			builder.setSpout(spoutId, new StormWordCountInMemorySpout(WordCountData.WORDS));
+			builder.setSpout(spoutId, new StormWordCountInMemorySpout());
 		}
 
 		if (indexOrName) {
