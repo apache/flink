@@ -25,6 +25,8 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 
+import org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHandler;
+import org.apache.flink.util.ExceptionUtils;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
@@ -180,9 +182,6 @@ public class JsonFactory {
 		gen.writeEndObject();
 	}
 	
-	
-	
-	
 	public static String generateJobsOverviewJSON(JobsWithIDsOverview overview) {
 		try {
 			List<JobID> runningIDs = overview.getJobsRunningOrPending();
@@ -219,6 +218,41 @@ public class JsonFactory {
 		catch (JSONException e) {
 			// this should not happen
 			throw new RuntimeException(e);
+		}
+	}
+	
+	public static String generateExceptionsJson(Throwable rootCause, 
+												List<JobExceptionsHandler.ExceptionWithContext> allExceptions,
+												boolean truncated) {
+		try {
+			StringWriter writer = new StringWriter();
+			JsonGenerator gen = jacksonFactory.createJsonGenerator(writer);
+
+			gen.writeStartObject();
+			gen.writeStringField("root-exception", ExceptionUtils.stringifyException(rootCause));
+			
+			if (allExceptions != null && !allExceptions.isEmpty()) {
+				gen.writeArrayFieldStart("all-exceptions");
+				for (JobExceptionsHandler.ExceptionWithContext ewc : allExceptions) {
+					gen.writeStartObject();
+					gen.writeStringField("exception", ExceptionUtils.stringifyException(ewc.getException()));
+					gen.writeStringField("task", ewc.getTaskName());
+					gen.writeStringField("location", ewc.getLocation());
+					gen.writeEndObject();
+				}
+				gen.writeEndArray();
+
+				gen.writeBooleanField("truncated", truncated);
+			}
+			
+			gen.writeEndObject();
+
+			gen.close();
+			return writer.toString();
+		}
+		catch (Exception e) {
+			// this should not happen
+			throw new RuntimeException(e.getMessage(), e);
 		}
 	}
 	

@@ -37,6 +37,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.handlers.ExecutionPlanHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobConfigHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobSummaryHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobVerticesOverviewHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobsOverviewHandler;
@@ -138,11 +139,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/jobs/:jobid/vertices", handler(new JobVerticesOverviewHandler(currentGraphs)))
 			.GET("/jobs/:jobid/plan", handler(new ExecutionPlanHandler(currentGraphs)))
 			.GET("/jobs/:jobid/config", handler(new JobConfigHandler(currentGraphs)))
+			.GET("/jobs/:jobid/exceptions", handler(new JobExceptionsHandler(currentGraphs)))
 
 //			.GET("/running/:jobid/:jobvertex", handler(new ExecutionPlanHandler(currentGraphs)))
 
 			// the handler for the legacy requests
-			.GET("/jobsInfo", new JobManagerInfoHandler(jobManager, archive, DEFAULT_REQUEST_TIMEOUT))
+				.GET("/jobsInfo", new JobManagerInfoHandler(jobManager, archive, DEFAULT_REQUEST_TIMEOUT))
 					
 			// this handler serves all the static contents
 			.GET("/:*", new StaticFileServerHandler(webRootDir));

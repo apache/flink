@@ -53,6 +53,8 @@ public class WebMonitorUtils {
 			}
 		}
 		
+		lastChanged = Math.max(lastChanged, finished);
+		
 		return new JobDetails(job.getJobID(), job.getJobName(),
 				started, finished, status, lastChanged,  
 				countsPerStatus, numTotalTasks);
