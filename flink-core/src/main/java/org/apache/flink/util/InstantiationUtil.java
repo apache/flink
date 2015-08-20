@@ -138,7 +138,7 @@ public class InstantiationUtil {
 		try {
 			return clazz.newInstance();
 		}
-		catch (InstantiationException iex) {
+		catch (InstantiationException | IllegalAccessException iex) {
 			// check for the common problem causes
 			checkForInstantiation(clazz);
 			
@@ -146,15 +146,6 @@ public class InstantiationUtil {
 			// most likely an exception in the constructor or field initialization
 			throw new RuntimeException("Could not instantiate type '" + clazz.getName() + 
 					"' due to an unspecified exception: " + iex.getMessage(), iex);
-		}
-		catch (IllegalAccessException iaex) {
-			// check for the common problem causes
-			checkForInstantiation(clazz);
-			
-			// here we are, if non of the common causes was the problem. then the error was
-			// most likely an exception in the constructor or field initialization
-			throw new RuntimeException("Could not instantiate type '" + clazz.getName() + 
-					"' due to an unspecified exception: " + iaex.getMessage(), iaex);
 		}
 		catch (Throwable t) {
 			String message = t.getMessage();
@@ -172,9 +163,9 @@ public class InstantiationUtil {
 	 */
 	public static boolean hasPublicNullaryConstructor(Class<?> clazz) {
 		Constructor<?>[] constructors = clazz.getConstructors();
-		for (int i = 0; i < constructors.length; i++) {
-			if (constructors[i].getParameterTypes().length == 0 && 
-					Modifier.isPublic(constructors[i].getModifiers())) {
+		for (Constructor<?> constructor : constructors) {
+			if (constructor.getParameterTypes().length == 0 &&
+					Modifier.isPublic(constructor.getModifiers())) {
 				return true;
 			}
 		}
@@ -310,13 +301,9 @@ public class InstantiationUtil {
 	
 	public static byte[] serializeObject(Object o) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos = new ObjectOutputStream(baos);
 
-		try {
+		try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
 			oos.writeObject(o);
-		}
-		finally {
-			oos.close();
 		}
 
 		return baos.toByteArray();
