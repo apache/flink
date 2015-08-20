@@ -26,7 +26,6 @@ import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
-import org.apache.flink.api.common.operators.util.IntermediateSampleData
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
@@ -34,7 +33,6 @@ import org.apache.flink.api.java.functions._
 import org.apache.flink.api.java.io.{DiscardingOutputFormat, PrintingOutputFormat, TextOutputFormat}
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
-import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet => JavaDataSet, Utils}
 import org.apache.flink.api.scala.operators.{ScalaAggregateOperator, ScalaCsvOutputFormat}
 import org.apache.flink.configuration.Configuration
@@ -1182,64 +1180,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def union(other: DataSet[T]): DataSet[T] = wrap(new UnionOperator[T](javaSet,
     other.javaSet,
     getCallLocationName()))
-
-  // --------------------------------------------------------------------------------------------
-  //  Sample
-  // --------------------------------------------------------------------------------------------
-  /**
-   * Generate a sample of DataSet by the probability fraction of each element.
-   *
-   * @param withReplacement Whether element can be selected more than once.
-   * @param fraction        Probability that each element is chosen, should be [0,1] without
-   *                        replacement, and [0, ∞) with replacement. While fraction is larger
-   *                        than 1, the elements are expected to be selected multi times into
-   *                        sample on average.
-   * @param seed            Random number generator seed.
-   * @return The sampled DataSet
-   */
-  def sample(
-      withReplacement: Boolean,
-      fraction: Double,
-      seed: Long = Utils.RNG.nextLong()): DataSet[T] = {
-
-    wrap(new MapPartitionOperator[T, T](javaSet,
-      getType(),
-      new SampleWithFraction(withReplacement, fraction, seed),
-      getCallLocationName()))
-  }
-
-  /**
-   * Generate a sample of DataSet with fixed sample size.
-   * <p>
-   * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction,
-   * use sample with fraction unless you need exact precision.
-   * <p/>
-   *
-   * @param withReplacement Whether element can be selected more than once.
-   * @param numSample       The expected sample size.
-   * @param seed            Random number generator seed.
-   * @return The sampled DataSet
-   */
-  def sampleWithSize(
-      withReplacement: Boolean,
-      numSample: Int,
-      seed: Long = Utils.RNG.nextLong()): DataSet[T] = {
-
-    val sampleInPartition = new SampleInPartition[T](withReplacement, numSample, seed)
-    val resultType = TypeExtractor.getMapPartitionReturnTypes(sampleInPartition, getType)
-    val mapPartitionOperator = new MapPartitionOperator[T, IntermediateSampleData[T]](javaSet,
-      resultType,
-      sampleInPartition,
-      getCallLocationName())
-
-    // There is no previous group, so the parallelism of GroupReduceOperator is always 1.
-    val groupReduceOperator = new GroupReduceOperator[IntermediateSampleData[T], T](
-      mapPartitionOperator,
-      getType(),
-      new SampleInCoordinator[T](withReplacement, numSample, seed),
-      getCallLocationName())
-    wrap(groupReduceOperator)
-  }
 
   // --------------------------------------------------------------------------------------------
   //  Partitioning

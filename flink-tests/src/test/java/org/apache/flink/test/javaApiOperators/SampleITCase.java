@@ -23,6 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
@@ -100,7 +101,7 @@ public class SampleITCase extends MultipleProgramsTestBase {
 	private void verifySamplerWithFraction(boolean withReplacement, double fraction, long seed) throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		FlatMapOperator<Tuple3<Integer, Long, String>, String> ds = getSourceDataSet(env);
-		MapPartitionOperator<String, String> sampled = ds.sample(withReplacement, fraction, seed);
+		MapPartitionOperator<String, String> sampled = DataSetUtils.sample(ds, withReplacement, fraction, seed);
 		List<String> result = sampled.collect();
 		containsResultAsText(result, getSourceStrings());
 	}
@@ -124,7 +125,7 @@ public class SampleITCase extends MultipleProgramsTestBase {
 	private void verifySamplerWithFixedSize(boolean withReplacement, int numSamples, long seed) throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		FlatMapOperator<Tuple3<Integer, Long, String>, String> ds = getSourceDataSet(env);
-		DataSet<String> sampled = ds.sampleWithSize(withReplacement, numSamples, seed);
+		DataSet<String> sampled = DataSetUtils.sampleWithSize(ds, withReplacement, numSamples, seed);
 		List<String> result = sampled.collect();
 		assertEquals(numSamples, result.size());
 		containsResultAsText(result, getSourceStrings());

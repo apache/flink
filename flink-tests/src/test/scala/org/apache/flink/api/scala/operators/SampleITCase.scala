@@ -28,6 +28,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, After, Test}
 
+import org.apache.flink.api.scala.DataSetUtils.utilsToDataSet
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
