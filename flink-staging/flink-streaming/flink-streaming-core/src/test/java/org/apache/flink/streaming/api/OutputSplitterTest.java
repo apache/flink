@@ -26,13 +26,12 @@ import java.util.List;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestListResultSink;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.Test;
 
-public class OutputSplitterTest {
-
-	private static final long MEMORYSIZE = 32;
+public class OutputSplitterTest extends StreamingMultipleProgramsTestBase {
 
 	private static ArrayList<Integer> expectedSplitterResult = new ArrayList<Integer>();
 
@@ -42,7 +41,8 @@ public class OutputSplitterTest {
 		TestListResultSink<Integer> splitterResultSink1 = new TestListResultSink<Integer>();
 		TestListResultSink<Integer> splitterResultSink2 = new TestListResultSink<Integer>();
 
-		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORYSIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
 		env.setBufferTimeout(1);
 
 		DataStream<Integer> d1 = env.fromElements(0, 2, 4, 6, 8);
@@ -95,7 +95,8 @@ public class OutputSplitterTest {
 		TestListResultSink<Integer> splitterResultSink1 = new TestListResultSink<Integer>();
 		TestListResultSink<Integer> splitterResultSink2 = new TestListResultSink<Integer>();
 
-		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORYSIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
 		env.setBufferTimeout(1);
 
 		DataStream<Integer> ds = env.fromElements(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);

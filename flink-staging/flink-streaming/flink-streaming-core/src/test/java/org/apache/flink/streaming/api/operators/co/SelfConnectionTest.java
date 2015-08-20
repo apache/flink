@@ -31,19 +31,17 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestListResultSink;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class SelfConnectionTest implements Serializable {
-
-	private static final long serialVersionUID = 1L;
-
-	private final int MEMORY_SIZE = 32;
+public class SelfConnectionTest extends StreamingMultipleProgramsTestBase {
 
 	private static List<String> expected;
 
@@ -51,20 +49,12 @@ public class SelfConnectionTest implements Serializable {
 	@Test
 	public void sameDataStreamTest() {
 
-		StreamExecutionEnvironment env = new TestStreamEnvironment(3, MEMORY_SIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(3);
 
 		TestListResultSink<String> resultSink = new TestListResultSink<String>();
 
-		Timestamp<Integer> timeStamp = new Timestamp<Integer>() {
-
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public long getTimestamp(Integer value) {
-				return value;
-			}
-
-		};
+		Timestamp<Integer> timeStamp = new IntegerTimestamp();
 
 		KeySelector keySelector = new KeySelector<Integer, Integer>() {
 
@@ -79,7 +69,7 @@ public class SelfConnectionTest implements Serializable {
 		DataStream<Integer> src = env.fromElements(1, 3, 5);
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple2<Integer, Integer>> dataStream =
+		DataStreamSink<Tuple2<Integer, Integer>> dataStream =
 				src.join(src).onWindow(50L, timeStamp, timeStamp).where(keySelector).equalTo(keySelector)
 						.map(new MapFunction<Tuple2<Integer, Integer>, String>() {
 
@@ -107,8 +97,8 @@ public class SelfConnectionTest implements Serializable {
 
 			assertEquals(expected, result);
 		} catch (Exception e) {
-			fail();
 			e.printStackTrace();
+			fail();
 		}
 	}
 
@@ -120,7 +110,8 @@ public class SelfConnectionTest implements Serializable {
 
 		TestListResultSink<String> resultSink = new TestListResultSink<String>();
 
-		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORY_SIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
 
 		DataStream<Integer> src = env.fromElements(1, 3, 5);
 
@@ -175,7 +166,8 @@ public class SelfConnectionTest implements Serializable {
 
 		TestListResultSink<String> resultSink = new TestListResultSink<String>();
 
-		StreamExecutionEnvironment env = new TestStreamEnvironment(3, MEMORY_SIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(3);
 
 		DataStream<Integer> src = env.fromElements(1, 3, 5).disableChaining();
 
@@ -247,5 +239,16 @@ public class SelfConnectionTest implements Serializable {
 		Collections.sort(result);
 
 		assertEquals(expected, result);
+	}
+
+	private static class IntegerTimestamp implements Timestamp<Integer> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public long getTimestamp(Integer value) {
+			return value;
+		}
+
 	}
 }

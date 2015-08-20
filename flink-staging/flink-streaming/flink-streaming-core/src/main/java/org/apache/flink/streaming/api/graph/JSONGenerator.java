@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.graph;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +52,19 @@ public class JSONGenerator {
 		JSONArray nodes = new JSONArray();
 		json.put("nodes", nodes);
 		List<Integer> operatorIDs = new ArrayList<Integer>(streamGraph.getVertexIDs());
-		Collections.sort(operatorIDs);
+		Collections.sort(operatorIDs, new Comparator<Integer>() {
+			@Override
+			public int compare(Integer o1, Integer o2) {
+				// put sinks at the back
+				if (streamGraph.getSinkIDs().contains(o1)) {
+					return 1;
+				} else if (streamGraph.getSinkIDs().contains(o2)) {
+					return -1;
+				} else {
+					return o1 - o2;
+				}
+			}
+		});
 		visit(nodes, operatorIDs, new HashMap<Integer, Integer>());
 		return json.toString();
 	}
@@ -87,7 +100,7 @@ public class JSONGenerator {
 			for (StreamEdge inEdge : vertex.getInEdges()) {
 				int operator = inEdge.getSourceId();
 
-				if (streamGraph.vertexIDtoLoop.containsKey(operator)) {
+				if (streamGraph.vertexIDtoLoopTimeout.containsKey(operator)) {
 					iterationHead = operator;
 				}
 			}
@@ -119,7 +132,7 @@ public class JSONGenerator {
 		toVisit.remove(vertexID);
 
 		// Ignoring head and tail to avoid redundancy
-		if (!streamGraph.vertexIDtoLoop.containsKey(vertexID)) {
+		if (!streamGraph.vertexIDtoLoopTimeout.containsKey(vertexID)) {
 			JSONObject obj = new JSONObject();
 			jsonArray.put(obj);
 			decorateNode(vertexID, obj);
@@ -131,7 +144,7 @@ public class JSONGenerator {
 
 				if (edgeRemapings.keySet().contains(inputID)) {
 					decorateEdge(inEdges, vertexID, inputID, inputID);
-				} else if (!streamGraph.vertexIDtoLoop.containsKey(inputID)) {
+				} else if (!streamGraph.vertexIDtoLoopTimeout.containsKey(inputID)) {
 					decorateEdge(iterationInEdges, vertexID, inputID, inputID);
 				}
 			}
@@ -147,8 +160,7 @@ public class JSONGenerator {
 		JSONObject input = new JSONObject();
 		inputArray.put(input);
 		input.put(ID, mappedInputID);
-		input.put(SHIP_STRATEGY, streamGraph.getStreamEdge(inputID, vertexID).getPartitioner()
-				.getStrategy());
+		input.put(SHIP_STRATEGY, streamGraph.getStreamEdge(inputID, vertexID).getPartitioner());
 		input.put(SIDE, (inputArray.length() == 0) ? "first" : "second");
 	}
 
@@ -161,8 +173,10 @@ public class JSONGenerator {
 
 		if (streamGraph.getSourceIDs().contains(vertexID)) {
 			node.put(PACT, "Data Source");
+		} else if (streamGraph.getSinkIDs().contains(vertexID)) {
+			node.put(PACT, "Data Sink");
 		} else {
-			node.put(PACT, "Data Stream");
+			node.put(PACT, "Operator");
 		}
 
 		StreamOperator<?> operator = streamGraph.getStreamNode(vertexID).getOperator();

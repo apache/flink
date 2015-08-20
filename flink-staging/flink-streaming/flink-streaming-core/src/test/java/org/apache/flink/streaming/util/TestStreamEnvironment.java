@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.util;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -44,7 +45,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	public TestStreamEnvironment(ForkableFlinkMiniCluster executor, int parallelism){
-		this.executor = executor;
+		this.executor = Preconditions.checkNotNull(executor);
 		setDefaultLocalParallelism(parallelism);
 		setParallelism(parallelism);
 	}
@@ -56,7 +57,8 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		return execute(streamGraph.getJobGraph(jobName));
+		JobExecutionResult result = execute(getStreamGraph().getJobGraph(jobName));
+		return result;
 	}
 	
 	public JobExecutionResult execute(JobGraph jobGraph) throws Exception {
@@ -81,6 +83,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 				throw e;
 			}
 		} finally {
+			transformations.clear();
 			if (internalExecutor){
 				executor.shutdown();
 			}
@@ -161,7 +164,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 			}
 		};
 
-		initializeFromFactory(factory);
+		initializeContextEnvironment(factory);
 	}
 
 }

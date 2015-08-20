@@ -40,14 +40,12 @@ import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.streaming.api.windowing.helper.FullStream;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class WindowingITCase implements Serializable {
-
-	private static final long serialVersionUID = 1L;
-	private static final Integer MEMORYSIZE = 32;
+public class WindowingITCase extends StreamingMultipleProgramsTestBase {
 
 	@SuppressWarnings("serial")
 	public static class ModKey implements KeySelector<Integer, Integer> {
@@ -98,17 +96,10 @@ public class WindowingITCase implements Serializable {
 
 		KeySelector<Integer, ?> key = new ModKey(2);
 
-		Timestamp<Integer> ts = new Timestamp<Integer>() {
+		Timestamp<Integer> ts = new IntegerTimestamp();
 
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public long getTimestamp(Integer value) {
-				return value;
-			}
-		};
-
-		StreamExecutionEnvironment env = new TestStreamEnvironment(2, MEMORYSIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(2);
 		env.disableOperatorChaining();
 
 		DataStream<Integer> source = env.fromCollection(inputs);
@@ -116,14 +107,18 @@ public class WindowingITCase implements Serializable {
 		source.window(Time.of(3, ts, 1)).every(Time.of(2, ts, 1)).sum(0).getDiscretizedStream()
 				.addSink(new TestSink1());
 
-		source.window(Time.of(4, ts, 1)).groupBy(new ModKey(2)).mapWindow(new IdentityWindowMap())
-				.flatten().addSink(new TestSink2());
+		source.window(Time.of(4, ts, 1)).groupBy(new ModKey(2))
+				.mapWindow(new IdentityWindowMap())
+				.flatten()
+				.addSink(new TestSink2()).name("TESTSIUNK2");
 
 		source.groupBy(key).window(Time.of(4, ts, 1)).sum(0).getDiscretizedStream()
 				.addSink(new TestSink4());
 
 		source.groupBy(new ModKey(3)).window(Count.of(2)).groupBy(new ModKey(2))
-				.mapWindow(new IdentityWindowMap()).flatten().addSink(new TestSink5());
+				.mapWindow(new IdentityWindowMap())
+				.flatten()
+				.addSink(new TestSink5());
 
 		source.window(Time.of(2, ts)).every(Time.of(3, ts)).min(0).getDiscretizedStream()
 				.addSink(new TestSink3());
@@ -131,11 +126,13 @@ public class WindowingITCase implements Serializable {
 		source.groupBy(key).window(Time.of(4, ts, 1)).max(0).getDiscretizedStream()
 				.addSink(new TestSink6());
 
-		source.window(Time.of(5, ts, 1)).mapWindow(new IdentityWindowMap()).flatten()
+		source.window(Time.of(5, ts, 1)).mapWindow(new IdentityWindowMap())
+				.flatten()
 				.addSink(new TestSink7());
 
 		source.window(Time.of(5, ts, 1)).every(Time.of(4, ts, 1)).groupBy(new ModKey(2)).sum(0)
-				.getDiscretizedStream().addSink(new TestSink8());
+				.getDiscretizedStream()
+				.addSink(new TestSink8());
 
 		try {
 			source.window(FullStream.window()).every(Count.of(2)).getDiscretizedStream();
@@ -156,7 +153,8 @@ public class WindowingITCase implements Serializable {
 		source.every(Count.of(4)).sum(0).getDiscretizedStream().addSink(new TestSink11());
 
 		source.window(FullStream.window()).every(Count.of(4)).groupBy(key).sum(0)
-				.getDiscretizedStream().addSink(new TestSink12());
+				.getDiscretizedStream()
+				.addSink(new TestSink12());
 
 		DataStream<Integer> source2 = env.addSource(new ParallelSourceFunction<Integer>() {
 			private static final long serialVersionUID = 1L;
@@ -202,12 +200,15 @@ public class WindowingITCase implements Serializable {
 		source3.window(Time.of(5, ts, 1)).groupBy(new ModKey(2)).sum(0).getDiscretizedStream()
 				.addSink(new TestSink10());
 
-		source.map(new MapFunction<Integer, Integer>() {
-			@Override
-			public Integer map(Integer value) throws Exception {
-				return value;
-			}
-		}).every(Time.of(5, ts, 1)).sum(0).getDiscretizedStream().addSink(new TestSink13());
+		source
+				.map(new MapFunction<Integer, Integer>() {
+					@Override
+					public Integer map(Integer value) throws Exception {
+						return value;
+					}
+				})
+				.every(Time.of(5, ts, 1)).sum(0).getDiscretizedStream()
+				.addSink(new TestSink13());
 
 		env.execute();
 
@@ -516,4 +517,13 @@ public class WindowingITCase implements Serializable {
 
 	}
 
+	private static class IntegerTimestamp implements Timestamp<Integer> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public long getTimestamp(Integer value) {
+			return value;
+		}
+	}
 }

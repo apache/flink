@@ -23,8 +23,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 /**
  * Partitioner that selects all the output channels.
  *
- * @param <T>
- *            Type of the Tuple
+ * @param <T> Type of the elements in the Stream being broadcast
  */
 public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
@@ -32,10 +31,6 @@ public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 	int[] returnArray;
 	boolean set;
 	int setNumber;
-
-	public BroadcastPartitioner() {
-		super(PartitioningStrategy.BROADCAST);
-	}
 
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
@@ -51,5 +46,15 @@ public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 			setNumber = numberOfOutputChannels;
 			return returnArray;
 		}
+	}
+
+	@Override
+	public StreamPartitioner<T> copy() {
+		return this;
+	}
+
+	@Override
+	public String toString() {
+		return "BROADCAST";
 	}
 }

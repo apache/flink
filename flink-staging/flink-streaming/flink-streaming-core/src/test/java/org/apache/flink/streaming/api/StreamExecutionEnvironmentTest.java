@@ -37,24 +37,23 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.util.NoOpSink;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.SplittableIterator;
 import org.junit.Test;
 
-public class StreamExecutionEnvironmentTest {
-
-	private static final long MEMORYSIZE = 32;
-	private static int PARALLELISM = 4;
+public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTestBase {
 
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testFromCollectionParallelism() {
 		try {
 			TypeInformation<Integer> typeInfo = BasicTypeInfo.INT_TYPE_INFO;
-			StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 			DataStreamSource<Integer> dataStream1 = env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-			
+
 			try {
 				dataStream1.setParallelism(4);
 				fail("should throw an exception");
@@ -62,15 +61,20 @@ public class StreamExecutionEnvironmentTest {
 			catch (IllegalArgumentException e) {
 				// expected
 			}
+
+			dataStream1.addSink(new NoOpSink<Integer>());
 	
-			env.fromParallelCollection(new DummySplittableIterator<Integer>(), typeInfo).setParallelism(4);
-	
+			DataStreamSource<Integer> dataStream2 = env.fromParallelCollection(new DummySplittableIterator<Integer>(),
+					typeInfo).setParallelism(4);
+
+			dataStream2.addSink(new NoOpSink<Integer>());
+
 			String plan = env.getExecutionPlan();
-			
-			assertTrue("Parallelism for dataStream1 is not right.",
-					plan.contains("\"contents\":\"Collection Source\",\"parallelism\":1"));
-			assertTrue("Parallelism for dataStream2 is not right.",
-					plan.contains("\"contents\":\"Parallel Collection Source\",\"parallelism\":4"));
+
+			assertEquals("Parallelism of collection source must be 1.", 1, env.getStreamGraph().getStreamNode(dataStream1.getId()).getParallelism());
+			assertEquals("Parallelism of parallel collection source must be 4.",
+					4,
+					env.getStreamGraph().getStreamNode(dataStream2.getId()).getParallelism());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -80,7 +84,7 @@ public class StreamExecutionEnvironmentTest {
 
 	@Test
 	public void testSources() {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		SourceFunction<Integer> srcFun = new SourceFunction<Integer>() {
 			private static final long serialVersionUID = 1L;
@@ -94,6 +98,7 @@ public class StreamExecutionEnvironmentTest {
 			}
 		};
 		DataStreamSource<Integer> src1 = env.addSource(srcFun);
+		src1.addSink(new NoOpSink<Integer>());
 		assertEquals(srcFun, getFunctionFromDataSource(src1));
 
 		List<Long> list = Arrays.asList(0L, 1L, 2L);
@@ -120,6 +125,7 @@ public class StreamExecutionEnvironmentTest {
 	}
 
 	private static <T> SourceFunction<T> getFunctionFromDataSource(DataStreamSource<T> dataStreamSource) {
+		dataStreamSource.addSink(new NoOpSink<T>());
 		AbstractUdfStreamOperator<?, ?> operator =
 				(AbstractUdfStreamOperator<?, ?>) getOperatorFromDataStream(dataStreamSource);
 		return (SourceFunction<T>) operator.getUserFunction();

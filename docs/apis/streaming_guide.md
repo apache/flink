@@ -290,25 +290,25 @@ instance (with its fields set to new values). The object reuse mode will lead to
 because fewer objects are created, but the user has to manually take care of what they are doing
 with the object references.
 
-### Partitioning
+### Data Shipping Strategies
 
-Partitioning controls how individual data points of a stream are distributed among the parallel instances of the transformation operators. This also controls the ordering of the records in the `DataStream`. There is partial ordering guarantee for the outputs with respect to the partitioning scheme (outputs produced from each partition are guaranteed to arrive in the order they were produced).
+The data shipping strategy controls how individual elements of a stream are distributed among the parallel instances of a transformation operator. This also controls the ordering of the records in the `DataStream`. There is partial ordering guarantee for the outputs with respect to the shipping strategy (outputs produced from each partition are guaranteed to arrive in the order they were produced).
 
-There are several partitioning types supported in Flink Streaming:
+These are the supported shipping strategies:
 
- * *Forward (default)*: Forward partitioning directs the output data to the next operator on the same machine (if possible) avoiding expensive network I/O. If there are more processing nodes than inputs or vice versa the load is distributed among the extra nodes in a round-robin fashion. This is the default partitioner.
+ * *Forward*: Forward shipping directs the output data to the next operator on the same machine, avoiding expensive network I/O. It can only be used when the parallelism of the input operations matches the parallelism of the downstream operation. This is the default shipping strategy if no strategy is specified and if the parallelism allows it.
 Usage: `dataStream.forward()`
- * *Shuffle*: Shuffle partitioning randomly partitions the output data stream to the next operator using uniform distribution. Use this only when it is important that the partitioning is randomised. If you only care about an even load use *Rebalance*.
+ * *Shuffle*: Shuffle randomly partitions the output data stream to the next operator using uniform distribution. Use this only when it is important that the partitioning is randomised. If you only care about an even load use *Rebalance*.
 Usage: `dataStream.shuffle()`
- * *Rebalance*: Rebalance partitioning directs the output data stream to the next operator in a round-robin fashion, achieving a balanced distribution.
+ * *Rebalance*: Rebalance directs the output data stream to the next operator in a round-robin fashion, achieving a balanced distribution. This is the default strategy if no strategy is defined and forward shipping is not possible because the parallelism of operations differs.
 Usage: `dataStream.rebalance()`
- * *Field/Key Partitioning*: Field/Key partitioning partitions the output data stream based on the hash code of a selected key of the tuples. Data points with the same key are directed to the same operator instance. 
+ * *Field/Key Partitioning*: Field/Key partitioning partitions the output data stream based on the hash code of a selected key of the tuples. Data points with the same key are directed to the same operator instance.
 Usage: `dataStream.partitionByHash(fields…)`
-* *Field/Key Grouping*: Field/Key grouping takes partitioning one step further and seperates the elements to disjoint groups based on the hash code. These groups are processed separately by the next downstream operator. 
+* *Field/Key Grouping*: Field/Key grouping takes field/key partitioning one step further and seperates the elements into disjoint groups based on the hash code. These groups are processed separately by the next downstream operator.
 Usage: `dataStream.groupBy(fields…)`
- * *Broadcast*: Broadcast partitioning sends the output data stream to all parallel instances of the next operator.
+ * *Broadcast*: Broadcast shipping sends the output data stream to all parallel instances of the next operator.
 Usage: `dataStream.broadcast()`
- * *Global*: All data points are directed to the first instance of the operator. 
+ * *Global*: All elements are directed to the first downstream instance of the operator.
 Usage: `dataStream.global()`
 
 Custom partitioning can also be used by giving a Partitioner function and a single field key to partition on, similarly to the batch API.
@@ -330,17 +330,15 @@ val result = in
 </div>
 </div>
 
-By default *Forward* partitioning is used. 
-
-Partitioning does not remain in effect after a transformation, so it needs to be set again for subsequent operations.
+The shipping strategy does not remain in effect after a transformation, so it needs to be set again for subsequent operations.
 
 ### Connecting to the outside world
 
-The user is expected to connect to the outside world through the source and the sink interfaces. 
+The user is expected to connect to the outside world through the source and the sink interfaces.
 
 #### Sources
 
-Sources can by created by using `StreamExecutionEnvironment.addSource(sourceFunction)`. 
+Sources can by created by using `StreamExecutionEnvironment.addSource(sourceFunction)`.
 Either use one of the source functions that come with Flink or write a custom source
 by implementing the `SourceFunction` interface. By default, sources run with
 parallelism of 1. To create parallel sources the user's source function needs to implement
@@ -534,7 +532,8 @@ dataStream.fold("", new FoldFunction<String, String>() {
     <tr>
       <td><strong>Union</strong></td>
       <td>
-        <p>Union of two or more data streams creating a new stream containing all the elements from all the streams.</p>
+        <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Node: If you union a data stream
+        with itself you will still only get each element once.</p>
 {% highlight java %}
 dataStream.union(otherStream1, otherStream2, …)
 {% endhighlight %}
@@ -1484,7 +1483,7 @@ Setting parallelism for operators works exactly the same way as in the batch Fli
 
 ### Buffer timeout
 
-By default, data points are not transferred on the network one-by-one, which would cause unnecessary network traffic, but are buffered in the output buffers. The size of the output buffers can be set in the Flink config files. While this method is good for optimizing throughput, it can cause latency issues when the incoming stream is not fast enough.
+By default, elements are not transferred on the network one-by-one, which would cause unnecessary network traffic, but are buffered in the output buffers. The size of the output buffers can be set in the Flink config files. While this method is good for optimizing throughput, it can cause latency issues when the incoming stream is not fast enough.
 To tackle this issue the user can call `env.setBufferTimeout(timeoutMillis)` on the execution environment (or on individual operators) to set a maximum wait time for the buffers to fill up. After this time, the buffers are flushed automatically even if they are not full. The default value for this timeout is 100 ms, which should be appropriate for most use-cases.
 
 Usage:

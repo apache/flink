@@ -25,14 +25,18 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.NoOpIntMap;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestListResultSink;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.Test;
@@ -40,10 +44,33 @@ import org.junit.Test;
 /**
  * IT case that tests the different stream partitioning schemes.
  */
-public class PartitionerTest {
+public class PartitionerTest extends StreamingMultipleProgramsTestBase {
 
-	public static final int PARALLELISM = 3;
-	public static final int MEMORY_SIZE = 32;
+	@Test(expected = UnsupportedOperationException.class)
+	public void testForwardFailsLowToHighParallelism() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> src = env.fromElements(1, 2, 3);
+
+		// this doesn't work because it goes from 1 to 3
+		src.forward().map(new NoOpIntMap());
+
+		env.execute();
+	}
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testForwardFailsHightToLowParallelism() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// this does a rebalance that works
+		DataStream<Integer> src = env.fromElements(1, 2, 3).map(new NoOpIntMap());
+
+		// this doesn't work because it goes from 3 to 1
+		src.forward().map(new NoOpIntMap()).setParallelism(1);
+
+		env.execute();
+	}
+
 
 	@Test
 	public void partitionerTest() {
@@ -62,7 +89,9 @@ public class PartitionerTest {
 				new TestListResultSink<Tuple2<Integer, String>>();
 
 
-		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORY_SIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(3);
+
 		DataStream<Tuple1<String>> src = env.fromElements(
 				new Tuple1<String>("a"),
 				new Tuple1<String>("b"),
@@ -98,11 +127,20 @@ public class PartitionerTest {
 		// partition broadcast
 		src.broadcast().map(new SubtaskIndexAssigner()).addSink(broadcastPartitionResultSink);
 
-		// partition forward
-		src.map(new SubtaskIndexAssigner()).addSink(forwardPartitionResultSink);
-
 		// partition rebalance
 		src.rebalance().map(new SubtaskIndexAssigner()).addSink(rebalancePartitionResultSink);
+
+		// partition forward
+		src.map(new MapFunction<Tuple1<String>, Tuple1<String>>() {
+			private static final long serialVersionUID = 1L;
+			@Override
+			public Tuple1<String> map(Tuple1<String> value) throws Exception {
+				return value;
+			}
+		})
+				.forward()
+				.map(new SubtaskIndexAssigner())
+				.addSink(forwardPartitionResultSink);
 
 		// partition global
 		src.global().map(new SubtaskIndexAssigner()).addSink(globalPartitionResultSink);
@@ -209,8 +247,8 @@ public class PartitionerTest {
 				new HashSet<Tuple2<Integer, String>>(globalPartitionResult));
 	}
 
-	private static class SubtaskIndexAssigner
-			extends RichMapFunction<Tuple1<String>, Tuple2<Integer, String>> {
+	private static class SubtaskIndexAssigner extends RichMapFunction<Tuple1<String>, Tuple2<Integer, String>> {
+		private static final long serialVersionUID = 1L;
 
 		private int indexOfSubtask;
 

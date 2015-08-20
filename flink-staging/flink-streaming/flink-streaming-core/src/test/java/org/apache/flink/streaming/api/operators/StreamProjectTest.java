@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.Test;
@@ -52,8 +53,7 @@ import org.junit.Test;
  *     <li>Watermarks are correctly forwarded</li>
  * </ul>
  */
-public class StreamProjectTest implements Serializable {
-	private static final long serialVersionUID = 1L;
+public class StreamProjectTest extends StreamingMultipleProgramsTestBase {
 
 	@Test
 	public void testProject() throws Exception {
@@ -95,7 +95,6 @@ public class StreamProjectTest implements Serializable {
 
 
 	// tests using projection from the API without explicitly specifying the types
-	private static final long MEMORY_SIZE = 32;
 	private static HashSet<Tuple2<Long, Double>> expected = new HashSet<Tuple2<Long, Double>>();
 	private static HashSet<Tuple2<Long, Double>> actual = new HashSet<Tuple2<Long, Double>>();
 
@@ -106,7 +105,8 @@ public class StreamProjectTest implements Serializable {
 			expected.add(new Tuple2<Long, Double>(i, i.doubleValue()));
 		}
 
-		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORY_SIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
 
 		env.generateSequence(1, 10).map(new MapFunction<Long, Tuple3<Long, Character, Double>>() {
 			private static final long serialVersionUID = 1L;

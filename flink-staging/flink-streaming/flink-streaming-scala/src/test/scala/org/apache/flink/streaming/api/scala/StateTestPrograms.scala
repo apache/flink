@@ -29,13 +29,13 @@ object StateTestPrograms {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     
     // test stateful map
-    env.generateSequence(0, 10).setParallelism(1).
-      mapWithState((in, count: Option[Long]) =>
+    env.generateSequence(0, 10).setParallelism(1)
+      .mapWithState((in, count: Option[Long]) =>
         count match {
           case Some(c) => ((in - c), Some(c + 1))
           case None => (in, Some(1L))
-        }).setParallelism(1).
-      addSink(new RichSinkFunction[Long]() {
+        }).setParallelism(1)
+      .addSink(new RichSinkFunction[Long]() {
         var allZero = true
         override def invoke(in: Long) = {
           if (in != 0) allZero = false
@@ -50,8 +50,8 @@ object StateTestPrograms {
       s match {
         case Some(s) => (w.split(" ").toList.map(s + _), Some(w))
         case None => (List(w), Some(w))
-      }).setParallelism(1).
-      addSink(new RichSinkFunction[String]() {
+      }).setParallelism(1)
+      .addSink(new RichSinkFunction[String]() {
         val received = new HashSet[String]()
         override def invoke(in: String) = { received.add(in) }
         override def close() = {

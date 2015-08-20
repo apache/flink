@@ -593,6 +593,16 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		
 		if (inputPlanNode instanceof NAryUnionPlanNode) {
 			allInChannels = ((NAryUnionPlanNode) inputPlanNode).getListOfInputs().iterator();
+
+			// If the union node has a batch data exchange, we have to adopt the exchange mode of
+			// the inputs of the union as well, because the optimizer has a separate union
+			// node, which does not exist in the JobGraph. Otherwise, this can result in
+			// deadlocks when closing a branching flow at runtime.
+			if (input.getDataExchangeMode().equals(DataExchangeMode.BATCH)) {
+				for (Channel in : inputPlanNode.getInputs()) {
+					in.setDataExchangeMode(DataExchangeMode.BATCH);
+				}
+			}
 		}
 		else if (inputPlanNode instanceof BulkPartialSolutionPlanNode) {
 			if (this.vertices.get(inputPlanNode) == null) {

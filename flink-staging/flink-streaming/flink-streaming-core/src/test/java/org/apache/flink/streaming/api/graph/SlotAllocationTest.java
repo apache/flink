@@ -25,14 +25,15 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.junit.Test;
 
-public class SlotAllocationTest {
+public class SlotAllocationTest extends StreamingMultipleProgramsTestBase{
 
 	@SuppressWarnings("serial")
 	@Test
 	public void test() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(8);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		FilterFunction<Long> dummyFilter = new FilterFunction<Long>() {
 

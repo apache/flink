@@ -25,7 +25,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.junit.Before;
 import org.junit.Test;
 
-public class DistributePartitionerTest {
+public class RebalancePartitionerTest {
 	
 	private RebalancePartitioner<Tuple> distributePartitioner;
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>(null);
@@ -34,7 +34,7 @@ public class DistributePartitionerTest {
 	
 	@Before
 	public void setPartitioner() {
-		distributePartitioner = new RebalancePartitioner<Tuple>(false);
+		distributePartitioner = new RebalancePartitioner<Tuple>();
 	}
 	
 	@Test

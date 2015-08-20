@@ -30,11 +30,11 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestListResultSink;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.Test;
 
-public class DirectedOutputTest {
+public class DirectedOutputTest extends StreamingMultipleProgramsTestBase {
 
 	private static final String TEN = "ten";
 	private static final String ODD = "odd";
@@ -94,7 +94,8 @@ public class DirectedOutputTest {
 
 	@Test
 	public void outputSelectorTest() throws Exception {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(3, 32);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(3);
 
 		TestListResultSink<Long> evenSink = new TestListResultSink<Long>();
 		TestListResultSink<Long> oddAndTenSink = new TestListResultSink<Long>();

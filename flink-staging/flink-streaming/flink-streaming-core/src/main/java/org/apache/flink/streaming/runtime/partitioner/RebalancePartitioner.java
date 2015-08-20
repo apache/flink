@@ -24,34 +24,26 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * Partitioner that distributes the data equally by cycling through the output
  * channels.
  * 
- * @param <T>
- *            Type of the Tuple
+ * @param <T> Type of the elements in the Stream being rebalanced
  */
 public class RebalancePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
 	private int[] returnArray = new int[] {-1};
-	private boolean forward;
-
-	public RebalancePartitioner(boolean forward) {
-		super(forward ? PartitioningStrategy.FORWARD : PartitioningStrategy.DISTRIBUTE);
-		this.forward = forward;
-	}
 
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {
 		this.returnArray[0] = (this.returnArray[0] + 1) % numberOfOutputChannels;
-
 		return this.returnArray;
 	}
 	
 	public StreamPartitioner<T> copy() {
-		return new RebalancePartitioner<T>(forward);
+		return this;
 	}
 	
 	@Override
 	public String toString() {
-		return forward ? "ForwardPartitioner" : "RebalancePartitioner";
+		return "REBALANCE";
 	}
 }

@@ -24,30 +24,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public abstract class StreamPartitioner<T> implements
 		ChannelSelector<SerializationDelegate<StreamRecord<T>>>, Serializable {
-
-	public enum PartitioningStrategy {
-
-		FORWARD, DISTRIBUTE, SHUFFLE, BROADCAST, GLOBAL, GROUPBY, CUSTOM
-
-	}
-
 	private static final long serialVersionUID = 1L;
-	private PartitioningStrategy strategy;
 
-	public StreamPartitioner(PartitioningStrategy strategy) {
-		this.strategy = strategy;
-	}
-
-	public PartitioningStrategy getStrategy() {
-		return strategy;
-	}
-
-	public StreamPartitioner<T> copy() {
-		return this;
-	}
-	
-	@Override
-	public String toString() {
-		return this.getClass().getSimpleName();
-	}
+	public abstract StreamPartitioner<T> copy();
 }

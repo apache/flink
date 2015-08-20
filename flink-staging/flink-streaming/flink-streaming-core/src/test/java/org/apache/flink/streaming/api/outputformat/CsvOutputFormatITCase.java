@@ -40,9 +40,9 @@ public class CsvOutputFormatITCase extends StreamingProgramTestBase {
 
 		DataStream<String> text = env.fromElements(WordCountData.TEXT);
 
-		DataStream<Tuple2<String, Integer>> counts =
-				text.flatMap(new Tokenizer())
-						.groupBy(0).sum(1);
+		DataStream<Tuple2<String, Integer>> counts = text
+				.flatMap(new Tokenizer())
+				.groupBy(0).sum(1);
 
 		counts.writeAsCsv(resultPath);
 

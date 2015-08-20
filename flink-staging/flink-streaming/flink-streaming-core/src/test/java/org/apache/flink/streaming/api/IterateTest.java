@@ -1,26 +1,21 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Licensed to the Apache Software Foundation (ASF) under one or more
+* contributor license agreements.  See the NOTICE file distributed with
+* this work for additional information regarding copyright ownership.
+* The ASF licenses this file to You under the Apache License, Version 2.0
+* (the "License"); you may not use this file except in compliance with
+* the License.  You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 
 package org.apache.flink.streaming.api;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,146 +26,235 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream.ConnectedIterativeDataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.graph.StreamLoop;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
+import org.apache.flink.streaming.util.EvenOddOutputSelector;
+import org.apache.flink.streaming.util.NoOpIntMap;
+import org.apache.flink.streaming.util.ReceiveCheckNoOpSink;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
+import static org.junit.Assert.*;
+
 @SuppressWarnings({ "unchecked", "unused", "serial" })
 public class IterateTest extends StreamingMultipleProgramsTestBase {
 
-	private static final long MEMORYSIZE = 32;
 	private static boolean iterated[];
-	private static int PARALLELISM = 2;
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testIncorrectParallelism() throws Exception {
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source = env.fromElements(1, 10);
+
+		IterativeDataStream<Integer> iter1 = source.iterate();
+		SingleOutputStreamOperator<Integer, ?> map1 = iter1.map(NoOpIntMap);
+		iter1.closeWith(map1).print();
+	}
 
 	@Test
-	public void testException() throws Exception {
+	public void testDoubleClosing() throws Exception {
 
-		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
-		DataStream<Integer> source = env.fromElements(1, 10);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// introduce dummy mapper to get to correct parallelism
+		DataStream<Integer> source = env.fromElements(1, 10).map(NoOpIntMap);
+
+		IterativeDataStream<Integer> iter1 = source.iterate();
+
+		iter1.closeWith(iter1.map(NoOpIntMap));
+		iter1.closeWith(iter1.map(NoOpIntMap));
+	}
+
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testDifferingParallelism() throws Exception {
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// introduce dummy mapper to get to correct parallelism
+		DataStream<Integer> source = env.fromElements(1, 10)
+				.map(NoOpIntMap);
+
+		IterativeDataStream<Integer> iter1 = source.iterate();
+
+
+		iter1.closeWith(iter1.map(NoOpIntMap).setParallelism(DEFAULT_PARALLELISM / 2));
+
+	}
+
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testCoDifferingParallelism() throws Exception {
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// introduce dummy mapper to get to correct parallelism
+		DataStream<Integer> source = env.fromElements(1, 10).map(NoOpIntMap);
+
+		ConnectedIterativeDataStream<Integer, Integer> coIter = source.iterate().withFeedbackType(
+				Integer.class);
+
+
+		coIter.closeWith(coIter.map(NoOpIntCoMap).setParallelism(DEFAULT_PARALLELISM / 2));
+
+	}
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testClosingFromOutOfLoop() throws Exception {
+
+		// this test verifies that we cannot close an iteration with a DataStream that does not
+		// have the iteration in its predecessors
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// introduce dummy mapper to get to correct parallelism
+		DataStream<Integer> source = env.fromElements(1, 10).map(NoOpIntMap);
+
 		IterativeDataStream<Integer> iter1 = source.iterate();
 		IterativeDataStream<Integer> iter2 = source.iterate();
 
-		iter1.closeWith(iter1.map(NoOpIntMap));
-		// Check for double closing
-		try {
-			iter1.closeWith(iter1.map(NoOpIntMap));
-			fail();
-		} catch (Exception e) {
-		}
 
-		// Check for closing iteration without head
-		try {
-			iter2.closeWith(iter1.map(NoOpIntMap));
-			fail();
-		} catch (Exception e) {
-		}
+		iter2.closeWith(iter1.map(NoOpIntMap));
 
-		iter2.map(NoOpIntMap);
+	}
 
-		// Check for executing with empty iteration
-		try {
-			env.execute();
-			fail();
-		} catch (Exception e) {
-		}
+	@Test(expected = UnsupportedOperationException.class)
+	public void testCoIterClosingFromOutOfLoop() throws Exception {
+
+		// this test verifies that we cannot close an iteration with a DataStream that does not
+		// have the iteration in its predecessors
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// introduce dummy mapper to get to correct parallelism
+		DataStream<Integer> source = env.fromElements(1, 10).map(NoOpIntMap);
+
+		IterativeDataStream<Integer> iter1 = source.iterate();
+		ConnectedIterativeDataStream<Integer, Integer> coIter = source.iterate().withFeedbackType(
+				Integer.class);
+
+
+		coIter.closeWith(iter1.map(NoOpIntMap));
+
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testExecutionWithEmptyIteration() throws Exception {
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source = env.fromElements(1, 10).map(NoOpIntMap);
+
+		IterativeDataStream<Integer> iter1 = source.iterate();
+
+		iter1.map(NoOpIntMap).print();
+
+		env.execute();
 	}
 
 	@Test
 	public void testImmutabilityWithCoiteration() {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
-		DataStream<Integer> source = env.fromElements(1, 10);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source = env.fromElements(1, 10).map(NoOpIntMap); // for rebalance
 
 		IterativeDataStream<Integer> iter1 = source.iterate();
 		// Calling withFeedbackType should create a new iteration
 		ConnectedIterativeDataStream<Integer, String> iter2 = iter1.withFeedbackType(String.class);
 
-		iter1.closeWith(iter1.map(NoOpIntMap));
-		iter2.closeWith(iter2.map(NoOpCoMap));
+		iter1.closeWith(iter1.map(NoOpIntMap)).print();
+		iter2.closeWith(iter2.map(NoOpCoMap)).print();
 
 		StreamGraph graph = env.getStreamGraph();
 
-		graph.getJobGraph();
+		assertEquals(2, graph.getIterationSourceSinkPairs().size());
 
-		assertEquals(2, graph.getStreamLoops().size());
-		for (StreamLoop loop : graph.getStreamLoops()) {
-			assertEquals(loop.getHeads(), loop.getTails());
-			List<Tuple2<StreamNode, StreamNode>> sourceSinkPairs = loop.getSourceSinkPairs();
-			assertEquals(1, sourceSinkPairs.size());
+		for (Tuple2<StreamNode, StreamNode> sourceSinkPair: graph.getIterationSourceSinkPairs()) {
+			assertEquals(sourceSinkPair.f0.getOutEdges().get(0).getTargetVertex(), sourceSinkPair.f1.getInEdges().get(0).getSourceVertex());
 		}
 	}
 
 	@Test
 	public void testmultipleHeadsTailsSimple() {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(4, MEMORYSIZE);
-		DataStream<Integer> source1 = env.fromElements(1, 2, 3, 4, 5).shuffle();
-		DataStream<Integer> source2 = env.fromElements(1, 2, 3, 4, 5);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source1 = env.fromElements(1, 2, 3, 4, 5)
+				.shuffle()
+				.map(NoOpIntMap).name("ParallelizeMapShuffle");
+		DataStream<Integer> source2 = env.fromElements(1, 2, 3, 4, 5)
+				.map(NoOpIntMap).name("ParallelizeMapRebalance");
 
 		IterativeDataStream<Integer> iter1 = source1.union(source2).iterate();
 
-		DataStream<Integer> head1 = iter1.map(NoOpIntMap);
-		DataStream<Integer> head2 = iter1.map(NoOpIntMap).setParallelism(2);
-		DataStream<Integer> head3 = iter1.map(NoOpIntMap).setParallelism(2)
-				.addSink(new NoOpSink<Integer>());
-		DataStream<Integer> head4 = iter1.map(NoOpIntMap).addSink(new NoOpSink<Integer>());
+		DataStream<Integer> head1 = iter1.map(NoOpIntMap).name("IterRebalanceMap").setParallelism(DEFAULT_PARALLELISM / 2);
+		DataStream<Integer> head2 = iter1.map(NoOpIntMap).name("IterForwardMap");
+		DataStreamSink<Integer> head3 = iter1.map(NoOpIntMap).setParallelism(DEFAULT_PARALLELISM / 2).addSink(new ReceiveCheckNoOpSink<Integer>());
+		DataStreamSink<Integer> head4 = iter1.map(NoOpIntMap).addSink(new ReceiveCheckNoOpSink<Integer>());
 
-		SplitDataStream<Integer> source3 = env.fromElements(1, 2, 3, 4, 5).split(
-				new OutputSelector<Integer>() {
-
-					@Override
-					public Iterable<String> select(Integer value) {
-						return value % 2 == 0 ? Arrays.asList("even") : Arrays.asList("odd");
-					}
-				});
+		SplitDataStream<Integer> source3 = env.fromElements(1, 2, 3, 4, 5)
+				.map(NoOpIntMap).name("EvenOddSourceMap")
+				.split(new EvenOddOutputSelector());
 
 		iter1.closeWith(source3.select("even").union(
-				head1.map(NoOpIntMap).broadcast().setParallelism(1), head2.shuffle()));
+				head1.rebalance().map(NoOpIntMap).broadcast(), head2.shuffle()));
 
 		StreamGraph graph = env.getStreamGraph();
 
 		JobGraph jg = graph.getJobGraph();
 
-		assertEquals(1, graph.getStreamLoops().size());
-		StreamLoop loop = new ArrayList<StreamLoop>(graph.getStreamLoops()).get(0);
+		assertEquals(1, graph.getIterationSourceSinkPairs().size());
 
-		assertEquals(4, loop.getHeads().size());
-		assertEquals(3, loop.getTails().size());
+		Tuple2<StreamNode, StreamNode> sourceSinkPair = graph.getIterationSourceSinkPairs().iterator().next();
+		StreamNode itSource = sourceSinkPair.f0;
+		StreamNode itSink = sourceSinkPair.f1;
 
-		assertEquals(1, loop.getSourceSinkPairs().size());
-		Tuple2<StreamNode, StreamNode> pair = loop.getSourceSinkPairs().get(0);
+		assertEquals(4, itSource.getOutEdges().size());
+		assertEquals(3, itSink.getInEdges().size());
 
-		assertEquals(pair.f0.getParallelism(), pair.f1.getParallelism());
-		assertEquals(4, pair.f0.getOutEdges().size());
-		assertEquals(3, pair.f1.getInEdges().size());
+		assertEquals(itSource.getParallelism(), itSink.getParallelism());
 
-		for (StreamEdge edge : pair.f0.getOutEdges()) {
-			assertTrue(edge.getPartitioner() instanceof ShufflePartitioner);
+		for (StreamEdge edge : itSource.getOutEdges()) {
+			if (edge.getTargetVertex().getOperatorName().equals("IterRebalanceMap")) {
+				assertTrue(edge.getPartitioner() instanceof RebalancePartitioner);
+			} else if (edge.getTargetVertex().getOperatorName().equals("IterForwardMap")) {
+				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
+			}
 		}
-		for (StreamEdge edge : pair.f1.getInEdges()) {
-			assertTrue(edge.getPartitioner() instanceof RebalancePartitioner);
-		}
+		for (StreamEdge edge : itSink.getInEdges()) {
+			if (graph.getStreamNode(edge.getSourceId()).getOperatorName().equals("ParallelizeMapShuffle")) {
+				assertTrue(edge.getPartitioner() instanceof ShufflePartitioner);
+			}
 
-		assertTrue(loop.getTailSelectedNames().contains(Arrays.asList("even")));
+			if (graph.getStreamNode(edge.getSourceId()).getOperatorName().equals("ParallelizeMapForward")) {
+				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
+			}
+
+			if (graph.getStreamNode(edge.getSourceId()).getOperatorName().equals("EvenOddSourceMap")) {
+				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
+				assertTrue(edge.getSelectedNames().contains("even"));
+			}
+		}
 
 		// Test co-location
 
@@ -193,142 +277,106 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 
 	@Test
 	public void testmultipleHeadsTailsWithTailPartitioning() {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(4, MEMORYSIZE);
-		DataStream<Integer> source1 = env.fromElements(1, 2, 3, 4, 5).shuffle();
-		DataStream<Integer> source2 = env.fromElements(1, 2, 3, 4, 5);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source1 = env.fromElements(1, 2, 3, 4, 5)
+				.shuffle()
+				.map(NoOpIntMap);
+
+		DataStream<Integer> source2 = env.fromElements(1, 2, 3, 4, 5)
+				.map(NoOpIntMap);
 
 		IterativeDataStream<Integer> iter1 = source1.union(source2).iterate();
 
-		DataStream<Integer> head1 = iter1.map(NoOpIntMap);
-		DataStream<Integer> head2 = iter1.map(NoOpIntMap).setParallelism(2).name("shuffle");
-		DataStream<Integer> head3 = iter1.map(NoOpIntMap).setParallelism(2)
-				.addSink(new NoOpSink<Integer>());
-		DataStream<Integer> head4 = iter1.map(NoOpIntMap).addSink(new NoOpSink<Integer>());
+		DataStream<Integer> head1 = iter1.map(NoOpIntMap).name("map1");
+		DataStream<Integer> head2 = iter1.map(NoOpIntMap).setParallelism(DEFAULT_PARALLELISM / 2).rebalance().name(
+				"shuffle");
+		DataStreamSink<Integer> head3 = iter1.map(NoOpIntMap).setParallelism(DEFAULT_PARALLELISM / 2)
+				.addSink(new ReceiveCheckNoOpSink<Integer>());
+		DataStreamSink<Integer> head4 = iter1.map(NoOpIntMap).addSink(new ReceiveCheckNoOpSink<Integer>());
 
-		SplitDataStream<Integer> source3 = env.fromElements(1, 2, 3, 4, 5).name("split")
-				.split(new OutputSelector<Integer>() {
-
-					@Override
-					public Iterable<String> select(Integer value) {
-						return value % 2 == 0 ? Arrays.asList("even") : Arrays.asList("odd");
-					}
-				});
+		SplitDataStream<Integer> source3 = env.fromElements(1, 2, 3, 4, 5)
+				.map(NoOpIntMap)
+				.name("split")
+				.split(new EvenOddOutputSelector());
 
 		iter1.closeWith(
 				source3.select("even").union(
-						head1.map(NoOpIntMap).broadcast().setParallelism(1).name("bc"),
-						head2.shuffle()), true);
+						head1.map(NoOpIntMap).broadcast().name("bc"),
+						head2.map(NoOpIntMap).shuffle()));
 
 		StreamGraph graph = env.getStreamGraph();
 
 		JobGraph jg = graph.getJobGraph();
 
-		assertEquals(1, graph.getStreamLoops().size());
+		assertEquals(1, graph.getIterationSourceSinkPairs().size());
 
-		StreamLoop loop = new ArrayList<StreamLoop>(graph.getStreamLoops()).get(0);
+		Tuple2<StreamNode, StreamNode> sourceSinkPair = graph.getIterationSourceSinkPairs().iterator().next();
+		StreamNode itSource = sourceSinkPair.f0;
+		StreamNode itSink = sourceSinkPair.f1;
 
-		assertEquals(4, loop.getHeads().size());
-		assertEquals(3, loop.getTails().size());
+		assertEquals(4, itSource.getOutEdges().size());
+		assertEquals(3, itSink.getInEdges().size());
 
-		assertEquals(2, loop.getSourceSinkPairs().size());
-		List<Tuple2<StreamNode, StreamNode>> pairs = loop.getSourceSinkPairs();
-		Tuple2<StreamNode, StreamNode> pair1 = pairs.get(0).f0.getParallelism() == 2 ? pairs.get(0)
-				: pairs.get(1);
-		Tuple2<StreamNode, StreamNode> pair2 = pairs.get(0).f0.getParallelism() == 4 ? pairs.get(0)
-				: pairs.get(1);
 
-		assertEquals(pair1.f0.getParallelism(), pair1.f1.getParallelism());
-		assertEquals(2, pair1.f0.getParallelism());
-		assertEquals(2, pair1.f0.getOutEdges().size());
-		assertEquals(3, pair1.f1.getInEdges().size());
+		assertEquals(itSource.getParallelism(), itSink.getParallelism());
 
-		for (StreamEdge edge : pair1.f0.getOutEdges()) {
-			assertTrue(edge.getPartitioner() instanceof RebalancePartitioner);
-			assertEquals(2, edge.getTargetVertex().getParallelism());
+		for (StreamEdge edge : itSource.getOutEdges()) {
+			if (edge.getTargetVertex().getOperatorName().equals("map1")) {
+				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
+				assertEquals(4, edge.getTargetVertex().getParallelism());
+			} else if (edge.getTargetVertex().getOperatorName().equals("shuffle")) {
+				assertTrue(edge.getPartitioner() instanceof RebalancePartitioner);
+				assertEquals(2, edge.getTargetVertex().getParallelism());
+			}
 		}
-		for (StreamEdge edge : pair1.f1.getInEdges()) {
+		for (StreamEdge edge : itSink.getInEdges()) {
 			String tailName = edge.getSourceVertex().getOperatorName();
 			if (tailName.equals("split")) {
-				assertTrue(edge.getPartitioner() instanceof RebalancePartitioner);
+				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
+				assertTrue(edge.getSelectedNames().contains("even"));
 			} else if (tailName.equals("bc")) {
 				assertTrue(edge.getPartitioner() instanceof BroadcastPartitioner);
 			} else if (tailName.equals("shuffle")) {
 				assertTrue(edge.getPartitioner() instanceof ShufflePartitioner);
 			}
-
 		}
-
-		assertEquals(pair2.f0.getParallelism(), pair2.f1.getParallelism());
-		assertEquals(4, pair2.f0.getParallelism());
-		assertEquals(2, pair2.f0.getOutEdges().size());
-		assertEquals(3, pair2.f1.getInEdges().size());
-
-		for (StreamEdge edge : pair2.f0.getOutEdges()) {
-			assertTrue(edge.getPartitioner() instanceof RebalancePartitioner);
-			assertEquals(4, edge.getTargetVertex().getParallelism());
-		}
-		for (StreamEdge edge : pair2.f1.getInEdges()) {
-			String tailName = edge.getSourceVertex().getOperatorName();
-			if (tailName.equals("split")) {
-				assertTrue(edge.getPartitioner() instanceof RebalancePartitioner);
-			} else if (tailName.equals("bc")) {
-				assertTrue(edge.getPartitioner() instanceof BroadcastPartitioner);
-			} else if (tailName.equals("shuffle")) {
-				assertTrue(edge.getPartitioner() instanceof ShufflePartitioner);
-			}
-
-		}
-
-		assertTrue(loop.getTailSelectedNames().contains(Arrays.asList("even")));
 
 		// Test co-location
 
 		JobVertex itSource1 = null;
-		JobVertex itSource2 = null;
 		JobVertex itSink1 = null;
-		JobVertex itSink2 = null;
 
 		for (JobVertex vertex : jg.getVertices()) {
 			if (vertex.getName().contains("IterationSource")) {
-				if (vertex.getName().contains("_0")) {
-					itSource1 = vertex;
-				} else if (vertex.getName().contains("_1")) {
-					itSource2 = vertex;
-				}
+				itSource1 = vertex;
 			} else if (vertex.getName().contains("IterationSink")) {
-				if (vertex.getName().contains("_0")) {
-					itSink1 = vertex;
-				} else if (vertex.getName().contains("_1")) {
-					itSink2 = vertex;
-				}
+				itSink1 = vertex;
 			}
 		}
 
 		assertTrue(itSource1.getCoLocationGroup() != null);
-		assertTrue(itSource2.getCoLocationGroup() != null);
+		assertTrue(itSink1.getCoLocationGroup() != null);
 
 		assertEquals(itSource1.getCoLocationGroup(), itSink1.getCoLocationGroup());
-		assertEquals(itSource2.getCoLocationGroup(), itSink2.getCoLocationGroup());
-		assertNotEquals(itSource1.getCoLocationGroup(), itSource2.getCoLocationGroup());
 	}
 
 	@SuppressWarnings("rawtypes")
 	@Test
 	public void testSimpleIteration() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
-		iterated = new boolean[PARALLELISM];
+		iterated = new boolean[DEFAULT_PARALLELISM];
 
-		DataStream<Boolean> source = env
-				.fromCollection(Collections.nCopies(PARALLELISM * 2, false));
+		DataStream<Boolean> source = env.fromCollection(Collections.nCopies(DEFAULT_PARALLELISM * 2, false))
+				.map(NoOpBoolMap).name("ParallelizeMap");
 
 		IterativeDataStream<Boolean> iteration = source.iterate(3000);
 
 		DataStream<Boolean> increment = iteration.flatMap(new IterationHead()).map(NoOpBoolMap);
 
-		iteration.map(NoOpBoolMap).addSink(new NoOpSink());
+		iteration.map(NoOpBoolMap).addSink(new ReceiveCheckNoOpSink());
 
-		iteration.closeWith(increment).addSink(new NoOpSink());
+		iteration.closeWith(increment).addSink(new ReceiveCheckNoOpSink());
 
 		env.execute();
 
@@ -343,7 +391,13 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(2);
 
-		ConnectedIterativeDataStream<Integer, String> coIt = env.fromElements(0, 0).iterate(2000)
+		DataStream<String> otherSource = env.fromElements("1000", "2000")
+				.map(NoOpStrMap).name("ParallelizeMap");
+
+
+		ConnectedIterativeDataStream<Integer, String> coIt = env.fromElements(0, 0)
+				.map(NoOpIntMap).name("ParallelizeMap")
+				.iterate(2000)
 				.withFeedbackType("String");
 
 		try {
@@ -392,25 +446,24 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 			public String map2(String value) throws Exception {
 				return value;
 			}
-		}).setParallelism(1).addSink(new NoOpSink<String>());
+		}).addSink(new ReceiveCheckNoOpSink<String>());
 
-		coIt.closeWith(head.broadcast().union(env.fromElements("1000", "2000").rebalance()));
+		coIt.closeWith(head.broadcast().union(otherSource));
 
 		head.addSink(new TestSink()).setParallelism(1);
+
+		assertEquals(1, env.getStreamGraph().getIterationSourceSinkPairs().size());
 
 		env.execute();
 
 		Collections.sort(TestSink.collected);
 		assertEquals(Arrays.asList("1", "1", "2", "2", "2", "2"), TestSink.collected);
-		assertEquals(2, new ArrayList<StreamLoop>(env.getStreamGraph().getStreamLoops()).get(0)
-				.getSourceSinkPairs().size());
-
 	}
 
 	@Test
 	public void testGroupByFeedback() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(3);
+		env.setParallelism(DEFAULT_PARALLELISM - 1);
 
 		KeySelector<Integer, Integer> key = new KeySelector<Integer, Integer>() {
 
@@ -420,7 +473,8 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 			}
 		};
 
-		DataStream<Integer> source = env.fromElements(1, 2, 3);
+		DataStream<Integer> source = env.fromElements(1, 2, 3)
+				.map(NoOpIntMap).name("ParallelizeMap");
 
 		IterativeDataStream<Integer> it = source.groupBy(key).iterate(3000);
 
@@ -448,8 +502,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		it.closeWith(head.groupBy(key).union(head.map(NoOpIntMap).setParallelism(2).groupBy(key)),
-				true).addSink(new NoOpSink<Integer>());
+		it.closeWith(head.groupBy(key).union(head.map(NoOpIntMap).groupBy(key))).addSink(new ReceiveCheckNoOpSink<Integer>());
 
 		env.execute();
 	}
@@ -457,15 +510,17 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 	@SuppressWarnings("deprecation")
 	@Test
 	public void testWithCheckPointing() throws Exception {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(PARALLELISM, MEMORYSIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
 		env.enableCheckpointing();
 
-		DataStream<Boolean> source = env
-				.fromCollection(Collections.nCopies(PARALLELISM * 2, false));
+		DataStream<Boolean> source = env .fromCollection(Collections.nCopies(DEFAULT_PARALLELISM * 2, false))
+				.map(NoOpBoolMap).name("ParallelizeMap");
+
 
 		IterativeDataStream<Boolean> iteration = source.iterate(3000);
 
-		iteration.closeWith(iteration.flatMap(new IterationHead()));
+		iteration.closeWith(iteration.flatMap(new IterationHead())).addSink(new ReceiveCheckNoOpSink<Boolean>());
 
 		try {
 			env.execute();
@@ -503,22 +558,6 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	public static final class NoOpSink<T> extends RichSinkFunction<T> {
-		private List<T> received;
-
-		public void invoke(T tuple) {
-			received.add(tuple);
-		}
-
-		public void open(Configuration conf) {
-			received = new ArrayList<T>();
-		}
-
-		public void close() {
-			assertTrue(received.size() > 0);
-		}
-	}
-
 	public static CoMapFunction<Integer, String, String> NoOpCoMap = new CoMapFunction<Integer, String, String>() {
 
 		public String map1(Integer value) throws Exception {
@@ -530,9 +569,23 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 		}
 	};
 
-	public static MapFunction<Integer, Integer> NoOpIntMap = new MapFunction<Integer, Integer>() {
+	public static MapFunction<Integer, Integer> NoOpIntMap = new NoOpIntMap();
 
-		public Integer map(Integer value) throws Exception {
+	public static MapFunction<String, String> NoOpStrMap = new MapFunction<String, String>() {
+
+		public String map(String value) throws Exception {
+			return value;
+		}
+
+	};
+
+	public static CoMapFunction<Integer, Integer, Integer> NoOpIntCoMap = new CoMapFunction<Integer, Integer, Integer>() {
+
+		public Integer map1(Integer value) throws Exception {
+			return value;
+		}
+
+		public Integer map2(Integer value) throws Exception {
 			return value;
 		}
 

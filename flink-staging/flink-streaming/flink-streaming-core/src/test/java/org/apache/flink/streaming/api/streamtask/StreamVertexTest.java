@@ -36,10 +36,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.Test;
 
-public class StreamVertexTest {
+public class StreamVertexTest extends StreamingMultipleProgramsTestBase {
 
 	private static Map<Integer, Integer> data = new HashMap<Integer, Integer>();
 
@@ -86,14 +87,12 @@ public class StreamVertexTest {
 	}
 
 	@SuppressWarnings("unused")
-	private static final int PARALLELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
-	private static final long MEMORYSIZE = 32;
 
 	@Test
 	public void wrongJobGraph() {
-		LocalStreamEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(SOURCE_PARALELISM);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(SOURCE_PARALELISM);
 
 		try {
 			env.fromCollection(null);
@@ -155,7 +154,8 @@ public class StreamVertexTest {
 
 	@Test
 	public void coTest() throws Exception {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(SOURCE_PARALELISM, MEMORYSIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(SOURCE_PARALELISM);
 
 		DataStream<String> fromStringElements = env.fromElements("aa", "bb", "cc");
 		DataStream<Long> generatedSequence = env.generateSequence(0, 3);
@@ -171,7 +171,8 @@ public class StreamVertexTest {
 
 	@Test
 	public void runStream() throws Exception {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(SOURCE_PARALELISM, MEMORYSIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(SOURCE_PARALELISM);
 
 		env.addSource(new MySource()).setParallelism(SOURCE_PARALELISM).map(new MyTask())
 				.addSink(new MySink());

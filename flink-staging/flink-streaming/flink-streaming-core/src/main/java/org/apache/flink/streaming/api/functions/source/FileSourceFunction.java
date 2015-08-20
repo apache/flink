@@ -134,4 +134,12 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 		isRunning = false;
 	}
 
+
+	/**
+	 * Returns the {@code InputFormat}. This is only needed because we need to set the input
+	 * split assigner on the {@code StreamGraph}.
+	 */
+	public InputFormat<OUT, InputSplit> getFormat() {
+		return format;
+	}
 }

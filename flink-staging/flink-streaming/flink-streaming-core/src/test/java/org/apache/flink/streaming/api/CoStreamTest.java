@@ -31,21 +31,21 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestListResultSink;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class CoStreamTest {
-
-	private static final long MEMORY_SIZE = 32;
+public class CoStreamTest extends StreamingMultipleProgramsTestBase {
 
 	private static ArrayList<String> expected = new ArrayList<String>();
 
 	@Test
 	public void test() {
 
-		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORY_SIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
 
 		TestListResultSink<String> resultSink = new TestListResultSink<String>();
 

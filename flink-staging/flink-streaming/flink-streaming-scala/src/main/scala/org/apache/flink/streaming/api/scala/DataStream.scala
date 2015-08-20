@@ -82,10 +82,6 @@ class DataStream[T](javaStream: JavaStream[T]) {
    */
   def getParallelism = javaStream.getParallelism
   
-  def getPartitioner = javaStream.getPartitioner
-  
-  def getSelectedNames = javaStream.getSelectedNames
-
   /**
    * Returns the execution config.
    */
@@ -403,7 +399,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
     val iterativeStream = javaStream.iterate(maxWaitTimeMillis)
 
     val (feedback, output) = stepFunction(new DataStream[T](iterativeStream))
-    iterativeStream.closeWith(feedback.getJavaStream, keepPartitioning)
+    iterativeStream.closeWith(feedback.getJavaStream)
     output
   }
   
@@ -703,7 +699,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * written.
    *
    */
-  def print(): DataStream[T] = javaStream.print()
+  def print(): DataStreamSink[T] = javaStream.print()
 
   /**
    * Writes a DataStream to the standard output stream (stderr).
@@ -722,7 +718,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * is written.
    *
    */
-  def writeAsText(path: String, millis: Long = 0): DataStream[T] =
+  def writeAsText(path: String, millis: Long = 0): DataStreamSink[T] =
     javaStream.writeAsText(path, millis)
 
   /**
@@ -737,7 +733,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
       millis: Long = 0,
       rowDelimiter: String = ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
       fieldDelimiter: String = ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER,
-      writeMode: FileSystem.WriteMode = null): DataStream[T] = {
+      writeMode: FileSystem.WriteMode = null): DataStreamSink[T] = {
     require(javaStream.getType.isTupleType, "CSV output can only be used with Tuple DataSets.")
     val of = new ScalaCsvOutputFormat[Product](new Path(path), rowDelimiter, fieldDelimiter)
     if (writeMode != null) {
@@ -758,8 +754,12 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Writes the DataStream to a socket as a byte array. The format of the output is
    * specified by a [[SerializationSchema]].
    */
-  def writeToSocket(hostname: String, port: Integer, schema: SerializationSchema[T, Array[Byte]]):
-    DataStream[T] = javaStream.writeToSocket(hostname, port, schema)
+  def writeToSocket(
+      hostname: String,
+      port: Integer,
+      schema: SerializationSchema[T, Array[Byte]]): DataStreamSink[T] = {
+    javaStream.writeToSocket(hostname, port, schema)
+  }
 
   /**
    * Adds the given sink to this DataStream. Only streams with sinks added
@@ -767,7 +767,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * method is called.
    *
    */
-  def addSink(sinkFunction: SinkFunction[T]): DataStream[T] =
+  def addSink(sinkFunction: SinkFunction[T]): DataStreamSink[T] =
     javaStream.addSink(sinkFunction)
 
   /**
@@ -776,7 +776,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * method is called.
    *
    */
-  def addSink(fun: T => Unit): DataStream[T] = {
+  def addSink(fun: T => Unit): DataStreamSink[T] = {
     if (fun == null) {
       throw new NullPointerException("Sink function must not be null.")
     }

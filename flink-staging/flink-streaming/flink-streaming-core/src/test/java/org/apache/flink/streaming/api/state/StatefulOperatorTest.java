@@ -51,6 +51,7 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.Test;
@@ -62,7 +63,7 @@ import com.google.common.collect.ImmutableMap;
  * partitioned and non-partitioned user states. This test mimics the runtime
  * behavior of stateful stream operators.
  */
-public class StatefulOperatorTest {
+public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 
 	@Test
 	public void simpleStateTest() throws Exception {
@@ -104,7 +105,8 @@ public class StatefulOperatorTest {
 	
 	@Test
 	public void apiTest() throws Exception {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(3, 32);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(3);
 
 		KeyedDataStream<Integer> keyedStream = env.fromCollection(Arrays.asList(0, 1, 2, 3, 4, 5, 6)).keyBy(new ModKey(4));
 		

@@ -38,7 +38,6 @@ public class CustomPartitionerWrapper<K, T> extends StreamPartitioner<T> {
 	KeySelector<T, K> keySelector;
 
 	public CustomPartitionerWrapper(Partitioner<K> partitioner, KeySelector<T, K> keySelector) {
-		super(PartitioningStrategy.CUSTOM);
 		this.partitioner = partitioner;
 		this.keySelector = keySelector;
 	}
@@ -57,5 +56,15 @@ public class CustomPartitionerWrapper<K, T> extends StreamPartitioner<T> {
 				numberOfOutputChannels);
 
 		return returnArray;
+	}
+
+	@Override
+	public StreamPartitioner<T> copy() {
+		return this;
+	}
+
+	@Override
+	public String toString() {
+		return "CUSTOM";
 	}
 }
