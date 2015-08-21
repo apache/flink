@@ -1517,11 +1517,24 @@ Stream connectors
 ----------------
 
 <!-- TODO: reintroduce flume -->
-Connectors provide an interface for accessing data from various third party sources (message queues). Currently three connectors are natively supported, namely [Apache Kafka](https://kafka.apache.org/),  [RabbitMQ](http://www.rabbitmq.com/) and the [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis).
+Connectors provide code for interfacing with various third-party systems.
+Typically the connector packages consist of a source and sink class
+(with the exception of Twitter where only a source is provided and Elasticsearch
+where only a sink is provided).
 
-Typically the connector packages consist of a source and sink class (with the exception of Twitter where only a source is provided). To use these sources the user needs to pass Serialization/Deserialization schemas for the connectors for the desired types. (Or use some predefined ones)
+Currently these systems are supported:
 
-To run an application using one of these connectors, additional third party components are usually required to be installed and launched, e.g. the servers for the message queues. Further instructions for these can be found in the corresponding subsections. [Docker containers](#docker-containers-for-connectors) are also provided encapsulating these services to aid users getting started with connectors.
+ * [Apache Kafka](https://kafka.apache.org/) (sink/source)
+ * [Elasticsearch](https://elastic.co/) (sink)
+ * [RabbitMQ](http://www.rabbitmq.com/) (sink/source)
+ * [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) (source)
+
+To run an application using one of these connectors, additional third party
+components are usually required to be installed and launched, e.g. the servers
+for the message queues. Further instructions for these can be found in the
+corresponding subsections. [Docker containers](#docker-containers-for-connectors)
+are also provided encapsulating these services to aid users getting started
+with connectors.
 
 ### Apache Kafka
 
@@ -1658,6 +1671,165 @@ public KafkaSink(String zookeeperAddress, String topicId, Properties producerCon
 If this constructor is used, the user needs to make sure to set the broker(s) with the "metadata.broker.list" property. Also the serializer configuration should be left default, the serialization should be set via SerializationSchema.
 
 More about Kafka can be found [here](https://kafka.apache.org/documentation.html).
+
+[Back to top](#top)
+
+### Elasticsearch
+
+This connector provides a Sink that can write to an
+[Elasticsearch](https://elastic.co/) Index. To use this connector, add the
+following dependency to your project:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-connector-elasticsearch</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+Note that the streaming connectors are currently not part of the binary
+distribution. See
+[here](cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution)
+for information about how to package the program with the libraries for
+cluster execution.
+
+#### Installing Elasticsearch
+
+Instructions for setting up an Elasticsearch cluster can be found
+[here](https://www.elastic.co/guide/en/elasticsearch/reference/current/setup.html).
+Make sure to set and remember a cluster name. This must be set when
+creating a Sink for writing to your cluster
+
+#### Elasticsearch Sink
+The connector provides a Sink that can send data to an Elasticsearch Index.
+
+The sink can use two different methods for communicating with Elasticsearch:
+
+1. An embedded Node
+2. The TransportClient
+
+See [here](https://www.elastic.co/guide/en/elasticsearch/client/java-api/current/client.html)
+for information about the differences between the two modes.
+
+This code shows how to create a sink that uses an embedded Node for
+communication:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<String> input = ...;
+
+Map<String, String> config = Maps.newHashMap();
+// This instructs the sink to emit after every element, otherwise they would be buffered
+config.put("bulk.flush.max.actions", "1");
+config.put("cluster.name", "my-cluster-name");
+
+input.addSink(new ElasticsearchSink<>(config, new IndexRequestBuilder<String>() {
+    @Override
+    public IndexRequest createIndexRequest(String element, RuntimeContext ctx) {
+        Map<String, Object> json = new HashMap<>();
+        json.put("data", element);
+
+        return Requests.indexRequest()
+                .index("my-index")
+                .type("my-type")
+                .source(json);
+    }
+}));
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val input: DataStream[String] = ...
+
+val config = new util.HashMap[String, String]
+config.put("bulk.flush.max.actions", "1")
+config.put("cluster.name", "my-cluster-name")
+
+text.addSink(new ElasticsearchSink(config, new IndexRequestBuilder[String] {
+  override def createIndexRequest(element: String, ctx: RuntimeContext): IndexRequest = {
+    val json = new util.HashMap[String, AnyRef]
+    json.put("data", element)
+    println("SENDING: " + element)
+    Requests.indexRequest.index("my-index").`type`("my-type").source(json)
+  }
+}))
+{% endhighlight %}
+</div>
+</div>
+
+Not how a Map of Strings is used to configure the Sink. The configuration keys
+are documented in the Elasticsearch documentation
+[here](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html).
+Especially important is the `cluster.name` parameter that must correspond to
+the name of your cluster.
+
+Internally, the sink uses a `BulkProcessor` to send index requests to the cluster.
+This will buffer elements before sending a request to the cluster. The behaviour of the
+`BulkProcessor` can be configured using these config keys:
+ * **bulk.flush.max.actions**: Maximum amount of elements to buffer
+ * **bulk.flush.max.size.mb**: Maximum amount of data (in megabytes) to buffer
+ * **bulk.flush.interval.ms**: Interval at which to flush data regardless of the other two
+  settings in milliseconds
+
+This example code does the same, but with a `TransportClient`:
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<String> input = ...;
+
+Map<String, String> config = Maps.newHashMap();
+// This instructs the sink to emit after every element, otherwise they would be buffered
+config.put("bulk.flush.max.actions", "1");
+config.put("cluster.name", "my-cluster-name");
+
+List<TransportAddress> transports = new ArrayList<String>();
+transports.add(new InetSocketTransportAddress("node-1", 9300));
+transports.add(new InetSocketTransportAddress("node-2", 9300));
+
+input.addSink(new ElasticsearchSink<>(config, transports, new IndexRequestBuilder<String>() {
+    @Override
+    public IndexRequest createIndexRequest(String element, RuntimeContext ctx) {
+        Map<String, Object> json = new HashMap<>();
+        json.put("data", element);
+
+        return Requests.indexRequest()
+                .index("my-index")
+                .type("my-type")
+                .source(json);
+    }
+}));
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val input: DataStream[String] = ...
+
+val config = new util.HashMap[String, String]
+config.put("bulk.flush.max.actions", "1")
+config.put("cluster.name", "my-cluster-name")
+
+val transports = new ArrayList[String]
+transports.add(new InetSocketTransportAddress("node-1", 9300))
+transports.add(new InetSocketTransportAddress("node-2", 9300))
+
+text.addSink(new ElasticsearchSink(config, transports, new IndexRequestBuilder[String] {
+  override def createIndexRequest(element: String, ctx: RuntimeContext): IndexRequest = {
+    val json = new util.HashMap[String, AnyRef]
+    json.put("data", element)
+    println("SENDING: " + element)
+    Requests.indexRequest.index("my-index").`type`("my-type").source(json)
+  }
+}))
+{% endhighlight %}
+</div>
+</div>
+
+The difference is that we now need to provide a list of Elasticsearch Nodes
+to which the sink should connect using a `TransportClient`.
+
+More about information about Elasticsearch can be found [here](https://elastic.co).
 
 [Back to top](#top)
 

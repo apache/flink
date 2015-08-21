@@ -38,6 +38,7 @@ under the License.
 	<modules>
 		<module>flink-connector-flume</module>
 		<module>flink-connector-kafka</module>
+		<module>flink-connector-elasticsearch</module>
 		<module>flink-connector-rabbitmq</module>
 		<module>flink-connector-twitter</module>
 	</modules>
