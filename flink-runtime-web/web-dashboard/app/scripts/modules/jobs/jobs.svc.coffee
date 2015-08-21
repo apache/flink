@@ -111,13 +111,9 @@ angular.module('flinkApp')
         .success (jobConfig) ->
           data = angular.extend(data, jobConfig)
 
-          $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/exceptions"
-          .success (exceptions) ->
-            data.exceptions = exceptions
+          currentJob = data
 
-            currentJob = data
-
-            deferreds.job.resolve(data)
+          deferreds.job.resolve(data)
 
     deferreds.job.promise
 
@@ -162,7 +158,6 @@ angular.module('flinkApp')
 
     return null
 
-
   @getVertex = (vertexid) ->
     deferred = $q.defer()
 
@@ -174,6 +169,19 @@ angular.module('flinkApp')
         vertex.subtasks = data.subtasks
 
         deferred.resolve(vertex)
+
+    deferred.promise
+
+  @loadExceptions = ->
+    deferred = $q.defer()
+
+    $q.all([deferreds.job.promise]).then (data) =>
+
+      $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/exceptions"
+      .success (exceptions) ->
+        currentJob.exceptions = exceptions
+
+        deferred.resolve(exceptions)
 
     deferred.promise
 
