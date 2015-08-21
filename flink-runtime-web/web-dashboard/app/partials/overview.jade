@@ -87,8 +87,8 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
         thead
           tr
             th Start Time
-            th End Time
-            th Duration
+            //- th End Time
+            //- th Duration
             th Job Name
             th Job ID
             th Tasks
@@ -97,8 +97,8 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
         tbody
           tr(ng-repeat="job in runningJobs" ui-sref="single-job.plan({ jobid: job.jid })")
             td {{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
-            td {{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
-            td {{job.duration}}
+            //- td {{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
+            //- td {{job.duration}} ms
             td {{job.name}}
             td {{job.jid}}
             td.label-group
@@ -126,7 +126,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
           tr(ng-repeat="job in finishedJobs" ui-sref="single-job.plan({ jobid: job.jid })")
             td {{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
             td {{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
-            td {{job['end-time'] - job['start-time']}} ms
+            td {{job.duration}} ms
             td {{job.name}}
             td {{job.jid}}
             td.label-group

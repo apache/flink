@@ -69,7 +69,7 @@ angular.module('flinkApp')
   @listJobs = ->
     deferred = $q.defer()
 
-    $http.get flinkConfig.newServer + "/joboverview"
+    $http.get flinkConfig.jobServer + "/joboverview"
     .success (data, status, headers, config) ->
 
       angular.forEach data, (list, listKey) ->
@@ -79,11 +79,6 @@ angular.module('flinkApp')
           when 'finished' then jobs.finished = list
           when 'cancelled' then jobs.cancelled = list
           when 'failed' then jobs.failed = list
-
-        # angular.forEach list, (jobid, index) ->
-        #   $http.get flinkConfig.newServer + "/jobs/" + jobid
-        #   .success (details) ->
-        #     list[index] = details
 
       deferred.resolve(jobs)
       notifyObservers()
@@ -100,23 +95,28 @@ angular.module('flinkApp')
     currentJob = null
     deferreds.job = $q.defer()
 
-    $http.get flinkConfig.newServer + "/jobs/" + jobid
+    $http.get flinkConfig.jobServer + "/jobs/" + jobid
     .success (data, status, headers, config) ->
-      data.time = Date.now()
+      # data.time = Date.now()
 
-      $http.get flinkConfig.newServer + "/jobs/" + jobid + "/vertices"
+      $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/vertices"
       .success (vertices) ->
         data = angular.extend(data, vertices)
 
-        $http.get flinkConfig.jobServer + "/jobsInfo?get=job&job=" + jobid
-        .success (oldVertices) ->
-          data.oldV = oldVertices[0]
+        # $http.get flinkConfig.jobServer + "/jobsInfo?get=job&job=" + jobid
+        # .success (oldVertices) ->
+        #   data.oldV = oldVertices[0]
 
-          $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/config"
-          .success (jobConfig) ->
-            data = angular.extend(data, jobConfig)
+        $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/config"
+        .success (jobConfig) ->
+          data = angular.extend(data, jobConfig)
+
+          $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/exceptions"
+          .success (exceptions) ->
+            data.exceptions = exceptions
 
             currentJob = data
+
             deferreds.job.resolve(data)
 
     deferreds.job.promise
@@ -125,7 +125,7 @@ angular.module('flinkApp')
     currentPlan = null
     deferreds.plan = $q.defer()
 
-    $http.get flinkConfig.newServer + "/jobs/" + jobid + "/plan"
+    $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/plan"
     .success (data) ->
       currentPlan = data
 
@@ -142,33 +142,38 @@ angular.module('flinkApp')
 
       null
 
-    deferred = $q.defer()
 
-    # if currentPlan
-    #   deferred.resolve(seekNode(nodeid, currentPlan.nodes))
-    # else
-    #   # deferreds.plan.promise.then (data) ->
-    #   $q.all([deferreds.plan.promise, deferreds.job.promise]).then (data) ->
-    #     console.log 'resolving getNode'
-    #     deferred.resolve(seekNode(nodeid, currentPlan.nodes))
+    deferred = $q.defer()
 
     $q.all([deferreds.plan.promise, deferreds.job.promise]).then (data) =>
       foundNode = seekNode(nodeid, currentPlan.nodes)
 
-      # @getVertex(currentJob.jid, currentJob.oldV.groupvertices[0].groupvertexid).then (vertex) ->
-      @getVertex(currentJob.jid, nodeid).then (vertex) ->
-        foundNode.vertex = vertex
-        deferred.resolve(foundNode)
+      # $http.get flinkConfig.jobServer + "/jobsInfo?get=groupvertex&job=" + currentJob.jid + "&groupvertex=" + nodeid
+
+      foundNode.vertex = @seekVertex(nodeid)
+
+      deferred.resolve(foundNode)
 
     deferred.promise
 
+  @seekVertex = (nodeid) ->
+    for vertex in currentJob.vertices
+      return vertex if vertex.id is nodeid
 
-  @getVertex = (jobId, vertexId) ->
+    return null
+
+
+  @getVertex = (vertexid) ->
     deferred = $q.defer()
 
-    $http.get flinkConfig.jobServer + "/jobsInfo?get=groupvertex&job=" + jobId + "&groupvertex=" + vertexId
-    .success (data) ->
-      deferred.resolve(data)
+    $q.all([deferreds.job.promise]).then (data) =>
+      vertex = @seekVertex(vertexid)
+
+      $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasktimes"
+      .success (data) ->
+        vertex.subtasks = data.subtasks
+
+        deferred.resolve(vertex)
 
     deferred.promise
 

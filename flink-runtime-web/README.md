@@ -113,7 +113,7 @@ mvn -DskipTests clean package
 To simplify continuous development, one can use a *standalone proxy server*, together with automatic
 re-compilation:
 
-1. Edit the file `app/scripts/index.coffee`. Comment/uncomment the lines that define the `webServer`, `jobServer`, and `newServer` URLs.
+1. Edit the file `app/scripts/index.coffee`. Comment/uncomment the lines that define the `webServer`, and `jobServer` URLs.
 2. Re-compile the files via `gulp`. By calling `gulp watch`, the build-tool autocompiles future changes.
 3. Start the proxy server via `node server.js`
 4. Access the dashboard at [`http://localhost:3000`](http://localhost:3000)

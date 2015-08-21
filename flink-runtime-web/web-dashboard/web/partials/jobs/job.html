@@ -28,12 +28,10 @@ limitations under the License.
       <bs-label status="{{status}}" ng-repeat="(status, value) in job.tasks">{{value}}</bs-label>
     </div>
   </div>
-  <div class="navbar-info first last hidden-xs hidden-sm">
-    {{ job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
-    - 
-    {{ job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
-  </div>
-  <div class="navbar-info last first">{{job['end-time'] - job['start-time']}} ms</div>
+  <div class="navbar-info first last hidden-xs hidden-sm">{{ job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}<span ng-if="job['end-time'] &gt; -1">
+      - 
+      {{ job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></div>
+  <div ng-if="job.duration &gt; -1" class="navbar-info last first">{{job.duration}} ms</div>
 </nav>
 <nav ng-if="job" class="navbar navbar-default navbar-fixed-top navbar-main-additional">
   <ul class="nav nav-tabs">
