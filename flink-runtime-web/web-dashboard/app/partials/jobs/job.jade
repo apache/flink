@@ -47,7 +47,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional(ng-if="job")
     li(ui-sref-active='active')
       a(ui-sref=".statistics") Job Accumulators / Statistics
 
-    li(ui-sref-active='active')
+    li(ui-sref-active='active' ng-if="job['end-time'] > -1")
       a(ui-sref=".timeline") Timeline
 
     li(ui-sref-active='active')

@@ -209,6 +209,9 @@
 .panel.panel-multi .panel-heading {
   padding: 0;
 }
+.panel.panel-multi .panel-heading .panel-info.thin {
+  padding: 8px 10px;
+}
 .panel.panel-multi .panel-body {
   padding: 10px;
   background-color: #fdfdfd;
@@ -290,6 +293,12 @@
 }
 .indicator.indicator-danger {
   color: #d9534f;
+}
+pre.exception {
+  border: none;
+  background-color: transparent;
+  padding: 0;
+  margin: 0;
 }
 .canvas-wrapper {
   border: 1px solid #ddd;
