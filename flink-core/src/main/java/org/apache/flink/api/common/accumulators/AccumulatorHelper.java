@@ -58,7 +58,7 @@ public class AccumulatorHelper {
 	/**
 	 * Workaround method for type safety
 	 */
-	private static final <V, R extends Serializable> void mergeSingle(Accumulator<?, ?> target,
+	private static <V, R extends Serializable> void mergeSingle(Accumulator<?, ?> target,
 															Accumulator<?, ?> toMerge) {
 		@SuppressWarnings("unchecked")
 		Accumulator<V, R> typedTarget = (Accumulator<V, R>) target;
@@ -104,7 +104,7 @@ public class AccumulatorHelper {
 	public static Map<String, Object> toResultMap(Map<String, Accumulator<?, ?>> accumulators) {
 		Map<String, Object> resultMap = new HashMap<String, Object>();
 		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulators.entrySet()) {
-			resultMap.put(entry.getKey(), (Object) entry.getValue().getLocalValue());
+			resultMap.put(entry.getKey(), entry.getValue().getLocalValue());
 		}
 		return resultMap;
 	}
@@ -112,8 +112,8 @@ public class AccumulatorHelper {
 	public static String getResultsFormated(Map<String, Object> map) {
 		StringBuilder builder = new StringBuilder();
 		for (Map.Entry<String, Object> entry : map.entrySet()) {
-			builder.append("- " + entry.getKey() + " (" + entry.getValue().getClass().getName()
-					+ ")" + ": " + entry.getValue().toString() + "\n");
+			builder.append("- ").append(entry.getKey()).append(" (").append(entry.getValue().getClass().getName());
+			builder.append(")").append(": ").append(entry.getValue().toString()).append("\n");
 		}
 		return builder.toString();
 	}
@@ -127,8 +127,7 @@ public class AccumulatorHelper {
 		}
 	}
 
-	public static Map<String, Accumulator<?, ?>> copy(final Map<String, Accumulator<?,
-			?>> accumulators) {
+	public static Map<String, Accumulator<?, ?>> copy(Map<String, Accumulator<?, ?>> accumulators) {
 		Map<String, Accumulator<?, ?>> result = new HashMap<String, Accumulator<?, ?>>();
 
 		for(Map.Entry<String, Accumulator<?, ?>> entry: accumulators.entrySet()){

@@ -34,7 +34,14 @@ import java.io.StringWriter;
 import java.util.Map;
 
 /**
- * Request handler that returns the JSON program plan of a job graph.
+ * Request handler that returns details about a job, including:
+ * <ul>
+ *     <li>Dataflow plan</li>
+ *     <li>id, name, and current status</li>
+ *     <li>start time, end time, duration</li>
+ *     <li>number of job vertices in each state (pending, running, finished, failed)</li>
+ *     <li>info about job vertices, including runtime, status, I/O bytes and records, subtasks in each status</li>
+ * </ul>
  */
 public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
 	
@@ -63,6 +70,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler impl
 		gen.writeNumberField("start-time", jobStartTime);
 		gen.writeNumberField("end-time", jobEndTime);
 		gen.writeNumberField("duration", (jobEndTime > 0 ? jobEndTime : now) - jobStartTime);
+		gen.writeNumberField("now", now);
 		
 		// timestamps
 		gen.writeObjectFieldStart("timestamps");
@@ -71,9 +79,8 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler impl
 		}
 		gen.writeEndObject();
 		
-		final int[] tasksPerStatusTotal = new int[ExecutionState.values().length];
-		
 		// job vertices
+		int[] jobVerticesPerState = new int[ExecutionState.values().length];
 		gen.writeArrayFieldStart("vertices");
 
 		for (ExecutionJobVertex ejv : graph.getVerticesTopologically()) {
@@ -85,7 +92,6 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler impl
 			for (ExecutionVertex vertex : ejv.getTaskVertices()) {
 				final ExecutionState state = vertex.getExecutionState();
 				tasksPerState[state.ordinal()]++;
-				tasksPerStatusTotal[state.ordinal()]++;
 
 				// take the earliest start time
 				long started = vertex.getStateTimestamp(ExecutionState.DEPLOYING);
@@ -112,7 +118,11 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler impl
 				endTime = -1L;
 				duration = -1L;
 			}
-
+			
+			ExecutionState jobVertexState = 
+					ExecutionJobVertex.getAggregateJobVertexState(tasksPerState, ejv.getParallelism());
+			jobVerticesPerState[jobVertexState.ordinal()]++;
+			
 			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> metrics = ejv.getAggregatedMetricAccumulators();
 
 			LongCounter readBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_IN);
@@ -124,7 +134,8 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler impl
 			gen.writeStringField("id", ejv.getJobVertexId().toString());
 			gen.writeStringField("name", ejv.getJobVertex().getName());
 			gen.writeNumberField("parallelism", ejv.getParallelism());
-			
+			gen.writeStringField("status", jobVertexState.name());
+
 			gen.writeNumberField("start-time", startTime);
 			gen.writeNumberField("end-time", endTime);
 			gen.writeNumberField("duration", duration);
@@ -141,10 +152,19 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler impl
 			gen.writeNumberField("read-records", readRecords != null ? readRecords.getLocalValuePrimitive() : -1L);
 			gen.writeNumberField("write-records",writeRecords != null ? writeRecords.getLocalValuePrimitive() : -1L);
 			gen.writeEndObject();
-
+			
 			gen.writeEndObject();
 		}
 		gen.writeEndArray();
+
+		gen.writeObjectFieldStart("status-counts");
+		for (ExecutionState state : ExecutionState.values()) {
+			gen.writeNumberField(state.name(), jobVerticesPerState[state.ordinal()]);
+		}
+		gen.writeEndObject();
+
+		gen.writeFieldName("plan");
+		gen.writeRawValue(graph.getJsonPlan());
 
 		gen.writeEndObject();
 

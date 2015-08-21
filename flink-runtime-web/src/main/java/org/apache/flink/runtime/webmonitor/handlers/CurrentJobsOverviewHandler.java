@@ -61,6 +61,7 @@ public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandle
 			
 			MultipleJobsDetails result = (MultipleJobsDetails) Await.result(future, timeout);
 
+			final long now = System.currentTimeMillis();
 
 			StringWriter writer = new StringWriter();
 			JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
@@ -70,20 +71,20 @@ public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandle
 			if (includeRunningJobs && includeFinishedJobs) {
 				gen.writeArrayFieldStart("running");
 				for (JobDetails detail : result.getRunningJobs()) {
-					generateSingleJobDetails(detail, gen);
+					generateSingleJobDetails(detail, gen, now);
 				}
 				gen.writeEndArray();
 
 				gen.writeArrayFieldStart("finished");
 				for (JobDetails detail : result.getFinishedJobs()) {
-					generateSingleJobDetails(detail, gen);
+					generateSingleJobDetails(detail, gen, now);
 				}
 				gen.writeEndArray();
 			}
 			else {
 				gen.writeArrayFieldStart("jobs");
 				for (JobDetails detail : includeRunningJobs ? result.getRunningJobs() : result.getFinishedJobs()) {
-					generateSingleJobDetails(detail, gen);
+					generateSingleJobDetails(detail, gen, now);
 				}
 				gen.writeEndArray();
 			}
@@ -97,7 +98,7 @@ public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandle
 		}
 	}
 
-	private static void generateSingleJobDetails(JobDetails details, JsonGenerator gen) throws Exception {
+	private static void generateSingleJobDetails(JobDetails details, JsonGenerator gen, long now) throws Exception {
 		gen.writeStartObject();
 
 		gen.writeStringField("jid", details.getJobId().toString());
@@ -106,7 +107,7 @@ public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandle
 
 		gen.writeNumberField("start-time", details.getStartTime());
 		gen.writeNumberField("end-time", details.getEndTime());
-		gen.writeNumberField("duration", details.getEndTime() <= 0 ? -1L : details.getEndTime() - details.getStartTime());
+		gen.writeNumberField("duration", (details.getEndTime() <= 0 ? now : details.getEndTime()) - details.getStartTime());
 		gen.writeNumberField("last-modification", details.getLastUpdateTime());
 
 		gen.writeObjectFieldStart("tasks");

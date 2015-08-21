@@ -41,7 +41,6 @@ public class JsonPlanGenerator {
 
 			final JsonFactory factory = new JsonFactory();
 			final JsonGenerator gen = factory.createGenerator(writer);
-			gen.useDefaultPrettyPrinter();
 			
 			// start of everything
 			gen.writeStartObject();

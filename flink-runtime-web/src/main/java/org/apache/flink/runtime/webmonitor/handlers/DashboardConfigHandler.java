@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import java.io.StringWriter;
 import java.util.Map;
@@ -46,6 +47,13 @@ public class DashboardConfigHandler implements RequestHandler, RequestHandler.Js
 			gen.writeNumberField("refresh-interval", refreshInterval);
 			gen.writeNumberField("timezone-offset", timeZoneOffset);
 			gen.writeStringField("timezone-name", timeZoneName);
+			gen.writeStringField("flink-version", EnvironmentInformation.getVersion());
+
+			EnvironmentInformation.RevisionInformation revision = EnvironmentInformation.getRevisionInformation();
+			if (revision != null) {
+				gen.writeStringField("flink-revision", revision.commitId + " @ " + revision.commitDate);
+			}
+
 			gen.writeEndObject();
 	
 			gen.close();
