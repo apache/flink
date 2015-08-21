@@ -23,7 +23,7 @@ limitations under the License.
     <div class="panel-info first">ID: {{ node.id }}</div>
     <div ng-if="node.description" class="panel-info">
       <div class="label-group">
-        <bs-label status="{{status}}" ng-repeat="(index, status) in stateList">{{node.vertex.groupvertex[status]}}</bs-label>
+        <bs-label status="{{status}}" ng-repeat="(index, status) in stateList">{{node.vertex.tasks[status]}}</bs-label>
       </div>
     </div>
   </div>
@@ -40,7 +40,7 @@ limitations under the License.
       </thead>
       <tbody>
         <tr ng-repeat="vertex in node.vertex.groupvertex.groupmembers">
-          <td>{{ vertex.vertexname | humanizeTaskName }}</td>
+          <td>{{ vertex.name | humanizeTaskName }}</td>
           <td> 
             <bs-label status="{{vertex.vertexstatus}}">{{vertex.vertexstatus}}</bs-label>
           </td>

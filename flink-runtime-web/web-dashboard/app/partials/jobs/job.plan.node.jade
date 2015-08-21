@@ -25,7 +25,7 @@
 
     .panel-info(ng-if="node.description")
       .label-group
-        bs-label(status="{{status}}" ng-repeat="(index, status) in stateList") {{node.vertex.groupvertex[status]}}
+        bs-label(status="{{status}}" ng-repeat="(index, status) in stateList") {{node.vertex.tasks[status]}}
 
   .panel-heading.clearfix
     .panel-info.first.last(ng-if="node.description")
@@ -40,7 +40,7 @@
 
       tbody
         tr(ng-repeat="vertex in node.vertex.groupvertex.groupmembers")
-          td {{ vertex.vertexname | humanizeTaskName }}
+          td {{ vertex.name | humanizeTaskName }}
           td 
             bs-label(status="{{vertex.vertexstatus}}") {{vertex.vertexstatus}}
 

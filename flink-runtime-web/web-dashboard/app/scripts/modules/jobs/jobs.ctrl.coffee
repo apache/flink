@@ -70,5 +70,5 @@ angular.module('flinkApp')
 # --------------------------------------
 
 .controller 'JobTimelineVertexController', ($scope, $state, $stateParams, JobsService) ->
-  JobsService.getVertex($stateParams.jobid, $stateParams.vertexId).then (data) ->
+  JobsService.getVertex($stateParams.vertexId).then (data) ->
     $scope.vertex = data

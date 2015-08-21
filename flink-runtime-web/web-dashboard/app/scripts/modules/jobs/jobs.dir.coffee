@@ -35,34 +35,32 @@ angular.module('flinkApp')
     analyzeTime = (data) ->
       testData = []
 
-      angular.forEach data.groupvertex.groupmembers, (vertex, i) ->
-        vTime = data.verticetimes[vertex.vertexid]
-
+      angular.forEach data.subtasks, (subtask, i) ->
         testData.push {
-          label: "#{vertex.vertexinstancename} (#{i})"
+          label: "#{subtask.host} (#{subtask.subtask})"
           times: [
             {
               label: "Scheduled"
               color: "#666"
               borderColor: "#555"
-              starting_time: vTime["SCHEDULED"] * 100
-              ending_time: vTime["DEPLOYING"] * 100
+              starting_time: subtask.timestamps["SCHEDULED"]
+              ending_time: subtask.timestamps["DEPLOYING"]
               type: 'regular'
             }
             {
               label: "Deploying"
               color: "#aaa"
               borderColor: "#555"
-              starting_time: vTime["DEPLOYING"] * 100
-              ending_time: vTime["RUNNING"] * 100
+              starting_time: subtask.timestamps["DEPLOYING"]
+              ending_time: subtask.timestamps["RUNNING"]
               type: 'regular'
             }
             {
               label: "Running"
               color: "#ddd"
               borderColor: "#555"
-              starting_time: vTime["RUNNING"] * 100
-              ending_time: vTime["FINISHED"] * 100
+              starting_time: subtask.timestamps["RUNNING"]
+              ending_time: subtask.timestamps["FINISHED"]
               type: 'regular'
             }
           ]
@@ -115,26 +113,21 @@ angular.module('flinkApp')
           label: "Scheduled"
           color: "#cccccc"
           borderColor: "#555"
-          starting_time: data.oldV["SCHEDULED"]
-          ending_time: data.oldV["SCHEDULED"] + 1
-          # link: vertex.groupvertexid
+          starting_time: data.timestamps["CREATED"]
+          ending_time: data.timestamps["CREATED"] + 1
           type: 'scheduled'
         ]
 
 
-      angular.forEach data.oldV.groupvertices, (vertex) ->
-        vTime = data.oldV.groupverticetimes[vertex.groupvertexid]
-
-        # console.log vTime, vertex.groupvertexid
-
+      angular.forEach data.vertices, (vertex) ->
         testData.push 
           times: [
-            label: translateLabel(vertex.groupvertexname)
+            label: translateLabel(vertex.name)
             color: "#d9f1f7"
             borderColor: "#62cdea"
-            starting_time: vTime["STARTED"]
-            ending_time: vTime["ENDED"]
-            link: vertex.groupvertexid
+            starting_time: vertex['start-time']
+            ending_time: vertex['end-time']
+            link: vertex.id
             type: 'regular'
           ]
 
