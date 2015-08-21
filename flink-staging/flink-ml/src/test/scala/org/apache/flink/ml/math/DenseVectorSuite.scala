@@ -79,7 +79,7 @@ class DenseVectorSuite extends FlatSpec with Matchers {
   }
 
   //====================================================================================================================
-  it should "calculate outer product with DenseVectors correctly as DenseMatrix" in {
+  it should "calculate outer product with DenseVector correctly as DenseMatrix" in {
     val vec1 = DenseVector(Array(1, 0, 1))
     val vec2 = DenseVector(Array(0, 1, 0))
 
@@ -97,7 +97,14 @@ class DenseVectorSuite extends FlatSpec with Matchers {
 
   //====================================================================================================================
 
-  it should "calculate outer product of a DenseVector with a SparseVector" in {
+  it should "calculate outer product with a DenseVector correctly as DenseMatrix 2" in {
+    val vec1 = DenseVector(Array(1, 0, 1, 0, 0))
+    val vec2 = DenseVector(Array(0, 0, 1, 0, 1))
+
+    vec1.outer(vec2) should be(DenseMatrix(5, 5, Array(0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
+  }
+
+  it should "calculate outer product with a SparseVector correctly as SparseMatrix 2" in {
     val vec1 = DenseVector(Array(1, 0, 1, 0, 0))
     val vec2 = SparseVector.fromCOO(5, (2, 1), (4, 1))
 
