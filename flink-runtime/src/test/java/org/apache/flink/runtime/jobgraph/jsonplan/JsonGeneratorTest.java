@@ -71,8 +71,6 @@ public class JsonGeneratorTest {
 			
 			String plan = JsonPlanGenerator.generatePlan(jg);
 			assertNotNull(plan);
-			
-			System.out.println(plan);
 
 			// validate the produced JSON
 			ObjectMapper m = new ObjectMapper();

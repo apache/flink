@@ -19,24 +19,20 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.runtime.execution.ExecutionState;
+
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 import java.io.StringWriter;
 import java.util.Map;
 
-/**
- * Request handler that returns the JSON program plan of a job graph.
- */
-public class SubtasksTimesHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
 
+public class JobVertexAccumulatorsHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
 	
-	public SubtasksTimesHandler(ExecutionGraphHolder executionGraphHolder) {
+	public JobVertexAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
@@ -54,43 +50,30 @@ public class SubtasksTimesHandler extends AbstractExecutionGraphRequestHandler i
 		catch (Exception e) {
 			throw new IllegalArgumentException("Invalid JobVertexID string '" + vidString + "': " + e.getMessage());
 		}
-
+		
 		ExecutionJobVertex jobVertex = graph.getJobVertex(vid);
 		if (jobVertex == null) {
 			throw new IllegalArgumentException("No vertex with ID '" + vidString + "' exists.");
 		}
 
-
+		StringifiedAccumulatorResult[] accs = jobVertex.getAggregatedUserAccumulatorsStringified();
+		
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
 
 		gen.writeStartObject();
-
 		gen.writeStringField("id", jobVertex.getJobVertexId().toString());
-		gen.writeStringField("name", jobVertex.getJobVertex().getName());
-		gen.writeNumberField("now", System.currentTimeMillis());
 		
-		gen.writeArrayFieldStart("subtasks");
-
-		int num = 0;
-		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
+		gen.writeArrayFieldStart("user-accumulators");
+		for (StringifiedAccumulatorResult acc : accs) {
 			gen.writeStartObject();
-			gen.writeNumberField("subtask", num);
-
-			InstanceConnectionInfo location = vertex.getCurrentAssignedResourceLocation();
-			String locationString = location == null ? "(unassigned)" : location.getHostname();
-			gen.writeStringField("host", locationString);
-
-			gen.writeObjectFieldStart("timestamps");
-			long[] timestamps = vertex.getCurrentExecutionAttempt().getStateTimestamps();
-			for (ExecutionState state : ExecutionState.values()) {
-				gen.writeNumberField(state.name(), timestamps[state.ordinal()]);
-			}
-			gen.writeEndObject();
+			gen.writeStringField("name", acc.getName());
+			gen.writeStringField("type", acc.getType());
+			gen.writeStringField("value", acc.getValue());
 			gen.writeEndObject();
 		}
-
 		gen.writeEndArray();
+		
 		gen.writeEndObject();
 
 		gen.close();

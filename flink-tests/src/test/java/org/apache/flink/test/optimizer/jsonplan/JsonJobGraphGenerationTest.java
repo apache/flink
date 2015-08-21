@@ -58,19 +58,19 @@ public class JsonJobGraphGenerationTest {
 	private PrintStream out;
 	private PrintStream err;
 
-//	@Before
-//	public void redirectStreams() {
-//		this.out = System.out;
-//		this.err = System.err;
-//
-//		OutputStream discards = new OutputStream() {
-//			@Override
-//			public void write(int b) {}
-//		};
-//		
-//		System.setOut(new PrintStream(discards));
-//		System.setErr(new PrintStream(discards));
-//	}
+	@Before
+	public void redirectStreams() {
+		this.out = System.out;
+		this.err = System.err;
+
+		OutputStream discards = new OutputStream() {
+			@Override
+			public void write(int b) {}
+		};
+		
+		System.setOut(new PrintStream(discards));
+		System.setErr(new PrintStream(discards));
+	}
 	
 	@After
 	public void restoreStreams() {
@@ -228,8 +228,6 @@ public class JsonJobGraphGenerationTest {
 
 		@Override
 		public void validtateJson(String json) throws Exception {
-			System.out.println(json);
-			
 			final Map<String, JsonNode> idToNode = new HashMap<>();
 			
 			// validate the produced JSON

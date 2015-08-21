@@ -584,27 +584,8 @@ public class ExecutionGraph implements Serializable {
 	 * @return an Array containing the StringifiedAccumulatorResult objects
 	 */
 	public StringifiedAccumulatorResult[] getAccumulatorResultsStringified() {
-
 		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
-
-		int num = accumulatorMap.size();
-		StringifiedAccumulatorResult[] resultStrings = new StringifiedAccumulatorResult[num];
-
-		int i = 0;
-		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
-
-			StringifiedAccumulatorResult result;
-			Accumulator<?, ?> value = entry.getValue();
-			if (value != null) {
-				result = new StringifiedAccumulatorResult(entry.getKey(), value.getClass().getSimpleName(), value.toString());
-			} else {
-				result = new StringifiedAccumulatorResult(entry.getKey(), "null", "null");
-			}
-
-			resultStrings[i++] = result;
-		}
-
-		return resultStrings;
+		return StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.io.StrictlyLocalAssignment;
 import org.apache.flink.core.io.InputSplit;
@@ -27,6 +28,7 @@ import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -218,33 +220,12 @@ public class ExecutionJobVertex implements Serializable {
 	}
 	
 	public ExecutionState getAggregateState() {
-		
 		int[] num = new int[ExecutionState.values().length];
-		
 		for (ExecutionVertex vertex : this.taskVertices) {
 			num[vertex.getExecutionState().ordinal()]++;
 		}
-
-		if (num[ExecutionState.FAILED.ordinal()] > 0) {
-			return ExecutionState.FAILED;
-		}
-		if (num[ExecutionState.CANCELING.ordinal()] > 0) {
-			return ExecutionState.CANCELING;
-		}
-		else if (num[ExecutionState.CANCELED.ordinal()] > 0) {
-			return ExecutionState.CANCELED;
-		}
-		else if (num[ExecutionState.RUNNING.ordinal()] > 0) {
-			return ExecutionState.RUNNING;
-		}
-		else if (num[ExecutionState.FINISHED.ordinal()] > 0) {
-			return num[ExecutionState.FINISHED.ordinal()] == parallelism ?
-					ExecutionState.FINISHED : ExecutionState.RUNNING;
-		}
-		else {
-			// all else collapses under created
-			return ExecutionState.CREATED;
-		}
+		
+		return getAggregateJobVertexState(num, parallelism);
 	}
 	
 	//---------------------------------------------------------------------------------------------
@@ -528,6 +509,19 @@ public class ExecutionJobVertex implements Serializable {
 		return agg;
 	}
 
+	public StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified() {
+		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<String, Accumulator<?, ?>>();
+
+		for (ExecutionVertex vertex : taskVertices) {
+			Map<String, Accumulator<?, ?>> next = vertex.getCurrentExecutionAttempt().getUserAccumulators();
+			if (next != null) {
+				AccumulatorHelper.mergeInto(userAccumulators, next);
+			}
+		}
+
+		return StringifiedAccumulatorResult.stringifyAccumulatorResults(userAccumulators);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Static / pre-assigned input splits
 	// --------------------------------------------------------------------------------------------
@@ -663,6 +657,33 @@ public class ExecutionJobVertex implements Serializable {
 			} else {
 				return inputSplitsPerSubtask[taskId].remove(inputSplitsPerSubtask[taskId].size() - 1);
 			}
+		}
+	}
+
+	public static ExecutionState getAggregateJobVertexState(int[] verticesPerState, int parallelism) {
+		if (verticesPerState == null || verticesPerState.length != ExecutionState.values().length) {
+			throw new IllegalArgumentException("Must provide an array as large as there are execution states.");
+		}
+
+		if (verticesPerState[ExecutionState.FAILED.ordinal()] > 0) {
+			return ExecutionState.FAILED;
+		}
+		if (verticesPerState[ExecutionState.CANCELING.ordinal()] > 0) {
+			return ExecutionState.CANCELING;
+		}
+		else if (verticesPerState[ExecutionState.CANCELED.ordinal()] > 0) {
+			return ExecutionState.CANCELED;
+		}
+		else if (verticesPerState[ExecutionState.RUNNING.ordinal()] > 0) {
+			return ExecutionState.RUNNING;
+		}
+		else if (verticesPerState[ExecutionState.FINISHED.ordinal()] > 0) {
+			return verticesPerState[ExecutionState.FINISHED.ordinal()] == parallelism ?
+					ExecutionState.FINISHED : ExecutionState.RUNNING;
+		}
+		else {
+			// all else collapses under created
+			return ExecutionState.CREATED;
 		}
 	}
 }

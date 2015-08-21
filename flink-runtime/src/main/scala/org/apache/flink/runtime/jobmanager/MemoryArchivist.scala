@@ -157,7 +157,7 @@ class MemoryArchivist(private val max_entries: Int)
     message match {
       case _ : RequestJobsOverview =>
         try {
-          sender ! createJobsOverview()
+          sender ! decorateMessage(createJobsOverview())
         }
         catch {
           case t: Throwable => log.error("Exception while creating the jobs overview", t)
@@ -165,7 +165,7 @@ class MemoryArchivist(private val max_entries: Int)
   
       case _ : RequestJobsWithIDsOverview =>
         try {
-          sender ! createJobsWithIDsOverview()
+          sender ! decorateMessage(createJobsWithIDsOverview())
         }
         catch {
           case t: Throwable => log.error("Exception while creating the jobs overview", t)
@@ -176,7 +176,7 @@ class MemoryArchivist(private val max_entries: Int)
           v => WebMonitorUtils.createDetailsForJob(v)
         }.toArray[JobDetails]
         
-        theSender ! new MultipleJobsDetails(null, details)
+        theSender ! decorateMessage(new MultipleJobsDetails(null, details))
     }
   }
 

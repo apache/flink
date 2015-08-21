@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -30,13 +33,10 @@ import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import java.io.StringWriter;
 import java.util.Map;
 
-/**
- * Request handler that returns the JSON program plan of a job graph.
- */
-public class SubtasksTimesHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
 
+public class JobVertexDetailsHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
 	
-	public SubtasksTimesHandler(ExecutionGraphHolder executionGraphHolder) {
+	public JobVertexDetailsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
@@ -54,13 +54,14 @@ public class SubtasksTimesHandler extends AbstractExecutionGraphRequestHandler i
 		catch (Exception e) {
 			throw new IllegalArgumentException("Invalid JobVertexID string '" + vidString + "': " + e.getMessage());
 		}
-
+		
 		ExecutionJobVertex jobVertex = graph.getJobVertex(vid);
 		if (jobVertex == null) {
 			throw new IllegalArgumentException("No vertex with ID '" + vidString + "' exists.");
 		}
 
-
+		final long now = System.currentTimeMillis();
+		
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
 
@@ -68,29 +69,63 @@ public class SubtasksTimesHandler extends AbstractExecutionGraphRequestHandler i
 
 		gen.writeStringField("id", jobVertex.getJobVertexId().toString());
 		gen.writeStringField("name", jobVertex.getJobVertex().getName());
-		gen.writeNumberField("now", System.currentTimeMillis());
-		
-		gen.writeArrayFieldStart("subtasks");
+		gen.writeNumberField("parallelism", jobVertex.getParallelism());
+		gen.writeNumberField("now", now);
 
+		gen.writeArrayFieldStart("subtasks");
 		int num = 0;
 		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
-			gen.writeStartObject();
-			gen.writeNumberField("subtask", num);
-
+			final ExecutionState status = vertex.getExecutionState();
+			
 			InstanceConnectionInfo location = vertex.getCurrentAssignedResourceLocation();
 			String locationString = location == null ? "(unassigned)" : location.getHostname();
-			gen.writeStringField("host", locationString);
 
-			gen.writeObjectFieldStart("timestamps");
-			long[] timestamps = vertex.getCurrentExecutionAttempt().getStateTimestamps();
-			for (ExecutionState state : ExecutionState.values()) {
-				gen.writeNumberField(state.name(), timestamps[state.ordinal()]);
+			long startTime = vertex.getStateTimestamp(ExecutionState.DEPLOYING);
+			if (startTime == 0) {
+				startTime = -1;
 			}
+			long endTime = status.isTerminal() ? vertex.getStateTimestamp(status) : -1;
+			long duration = startTime > 0 ? ((endTime > 0 ? endTime : now) - startTime) : -1;
+			
+			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> metrics = vertex.getCurrentExecutionAttempt().getFlinkAccumulators();
+			LongCounter readBytes;
+			LongCounter writeBytes;
+			LongCounter readRecords;
+			LongCounter writeRecords;
+			
+			if (metrics != null) {
+				readBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_IN);
+				writeBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_OUT);
+				readRecords = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_IN);
+				writeRecords = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT);
+			}
+			else {
+				readBytes = null;
+				writeBytes = null;
+				readRecords = null;
+				writeRecords = null;
+			}
+			
+			gen.writeStartObject();
+			gen.writeNumberField("subtask", num);
+			gen.writeStringField("status", status.name());
+			gen.writeNumberField("attempt", vertex.getCurrentExecutionAttempt().getAttemptNumber());
+			gen.writeStringField("host", locationString);
+			gen.writeNumberField("start-time", startTime);
+			gen.writeNumberField("end-time", endTime);
+			gen.writeNumberField("duration", duration);
+
+			gen.writeObjectFieldStart("metrics");
+			gen.writeNumberField("read-bytes", readBytes != null ? readBytes.getLocalValuePrimitive() : -1L);
+			gen.writeNumberField("write-bytes", writeBytes != null ? writeBytes.getLocalValuePrimitive() : -1L);
+			gen.writeNumberField("read-records", readRecords != null ? readRecords.getLocalValuePrimitive() : -1L);
+			gen.writeNumberField("write-records",writeRecords != null ? writeRecords.getLocalValuePrimitive() : -1L);
 			gen.writeEndObject();
+			
 			gen.writeEndObject();
 		}
-
 		gen.writeEndArray();
+		
 		gen.writeEndObject();
 
 		gen.close();
