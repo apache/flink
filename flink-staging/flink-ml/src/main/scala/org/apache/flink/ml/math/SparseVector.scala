@@ -99,24 +99,19 @@ case class SparseVector(
     val numRows = size
     val numCols = other.size
 
-    other match {
-      case SparseVector(size, indices, data_) =>
-        val entries: Array[(Int, Int, Double)] = for {
-          i <- (0 until numRows).toArray
-          j <- indices
-          value = this(i) * other(j)
-          if value != 0
-        } yield (i, j, value)
-
-        SparseMatrix.fromCOO(numRows, numCols, entries)
-      case _ =>
-        val values = for {
-          i <- (0 until numRows)
-          j <- (0 until numCols)
-        } yield this(i) * other(j)
-
-        DenseMatrix(numRows, numCols, values.toArray)
+    val otherIndices = other match {
+      case sv @ SparseVector(_, _, _) => sv.indices
+      case dv @ DenseVector(_) => (0 until dv.size).toArray
     }
+
+    val entries = for {
+      i <- indices
+      j <- otherIndices
+      value = this(i) * other(j)
+      if value != 0
+    } yield (i, j, value)
+
+    SparseMatrix.fromCOO(numRows, numCols, entries)
   }
 
 
