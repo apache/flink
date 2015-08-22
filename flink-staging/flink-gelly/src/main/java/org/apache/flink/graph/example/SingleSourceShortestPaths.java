@@ -22,12 +22,10 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
 import org.apache.flink.graph.library.SingleSourceShortestPathsAlgorithm;
-import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
  * This example implements the Single Source Shortest Paths algorithm,
@@ -51,15 +49,7 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Edge<Long, Double>> edges = getEdgesDataSet(env);
-
-		Graph<Long, Double, Double> graph = Graph.fromDataSet(edges,
-				new MapFunction<Long, Double>() {
-
-					public Double map(Long value) {
-						return Double.MAX_VALUE;
-					}
-		}, env);
+		Graph<Long, Double, Double> graph = SingleSourceShortestPaths.getGraph(env);
 
 		DataSet<Vertex<Long, Double>> singleSourceShortestPaths = graph
 				.run(new SingleSourceShortestPathsAlgorithm<Long>(srcVertexId, maxIterations))
@@ -121,15 +111,25 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 		return true;
 	}
 
-	private static DataSet<Edge<Long, Double>> getEdgesDataSet(ExecutionEnvironment env) {
+	@SuppressWarnings("unchecked")
+	private static Graph<Long, Double, Double> getGraph(ExecutionEnvironment env) {
 		if (fileOutput) {
-			return env.readCsvFile(edgesInputPath)
-					.lineDelimiter("\n")
-					.fieldDelimiter("\t")
-					.types(Long.class, Long.class, Double.class)
-					.map(new Tuple3ToEdgeMap<Long, Double>());
-		} else {
-			return SingleSourceShortestPathsData.getDefaultEdgeDataSet(env);
+			return Graph.fromCsvReader(edgesInputPath, new MapFunction<Long, Double>() {
+				@Override
+				public Double map(Long value) throws Exception {
+					return Double.MAX_VALUE;
+				}
+			}, env).lineDelimiterEdges("\n")
+					.fieldDelimiterEdges("\t")
+					.typesEdges(Long.class, Double.class)
+					.typesVertices(Long.class, Double.class);
+			} else {
+			return Graph.fromDataSet(SingleSourceShortestPathsData.getDefaultEdgeDataSet(env), new MapFunction<Long, Double>() {
+				@Override
+				public Double map(Long value) throws Exception {
+					return Double.MAX_VALUE;
+				}
+			}, env);
 		}
 	}
 }
