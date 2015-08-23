@@ -62,6 +62,37 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
+	public void testCorrectnessofGroupReduceOnTupleContainingPrimitiveByteArrayWithKeyFieldSelectors() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple2<byte[], Integer>> ds = CollectionDataSets.getTuple2WithByteArrayDataSet(env);
+		DataSet<Integer> reduceDs = ds.
+				groupBy(0).reduceGroup(new ByteArrayGroupReduce());
+
+		List<Integer> result = reduceDs.collect();
+
+		String expected = "0\n"
+				+ "1\n"
+				+ "2\n"
+				+ "3\n"
+				+ "4\n";
+
+		compareResultAsText(result, expected);
+
+	}
+
+	public static class ByteArrayGroupReduce implements GroupReduceFunction<Tuple2<byte[], Integer>, Integer> {
+		@Override
+		public void reduce(Iterable<Tuple2<byte[], Integer>> values, Collector<Integer> out) throws Exception {
+			int sum = 0;
+			for (Tuple2<byte[], Integer> value : values) {
+				sum += value.f1;
+			}
+			out.collect(sum);
+		}
+	}
+
+	@Test
 	public void testCorrectnessOfGroupReduceOnTuplesWithKeyFieldSelector() throws Exception{
 		/*
 		 * check correctness of groupReduce on tuples with key field selector
