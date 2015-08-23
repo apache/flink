@@ -704,8 +704,8 @@ public class TypeExtractor {
 			return parameter;
 		}
 		
-		throw new IllegalArgumentException("The types of the interface " + baseClass.getName() + " could not be inferred. " + 
-						"Support for synthetic interfaces, lambdas, and generic types is limited at this point.");
+		throw new InvalidTypesException("The types of the interface " + baseClass.getName() + " could not be inferred. " + 
+						"Support for synthetic interfaces, lambdas, and generic or raw types is limited at this point");
 	}
 	
 	private static Type getParameterTypeFromGenericType(Class<?> baseClass, ArrayList<Type> typeHierarchy, Type t, int pos) {
@@ -755,7 +755,7 @@ public class TypeExtractor {
 		try {
 			inType = getParameterType(baseClass, typeHierarchy, clazz, inputParamPos);
 		}
-		catch (IllegalArgumentException e) {
+		catch (InvalidTypesException e) {
 			return; // skip input validation e.g. for raw types
 		}
 

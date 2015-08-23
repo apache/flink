@@ -38,6 +38,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
@@ -846,6 +847,25 @@ public class TypeExtractorTest {
 		catch (InvalidTypesException e) {
 			// expected
 		}
+	}
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	@Test
+	public void testFunctionWithMissingGenericsAndReturns() {
+		RichMapFunction function = new RichMapFunction() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Object map(Object value) throws Exception {
+				return null;
+			}
+		};
+
+		TypeInformation info = ExecutionEnvironment.getExecutionEnvironment()
+				.fromElements("arbitrary", "data")
+				.map(function).returns("String").getResultType();
+
+		Assert.assertEquals(TypeInfoParser.parse("String"), info);
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
