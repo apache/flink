@@ -36,7 +36,7 @@ import org.apache.flink.graph.gsa.SumFunction;
  * 
  * The implementation assumes that each page has at least one incoming and one outgoing link.
  */
-public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double> {
+public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, Graph<K, Double, Double>> {
 
 	private double beta;
 	private int maxIterations;

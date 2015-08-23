@@ -649,8 +649,9 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
       jtuple.f1))
   }
 
-  def run(algorithm: GraphAlgorithm[K, VV, EV]) = {
-    wrapGraph(jgraph.run(algorithm))
+  def run[T: TypeInformation : ClassTag](algorithm: GraphAlgorithm[K, VV, EV, T]):
+  T = {
+    jgraph.run(algorithm)
   }
 
   /**

@@ -432,7 +432,6 @@ public class Graph<K, VV, EV> {
 	 * @param returnType the explicit return type.
 	 * @return a new graph
 	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public <NV> Graph<K, VV, NV> mapEdges(final MapFunction<Edge<K, EV>, NV> mapper, TypeInformation<Edge<K,NV>> returnType) {
 		DataSet<Edge<K, NV>> mappedEdges = edges.map(
 				new MapFunction<Edge<K, EV>, Edge<K, NV>>() {
@@ -1451,7 +1450,13 @@ public class Graph<K, VV, EV> {
 		return new Graph<K, VV, EV>(newVertices, this.edges, this.context);
 	}
 
-	public Graph<K, VV, EV> run(GraphAlgorithm<K, VV, EV> algorithm) throws Exception {
+	/**
+	 * @param algorithm the algorithm to run on the Graph
+	 * @param <T> the return type
+	 * @return the result of the graph algorithm
+	 * @throws Exception
+	 */
+	public <T> T run(GraphAlgorithm<K, VV, EV, T> algorithm) throws Exception {
 		return algorithm.run(this);
 	}
 

@@ -31,7 +31,8 @@ import org.apache.flink.graph.spargel.VertexUpdateFunction;
  * This is an implementation of the Single-Source-Shortest Paths algorithm, using a vertex-centric iteration.
  */
 @SuppressWarnings("serial")
-public class SingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, Double> {
+public class SingleSourceShortestPaths<K> implements
+	GraphAlgorithm<K, Double, Double, Graph<K, Double, Double>> {
 
 	private final K srcVertexId;
 	private final Integer maxIterations;
