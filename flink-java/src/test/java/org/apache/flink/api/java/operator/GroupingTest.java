@@ -613,7 +613,7 @@ public class GroupingTest {
 	public static class CustomType2 implements Serializable {
 
 		public int myInt;
-		public int[] myIntArray;
+		public Integer[] myIntArray;
 
 	}
 }
