@@ -30,7 +30,8 @@ import org.apache.flink.graph.gsa.Neighbor;
 /**
  * This is an implementation of the Single Source Shortest Paths algorithm, using a gather-sum-apply iteration
  */
-public class GSASingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, Double> {
+public class GSASingleSourceShortestPaths<K> implements
+	GraphAlgorithm<K, Double, Double, Graph<K, Double, Double>> {
 
 	private final K srcVertexId;
 	private final Integer maxIterations;

@@ -369,6 +369,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 		}
 	}
 
+	@SuppressWarnings("serial")
 	private static final class GetReachableVertices extends GatherFunction<HashSet<Long>, Long, HashSet<Long>> {
 
 		@Override
@@ -377,6 +378,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 		}
 	}
 
+	@SuppressWarnings("serial")
 	private static final class FindAllReachableVertices extends SumFunction<HashSet<Long>, Long, HashSet<Long>> {
 		@Override
 		public HashSet<Long> sum(HashSet<Long> newSet, HashSet<Long> currentSet) {
@@ -388,6 +390,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 		}
 	}
 
+	@SuppressWarnings("serial")
 	private static final class UpdateReachableVertices extends ApplyFunction<Long, HashSet<Long>, HashSet<Long>> {
 
 		@Override

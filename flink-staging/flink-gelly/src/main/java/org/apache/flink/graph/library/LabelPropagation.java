@@ -42,7 +42,8 @@ import java.util.Map.Entry;
  */
 @SuppressWarnings("serial")
 
-public class LabelPropagation<K extends Comparable<K>> implements GraphAlgorithm<K, Long, NullValue> {
+public class LabelPropagation<K extends Comparable<K>> implements
+	GraphAlgorithm<K, Long, NullValue, Graph<K, Long, NullValue>> {
 
 	private final int maxIterations;
 

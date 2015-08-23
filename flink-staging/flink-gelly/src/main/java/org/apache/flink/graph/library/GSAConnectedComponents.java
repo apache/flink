@@ -29,7 +29,8 @@ import org.apache.flink.types.NullValue;
 /**
  * This is an implementation of the Connected Components algorithm, using a gather-sum-apply iteration.
  */
-public class GSAConnectedComponents implements GraphAlgorithm<Long, Long, NullValue> {
+public class GSAConnectedComponents implements
+	GraphAlgorithm<Long, Long, NullValue, Graph<Long, Long, NullValue>> {
 
 	private Integer maxIterations;
 

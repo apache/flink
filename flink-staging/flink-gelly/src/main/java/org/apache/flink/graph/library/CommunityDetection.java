@@ -44,7 +44,8 @@ import java.util.TreeMap;
  *
  * @see <a href="http://arxiv.org/pdf/0808.2633.pdf">article explaining the algorithm in detail</a>
  */
-public class CommunityDetection implements GraphAlgorithm<Long, Long, Double> {
+public class CommunityDetection implements
+	GraphAlgorithm<Long, Long, Double, Graph<Long, Long, Double>> {
 
 	private Integer maxIterations;
 

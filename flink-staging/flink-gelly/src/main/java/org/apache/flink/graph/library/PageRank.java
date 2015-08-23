@@ -37,7 +37,8 @@ import org.apache.flink.graph.spargel.VertexUpdateFunction;
  * 
  * The implementation assumes that each page has at least one incoming and one outgoing link.
  */
-public class PageRank<K> implements	GraphAlgorithm<K, Double, Double> {
+public class PageRank<K> implements
+	GraphAlgorithm<K, Double, Double, Graph<K, Double, Double>> {
 
 	private double beta;
 	private int maxIterations;

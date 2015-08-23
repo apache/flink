@@ -22,8 +22,9 @@ package org.apache.flink.graph;
  * @param <K> key type
  * @param <VV> vertex value type
  * @param <EV> edge value type
+ * @param <T> the return type
  */
-public interface GraphAlgorithm<K, VV, EV> {
+public interface GraphAlgorithm<K, VV, EV, T> {
 
-	public Graph<K, VV, EV> run(Graph<K, VV, EV> input) throws Exception;
+	public T run(Graph<K, VV, EV> input) throws Exception;
 }

@@ -80,8 +80,6 @@ public class ConnectedComponents implements ProgramDescription {
 		} else {
 			verticesWithMinIds.print();
 		}
-
-
 	}
 
 	@Override
