@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
@@ -26,9 +25,7 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
-import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
@@ -54,10 +51,6 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 
 		this.distinctLocationName = distinctLocationName;
 
-		if (!(input.getType() instanceof CompositeType) &&
-				!(input.getType() instanceof AtomicType && input.getType().isKeyType())){
-			throw new InvalidProgramException("Distinct only possible on composite or atomic key types.");
-		}
 		// if keys is null distinction is done on all fields
 		if (keys == null) {
 			keys = new Keys.ExpressionKeys<T>(new String[] {Keys.ExpressionKeys.SELECT_ALL_CHAR }, input.getType());

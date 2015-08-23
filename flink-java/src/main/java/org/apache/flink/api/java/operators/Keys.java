@@ -209,6 +209,9 @@ public abstract class Keys<T> {
 				throw new InvalidProgramException("Specifying keys via field positions is only valid " +
 						"for tuple data types. Type: " + type);
 			}
+			if (type.getArity() == 0) {
+				throw new InvalidProgramException("Tuple size must be greater than 0. Size: " + type.getArity());
+			}
 
 			if (!allowEmpty && (groupingFields == null || groupingFields.length == 0)) {
 				throw new IllegalArgumentException("The grouping fields must not be empty.");
@@ -240,6 +243,9 @@ public abstract class Keys<T> {
 					}
 					else {
 						// arrived at key position
+						if (!fieldType.isKeyType()) {
+							throw new InvalidProgramException("This type (" + fieldType + ") cannot be used as key.");
+						}
 						if(fieldType instanceof CompositeType) {
 							// add all nested fields of composite type
 							((CompositeType) fieldType).getFlatFields("*", offset, keyFields);
@@ -296,6 +302,15 @@ public abstract class Keys<T> {
 				keyFields = new ArrayList<FlatFieldDescriptor>(expressions.length);
 				for (int i = 0; i < expressions.length; i++) {
 					List<FlatFieldDescriptor> keys = cType.getFlatFields(expressions[i]); // use separate list to do a size check
+					for (FlatFieldDescriptor key : keys) {
+						TypeInformation<?> keyType = key.getType();
+						if (!keyType.isKeyType()) {
+							throw new InvalidProgramException("This type (" + key.getType() + ") cannot be used as key.");
+						}
+						if (!(keyType instanceof AtomicType || keyType instanceof CompositeType)) {
+							throw new InvalidProgramException("Field type is neither CompositeType nor AtomicType: " + keyType);
+						}
+					}
 					if(keys.size() == 0) {
 						throw new InvalidProgramException("Unable to extract key from expression '"+expressions[i]+"' on key "+cType);
 					}

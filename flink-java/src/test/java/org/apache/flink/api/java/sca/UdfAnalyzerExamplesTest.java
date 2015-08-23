@@ -529,8 +529,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testLogisticRegressionExamplesSumGradient() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(ReduceFunction.class, SumGradient.class,
-				"Tuple1<double[]>",
-				"Tuple1<double[]>",
+				"Tuple1<double>",
+				"Tuple1<double>",
 				new String[] { "0" });
 	}
 
