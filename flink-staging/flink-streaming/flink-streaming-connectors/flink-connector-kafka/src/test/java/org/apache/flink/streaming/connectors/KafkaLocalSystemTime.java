@@ -15,19 +15,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.partitioner;
+package org.apache.flink.streaming.connectors;
 
-public class KafkaConstantPartitioner implements SerializableKafkaPartitioner {
+import kafka.utils.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-	private static final long serialVersionUID = 1L;
-	private int partition;
+public class KafkaLocalSystemTime implements Time {
 
-	public KafkaConstantPartitioner(int partition) {
-		this.partition = partition;
+	private static final Logger LOG = LoggerFactory.getLogger(KafkaLocalSystemTime.class);
+
+	@Override
+	public long milliseconds() {
+		return System.currentTimeMillis();
 	}
 
 	@Override
-	public int partition(Object value, int numberOfPartitions) {
-		return partition;
+	public long nanoseconds() {
+		return System.nanoTime();
 	}
+
+	@Override
+	public void sleep(long ms) {
+		try {
+			Thread.sleep(ms);
+		} catch (InterruptedException e) {
+			LOG.warn("Interruption", e);
+		}
+	}
+
 }
+
