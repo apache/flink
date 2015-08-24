@@ -44,7 +44,13 @@ import java.io.ObjectOutputStream;
 
 import static org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase.getCredentialsFromUGI;
 
-
+/**
+ * Common base for the mapred HadoopOutputFormat wrappers. There are implementations for Java and Scala.
+ *
+ * @param <K> Type of Key
+ * @param <V> Type of Value
+ * @param <T> Record type.
+ */
 public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormatCommonBase<T> implements FinalizeOnMaster {
 
 	private static final long serialVersionUID = 1L;

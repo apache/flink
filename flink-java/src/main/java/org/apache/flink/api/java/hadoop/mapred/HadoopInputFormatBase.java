@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.hadoop.mapred;
 
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
@@ -47,6 +46,13 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
+/**
+ * Common base for Java and Scala API for using Hadoop input formats with Flink.
+ *
+ * @param <K> Type of key
+ * @param <V> Type of value
+ * @param <T> The type iself
+ */
 public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCommonBase<T, HadoopInputSplit> {
 
 	private static final long serialVersionUID = 1L;

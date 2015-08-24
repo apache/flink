@@ -59,11 +59,6 @@ public abstract class HadoopInputFormatCommonBase<T, SPITTYPE extends InputSplit
 	 * @return new credentials object from the user information. MAY RETURN NULL!
 	 */
 	public static Credentials getCredentialsFromUGI(UserGroupInformation ugi) {
-		/*Credentials creds = new Credentials();
-		for(Token t: ugi.getTokens()) {
-			creds.addToken(t.getKind(), t);
-		}
-		return creds; */
 		Method getCredentialsMethod = null;
 		for(Method m: ugi.getClass().getMethods()) {
 			if(m.getName().equals("getCredentials")) {

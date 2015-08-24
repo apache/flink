@@ -50,6 +50,9 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+/**
+ * Base class shared between the Java and Scala API of Flink
+ */
 public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCommonBase<T, HadoopInputSplit> {
 
 	private static final long serialVersionUID = 1L;
