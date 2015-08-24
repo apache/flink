@@ -52,6 +52,7 @@ import org.apache.flink.api.common.operators.base.BulkIterationBase.PartialSolut
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
+import org.apache.flink.api.common.operators.base.PersistOperatorBase;
 import org.apache.flink.api.common.operators.util.TypeComparable;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -84,6 +85,8 @@ public class CollectionExecutor {
 
 	private int iterationSuperstep;
 
+	private HashMap<String, List<?>> persistentResult;
+
 	// --------------------------------------------------------------------------------------------
 	
 	public CollectionExecutor(ExecutionConfig executionConfig) {
@@ -95,6 +98,7 @@ public class CollectionExecutor {
 		this.aggregators = new HashMap<String, Aggregator<?>>();
 		this.cachedFiles = new HashMap<String, Future<Path>>();
 		this.classLoader = getClass().getClassLoader();
+		this.persistentResult = new HashMap<>();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -138,6 +142,15 @@ public class CollectionExecutor {
 		}
 		else if (operator instanceof DeltaIterationBase) {
 			result = executeDeltaIteration((DeltaIterationBase<?, ?>) operator);
+		}
+		else if (operator instanceof PersistOperatorBase) {
+			if (persistentResult.containsKey(operator.getName())) {
+				result = persistentResult.get(operator.getName());
+			}
+			else {
+				result = executeUnaryOperator((SingleInputOperator<?, ?, ?>) operator, superStep);
+				persistentResult.put(operator.getName(), result);
+			}
 		}
 		else if (operator instanceof SingleInputOperator) {
 			result = executeUnaryOperator((SingleInputOperator<?, ?, ?>) operator, superStep);

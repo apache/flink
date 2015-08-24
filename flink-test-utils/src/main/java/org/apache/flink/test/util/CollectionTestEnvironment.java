@@ -19,6 +19,8 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.operators.CollectionExecutor;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
@@ -27,12 +29,20 @@ public class CollectionTestEnvironment extends CollectionEnvironment {
 
 	private CollectionTestEnvironment lastEnv = null;
 
+	CollectionExecutor executor = null;
+
+	public CollectionTestEnvironment() {
+	}
+
+	public CollectionTestEnvironment(CollectionExecutor executor) {
+		this.executor = executor;
+	}
+
 	@Override
 	public JobExecutionResult getLastJobExecutionResult() {
 		if (lastEnv == null) {
 			return this.lastJobExecutionResult;
-		}
-		else {
+		} else {
 			return lastEnv.getLastJobExecutionResult();
 		}
 	}
@@ -44,16 +54,22 @@ public class CollectionTestEnvironment extends CollectionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		JobExecutionResult result = super.execute(jobName);
-		this.lastJobExecutionResult = result;
-		return result;
+		if (executor == null) {
+			JobExecutionResult result = super.execute(jobName);
+			this.lastJobExecutionResult = result;
+			return result;
+		} else {
+			Plan p = createProgramPlan(jobName);
+			this.lastJobExecutionResult = executor.execute(p);
+			return this.lastJobExecutionResult;
+		}
 	}
 
 	protected void setAsContext() {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
-				lastEnv = new CollectionTestEnvironment();
+				lastEnv = new CollectionTestEnvironment(executor);
 				return lastEnv;
 			}
 		};

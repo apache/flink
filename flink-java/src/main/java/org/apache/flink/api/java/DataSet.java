@@ -68,6 +68,7 @@ import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.PartitionOperator;
+import org.apache.flink.api.java.operators.PersistOperator;
 import org.apache.flink.api.java.operators.ProjectOperator;
 import org.apache.flink.api.java.operators.ProjectOperator.Projection;
 import org.apache.flink.api.java.operators.ReduceOperator;
@@ -190,6 +191,19 @@ public abstract class DataSet<T> {
 	//  Filter & Transformations
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Persists this DataSet in memory and returns a PersistOperator which emits its output from
+	 * memory if available. Otherwise, this DataSet is persisted in memory the first time it is
+	 * executed.
+	 *
+	 * @return A PersistOperator which represents the Persisted DataSet
+	 */
+	public PersistOperator<T> persist() {
+		String callLocation = Utils.getCallLocationName();
+		TypeInformation<T> resultType = this.getType();
+		return new PersistOperator<>(this, resultType, callLocation);
+	}
+
 	/**
 	 * Applies a Map transformation on this DataSet.<br/>
 	 * The transformation calls a {@link org.apache.flink.api.common.functions.MapFunction} for each element of the DataSet.

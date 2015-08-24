@@ -36,6 +36,7 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.MapPartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
+import org.apache.flink.api.common.operators.base.PersistOperatorBase;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.SortPartitionOperatorBase;
 import org.apache.flink.optimizer.CompilerException;
@@ -58,6 +59,7 @@ import org.apache.flink.optimizer.dag.MapNode;
 import org.apache.flink.optimizer.dag.MapPartitionNode;
 import org.apache.flink.optimizer.dag.OptimizerNode;
 import org.apache.flink.optimizer.dag.PartitionNode;
+import org.apache.flink.optimizer.dag.PersistNode;
 import org.apache.flink.optimizer.dag.ReduceNode;
 import org.apache.flink.optimizer.dag.SolutionSetNode;
 import org.apache.flink.optimizer.dag.SortPartitionNode;
@@ -135,6 +137,9 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 		}
 		else if (c instanceof GenericDataSourceBase) {
 			n = new DataSourceNode((GenericDataSourceBase<?, ?>) c);
+		}
+		else if (c instanceof PersistOperatorBase) {
+			n = new PersistNode((PersistOperatorBase) c);
 		}
 		else if (c instanceof MapOperatorBase) {
 			n = new MapNode((MapOperatorBase<?, ?, ?>) c);

@@ -55,6 +55,7 @@ import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
+import org.apache.flink.runtime.operators.util.DummyPersistInvokable;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -578,7 +579,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			for (int i = 0; i < this.resettableInputs.length; i++) {
 				if (this.resettableInputs[i] != null) {
 					try {
-						this.resettableInputs[i].close();
+						if (this.getTaskConfig().isPersistTask()) {
+							this.resettableInputs[i].reset();
+						} else {
+							this.resettableInputs[i].close();
+						}
 					} catch (Throwable t) {
 						LOG.error("Error closing cache for input " + i, t);
 					}
@@ -802,11 +807,12 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			final int memoryPages;
 			final boolean async = this.config.isInputAsynchronouslyMaterialized(i);
 			final boolean cached =  this.config.isInputCached(i);
+			final boolean persist = this.config.isPersistTask();
 
 			this.inputIsAsyncMaterialized[i] = async;
 			this.inputIsCached[i] = cached;
 
-			if (async || cached) {
+			if (async || cached || persist) {
 				memoryPages = memMan.computeNumberOfPages(this.config.getRelativeInputMaterializationMemory(i));
 				if (memoryPages <= 0) {
 					throw new Exception("Input marked as materialized/cached, but no memory for materialization provided.");
@@ -828,6 +834,24 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 					getInput(i), this.inputSerializers[i].getSerializer(), getMemoryManager(), getIOManager(), memoryPages, this);
 				this.resettableInputs[i] = iter;
 				this.inputs[i] = iter;
+			} else if (persist) {
+				LOG.info("Persisted input found");
+				// first check if the Memory Manager has the input in cache.
+				if (memMan.getPersistedInput(getEnvironment().getTaskNameWithSubtasks()) != null) {
+					LOG.info("Serving from memory");
+					this.resettableInputs[i] = memMan.getPersistedInput(getEnvironment().getTaskNameWithSubtasks());
+					this.inputs[i] = this.resettableInputs[i];
+				}
+				else {
+					@SuppressWarnings({ "unchecked", "rawtypes" })
+					SpillingResettableMutableObjectIterator<?> iterator = new SpillingResettableMutableObjectIterator(
+							getInput(i), this.inputSerializers[i].getSerializer(),
+							getMemoryManager(), getIOManager(), memoryPages, DummyPersistInvokable.INSTANCE);
+					this.resettableInputs[i] = iterator;
+					this.inputs[i] = this.resettableInputs[i];
+					memMan.putPersistedInput(getEnvironment().getTaskNameWithSubtasks(), iterator);
+					LOG.info("Adding to memory");
+				}
 			}
 		}
 	}

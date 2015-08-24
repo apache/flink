@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableObjectIterator;
 
 /**
  * Interface for a memory manager that assigns portions of memory to different tasks. Each allocated segment of
@@ -131,4 +132,20 @@ public interface MemoryManager {
 	 * @return True, if the memory manager is empty and valid, false if it is not empty or corrupted.
 	 */
 	boolean verifyEmpty();
+
+	/**
+	 * Get the persistent iterator stored in the memory manager under the given key
+	 *
+	 * @param key Key
+	 * @return The persistent iterator for the given key.
+	 */
+	SpillingResettableMutableObjectIterator getPersistedInput(String key);
+
+	/**
+	 * Put the persistent iterator for a given key in the memory manager
+	 *
+	 * @param key Key
+	 * @param iterator Iterator to be stored
+	 */
+	void putPersistedInput(String key, SpillingResettableMutableObjectIterator iterator);
 }
