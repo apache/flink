@@ -246,7 +246,7 @@ public class RandomSamplerTest {
 			totalSampledSize += getSize(sampler.sample(source.iterator()));
 		}
 		double resultFraction = totalSampledSize / ((double) SOURCE_SIZE * sampleCount);
-		assertTrue(String.format("expected fraction: %f, result fraction: %f", fraction, resultFraction), Math.abs((resultFraction - fraction) / fraction) < 0.1);
+		assertTrue(String.format("expected fraction: %f, result fraction: %f", fraction, resultFraction), Math.abs((resultFraction - fraction) / fraction) < 0.2);
 	}
 
 	/*
@@ -440,13 +440,13 @@ public class RandomSamplerTest {
 	}
 	
 	/*
-	 * Calculate the D value of K-S test for p-value 0.05, m and n are the sample size
+	 * Calculate the D value of K-S test for p-value 0.01, m and n are the sample size
 	 */
 	private double getDValue(int m, int n) {
 		Preconditions.checkArgument(m > 0, "input sample size should be positive.");
 		Preconditions.checkArgument(n > 0, "input sample size should be positive.");
 		double first = (double) m;
 		double second = (double) n;
-		return 1.36 * Math.sqrt((first + second) / (first * second));
+		return 1.63 * Math.sqrt((first + second) / (first * second));
 	}
 }
