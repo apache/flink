@@ -49,7 +49,7 @@ public class NetUtils {
 	 *
 	 * See: http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
 	 */
-	public static void ensureCorrectHostnamePort(String hostPort) {
+	public static URL getHostnamePort(String hostPort) {
 		try {
 			URL u = new URL("http://"+hostPort);
 			if(u.getHost() == null) {
@@ -58,6 +58,7 @@ public class NetUtils {
 			if(u.getPort() == -1) {
 				throw new IllegalArgumentException("The given host:port ('"+hostPort+"') doesn't contain a valid port");
 			}
+			return u;
 		} catch (MalformedURLException e) {
 			throw new IllegalArgumentException("The given host:port ('"+hostPort+"') is invalid", e);
 		}
