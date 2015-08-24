@@ -17,8 +17,24 @@
 # limitations under the License.
 ################################################################################
 
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
+target="$0"
+# For the case, the executable has been directly symlinked, figure out
+# the correct bin path by following its symlink up to an upper bound.
+# Note: we can't use the readlink utility here if we want to be POSIX
+# compatible.
+iteration=0
+while [ -L "$target" ]; do
+    if [ "$iteration" -gt 100 ]; then
+        echo "Cannot resolve path: You have a cyclic symlink in $target."
+        break
+    fi
+    ls=`ls -ld -- "$target"`
+    target=`expr "$ls" : '.* -> \(.*\)$'`
+    iteration=$((iteration + 1))
+done
+
+# Convert relative path to absolute path
+bin=`dirname "$target"`
 
 # get flink config
 . "$bin"/config.sh

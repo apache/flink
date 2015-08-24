@@ -101,26 +101,28 @@ KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 # PATHS AND CONFIG
 ########################################################################################################################
 
-# Resolve links
-this="$0"
-while [ -h "$this" ]; do
-  ls=`ls -ld "$this"`
-  link=`expr "$ls" : '.*-> \(.*\)$'`
-  if expr "$link" : '.*/.*' > /dev/null; then
-    this="$link"
-  else
-    this=`dirname "$this"`/"$link"
-  fi
+target="$0"
+# For the case, the executable has been directly symlinked, figure out
+# the correct bin path by following its symlink up to an upper bound.
+# Note: we can't use the readlink utility here if we want to be POSIX
+# compatible.
+iteration=0
+while [ -L "$target" ]; do
+    if [ "$iteration" -gt 100 ]; then
+        echo "Cannot resolve path: You have a cyclic symlink in $target."
+        break
+    fi
+    ls=`ls -ld -- "$target"`
+    target=`expr "$ls" : '.* -> \(.*\)$'`
+    iteration=$((iteration + 1))
 done
 
-# Convert relative path to absolute path
-bin=`dirname "$this"`
-script=`basename "$this"`
-bin=`cd "$bin"; pwd`
-this="$bin/$script"
+# Convert relative path to absolute path and resolve directory symlinks
+bin=`dirname "$target"`
+SYMLINK_RESOLVED_BIN=`cd "$bin"; pwd -P`
 
 # Define the main directory of the flink installation
-FLINK_ROOT_DIR=`dirname "$this"`/..
+FLINK_ROOT_DIR=`dirname "$SYMLINK_RESOLVED_BIN"`
 FLINK_LIB_DIR=$FLINK_ROOT_DIR/lib
 
 # These need to be mangled because they are directly passed to java.
