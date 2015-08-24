@@ -239,14 +239,14 @@ public class RandomSamplerTest {
 			sampler = new BernoulliSampler<Double>(fraction);
 		}
 		
-		// take 5 times sample, and take the average result size for next step comparison.
+		// take 20 times sample, and take the average result size for next step comparison.
 		int totalSampledSize = 0;
-		double sampleCount = 5;
+		double sampleCount = 20;
 		for (int i = 0; i < sampleCount; i++) {
 			totalSampledSize += getSize(sampler.sample(source.iterator()));
 		}
 		double resultFraction = totalSampledSize / ((double) SOURCE_SIZE * sampleCount);
-		assertTrue(String.format("expected fraction: %f, result fraction: %f", fraction, resultFraction), Math.abs((resultFraction - fraction) / fraction) < 0.1);
+		assertTrue(String.format("expected fraction: %f, result fraction: %f", fraction, resultFraction), Math.abs((resultFraction - fraction) / fraction) < 0.2);
 	}
 
 	/*
@@ -440,13 +440,13 @@ public class RandomSamplerTest {
 	}
 	
 	/*
-	 * Calculate the D value of K-S test for p-value 0.05, m and n are the sample size
+	 * Calculate the D value of K-S test for p-value 0.01, m and n are the sample size
 	 */
 	private double getDValue(int m, int n) {
 		Preconditions.checkArgument(m > 0, "input sample size should be positive.");
 		Preconditions.checkArgument(n > 0, "input sample size should be positive.");
 		double first = (double) m;
 		double second = (double) n;
-		return 1.36 * Math.sqrt((first + second) / (first * second));
+		return 1.63 * Math.sqrt((first + second) / (first * second));
 	}
 }
