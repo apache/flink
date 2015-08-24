@@ -1518,16 +1518,16 @@ Stream connectors
 
 <!-- TODO: reintroduce flume -->
 Connectors provide code for interfacing with various third-party systems.
-Currently these systems are supported:
-
- * [Apache Kafka](https://kafka.apache.org/)
- * [Elasticsearch](https://elastic.co/)
- * [RabbitMQ](http://www.rabbitmq.com/)
- * [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis).
-
 Typically the connector packages consist of a source and sink class
 (with the exception of Twitter where only a source is provided and Elasticsearch
 where only a sink is provided).
+
+Currently these systems are supported:
+
+ * [Apache Kafka](https://kafka.apache.org/) (sink/source)
+ * [Elasticsearch](https://elastic.co/) (sink)
+ * [RabbitMQ](http://www.rabbitmq.com/) (sink/source)
+ * [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) (source)
 
 To run an application using one of these connectors, additional third party
 components are usually required to be installed and launched, e.g. the servers
