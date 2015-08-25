@@ -21,6 +21,7 @@ package org.apache.flink.optimizer.operators;
 
 import java.util.List;
 
+import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.TwoInputNode;
@@ -119,6 +120,29 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
 				if(j == this.keys1.size()) {
 					throw new CompilerException("Fields were not found in key fields.");
 				}
+			}
+		}
+		return true;
+	}
+
+	protected boolean checkSameOrdering(LocalProperties produced1, LocalProperties produced2, int numRelevantFields) {
+		Ordering prod1 = produced1.getOrdering();
+		Ordering prod2 = produced2.getOrdering();
+
+		if (prod1 == null || prod2 == null) {
+			throw new CompilerException("The given properties do not meet this operators requirements.");
+		}
+
+		// check that order of fields is equivalent
+		if (!checkEquivalentFieldPositionsInKeyFields(
+				prod1.getInvolvedIndexes(), prod2.getInvolvedIndexes(), numRelevantFields)) {
+			return false;
+		}
+
+		// check that both inputs have the same directions of order
+		for (int i = 0; i < numRelevantFields; i++) {
+			if (prod1.getOrder(i) != prod2.getOrder(i)) {
+				return false;
 			}
 		}
 		return true;
