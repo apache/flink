@@ -127,7 +127,7 @@ FLINK_LIB_DIR=$FLINK_ROOT_DIR/lib
 # The above lib path is used by the shell script to retrieve jars in a 
 # directory, so it needs to be unmangled.
 FLINK_ROOT_DIR_MANGLED=`manglePath "$FLINK_ROOT_DIR"`
-FLINK_CONF_DIR=$FLINK_ROOT_DIR_MANGLED/conf
+if [ -z "$FLINK_CONF_DIR" ]; then FLINK_CONF_DIR=$FLINK_ROOT_DIR_MANGLED/conf; fi
 FLINK_BIN_DIR=$FLINK_ROOT_DIR_MANGLED/bin
 FLINK_LOG_DIR=$FLINK_ROOT_DIR_MANGLED/log
 YAML_CONF=${FLINK_CONF_DIR}/flink-conf.yaml
