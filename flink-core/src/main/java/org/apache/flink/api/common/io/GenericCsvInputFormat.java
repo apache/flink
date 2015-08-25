@@ -445,7 +445,12 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			// quoted string parsing enabled and field is quoted
 			// search for ending quote character
 			i++;
-			while(i < limit && bytes[i] != quoteCharacter) {
+
+			while(i < limit){
+				//quote character was escaped
+				if (bytes[i]==quoteCharacter && bytes[i-1]!=92){
+					break;
+				}
 				i++;
 			}
 			i++;

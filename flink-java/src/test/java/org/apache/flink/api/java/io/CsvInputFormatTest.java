@@ -984,7 +984,7 @@ public class CsvInputFormatTest {
 	@Test
 	public void testQuotedStringParsingWithIncludeFields() throws Exception {
 		final String fileContent = "\"20:41:52-1-3-2015\"|\"Re: Taskmanager memory error in Eclipse\"|" +
-				"\"Blahblah <blah@blahblah.org>\"|\"bla\"|\"blubb\"";
+				"\"Blah\\\"blah\\\" <blah@blahblah.org>\"|\"bla\"|\"blubb\"";
 
 		final File tempFile = File.createTempFile("CsvReaderQuotedString", "tmp");
 		tempFile.deleteOnExit();
@@ -1010,7 +1010,7 @@ public class CsvInputFormatTest {
 		Tuple2<String, String> record = inputFormat.nextRecord(new Tuple2<String, String>());
 
 		assertEquals("20:41:52-1-3-2015", record.f0);
-		assertEquals("Blahblah <blah@blahblah.org>", record.f1);
+		assertEquals("Blah\\\"blah\\\" <blah@blahblah.org>", record.f1);
 	}
 
 	// --------------------------------------------------------------------------------------------

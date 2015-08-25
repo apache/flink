@@ -52,7 +52,11 @@ public class StringValueParser extends FieldParser<StringValue> {
 			i++;
 
 			// search for ending quote character
-			while(i < limit && bytes[i] != quoteCharacter) {
+			while (i < limit){
+				//92 is the byte representation of the escape character
+				if (bytes[i] == quoteCharacter && bytes[i-1]!=92){
+					break;
+				}
 				i++;
 			}
 
