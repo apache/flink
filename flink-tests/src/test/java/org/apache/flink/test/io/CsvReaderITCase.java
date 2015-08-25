@@ -22,9 +22,16 @@ import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
+import org.apache.flink.types.BooleanValue;
+import org.apache.flink.types.ByteValue;
+import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.FloatValue;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.LongValue;
+import org.apache.flink.types.ShortValue;
+import org.apache.flink.types.StringValue;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -32,29 +39,17 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
-
-import static org.junit.Assert.fail;
+import java.util.List;
 
 @RunWith(Parameterized.class)
-public class CsvReaderWithPOJOITCase extends MultipleProgramsTestBase {
-	private String resultPath;
+public class CsvReaderITCase extends MultipleProgramsTestBase {
 	private String expected;
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	public CsvReaderWithPOJOITCase(TestExecutionMode mode) {
+	public CsvReaderITCase(TestExecutionMode mode) {
 		super(mode);
-	}
-
-	@Before
-	public void before() throws Exception {
-		resultPath = tempFolder.newFile("result").toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception {
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	private String createInputData(String data) throws Exception {
@@ -71,11 +66,10 @@ public class CsvReaderWithPOJOITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<POJOItem> data = env.readCsvFile(dataPath).pojoType(POJOItem.class, new String[]{"f1", "f3", "f2"});
-		data.writeAsText(resultPath);
-
-		env.execute();
+		List<POJOItem> result = data.collect();
 
 		expected = "ABC,3,2.20\nDEF,5,5.10\nDEF,1,3.30\nGHI,10,3.30";
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -85,28 +79,19 @@ public class CsvReaderWithPOJOITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<POJOItem> data = env.readCsvFile(dataPath).pojoType(POJOItem.class, new String[]{"f3", "f1", "f2"});
-		data.writeAsText(resultPath);
-
-		env.execute();
+		List<POJOItem> result = data.collect();
 
 		expected = "ABC,3,2.20\nDEF,5,5.10\nDEF,1,3.30\nGHI,10,3.30";
+		compareResultAsText(result, expected);
 	}
 
-	@Test
+	@Test(expected = NullPointerException.class)
 	public void testPOJOTypeWithoutFieldsOrder() throws Exception {
 		final String inputData = "";
 		final String dataPath = createInputData(inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		try {
-			env.readCsvFile(dataPath).pojoType(POJOItem.class, null);
-			fail("POJO type without fields order must raise NullPointerException!");
-		} catch (NullPointerException e) {
-			// success
-		}
-
-		expected = "";
-		resultPath = dataPath;
+		env.readCsvFile(dataPath).pojoType(POJOItem.class, null);
 	}
 
 	@Test
@@ -116,11 +101,24 @@ public class CsvReaderWithPOJOITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<POJOItem> data = env.readCsvFile(dataPath).includeFields(true, false, true).pojoType(POJOItem.class, new String[]{"f2", "f1"});
-		data.writeAsText(resultPath);
-
-		env.execute();
+		List<POJOItem> result = data.collect();
 
 		expected = "ABC,3,0.00\nDEF,5,0.00\nDEF,1,0.00\nGHI,10,0.00";
+		compareResultAsText(result, expected);
+	}
+
+	@Test
+	public void testValueTypes() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple8<StringValue, BooleanValue, ByteValue, ShortValue, IntValue, LongValue, FloatValue, DoubleValue>> data =
+				env.readCsvFile(dataPath).types(StringValue.class, BooleanValue.class, ByteValue.class, ShortValue.class, IntValue.class, LongValue.class, FloatValue.class, DoubleValue.class);
+		List<Tuple8<StringValue, BooleanValue, ByteValue, ShortValue, IntValue, LongValue, FloatValue, DoubleValue>> result = data.collect();
+
+		expected = inputData;
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class POJOItem {
