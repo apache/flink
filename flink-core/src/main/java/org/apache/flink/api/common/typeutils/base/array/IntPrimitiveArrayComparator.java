@@ -30,7 +30,7 @@ public class IntPrimitiveArrayComparator extends PrimitiveArrayComparator<int[],
 	public int hash(int[] record) {
 		int result = 0;
 		for (int field : record) {
-			result += comparator.hash(field);
+			result += field;
 		}
 		return result;
 	}
@@ -38,9 +38,9 @@ public class IntPrimitiveArrayComparator extends PrimitiveArrayComparator<int[],
 	@Override
 	public int compare(int[] first, int[] second) {
 		for (int x = 0; x < min(first.length, second.length); x++) {
-			int cmp = comparator.compare(first[x], second[x]);
+			int cmp = first[x] - second[x];
 			if (cmp != 0) {
-				return cmp;
+				return ascending ? cmp : -cmp;
 			}
 		}
 		int cmp = first.length - second.length;

@@ -30,7 +30,7 @@ public class FloatPrimitiveArrayComparator extends PrimitiveArrayComparator<floa
 	public int hash(float[] record) {
 		int result = 0;
 		for (float field : record) {
-			result += comparator.hash(field);
+			result += Float.floatToIntBits(field);
 		}
 		return result;
 	}
@@ -38,9 +38,9 @@ public class FloatPrimitiveArrayComparator extends PrimitiveArrayComparator<floa
 	@Override
 	public int compare(float[] first, float[] second) {
 		for (int x = 0; x < min(first.length, second.length); x++) {
-			int cmp = comparator.compare(first[x], second[x]);
+			int cmp = Float.compare(first[x], second[x]);
 			if (cmp != 0) {
-				return cmp;
+				return ascending ? cmp : -cmp;
 			}
 		}
 		int cmp = first.length - second.length;

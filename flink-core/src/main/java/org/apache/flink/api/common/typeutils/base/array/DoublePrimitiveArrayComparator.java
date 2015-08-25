@@ -30,7 +30,8 @@ public class DoublePrimitiveArrayComparator extends PrimitiveArrayComparator<dou
 	public int hash(double[] record) {
 		int result = 0;
 		for (double field : record) {
-			result += comparator.hash(field);
+			long bits = Double.doubleToLongBits(field);
+			result += (int) (bits ^ (bits >>> 32));
 		}
 		return result;
 	}
@@ -38,9 +39,9 @@ public class DoublePrimitiveArrayComparator extends PrimitiveArrayComparator<dou
 	@Override
 	public int compare(double[] first, double[] second) {
 		for (int x = 0; x < min(first.length, second.length); x++) {
-			int cmp = comparator.compare(first[x], second[x]);
+			int cmp = Double.compare(first[x], second[x]);
 			if (cmp != 0) {
-				return cmp;
+				return ascending ? cmp : -cmp;
 			}
 		}
 		int cmp = first.length - second.length;

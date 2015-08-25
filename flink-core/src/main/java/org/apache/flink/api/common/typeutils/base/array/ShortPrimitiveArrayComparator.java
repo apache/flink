@@ -30,7 +30,7 @@ public class ShortPrimitiveArrayComparator extends PrimitiveArrayComparator<shor
 	public int hash(short[] record) {
 		int result = 0;
 		for (short field : record) {
-			result += comparator.hash(field);
+			result += (int) field;
 		}
 		return result;
 	}
@@ -38,9 +38,9 @@ public class ShortPrimitiveArrayComparator extends PrimitiveArrayComparator<shor
 	@Override
 	public int compare(short[] first, short[] second) {
 		for (int x = 0; x < min(first.length, second.length); x++) {
-			int cmp = comparator.compare(first[x], second[x]);
+			int cmp = first[x] - second[x];
 			if (cmp != 0) {
-				return cmp;
+				return ascending ? cmp : -cmp;
 			}
 		}
 		int cmp = first.length - second.length;

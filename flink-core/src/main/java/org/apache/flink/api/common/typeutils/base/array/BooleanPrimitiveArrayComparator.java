@@ -30,7 +30,7 @@ public class BooleanPrimitiveArrayComparator extends PrimitiveArrayComparator<bo
 	public int hash(boolean[] record) {
 		int result = 0;
 		for (boolean field : record) {
-			result += comparator.hash(field);
+			result += field ? 1231 : 1237;
 		}
 		return result;
 	}
@@ -38,9 +38,9 @@ public class BooleanPrimitiveArrayComparator extends PrimitiveArrayComparator<bo
 	@Override
 	public int compare(boolean[] first, boolean[] second) {
 		for (int x = 0; x < min(first.length, second.length); x++) {
-			int cmp = comparator.compare(first[x], second[x]);
+			int cmp = (second[x] == first[x] ? 0 : (first[x] ? 1 : -1));
 			if (cmp != 0) {
-				return cmp;
+				return ascending ? cmp : -cmp;
 			}
 		}
 		int cmp = first.length - second.length;
