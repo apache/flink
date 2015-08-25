@@ -128,7 +128,7 @@ public class GroupingTest {
 	}
 
 	@Test
-	public void testGroupByKeyFields6() {
+	public void testGroupByKeyFieldsOnPrimitiveArray() {
 		this.byteArrayData.add(new Tuple2(new byte[]{0}, new byte[]{1}));
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
