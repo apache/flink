@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Provides the default data sets used for the Triangle Count example.
+ * Provides the default data sets used for the Triangle Count test program.
  * If no parameters are given to the program, the default data sets are used.
  */
 public class TriangleCountData {

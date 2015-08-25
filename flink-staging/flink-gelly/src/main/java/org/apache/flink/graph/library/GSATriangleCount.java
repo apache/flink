@@ -44,8 +44,10 @@ import java.util.TreeMap;
  * Finally, if a node encounters the target id in the list of received messages, it increments the number
  * of triangles found.
  *
- * This implementation is non - iterative. The total number of triangles can be determined by performing
- * a single pass through the graph.
+ * This implementation is non - iterative.
+ *
+ * The algorithm takes an undirected, unweighted graph as input and outputs a DataSet of
+ * Tuple1 which contains a single integer representing the number of triangles.
  */
 public class GSATriangleCount implements
 		GraphAlgorithm<Long, NullValue, NullValue, DataSet<Tuple1<Integer>>> {
