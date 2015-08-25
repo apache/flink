@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -88,7 +86,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Pa
 	
 	private PactDriver<S, Record> driver;
 	
-	private volatile boolean running;
+	private volatile boolean running = true;
 
 	private ExecutionConfig executionConfig;
 	
@@ -119,7 +117,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Pa
 	}
 
 	@Parameterized.Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
+	public static Collection<Object[]> getConfigurations() {
 
 		LinkedList<Object[]> configs = new LinkedList<Object[]>();
 
@@ -184,7 +182,6 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Pa
 		this.stub = (S)stubClass.newInstance();
 
 		// regular running logic
-		this.running = true;
 		boolean stubOpen = false;
 
 		try {
@@ -205,6 +202,10 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Pa
 				throw new Exception("The user defined 'open()' method caused an exception: " + t.getMessage(), t);
 			}
 
+			if (!running) {
+				return;
+			}
+			
 			// run the user code
 			driver.run();
 
@@ -222,10 +223,10 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Pa
 				try {
 					FunctionUtils.closeFunction(this.stub);
 				}
-				catch (Throwable t) {}
+				catch (Throwable ignored) {}
 			}
 
-			// if resettable driver invoke treardown
+			// if resettable driver invoke tear down
 			if (this.driver instanceof ResettablePactDriver) {
 				final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
 				try {
@@ -269,6 +270,13 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Pa
 	
 	public void cancel() throws Exception {
 		this.running = false;
+		
+		// compensate for races, where cancel is called before the driver is set
+		// not that this is an artifact of a bad design of this test base, where the setup
+		// of the basic properties is not separated from the invocation of the execution logic 
+		while (this.driver == null) {
+			Thread.sleep(200);
+		}
 		this.driver.cancel();
 	}
 

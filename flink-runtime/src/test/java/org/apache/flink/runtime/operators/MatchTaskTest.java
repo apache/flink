@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -38,8 +38,11 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 @SuppressWarnings("deprecation")
 public class MatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
@@ -58,11 +61,11 @@ public class MatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Recor
 	
 	@SuppressWarnings("unchecked")
 	private final RecordComparator comparator1 = new RecordComparator(
-		new int[]{0}, (Class<? extends Key<?>>[])new Class[]{ IntValue.class });
+		new int[]{0}, (Class<? extends Key<?>>[])new Class<?>[]{ IntValue.class });
 	
 	@SuppressWarnings("unchecked")
 	private final RecordComparator comparator2 = new RecordComparator(
-		new int[]{0}, (Class<? extends Key<?>>[])new Class[]{ IntValue.class });
+		new int[]{0}, (Class<? extends Key<?>>[])new Class<?>[]{ IntValue.class });
 	
 	private final List<Record> outList = new ArrayList<Record>();
 	
@@ -393,150 +396,177 @@ public class MatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Recor
 	
 	@Test
 	public void testCancelMatchTaskWhileSort1() {
-		int keyCnt = 20;
-		int valCnt = 20;
-		
-		setOutput(new NirvanaOutputList());
-		addDriverComparator(this.comparator1);
-		addDriverComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
-		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
-		setNumFileHandlesForSort(4);
-		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final int keyCnt = 20;
+		final int valCnt = 20;
 		
 		try {
-			addInputSorted(new DelayingInfinitiveInputIterator(100), this.comparator1.duplicate());
-			addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("The test caused an exception.");
-		}
-		
-		final AtomicBoolean success = new AtomicBoolean(false);
-		
-		Thread taskRunner = new Thread() {
-			@Override
-			public void run() {
-				try {
-					testDriver(testTask, MockMatchStub.class);
-					success.set(true);
-				} catch (Exception ie) {
-					ie.printStackTrace();
-				}
+			setOutput(new NirvanaOutputList());
+			addDriverComparator(this.comparator1);
+			addDriverComparator(this.comparator2);
+			getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
+			getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+			getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
+			setNumFileHandlesForSort(4);
+			
+			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+			
+			try {
+				addInputSorted(new DelayingInfinitiveInputIterator(100), this.comparator1.duplicate());
+				addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
+			} catch (Exception e) {
+				e.printStackTrace();
+				Assert.fail("The test caused an exception.");
 			}
-		};
-		taskRunner.start();
-		
-		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, this);
-		tct.start();
-		
-		try {
-			tct.join();
-			taskRunner.join();
-		} catch(InterruptedException ie) {
-			Assert.fail("Joining threads failed");
+	
+			final AtomicReference<Throwable> error = new AtomicReference<>();
+
+			Thread taskRunner = new Thread("Task runner for testCancelMatchTaskWhileSort1()") {
+				@Override
+				public void run() {
+					try {
+						testDriver(testTask, MockMatchStub.class);
+					}
+					catch (Throwable t) {
+						error.set(t);
+					}
+				}
+			};
+			taskRunner.start();
+
+			Thread.sleep(1000);
+
+			cancel();
+			taskRunner.interrupt();
+
+			taskRunner.join(60000);
+
+			assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+
+			Throwable taskError = error.get();
+			if (taskError != null) {
+				taskError.printStackTrace();
+				fail("Error in task while canceling: " + taskError.getMessage());
+			}
 		}
-		
-		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 	
 	@Test
 	public void testCancelMatchTaskWhileSort2() {
-		int keyCnt = 20;
-		int valCnt = 20;
-		
-		setOutput(new NirvanaOutputList());
-		addDriverComparator(this.comparator1);
-		addDriverComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
-		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
-		setNumFileHandlesForSort(4);
-		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final int keyCnt = 20;
+		final int valCnt = 20;
 		
 		try {
-			addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
-			addInputSorted(new DelayingInfinitiveInputIterator(100), this.comparator1.duplicate());
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("The test caused an exception.");
-		}
-		
-		final AtomicBoolean success = new AtomicBoolean(false);
-		
-		Thread taskRunner = new Thread() {
-			@Override
-			public void run() {
-				try {
-					testDriver(testTask, MockMatchStub.class);
-					success.set(true);
-				} catch (Exception ie) {
-					ie.printStackTrace();
-				}
+			setOutput(new NirvanaOutputList());
+			addDriverComparator(this.comparator1);
+			addDriverComparator(this.comparator2);
+			getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
+			getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+			getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
+			setNumFileHandlesForSort(4);
+			
+			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+			
+			try {
+				addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
+				addInputSorted(new DelayingInfinitiveInputIterator(100), this.comparator1.duplicate());
+			} catch (Exception e) {
+				e.printStackTrace();
+				Assert.fail("The test caused an exception.");
 			}
-		};
-		taskRunner.start();
-		
-		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, this);
-		tct.start();
-		
-		try {
-			tct.join();
-			taskRunner.join();
-		} catch(InterruptedException ie) {
-			Assert.fail("Joining threads failed");
+
+			final AtomicReference<Throwable> error = new AtomicReference<>();
+
+			Thread taskRunner = new Thread("Task runner for testCancelMatchTaskWhileSort2()") {
+				@Override
+				public void run() {
+					try {
+						testDriver(testTask, MockMatchStub.class);
+					}
+					catch (Throwable t) {
+						error.set(t);
+					}
+				}
+			};
+			taskRunner.start();
+
+			Thread.sleep(1000);
+
+			cancel();
+			taskRunner.interrupt();
+
+			taskRunner.join(60000);
+
+			assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+
+			Throwable taskError = error.get();
+			if (taskError != null) {
+				taskError.printStackTrace();
+				fail("Error in task while canceling: " + taskError.getMessage());
+			}
 		}
-		
-		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 	
 	@Test
 	public void testCancelMatchTaskWhileMatching() {
-		int keyCnt = 20;
-		int valCnt = 20;
-		
-		setOutput(new NirvanaOutputList());
-		addDriverComparator(this.comparator1);
-		addDriverComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
-		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
-		setNumFileHandlesForSort(4);
-		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
-		
-		addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
-		addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
-		
-		final AtomicBoolean success = new AtomicBoolean(false);
-		
-		Thread taskRunner = new Thread() {
-			@Override
-			public void run() {
-				try {
-					testDriver(testTask, MockDelayingMatchStub.class);
-					success.set(true);
-				} catch (Exception ie) {
-					ie.printStackTrace();
-				}
-			}
-		};
-		taskRunner.start();
-		
-		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, this);
-		tct.start();
+		final int keyCnt = 20;
+		final int valCnt = 20;
 		
 		try {
-			tct.join();
-			taskRunner.join();
-		} catch(InterruptedException ie) {
-			Assert.fail("Joining threads failed");
+			setOutput(new NirvanaOutputList());
+			addDriverComparator(this.comparator1);
+			addDriverComparator(this.comparator2);
+			getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
+			getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+			getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
+			setNumFileHandlesForSort(4);
+			
+			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+			
+			addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
+			addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
+			
+			final AtomicReference<Throwable> error = new AtomicReference<>();
+			
+			Thread taskRunner = new Thread("Task runner for testCancelMatchTaskWhileMatching()") {
+				@Override
+				public void run() {
+					try {
+						testDriver(testTask, MockDelayingMatchStub.class);
+					}
+					catch (Throwable t) {
+						error.set(t);
+					}
+				}
+			};
+			taskRunner.start();
+			
+			Thread.sleep(1000);
+			
+			cancel();
+			taskRunner.interrupt();
+			
+			taskRunner.join(60000);
+			
+			assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+			
+			Throwable taskError = error.get();
+			if (taskError != null) {
+				taskError.printStackTrace();
+				fail("Error in task while canceling: " + taskError.getMessage());
+			}
 		}
-		
-		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 	
 	@Test
