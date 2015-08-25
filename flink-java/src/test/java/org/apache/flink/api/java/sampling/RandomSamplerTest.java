@@ -239,9 +239,9 @@ public class RandomSamplerTest {
 			sampler = new BernoulliSampler<Double>(fraction);
 		}
 		
-		// take 5 times sample, and take the average result size for next step comparison.
+		// take 20 times sample, and take the average result size for next step comparison.
 		int totalSampledSize = 0;
-		double sampleCount = 5;
+		double sampleCount = 20;
 		for (int i = 0; i < sampleCount; i++) {
 			totalSampledSize += getSize(sampler.sample(source.iterator()));
 		}
