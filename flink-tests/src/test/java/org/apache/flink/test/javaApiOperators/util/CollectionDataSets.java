@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -203,6 +204,23 @@ public class CollectionDataSets {
 				BasicTypeInfo.INT_TYPE_INFO
 		);
 
+		return env.fromCollection(data, type);
+	}
+	
+	public static DataSet<Tuple2<byte[], Integer>> getTuple2WithByteArrayDataSet(ExecutionEnvironment env) {
+		List<Tuple2<byte[], Integer>> data = new ArrayList<Tuple2<byte[], Integer>>();
+		data.add(new Tuple2<byte[], Integer>(new byte[]{0, 4}, 1));
+		data.add(new Tuple2<byte[], Integer>(new byte[]{2, 0}, 1));
+		data.add(new Tuple2<byte[], Integer>(new byte[]{2, 0, 4}, 4));
+		data.add(new Tuple2<byte[], Integer>(new byte[]{2, 1}, 3));
+		data.add(new Tuple2<byte[], Integer>(new byte[]{0}, 0));
+		data.add(new Tuple2<byte[], Integer>(new byte[]{2, 0}, 1));
+				
+		TupleTypeInfo<Tuple2<byte[], Integer>> type = new TupleTypeInfo<Tuple2<byte[], Integer>>(
+				PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
+				BasicTypeInfo.INT_TYPE_INFO
+		);
+		
 		return env.fromCollection(data, type);
 	}
 
