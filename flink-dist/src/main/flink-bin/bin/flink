@@ -18,10 +18,9 @@
 ################################################################################
 
 target="$0"
-
 # For the case, the executable has been directly symlinked, figure out
 # the correct bin path by following its symlink up to an upper bound.
-# Note: we can't use readlink -f here if we want to be cross-platform
+# Note: we can't use the readlink utility here if we want to be POSIX
 # compatible.
 iteration=0
 while [ -L "$target" ]; do
@@ -29,7 +28,8 @@ while [ -L "$target" ]; do
         echo "Cannot resolve path: You have a cyclic symlink in $target."
         break
     fi
-    target=`readlink "$target"`
+    ls=`ls -ld -- "$target"`
+    target=`expr "$ls" : '.* -> \(.*\)$'`
     iteration=$((iteration + 1))
 done
 
