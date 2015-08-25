@@ -26,6 +26,7 @@ import org.apache.flink.graph._
 import org.apache.flink.graph.gsa.{ApplyFunction, GSAConfiguration, GatherFunction, SumFunction}
 import org.apache.flink.graph.spargel.{MessagingFunction, VertexCentricConfiguration, VertexUpdateFunction}
 import org.apache.flink.{graph => jg}
+import org.apache.flink.graph.{GraphAlgorithm => JGraphAlgorithm}
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.reflect.ClassTag
@@ -649,10 +650,13 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
       jtuple.f1))
   }
 
-  def run(algorithm: GraphAlgorithm[K, VV, EV]) = {
+  def run(algorithm: JGraphAlgorithm[K, VV, EV]): Graph[K, VV, EV] = {
     wrapGraph(jgraph.run(algorithm))
   }
 
+  def run(algorithm: GraphAlgorithm[K, VV, EV]): Graph[K, VV, EV] = {
+    algorithm.run(this)
+  }
   /**
    * Runs a Vertex-Centric iteration on the graph.
    * No configuration options are provided.
