@@ -78,7 +78,7 @@ public class ExecutionConfig implements Serializable {
 
 	private boolean objectReuse = false;
 
-	private boolean disableAutoTypeRegistration = false;
+	private boolean autoTypeRegistrationEnabled = true;
 
 	private boolean forceAvro = false;
 
@@ -618,7 +618,7 @@ public class ExecutionConfig implements Serializable {
 
 
 	public boolean isAutoTypeRegistrationDisabled() {
-		return disableAutoTypeRegistration;
+		return !autoTypeRegistrationEnabled;
 	}
 
 	/**
@@ -627,7 +627,7 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 */
 	public void disableAutoTypeRegistration() {
-		this.disableAutoTypeRegistration = false;
+		this.autoTypeRegistrationEnabled = false;
 	}
 
 
