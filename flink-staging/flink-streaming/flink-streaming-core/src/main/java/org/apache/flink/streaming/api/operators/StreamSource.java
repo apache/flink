@@ -44,6 +44,7 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 	public void run(Object lockingObject, Output<StreamRecord<T>> collector) throws Exception {
 
 		SourceFunction.SourceContext<T> ctx;
+
 		if (userFunction instanceof EventTimeSourceFunction) {
 			ctx = new ManualWatermarkContext<T>(lockingObject, collector);
 		} else if (executionConfig.getAutoWatermarkInterval() > 0) {
@@ -55,6 +56,10 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		}
 
 		userFunction.run(ctx);
+
+		// This will mostly emit a final +Inf Watermark to make the Watermark logic work
+		// when some sources finish before others do
+		ctx.close();
 	}
 
 	public void cancel() {
@@ -235,6 +240,11 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		public void close() {
 			watermarkTimer.cancel(true);
 			scheduleExecutor.shutdownNow();
+			// emit one last +Inf watermark to make downstream watermark processing work
+			// when some sources close early
+			synchronized (lockingObject) {
+				output.emitWatermark(new Watermark(Long.MAX_VALUE));
+			}
 		}
 	}
 
@@ -278,6 +288,12 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		}
 
 		@Override
-		public void close() {}
+		public void close() {
+			// emit one last +Inf watermark to make downstream watermark processing work
+			// when some sources close early
+			synchronized (lockingObject) {
+				output.emitWatermark(new Watermark(Long.MAX_VALUE));
+			}
+		}
 	}
 }

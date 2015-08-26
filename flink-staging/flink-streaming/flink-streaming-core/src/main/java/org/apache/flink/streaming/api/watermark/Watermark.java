@@ -33,6 +33,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
  * In some cases a watermark is only a heuristic and operators should be able to deal with
  * late elements. They can either discard those or update the result and emit updates/retractions
  * to downstream operations.
+ *
+ * <p>
+ * When a source closes it will emit a final watermark with timestamp {@code Long.MAX_VALUE}. When
+ * an operator receives this it will know that no more input will be arriving in the future.
+ *
  */
 public class Watermark extends StreamElement {
 
