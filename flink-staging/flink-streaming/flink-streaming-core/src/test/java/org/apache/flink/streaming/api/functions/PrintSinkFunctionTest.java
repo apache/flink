@@ -55,6 +55,8 @@ import java.util.concurrent.Future;
  */
 public class PrintSinkFunctionTest<IN> extends RichSinkFunction<IN> {
 
+	public PrintStream PrintStreamOriginal = System.out;
+
 	public class printStreamMock extends PrintStream{
 
 		public String result;
@@ -253,11 +255,8 @@ public class PrintSinkFunctionTest<IN> extends RichSinkFunction<IN> {
 		}
 	};
 
-	public PrintStream PrintStreamOriginal = null;
-
 	@Test
 	public void testPrintSinkStdOut(){
-		PrintStreamOriginal = System.out;
 
 		printStreamMock stream = new printStreamMock(out);
 		System.setOut(stream);
@@ -328,9 +327,7 @@ public class PrintSinkFunctionTest<IN> extends RichSinkFunction<IN> {
 
 	@After
 	public void restoreSystemOut() {
-		if (PrintStreamOriginal != null) {
-			System.setOut(PrintStreamOriginal);
-		}
+		System.setOut(PrintStreamOriginal);
 	}
 
 }
