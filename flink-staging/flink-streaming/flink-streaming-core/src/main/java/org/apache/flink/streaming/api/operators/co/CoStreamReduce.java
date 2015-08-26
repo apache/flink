@@ -35,8 +35,8 @@ public class CoStreamReduce<IN1, IN2, OUT>
 	// We keep track of watermarks from both inputs, the combined input is the minimum
 	// Once the minimum advances we emit a new watermark for downstream operators
 	private long combinedWatermark = Long.MIN_VALUE;
-	private long input1Watermark = Long.MAX_VALUE;
-	private long input2Watermark = Long.MAX_VALUE;
+	private long input1Watermark = Long.MIN_VALUE;
+	private long input2Watermark = Long.MIN_VALUE;
 
 	public CoStreamReduce(CoReduceFunction<IN1, IN2, OUT> coReducer) {
 		super(coReducer);
@@ -68,7 +68,7 @@ public class CoStreamReduce<IN1, IN2, OUT>
 	public void processWatermark1(Watermark mark) throws Exception {
 		input1Watermark = mark.getTimestamp();
 		long newMin = Math.min(input1Watermark, input2Watermark);
-		if (newMin > combinedWatermark && input1Watermark != Long.MAX_VALUE && input2Watermark != Long.MAX_VALUE) {
+		if (newMin > combinedWatermark) {
 			combinedWatermark = newMin;
 			output.emitWatermark(new Watermark(combinedWatermark));
 		}
@@ -78,7 +78,7 @@ public class CoStreamReduce<IN1, IN2, OUT>
 	public void processWatermark2(Watermark mark) throws Exception {
 		input2Watermark = mark.getTimestamp();
 		long newMin = Math.min(input1Watermark, input2Watermark);
-		if (newMin > combinedWatermark && input1Watermark != Long.MAX_VALUE && input2Watermark != Long.MAX_VALUE) {
+		if (newMin > combinedWatermark) {
 			combinedWatermark = newMin;
 			output.emitWatermark(new Watermark(combinedWatermark));
 		}
