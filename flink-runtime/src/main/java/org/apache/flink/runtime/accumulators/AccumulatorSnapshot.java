@@ -84,6 +84,7 @@ public class AccumulatorSnapshot implements Serializable {
 
 	/**
 	 * Gets the Flink (internal) accumulators values.
+	 *
 	 * @return the serialized map
 	 */
 	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> deserializeFlinkAccumulators() throws IOException, ClassNotFoundException {

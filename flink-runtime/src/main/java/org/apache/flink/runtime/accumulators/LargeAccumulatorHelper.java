@@ -71,19 +71,11 @@ public class LargeAccumulatorHelper {
 	}
 
 	/**
-	 * When the result of the job contains oversized (i.e. bigger than
-	 * {@link org.apache.flink.runtime.akka.AkkaUtils#getLargeAccumulatorThreshold(
-			org.apache.flink.configuration.Configuration)} bytes)
-	 * accumulators then these are put in the BlobCache for the client to fetch and merge.
-	 * This method stores the blobs of the large accumulators in the BlobCache. Contrary to
-	 * {@link LargeAccumulatorHelper#storeAccumulatorsToBlobCache(InetSocketAddress, Map)}, this
-	 * method assumes that accumulators are already serialized.
+	 * Puts the blobs of the large accumulators on the BlobCache.
 	 *
 	 * @param blobServerAddress the address of the server to the blobCache.
-	 * @param accumulators      a map with the names and the (serialized) accumulators to be
-	 *                          stored in the BlobCache.
-	 * @return the name of each accumulator with the associated BlobKey that identifies
-	 *         its blob in the BlobCache.
+	 * @param accumulators      the accumulators to be stored in the cache.
+	 * @return the name of each accumulator with the BlobKey that identifies its blob in the BlobCache.
 	 */
 	public static Map<String, List<BlobKey>> storeSerializedAccumulatorsToBlobCache(InetSocketAddress blobServerAddress,
 																					Map<String, SerializedValue<Object>> accumulators) throws IOException {
