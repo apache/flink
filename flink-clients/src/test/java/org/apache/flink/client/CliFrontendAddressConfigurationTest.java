@@ -24,19 +24,27 @@ import static org.junit.Assert.fail;
 
 import static org.mockito.Mockito.*;
 
+import java.io.File;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 
 import org.apache.flink.client.cli.CommandLineOptions;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * Tests that verify that the CLI client picks up the correct address for the JobManager
  * from configuration and configs.
  */
 public class CliFrontendAddressConfigurationTest {
+
+	@Rule
+	public TemporaryFolder folder = new TemporaryFolder();
 	
 	@BeforeClass
 	public static void init() {
@@ -101,11 +109,30 @@ public class CliFrontendAddressConfigurationTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
+	/**
+	 * Test that the CliFrontent is able to pick up the .yarn-properties file from a specified location.
+	 */
 	@Test
 	public void testYarnConfig() {
 		try {
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDirWithYarnFile());
+			File tmpFolder = folder.newFolder();
+			String currentUser = System.getProperty("user.name");
+
+			// copy reference flink-conf.yaml to temporary test directory and append custom configuration path.
+			File confFile = new File(CliFrontendRunTest.class.getResource("/testconfigwithyarn/flink-conf.yaml").getFile());
+			File testConfFile = new File(tmpFolder, "flink-conf.yaml");
+			org.apache.commons.io.FileUtils.copyFile(confFile, testConfFile);
+			String toAppend = "\nyarn.properties-file.location: " + tmpFolder;
+			// append to flink-conf.yaml
+			Files.write(testConfFile.toPath(), toAppend.getBytes(), StandardOpenOption.APPEND);
+			// copy .yarn-properties-<username>
+			File propertiesFile = new File(CliFrontendRunTest.class.getResource("/testconfigwithyarn/.yarn-properties").getFile());
+			File testPropertiesFile = new File(tmpFolder, ".yarn-properties-"+currentUser);
+			org.apache.commons.io.FileUtils.copyFile(propertiesFile, testPropertiesFile);
+
+			// start CLI Frontend
+			CliFrontend frontend = new CliFrontend(tmpFolder.getAbsolutePath());
 
 			CommandLineOptions options = mock(CommandLineOptions.class);
 			InetSocketAddress address = frontend.getJobManagerAddress(options);

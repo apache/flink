@@ -220,9 +220,8 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 
 	// -------------------------- Interaction with the cluster ------------------------
 
-	/**
+	/*
 	 * This call blocks until the message has been recevied.
-	 * @param jobID
 	 */
 	@Override
 	public void stopAfterJob(JobID jobID) {
@@ -232,6 +231,11 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to tell application master to stop once the specified job has been finised", e);
 		}
+	}
+
+	@Override
+	public org.apache.flink.configuration.Configuration getFlinkConfiguration() {
+		return flinkConfig;
 	}
 
 	@Override

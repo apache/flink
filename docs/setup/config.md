@@ -351,6 +351,12 @@ to set the JM host:port manually. It is recommended to leave this option at 1.
 
 - `yarn.heartbeat-delay` (Default: 5 seconds). Time between heartbeats with the ResourceManager.
 
+- `yarn.properties-file.location` (Default: temp directory). When a Flink job is submitted to YARN, 
+the JobManager's host and the number of available processing slots is written into a properties file, 
+so that the Flink client is able to pick those details up. This configuration parameter allows 
+changing the default location of that file (for example for environments sharing a Flink 
+installation between users)
+
 ## Background
 
 ### Configuring the Network Buffers

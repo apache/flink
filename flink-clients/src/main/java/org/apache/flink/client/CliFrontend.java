@@ -103,7 +103,7 @@ public class CliFrontend {
 	private static final String CONFIG_DIRECTORY_FALLBACK_2 = "conf";
 
 	// YARN-session related constants
-	public static final String YARN_PROPERTIES_FILE = ".yarn-properties";
+	public static final String YARN_PROPERTIES_FILE = ".yarn-properties-";
 	public static final String YARN_PROPERTIES_JOBMANAGER_KEY = "jobManager";
 	public static final String YARN_PROPERTIES_PARALLELISM = "parallelism";
 	public static final String YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING = "dynamicPropertiesString";
@@ -162,7 +162,11 @@ public class CliFrontend {
 		this.config = GlobalConfiguration.getConfiguration();
 
 		// load the YARN properties
-		File propertiesFile = new File(configDirectory, YARN_PROPERTIES_FILE);
+		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
+		String currentUser = System.getProperty("user.name");
+		String propertiesFileLocation = config.getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
+
+		File propertiesFile = new File(propertiesFileLocation, CliFrontend.YARN_PROPERTIES_FILE + currentUser);
 		if (propertiesFile.exists()) {
 
 			logAndSysout("Found YARN properties file " + propertiesFile.getAbsolutePath());
