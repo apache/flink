@@ -102,7 +102,10 @@ public class CheckpointCoordinator {
 	
 	private ClassLoader userClassLoader;
 	
-	private boolean shutdown;
+	private volatile boolean shutdown;
+
+	/** Shutdown hook thread to clean up state handles. */
+	private final Thread shutdownHook;
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -139,6 +142,31 @@ public class CheckpointCoordinator {
 		this.userClassLoader = userClassLoader;
 
 		timer = new Timer("Checkpoint Timer", true);
+
+		// Add shutdown hook to clean up state handles
+		shutdownHook = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					CheckpointCoordinator.this.shutdown();
+				}
+				catch (Throwable t) {
+					LOG.error("Error during shutdown of blob service via JVM shutdown hook: " +
+							t.getMessage(), t);
+				}
+			}
+		});
+
+		try {
+			// Add JVM shutdown hook to call shutdown of service
+			Runtime.getRuntime().addShutdownHook(shutdownHook);
+		}
+		catch (IllegalStateException ignored) {
+			// JVM is already shutting down. No need to do anything.
+		}
+		catch (Throwable t) {
+			LOG.error("Cannot register checkpoint coordinator shutdown hook.", t);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -153,38 +181,55 @@ public class CheckpointCoordinator {
 	 */
 	public void shutdown() {
 		synchronized (lock) {
-			if (shutdown) {
-				return;
-			}
-			shutdown = true;
-			LOG.info("Stopping checkpoint coordinator for job " + job);
+			try {	
+				if (shutdown) {
+					return;
+				}
+				shutdown = true;
+				LOG.info("Stopping checkpoint coordinator for job " + job);
 			
-			// shut down the thread that handles the timeouts
-			timer.cancel();
+				// shut down the thread that handles the timeouts
+				timer.cancel();
 			
-			// make sure that the actor does not linger
-			if (jobStatusListener != null) {
-				jobStatusListener.tell(PoisonPill.getInstance());
-				jobStatusListener = null;
-			}
+				// make sure that the actor does not linger
+				if (jobStatusListener != null) {
+					jobStatusListener.tell(PoisonPill.getInstance());
+					jobStatusListener = null;
+				}
 			
-			// the scheduling thread needs also to go away
-			if (periodicScheduler != null) {
-				periodicScheduler.cancel();
-				periodicScheduler = null;
-			}
+				// the scheduling thread needs also to go away
+				if (periodicScheduler != null) {
+					periodicScheduler.cancel();
+					periodicScheduler = null;
+				}
 			
-			// clear and discard all pending checkpoints
-			for (PendingCheckpoint pending : pendingCheckpoints.values()) {
-					pending.discard(userClassLoader, true);
-			}
-			pendingCheckpoints.clear();
+				// clear and discard all pending checkpoints
+				for (PendingCheckpoint pending : pendingCheckpoints.values()) {
+						pending.discard(userClassLoader, true);
+				}
+				pendingCheckpoints.clear();
 			
-			// clean and discard all successful checkpoints
-			for (SuccessfulCheckpoint checkpoint : completedCheckpoints) {
-				checkpoint.discard(userClassLoader);
+				// clean and discard all successful checkpoints
+				for (SuccessfulCheckpoint checkpoint : completedCheckpoints) {
+					checkpoint.discard(userClassLoader);
+				}
+				completedCheckpoints.clear();
 			}
-			completedCheckpoints.clear();
+			finally {
+				// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
+				// shutdown hook itself.
+				if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
+					try {
+						Runtime.getRuntime().removeShutdownHook(shutdownHook);
+					}
+					catch (IllegalStateException ignored) {
+						// race, JVM is in shutdown already, we can safely ignore this
+					}
+					catch (Throwable t) {
+						LOG.warn("Error unregistering checkpoint cooordniator shutdown hook.", t);
+					}
+				}
+			}
 		}
 	}
 	
