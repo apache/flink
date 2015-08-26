@@ -249,6 +249,15 @@ public final class ConfigConstants {
 	 */
 	public static final String YARN_HEARTBEAT_DELAY_SECONDS = "yarn.heartbeat-delay";
 
+	/**
+	 * When a Flink job is submitted to YARN, the JobManager's host and the number of available
+	 * processing slots is written into a properties file, so that the Flink client is able
+	 * to pick those details up.
+	 * This configuration parameter allows changing the default location of that file (for example
+	 * for environments sharing a Flink installation between users)
+	 */
+	public static final String YARN_PROPERTIES_FILE_LOCATION = "yarn.properties-file.location";
+
 
 	// ------------------------ Hadoop Configuration ------------------------
 

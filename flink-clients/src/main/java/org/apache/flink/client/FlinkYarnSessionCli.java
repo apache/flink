@@ -24,6 +24,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
@@ -145,13 +146,13 @@ public class FlinkYarnSessionCli {
 
 		flinkYarnClient.setConfigurationFilePath(confPath);
 
-		List<File> shipFiles = new ArrayList<File>();
+		List<File> shipFiles = new ArrayList<>();
 		// path to directory to ship
 		if (cmd.hasOption(SHIP_PATH.getOpt())) {
 			String shipPath = cmd.getOptionValue(SHIP_PATH.getOpt());
 			File shipDir = new File(shipPath);
 			if (shipDir.isDirectory()) {
-				shipFiles = new ArrayList<File>(Arrays.asList(shipDir.listFiles(new FilenameFilter() {
+				shipFiles = new ArrayList<>(Arrays.asList(shipDir.listFiles(new FilenameFilter() {
 					@Override
 					public boolean accept(File dir, String name) {
 						return !(name.equals(".") || name.equals(".."));
@@ -215,7 +216,7 @@ public class FlinkYarnSessionCli {
 		flinkYarnClient.setDynamicPropertiesEncoded(dynamicPropertiesEncoded);
 
 		if (cmd.hasOption(DETACHED.getOpt())) {
-			detachedMode = true;
+			this.detachedMode = true;
 			flinkYarnClient.setDetachedMode(detachedMode);
 		}
 
@@ -254,7 +255,7 @@ public class FlinkYarnSessionCli {
 	}
 
 	public static AbstractFlinkYarnClient getFlinkYarnClient() {
-		AbstractFlinkYarnClient yarnClient = null;
+		AbstractFlinkYarnClient yarnClient;
 		try {
 			Class<? extends AbstractFlinkYarnClient> yarnClientClass =
 					Class.forName("org.apache.flink.yarn.FlinkYarnClient").asSubclass(AbstractFlinkYarnClient.class);
@@ -288,20 +289,21 @@ public class FlinkYarnSessionCli {
 		int numTaskmanagers = 0;
 		try {
 			BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+			label:
 			while (true) {
 				// ------------------ check if there are updates by the cluster -----------
 
 				FlinkYarnClusterStatus status = yarnCluster.getClusterStatus();
 				if (status != null && numTaskmanagers != status.getNumberOfTaskManagers()) {
 					System.err.println("Number of connected TaskManagers changed to " +
-							status.getNumberOfTaskManagers() + ". Slots available: " +  status.getNumberOfSlots());
+							status.getNumberOfTaskManagers() + ". Slots available: " + status.getNumberOfSlots());
 					numTaskmanagers = status.getNumberOfTaskManagers();
 				}
 
 				List<String> messages = yarnCluster.getNewMessages();
 				if (messages != null && messages.size() > 0) {
 					System.err.println("New messages from the YARN cluster: ");
-					for(String msg : messages) {
+					for (String msg : messages) {
 						System.err.println(msg);
 					}
 				}
@@ -321,12 +323,17 @@ public class FlinkYarnSessionCli {
 
 				if (in.ready()) {
 					String command = in.readLine();
-					if (command.equals("quit") || command.equals("stop")) {
-						break; // leave loop, cli will stop cluster.
-					} else if (command.equals("help"))  {
-						System.err.println(HELP);
-					} else {
-						System.err.println("Unknown command '"+command+"'. Showing help: \n"+HELP);
+					switch (command) {
+						case "quit":
+						case "stop":
+							break label;
+
+						case "help":
+							System.err.println(HELP);
+							break;
+						default:
+							System.err.println("Unknown command '" + command + "'. Showing help: \n" + HELP);
+							break;
 					}
 				}
 				if (yarnCluster.hasBeenStopped()) {
@@ -380,7 +387,7 @@ public class FlinkYarnSessionCli {
 		// Query cluster for metrics
 		if (cmd.hasOption(QUERY.getOpt())) {
 			AbstractFlinkYarnClient flinkYarnClient = getFlinkYarnClient();
-			String description = null;
+			String description;
 			try {
 				description = flinkYarnClient.getClusterDescription();
 			} catch (Exception e) {
@@ -415,8 +422,12 @@ public class FlinkYarnSessionCli {
 			System.out.println("Flink JobManager is now running on " + jobManagerAddress);
 			System.out.println("JobManager Web Interface: " + yarnCluster.getWebInterfaceURL());
 			// file that we write into the conf/ dir containing the jobManager address and the dop.
-			String confDirPath = CliFrontend.getConfigurationDirectoryFromEnv();
-			File yarnPropertiesFile = new File(confDirPath + File.separator + CliFrontend.YARN_PROPERTIES_FILE);
+
+			String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
+			String currentUser = System.getProperty("user.name");
+			String propertiesFileLocation = yarnCluster.getFlinkConfiguration().getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
+
+			File yarnPropertiesFile = new File(propertiesFileLocation + File.separator + CliFrontend.YARN_PROPERTIES_FILE + currentUser);
 
 			Properties yarnProps = new Properties();
 			yarnProps.setProperty(CliFrontend.YARN_PROPERTIES_JOBMANAGER_KEY, jobManagerAddress);

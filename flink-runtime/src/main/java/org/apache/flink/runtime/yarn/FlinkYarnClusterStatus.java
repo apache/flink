@@ -20,7 +20,12 @@ package org.apache.flink.runtime.yarn;
 import java.io.Serializable;
 
 
+/**
+ * Simple status representation of a running YARN cluster.
+ * It contains the number of available Taskmanagers and processing slots.
+ */
 public class FlinkYarnClusterStatus implements Serializable {
+	private static final long serialVersionUID = 4230348124179245370L;
 	private int numberOfTaskManagers;
 	private int numberOfSlots;
 
@@ -62,11 +67,8 @@ public class FlinkYarnClusterStatus implements Serializable {
 		if (numberOfSlots != that.numberOfSlots) {
 			return false;
 		}
-		if (numberOfTaskManagers != that.numberOfTaskManagers) {
-			return false;
-		}
+		return numberOfTaskManagers == that.numberOfTaskManagers;
 
-		return true;
 	}
 
 	@Override

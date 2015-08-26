@@ -220,9 +220,8 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 
 	// -------------------------- Interaction with the cluster ------------------------
 
-	/**
+	/*
 	 * This call blocks until the message has been recevied.
-	 * @param jobID
 	 */
 	@Override
 	public void stopAfterJob(JobID jobID) {
@@ -232,6 +231,11 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to tell application master to stop once the specified job has been finised", e);
 		}
+	}
+
+	@Override
+	public org.apache.flink.configuration.Configuration getFlinkConfiguration() {
+		return flinkConfig;
 	}
 
 	@Override
@@ -265,10 +269,10 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 	@Override
 	public FlinkYarnClusterStatus getClusterStatus() {
 		if(!isConnected) {
-			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
+			throw new IllegalStateException("The cluster is not connected to the ApplicationMaster.");
 		}
 		if(hasBeenStopped()) {
-			throw new RuntimeException("The FlinkYarnCluster has alread been stopped");
+			throw new RuntimeException("The FlinkYarnCluster has already been stopped");
 		}
 		Future<Object> clusterStatusOption = ask(applicationClient, Messages.LocalGetYarnClusterStatus$.MODULE$, akkaTimeout);
 		Object clusterStatus;
