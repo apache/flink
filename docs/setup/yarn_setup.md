@@ -210,6 +210,8 @@ Please note that the client then expects the `-yn` value to be set (number of Ta
 
 The command line options of the YARN session are also available with the `./bin/flink` tool. They are prefixed with a `y` or `yarn` (for the long argument options).
 
+Note: You can use a different configuration directory per job by setting the environment variable `FLINK_CONF_DIR`. To use this copy the `conf` directory from the Flink distribution and modify, for example, the logging settings on a per-job basis.
+
 
 ## Recovery behavior of Flink on YARN
 
