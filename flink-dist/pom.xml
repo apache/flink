@@ -305,7 +305,6 @@ under the License.
 				<!--Build uber jar-->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>2.3</version>
 				<executions>
 					<execution>
 						<phase>package</phase>

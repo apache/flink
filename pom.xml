@@ -906,7 +906,6 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>2.3</version>
 				<executions>
 					<execution>
 						<id>shade-flink</id>
@@ -962,6 +961,12 @@ under the License.
 		-->
 		<pluginManagement>
 			<plugins>
+				<!--set maven shade plugin version-->
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<version>2.4.1</version>
+				</plugin>
 				<!--This plugin's configuration is used to store Eclipse m2e settings
 					only. It has no influence on the Maven build itself. -->
 				<plugin>
