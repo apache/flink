@@ -292,6 +292,10 @@ public abstract class IOManager {
 			List<MemorySegment> targetSegments, int numBlocks) throws IOException;
 
 
+	public File[] getSpillingDirectories() {
+		return this.paths;
+	}
+	
 	// ------------------------------------------------------------------------
 	//                          Utilities
 	// ------------------------------------------------------------------------
@@ -311,4 +315,6 @@ public abstract class IOManager {
 		this.nextPath = newNext >= this.paths.length ? 0 : newNext;
 		return next;
 	}
+	
+	
 }

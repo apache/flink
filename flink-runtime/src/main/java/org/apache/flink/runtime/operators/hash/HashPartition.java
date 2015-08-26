@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.hash;
 
 import java.io.EOFException;
@@ -41,14 +40,13 @@ import org.apache.flink.runtime.memorymanager.AbstractPagedOutputView;
 import org.apache.flink.runtime.util.MathUtils;
 import org.apache.flink.util.MutableObjectIterator;
 
-
 /**
  * 
  * @param <BT> The type of the build side records.
  * @param <PT> The type of the probe side records.
  */
-public class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDataInputView
-{
+public class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDataInputView {
+	
 	// --------------------------------- Table Structure Auxiliaries ------------------------------------
 	
 	protected MemorySegment[] overflowSegments;	// segments in which overflow buckets from the table structure are stored
@@ -71,7 +69,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	
 	private int finalBufferLimit;
 	
-	private BuildSideBuffer<BT> buildSideWriteBuffer;
+	private BuildSideBuffer buildSideWriteBuffer;
 	
 	protected ChannelWriterOutputView probeSideBuffer;
 	
@@ -107,8 +105,6 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	
 	// --------------------------------------------------------------------------------------------------
 	
-	
-	
 	/**
 	 * Creates a new partition, initially in memory, with one buffer for the build side. The partition is
 	 * initialized to expect record insertions for the build side.
@@ -136,7 +132,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		this.numOverflowSegments = 0;
 		this.nextOverflowBucket = 0;
 		
-		this.buildSideWriteBuffer = new BuildSideBuffer<BT>(initialBuffer, memSource);
+		this.buildSideWriteBuffer = new BuildSideBuffer(initialBuffer, memSource);
 	}
 	
 	/**
@@ -239,8 +235,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	 * @return A pointer to the object in the partition, or <code>-1</code>, if the partition is spilled.
 	 * @throws IOException Thrown, when this is a spilled partition and the write failed.
 	 */
-	public final long insertIntoBuildBuffer(BT record) throws IOException
-	{
+	public final long insertIntoBuildBuffer(BT record) throws IOException {
 		this.buildSideRecordCounter++;
 		
 		if (isInMemory()) {
@@ -263,8 +258,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	 * @param record The record to be inserted into the probe side buffers.
 	 * @throws IOException Thrown, if the buffer is full, needs to be spilled, and spilling causes an error.
 	 */
-	public final void insertIntoProbeBuffer(PT record) throws IOException
-	{
+	public final void insertIntoProbeBuffer(PT record) throws IOException {
 		this.probeSideSerializer.serialize(record, this.probeSideBuffer);
 		this.probeSideRecordCounter++;
 	}
@@ -331,8 +325,6 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	}
 	
 	/**
-	 * @param freeMemory
-	 * @param spilledPartitions
 	 * @return The number of write-behind buffers reclaimable after this method call.
 	 * 
 	 * @throws IOException
@@ -351,8 +343,8 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			this.numOverflowSegments = 0;
 			this.nextOverflowBucket = 0;
 			// return the partition buffers
-			for (int i = 0; i < this.partitionBuffers.length; i++) {
-				freeMemory.add(this.partitionBuffers[i]);
+			for (MemorySegment partitionBuffer : this.partitionBuffers) {
+				freeMemory.add(partitionBuffer);
 			}
 			this.partitionBuffers = null;
 			return 0;
@@ -366,7 +358,6 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			this.probeSideChannel.close();
 			this.buildSideChannel.deleteChannel();
 			this.probeSideChannel.deleteChannel();
-			
 			return 0;
 		}
 		else {
@@ -378,10 +369,8 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		}
 	}
 	
-
 	
-	public void clearAllMemory(List<MemorySegment> target)
-	{
+	public void clearAllMemory(List<MemorySegment> target) {
 		// return current buffers from build side and probe side
 		if (this.buildSideWriteBuffer != null) {
 			if (this.buildSideWriteBuffer.getCurrentSegment() != null) {
@@ -405,8 +394,8 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		
 		// return the partition buffers
 		if (this.partitionBuffers != null) {
-			for (int k = 0; k < this.partitionBuffers.length; k++) {
-				target.add(this.partitionBuffers[k]);
+			for (MemorySegment partitionBuffer : this.partitionBuffers) {
+				target.add(partitionBuffer);
 			}
 			this.partitionBuffers = null;
 		}
@@ -421,15 +410,13 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 				this.probeSideChannel.close();
 				this.probeSideChannel.deleteChannel();
 			}
-			
 		}
 		catch (IOException ioex) {
 			throw new RuntimeException("Error deleting the partition files. Some temporary files might not be removed.");
 		}
 	}
 	
-	final PartitionIterator getPartitionIterator(TypeComparator<BT> comparator) throws IOException
-	{
+	final PartitionIterator getPartitionIterator(TypeComparator<BT> comparator) throws IOException {
 		return new PartitionIterator(comparator);
 	}
 	
@@ -457,20 +444,13 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		this.probeSideChannel = ioAccess.createBlockChannelWriter(probeChannelEnumerator.next(), bufferReturnQueue);
 		this.probeSideBuffer = new ChannelWriterOutputView(this.probeSideChannel, this.memorySegmentSize);
 	}
-		
-
-
-
-
-	
 
 	
 	// --------------------------------------------------------------------------------------------------
 	//                   Methods to provide input view abstraction for reading probe records
 	// --------------------------------------------------------------------------------------------------
 	
-	public void setReadPosition(long pointer)
-	{	
+	public void setReadPosition(long pointer) {
 		final int bufferNum = (int) (pointer >>> this.segmentSizeBits);
 		final int offset = (int) (pointer & (this.memorySegmentSize - 1));
 		
@@ -479,8 +459,6 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 					bufferNum < this.partitionBuffers.length-1 ? this.memorySegmentSize : this.finalBufferLimit);
 		
 	}
-
-	
 
 	@Override
 	protected MemorySegment nextSegment(MemorySegment current) throws IOException {
@@ -500,8 +478,8 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	
 	// ============================================================================================
 	
-	protected static final class BuildSideBuffer<BT> extends AbstractPagedOutputView
-	{
+	protected static final class BuildSideBuffer extends AbstractPagedOutputView {
+		
 		private final ArrayList<MemorySegment> targetList;
 		
 		private final MemorySegmentSource memSource;
@@ -513,8 +491,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		private final int sizeBits;
 		
 		
-		private BuildSideBuffer(MemorySegment initialSegment, MemorySegmentSource memSource)
-		{
+		private BuildSideBuffer(MemorySegment initialSegment, MemorySegmentSource memSource) {
 			super(initialSegment, initialSegment.size(), 0);
 			
 			this.targetList = new ArrayList<MemorySegment>();
@@ -524,8 +501,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		
 
 		@Override
-		protected MemorySegment nextSegment(MemorySegment current, int bytesUsed) throws IOException
-		{
+		protected MemorySegment nextSegment(MemorySegment current, int bytesUsed) throws IOException {
 			finalizeSegment(current, bytesUsed);
 			
 			final MemorySegment next;
@@ -553,8 +529,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			return this.currentBlockNumber + 1;
 		}
 		
-		int spill(BlockChannelWriter<MemorySegment> writer) throws IOException
-		{
+		int spill(BlockChannelWriter<MemorySegment> writer) throws IOException {
 			this.writer = writer;
 			final int numSegments = this.targetList.size();
 			for (int i = 0; i < numSegments; i++) {
@@ -564,8 +539,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			return numSegments;
 		}
 		
-		MemorySegment[] close() throws IOException
-		{
+		MemorySegment[] close() throws IOException {
 			final MemorySegment current = getCurrentSegment();
 			if (current == null) {
 				throw new IllegalStateException("Illegal State in HashPartition: No current buffer when finilizing build side.");
@@ -575,7 +549,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			
 			if (this.writer == null) {
 				this.targetList.add(current);
-				MemorySegment[] buffers = (MemorySegment[]) this.targetList.toArray(new MemorySegment[this.targetList.size()]);
+				MemorySegment[] buffers = this.targetList.toArray(new MemorySegment[this.targetList.size()]);
 				this.targetList.clear();
 				return buffers;
 			} else {
@@ -584,29 +558,26 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			}
 		}
 		
-		private void finalizeSegment(MemorySegment seg, int bytesUsed) {
-		}
+		private void finalizeSegment(MemorySegment seg, int bytesUsed) {}
 	}
 	
 	// ============================================================================================
 	
-	final class PartitionIterator implements MutableObjectIterator<BT>
-	{
+	final class PartitionIterator implements MutableObjectIterator<BT> {
+		
 		private final TypeComparator<BT> comparator;
 		
 		private long currentPointer;
 		
 		private int currentHashCode;
 		
-		private PartitionIterator(final TypeComparator<BT> comparator) throws IOException
-		{
+		private PartitionIterator(final TypeComparator<BT> comparator) throws IOException {
 			this.comparator = comparator;
 			setReadPosition(0);
 		}
 		
 		
-		public final BT next(BT reuse) throws IOException
-		{
+		public final BT next(BT reuse) throws IOException {
 			final int pos = getCurrentPositionInSegment();
 			final int buffer = HashPartition.this.currentBufferNum;
 			
@@ -621,8 +592,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			}
 		}
 
-		public final BT next() throws IOException
-		{
+		public final BT next() throws IOException {
 			final int pos = getCurrentPositionInSegment();
 			final int buffer = HashPartition.this.currentBufferNum;
 
