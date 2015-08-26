@@ -15,38 +15,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.api.persistent;
+package org.apache.flink.streaming.connectors.kafka;
 
-import kafka.consumer.ConsumerConfig;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
+import java.util.Properties;
 
 /**
- * Creates a Kafka consumer compatible with reading from Kafka 0.8.1+ consumers.
+ * Creates a Kafka consumer compatible with reading from Kafka 0.8.2.x brokers.
+ * The consumer will internally use the old low-level Kafka API, and manually commit offsets
+ * partition offsets to ZooKeeper.
  *
- * This class is provided as a migration path from the old Flink kafka connectors to the new, updated implemntations.
- *
- * Please use FlinkKafkaConsumer081 and FlinkKafkaConsumer082.
+ * Once Kafka released the new consumer with Kafka 0.8.3 Flink might use the 0.8.3 consumer API
+ * also against Kafka 0.8.2 installations.
  *
  * @param <T> The type of elements produced by this consumer.
  */
-@Deprecated
-public class PersistentKafkaSource<T> extends FlinkKafkaConsumer<T> {
+public class FlinkKafkaConsumer082<T> extends FlinkKafkaConsumer<T> {
 
 	private static final long serialVersionUID = -8450689820627198228L;
 
 	/**
 	 * Creates a new Kafka 0.8.2.x streaming source consumer.
-	 *
+	 * 
 	 * @param topic
 	 *           The name of the topic that should be consumed.
 	 * @param valueDeserializer
-	 *           The de-/serializer used to convert between Kafka's byte messages and Flink's objects.
-	 * @param consumerConfig
-	 *           The consumer config used to configure the Kafka consumer client, and the ZooKeeper client.
+	 *           The de-/serializer used to convert between Kafka's byte messages and Flink's objects. 
+	 * @param props
+	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
 	 */
-	public PersistentKafkaSource(String topic, DeserializationSchema<T> valueDeserializer, ConsumerConfig consumerConfig) {
-		super(topic, valueDeserializer, consumerConfig.props().props(), OffsetStore.FLINK_ZOOKEEPER, FetcherType.LEGACY_LOW_LEVEL);
+	public FlinkKafkaConsumer082(String topic, DeserializationSchema<T> valueDeserializer, Properties props) {
+		super(topic, valueDeserializer, props, OffsetStore.FLINK_ZOOKEEPER, FetcherType.LEGACY_LOW_LEVEL);
 	}
 }

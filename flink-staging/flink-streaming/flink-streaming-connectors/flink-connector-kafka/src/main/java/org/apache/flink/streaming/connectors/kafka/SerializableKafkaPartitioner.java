@@ -14,20 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.kafka.api;
+package org.apache.flink.streaming.connectors.kafka;
 
+import kafka.producer.Partitioner;
 
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
+import java.io.Serializable;
 
-/**
- * Sink that emits its inputs to a Kafka topic.
- *
- * The KafkaSink has been relocated to org.apache.flink.streaming.connectors.kafka.KafkaSink.
- * This class will be removed in future releases of Flink.
- */
-@Deprecated
-public class KafkaSink<IN> extends org.apache.flink.streaming.connectors.kafka.KafkaSink<IN> {
-	public KafkaSink(String brokerList, String topicId, SerializationSchema<IN, byte[]> serializationSchema) {
-		super(brokerList, topicId, serializationSchema);
-	}
+public interface SerializableKafkaPartitioner extends Serializable, Partitioner {
+
 }
