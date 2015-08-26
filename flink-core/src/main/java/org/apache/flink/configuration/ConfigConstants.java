@@ -550,7 +550,7 @@ public final class ConfigConstants {
 	/**
 	 * Default setting for the switch for hash join bloom filters for spilled partitions.
 	 */
-	public static final boolean DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS = true;
+	public static final boolean DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS = false;
 	
 	/**
 	 * The default value for the maximum spilling fan in/out.
