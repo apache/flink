@@ -253,8 +253,11 @@ public class PrintSinkFunctionTest<IN> extends RichSinkFunction<IN> {
 		}
 	};
 
+	public PrintStream PrintStreamOriginal = null;
+
 	@Test
 	public void testPrintSinkStdOut(){
+		PrintStreamOriginal = System.out;
 
 		printStreamMock stream = new printStreamMock(out);
 		System.setOut(stream);
@@ -287,6 +290,7 @@ public class PrintSinkFunctionTest<IN> extends RichSinkFunction<IN> {
 
 	@Test
 	public void testPrintSinkStdErr(){
+		PrintStreamOriginal = System.out;
 
 		printStreamMock stream = new printStreamMock(out);
 		System.setOut(stream);
@@ -324,7 +328,9 @@ public class PrintSinkFunctionTest<IN> extends RichSinkFunction<IN> {
 
 	@After
 	public void restoreSystemOut() {
-		System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out)));
+		if (PrintStreamOriginal != null) {
+			System.setOut(PrintStreamOriginal);
+		}
 	}
 
 }
