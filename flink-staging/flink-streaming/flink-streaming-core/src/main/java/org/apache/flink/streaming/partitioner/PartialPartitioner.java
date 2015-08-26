@@ -48,8 +48,8 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {
 		String str = record.getInstance().getKey(keySelector).toString(); // assume key is the first field
-		int firstChoice = (int) Math.abs(h1.hashBytes(str.getBytes()).asLong()) % numberOfOutputChannels;
-		int secondChoice = (int) Math.abs(h2.hashBytes(str.getBytes()).asLong()) % numberOfOutputChannels;
+		int firstChoice = (int) ( Math.abs(h1.hashBytes(str.getBytes()).asLong()) % numberOfOutputChannels );
+		int secondChoice = (int) ( Math.abs(h2.hashBytes(str.getBytes()).asLong()) % numberOfOutputChannels );
 		int selected = targetTaskStats[firstChoice] > targetTaskStats[secondChoice] ? secondChoice : firstChoice;
 		targetTaskStats[selected]++;
 		
