@@ -750,7 +750,7 @@ public class TaskTest {
 		try {
 			// we may have to wait for a bit to give the actors time to receive the message
 			// and put it into the queue
-			Object rawMessage = taskManagerMessages.poll(10, TimeUnit.SECONDS);
+			Object rawMessage = taskManagerMessages.take();
 			
 			assertNotNull("There is no additional TaskManager message", rawMessage);
 			if (!(rawMessage instanceof TaskMessages.TaskInFinalState)) {
@@ -769,7 +769,7 @@ public class TaskTest {
 		try {
 			// we may have to wait for a bit to give the actors time to receive the message
 			// and put it into the queue
-			Object rawMessage = taskManagerMessages.poll(10, TimeUnit.SECONDS);
+			Object rawMessage = taskManagerMessages.take();
 
 			assertNotNull("There is no additional TaskManager message", rawMessage);
 			if (!(rawMessage instanceof TaskMessages.UpdateTaskExecutionState)) {
@@ -801,7 +801,7 @@ public class TaskTest {
 			// we may have to wait for a bit to give the actors time to receive the message
 			// and put it into the queue
 			TaskMessages.UpdateTaskExecutionState message = 
-					(TaskMessages.UpdateTaskExecutionState) listenerMessages.poll(10, TimeUnit.SECONDS);
+					(TaskMessages.UpdateTaskExecutionState) listenerMessages.take();
 			assertNotNull("There is no additional listener message", message);
 			
 			TaskExecutionState taskState =  message.taskExecutionState();
@@ -826,9 +826,9 @@ public class TaskTest {
 			// we may have to wait for a bit to give the actors time to receive the message
 			// and put it into the queue
 			TaskMessages.UpdateTaskExecutionState message1 =
-					(TaskMessages.UpdateTaskExecutionState) listenerMessages.poll(10, TimeUnit.SECONDS);
+					(TaskMessages.UpdateTaskExecutionState) listenerMessages.take();
 			TaskMessages.UpdateTaskExecutionState message2 =
-					(TaskMessages.UpdateTaskExecutionState) listenerMessages.poll(10, TimeUnit.SECONDS);
+					(TaskMessages.UpdateTaskExecutionState) listenerMessages.take();
 			
 			
 			assertNotNull("There is no additional listener message", message1);
@@ -975,9 +975,9 @@ public class TaskTest {
 			try {
 				triggerLatch.await();
 			}
-			finally {
-				throw new CancelTaskException();
-			}
+			catch (Throwable ignored) {}
+			
+			throw new CancelTaskException();
 		}
 	}
 }
