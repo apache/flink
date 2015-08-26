@@ -72,12 +72,18 @@ public class ClassLoaderUtil {
 								bld.append(" (directory)");
 							}
 							else {
+								JarFile jar = null;
 								try {
-									new JarFile(filePath);
+									jar = new JarFile(filePath);
 									bld.append(" (valid JAR)");
 								}
 								catch (Exception e) {
 									bld.append(" (invalid JAR: ").append(e.getMessage()).append(')');
+								}
+								finally {
+									if (jar != null) {
+										jar.close();
+									}
 								}
 							}
 						}
