@@ -1597,7 +1597,7 @@ To use fault tolerant Kafka Sources, monitoring of the topology needs to be enab
 <div data-lang="java" markdown="1">
 {% highlight java %}
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.enableMonitoring(5000);
+env.enableCheckpointing(5000);
 {% endhighlight %}
 </div>
 </div>
