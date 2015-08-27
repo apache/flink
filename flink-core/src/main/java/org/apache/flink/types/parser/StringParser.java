@@ -27,6 +27,7 @@ public class StringParser extends FieldParser<String> {
 
 	private boolean quotedStringParsing = false;
 	private byte quoteCharacter;
+	private static final byte BACKSLASH = 92;
 
 	private String result;
 
@@ -46,12 +47,8 @@ public class StringParser extends FieldParser<String> {
 			// quoted string parsing enabled and first character Vis a quote
 			i++;
 
-			// search for ending quote character
-			while (i < limit){
-				//92 is the byte representation of the escape character
-				if (bytes[i] == quoteCharacter && bytes[i-1]!=92){
-					break;
-				}
+			// search for ending quote character, continue when it is escaped
+			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)){
 				i++;
 			}
 
