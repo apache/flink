@@ -19,6 +19,14 @@ limitations under the License.
 -->
 <div ng-repeat="exception in exceptions['all-exceptions']" class="panel panel-default panel-multi">
   <div class="panel-heading clearfix">
+    <div class="panel-title">Root exception</div>
+  </div>
+  <div class="panel-body">
+    <pre class="exception">{{ exceptions['root-exception'] }}</pre>
+  </div>
+</div>
+<div ng-repeat="exception in exceptions['all-exceptions']" class="panel panel-default panel-multi">
+  <div class="panel-heading clearfix">
     <div class="panel-title">{{ exception.task }}</div>
   </div>
   <div class="panel-heading clearfix">
