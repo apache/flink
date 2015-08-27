@@ -216,7 +216,8 @@ public class FlinkYarnSessionCli {
 		flinkYarnClient.setDynamicPropertiesEncoded(dynamicPropertiesEncoded);
 
 		if (cmd.hasOption(DETACHED.getOpt())) {
-			flinkYarnClient.setDetachedMode(true);
+			this.detachedMode = true;
+			flinkYarnClient.setDetachedMode(detachedMode);
 		}
 
 		if (cmd.hasOption(STREAMING.getOpt())) {

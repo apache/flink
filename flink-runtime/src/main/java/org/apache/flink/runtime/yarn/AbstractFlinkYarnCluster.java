@@ -75,7 +75,7 @@ public abstract class AbstractFlinkYarnCluster {
 	public abstract List<String> getNewMessages();
 
 	/**
-	 * Retruns a string representation of the ApplicationID assigned by YARN.
+	 * Returns a string representation of the ApplicationID assigned by YARN.
 	 */
 	public abstract String getApplicationId();
 
