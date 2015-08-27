@@ -28,7 +28,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="job")
 
   .navbar-info.first.last
     .label-group
-      bs-label(status="{{status}}" ng-repeat="(status, value) in job.tasks") {{value}}
+      bs-label(status="{{status}}" ng-repeat="(status, value) in job['status-counts']") {{value}}
 
   .navbar-info.first.last.hidden-xs.hidden-sm
     | {{ job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
@@ -47,7 +47,8 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional(ng-if="job")
     li(ui-sref-active='active')
       a(ui-sref=".statistics") Job Accumulators / Statistics
 
-    li(ui-sref-active='active' ng-if="job['end-time'] > -1")
+    //- li(ui-sref-active='active' ng-if="job['end-time'] > -1")
+    li(ui-sref-active='active')
       a(ui-sref=".timeline") Timeline
 
     li(ui-sref-active='active')
