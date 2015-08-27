@@ -132,7 +132,7 @@ class MemoryArchivist(private val max_entries: Int)
       try {
         graphs.get(jobID) match {
           case Some(graph) =>
-            val accumulatorValues = graph.getAccumulatorsSerialized()
+            val accumulatorValues = graph.getSmallAccumulatorsContentSerialized()
             sender() ! AccumulatorResultsFound(jobID, accumulatorValues)
           case None =>
             sender() ! AccumulatorResultsNotFound(jobID)

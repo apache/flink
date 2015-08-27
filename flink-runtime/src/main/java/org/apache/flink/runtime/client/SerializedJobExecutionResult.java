@@ -20,11 +20,14 @@ package org.apache.flink.runtime.client;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.util.SerializedValue;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -38,7 +41,13 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 
 	private final JobID jobId;
 
-	private final Map<String, SerializedValue<Object>> accumulatorResults;
+	// holds the result value of an accumulator
+	private final Map<String, SerializedValue<Object>> smallAccumulatorResults;
+
+	// holds the BlobKeys pointing to the blobs in the BlobCache
+	// containing the serialized accumulators
+	private final Map<String, List<BlobKey>> largeAccumulatorBlobRefs;
+
 
 	private final long netRuntime;
 
@@ -47,13 +56,17 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	 *
 	 * @param jobID The job's ID.
 	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer) in milliseconds
-	 * @param accumulators A map of all accumulator results produced by the job, in serialized form
+	 * @param smallAccumulators A map of all SMALL accumulator results produced by the job, in serialized form
+	 * @param largeAccumulatorBlobRefs A map of all the references to the blobs holding the LARGE accumulators that had
+	 *                                 to be sent through the BlobCache.
 	 */
 	public SerializedJobExecutionResult(JobID jobID, long netRuntime,
-										Map<String, SerializedValue<Object>> accumulators) {
+										Map<String, SerializedValue<Object>> smallAccumulators,
+										Map<String, List<BlobKey>> largeAccumulatorBlobRefs) {
 		this.jobId = jobID;
 		this.netRuntime = netRuntime;
-		this.accumulatorResults = accumulators;
+		this.smallAccumulatorResults = smallAccumulators;
+		this.largeAccumulatorBlobRefs = largeAccumulatorBlobRefs;
 	}
 
 	public JobID getJobId() {
@@ -76,17 +89,28 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	}
 
 	public Map<String, SerializedValue<Object>> getSerializedAccumulatorResults() {
-		return this.accumulatorResults;
+		return this.smallAccumulatorResults;
+	}
+
+	/**
+	 * If the result of the job contained oversized (i.e. bigger that the akka.framesize) accumulators
+	 * then these are put in the BlobCache for the client to fetch and merge. This method gets
+	 * their BlobKeys. If the result is empty, then this means that all (partial) accumulators
+	 * were small enough to be sent directly to the JobManager and be merged there.
+	 * @return the BlobKeys to the blobs containing the oversized accumulators.
+	 * */
+	public Map<String, List<BlobKey>> getBlobKeysToLargeAccumulators() {
+		return this.largeAccumulatorBlobRefs;
 	}
 
 	public JobExecutionResult toJobExecutionResult(ClassLoader loader) throws IOException, ClassNotFoundException {
 		Map<String, Object> accumulators = null;
-		if (accumulatorResults != null) {
-			accumulators = accumulatorResults.isEmpty() ?
+		if (smallAccumulatorResults != null) {
+			accumulators = smallAccumulatorResults.isEmpty() ?
 									Collections.<String, Object>emptyMap() :
-									new HashMap<String, Object>(this.accumulatorResults.size());
+									new HashMap<String, Object>(this.smallAccumulatorResults.size());
 
-			for (Map.Entry<String, SerializedValue<Object>> entry : this.accumulatorResults.entrySet()) {
+			for (Map.Entry<String, SerializedValue<Object>> entry : this.smallAccumulatorResults.entrySet()) {
 				Object o = entry.getValue() == null ? null : entry.getValue().deserializeValue(loader);
 				accumulators.put(entry.getKey(), o);
 			}
@@ -94,4 +118,49 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 
 		return new JobExecutionResult(jobId, netRuntime, accumulators);
 	}
+
+	/**
+	 * Merges the data of the small accumulators in this class, with the <code>accumulatorsToMerge</code>, and
+	 * returns the result in a <code>JobExecutionResult</code>. This method is used by the Client to merge
+	 * the results received from the JobManager, with those in the oversized accumulators that were fetched
+	 * from the BlobCache.
+	 * @param loader
+	 * 			the ClassLoader to used to deserialize the data and the Accumulators.
+	 * @param accumulatorsToMerge
+	 * 			the Accumulators received from the BlobCache as blobs, that are to be merged with local data.
+	 * @return the final result after the merging of the different partial accumulators.
+	 * */
+	public JobExecutionResult mergeToJobExecutionResult(ClassLoader loader, Map<String, Accumulator<?, ?>> accumulatorsToMerge) throws IOException, ClassNotFoundException {
+		if(accumulatorsToMerge == null || accumulatorsToMerge.isEmpty()) {
+			return toJobExecutionResult(loader);
+		}
+
+		Map<String, Object> accumulators = new HashMap<String, Object>();
+
+		for(String name: accumulatorsToMerge.keySet()) {
+			Accumulator acc = accumulatorsToMerge.get(name);
+
+			// add also the data from the non-oversized (i.e. the ones that were sent through akka)
+			// accumulators, if any
+			if (smallAccumulatorResults != null) {
+				SerializedValue<Object> localObject = smallAccumulatorResults.remove(name);
+				if (localObject != null) {
+					acc.add(localObject.deserializeValue(loader));
+				}
+			}
+
+			// and put the data with the associated accumulator name to the list
+			accumulators.put(name, acc.getLocalValue());
+		}
+
+		// finally, put the remaining accumulators in the list.
+		if (smallAccumulatorResults != null) {
+			for (Map.Entry<String, SerializedValue<Object>> entry : this.smallAccumulatorResults.entrySet()) {
+				Object o = entry.getValue() == null ? null : entry.getValue().deserializeValue(loader);
+				accumulators.put(entry.getKey(), o);
+			}
+		}
+		return new JobExecutionResult(jobId, netRuntime, accumulators);
+	}
+
 }

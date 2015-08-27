@@ -44,7 +44,8 @@ import static org.junit.Assert.*;
  *   - when null records are passed through the system.
  *   - when disjoint dataflows are executed
  *   - when accumulators are used chained after a non-udf operator.
- *   
+ *   - when an accumulator is bigger than the akka.framesize.
+ *
  * The tests are bundled into one class to reuse the same test cluster. This speeds
  * up test execution, as the majority of the test time goes usually into starting/stopping the
  * test cluster.
@@ -61,6 +62,8 @@ public class MiscellaneousIssuesITCase {
 			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 3);
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
+			config.setString(ConfigConstants.AKKA_FRAMESIZE, ConfigConstants.DEFAULT_AKKA_FRAMESIZE);
+
 			cluster = new ForkableFlinkMiniCluster(config, false);
 		}
 		catch (Exception e) {
@@ -170,6 +173,54 @@ public class MiscellaneousIssuesITCase {
 			assertEquals(1000000L, result.getAllAccumulatorResults().get(ACC_NAME));
 		}
 		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testOversizedAccumulatorsAtTaskManagers() {
+		try {
+
+			ExecutionEnvironment env =
+					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
+
+			int noOfParallelism = 5;
+			int longsPerTask = 1200000;
+
+			env.setParallelism(noOfParallelism);
+			env.getConfig().disableSysoutLogging();
+
+			DataSet<Long> bigEnough = env.generateSequence(1, noOfParallelism * longsPerTask);
+			long theCount = bigEnough.collect().size();
+
+			assertEquals(noOfParallelism * longsPerTask, theCount);
+
+		}catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testOversizedAccumulatorsAtJobManager() {
+		try {
+
+			ExecutionEnvironment env =
+					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
+
+			int noOfParallelism = 5;
+			int longsInTotal = 1200000;
+
+			env.setParallelism(noOfParallelism);
+			env.getConfig().disableSysoutLogging();
+
+			DataSet<Long> bigEnough = env.generateSequence(1, longsInTotal);
+			long theCount = bigEnough.collect().size();
+
+			assertEquals(longsInTotal, theCount);
+
+		}catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
