@@ -26,7 +26,7 @@ import com.google.common.hash.Hashing;
 public class PartialPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private long[] targetTaskStats; 
+	private long[] targetChannelStats; 
 	private HashFunction h1 = Hashing.murmur3_128(13);
 	private HashFunction h2 = Hashing.murmur3_128(17);
 	KeySelector<T, ?> keySelector;
@@ -34,7 +34,7 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 
 	public PartialPartitioner(KeySelector<T, ?> keySelector, int numberOfOutputChannels) {
 		super(PartitioningStrategy.PARTIAL);
-		this.targetTaskStats = new long[numberOfOutputChannels];
+		this.targetChannelStats = new long[numberOfOutputChannels];
 		this.keySelector = keySelector;
 	}
 
@@ -44,8 +44,8 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		String str = record.getInstance().getKey(keySelector).toString();
 		int firstChoice = (int) ( Math.abs(h1.hashBytes(str.getBytes()).asLong()) % numberOfOutputChannels );
 		int secondChoice = (int) ( Math.abs(h2.hashBytes(str.getBytes()).asLong()) % numberOfOutputChannels );
-		int selected = targetTaskStats[firstChoice] > targetTaskStats[secondChoice] ? secondChoice : firstChoice;
-		targetTaskStats[selected]++;
+		int selected = targetChannelStats[firstChoice] > targetChannelStats[secondChoice] ? secondChoice : firstChoice;
+		targetChannelStats[selected]++;
 		
 		returnArray[0] = selected;
 		return returnArray;
