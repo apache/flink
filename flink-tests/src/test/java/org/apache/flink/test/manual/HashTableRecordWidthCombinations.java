@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.operators.hash;
+package org.apache.flink.test.manual;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
@@ -30,6 +30,7 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.operators.hash.MutableHashTable;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.File;
@@ -38,7 +39,7 @@ import java.util.List;
 
 import static org.junit.Assert.fail;
 
-public class RecordsAndWidthsCombinationCheck {
+public class HashTableRecordWidthCombinations {
 
 	public static void main(String[] args) throws Exception {
 
