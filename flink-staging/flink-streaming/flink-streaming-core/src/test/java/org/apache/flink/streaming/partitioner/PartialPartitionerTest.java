@@ -58,9 +58,9 @@ public class PartialPartitionerTest {
 	public void testSelectChannels() {
 		sd1.setInstance(streamRecord1);
 		
-		int choice1 = partialPartitioner.selectChannels(sd1, numOfOutChannels)[0];
-		int choice2 = partialPartitioner.selectChannels(sd1, numOfOutChannels)[0];	
-		assertNotEquals(choice1,choice2);
+		int firstAttempt = partialPartitioner.selectChannels(sd1, numOfOutChannels)[0];
+		int secondAttempt = partialPartitioner.selectChannels(sd1, numOfOutChannels)[0];	
+		assertNotEquals(firstAttempt,secondAttempt);
 	}
 	
 }
