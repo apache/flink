@@ -20,7 +20,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-In order to build Flink, you need the source code. Either download the source of a release or clone the git repository. In addition to that, you need Maven 3 and a JDK (Java Development Kit). Note that you can not build Flink with Oracle JDK 6 due to a unresolved bug in the Oracle Java compiler. It works well with OpenJDK 6 and all Java 7 and 8 compilers.
+In order to build Flink, you need the source code. Either download the source of a release or clone the git repository. In addition to that, you need Maven 3 and a JDK (Java Development Kit).
+Flink requires at least Java 7 to build. We recommend using Java 8.
 
 To clone from git, enter:
 
@@ -48,8 +49,8 @@ This section covers building Flink for a specific Hadoop version. Most users do 
 The problem is that Flink uses HDFS and YARN which are both dependencies from Apache Hadoop. There exist many different versions of Hadoop (from both the upstream project and the different Hadoop distributions). If a user is using a wrong combination of versions, exceptions like this one occur:
 
 ~~~bash
-ERROR: The job was not successfully submitted to the nephele job manager:
-    org.apache.flink.nephele.executiongraph.GraphConversionException: Cannot compute input splits for TSV:
+ERROR: Job execution failed.
+    org.apache.flink.runtime.client.JobExecutionException: Cannot initialize task 'TextInputFormat(/my/path)':
     java.io.IOException: Failed on local exception: com.google.protobuf.InvalidProtocolBufferException:
     Protocol message contained an invalid tag (zero).; Host Details :
 ~~~
@@ -94,6 +95,32 @@ So if you are building Flink for Hadoop `2.0.0-alpha`, use the following command
 ~~~bash
 -P!include-yarn -Dhadoop.version=2.0.0-alpha
 ~~~
+
+
+## Build Flink for a specific Scala Version
+
+**Note:** Users that purely use the Java APIs and libraries can ignore this section.
+
+Flink has APIs, libraries, and runtime modules written in [Scala](http://scala-lang.org). Users of the Scala API and libraries may have to match the Scala version of Flink with the Scala version
+of their projects (because Scala is not strictly backwards compatible).
+
+By default, Flink is built with Scala *2.10*. To build Flink with Scala *2.11*, append the `-Dscala-2.11` option to your build command:
+
+~~~bash
+mvn clean install -DskipTests -Dscala-2.11
+~~~
+
+
+To build against custom Scala versions, you need to supply the *language version* and the *binary version* as properties to the build:
+
+~~~bash
+mvn clean install -DskipTests -Dscala.version=2.11.4 -Dscala.binary.version=2.11
+~~~
+
+Flink is developed against Scala *2.10*, and tested additionally against Scala *2.11*. These two versions are known to be compatible. Earlier versions (like Scala *2.9*) are *not* compatible.
+
+Newer versions may be compatible, depending on breaking changes in the language features used by Flink, and the availability of Flink's dependencies in those Scala versions. The dependencies written in Scala include for example *Kafka*, *Akka*, *Scalatest*, and *scopt*.
+
 
 ## Background
 
