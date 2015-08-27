@@ -20,8 +20,19 @@ package org.apache.flink.streaming.partitioner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
+
+/**
+ *Partial Key Grouping maps each message to two of the n possible channels
+ *(round robin maps to n channels, field grouping maps to 1 channel). 
+ *Among the two possible channels it forwards the key to least loaded 
+ *(each source maintains the list of past messages) of two channels.
+ * 
+ * @param <T>
+ *            Type of the Tuple
+ */
 
 public class PartialPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
@@ -31,19 +42,25 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 	private HashFunction h2 = Hashing.murmur3_128(17);
 	KeySelector<T, ?> keySelector;
 	private int[] returnArray = new int[1];
+	private boolean initializedStats;
 
-	public PartialPartitioner(KeySelector<T, ?> keySelector, int numberOfOutputChannels) {
+	public PartialPartitioner(KeySelector<T, ?> keySelector) {
 		super(PartitioningStrategy.PARTIAL);
-		this.targetChannelStats = new long[numberOfOutputChannels];
+		this.initializedStats = false;
 		this.keySelector = keySelector;
 	}
 
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {
-		String str = record.getInstance().getKey(keySelector).toString();
-		int firstChoice = (int) ( Math.abs(h1.hashBytes(str.getBytes()).asLong()) % numberOfOutputChannels );
-		int secondChoice = (int) ( Math.abs(h2.hashBytes(str.getBytes()).asLong()) % numberOfOutputChannels );
+		if(!initializedStats) {
+			this.targetChannelStats = new long[numberOfOutputChannels];
+			this.initializedStats = true;
+		}
+		
+		int firstChoice = Math.abs(record.getInstance().getKey(keySelector).hashCode()) % numberOfOutputChannels;
+		int secondChoice = (firstChoice+1)%numberOfOutputChannels; 
+				
 		int selected = targetChannelStats[firstChoice] > targetChannelStats[secondChoice] ? secondChoice : firstChoice;
 		targetChannelStats[selected]++;
 		
