@@ -1,5 +1,5 @@
 ---
-title:  "Connecting to other systems"
+title:  "Connecting to other systems (Batch)"
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

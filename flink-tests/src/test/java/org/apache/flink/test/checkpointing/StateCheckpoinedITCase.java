@@ -31,6 +31,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 import java.io.IOException;
@@ -55,6 +57,8 @@ import static org.junit.Assert.assertTrue;
 @SuppressWarnings("serial")
 public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 
+	private static final Logger LOG = LoggerFactory.getLogger(StateCheckpoinedITCase.class);
+
 	final long NUM_STRINGS = 10_000_000L;
 
 	/**
@@ -72,14 +76,16 @@ public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 		final long failurePosMax = (long) (0.7 * NUM_STRINGS / PARALLELISM);
 
 		final long failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
-		
+
+		env.enableCheckpointing(200);
+
 		DataStream<String> stream = env.addSource(new StringGeneratingSourceFunction(NUM_STRINGS));
 
 		stream
 				// first vertex, chained to the source
 				// this filter throttles the flow until at least one checkpoint
 				// is complete, to make sure this program does not run without 
-				.filter(new StringRichFilterFunction())
+				.filter(new StringRichFilterFunction(failurePos))
 
 						// -------------- seconds vertex - one-to-one connected ----------------
 				.map(new StringPrefixCountRichMapFunction())
@@ -95,8 +101,10 @@ public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 	@Override
 	public void postSubmit() {
 		
-		if (!OnceFailingAggregator.wasCheckpointedBeforeFailure) {
-			System.err.println("Test inconclusive: failure occurred before first checkpoint");
+		//assertTrue("Test inconclusive: failure occurred before first checkpoint",
+		//		OnceFailingAggregator.wasCheckpointedBeforeFailure);
+		if(!OnceFailingAggregator.wasCheckpointedBeforeFailure) {
+			LOG.warn("Test inconclusive: failure occurred before first checkpoint");
 		}
 		
 		long filterSum = 0;
@@ -200,15 +208,26 @@ public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 	}
 
 	private static class StringRichFilterFunction extends RichFilterFunction<String> 
-			implements Checkpointed<Long> {
+			implements Checkpointed<Long>, CheckpointNotifier
+	{
 
 		static final long[] counts = new long[PARALLELISM];
-		
+
+		private final long failurePos;
 		private long count;
-		
+		private int numTimesCheckpointed;
+
+		private StringRichFilterFunction(long failurePos) {
+			this.failurePos = failurePos;
+		}
+
+
 		@Override
 		public boolean filter(String value) throws Exception {
 			count++;
+			if (count < failurePos && numTimesCheckpointed < 2) {
+				Thread.sleep(1);
+			}
 			return value.length() < 100; // should be always true
 		}
 
@@ -225,6 +244,11 @@ public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 		@Override
 		public void restoreState(Long state) {
 			count = state;
+		}
+
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) {
+			numTimesCheckpointed++;
 		}
 	}
 

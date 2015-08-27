@@ -1538,7 +1538,10 @@ with connectors.
 
 ### Apache Kafka
 
-This connector provides access to data streams from [Apache Kafka](https://kafka.apache.org/). To use this connector, add the following dependency to your project:
+This connector provides access to data streams from [Apache Kafka](https://kafka.apache.org/).
+
+There is a [separate documentation page for using Kafka with Flink](kafka.html).
+
 
 {% highlight xml %}
 <dependency>
@@ -1556,7 +1559,7 @@ Note that the streaming connectors are currently not part of the binary distribu
 * If the Kafka and Zookeeper servers are running on a remote machine, then the `advertised.host.name` setting in the `config/server.properties` file the  must be set to the machine's IP address.
 
 #### Kafka Source
-The standard `KafkaSource` is a Kafka consumer providing an access to one topic.
+The standard `KafkaSource` is a Kafka consumer providing access to one topic.
 
 The following parameters have to be provided for the `KafkaSource(...)` constructor:
 

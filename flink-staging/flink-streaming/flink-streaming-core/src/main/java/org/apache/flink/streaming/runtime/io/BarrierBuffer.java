@@ -77,7 +77,6 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	/** Flag to indicate whether we have drawn all available input */
 	private boolean endOfStream;
 
-
 	/**
 	 * 
 	 * @param inputGate The input gate to draw the buffers and events from.
