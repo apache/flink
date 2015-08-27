@@ -238,9 +238,7 @@ abstract class FlinkMiniCluster(
   }
 
   @throws(classOf[JobExecutionException])
-  def submitJobAndWait(jobGraph: JobGraph, printUpdates: Boolean)
-                                                                : JobExecutionResult = {
-
+  def submitJobAndWait(jobGraph: JobGraph, printUpdates: Boolean): JobExecutionResult = {
     submitJobAndWait(jobGraph, printUpdates, timeout)
   }
   

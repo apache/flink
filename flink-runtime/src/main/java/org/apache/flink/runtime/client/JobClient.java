@@ -170,7 +170,13 @@ public class JobClient {
 			}
 		}
 		catch (JobExecutionException e) {
-			throw e;
+			if(e.getCause() instanceof SerializedThrowable) {
+				SerializedThrowable serializedThrowable = (SerializedThrowable)e.getCause();
+				Throwable deserialized = serializedThrowable.deserializeError(userCodeClassloader);
+				throw new JobExecutionException(jobGraph.getJobID(), "Job execution failed " + deserialized.getMessage(), deserialized);
+			} else {
+				throw e;
+			}
 		}
 		catch (TimeoutException e) {
 			throw new JobTimeoutException(jobGraph.getJobID(), "Timeout while waiting for JobManager answer. " +

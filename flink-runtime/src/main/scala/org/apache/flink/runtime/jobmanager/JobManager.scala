@@ -329,7 +329,8 @@ class JobManager(
           val deserializedError = if(error != null) {
             error.deserializeError(executionGraph.getUserClassLoader)
           } else null
-          log.info(s"Status of job $jobID (${executionGraph.getJobName}) changed to $newJobStatus.",
+          log.info(
+            s"Status of job $jobID (${executionGraph.getJobName}) changed to $newJobStatus.",
             deserializedError)
 
           if (newJobStatus.isTerminalState) {
@@ -345,34 +346,30 @@ class JobManager(
                     log.error(s"Cannot fetch serialized accumulators for job $jobID", e)
                     Collections.emptyMap()
                 }
-                val result = new SerializedJobExecutionResult(jobID, jobInfo.duration,
-                                                              accumulatorResults)
+                val result = new SerializedJobExecutionResult(
+                  jobID,
+                  jobInfo.duration,
+                  accumulatorResults)
                 jobInfo.client ! decorateMessage(JobResultSuccess(result))
 
               case JobStatus.CANCELED =>
                 jobInfo.client ! decorateMessage(
-                  Failure(new SerializedThrowable(
-                      new JobCancellationException(
-                        jobID,
-                      "Job was cancelled.", deserializedError)
-                    )
-                  )
-                )
+                  Failure(
+                    new JobCancellationException(
+                      jobID,
+                      "Job was cancelled.",
+                      new SerializedThrowable(deserializedError))))
 
               case JobStatus.FAILED =>
                 jobInfo.client ! decorateMessage(
-                  Failure(new SerializedThrowable(
-                      new JobExecutionException(
-                        jobID,
-                        "Job execution failed.",
-                        deserializedError)
-                    )
-                  )
-                )
+                  Failure(
+                    new JobExecutionException(
+                      jobID,
+                      "Job execution failed.",
+                      new SerializedThrowable(deserializedError))))
 
               case x =>
-                val exception = new JobExecutionException(jobID, s"$x is not a " +
-                  "terminal state.")
+                val exception = new JobExecutionException(jobID, s"$x is not a terminal state.")
                 jobInfo.client ! decorateMessage(Failure(new SerializedThrowable(exception)))
                 throw exception
             }

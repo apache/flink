@@ -89,7 +89,9 @@ class JobManagerITCase(_system: ActorSystem)
           exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
-              new NoResourceAvailableException(1,1,0) should equal(e.getCause)
+              val cause = e.getCause.asInstanceOf[SerializedThrowable].deserializeError(
+                this.getClass.getClassLoader)
+              new NoResourceAvailableException(1,1,0) should equal(cause)
             case e => fail(s"Received wrong exception of type $e.")
           }
         }
