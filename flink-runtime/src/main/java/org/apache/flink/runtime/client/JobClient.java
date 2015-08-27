@@ -182,15 +182,6 @@ public class JobClient {
 			throw new JobTimeoutException(jobGraph.getJobID(), "Timeout while waiting for JobManager answer. " +
 					"Job time exceeded " + AkkaUtils.INF_TIMEOUT(), e);
 		}
-		catch(SerializedThrowable serializedThrowable) {
-			Throwable deserialized = SerializedThrowable.get(serializedThrowable, userCodeClassloader);
-			if(deserialized instanceof JobExecutionException) {
-				// no need to wrap the Throwable into a JobExecutionException again.
-				throw (JobExecutionException)deserialized;
-			}
-			throw new JobExecutionException(jobGraph.getJobID(),
-					"Communication with JobManager failed: " + deserialized.getMessage(), deserialized);
-		}
 		catch (Throwable throwable) {
 			throw new JobExecutionException(jobGraph.getJobID(),
 					"Communication with JobManager failed: " + throwable.getMessage(), throwable);

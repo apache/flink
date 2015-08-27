@@ -83,8 +83,11 @@ public class ClassLoaderITCase {
 					streamingCheckpointedProg.invokeInteractiveModeForExecution();
 				} catch(Exception e) {
 					// we can not access the SuccessException here when executing the tests with maven, because its not available in the jar.
-					System.out.println("canon "+e.getCause().getCause().getClass().getCanonicalName());
-					if(!( e.getCause().getCause().getClass().getCanonicalName().equals("org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException"))) {
+					try {
+						if (!(e.getCause().getCause().getClass().getCanonicalName().equals("org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException"))) {
+							throw e;
+						}
+					} catch(Throwable ignore) {
 						throw e;
 					}
 				}
