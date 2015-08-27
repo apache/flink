@@ -497,48 +497,56 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 			LOG.debug("Committing offsets externally for checkpoint {}", checkpointId);
 		}
 
-		long[] checkpointOffsets;
-
-		// the map may be asynchronously updates when snapshotting state, so we synchronize
-		synchronized (pendingCheckpoints) {
-			final int posInMap = pendingCheckpoints.indexOf(checkpointId);
-			if (posInMap == -1) {
-				LOG.warn("Received confirmation for unknown checkpoint id {}", checkpointId);
-				return;
-			}
-
-			checkpointOffsets = (long[]) pendingCheckpoints.remove(posInMap);
-			
-			// remove older checkpoints in map
-			for (int i = 0; i < posInMap; i++) {
-				pendingCheckpoints.remove(0);
-			}
-		}
-
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Committing offsets {} to offset store: {}", Arrays.toString(checkpointOffsets), offsetStore);
-		}
-
-		// build the map of (topic,partition) -> committed offset
-		Map<TopicPartition, Long> offsetsToCommit = new HashMap<>();
-		for (TopicPartition tp : subscribedPartitions) {
-			
-			int partition = tp.partition();
-			long offset = checkpointOffsets[partition];
-			long lastCommitted = commitedOffsets[partition];
-			
-			if (offset != OFFSET_NOT_SET) {
-				if (offset > lastCommitted) {
-					offsetsToCommit.put(tp, offset);
-					LOG.debug("Committing offset {} for partition {}", offset, partition);
+		try {
+			long[] checkpointOffsets;
+	
+			// the map may be asynchronously updates when snapshotting state, so we synchronize
+			synchronized (pendingCheckpoints) {
+				final int posInMap = pendingCheckpoints.indexOf(checkpointId);
+				if (posInMap == -1) {
+					LOG.warn("Received confirmation for unknown checkpoint id {}", checkpointId);
+					return;
 				}
-				else {
-					LOG.debug("Ignoring offset {} for partition {} because it is already committed", offset, partition);
+	
+				checkpointOffsets = (long[]) pendingCheckpoints.remove(posInMap);
+				
+				// remove older checkpoints in map
+				for (int i = 0; i < posInMap; i++) {
+					pendingCheckpoints.remove(0);
 				}
 			}
+	
+			if (LOG.isInfoEnabled()) {
+				LOG.info("Committing offsets {} to offset store: {}", Arrays.toString(checkpointOffsets), offsetStore);
+			}
+	
+			// build the map of (topic,partition) -> committed offset
+			Map<TopicPartition, Long> offsetsToCommit = new HashMap<>();
+			for (TopicPartition tp : subscribedPartitions) {
+				
+				int partition = tp.partition();
+				long offset = checkpointOffsets[partition];
+				long lastCommitted = commitedOffsets[partition];
+				
+				if (offset != OFFSET_NOT_SET) {
+					if (offset > lastCommitted) {
+						offsetsToCommit.put(tp, offset);
+						LOG.debug("Committing offset {} for partition {}", offset, partition);
+					}
+					else {
+						LOG.debug("Ignoring offset {} for partition {} because it is already committed", offset, partition);
+					}
+				}
+			}
+			
+			offsetHandler.commit(offsetsToCommit);
 		}
-		
-		offsetHandler.commit(offsetsToCommit);
+		catch (Exception e) {
+			if (running) {
+				throw e;
+			}
+			// else ignore exception if we are no longer running
+		}
 	}
 	
 	// ------------------------------------------------------------------------

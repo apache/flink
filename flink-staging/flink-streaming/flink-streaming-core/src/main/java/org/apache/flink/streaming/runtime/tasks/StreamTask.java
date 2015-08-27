@@ -175,6 +175,12 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 				LOG.debug("Finished task {}", getName());
 			}
 
+			// make sure no further checkpoint and notification actions happen
+			// for that we set this task as not running and make sure no other thread is
+			// currently in the locked scope before we close the operators
+			this.isRunning = false;
+			synchronized (checkpointLock) {}
+			
 			// this is part of the main logic, so if this fails, the task is considered failed
 			closeAllOperators();
 			operatorOpen = false;
@@ -333,9 +339,11 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		synchronized (checkpointLock) {
-			for (StreamOperator<?> chainedOperator : outputHandler.getChainedOperators()) {
-				if (chainedOperator instanceof StatefulStreamOperator) {
-					((StatefulStreamOperator<?>) chainedOperator).notifyCheckpointComplete(checkpointId);
+			if (isRunning) {
+				for (StreamOperator<?> chainedOperator : outputHandler.getChainedOperators()) {
+					if (chainedOperator instanceof StatefulStreamOperator) {
+						((StatefulStreamOperator<?>) chainedOperator).notifyCheckpointComplete(checkpointId);
+					}
 				}
 			}
 		}
