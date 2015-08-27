@@ -25,7 +25,7 @@ limitations under the License.
   <div class="navbar-info first last hidden-xs hidden-sm">{{ job.jid }}</div>
   <div class="navbar-info first last">
     <div class="label-group">
-      <bs-label status="{{status}}" ng-repeat="(status, value) in job.tasks">{{value}}</bs-label>
+      <bs-label status="{{status}}" ng-repeat="(status, value) in job['status-counts']">{{value}}</bs-label>
     </div>
   </div>
   <div class="navbar-info first last hidden-xs hidden-sm">{{ job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}<span ng-if="job['end-time'] &gt; -1">
@@ -37,7 +37,7 @@ limitations under the License.
   <ul class="nav nav-tabs">
     <li ui-sref-active="active"><a ui-sref=".plan">Plan</a></li>
     <li ui-sref-active="active"><a ui-sref=".statistics">Job Accumulators / Statistics</a></li>
-    <li ui-sref-active="active" ng-if="job['end-time'] &gt; -1"><a ui-sref=".timeline">Timeline</a></li>
+    <li ui-sref-active="active"><a ui-sref=".timeline">Timeline</a></li>
     <li ui-sref-active="active"><a ui-sref=".exceptions">Exceptions</a></li>
     <li ui-sref-active="active"><a ui-sref=".config">Configuration</a></li>
   </ul>
