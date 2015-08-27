@@ -57,7 +57,7 @@ under the License.
 						</goals>
 
 						<configuration>
-							<classifier>KMeans</classifier>
+							<finalName>KMeans</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -82,14 +82,14 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>TransitiveClosure</classifier>
-				
+							<finalName>TransitiveClosure</finalName>
+
 							<archive>
 								<manifestEntries>
 									<program-class>org.apache.flink.examples.java.graph.TransitiveClosureNaive</program-class>
 								</manifestEntries>
 							</archive>
-				
+
 							<includes>
 								<include>**/java/graph/TransitiveClosureNaive.class</include>
 								<include>**/java/graph/TransitiveClosureNaive$*.class</include>
@@ -106,7 +106,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>ConnectedComponents</classifier>
+							<finalName>ConnectedComponents</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -121,7 +121,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- EnumTriangles Basic -->
 					<execution>
 						<id>EnumTrianglesBasic</id>
@@ -130,7 +130,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>EnumTrianglesBasic</classifier>
+							<finalName>EnumTrianglesBasic</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -147,7 +147,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- EnumTriangles Opt -->
 					<execution>
 						<id>EnumTrianglesOpt</id>
@@ -156,7 +156,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>EnumTrianglesOpt</classifier>
+							<finalName>EnumTrianglesOpt</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -173,7 +173,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- PageRank Basic-->
 					<execution>
 						<id>PageRankBasic</id>
@@ -182,7 +182,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>PageRankBasic</classifier>
+							<finalName>PageRankBasic</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -197,7 +197,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- These queries are currently not self-contained -->
 
 					<!-- TPC-H Query 10 -->
@@ -223,7 +223,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution> -->
-				
+
 					<!-- TPC-H Query 3 -->
 					<!--
 					<execution>
@@ -246,7 +246,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution> -->
-		
+
 					<!-- WebLogAnalysis -->
 					<execution>
 						<id>WebLogAnalysis</id>
@@ -255,7 +255,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>WebLogAnalysis</classifier>
+							<finalName>WebLogAnalysis</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -280,7 +280,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>WordCount</classifier>
+							<finalName>WordCount</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -304,7 +304,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>WordCountPOJO</classifier>
+							<finalName>WordCountPOJO</finalName>
 
 							<archive>
 								<manifestEntries>
