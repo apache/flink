@@ -32,14 +32,9 @@ public class PartialPartitionerTest {
 	private PartialPartitioner<Tuple> partialPartitioner;
 	private StreamRecord<Tuple> streamRecord1 = new StreamRecord<Tuple>()
 			.setObject(new Tuple2<String, Integer>("test", 0));
-	private StreamRecord<Tuple> streamRecord2 = new StreamRecord<Tuple>()
-			.setObject(new Tuple2<String, Integer>("test", 42));
-	private StreamRecord<Tuple> streamRecord3 = new StreamRecord<Tuple>()
-			.setObject(new Tuple2<String, Integer>("test", 33));
 	private SerializationDelegate<StreamRecord<Tuple>> sd1 = new SerializationDelegate<StreamRecord<Tuple>>(null);
-	private SerializationDelegate<StreamRecord<Tuple>> sd2 = new SerializationDelegate<StreamRecord<Tuple>>(null);
-	private SerializationDelegate<StreamRecord<Tuple>> sd3 = new SerializationDelegate<StreamRecord<Tuple>>(null);
-    int numOfOutChannels = 10;
+	int numOfOutChannels = 10;
+	
 	@Before
 	public void setPartitioner() {
 		partialPartitioner = new PartialPartitioner<Tuple>(new KeySelector<Tuple, String>() {
@@ -62,16 +57,10 @@ public class PartialPartitionerTest {
 	@Test
 	public void testSelectChannels() {
 		sd1.setInstance(streamRecord1);
-		sd2.setInstance(streamRecord2);
-		sd3.setInstance(streamRecord3);
 		
 		int choice1 = partialPartitioner.selectChannels(sd1, numOfOutChannels)[0];
-		int choice2 = partialPartitioner.selectChannels(sd2, numOfOutChannels)[0];	
+		int choice2 = partialPartitioner.selectChannels(sd1, numOfOutChannels)[0];	
 		assertNotEquals(choice1,choice2);
-				
-		int choice3 = partialPartitioner.selectChannels(sd3, numOfOutChannels)[0];
-		assertNotEquals(choice3,choice2);
-		assertEquals(choice3,choice1);
 	}
 	
 }
