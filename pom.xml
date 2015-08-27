@@ -51,6 +51,7 @@ under the License.
 
 	<modules>
 		<module>flink-shaded-hadoop</module>
+		<module>flink-shaded-curator</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
 		<module>flink-scala</module>
