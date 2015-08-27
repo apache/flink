@@ -783,7 +783,9 @@ class JobManager(
           currentJobs.get(jobId) match {
             case Some((graph, jobInfo)) =>
               val stringifiedAccumulators = graph.getAccumulatorResultsStringified()
-              sender() ! AccumulatorResultStringsFound(jobId, stringifiedAccumulators)
+              sender() ! decorateMessage(
+                AccumulatorResultStringsFound(jobId, stringifiedAccumulators)
+              )
             case None =>
               archive.forward(message)
           }
