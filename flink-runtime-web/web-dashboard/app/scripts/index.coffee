@@ -88,10 +88,29 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
 
   .state "single-job.plan.node",
     url: "/vertex/{nodeid}"
+    abstract: true
     views:
       node:
         templateUrl: "partials/jobs/job.plan.node.html"
         controller: 'JobPlanNodeController'
+
+  .state "single-job.plan.node.subtasks",
+    url: ""
+    views:
+      nodeTab:
+        templateUrl: "partials/jobs/job.plan.node.subtasks.html"
+
+  .state "single-job.plan.node.properties",
+    url: "/properties"
+    views:
+      nodeTab:
+        templateUrl: "partials/jobs/job.plan.node.properties.html"
+
+  .state "single-job.plan.node.accumulators",
+    url: "/properties"
+    views:
+      nodeTab:
+        templateUrl: "partials/jobs/job.plan.node.accumulators.html"
 
   .state "single-job.timeline",
     url: "/timeline"

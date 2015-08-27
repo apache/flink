@@ -120,16 +120,17 @@ angular.module('flinkApp')
 
 
       angular.forEach data.vertices, (vertex) ->
-        testData.push 
-          times: [
-            label: translateLabel(vertex.name)
-            color: "#d9f1f7"
-            borderColor: "#62cdea"
-            starting_time: vertex['start-time']
-            ending_time: vertex['end-time']
-            link: vertex.id
-            type: 'regular'
-          ]
+        if vertex['start-time'] > -1
+          testData.push 
+            times: [
+              label: translateLabel(vertex.name)
+              color: "#d9f1f7"
+              borderColor: "#62cdea"
+              starting_time: vertex['start-time']
+              ending_time: vertex['end-time']
+              link: vertex.id
+              type: 'regular'
+            ]
 
       chart = d3.timeline().stack().click((d, i, datum) ->
         if d.link

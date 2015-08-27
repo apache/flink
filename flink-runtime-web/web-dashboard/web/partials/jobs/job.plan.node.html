@@ -28,135 +28,17 @@ limitations under the License.
     </div>
   </div>
   <div class="panel-heading clearfix">
-    <div ng-if="node.description" class="panel-info first last"><span>{{ node.description | humanizeTaskName }}</span></div>
-  </div>
-  <div class="panel-body">
-    <table class="table table-hover table-clickable">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr ng-repeat="vertex in node.vertex.groupvertex.groupmembers">
-          <td>{{ vertex.name | humanizeTaskName }}</td>
-          <td> 
-            <bs-label status="{{vertex.vertexstatus}}">{{vertex.vertexstatus}}</bs-label>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-<div ng-if="node" class="row">
-  <div class="col-sm-6 col-md-4">
-    <table ng-if="node.optimizer_properties.global_properties" class="table table-properties">
-      <thead>
-        <tr>
-          <th colspan="2">Global Data Properties</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr ng-repeat="property in node.optimizer_properties.global_properties">
-          <td>{{property.name}}</td>
-          <td table-property="table-property" value="property.value"></td>
-        </tr>
-      </tbody>
-    </table>
-    <table ng-if="node.optimizer_properties.local_properties" class="table table-properties">
-      <thead>
-        <tr>
-          <th colspan="2">Local Data Properties</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr ng-repeat="property in node.optimizer_properties.local_properties">
-          <td>{{property.name}}</td>
-          <td table-property="table-property" value="property.value"></td>
-        </tr>
-      </tbody>
-    </table>
-    <div class="visible-xs visible-sm">
-      <table class="table table-properties">
-        <thead>
-          <tr>
-            <th colspan="2">Properties</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Operator</td>
-            <td table-property="table-property" value="node.operator_strategy"></td>
-          </tr>
-          <tr>
-            <td>Parallelism</td>
-            <td table-property="table-property" value="node.parallelism"></td>
-          </tr>
-        </tbody>
-      </table>
+    <div ng-if="node.description" class="panel-info thin last"><span>{{ vertex.name | humanizeTaskName }}</span>
     </div>
   </div>
-  <div class="hidden-sm col-md-4">
-    <table class="table table-properties">
-      <thead>
-        <tr>
-          <th colspan="2">Properties</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Operator</td>
-          <td table-property="table-property" value="node.operator_strategy"></td>
-        </tr>
-        <tr>
-          <td>Parallelism</td>
-          <td table-property="table-property" value="node.parallelism"></td>
-        </tr>
-      </tbody>
-    </table>
-    <table ng-if="node.optimizer_properties.estimates" class="table table-properties">
-      <thead>
-        <tr>
-          <th colspan="2">Size Estimates</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr ng-repeat="property in node.optimizer_properties.estimates">
-          <td>{{property.name}}</td>
-          <td table-property="table-property" value="property.value"></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="col-sm-6 col-md-4">
-    <div class="visible-xs visible-sm">
-      <table ng-if="node.optimizer_properties.estimates" class="table table-properties">
-        <thead>
-          <tr>
-            <th colspan="2">Size Estimates</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr ng-repeat="property in node.optimizer_properties.estimates">
-            <td>{{property.name}}</td>
-            <td table-property="table-property" value="property.value"></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <table ng-if="node.optimizer_properties.costs" class="table table-properties">
-      <thead>
-        <tr>
-          <th colspan="2">Cost Estimates</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr ng-repeat="property in node.optimizer_properties.costs">
-          <td>{{property.name}}</td>
-          <td table-property="table-property" value="property.value"></td>
-        </tr>
-      </tbody>
-    </table>
+  <nav class="navbar navbar-default navbar-secondary-additional">
+    <ul class="nav nav-tabs">
+      <li ui-sref-active="active"><a ui-sref=".subtasks">Subtasks</a></li>
+      <li ui-sref-active="active"><a ui-sref=".properties">Properties</a></li>
+      <li ui-sref-active="active"><a ui-sref=".accumulators">Accumulators</a></li>
+    </ul>
+  </nav>
+  <div class="panel-body clean">
+    <div ui-view="nodeTab"></div>
   </div>
 </div>
