@@ -73,7 +73,7 @@ public class LargeAccumulatorHelper {
 	/**
 	 * When the result of the job contains oversized (i.e. bigger than
 	 * {@link org.apache.flink.runtime.akka.AkkaUtils#getLargeAccumulatorThreshold(
-	        org.apache.flink.configuration.Configuration)} bytes)
+	         org.apache.flink.configuration.Configuration)} bytes)
 	 * accumulators then these are put in the BlobCache for the client to fetch and merge.
 	 * This method stores the blobs of the large accumulators in the BlobCache. Contrary to
 	 * {@link LargeAccumulatorHelper#storeAccumulatorsToBlobCache(InetSocketAddress, Map)}, this
