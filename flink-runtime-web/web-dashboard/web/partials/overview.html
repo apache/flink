@@ -83,6 +83,8 @@ limitations under the License.
         <thead>
           <tr>
             <th>Start Time</th>
+            <th>End Time</th>
+            <th>Duration</th>
             <th>Job Name</th>
             <th>Job ID</th>
             <th>Tasks</th>
@@ -92,6 +94,8 @@ limitations under the License.
         <tbody>
           <tr ng-repeat="job in runningJobs" ui-sref="single-job.plan({ jobid: job.jid })">
             <td>{{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
+            <td>{{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
+            <td>{{job.duration}} ms</td>
             <td>{{job.name}}</td>
             <td>{{job.jid}}</td>
             <td class="label-group">

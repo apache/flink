@@ -84,6 +84,14 @@
   margin: 0 -20px;
   padding: 0 20px;
 }
+#content .navbar-secondary-additional {
+  border: none;
+  padding: 0 20px;
+  margin-bottom: 0;
+}
+#content .navbar-secondary-additional .nav-tabs {
+  margin: 0 -20px;
+}
 #content.sidebar-visible {
   margin-left: 250px;
 }
@@ -143,10 +151,12 @@
 .navbar-secondary .navbar-title,
 .navbar-main-additional .navbar-title,
 .panel.panel-multi .navbar-title,
+.navbar-secondary-additional .navbar-title,
 .navbar-main .panel-title,
 .navbar-secondary .panel-title,
 .navbar-main-additional .panel-title,
-.panel.panel-multi .panel-title {
+.panel.panel-multi .panel-title,
+.navbar-secondary-additional .panel-title {
   float: left;
   font-size: 18px;
   padding: 12px 20px 13px 10px;
@@ -157,10 +167,12 @@
 .navbar-secondary .navbar-info,
 .navbar-main-additional .navbar-info,
 .panel.panel-multi .navbar-info,
+.navbar-secondary-additional .navbar-info,
 .navbar-main .panel-info,
 .navbar-secondary .panel-info,
 .navbar-main-additional .panel-info,
-.panel.panel-multi .panel-info {
+.panel.panel-multi .panel-info,
+.navbar-secondary-additional .panel-info {
   float: left;
   font-size: 14px;
   padding: 15px 15px 15px 15px;
@@ -173,10 +185,12 @@
 .navbar-secondary .navbar-info .overflow,
 .navbar-main-additional .navbar-info .overflow,
 .panel.panel-multi .navbar-info .overflow,
+.navbar-secondary-additional .navbar-info .overflow,
 .navbar-main .panel-info .overflow,
 .navbar-secondary .panel-info .overflow,
 .navbar-main-additional .panel-info .overflow,
-.panel.panel-multi .panel-info .overflow {
+.panel.panel-multi .panel-info .overflow,
+.navbar-secondary-additional .panel-info .overflow {
   position: absolute;
   display: block;
   -o-text-overflow: ellipsis;
@@ -190,20 +204,24 @@
 .navbar-secondary .navbar-info.first,
 .navbar-main-additional .navbar-info.first,
 .panel.panel-multi .navbar-info.first,
+.navbar-secondary-additional .navbar-info.first,
 .navbar-main .panel-info.first,
 .navbar-secondary .panel-info.first,
 .navbar-main-additional .panel-info.first,
-.panel.panel-multi .panel-info.first {
+.panel.panel-multi .panel-info.first,
+.navbar-secondary-additional .panel-info.first {
   border-left: 1px solid #e7e7e7;
 }
 .navbar-main .navbar-info.last,
 .navbar-secondary .navbar-info.last,
 .navbar-main-additional .navbar-info.last,
 .panel.panel-multi .navbar-info.last,
+.navbar-secondary-additional .navbar-info.last,
 .navbar-main .panel-info.last,
 .navbar-secondary .panel-info.last,
 .navbar-main-additional .panel-info.last,
-.panel.panel-multi .panel-info.last {
+.panel.panel-multi .panel-info.last,
+.navbar-secondary-additional .panel-info.last {
   border-right: none;
 }
 .panel.panel-multi .panel-heading {
@@ -218,11 +236,17 @@
   color: #999;
   font-size: 13px;
 }
-.navbar-main-additional {
+.panel.panel-multi .panel-body.clean {
+  color: inherit;
+  font-size: inherit;
+}
+.navbar-main-additional,
+.navbar-secondary-additional {
   min-height: 40px;
   background-color: #fdfdfd;
 }
-.navbar-main-additional .navbar-info {
+.navbar-main-additional .navbar-info,
+.navbar-secondary-additional .navbar-info {
   font-size: 13px;
   padding: 10px 15px 10px 15px;
 }
@@ -437,7 +461,8 @@ svg.graph .node-label {
   }
   .navbar-main .navbar-title,
   .navbar-secondary .navbar-title,
-  .navbar-main-additional .navbar-title {
+  .navbar-main-additional .navbar-title,
+  .navbar-secondary-additional .navbar-title {
     padding: 12px 20px 13px 20px;
   }
 }

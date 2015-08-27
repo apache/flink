@@ -66,19 +66,22 @@ angular.module('flinkApp')
       when 'total' then 'black'
       else 'default'
 
+  @setEndTimes = (list) ->
+    angular.forEach list, (job, jobKey) ->
+      unless job['end-time'] > -1
+        job['end-time'] = job['start-time'] + job['duration']
+
   @listJobs = ->
     deferred = $q.defer()
 
     $http.get flinkConfig.jobServer + "/joboverview"
-    .success (data, status, headers, config) ->
-
-      angular.forEach data, (list, listKey) ->
-
+    .success (data, status, headers, config) =>
+      angular.forEach data, (list, listKey) =>
         switch listKey
-          when 'running' then jobs.running = list
-          when 'finished' then jobs.finished = list
-          when 'cancelled' then jobs.cancelled = list
-          when 'failed' then jobs.failed = list
+          when 'running' then jobs.running = @setEndTimes(list)
+          when 'finished' then jobs.finished = @setEndTimes(list)
+          when 'cancelled' then jobs.cancelled = @setEndTimes(list)
+          when 'failed' then jobs.failed = @setEndTimes(list)
 
       deferred.resolve(jobs)
       notifyObservers()
@@ -96,24 +99,26 @@ angular.module('flinkApp')
     deferreds.job = $q.defer()
 
     $http.get flinkConfig.jobServer + "/jobs/" + jobid
-    .success (data, status, headers, config) ->
-      # data.time = Date.now()
+    .success (data, status, headers, config) =>
+      # console.log data.vertices
+      @setEndTimes(data.vertices)
+      # console.log data.vertices
 
-      $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/vertices"
-      .success (vertices) ->
-        data = angular.extend(data, vertices)
+      # $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/vertices"
+      # .success (vertices) ->
+      #   data = angular.extend(data, vertices)
 
         # $http.get flinkConfig.jobServer + "/jobsInfo?get=job&job=" + jobid
         # .success (oldVertices) ->
         #   data.oldV = oldVertices[0]
 
-        $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/config"
-        .success (jobConfig) ->
-          data = angular.extend(data, jobConfig)
+      $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/config"
+      .success (jobConfig) ->
+        data = angular.extend(data, jobConfig)
 
-          currentJob = data
+        currentJob = data
 
-          deferreds.job.resolve(data)
+        deferreds.job.resolve(data)
 
     deferreds.job.promise
 

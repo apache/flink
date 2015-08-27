@@ -73,6 +73,13 @@ sidebar-width = 250px
     .nav-tabs
       margin: 0 -20px
       padding: 0 20px
+      
+  .navbar-secondary-additional
+    border: none
+    padding: 0 20px
+    margin-bottom: 0
+    .nav-tabs
+      margin: 0 -20px
 
   &.sidebar-visible
     margin-left: sidebar-width
@@ -129,7 +136,7 @@ sidebar-width = 250px
 .navbar-secondary
   overflow: auto
 
-.navbar-main, .navbar-secondary, .navbar-main-additional, .panel.panel-multi
+.navbar-main, .navbar-secondary, .navbar-main-additional, .panel.panel-multi, .navbar-secondary-additional
   .navbar-title, .panel-title
     float: left
     font-size: 18px
@@ -173,8 +180,12 @@ sidebar-width = 250px
     background-color: #fdfdfd
     color: #999
     font-size: 13px
+    
+    &.clean
+      color: inherit
+      font-size: inherit
 
-.navbar-main-additional
+.navbar-main-additional, .navbar-secondary-additional
   min-height: 40px
   background-color: #fdfdfd
 
@@ -276,6 +287,6 @@ pre.exception
     .navbar-main, .navbar-main-additional
       left: sidebar-width
 
-  .navbar-main, .navbar-secondary, .navbar-main-additional
+  .navbar-main, .navbar-secondary, .navbar-main-additional, .navbar-secondary-additional
     .navbar-title
       padding: 12px 20px 13px 20px
