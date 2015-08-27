@@ -58,8 +58,10 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 			this.initializedStats = true;
 		}
 		
-		int firstChoice = Math.abs(record.getInstance().getKey(keySelector).hashCode()) % numberOfOutputChannels;
-		int secondChoice = (firstChoice+1)%numberOfOutputChannels; 
+		int firstChoice = Math.abs(record.getInstance().getKey(keySelector).hashCode()) 
+				% numberOfOutputChannels;
+		int secondChoice = ( firstChoice + 1 ) 
+				% numberOfOutputChannels; 
 				
 		int selected = targetChannelStats[firstChoice] > targetChannelStats[secondChoice] ? secondChoice : firstChoice;
 		targetChannelStats[selected]++;
