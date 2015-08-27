@@ -24,7 +24,8 @@ import java.util.Map;
 /**
  * Wrapper for storing the handles for each state in a partitioned form. It can
  * be used to repartition the state before re-injecting to the tasks.
- * 
+ *
+ * TODO: This class needs testing!
  */
 public class PartitionedStateHandle implements
 		StateHandle<Map<Serializable, StateHandle<Serializable>>> {
@@ -38,7 +39,7 @@ public class PartitionedStateHandle implements
 	}
 
 	@Override
-	public Map<Serializable, StateHandle<Serializable>> getState() throws Exception {
+	public Map<Serializable, StateHandle<Serializable>> getState(ClassLoader userCodeClassLoader) throws Exception {
 		return handles;
 	}
 
