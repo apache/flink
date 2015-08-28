@@ -14,12 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.kafka;
+package org.apache.flink.streaming.connectors.kafka.partitioner;
 
 import kafka.producer.Partitioner;
 
 import java.io.Serializable;
 
-public interface SerializableKafkaPartitioner extends Serializable, Partitioner {
+/**
+ * Interface for partitioning with a KafkaProducer
+ *
+ * Note: There is also a {@link RichKafkaPartitioner} which has an initializer with
+ * the number of parallel instances, the instance id and the partition list.
+ */
+public interface KafkaPartitioner extends Serializable, Partitioner {
 
 }

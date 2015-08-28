@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-
 import kafka.admin.AdminUtils;
 import kafka.api.PartitionMetadata;
 import kafka.consumer.Consumer;
@@ -67,6 +66,7 @@ import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.util.Collector;
 
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.junit.Assert;
 
 import scala.collection.Seq;
@@ -290,7 +290,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, sinkSchema));
+		stream.addSink(new FlinkKafkaProducer<>(brokerConnectionStrings, topic, sinkSchema));
 
 		// ----------- add consumer dataflow ----------
 
@@ -722,7 +722,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// add producing topology
 		Properties producerProps = new Properties();
-		producerProps.setProperty("max.message.size", Integer.toString(1024 * 1024 * 30));
+		producerProps.setProperty("max.request.size", Integer.toString(1024 * 1024 * 30));
+		producerProps.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerConnectionStrings);
 
 		DataStream<Tuple2<Long, byte[]>> stream = env.addSource(new RichSourceFunction<Tuple2<Long, byte[]>>() {
 
@@ -760,8 +761,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			}
 		});
 
-		stream.addSink(new KafkaSink<Tuple2<Long, byte[]>>(brokerConnectionStrings, topic,
-				producerProps, deserSchema));
+		stream.addSink(new FlinkKafkaProducer<>(topic, deserSchema, producerProps));
 
 		tryExecute(env, "big topology test");
 
@@ -920,9 +920,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			}
 		}).setParallelism(parallelism);
 		
-		stream.addSink(new KafkaSink<Tuple2<Integer, Integer>>(brokerConnectionStrings,
-				topicName,
-				new TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(resultType, env.getConfig()),
+		stream.addSink(new FlinkKafkaProducer<>(topicName,
+				new TypeInformationSerializationSchema<>(resultType, env.getConfig()),
+				FlinkKafkaProducer.getPropertiesFromBrokerList(brokerConnectionStrings),
 				new Tuple2Partitioner(parallelism)
 		)).setParallelism(parallelism);
 
