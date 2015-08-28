@@ -38,14 +38,14 @@ public class AccumulatorHelper {
 		for (Map.Entry<String, Accumulator<?, ?>> otherEntry : toMerge.entrySet()) {
 			Accumulator<?, ?> ownAccumulator = target.get(otherEntry.getKey());
 			if (ownAccumulator == null) {
-				// Take over counter from chained task
-				target.put(otherEntry.getKey(), otherEntry.getValue());
+				// Create initial counter (copy!)
+				target.put(otherEntry.getKey(), otherEntry.getValue().clone());
 			}
 			else {
 				// Both should have the same type
 				AccumulatorHelper.compareAccumulatorTypes(otherEntry.getKey(),
 						ownAccumulator.getClass(), otherEntry.getValue().getClass());
-				// Merge counter from chained task into counter from stub
+				// Merge target counter with other counter
 				mergeSingle(ownAccumulator, otherEntry.getValue());
 			}
 		}
