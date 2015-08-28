@@ -26,6 +26,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.hadoop.util.VersionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -280,6 +281,7 @@ public class EnvironmentInformation {
 			log.info(" JVM: " + jvmVersion);
 			log.info(" Maximum heap size: " + maxHeapMegabytes + " MiBytes");
 			log.info(" JAVA_HOME: " + (javaHome == null ? "(not set)" : javaHome));
+			log.info(" Hadoop version: " + VersionInfo.getVersion());
 
 			if (options.length == 0) {
 				log.info(" JVM Options: (none)");
