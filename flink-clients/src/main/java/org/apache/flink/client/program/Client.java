@@ -25,11 +25,14 @@ import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -55,6 +58,10 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsErroneous;
+import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsFound;
+import org.apache.flink.runtime.messages.accumulators.RequestAccumulatorResults;
+import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -489,6 +496,74 @@ public class Client {
 		} else {
 			throw new Exception("Unknown message received while cancelling.");
 		}
+	}
+
+
+	/**
+	 * Requests and returns the accumulators for the given job identifier. Accumulators can be
+	 * requested while a is running or after it has finished. The default class loader is used
+	 * to deserialize the incoming accumulator results.
+	 * @param jobID The job identifier of a job.
+	 * @return A Map containing the accumulator's name and its value.
+	 */
+	public Map<String, Object> getAccumulators(JobID jobID) throws Exception {
+		return getAccumulators(jobID, ClassLoader.getSystemClassLoader());
+	}
+
+	/**
+	 * Requests and returns the accumulators for the given job identifier. Accumulators can be
+	 * requested while a is running or after it has finished.
+	 * @param jobID The job identifier of a job.
+	 * @param loader The class loader for deserializing the accumulator results.
+	 * @return A Map containing the accumulator's name and its value.
+	 */
+	public Map<String, Object> getAccumulators(JobID jobID, ClassLoader loader) throws Exception {
+
+		final FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
+
+		ActorSystem actorSystem;
+		try {
+			actorSystem = JobClient.startJobClientActorSystem(configuration);
+		} catch (Exception e) {
+			throw new Exception("Could start client actor system.", e);
+		}
+
+		ActorRef jobManager;
+		try {
+			jobManager = JobManager.getJobManagerRemoteReference(jobManagerAddress, actorSystem, timeout);
+		} catch (Exception e) {
+			throw new Exception("Error getting the remote actor reference for the job manager.", e);
+		}
+
+		Future<Object> response;
+		try {
+			ActorGateway jobManagerGateway = JobManager.getJobManagerGateway(jobManager, timeout);
+			response = jobManagerGateway.ask(new RequestAccumulatorResults(jobID), timeout);
+		} catch (Exception e) {
+			throw new Exception("Failed to query the job manager gateway for accumulators.", e);
+		}
+
+		try {
+
+			Object result = Await.result(response, timeout);
+
+			if (result instanceof AccumulatorResultsFound) {
+				Map<String, SerializedValue<Object>> serializedAccumulators =
+						((AccumulatorResultsFound) result).result();
+
+				return AccumulatorHelper.deserializeAccumulators(serializedAccumulators, loader);
+
+			} else if (result instanceof AccumulatorResultsErroneous) {
+				throw ((AccumulatorResultsErroneous) result).cause();
+			} else {
+				LOG.warn("Failed to fetch accumulators for job {}.", jobID);
+			}
+
+		} catch (Exception e) {
+			LOG.error("Error occurred while fetching accumulators for {}", jobID, e);
+		}
+
+		return Collections.emptyMap();
 	}
 
 

@@ -48,7 +48,7 @@ import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.ZooKeeperUtil
-import org.apache.flink.runtime.util.{SerializedValue, EnvironmentInformation}
+import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.runtime.webmonitor.WebMonitor
 import org.apache.flink.runtime.{FlinkActor, StreamingMode, LeaderSessionMessages}
 import org.apache.flink.runtime.{LogMessages}
@@ -60,7 +60,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkSchedule
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, Heartbeat}
-import org.apache.flink.util.{ExceptionUtils, InstantiationUtil}
+import org.apache.flink.util.{SerializedValue, ExceptionUtils, InstantiationUtil}
 
 import _root_.akka.pattern.ask
 import scala.concurrent._
@@ -769,7 +769,7 @@ class JobManager(
             currentJobs.get(jobID) match {
               case Some((graph, jobInfo)) =>
                 val accumulatorValues = graph.getAccumulatorsSerialized()
-          sender() ! decorateMessage(AccumulatorResultsFound(jobID, accumulatorValues))
+                sender() ! decorateMessage(AccumulatorResultsFound(jobID, accumulatorValues))
               case None =>
                 archive.forward(message)
             }
@@ -1271,7 +1271,7 @@ object JobManager {
 
   /**
    * Create the job manager components as (instanceManager, scheduler, libraryCacheManager,
-   *              archiverProps, accumulatorManager, defaultExecutionRetries,
+   *              archiverProps, defaultExecutionRetries,
    *              delayBetweenRetries, timeout)
    *
    * @param configuration The configuration from which to parse the config values.
