@@ -425,10 +425,10 @@ public class Client {
 		try{
 			if (wait) {
 				return JobClient.submitJobAndWait(actorSystem,
-						jobManagerGateway, jobGraph, timeout, printStatusDuringExecution, this.userCodeClassLoader);
+						jobManagerGateway, jobGraph, timeout, printStatusDuringExecution, userCodeClassLoader);
 			}
 			else {
-				JobClient.submitJobDetached(jobManagerGateway, jobGraph, timeout);
+				JobClient.submitJobDetached(jobManagerGateway, jobGraph, timeout, userCodeClassLoader);
 				// return a dummy execution result with the JobId
 				return new JobSubmissionResult(jobGraph.getJobID());
 			}

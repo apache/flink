@@ -104,7 +104,7 @@ public class TaskExecutionState implements java.io.Serializable {
 		this.jobID = jobID;
 		this.executionId = executionId;
 		this.executionState = executionState;
-		if(error != null) {
+		if (error != null) {
 			this.throwable = new SerializedThrowable(error);
 		} else {
 			this.throwable = null;
@@ -115,18 +115,18 @@ public class TaskExecutionState implements java.io.Serializable {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Gets the attached exception. Requires to pass a classloader, because the
-	 * class of the exception may be user-defined and hence only accessible through
-	 * the user code classloader, not the default classloader.
-	 *
-	 * @param usercodeClassloader The class loader for the user code of the
-	 *                            job this update refers to.
+	 * Gets the attached exception, which is in serialized form. Returns null,
+	 * if the status update is no failure with an associated exception.
+	 * 
+	 * @param userCodeClassloader The classloader that can resolve user-defined exceptions.
+	 * @return The attached exception, or null, if none.
 	 */
-	public Throwable getError(ClassLoader usercodeClassloader) {
+	public Throwable getError(ClassLoader userCodeClassloader) {
 		if (this.throwable == null) {
 			return null;
-		} else {
-			return throwable.deserializeError(usercodeClassloader);
+		}
+		else {
+			return this.throwable.deserializeError(userCodeClassloader);
 		}
 	}
 
@@ -173,8 +173,7 @@ public class TaskExecutionState implements java.io.Serializable {
 			return other.jobID.equals(this.jobID) &&
 					other.executionId.equals(this.executionId) &&
 					other.executionState == this.executionState &&
-					(other.throwable == null ? this.throwable == null :
-						(this.throwable != null && throwable.equals(other.throwable) ));
+					(other.throwable == null) == (this.throwable == null);
 		}
 		else {
 			return false;

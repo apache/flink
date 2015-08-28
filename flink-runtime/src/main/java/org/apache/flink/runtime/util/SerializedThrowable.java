@@ -15,101 +15,164 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.util;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.io.Serializable;
-import java.util.Arrays;
+import java.lang.ref.WeakReference;
 
 /**
- * Utility class for dealing with serialized Throwables.
- * Needed to send around user-specific exception classes with Akka.
+ * Utility class for dealing with user-defined Throwable types that are serialized (for
+ * example during RPC/Actor communication), but cannot be resolved with the default
+ * class loader.
+ * <p>
+ * This exception mimics the original exception with respect to message and stack trace,
+ * and contains the original exception in serialized form. The original exception
+ * can be re-obtained by supplying the appropriate class loader.
  */
 public class SerializedThrowable extends Exception implements Serializable {
+	
 	private static final long serialVersionUID = 7284183123441947635L;
-	private final byte[] serializedError;
+	
+	/** The original exception in serialized form */
+	private final byte[] serializedException;
+	
+	/** Name of the original error class */
+	private final String originalErrorClassName;
+	
+	/** The original stack trace, to be printed */
+	private final String fullStingifiedStackTrace;
 
-	// The exception must not be (de)serialized with the class, as its
-	// class may not be part of the system class loader.
-	private transient Throwable cachedError;
+	/** A guaranteed serializable placeholder exception that will be used as
+	 * cause and to capture the original stack trace */
+	private final Exception placeholder;
+	
+	/** The original exception, not transported via serialization, 
+	 * because the class may not be part of the system class loader.
+	 * In addition, we make sure our cached references to not prevent
+	 * unloading the exception class. */
+	private transient WeakReference<Throwable> cachedException;
 
 
 	/**
 	 * Create a new SerializedThrowable.
-	 * @param error The exception to serialize.
+	 * 
+	 * @param exception The exception to serialize.
 	 */
-	public SerializedThrowable(Throwable error) {
-		Preconditions.checkNotNull(error, "The exception to serialize has to be set");
-		this.cachedError = error;
-		byte[] serializedError;
-		try {
-			serializedError = InstantiationUtil.serializeObject(error);
-		}
-		catch (Throwable t) {
-			// could not serialize exception. send the stringified version instead
+	public SerializedThrowable(Throwable exception) {
+		super(getMessageOrError(exception));
+
+		if (!(exception instanceof SerializedThrowable)) {
+			this.cachedException = new WeakReference<Throwable>(exception);
+			
+			this.originalErrorClassName = exception.getClass().getName();
+			this.fullStingifiedStackTrace = ExceptionUtils.stringifyException(exception);
+			this.placeholder = new Exception(
+					"Serialized representation of " + originalErrorClassName + ": " + getMessage());
+			this.placeholder.setStackTrace(exception.getStackTrace());
+			initCause(this.placeholder);
+			
+			byte[] serialized;
 			try {
-				this.cachedError = new Exception(ExceptionUtils.stringifyException(error));
-				serializedError = InstantiationUtil.serializeObject(this.cachedError);
+				serialized = InstantiationUtil.serializeObject(exception);
 			}
-			catch (Throwable tt) {
-				// seems like we cannot do much to report the actual exception
-				// report a placeholder instead
+			catch (Throwable t) {
+				// could not serialize exception. send the stringified version instead
 				try {
-					this.cachedError = new Exception("Cause is a '" + error.getClass().getName()
-							+ "' (failed to serialize or stringify)");
-					serializedError = InstantiationUtil.serializeObject(this.cachedError);
+					serialized = InstantiationUtil.serializeObject(placeholder);
 				}
-				catch (Throwable ttt) {
-					// this should never happen unless the JVM is fubar.
-					// we just report the state without the error
-					this.cachedError = null;
-					serializedError = null;
+				catch (IOException e) {
+					// this should really never happen, as we only serialize a a standard exception
+					throw new RuntimeException(e.getMessage(), e);
 				}
 			}
+			this.serializedException = serialized;
 		}
-		this.serializedError = serializedError;
+		else {
+			// copy from that serialized throwable
+			SerializedThrowable other = (SerializedThrowable) exception;
+			this.serializedException = other.serializedException;
+			this.originalErrorClassName = other.originalErrorClassName;
+			this.fullStingifiedStackTrace = other.fullStingifiedStackTrace;
+			this.placeholder = other.placeholder;
+			this.cachedException = other.cachedException;
+		}
 	}
 
 	public Throwable deserializeError(ClassLoader userCodeClassloader) {
-		if (this.cachedError == null) {
+		Throwable cached = cachedException == null ? null : cachedException.get();
+		if (cached == null) {
 			try {
-				cachedError = (Throwable) InstantiationUtil.deserializeObject(this.serializedError, userCodeClassloader);
+				cached = (Throwable) InstantiationUtil.deserializeObject(serializedException, userCodeClassloader);
+				cachedException = new WeakReference<Throwable>(cached);
 			}
 			catch (Exception e) {
-				throw new RuntimeException("Error while deserializing the attached exception", e);
+				return placeholder;
 			}
 		}
-		return this.cachedError;
+		return cached;
+	}
+	
+	public String getStrigifiedStackTrace() {
+		return fullStingifiedStackTrace;
+	}
+	
+	// ------------------------------------------------------------------------
+	//  Override the behavior of Throwable
+	// ------------------------------------------------------------------------
+
+	@Override
+	public Throwable getCause() {
+		return placeholder;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if(obj instanceof SerializedThrowable) {
-			return Arrays.equals(this.serializedError, ((SerializedThrowable)obj).serializedError);
-		}
-		return false;
+	public void printStackTrace(PrintStream s) {
+		s.print(fullStingifiedStackTrace);
+		s.flush();
 	}
-
+	
+	@Override
+	public void printStackTrace(PrintWriter s) {
+		s.print(fullStingifiedStackTrace);
+		s.flush();
+	}
+	
 	@Override
 	public String toString() {
-		if(cachedError != null) {
-			return cachedError.getClass().getName() + ": " + cachedError.getMessage();
-		}
-		if(serializedError == null) {
-			return "(null)"; // can not happen as per Ctor check.
-		} else {
-			return "(serialized)";
-		}
+		String message = getLocalizedMessage();
+		return (message != null) ? (originalErrorClassName + ": " + message) : originalErrorClassName;
 	}
 
+	@Override
+	public StackTraceElement[] getStackTrace() {
+		return placeholder.getStackTrace();
+	}
+
+	// ------------------------------------------------------------------------
+	//  Static utilities
+	// ------------------------------------------------------------------------
+	
 	public static Throwable get(Throwable serThrowable, ClassLoader loader) {
-		if(serThrowable instanceof SerializedThrowable) {
+		if (serThrowable instanceof SerializedThrowable) {
 			return ((SerializedThrowable)serThrowable).deserializeError(loader);
 		} else {
 			return serThrowable;
+		}
+	}
+	
+	private static String getMessageOrError(Throwable error) {
+		try {
+			return error.getMessage();
+		}
+		catch (Throwable t) {
+			return "(failed to get message)";
 		}
 	}
 }

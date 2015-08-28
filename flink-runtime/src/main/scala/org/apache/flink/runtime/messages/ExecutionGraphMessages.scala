@@ -25,13 +25,16 @@ import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID}
-import org.apache.flink.runtime.util.SerializedThrowable
 
 /**
  * This object contains the execution graph specific messages.
  */
 object ExecutionGraphMessages {
 
+  // --------------------------------------------------------------------------
+  //  Messages
+  // --------------------------------------------------------------------------
+  
   /**
    * Denotes the execution state change of an
    * [[org.apache.flink.runtime.executiongraph.ExecutionVertex]]
@@ -64,6 +67,7 @@ object ExecutionGraphMessages {
       } else {
         ""
       }
+      
       s"${timestampToString(timestamp)}\t$taskName(${subtaskIndex +
         1}/$totalNumberOfSubTasks) switched to $newExecutionState $oMsg"
     }
@@ -75,23 +79,29 @@ object ExecutionGraphMessages {
    * @param jobID identifying the corresponding job
    * @param newJobStatus
    * @param timestamp
-   * @param serializedError
+   * @param error
    */
   case class JobStatusChanged(
       jobID: JobID,
       newJobStatus: JobStatus,
       timestamp: Long,
-      serializedError: SerializedThrowable)
+      error: Throwable)
     extends RequiresLeaderSessionID {
+    
     override def toString: String = {
       s"${timestampToString(timestamp)}\tJob execution switched to status $newJobStatus."
     }
   }
 
+  // --------------------------------------------------------------------------
+  //  Utilities
+  // --------------------------------------------------------------------------
+  
   private val DATE_FORMATTER: SimpleDateFormat = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss")
 
   private def timestampToString(timestamp: Long): String = {
-    DATE_FORMATTER.format(new Date(timestamp))
+    DATE_FORMATTER.synchronized {
+      DATE_FORMATTER.format(new Date(timestamp))
+    }
   }
-
 }

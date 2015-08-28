@@ -39,7 +39,8 @@ import java.util.UUID;
  * a leader session ID option which is returned by getLeaderSessionID.
  */
 public abstract class FlinkUntypedActor extends UntypedActor {
-	protected Logger LOG = LoggerFactory.getLogger(getClass());
+	
+	protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
 	/**
 	 * This method is called by Akka if a new message has arrived for the actor. It logs the
