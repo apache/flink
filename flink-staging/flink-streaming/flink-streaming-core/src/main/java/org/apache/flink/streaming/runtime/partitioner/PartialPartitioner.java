@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.partitioner;
+package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -45,23 +45,38 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 	private boolean initializedStats;
 
 	public PartialPartitioner(KeySelector<T, ?> keySelector) {
-		super(PartitioningStrategy.PARTIAL);
 		this.initializedStats = false;
 		this.keySelector = keySelector;
+	}	
+	@Override
+	public StreamPartitioner<T> copy() {
+		return this;
+	}
+
+	@Override
+	public String toString() {
+		return "HASH";
 	}
 
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
-			int numberOfOutputChannels) {
+			int numChannels) {
+		// TODO Auto-generated method stub
 		if(!initializedStats) {
-			this.targetChannelStats = new long[numberOfOutputChannels];
+			this.targetChannelStats = new long[numChannels];
 			this.initializedStats = true;
 		}
+		Object key;
+		try {
+			key = keySelector.getKey(record.getInstance().getValue());
+		} catch (Exception e) {
+			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
+		}
 		
-		int firstChoice = Math.abs(record.getInstance().getKey(keySelector).hashCode()) 
-				% numberOfOutputChannels;
+		int firstChoice = Math.abs(key.hashCode()) 
+				% numChannels;
 		int secondChoice = ( firstChoice + 1 ) 
-				% numberOfOutputChannels; 
+				% numChannels; 
 				
 		int selected = targetChannelStats[firstChoice] > targetChannelStats[secondChoice] ? secondChoice : firstChoice;
 		targetChannelStats[selected]++;
@@ -69,5 +84,4 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		returnArray[0] = selected;
 		return returnArray;
 	}
-	
 }

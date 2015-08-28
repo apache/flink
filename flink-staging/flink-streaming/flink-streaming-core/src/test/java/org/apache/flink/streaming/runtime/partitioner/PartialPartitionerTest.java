@@ -14,35 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.partitioner;
+package org.apache.flink.streaming.runtime.partitioner;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.junit.Before;
 import org.junit.Test;
 
 public class PartialPartitionerTest {
 	
-	private PartialPartitioner<Tuple> partialPartitioner;
-	private StreamRecord<Tuple> streamRecord1 = new StreamRecord<Tuple>()
-			.setObject(new Tuple2<String, Integer>("test", 0));
-	private SerializationDelegate<StreamRecord<Tuple>> sd1 = new SerializationDelegate<StreamRecord<Tuple>>(null);
-	int numOfOutChannels = 10;
-	
+	private PartialPartitioner<Tuple2<String, Integer>> partialPartitioner;
+	private StreamRecord<Tuple2<String, Integer>> streamRecord1 = new StreamRecord<Tuple2<String, Integer>>(new Tuple2<String, Integer>("key", 0));
+	private SerializationDelegate<StreamRecord<Tuple2<String, Integer>>> sd1 = new SerializationDelegate<StreamRecord<Tuple2<String, Integer>>>(null);
+	private static int numOfOutChannels = 10;
+    
 	@Before
 	public void setPartitioner() {
-		partialPartitioner = new PartialPartitioner<Tuple>(new KeySelector<Tuple, String>() {
+		partialPartitioner = new PartialPartitioner<Tuple2<String, Integer>>(new KeySelector<Tuple2<String, Integer>, String>() {
 
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public String getKey(Tuple value) throws Exception {
+			public String getKey(Tuple2<String, Integer> value) throws Exception {
 				return value.getField(0);
 			}
 		});
@@ -57,10 +55,11 @@ public class PartialPartitionerTest {
 	@Test
 	public void testSelectChannels() {
 		sd1.setInstance(streamRecord1);
-		
+	
 		int firstAttempt = partialPartitioner.selectChannels(sd1, numOfOutChannels)[0];
 		int secondAttempt = partialPartitioner.selectChannels(sd1, numOfOutChannels)[0];	
 		assertNotEquals(firstAttempt,secondAttempt);
+
 	}
 	
 }
