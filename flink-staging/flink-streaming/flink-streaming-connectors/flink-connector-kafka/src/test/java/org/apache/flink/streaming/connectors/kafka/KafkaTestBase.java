@@ -96,9 +96,11 @@ public abstract class KafkaTestBase extends TestLogger {
 	protected static int flinkPort;
 
 	protected static FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
-	
-	
-	
+
+	protected static List<File> tmpKafkaDirs;
+
+	protected static String kafkaHost = "localhost";
+
 	// ------------------------------------------------------------------------
 	//  Setup and teardown of the mini clusters
 	// ------------------------------------------------------------------------
@@ -119,14 +121,14 @@ public abstract class KafkaTestBase extends TestLogger {
 		tmpKafkaParent = new File(tempDir, "kafkaITcase-kafka-dir*" + (UUID.randomUUID().toString()));
 		assertTrue("cannot create kafka temp dir", tmpKafkaParent.mkdirs());
 
-		List<File> tmpKafkaDirs = new ArrayList<>(NUMBER_OF_KAFKA_SERVERS);
+		tmpKafkaDirs = new ArrayList<>(NUMBER_OF_KAFKA_SERVERS);
 		for (int i = 0; i < NUMBER_OF_KAFKA_SERVERS; i++) {
 			File tmpDir = new File(tmpKafkaParent, "server-" + i);
 			assertTrue("cannot create kafka temp dir", tmpDir.mkdir());
 			tmpKafkaDirs.add(tmpDir);
 		}
 
-		String kafkaHost = "localhost";
+
 		int zkPort = NetUtils.getAvailablePort();
 		zookeeperConnectionString = "localhost:" + zkPort;
 
@@ -241,7 +243,7 @@ public abstract class KafkaTestBase extends TestLogger {
 	/**
 	 * Copied from com.github.sakserv.minicluster.KafkaLocalBrokerIntegrationTest (ASL licensed)
 	 */
-	private static KafkaServer getKafkaServer(int brokerId, File tmpFolder,
+	protected static KafkaServer getKafkaServer(int brokerId, File tmpFolder,
 												String kafkaHost,
 												String zookeeperConnectionString) throws Exception {
 		Properties kafkaProperties = new Properties();

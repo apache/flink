@@ -19,13 +19,15 @@
 package org.apache.flink.streaming.connectors.kafka.testutils;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.connectors.kafka.SerializableKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+
+import java.io.Serializable;
 
 /**
  * Special partitioner that uses the first field of a 2-tuple as the partition,
  * and that expects a specific number of partitions.
  */
-public class Tuple2Partitioner implements SerializableKafkaPartitioner {
+public class Tuple2Partitioner extends KafkaPartitioner implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 

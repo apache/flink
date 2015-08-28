@@ -26,10 +26,13 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.SuccessException;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 
 import org.junit.Test;
+
+import java.io.Serializable;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -100,8 +103,7 @@ public class KafkaProducerITCase extends KafkaTestBase {
 			.setParallelism(1);
 			
 			// sink partitions into 
-			stream.addSink(new KafkaSink<Tuple2<Long, String>>(
-					brokerConnectionStrings, topic,serSchema, new CustomPartitioner(parallelism)))
+			stream.addSink(new FlinkKafkaProducer<>(topic, serSchema, FlinkKafkaProducer.getPropertiesFromBrokerList(brokerConnectionStrings), new CustomPartitioner(parallelism)))
 			.setParallelism(parallelism);
 
 			// ------ consuming topology ---------
@@ -165,7 +167,7 @@ public class KafkaProducerITCase extends KafkaTestBase {
 	
 	// ------------------------------------------------------------------------
 
-	public static class CustomPartitioner implements SerializableKafkaPartitioner {
+	public static class CustomPartitioner extends KafkaPartitioner implements Serializable {
 
 		private final int expectedPartitions;
 
