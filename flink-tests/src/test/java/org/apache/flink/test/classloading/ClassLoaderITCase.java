@@ -26,10 +26,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class ClassLoaderITCase {
 
@@ -47,7 +49,6 @@ public class ClassLoaderITCase {
 	@Test
 	public void testJobsWithCustomClassLoader() {
 		try {
-
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
@@ -62,37 +63,45 @@ public class ClassLoaderITCase {
 			try {
 				int port = testCluster.getJobManagerRPCPort();
 
-				PackagedProgram inputSplitTestProg = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE),
+				PackagedProgram inputSplitTestProg = new PackagedProgram(
+						new File(INPUT_SPLITS_PROG_JAR_FILE),
 						new String[] { INPUT_SPLITS_PROG_JAR_FILE,
 										"localhost",
 										String.valueOf(port),
 										"4" // parallelism
-									} );
+									});
 				inputSplitTestProg.invokeInteractiveModeForExecution();
 
 				// regular streaming job
-				PackagedProgram streamingProg = new PackagedProgram(new File(STREAMING_PROG_JAR_FILE),
-						new String[] { STREAMING_PROG_JAR_FILE, "localhost", String.valueOf(port) } );
+				PackagedProgram streamingProg = new PackagedProgram(
+						new File(STREAMING_PROG_JAR_FILE),
+						new String[] { 
+								STREAMING_PROG_JAR_FILE,
+								"localhost",
+								String.valueOf(port)
+						});
 				streamingProg.invokeInteractiveModeForExecution();
 
 				// checkpointed streaming job with custom classes for the checkpoint (FLINK-2543)
 				// the test also ensures that user specific exceptions are serializable between JobManager <--> JobClient.
 				try {
-					PackagedProgram streamingCheckpointedProg = new PackagedProgram(new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE),
-							new String[]{STREAMING_CHECKPOINTED_PROG_JAR_FILE, "localhost", String.valueOf(port)});
+					PackagedProgram streamingCheckpointedProg = new PackagedProgram(
+							new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE),
+							new String[] {
+									STREAMING_CHECKPOINTED_PROG_JAR_FILE, 
+									"localhost",
+									String.valueOf(port)});
 					streamingCheckpointedProg.invokeInteractiveModeForExecution();
-				} catch(Exception e) {
+				}
+				catch (Exception e) {
 					// we can not access the SuccessException here when executing the tests with maven, because its not available in the jar.
-					try {
-						if (!(e.getCause().getCause().getClass().getCanonicalName().equals("org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException"))) {
-							throw e;
-						}
-					} catch(Throwable ignore) {
-						throw e;
-					}
+					assertEquals("Program should terminate with a 'SuccessException'",
+							"org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException",
+							e.getCause().getCause().getClass().getCanonicalName());
 				}
 
-				PackagedProgram kMeansProg = new PackagedProgram(new File(KMEANS_JAR_PATH),
+				PackagedProgram kMeansProg = new PackagedProgram(
+						new File(KMEANS_JAR_PATH),
 						new String[] { KMEANS_JAR_PATH,
 										"localhost",
 										String.valueOf(port),
@@ -100,7 +109,7 @@ public class ClassLoaderITCase {
 										KMeansData.DATAPOINTS,
 										KMeansData.INITIAL_CENTERS,
 										"25"
-									} );
+									});
 				kMeansProg.invokeInteractiveModeForExecution();
 			}
 			finally {
@@ -109,8 +118,7 @@ public class ClassLoaderITCase {
 		}
 		catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail(e.getMessage());
+			fail(e.getMessage());
 		}
 	}
-
 }

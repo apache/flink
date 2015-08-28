@@ -24,7 +24,7 @@ import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.jobgraph.{JobGraph, DistributionPattern, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{Receiver, Sender}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
-import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, SubmitJob}
+import org.apache.flink.runtime.messages.JobManagerMessages.{JobSubmitSuccess, JobResultSuccess, SubmitJob}
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -68,12 +68,12 @@ class CoLocationConstraintITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val gateway = cluster.getJobManagerGateway
+      val gateway = cluster.getJobManagerGateway()
 
       try {
         within(TestingUtils.TESTING_DURATION) {
           gateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
         }

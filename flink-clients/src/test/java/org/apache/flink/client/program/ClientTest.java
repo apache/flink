@@ -21,6 +21,7 @@ package org.apache.flink.client.program;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.Status;
+
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
@@ -39,15 +40,18 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.NetUtils;
-import org.junit.After;
+import org.apache.flink.runtime.util.SerializedThrowable;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
@@ -225,16 +229,17 @@ public class ClientTest {
 
 	public static class SuccessReturningActor extends FlinkUntypedActor {
 
-		private Option<UUID> leaderSessionID = Option.<UUID>apply(UUID.randomUUID());
+		private final Option<UUID> leaderSessionID = Option.apply(UUID.randomUUID());
 
 		@Override
 		public void handleMessage(Object message) {
 			if (message instanceof JobManagerMessages.SubmitJob) {
 				JobID jid = ((JobManagerMessages.SubmitJob) message).jobGraph().getJobID();
 				getSender().tell(
-						decorateMessage(new Status.Success(jid)),
+						decorateMessage(new JobManagerMessages.JobSubmitSuccess(jid)),
 						getSelf());
-			} else if(message instanceof JobManagerMessages.RequestLeaderSessionID$) {
+			}
+			else if (message.getClass() == JobManagerMessages.getRequestLeaderSessionID().getClass()) {
 				getSender().tell(
 						decorateMessage(new JobManagerMessages.ResponseLeaderSessionID(leaderSessionID)),
 						getSelf());
@@ -254,12 +259,13 @@ public class ClientTest {
 
 	public static class FailureReturningActor extends FlinkUntypedActor {
 
-		private Option<UUID> leaderSessionID = Option.<UUID>apply(UUID.randomUUID());
+		private Option<UUID> leaderSessionID = Option.apply(UUID.randomUUID());
 
 		@Override
 		public void handleMessage(Object message) {
 			getSender().tell(
-					decorateMessage(new Status.Failure(new Exception("test"))),
+					decorateMessage(new JobManagerMessages.JobResultFailure(
+							new SerializedThrowable(new Exception("test")))),
 					getSelf());
 		}
 

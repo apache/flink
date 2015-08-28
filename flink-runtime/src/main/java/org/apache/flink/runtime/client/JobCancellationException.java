@@ -28,7 +28,7 @@ public class JobCancellationException extends JobExecutionException {
 
 	private static final long serialVersionUID = 2818087325120827526L;
 
-	public JobCancellationException(final JobID jobID, final String msg, final Throwable cause){
+	public JobCancellationException(JobID jobID, String msg, Throwable cause){
 		super(jobID, msg, cause);
 	}
 }

@@ -18,14 +18,13 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.Status.{Failure, Success}
 import akka.actor.{Kill, ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
-import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob
+import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultFailure, JobSubmitSuccess, SubmitJob}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.apache.flink.runtime.util.SerializedThrowable
@@ -70,13 +69,13 @@ class TaskManagerFailsWithSlotSharingITCase(_system: ActorSystem)
       val jobID = jobGraph.getJobID
 
       val cluster = TestingUtils.startTestingCluster(num_tasks/2, 2)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getJobManagerGateway()
       val taskManagers = cluster.getTaskManagers
 
       try{
         within(TestingUtils.TESTING_DURATION) {
           jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), self)
 
@@ -85,8 +84,8 @@ class TaskManagerFailsWithSlotSharingITCase(_system: ActorSystem)
           //kill task manager
           taskManagers(0) ! PoisonPill
 
-          val failure = expectMsgType[Failure]
-          val exception = SerializedThrowable.get(failure.cause, this.getClass.getClassLoader)
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
           exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
@@ -119,13 +118,13 @@ class TaskManagerFailsWithSlotSharingITCase(_system: ActorSystem)
       val jobID = jobGraph.getJobID
 
       val cluster = TestingUtils.startTestingCluster(num_tasks/2, 2)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getJobManagerGateway()
       val taskManagers = cluster.getTaskManagers
 
       try{
         within(TestingUtils.TESTING_DURATION) {
           jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), self)
           expectMsg(AllVerticesRunning(jobID))
@@ -133,8 +132,8 @@ class TaskManagerFailsWithSlotSharingITCase(_system: ActorSystem)
           //kill task manager
           taskManagers(0) ! Kill
 
-          val failure = expectMsgType[Failure]
-          val exception = SerializedThrowable.get(failure.cause, this.getClass.getClassLoader)
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
           exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)

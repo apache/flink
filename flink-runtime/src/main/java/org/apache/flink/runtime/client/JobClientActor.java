@@ -43,17 +43,15 @@ public class JobClientActor extends FlinkUntypedActor {
 	private final Logger logger;
 	private final boolean sysoutUpdates;
 
-	// leader session ID of the JobManager when this actor was created
+	/** leader session ID of the JobManager when this actor was created */
 	private final Option<UUID> leaderSessionID;
 
-	// Actor which submits a job to the JobManager via this actor
+	/** Actor which submits a job to the JobManager via this actor */
 	private ActorRef submitter;
 
-	public JobClientActor(
-			ActorRef jobManager,
-			Logger logger,
-			boolean sysoutUpdates,
-			Option<UUID> leaderSessionID) {
+	public JobClientActor(ActorRef jobManager, Logger logger, boolean sysoutUpdates,
+							Option<UUID> leaderSessionID) {
+		
 		this.jobManager = Preconditions.checkNotNull(jobManager, "The JobManager ActorRef must not be null.");
 		this.logger = Preconditions.checkNotNull(logger, "The logger must not be null.");
 		this.leaderSessionID = Preconditions.checkNotNull(leaderSessionID, "The leader session ID option must not be null.");
@@ -113,9 +111,14 @@ public class JobClientActor extends FlinkUntypedActor {
 		}
 		// acknowledgement to submit job is only logged, our original
 		// submitter is only interested in the final job result
-		else if (message instanceof JobManagerMessages.JobResultSuccess) {
+		else if (message instanceof JobManagerMessages.JobResultSuccess ||
+				message instanceof JobManagerMessages.JobResultFailure) {
+			
+			if (logger.isDebugEnabled()) {
+				logger.debug("Received {} message from JobManager", message.getClass().getSimpleName());
+			}
+
 			// forward the success to the original job submitter
-			logger.debug("Received JobResultSuccess message from JobManager");
 			if (this.submitter != null) {
 				this.submitter.tell(decorateMessage(message), getSelf());
 			}
@@ -124,16 +127,9 @@ public class JobClientActor extends FlinkUntypedActor {
 			getContext().unwatch(jobManager);
 			getSelf().tell(decorateMessage(PoisonPill.getInstance()), ActorRef.noSender());
 		}
-		else if (message instanceof Status.Success) {
+		else if (message instanceof JobManagerMessages.JobSubmitSuccess) {
 			// job was successfully submitted :-)
 			logger.info("Job was successfully submitted to the JobManager");
-		}
-		else if (message instanceof Status.Failure) {
-			// job execution failed, inform the actor that submitted the job
-			logger.debug("Received failure from JobManager", ((Status.Failure) message).cause());
-			if (submitter != null) {
-				submitter.tell(decorateMessage(message), sender());
-			}
 		}
 
 		// =========== Actor / Communication Failure ===============
