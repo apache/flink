@@ -23,7 +23,6 @@ import kafka.admin.AdminUtils;
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBase;
 
-import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
 import org.junit.Test;
 
 import java.util.Properties;

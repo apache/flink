@@ -20,9 +20,9 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.commons.collections.map.LinkedMap;
 
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -124,7 +124,6 @@ public class KafkaConsumerTest {
 	}
 	
 	@Test
-	@Ignore("Kafka consumer internally makes an infinite loop")
 	public void testCreateSourceWithoutCluster() {
 		try {
 			Properties props = new Properties();

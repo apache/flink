@@ -17,6 +17,7 @@
 package org.apache.flink.streaming.connectors.kafka.api;
 
 
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
 /**
@@ -26,7 +27,7 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
  * This class will be removed in future releases of Flink.
  */
 @Deprecated
-public class KafkaSink<IN> extends org.apache.flink.streaming.connectors.kafka.KafkaSink<IN> {
+public class KafkaSink<IN> extends FlinkKafkaProducer<IN> {
 	public KafkaSink(String brokerList, String topicId, SerializationSchema<IN, byte[]> serializationSchema) {
 		super(brokerList, topicId, serializationSchema);
 	}

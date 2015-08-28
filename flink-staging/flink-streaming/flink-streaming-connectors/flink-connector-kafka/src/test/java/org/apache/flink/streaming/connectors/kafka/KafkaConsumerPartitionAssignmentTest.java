@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.Test;
 
