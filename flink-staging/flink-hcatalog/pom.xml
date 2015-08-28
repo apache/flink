@@ -34,12 +34,6 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<repositories>
-		<repository>
-			<id>cloudera</id>
-			<url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
-		</repository>
-	</repositories>
 
 	<dependencies>
 		<dependency>
@@ -55,7 +49,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hive.hcatalog</groupId>
 			<artifactId>hive-hcatalog-core</artifactId>
-			<version>1.1.0-cdh5.4.0</version>
+			<version>1.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.hive.hcatalog</groupId>
