@@ -52,5 +52,5 @@ fi
 readSlaves
 
 for slave in ${SLAVES[@]}; do
-    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l $bin/taskmanager.sh start ${STREAMING_MODE} &"
+    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l $FLINK_BIN_DIR/taskmanager.sh start ${STREAMING_MODE} &"
 done
