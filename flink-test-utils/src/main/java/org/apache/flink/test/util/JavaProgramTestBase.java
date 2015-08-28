@@ -119,7 +119,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 				// call the test program
 				try {
 					testProgram();
-					this.latestExecutionResult = env.latestResult;
+					this.latestExecutionResult = env.getLastJobExecutionResult();
 				}
 				catch (Exception e) {
 					System.err.println(e.getMessage());
@@ -171,7 +171,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 				// call the test program
 				try {
 					testProgram();
-					this.latestExecutionResult = env.latestResult;
+					this.latestExecutionResult = env.getLastJobExecutionResult();
 				}
 				catch (Exception e) {
 					System.err.println(e.getMessage());
@@ -224,7 +224,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 		// call the test program
 		try {
 			testProgram();
-			this.latestExecutionResult = env.latestResult;
+			this.latestExecutionResult = env.getLastJobExecutionResult();
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

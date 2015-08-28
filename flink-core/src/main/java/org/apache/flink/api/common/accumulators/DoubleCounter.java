@@ -16,21 +16,26 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.accumulators;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-
+/**
+ * An accumulator that sums up {@code double} values.
+ */
 public class DoubleCounter implements SimpleAccumulator<Double> {
 
 	private static final long serialVersionUID = 1L;
 
 	private double localValue = 0;
 
+	/**
+	 * Consider using {@link #add(double)} instead for primitive double values
+	 */
 	@Override
 	public void add(Double value) {
+		localValue += value;
+	}
+
+	public void add(double value){
 		localValue += value;
 	}
 
@@ -41,7 +46,7 @@ public class DoubleCounter implements SimpleAccumulator<Double> {
 
 	@Override
 	public void merge(Accumulator<Double, Double> other) {
-		this.localValue += ((DoubleCounter) other).getLocalValue();
+		this.localValue += other.getLocalValue();
 	}
 
 	@Override
@@ -50,26 +55,14 @@ public class DoubleCounter implements SimpleAccumulator<Double> {
 	}
 
 	@Override
-	public void write(ObjectOutputStream out) throws IOException {
-		out.writeDouble(localValue);
-	}
-
-	@Override
-	public void read(ObjectInputStream in) throws IOException {
-		this.localValue = in.readDouble();
-	}
-
-	@Override
 	public Accumulator<Double, Double> clone() {
 		DoubleCounter result = new DoubleCounter();
 		result.localValue = localValue;
-
 		return result;
 	}
 
 	@Override
 	public String toString() {
-		return "DoubleCounter object. Local value: " + this.localValue;
+		return "DoubleCounter " + this.localValue;
 	}
-
 }

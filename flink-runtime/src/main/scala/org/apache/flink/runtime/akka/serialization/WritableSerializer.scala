@@ -32,7 +32,7 @@ class WritableSerializer extends JSerializer {
     val instance = InstantiationUtil.instantiate(manifest)
 
     if(!instance.isInstanceOf[Writable]){
-      throw new RuntimeException(s"Class $manifest is not of type IOReadableWritable.")
+      throw new RuntimeException(s"Class $manifest is not of type Writable.")
     }
 
     val writable = instance.asInstanceOf[Writable]

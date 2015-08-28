@@ -20,10 +20,22 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import java.io.IOException;
 
+/**
+ * A factory for buffer pools.
+ */
 public interface BufferPoolFactory {
 
+	/**
+	 * Tries to create a buffer pool, which is guaranteed to provide at least the number of required
+	 * buffers.
+	 *
+	 * <p> The buffer pool is either of dynamic size or fixed.
+	 */
 	BufferPool createBufferPool(int numRequiredBuffers, boolean isFixedSize) throws IOException;
 
+	/**
+	 * Destroy callback for updating factory book keeping.
+	 */
 	void destroyBufferPool(BufferPool bufferPool) throws IOException;
 
 }

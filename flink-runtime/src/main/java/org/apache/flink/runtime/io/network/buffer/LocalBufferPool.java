@@ -38,6 +38,10 @@ import static com.google.common.base.Preconditions.checkState;
  * local buffer pool. It also implements the default mechanism for buffer
  * recycling, which ensures that every buffer is ultimately returned to the
  * network buffer pool.
+ *
+ * <p> The size of this pool can be dynamically changed at runtime ({@link #setNumBuffers(int)}. It
+ * will then lazily return the required number of buffers to the {@link NetworkBufferPool} to
+ * match its new size.
  */
 class LocalBufferPool implements BufferPool {
 
@@ -137,7 +141,7 @@ class LocalBufferPool implements BufferPool {
 
 			while (availableMemorySegments.isEmpty()) {
 				if (isDestroyed) {
-					return null;
+					throw new IllegalStateException("Buffer pool is destroyed.");
 				}
 
 				if (numberOfRequestedMemorySegments < currentPoolSize) {

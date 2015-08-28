@@ -39,9 +39,9 @@ import org.apache.flink.util.Collector
  * Input files are plain text files and must be formatted as follows:
  *
  *   - Vertices represented as IDs and separated by new-line characters. For example,
- *     `"1\n2\n12\n42\n63\n"` gives five vertices (1), (2), (12), (42), and (63).
+ *     `"1\n2\n12\n42\n63"` gives five vertices (1), (2), (12), (42), and (63).
  *   - Edges are represented as pairs for vertex IDs which are separated by space characters. Edges
- *     are separated by new-line characters. For example `"1 2\n2 12\n1 12\n42 63\n"`
+ *     are separated by new-line characters. For example `"1 2\n2 12\n1 12\n42 63"`
  *     gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63).
  *
  * Usage:
@@ -98,11 +98,11 @@ object ConnectedComponents {
     }
     if (fileOutput) {
       verticesWithComponents.writeAsCsv(outputPath, "\n", " ")
+      env.execute("Scala Connected Components Example")
     } else {
       verticesWithComponents.print()
     }
 
-    env.execute("Scala Connected Components Example")
   }
  
   private def parseParameters(args: Array[String]): Boolean = {

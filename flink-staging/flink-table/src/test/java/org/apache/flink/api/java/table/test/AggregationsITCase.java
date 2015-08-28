@@ -44,7 +44,6 @@ import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple7;
-import org.apache.flink.api.java.table.JavaBatchTranslator;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -85,12 +84,11 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table = tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env));
+		Table table = tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env));
 
-		Table<JavaBatchTranslator> result =
-				table.select("f0.sum, f0.min, f0.max, f0.count, f0.avg");
+		Table result = table.select("f0.sum, f0.min, f0.max, f0.count, f0.avg");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -103,13 +101,13 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env));
+		Table table =
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env));
 
-		Table<JavaBatchTranslator> result =
+		Table result =
 				table.select("foo.avg");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -127,13 +125,13 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 						new Tuple7<Byte, Short, Integer, Long, Float, Double, String>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"),
 						new Tuple7<Byte, Short, Integer, Long, Float, Double, String>((byte) 2, (short) 2, 2, 2L, 2.0f, 2.0d, "Ciao"));
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input);
+		Table table =
+				tableEnv.fromDataSet(input);
 
-		Table<JavaBatchTranslator> result =
+		Table result =
 				table.select("f0.avg, f1.avg, f2.avg, f3.avg, f4.avg, f5.avg, f6.count");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -151,14 +149,14 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 						new Tuple2<Float, String>(1f, "Hello"),
 						new Tuple2<Float, String>(2f, "Ciao"));
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input);
+		Table table =
+				tableEnv.fromDataSet(input);
 
-		Table<JavaBatchTranslator> result =
+		Table result =
 				table.select("(f0 + 2).avg + 2, f1.count + \" THE COUNT\"");
 
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -174,14 +172,14 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		DataSource<Tuple2<Float, String>> input = env.fromElements(new Tuple2<Float, String>(1f,
 				"Hello"));
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input);
+		Table table =
+				tableEnv.fromDataSet(input);
 
-		Table<JavaBatchTranslator> result =
+		Table result =
 				table.select("f1.sum");
 
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -196,14 +194,14 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 
 		DataSource<Tuple2<Float, String>> input = env.fromElements(new Tuple2<Float, String>(1f, "Hello"));
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input);
+		Table table =
+				tableEnv.fromDataSet(input);
 
-		Table<JavaBatchTranslator> result =
+		Table result =
 				table.select("f0.sum.sum");
 
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();

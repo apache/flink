@@ -32,11 +32,12 @@ import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
@@ -89,11 +90,19 @@ abstract class NettyMessage {
 		@Override
 		public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
 			if (msg instanceof NettyMessage) {
+
+				ByteBuf serialized = null;
+
 				try {
-					ctx.write(((NettyMessage) msg).write(ctx.alloc()), promise);
+					serialized = ((NettyMessage) msg).write(ctx.alloc());
 				}
 				catch (Throwable t) {
 					throw new IOException("Error while serializing message: " + msg, t);
+				}
+				finally {
+					if (serialized != null) {
+						ctx.write(serialized, promise);
+					}
 				}
 			}
 			else {
@@ -138,8 +147,14 @@ abstract class NettyMessage {
 			else if (msgId == ErrorResponse.ID) {
 				decodedMsg = new ErrorResponse();
 			}
+			else if (msgId == CancelPartitionRequest.ID) {
+				decodedMsg = new CancelPartitionRequest();
+			}
+			else if (msgId == CloseRequest.ID) {
+				decodedMsg = new CloseRequest();
+			}
 			else {
-				throw new IllegalStateException("Received unknown message from producer: " + decodedMsg.getClass());
+				throw new IllegalStateException("Received unknown message from producer: " + msg);
 			}
 
 			if (decodedMsg != null) {
@@ -252,19 +267,19 @@ abstract class NettyMessage {
 
 		private static final byte ID = 1;
 
-		Throwable error;
+		Throwable cause;
 
 		InputChannelID receiverId;
 
 		public ErrorResponse() {
 		}
 
-		ErrorResponse(Throwable error) {
-			this.error = error;
+		ErrorResponse(Throwable cause) {
+			this.cause = cause;
 		}
 
-		ErrorResponse(Throwable error, InputChannelID receiverId) {
-			this.error = error;
+		ErrorResponse(Throwable cause, InputChannelID receiverId) {
+			this.cause = cause;
 			this.receiverId = receiverId;
 		}
 
@@ -285,7 +300,7 @@ abstract class NettyMessage {
 
 				oos = new ObjectOutputStream(new DataOutputViewStream(outputView));
 
-				oos.writeObject(error);
+				oos.writeObject(cause);
 
 				if (receiverId != null) {
 					result.writeBoolean(true);
@@ -311,6 +326,7 @@ abstract class NettyMessage {
 
 			return result;
 		}
+
 		@Override
 		void readFrom(ByteBuf buffer) throws Exception {
 			DataInputView inputView = new ByteBufDataInputView(buffer);
@@ -325,7 +341,7 @@ abstract class NettyMessage {
 					throw new ClassCastException("Read object expected to be of type Throwable, " +
 							"actual type is " + obj.getClass() + ".");
 				} else {
-					error = (Throwable) obj;
+					cause = (Throwable) obj;
 
 					if (buffer.readBoolean()) {
 						receiverId = InputChannelID.fromByteBuf(buffer);
@@ -394,7 +410,7 @@ abstract class NettyMessage {
 
 		@Override
 		public String toString() {
-			return String.format("PartitionRequest(%s)", partitionId);
+			return String.format("PartitionRequest(%s:%d)", partitionId, queueIndex);
 		}
 	}
 
@@ -460,6 +476,68 @@ abstract class NettyMessage {
 			partitionId = new ResultPartitionID(IntermediateResultPartitionID.fromByteBuf(buffer), ExecutionAttemptID.fromByteBuf(buffer));
 
 			receiverId = InputChannelID.fromByteBuf(buffer);
+		}
+	}
+
+	/**
+	 * Cancels the partition request of the {@link InputChannel} identified by
+	 * {@link InputChannelID}.
+	 *
+	 * <p> There is a 1:1 mapping between the input channel and partition per physical channel.
+	 * Therefore, the {@link InputChannelID} instance is enough to identify which request to cancel.
+	 */
+	static class CancelPartitionRequest extends NettyMessage {
+
+		final static byte ID = 4;
+
+		InputChannelID receiverId;
+
+		public CancelPartitionRequest() {
+		}
+
+		public CancelPartitionRequest(InputChannelID receiverId) {
+			this.receiverId = receiverId;
+		}
+
+		@Override
+		ByteBuf write(ByteBufAllocator allocator) throws Exception {
+			ByteBuf result = null;
+
+			try {
+				result = allocateBuffer(allocator, ID, 16);
+				receiverId.writeTo(result);
+			}
+			catch (Throwable t) {
+				if (result != null) {
+					result.release();
+				}
+
+				throw new IOException(t);
+			}
+
+			return result;
+		}
+
+		@Override
+		void readFrom(ByteBuf buffer) throws Exception {
+			receiverId = InputChannelID.fromByteBuf(buffer);
+		}
+	}
+
+	static class CloseRequest extends NettyMessage {
+
+		private static final byte ID = 5;
+
+		public CloseRequest() {
+		}
+
+		@Override
+		ByteBuf write(ByteBufAllocator allocator) throws Exception {
+			return allocateBuffer(allocator, ID, 0);
+		}
+
+		@Override
+		void readFrom(ByteBuf buffer) throws Exception {
 		}
 	}
 

@@ -25,7 +25,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.table.JavaBatchTranslator;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -68,13 +67,13 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input, "a, b, c");
+		Table table =
+				tableEnv.fromDataSet(input, "a, b, c");
 
-		Table<JavaBatchTranslator> result = table
+		Table result = table
 				.groupBy("foo").select("a.avg");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -89,13 +88,13 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input, "a, b, c");
+		Table table =
+				tableEnv.fromDataSet(input, "a, b, c");
 
-		Table<JavaBatchTranslator> result = table
+		Table result = table
 				.groupBy("b").select("b, a.sum");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -114,13 +113,13 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input, "a, b, c");
+		Table table =
+				tableEnv.fromDataSet(input, "a, b, c");
 
-		Table<JavaBatchTranslator> result = table
+		Table result = table
 				.groupBy("b").select("a.sum");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();

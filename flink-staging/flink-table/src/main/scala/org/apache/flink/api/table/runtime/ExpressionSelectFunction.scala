@@ -17,35 +17,37 @@
  */
 package org.apache.flink.api.table.runtime
 
-import org.apache.flink.api.table.tree.Expression
-import org.apache.flink.api.common.functions.RichMapFunction
+import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.table.codegen.GenerateUnaryResultAssembler
+import org.apache.flink.api.table.codegen.GenerateSelect
 import org.apache.flink.configuration.Configuration
 
+/**
+ * Proxy function that takes expressions. These are compiled
+ * upon runtime and calls to [[map()]] are forwarded to the compiled code.
+ */
 class ExpressionSelectFunction[I, O](
      inputType: CompositeType[I],
      resultType: CompositeType[O],
      outputFields: Seq[Expression]) extends RichMapFunction[I, O] {
 
-  var resultAssembler: (I, O) => O = null
-  var result: O = null.asInstanceOf[O]
+  var compiledSelect: MapFunction[I, O] = null
 
   override def open(config: Configuration): Unit = {
-    result = resultType.createSerializer(getRuntimeContext.getExecutionConfig).createInstance()
 
-    if (resultAssembler == null) {
-      val resultCodegen = new GenerateUnaryResultAssembler[I, O](
+    if (compiledSelect == null) {
+      val resultCodegen = new GenerateSelect[I, O](
         inputType,
         resultType,
         outputFields,
         getRuntimeContext.getUserCodeClassLoader)
 
-      resultAssembler = resultCodegen.generate()
+      compiledSelect = resultCodegen.generate()
     }
   }
 
   def map(in: I): O = {
-    resultAssembler(in, result)
+    compiledSelect.map(in)
   }
 }

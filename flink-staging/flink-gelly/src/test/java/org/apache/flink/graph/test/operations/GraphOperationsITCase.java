@@ -22,17 +22,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.Triplet;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -43,21 +42,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-    private String resultPath;
     private String expectedResult;
-
-    @Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
 
 	@Test
 	public void testUndirected() throws Exception {
@@ -69,8 +54,9 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
-		graph.getUndirected().getEdges().writeAsCsv(resultPath);
-		env.execute();
+        DataSet<Edge<Long,Long>> data = graph.getUndirected().getEdges();
+        List<Edge<Long, Long>> result= data.collect();
+        
 		expectedResult = "1,2,12\n" + "2,1,12\n" +
 					"1,3,13\n" + "3,1,13\n" +
 					"2,3,23\n" + "3,2,23\n" +
@@ -78,6 +64,8 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 					"3,5,35\n" + "5,3,35\n" +
 					"4,5,45\n" + "5,4,45\n" +
 					"5,1,51\n" + "1,5,51\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -90,8 +78,9 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
-		graph.reverse().getEdges().writeAsCsv(resultPath);
-		env.execute();
+        DataSet<Edge<Long,Long>> data = graph.reverse().getEdges();
+        List<Edge<Long, Long>> result= data.collect();
+        
 		expectedResult = "2,1,12\n" +
 					"3,1,13\n" +
 					"3,2,23\n" +
@@ -99,6 +88,8 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 					"5,3,35\n" +
 					"5,4,45\n" +
 					"1,5,51\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")
@@ -111,7 +102,8 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
-		graph.subgraph(new FilterFunction<Vertex<Long, Long>>() {
+		
+		DataSet<Edge<Long,Long>> data= graph.subgraph(new FilterFunction<Vertex<Long, Long>>() {
 						   public boolean filter(Vertex<Long, Long> vertex) throws Exception {
 							   return (vertex.getValue() > 2);
 						   }
@@ -120,11 +112,14 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 					public boolean filter(Edge<Long, Long> edge) throws Exception {
 						return (edge.getValue() > 34);
 					}
-				}).getEdges().writeAsCsv(resultPath);
+				}).getEdges();
 
-		env.execute();
+        List<Edge<Long, Long>> result= data.collect();
+        
 		expectedResult = "3,5,35\n" +
 					"4,5,45\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")
@@ -137,16 +132,20 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
-		graph.filterOnVertices(new FilterFunction<Vertex<Long, Long>>() {
+		
+		DataSet<Edge<Long,Long>> data = graph.filterOnVertices(new FilterFunction<Vertex<Long, Long>>() {
 			public boolean filter(Vertex<Long, Long> vertex) throws Exception {
 				return (vertex.getValue() > 2);
 			}
-		}).getEdges().writeAsCsv(resultPath);
+		}).getEdges();
 
-		env.execute();
+        List<Edge<Long, Long>> result= data.collect();
+		
 		expectedResult =  "3,4,34\n" +
 				"3,5,35\n" +
 				"4,5,45\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")
@@ -159,16 +158,20 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
-		graph.filterOnEdges(new FilterFunction<Edge<Long, Long>>() {
+		
+		DataSet<Edge<Long,Long>> data = graph.filterOnEdges(new FilterFunction<Edge<Long, Long>>() {
 			public boolean filter(Edge<Long, Long> edge) throws Exception {
 				return (edge.getValue() > 34);
 			}
-		}).getEdges().writeAsCsv(resultPath);
+		}).getEdges();
 
-		env.execute();
+        List<Edge<Long, Long>> result = data.collect();
+        
 		expectedResult = "3,5,35\n" +
 					"4,5,45\n" +
 					"5,1,51\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -180,10 +183,13 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
-		env.fromElements(graph.numberOfVertices()).writeAsText(resultPath);
+		DataSet<Long> data = env.fromElements(graph.numberOfVertices());
 
-		env.execute();
+        List<Long> result= data.collect();
+        
 		expectedResult = "5";
+		
+		compareResultAsText(result, expectedResult);
 	}
 
 	@Test
@@ -195,10 +201,13 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
-		env.fromElements(graph.numberOfEdges()).writeAsText(resultPath);
+		DataSet<Long> data = env.fromElements(graph.numberOfEdges());
 
-		env.execute();
+        List<Long> result= data.collect();
+        
 		expectedResult = "7";
+		
+		compareResultAsText(result, expectedResult);
 	}
 
 	@Test
@@ -210,10 +219,13 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
-		graph.getVertexIds().writeAsText(resultPath);
-
-		env.execute();
+		
+		DataSet<Long> data = graph.getVertexIds();
+        List<Long> result= data.collect();
+        
 		expectedResult = "1\n2\n3\n4\n5\n";
+		
+		compareResultAsText(result, expectedResult);
 	}
 
 	@Test
@@ -225,13 +237,16 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
-		graph.getEdgeIds().writeAsCsv(resultPath);
-
-		env.execute();
+		
+		DataSet<Tuple2<Long,Long>> data = graph.getEdgeIds();
+        List<Tuple2<Long, Long>> result= data.collect();
+        
 		expectedResult = "1,2\n" + "1,3\n" +
 				"2,3\n" + "3,4\n" +
 				"3,5\n" + "4,5\n" +
 				"5,1\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -252,9 +267,8 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		graph = graph.union(Graph.fromCollection(vertices, edges, env));
 
-		graph.getEdges().writeAsCsv(resultPath);
-
-		env.execute();
+        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
 					"1,3,13\n" +
@@ -264,6 +278,82 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 					"4,5,45\n" +
 					"5,1,51\n" +
 					"6,1,61\n";
+		
+		compareResultAsTuples(result, expectedResult);
+	}
+
+	@Test
+	public void testDifference() throws Exception {
+		/*Test  difference() method  by checking    the output  for getEdges()   on  the resultant   graph
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		Graph<Long, Long, Long> graph2 = Graph.fromDataSet(TestGraphUtils.getLongLongVertexDataDifference(env),
+				TestGraphUtils.getLongLongEdgeDataDifference(env), env);
+
+		graph = graph.difference(graph2);
+
+		List<Edge<Long, Long>> result = graph.getEdges().collect();
+
+		expectedResult = "4,5,45\n";
+		compareResultAsTuples(result, expectedResult);
+	}
+
+
+	@Test
+	public void testDifferenceVertices() throws Exception{
+		/*Test  difference() method  by checking    the output  for getVertices()   on  the resultant   graph
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		Graph<Long, Long, Long> graph2 = Graph.fromDataSet(TestGraphUtils.getLongLongVertexDataDifference(env),
+				TestGraphUtils.getLongLongEdgeDataDifference(env), env);
+
+		graph = graph.difference(graph2);
+
+		List<Vertex<Long, Long>> result = graph.getVertices().collect();
+
+		expectedResult =  "2,2\n" +
+				"4,4\n" +
+				"5,5\n" ;
+
+		compareResultAsTuples(result, expectedResult);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testDifference2() throws Exception {
+		/*
+		 * Test difference() such that no common vertices are there
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Vertex<Long, Long>> vertex = env.fromElements(new Vertex<Long, Long>(6L, 6L));
+
+		Graph<Long, Long, Long> graph2 = Graph.fromDataSet(vertex,TestGraphUtils.getLongLongEdgeDataDifference2(env),env);
+
+		graph = graph.difference(graph2);
+
+		List<Edge<Long, Long>> result = graph.getEdges().collect();
+
+		expectedResult =	"1,2,12\n" +
+				"1,3,13\n" +
+				"2,3,23\n" +
+				"3,4,34\n" +
+				"3,5,35\n" +
+				"4,5,45\n" +
+				"5,1,51\n" ;
+
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -276,12 +366,14 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
-		graph.getTriplets().writeAsCsv(resultPath);
+        DataSet<Triplet<Long,Long,Long>> data = graph.getTriplets();
+        List<Triplet<Long,Long,Long>> result= data.collect();
 
-		env.execute();
 		expectedResult = "1,2,1,2,12\n" + "1,3,1,3,13\n" +
 				"2,3,2,3,23\n" + "3,4,3,4,34\n" +
 				"3,5,3,5,35\n" + "4,5,4,5,45\n" +
 				"5,1,5,1,51\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 }

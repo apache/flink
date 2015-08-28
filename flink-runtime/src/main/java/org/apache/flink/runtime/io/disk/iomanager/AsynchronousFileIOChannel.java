@@ -294,6 +294,10 @@ final class SegmentReadRequest implements ReadRequest {
 	private final MemorySegment segment;
 
 	protected SegmentReadRequest(AsynchronousFileIOChannel<MemorySegment, ReadRequest> targetChannel, MemorySegment segment) {
+		if (segment == null) {
+			throw new NullPointerException("Illegal read request with null memory segment.");
+		}
+		
 		this.channel = targetChannel;
 		this.segment = segment;
 	}

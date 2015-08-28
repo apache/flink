@@ -24,6 +24,7 @@ import static org.junit.Assert.fail;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 /**
@@ -32,7 +33,7 @@ import org.junit.Test;
  * @param <T>
  * @param <R>
  */
-public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tuple> {
+public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tuple> extends TestLogger {
 
 	protected abstract TypePairComparator<T, R> createComparator(boolean ascending);
 

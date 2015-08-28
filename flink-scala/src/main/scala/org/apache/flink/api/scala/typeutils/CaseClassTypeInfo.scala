@@ -228,4 +228,6 @@ abstract class CaseClassTypeInfo[T <: Product](
   override def toString = clazz.getName + "(" + fieldNames.zip(types).map {
     case (n, t) => n + ": " + t}
     .mkString(", ") + ")"
+
+  override def isCaseClass = true
 }

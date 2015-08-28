@@ -32,7 +32,7 @@ public enum JobStatus {
 	/** The job has failed and is currently waiting for the cleanup to complete */
 	FAILING(false),
 	
-	/** The job has failed to to non-recoverable task failure */
+	/** The job has failed with a non-recoverable task failure */
 	FAILED(true),
 
 	/** Job is being cancelled */
@@ -51,7 +51,7 @@ public enum JobStatus {
 	
 	private final boolean terminalState;
 	
-	private JobStatus(boolean terminalState) {
+	JobStatus(boolean terminalState) {
 		this.terminalState = terminalState;
 	}
 	

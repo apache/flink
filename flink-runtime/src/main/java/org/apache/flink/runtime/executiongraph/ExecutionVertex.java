@@ -28,6 +28,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -40,8 +41,11 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
+
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
@@ -94,18 +98,22 @@ public class ExecutionVertex implements Serializable {
 
 	private volatile boolean scheduleLocalOnly;
 
-	private StateHandle operatorState;
-
 	// --------------------------------------------------------------------------------------------
 
-	public ExecutionVertex(ExecutionJobVertex jobVertex, int subTaskIndex,
-						IntermediateResult[] producedDataSets, FiniteDuration timeout) {
+	public ExecutionVertex(
+			ExecutionJobVertex jobVertex,
+			int subTaskIndex,
+			IntermediateResult[] producedDataSets,
+			FiniteDuration timeout) {
 		this(jobVertex, subTaskIndex, producedDataSets, timeout, System.currentTimeMillis());
 	}
 
-	public ExecutionVertex(ExecutionJobVertex jobVertex, int subTaskIndex,
-						IntermediateResult[] producedDataSets, FiniteDuration timeout,
-						long createTimestamp) {
+	public ExecutionVertex(
+			ExecutionJobVertex jobVertex,
+			int subTaskIndex,
+			IntermediateResult[] producedDataSets,
+			FiniteDuration timeout,
+			long createTimestamp) {
 		this.jobVertex = jobVertex;
 		this.subTaskIndex = subTaskIndex;
 
@@ -122,7 +130,12 @@ public class ExecutionVertex implements Serializable {
 
 		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
 
-		this.currentExecution = new Execution(this, 0, createTimestamp, timeout);
+		this.currentExecution = new Execution(
+			getExecutionGraph().getExecutionContext(),
+			this,
+			0,
+			createTimestamp,
+			timeout);
 
 		// create a co-location scheduling hint, if necessary
 		CoLocationGroup clg = jobVertex.getCoLocationGroup();
@@ -163,6 +176,10 @@ public class ExecutionVertex implements Serializable {
 				jobVertex.getJobVertex().getName(),
 				subTaskIndex + 1,
 				getTotalNumberOfParallelSubtasks());
+	}
+
+	public int getSubTaskIndex() {
+		return subTaskIndex;
 	}
 
 	public int getTotalNumberOfParallelSubtasks() {
@@ -211,17 +228,13 @@ public class ExecutionVertex implements Serializable {
 	public InstanceConnectionInfo getCurrentAssignedResourceLocation() {
 		return currentExecution.getAssignedResourceLocation();
 	}
-
-	public void setOperatorState(StateHandle operatorState) {
-		this.operatorState = operatorState;
-	}
-
-	public StateHandle getOperatorState() {
-		return operatorState;
-	}
 	
 	public ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();
+	}
+
+	public Map<IntermediateResultPartitionID, IntermediateResultPartition> getProducedPartitions() {
+		return resultPartitions;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -413,18 +426,17 @@ public class ExecutionVertex implements Serializable {
 
 			if (state == FINISHED || state == CANCELED || state == FAILED) {
 				priorExecutions.add(execution);
-				currentExecution = new Execution(this, execution.getAttemptNumber()+1,
-						System.currentTimeMillis(), timeout);
+				currentExecution = new Execution(
+					getExecutionGraph().getExecutionContext(),
+					this,
+					execution.getAttemptNumber()+1,
+					System.currentTimeMillis(),
+					timeout);
 
 				CoLocationGroup grp = jobVertex.getCoLocationGroup();
 				if (grp != null) {
 					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);
 				}
-				
-				if (operatorState != null) {
-					execution.setOperatorState(operatorState);
-				}
-				
 			}
 			else {
 				throw new IllegalStateException("Cannot reset a vertex that is in state " + state);
@@ -448,6 +460,30 @@ public class ExecutionVertex implements Serializable {
 		this.currentExecution.fail(t);
 	}
 
+	public void sendMessageToCurrentExecution(Serializable message, ExecutionAttemptID attemptID) {
+		Execution exec = getCurrentExecutionAttempt();
+		
+		// check that this is for the correct execution attempt
+		if (exec != null && exec.getAttemptId().equals(attemptID)) {
+			SimpleSlot slot = exec.getAssignedResource();
+			
+			// send only if we actually have a target
+			if (slot != null) {
+				ActorGateway gateway = slot.getInstance().getActorGateway();
+				if (gateway != null) {
+					gateway.tell(message);
+				}
+			}
+			else {
+				LOG.debug("Skipping message to undeployed task execution {}/{}", getSimpleName(), attemptID);
+			}
+		}
+		else {
+			LOG.debug("Skipping message to {}/{} because it does not match the current execution",
+					getSimpleName(), attemptID);
+		}
+	}
+	
 	/**
 	 * Schedules or updates the consumer tasks of the result partition with the given ID.
 	 */
@@ -499,6 +535,7 @@ public class ExecutionVertex implements Serializable {
 		// clear the unnecessary fields in this class
 		this.resultPartitions = null;
 		this.inputEdges = null;
+		this.locationConstraint = null;
 		this.locationConstraintInstances = null;
 	}
 
@@ -563,10 +600,13 @@ public class ExecutionVertex implements Serializable {
 
 	/**
 	 * Creates a task deployment descriptor to deploy a subtask to the given target slot.
+	 * 
+	 * TODO: This should actually be in the EXECUTION
 	 */
 	TaskDeploymentDescriptor createDeploymentDescriptor(
 			ExecutionAttemptID executionId,
-			SimpleSlot targetSlot) {
+			SimpleSlot targetSlot,
+			SerializedValue<StateHandle<?>> operatorState) {
 
 		// Produced intermediate results
 		List<ResultPartitionDeploymentDescriptor> producedPartitions = new ArrayList<ResultPartitionDeploymentDescriptor>(resultPartitions.size());
@@ -599,7 +639,7 @@ public class ExecutionVertex implements Serializable {
 		return new TaskDeploymentDescriptor(getJobId(), getJobvertexId(), executionId, getTaskName(),
 				subTaskIndex, getTotalNumberOfParallelSubtasks(), getExecutionGraph().getJobConfiguration(),
 				jobVertex.getJobVertex().getConfiguration(), jobVertex.getJobVertex().getInvokableClassName(),
-				producedPartitions, consumedPartitions, jarFiles, targetSlot.getSlotNumber(), operatorState);
+				producedPartitions, consumedPartitions, jarFiles, targetSlot.getRoot().getSlotNumber(), operatorState);
 	}
 
 	// --------------------------------------------------------------------------------------------

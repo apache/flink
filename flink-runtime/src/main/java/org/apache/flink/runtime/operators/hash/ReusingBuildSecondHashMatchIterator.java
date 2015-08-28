@@ -71,9 +71,9 @@ public class ReusingBuildSecondHashMatchIterator<V1, V2, O> extends HashMatchIte
 			MemoryManager memManager,
 			IOManager ioManager,
 			AbstractInvokable ownerTask,
-			double memoryFraction)
-	throws MemoryAllocationException
-	{		
+			double memoryFraction,
+			boolean useBitmapFilters) throws MemoryAllocationException {
+		
 		this.memManager = memManager;
 		this.firstInput = firstInput;
 		this.secondInput = secondInput;
@@ -83,7 +83,7 @@ public class ReusingBuildSecondHashMatchIterator<V1, V2, O> extends HashMatchIte
 		this.tempBuildSideRecord = serializer2.createInstance();
 
 		this.hashJoin = getHashJoin(serializer2, comparator2, serializer1, comparator1, pairComparator,
-			memManager, ioManager, ownerTask, memoryFraction);
+			memManager, ioManager, ownerTask, memoryFraction, useBitmapFilters);
 	}
 	
 	// --------------------------------------------------------------------------------------------

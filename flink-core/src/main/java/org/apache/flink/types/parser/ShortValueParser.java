@@ -54,6 +54,10 @@ public class ShortValueParser extends FieldParser<ShortValue> {
 		
 		for (int i = startPos; i < limit; i++) {
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
+				if (i == startPos) {
+					setErrorState(ParseErrorState.EMPTY_STRING);
+					return -1;
+				}
 				reusable.setValue((short) (neg ? -val : val));
 				return i + delimiter.length;
 			}

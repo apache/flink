@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
-import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -54,12 +54,14 @@ public class PartitionRequestClientFactoryTest {
 		final Tuple2<NettyServer, NettyClient> netty = createNettyServerAndClient(
 				new NettyProtocol() {
 					@Override
-					public void setServerChannelPipeline(ChannelPipeline channelPipeline) {
+					public ChannelHandler[] getServerChannelHandlers() {
+						return new ChannelHandler[0];
 					}
 
 					@Override
-					public void setClientChannelPipeline(ChannelPipeline channelPipeline) {
-						channelPipeline.addLast(new CountDownLatchOnConnectHandler(syncOnConnect));
+					public ChannelHandler[] getClientChannelHandlers() {
+						return new ChannelHandler[] {
+								new CountDownLatchOnConnectHandler(syncOnConnect)};
 					}
 				});
 

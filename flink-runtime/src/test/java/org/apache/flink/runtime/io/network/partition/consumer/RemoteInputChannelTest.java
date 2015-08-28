@@ -19,15 +19,15 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
-import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.junit.Test;
-import org.mockito.Matchers;
+import scala.Tuple2;
 
 import java.io.IOException;
 import java.util.List;
@@ -37,7 +37,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -73,7 +72,7 @@ public class RemoteInputChannelTest {
 		verify(inputGate, times(2)).onAvailableBuffer(eq(inputChannel));
 	}
 
-	@Test(timeout = 120 * 1000)
+	@Test
 	public void testConcurrentOnBufferAndRelease() throws Exception {
 		// Config
 		// Repeatedly spawn two tasks: one to queue buffers and the other to release the channel
@@ -133,20 +132,175 @@ public class RemoteInputChannelTest {
 		}
 	}
 
+	@Test(expected = IllegalStateException.class)
+	public void testRetriggerWithoutPartitionRequest() throws Exception {
+		Tuple2<Integer, Integer> backoff = new Tuple2<Integer, Integer>(500, 3000);
+		PartitionRequestClient connClient = mock(PartitionRequestClient.class);
+		SingleInputGate inputGate = mock(SingleInputGate.class);
+
+		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connClient, backoff);
+
+		ch.retriggerSubpartitionRequest(0);
+	}
+
+	@Test
+	public void testPartitionRequestExponentialBackoff() throws Exception {
+		// Config
+		Tuple2<Integer, Integer> backoff = new Tuple2<Integer, Integer>(500, 3000);
+
+		// Start with initial backoff, then keep doubling, and cap at max.
+		int[] expectedDelays = {backoff._1(), 1000, 2000, backoff._2()};
+
+		// Setup
+		PartitionRequestClient connClient = mock(PartitionRequestClient.class);
+		SingleInputGate inputGate = mock(SingleInputGate.class);
+
+		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connClient, backoff);
+
+		// Initial request
+		ch.requestSubpartition(0);
+		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(0));
+
+		// Request subpartition and verify that the actual requests are delayed.
+		for (int expected : expectedDelays) {
+			ch.retriggerSubpartitionRequest(0);
+
+			verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(expected));
+		}
+
+		// Exception after backoff is greater than the maximum backoff.
+		try {
+			ch.retriggerSubpartitionRequest(0);
+			ch.getNextBuffer();
+			fail("Did not throw expected exception.");
+		}
+		catch (Exception expected) {
+		}
+	}
+
+	@Test
+	public void testPartitionRequestSingleBackoff() throws Exception {
+		// Config
+		Tuple2<Integer, Integer> backoff = new Tuple2<Integer, Integer>(500, 500);
+
+		// Setup
+		PartitionRequestClient connClient = mock(PartitionRequestClient.class);
+		SingleInputGate inputGate = mock(SingleInputGate.class);
+
+		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connClient, backoff);
+
+		// No delay for first request
+		ch.requestSubpartition(0);
+		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(0));
+
+		// Initial delay for second request
+		ch.retriggerSubpartitionRequest(0);
+		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(backoff._1()));
+
+		// Exception after backoff is greater than the maximum backoff.
+		try {
+			ch.retriggerSubpartitionRequest(0);
+			ch.getNextBuffer();
+			fail("Did not throw expected exception.");
+		}
+		catch (Exception expected) {
+		}
+	}
+
+	@Test
+	public void testPartitionRequestNoBackoff() throws Exception {
+		// Config
+		Tuple2<Integer, Integer> backoff = new Tuple2<Integer, Integer>(0, 0);
+
+		// Setup
+		PartitionRequestClient connClient = mock(PartitionRequestClient.class);
+		SingleInputGate inputGate = mock(SingleInputGate.class);
+
+		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connClient, backoff);
+
+		// No delay for first request
+		ch.requestSubpartition(0);
+		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(0));
+
+		// Exception, because backoff is disabled.
+		try {
+			ch.retriggerSubpartitionRequest(0);
+			ch.getNextBuffer();
+			fail("Did not throw expected exception.");
+		}
+		catch (Exception expected) {
+		}
+	}
+
+	@Test
+	public void testOnFailedPartitionRequest() throws Exception {
+		final ConnectionManager connectionManager = mock(ConnectionManager.class);
+		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
+				.thenReturn(mock(PartitionRequestClient.class));
+
+		final ResultPartitionID partitionId = new ResultPartitionID();
+
+		final SingleInputGate inputGate = mock(SingleInputGate.class);
+
+		final RemoteInputChannel ch = new RemoteInputChannel(
+				inputGate,
+				0,
+				partitionId,
+				mock(ConnectionID.class),
+				connectionManager);
+
+		ch.onFailedPartitionRequest();
+
+		verify(inputGate).triggerPartitionStateCheck(eq(partitionId));
+	}
+
+	@Test(expected = CancelTaskException.class)
+	public void testProducerFailedException() throws Exception {
+
+		ConnectionManager connManager = mock(ConnectionManager.class);
+		when(connManager.createPartitionRequestClient(any(ConnectionID.class)))
+				.thenReturn(mock(PartitionRequestClient.class));
+
+		final RemoteInputChannel ch = new RemoteInputChannel(
+				mock(SingleInputGate.class),
+				0,
+				new ResultPartitionID(),
+				mock(ConnectionID.class),
+				connManager);
+
+		ch.onError(new ProducerFailedException(new RuntimeException("Expected test exception.")));
+
+		ch.requestSubpartition(0);
+
+		// Should throw an instance of CancelTaskException.
+		ch.getNextBuffer();
+	}
+
 	// ---------------------------------------------------------------------------------------------
 
 	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate)
 			throws IOException, InterruptedException {
 
+		return createRemoteInputChannel(
+				inputGate, mock(PartitionRequestClient.class), new Tuple2<Integer, Integer>(0, 0));
+	}
+
+	private RemoteInputChannel createRemoteInputChannel(
+			SingleInputGate inputGate,
+			PartitionRequestClient partitionRequestClient,
+			Tuple2<Integer, Integer> initialAndMaxRequestBackoff)
+			throws IOException, InterruptedException {
+
 		final ConnectionManager connectionManager = mock(ConnectionManager.class);
 		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
-				.thenReturn(mock(PartitionRequestClient.class));
+				.thenReturn(partitionRequestClient);
 
 		return new RemoteInputChannel(
 				inputGate,
 				0,
 				new ResultPartitionID(),
 				mock(ConnectionID.class),
-				connectionManager);
+				connectionManager,
+				initialAndMaxRequestBackoff);
 	}
 }

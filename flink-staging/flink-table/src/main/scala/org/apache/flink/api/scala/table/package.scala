@@ -68,17 +68,21 @@ import scala.language.implicitConversions
  */
 package object table extends ImplicitExpressionConversions {
 
+  implicit def table2TableConversions(table: Table): TableConversions = {
+    new TableConversions(table)
+  }
+
   implicit def dataSet2DataSetConversions[T](set: DataSet[T]): DataSetConversions[T] = {
     new DataSetConversions[T](set, set.getType.asInstanceOf[CompositeType[T]])
   }
 
   implicit def table2RowDataSet(
-      table: Table[ScalaBatchTranslator]): DataSet[Row] = {
-    table.as[Row]
+      table: Table): DataSet[Row] = {
+    new ScalaBatchTranslator().translate[Row](table.operation)
   }
 
   implicit def rowDataSet2Table(
-      rowDataSet: DataSet[Row]): Table[ScalaBatchTranslator] = {
+      rowDataSet: DataSet[Row]): Table = {
     rowDataSet.toTable
   }
 
@@ -90,12 +94,12 @@ package object table extends ImplicitExpressionConversions {
   }
 
   implicit def table2RowDataStream(
-      table: Table[ScalaStreamingTranslator]): DataStream[Row] = {
-    table.as[Row]
+      table: Table): DataStream[Row] = {
+    new ScalaStreamingTranslator().translate[Row](table.operation)
   }
 
   implicit def rowDataStream2Table(
-      rowDataStream: DataStream[Row]): Table[ScalaStreamingTranslator] = {
+      rowDataStream: DataStream[Row]): Table = {
     rowDataStream.toTable
   }
 }

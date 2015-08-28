@@ -16,22 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.accumulators;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Histogram for discrete-data. Let's you populate a histogram distributedly.
+ * Histogram accumulator, which builds a histogram in a distributed manner.
  * Implemented as a Integer->Integer TreeMap, so that the entries are sorted
  * according to the values.
  * 
- * Could be extended to continuous values later, but then we need to dynamically
- * decide about the bin size in an online algorithm (or ask the user)
+ * This class does not extend to continuous values later, because it makes no
+ * attempt to put the data in bins.
  */
 public class Histogram implements Accumulator<Integer, TreeMap<Integer, Integer>> {
 
@@ -54,8 +50,7 @@ public class Histogram implements Accumulator<Integer, TreeMap<Integer, Integer>
 	@Override
 	public void merge(Accumulator<Integer, TreeMap<Integer, Integer>> other) {
 		// Merge the values into this map
-		for (Map.Entry<Integer, Integer> entryFromOther : ((Histogram) other).getLocalValue()
-				.entrySet()) {
+		for (Map.Entry<Integer, Integer> entryFromOther : other.getLocalValue().entrySet()) {
 			Integer ownValue = this.treeMap.get(entryFromOther.getKey());
 			if (ownValue == null) {
 				this.treeMap.put(entryFromOther.getKey(), entryFromOther.getValue());
@@ -76,29 +71,9 @@ public class Histogram implements Accumulator<Integer, TreeMap<Integer, Integer>
 	}
 
 	@Override
-	public void write(ObjectOutputStream out) throws IOException {
-		out.writeInt(treeMap.size());
-		for (Map.Entry<Integer, Integer> entry : treeMap.entrySet()) {
-			out.writeInt(entry.getKey());
-			out.writeInt(entry.getValue());
-		}
-	}
-
-	@Override
-	public void read(ObjectInputStream in) throws IOException {
-		int size = in.readInt();
-		for (int i = 0; i < size; ++i) {
-			treeMap.put(in.readInt(), in.readInt());
-		}
-	}
-
-	@Override
 	public Accumulator<Integer, TreeMap<Integer, Integer>> clone() {
 		Histogram result = new Histogram();
-
 		result.treeMap = new TreeMap<Integer, Integer>(treeMap);
-
 		return result;
 	}
-
 }

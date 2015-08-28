@@ -27,7 +27,6 @@ import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.table.JavaBatchTranslator;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
@@ -70,13 +69,13 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		DataSource<Tuple2<Integer, Integer>> input =
 				env.fromElements(new Tuple2<Integer, Integer>(5, 10));
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input, "a, b");
+		Table table =
+				tableEnv.fromDataSet(input, "a, b");
 
-		Table<JavaBatchTranslator> result = table.select(
+		Table result = table.select(
 				"a - 5, a + 5, a / 2, a * 2, a % 2, -a");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -92,13 +91,13 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		DataSource<Tuple2<Integer, Boolean>> input =
 				env.fromElements(new Tuple2<Integer, Boolean>(5, true));
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input, "a, b");
+		Table table =
+				tableEnv.fromDataSet(input, "a, b");
 
-		Table<JavaBatchTranslator> result = table.select(
+		Table result = table.select(
 				"b && true, b && false, b || false, !b");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -114,13 +113,13 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		DataSource<Tuple3<Integer, Integer, Integer>> input =
 				env.fromElements(new Tuple3<Integer, Integer, Integer>(5, 5, 4));
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input, "a, b, c");
+		Table table =
+				tableEnv.fromDataSet(input, "a, b, c");
 
-		Table<JavaBatchTranslator> result = table.select(
+		Table result = table.select(
 				"a > c, a >= b, a < c, a.isNull, a.isNotNull");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -136,13 +135,13 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		DataSource<Tuple2<Byte, Byte>> input =
 				env.fromElements(new Tuple2<Byte, Byte>((byte) 3, (byte) 5));
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input, "a, b");
+		Table table =
+				tableEnv.fromDataSet(input, "a, b");
 
-		Table<JavaBatchTranslator> result = table.select(
+		Table result = table.select(
 				"a & b, a | b, a ^ b, ~a");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -158,13 +157,13 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		DataSource<Tuple2<Integer, Byte>> input =
 				env.fromElements(new Tuple2<Integer, Byte>(3, (byte) 5));
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input, "a, b");
+		Table table =
+				tableEnv.fromDataSet(input, "a, b");
 
-		Table<JavaBatchTranslator> result = table.select(
+		Table result = table.select(
 				"a & b, a | b, a ^ b, ~a");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -180,13 +179,13 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		DataSource<Tuple2<Float, Byte>> input =
 				env.fromElements(new Tuple2<Float, Byte>(3.0f, (byte) 5));
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(input, "a, b");
+		Table table =
+				tableEnv.fromDataSet(input, "a, b");
 
-		Table<JavaBatchTranslator> result =
+		Table result =
 				table.select("a & b, a | b, a ^ b, ~a");
 
-		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();

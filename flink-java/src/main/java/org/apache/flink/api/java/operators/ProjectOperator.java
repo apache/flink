@@ -82,7 +82,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 	 * Continues a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
 	 * <b>Note: Only Tuple DataSets can be projected using field indexes.</b></br>
 	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
-	 * Additional fields can be added to the projection by calling {@link ProjectOperator#project(int[])}.
+	 * Additional fields can be added to the projection by calling this method repeatedly.
 	 *
 	 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
 	 *
@@ -94,8 +94,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 	 * @see DataSet
 	 * @see ProjectOperator
 	 */
-	@SuppressWarnings("hiding")
-	public <OUT extends Tuple> ProjectOperator<?, OUT> project(int... fieldIndexes) {
+	public <R extends Tuple> ProjectOperator<?, R> project(int... fieldIndexes) {
 		proj.acceptAdditionalIndexes(fieldIndexes);
 		
 		return proj.projectTupleX();
@@ -103,10 +102,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 	/**
 	 * Deprecated method only kept for compatibility.
 	 */
-	@SuppressWarnings({ "unchecked", "hiding" })
+	@SuppressWarnings("unchecked")
 	@Deprecated
-	public <OUT extends Tuple> ProjectOperator<IN, OUT> types(Class<?>... types) {
-		TupleTypeInfo<OUT> typeInfo = (TupleTypeInfo<OUT>)this.getResultType();
+	public <R extends Tuple> ProjectOperator<IN, R> types(Class<?>... types) {
+		TupleTypeInfo<R> typeInfo = (TupleTypeInfo<R>)this.getResultType();
 
 		if(types.length != typeInfo.getArity()) {
 			throw new InvalidProgramException("Provided types do not match projection.");
@@ -117,12 +116,12 @@ public class ProjectOperator<IN, OUT extends Tuple>
 				throw new InvalidProgramException("Provided type "+typeClass.getSimpleName()+" at position "+i+" does not match projection");
 			}
 		}
-		return (ProjectOperator<IN, OUT>) this;
+		return (ProjectOperator<IN, R>) this;
 	}
 	
 	public static class Projection<T> {
 		
-		private final DataSet<T> ds;		
+		private final DataSet<T> ds;
 		private int[] fieldIndexes;
 		
 		public Projection(DataSet<T> ds, int[] fieldIndexes) {
@@ -138,9 +137,9 @@ public class ProjectOperator<IN, OUT extends Tuple>
 						"project() may select only up to (" + (Tuple.MAX_ARITY - 1) + ") fields.");
 			}
 			
-			int maxFieldIndex = ((TupleTypeInfo<?>)ds.getType()).getArity();
-			for(int i=0; i<fieldIndexes.length; i++) {
-				Preconditions.checkElementIndex(fieldIndexes[i], maxFieldIndex);
+			int maxFieldIndex = ds.getType().getArity();
+			for (int fieldIndexe : fieldIndexes) {
+				Preconditions.checkElementIndex(fieldIndexe, maxFieldIndex);
 			}
 			
 			this.ds = ds;
@@ -160,8 +159,8 @@ public class ProjectOperator<IN, OUT extends Tuple>
 			
 			this.fieldIndexes = Arrays.copyOf(this.fieldIndexes, this.fieldIndexes.length + additionalIndexes.length);
 			
-			int maxFieldIndex = ((TupleTypeInfo<?>)ds.getType()).getArity();
-			for(int i=0; i<additionalIndexes.length; i++) {
+			int maxFieldIndex = ds.getType().getArity();
+			for (int i = 0; i < additionalIndexes.length; i++) {
 				Preconditions.checkElementIndex(additionalIndexes[i], maxFieldIndex);
 
 				this.fieldIndexes[offset + i] = additionalIndexes[i];
@@ -186,7 +185,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		 */
 		@SuppressWarnings("unchecked")
 		public <OUT extends Tuple> ProjectOperator<T, OUT> projectTupleX() {
-			ProjectOperator<T, OUT> projOperator = null;
+			ProjectOperator<T, OUT> projOperator;
 
 			switch (fieldIndexes.length) {
 			case 1: projOperator = (ProjectOperator<T, OUT>) projectTuple1(); break;

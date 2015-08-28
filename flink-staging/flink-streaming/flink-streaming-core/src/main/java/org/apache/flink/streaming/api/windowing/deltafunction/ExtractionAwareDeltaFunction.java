@@ -47,10 +47,10 @@ public abstract class ExtractionAwareDeltaFunction<DATA, TO> implements DeltaFun
 
 	/**
 	 * This method takes the two data point and runs the set extractor on it.
-	 * The delta function implemented at {@link getNestedDelta} is then called
+	 * The delta function implemented at {@link #getNestedDelta} is then called
 	 * with the extracted data. In case no extractor is set the input data gets
-	 * passes to {@link getNestedDelta} as-is. The return value is just
-	 * forwarded from {@link getNestedDelta}.
+	 * passes to {@link #getNestedDelta} as-is. The return value is just
+	 * forwarded from {@link #getNestedDelta}.
 	 * 
 	 * @param oldDataPoint
 	 *            the older data point as raw data (before extraction).

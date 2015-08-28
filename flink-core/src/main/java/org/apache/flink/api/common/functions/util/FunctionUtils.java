@@ -27,28 +27,28 @@ import org.apache.flink.configuration.Configuration;
 
 public class FunctionUtils {
 
-	public static void openFunction (Function function, Configuration parameters) throws Exception{
+	public static void openFunction(Function function, Configuration parameters) throws Exception{
 		if (function instanceof RichFunction) {
 			RichFunction richFunction = (RichFunction) function;
-			richFunction.open (parameters);
+			richFunction.open(parameters);
 		}
 	}
 
-	public static void closeFunction (Function function) throws Exception{
+	public static void closeFunction(Function function) throws Exception{
 		if (function instanceof RichFunction) {
 			RichFunction richFunction = (RichFunction) function;
-			richFunction.close ();
+			richFunction.close();
 		}
 	}
 
-	public static void setFunctionRuntimeContext (Function function, RuntimeContext context){
+	public static void setFunctionRuntimeContext(Function function, RuntimeContext context){
 		if (function instanceof RichFunction) {
 			RichFunction richFunction = (RichFunction) function;
 			richFunction.setRuntimeContext(context);
 		}
 	}
 
-	public static RuntimeContext getFunctionRuntimeContext (Function function, RuntimeContext defaultContext){
+	public static RuntimeContext getFunctionRuntimeContext(Function function, RuntimeContext defaultContext){
 		if (function instanceof RichFunction) {
 			RichFunction richFunction = (RichFunction) function;
 			return richFunction.getRuntimeContext();

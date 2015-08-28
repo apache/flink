@@ -30,23 +30,22 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestListResultSink;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class CoStreamTest {
-
-	private static final long MEMORY_SIZE = 32;
+public class CoStreamTest extends StreamingMultipleProgramsTestBase {
 
 	private static ArrayList<String> expected = new ArrayList<String>();
 
 	@Test
 	public void test() {
 
-		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORY_SIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
 
 		TestListResultSink<String> resultSink = new TestListResultSink<String>();
 
@@ -80,7 +79,7 @@ public class CoStreamTest {
 						return new Tuple2<Integer, Integer>(value, value + 1);
 					}
 				})
-				.distribute()
+				.rebalance()
 				.filter(new FilterFunction<Tuple2<Integer, Integer>>() {
 
 					private static final long serialVersionUID = 1L;
@@ -89,7 +88,7 @@ public class CoStreamTest {
 					public boolean filter(Tuple2<Integer, Integer> value) throws Exception {
 						return true;
 					}
-				}).setChainingStrategy(StreamInvokable.ChainingStrategy.NEVER).groupBy(new KeySelector<Tuple2<Integer, Integer>, Integer>() {
+				}).disableChaining().groupBy(new KeySelector<Tuple2<Integer, Integer>, Integer>() {
 
 					private static final long serialVersionUID = 1L;
 

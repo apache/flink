@@ -82,18 +82,18 @@ public abstract class Keys<T> {
 
 			this.keyExtractor = keyExtractor;
 			this.keyType = keyType;
-			
+
+			if(!keyType.isKeyType()) {
+				throw new InvalidProgramException("Return type "+keyType+" of KeySelector "+keyExtractor.getClass()+" is not a valid key type");
+			}
+
 			// we have to handle a special case here:
-			// if the keyType is a tuple type, we need to select the full tuple with all its fields.
-			if(keyType.isTupleType()) {
+			// if the keyType is a composite type, we need to select the full type with all its fields.
+			if(keyType instanceof CompositeType) {
 				ExpressionKeys<K> ek = new ExpressionKeys<K>(new String[] {ExpressionKeys.SELECT_ALL_CHAR}, keyType);
 				logicalKeyFields = ek.computeLogicalKeyPositions();
 			} else {
 				logicalKeyFields = new int[] {0};
-			}
-
-			if (!this.keyType.isKeyType()) {
-				throw new IllegalArgumentException("Invalid type of KeySelector keys");
 			}
 		}
 
@@ -209,6 +209,9 @@ public abstract class Keys<T> {
 				throw new InvalidProgramException("Specifying keys via field positions is only valid " +
 						"for tuple data types. Type: " + type);
 			}
+			if (type.getArity() == 0) {
+				throw new InvalidProgramException("Tuple size must be greater than 0. Size: " + type.getArity());
+			}
 
 			if (!allowEmpty && (groupingFields == null || groupingFields.length == 0)) {
 				throw new IllegalArgumentException("The grouping fields must not be empty.");
@@ -223,43 +226,46 @@ public abstract class Keys<T> {
 			} else {
 				groupingFields = rangeCheckFields(groupingFields, type.getArity() -1);
 			}
-			CompositeType<?> compositeType = (CompositeType<?>) type;
 			Preconditions.checkArgument(groupingFields.length > 0, "Grouping fields can not be empty at this point");
 			
 			keyFields = new ArrayList<FlatFieldDescriptor>(type.getTotalFields());
 			// for each key, find the field:
 			for(int j = 0; j < groupingFields.length; j++) {
+				int keyPos = groupingFields[j];
+
+				int offset = 0;
 				for(int i = 0; i < type.getArity(); i++) {
-					TypeInformation<?> fieldType = compositeType.getTypeAt(i);
-					
-					if(groupingFields[j] == i) { // check if user set the key
-						int keyId = countNestedElementsBefore(compositeType, i) + i;
-						if(fieldType instanceof TupleTypeInfoBase) {
-							TupleTypeInfoBase<?> tupleFieldType = (TupleTypeInfoBase<?>) fieldType;
-							tupleFieldType.addAllFields(keyId, keyFields);
-						} else {
-							Preconditions.checkArgument(fieldType instanceof AtomicType, "Wrong field type");
-							keyFields.add(new FlatFieldDescriptor(keyId, fieldType));
+
+					TypeInformation fieldType = ((CompositeType<?>) type).getTypeAt(i);
+					if(i < keyPos) {
+						// not yet there, increment key offset
+						offset += fieldType.getTotalFields();
+					}
+					else {
+						// arrived at key position
+						if (!fieldType.isKeyType()) {
+							throw new InvalidProgramException("This type (" + fieldType + ") cannot be used as key.");
 						}
-						
+						if(fieldType instanceof CompositeType) {
+							// add all nested fields of composite type
+							((CompositeType) fieldType).getFlatFields("*", offset, keyFields);
+						}
+						else if(fieldType instanceof AtomicType) {
+							// add atomic type field
+							keyFields.add(new FlatFieldDescriptor(offset, fieldType));
+						}
+						else {
+							// type should either be composite or atomic
+							throw new InvalidProgramException("Field type is neither CompositeType nor AtomicType: "+fieldType);
+						}
+						// go to next key
+						break;
 					}
 				}
 			}
 			keyFields = removeNullElementsFromList(keyFields);
 		}
-		
-		private static int countNestedElementsBefore(CompositeType<?> compositeType, int pos) {
-			if( pos == 0) {
-				return 0;
-			}
-			int ret = 0;
-			for (int i = 0; i < pos; i++) {
-				TypeInformation<?> fieldType = compositeType.getTypeAt(i);
-				ret += fieldType.getTotalFields() -1;
-			}
-			return ret;
-		}
-		
+
 		public static <R> List<R> removeNullElementsFromList(List<R> in) {
 			List<R> elements = new ArrayList<R>();
 			for(R e: in) {
@@ -274,24 +280,42 @@ public abstract class Keys<T> {
 		 * Create ExpressionKeys from String-expressions
 		 */
 		public ExpressionKeys(String[] expressionsIn, TypeInformation<T> type) {
-			if(!(type instanceof CompositeType<?>)) {
-				throw new IllegalArgumentException("Key expressions are only supported on POJO types and Tuples. "
-						+ "A type is considered a POJO if all its fields are public, or have both getters and setters defined");
-			}
-			CompositeType<T> cType = (CompositeType<T>) type;
-			
-			String[] expressions = removeDuplicates(expressionsIn);
-			if(expressionsIn.length != expressions.length) {
-				LOG.warn("The key expressions contained duplicates. They are now unique");
-			}
-			// extract the keys on their flat position
-			keyFields = new ArrayList<FlatFieldDescriptor>(expressions.length);
-			for (int i = 0; i < expressions.length; i++) {
-				List<FlatFieldDescriptor> keys = cType.getFlatFields(expressions[i]); // use separate list to do a size check
-				if(keys.size() == 0) {
-					throw new IllegalArgumentException("Unable to extract key from expression '"+expressions[i]+"' on key "+cType);
+			Preconditions.checkNotNull(expressionsIn, "Field expression cannot be null.");
+
+			if (type instanceof AtomicType) {
+				if (!type.isKeyType()) {
+					throw new InvalidProgramException("This type (" + type + ") cannot be used as key.");
+				} else if (expressionsIn.length != 1 || !(Keys.ExpressionKeys.SELECT_ALL_CHAR.equals(expressionsIn[0]) || Keys.ExpressionKeys.SELECT_ALL_CHAR_SCALA.equals(expressionsIn[0]))) {
+					throw new InvalidProgramException("Field expression for atomic type must be equal to '*' or '_'.");
 				}
-				keyFields.addAll(keys);
+
+				keyFields = new ArrayList<FlatFieldDescriptor>(1);
+				keyFields.add(new FlatFieldDescriptor(0, type));
+			} else {
+				CompositeType<T> cType = (CompositeType<T>) type;
+
+				String[] expressions = removeDuplicates(expressionsIn);
+				if(expressionsIn.length != expressions.length) {
+					LOG.warn("The key expressions contained duplicates. They are now unique");
+				}
+				// extract the keys on their flat position
+				keyFields = new ArrayList<FlatFieldDescriptor>(expressions.length);
+				for (int i = 0; i < expressions.length; i++) {
+					List<FlatFieldDescriptor> keys = cType.getFlatFields(expressions[i]); // use separate list to do a size check
+					for (FlatFieldDescriptor key : keys) {
+						TypeInformation<?> keyType = key.getType();
+						if (!keyType.isKeyType()) {
+							throw new InvalidProgramException("This type (" + key.getType() + ") cannot be used as key.");
+						}
+						if (!(keyType instanceof AtomicType || keyType instanceof CompositeType)) {
+							throw new InvalidProgramException("Field type is neither CompositeType nor AtomicType: " + keyType);
+						}
+					}
+					if(keys.size() == 0) {
+						throw new InvalidProgramException("Unable to extract key from expression '"+expressions[i]+"' on key "+cType);
+					}
+					keyFields.addAll(keys);
+				}
 			}
 		}
 		
@@ -410,7 +434,7 @@ public abstract class Keys<T> {
 			return Arrays.copyOfRange(fields, 0, k+1);
 		}
 	}
-	
+
 	public static class IncompatibleKeysException extends Exception {
 		private static final long serialVersionUID = 1L;
 		public static final String SIZE_MISMATCH_MESSAGE = "The number of specified keys is different.";

@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.io;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.util.Collector;
 
@@ -40,23 +38,20 @@ public class SolutionSetUpdateOutputCollector<T> implements Collector<T> {
 	private final Collector<T> delegate;
 
 	private final CompactingHashTable<T> solutionSet;
-	
-	private final T tmpHolder;
 
-	public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet, TypeSerializer<T> serializer) {
-		this(solutionSet, serializer, null);
+	public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet) {
+		this(solutionSet, null);
 	}
 
-	public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet, TypeSerializer<T> serializer, Collector<T> delegate) {
+	public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet, Collector<T> delegate) {
 		this.solutionSet = solutionSet;
 		this.delegate = delegate;
-		this.tmpHolder = serializer.createInstance();
 	}
 
 	@Override
 	public void collect(T record) {
 		try {
-			solutionSet.insertOrReplaceRecord(record, tmpHolder);
+			solutionSet.insertOrReplaceRecord(record);
 			if (delegate != null) {
 				delegate.collect(record);
 			}

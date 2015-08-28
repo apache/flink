@@ -18,29 +18,31 @@
 
 package org.apache.flink.api.scala.runtime.jobmanager
 
-import akka.actor.Status.{Success, Failure}
+import akka.actor.Status.Success
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.client.JobExecutionException
-import org.apache.flink.runtime.jobgraph.{JobGraph, AbstractJobVertex}
-import org.apache.flink.runtime.jobmanager.Tasks.{NoOpInvokable, BlockingNoOpInvokable}
-import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated,
-NotifyWhenJobManagerTerminated}
-import org.apache.flink.runtime.testingUtils.TestingUtils
-import org.apache.flink.test.util.ForkableFlinkMiniCluster
-import org.junit.Ignore
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-@Ignore("Contains a bug with Akka 2.2.1")
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.jobgraph.{JobVertex, JobGraph}
+import org.apache.flink.runtime.jobmanager.Tasks.{BlockingNoOpInvokable, NoOpInvokable}
+import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated, NotifyWhenJobManagerTerminated}
+import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
+import org.apache.flink.test.util.ForkableFlinkMiniCluster
+
 @RunWith(classOf[JUnitRunner])
-class JobManagerFailsITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender
-with WordSpecLike with Matchers with BeforeAndAfterAll {
+class JobManagerFailsITCase(_system: ActorSystem)
+  extends TestKit(_system)
+  with ImplicitSender
+  with WordSpecLike
+  with Matchers
+  with BeforeAndAfterAll
+  with ScalaTestingUtils {
 
   def this() = this(ActorSystem("TestingActorSystem", AkkaUtils.getDefaultAkkaConfig))
 
@@ -55,18 +57,18 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       val cluster = startDeathwatchCluster(num_slots, 1)
 
       val tm = cluster.getTaskManagers(0)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getJobManagerGateway
 
       // disable disconnect message to test death watch
       tm ! DisableDisconnect
 
       try{
-        jm ! RequestNumberRegisteredTaskManager
+        jmGateway.tell(RequestNumberRegisteredTaskManager, self)
         expectMsg(1)
 
-        tm ! NotifyWhenJobManagerTerminated(jm)
+        tm ! NotifyWhenJobManagerTerminated(jmGateway.actor)
 
-        jm ! PoisonPill
+        jmGateway.tell(PoisonPill, self)
 
         expectMsgClass(classOf[JobManagerTerminated])
 
@@ -74,7 +76,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
         cluster.waitForTaskManagersToBeRegistered()
 
-        cluster.getJobManager ! RequestNumberRegisteredTaskManager
+        cluster.getJobManagerGateway.tell(RequestNumberRegisteredTaskManager, self)
 
         expectMsg(1)
       } finally {
@@ -85,45 +87,45 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     "go into a clean state in case of a JobManager failure" in {
       val num_slots = 36
 
-      val sender = new AbstractJobVertex("BlockingSender")
+      val sender = new JobVertex("BlockingSender")
       sender.setParallelism(num_slots)
       sender.setInvokableClass(classOf[BlockingNoOpInvokable])
       val jobGraph = new JobGraph("Blocking Testjob", sender)
 
-      val noOp = new AbstractJobVertex("NoOpInvokable")
+      val noOp = new JobVertex("NoOpInvokable")
       noOp.setParallelism(num_slots)
       noOp.setInvokableClass(classOf[NoOpInvokable])
       val jobGraph2 = new JobGraph("NoOp Testjob", noOp)
 
       val cluster = startDeathwatchCluster(num_slots / 2, 2)
 
-      var jm = cluster.getJobManager
+      var jmGateway = cluster.getJobManagerGateway
       val tm = cluster.getTaskManagers(0)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jmGateway.tell(SubmitJob(jobGraph, false), self)
           expectMsg(Success(jobGraph.getJobID))
 
-          tm ! NotifyWhenJobManagerTerminated(jm)
+          tm.tell(NotifyWhenJobManagerTerminated(jmGateway.actor()), self)
 
-          jm ! PoisonPill
+          jmGateway.tell(PoisonPill, self)
 
           expectMsgClass(classOf[JobManagerTerminated])
 
           cluster.restartJobManager()
 
-          jm = cluster.getJobManager
+          jmGateway = cluster.getJobManagerGateway
 
           cluster.waitForTaskManagersToBeRegistered()
 
-          jm ! SubmitJob(jobGraph2)
+          jmGateway.tell(SubmitJob(jobGraph2, false), self)
 
           val failure = expectMsgType[Success]
 
           val result = expectMsgType[JobResultSuccess]
 
-          result.jobID should equal(jobGraph2.getJobID)
+          result.result.getJobId() should equal(jobGraph2.getJobID)
         }
       } finally {
         cluster.stop()
@@ -135,10 +137,6 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskmanagers)
-    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms")
-    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "4000 ms")
-    config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "8000 ms")
-    config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 5)
 
     new ForkableFlinkMiniCluster(config, singleActorSystem = false)
   }

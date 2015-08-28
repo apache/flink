@@ -60,18 +60,9 @@ public class PiEstimation implements java.io.Serializable {
 				.map(new Sampler())
 				.reduce(new SumReducer());
 
-		// the ratio of the unit circle surface to 4 times the unit square is pi
-		DataSet<Double> pi = count
-				.map(new MapFunction<Long, Double>() {
-					public Double map(Long value) {
-						return value * 4.0 / numSamples;
-					}
-				});
+		long theCount = count.collect().get(0);
 
-		System.out.println("We estimate Pi to be:");
-		pi.print();
-
-		env.execute();
+		System.out.println("We estimate Pi to be: " + (theCount * 4.0 / numSamples));
 	}
 
 	//*************************************************************************
@@ -87,7 +78,7 @@ public class PiEstimation implements java.io.Serializable {
 	public static class Sampler implements MapFunction<Long, Long> {
 
 		@Override
-		public Long map(Long value) throws Exception{
+		public Long map(Long value) {
 			double x = Math.random();
 			double y = Math.random();
 			return (x * x + y * y) < 1 ? 1L : 0L;
@@ -101,7 +92,7 @@ public class PiEstimation implements java.io.Serializable {
 	public static final class SumReducer implements ReduceFunction<Long>{
 
 		@Override
-		public Long reduce(Long value1, Long value2) throws Exception {
+		public Long reduce(Long value1, Long value2) {
 			return value1 + value2;
 		}
 	}

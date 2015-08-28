@@ -21,12 +21,15 @@ package org.apache.flink.runtime.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
@@ -34,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.CloseableInputProvider;
+import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
@@ -108,7 +112,14 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			LOG.debug(getLogString("Starting data sink operator"));
 		}
 
-		ExecutionConfig executionConfig = new ExecutionConfig();
+		if(RichOutputFormat.class.isAssignableFrom(this.format.getClass())){
+			((RichOutputFormat) this.format).setRuntimeContext(createRuntimeContext());
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(getLogString("Rich Sink detected. Initializing runtime context."));
+			}
+		}
+
+		ExecutionConfig executionConfig;
 		try {
 			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
 					getJobConfiguration(),
@@ -116,6 +127,9 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 					getUserCodeClassLoader());
 			if (c != null) {
 				executionConfig = c;
+			} else {
+				LOG.warn("The execution config returned by the configuration was null");
+				executionConfig = new ExecutionConfig();
 			}
 		} catch (IOException e) {
 			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
@@ -240,7 +254,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 				}
 				catch (Throwable t) {
 					if (LOG.isWarnEnabled()) {
-						LOG.warn(getLogString("Error closing the ouput format."), t);
+						LOG.warn(getLogString("Error closing the output format"), t);
 					}
 				}
 			}
@@ -319,14 +333,20 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		catch (ClassCastException ccex) {
 			throw new RuntimeException("The stub class is not a proper subclass of " + OutputFormat.class.getName(), ccex);
 		}
-		
+
+		Thread thread = Thread.currentThread();
+		ClassLoader original = thread.getContextClassLoader();
 		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
 		try {
+			thread.setContextClassLoader(userCodeClassLoader);
 			this.format.configure(this.config.getStubParameters());
 		}
 		catch (Throwable t) {
 			throw new RuntimeException("The user defined 'configure()' method in the Output Format caused an error: " 
 				+ t.getMessage(), t);
+		}
+		finally {
+			thread.setContextClassLoader(original);
 		}
 	}
 
@@ -353,6 +373,11 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			throw new Exception("Illegal input group size in task configuration: " + groupSize);
 		}
 
+		final AccumulatorRegistry accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
+		final AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
+
+		inputReader.setReporter(reporter);
+
 		this.inputTypeSerializerFactory = this.config.getInputSerializer(0, getUserCodeClassLoader());
 		@SuppressWarnings({ "rawtypes" })
 		final MutableObjectIterator<?> iter = new ReaderIterator(inputReader, this.inputTypeSerializerFactory.getSerializer());
@@ -377,5 +402,13 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	 */
 	private String getLogString(String message) {
 		return RegularPactTask.constructLogString(message, this.getEnvironment().getTaskName(), this);
+	}
+
+	public DistributedRuntimeUDFContext createRuntimeContext() {
+		Environment env = getEnvironment();
+
+		return new DistributedRuntimeUDFContext(env.getTaskName(), env.getNumberOfSubtasks(),
+				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
+				env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap());
 	}
 }

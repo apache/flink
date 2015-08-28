@@ -18,19 +18,17 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import akka.actor.ActorRef;
-import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.types.IntegerRecord;
+import org.apache.flink.types.IntValue;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -45,7 +43,6 @@ public class SlotCountExceedingParallelismTest {
 	private final static int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
 
 	private static TestingCluster flink;
-	private static ActorRef jobClient;
 
 	@BeforeClass
 	public static void setUp() throws Exception {
@@ -53,11 +50,6 @@ public class SlotCountExceedingParallelismTest {
 				NUMBER_OF_SLOTS_PER_TM,
 				NUMBER_OF_TMS,
 				TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
-
-		jobClient = JobClient.createJobClientFromConfig(
-				flink.configuration(),
-				true,
-				flink.jobManagerActorSystem());
 	}
 
 	@AfterClass
@@ -85,11 +77,7 @@ public class SlotCountExceedingParallelismTest {
 	// ---------------------------------------------------------------------------------------------
 
 	private void submitJobGraphAndWait(final JobGraph jobGraph) throws JobExecutionException {
-		JobClient.submitJobAndWait(
-				jobGraph,
-				false,
-				jobClient,
-				TestingUtils.TESTING_DURATION());
+		flink.submitJobAndWait(jobGraph, false, TestingUtils.TESTING_DURATION());
 	}
 
 	private JobGraph createTestJobGraph(
@@ -98,12 +86,12 @@ public class SlotCountExceedingParallelismTest {
 			int receiverParallelism) {
 
 		// The sender and receiver invokable logic ensure that each subtask gets the expected data
-		final AbstractJobVertex sender = new AbstractJobVertex("Sender");
+		final JobVertex sender = new JobVertex("Sender");
 		sender.setInvokableClass(RoundRobinSubtaskIndexSender.class);
 		sender.getConfiguration().setInteger(RoundRobinSubtaskIndexSender.CONFIG_KEY, receiverParallelism);
 		sender.setParallelism(senderParallelism);
 
-		final AbstractJobVertex receiver = new AbstractJobVertex("Receiver");
+		final JobVertex receiver = new JobVertex("Receiver");
 		receiver.setInvokableClass(SubtaskIndexReceiver.class);
 		receiver.getConfiguration().setInteger(SubtaskIndexReceiver.CONFIG_KEY, senderParallelism);
 		receiver.setParallelism(receiverParallelism);
@@ -130,19 +118,19 @@ public class SlotCountExceedingParallelismTest {
 
 		public final static String CONFIG_KEY = "number-of-times-to-send";
 
-		private RecordWriter<IntegerRecord> writer;
+		private RecordWriter<IntValue> writer;
 
 		private int numberOfTimesToSend;
 
 		@Override
 		public void registerInputOutput() {
-			writer = new RecordWriter<IntegerRecord>(getEnvironment().getWriter(0));
+			writer = new RecordWriter<IntValue>(getEnvironment().getWriter(0));
 			numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
 		}
 
 		@Override
 		public void invoke() throws Exception {
-			final IntegerRecord subtaskIndex = new IntegerRecord(
+			final IntValue subtaskIndex = new IntValue(
 					getEnvironment().getIndexInSubtaskGroup());
 
 			try {
@@ -164,7 +152,7 @@ public class SlotCountExceedingParallelismTest {
 
 		public final static String CONFIG_KEY = "number-of-indexes-to-receive";
 
-		private RecordReader<IntegerRecord> reader;
+		private RecordReader<IntValue> reader;
 
 		private int numberOfSubtaskIndexesToReceive;
 
@@ -173,9 +161,9 @@ public class SlotCountExceedingParallelismTest {
 
 		@Override
 		public void registerInputOutput() {
-			reader = new RecordReader<IntegerRecord>(
+			reader = new RecordReader<IntValue>(
 					getEnvironment().getInputGate(0),
-					IntegerRecord.class);
+					IntValue.class);
 
 			numberOfSubtaskIndexesToReceive = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
 			receivedSubtaskIndexes = new BitSet(numberOfSubtaskIndexesToReceive);
@@ -184,7 +172,7 @@ public class SlotCountExceedingParallelismTest {
 		@Override
 		public void invoke() throws Exception {
 			try {
-				IntegerRecord record;
+				IntValue record;
 
 				int numberOfReceivedSubtaskIndexes = 0;
 

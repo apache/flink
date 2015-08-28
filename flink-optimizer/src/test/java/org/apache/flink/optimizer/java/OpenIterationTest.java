@@ -24,6 +24,7 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -45,7 +46,7 @@ public class OpenIterationTest extends CompilerTestBase {
 			
 			DataSet<Long> mapped = iteration.map(new IdentityMapper<Long>());
 			
-			mapped.print();
+			mapped.output(new DiscardingOutputFormat<Long>());
 			
 			try {
 				env.createProgramPlan();
@@ -72,9 +73,9 @@ public class OpenIterationTest extends CompilerTestBase {
 			
 			DataSet<Long> mapped = iteration.map(new IdentityMapper<Long>());
 			
-			iteration.closeWith(mapped).print();
+			iteration.closeWith(mapped).output(new DiscardingOutputFormat<Long>());
 			
-			mapped.print();
+			mapped.output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
 			
@@ -104,7 +105,7 @@ public class OpenIterationTest extends CompilerTestBase {
 			
 			DataSet<Tuple2<Long, Long>> mapped = iteration.getSolutionSet().map(new IdentityMapper<Tuple2<Long, Long>>());
 			
-			mapped.print();
+			mapped.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			try {
 				env.createProgramPlan();
@@ -132,7 +133,7 @@ public class OpenIterationTest extends CompilerTestBase {
 			
 			DataSet<Tuple2<Long, Long>> mapped = iteration.getWorkset().map(new IdentityMapper<Tuple2<Long, Long>>());
 			
-			mapped.print();
+			mapped.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			try {
 				env.createProgramPlan();
@@ -164,7 +165,7 @@ public class OpenIterationTest extends CompilerTestBase {
 												.where(0).equalTo(0).projectFirst(1).projectSecond(0);
 			
 			iteration.closeWith(joined, joined)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			Plan p = env.createProgramPlan();
 			try {

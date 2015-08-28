@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This is the abstract base class for every task that can be executed ba a TaskManager.
+ * This is the abstract base class for every task that can be executed by a TaskManager.
  * Concrete tasks like the stream vertices of the batch tasks
  * (see {@link org.apache.flink.runtime.operators.RegularPactTask}) inherit from this class.
  *
@@ -40,7 +40,7 @@ public abstract class AbstractInvokable {
 
 
 	/** The environment assigned to this invokable. */
-	private volatile Environment environment;
+	private Environment environment;
 
 	/** The execution config, cached from the deserialization from the JobConfiguration */
 	private ExecutionConfig executionConfig;
@@ -49,7 +49,7 @@ public abstract class AbstractInvokable {
 	/**
 	 * Must be overwritten by the concrete task to instantiate the required record reader and record writer.
 	 */
-	public abstract void registerInputOutput();
+	public abstract void registerInputOutput() throws Exception;
 
 	/**
 	 * Must be overwritten by the concrete task. This method is called by the task manager
@@ -66,14 +66,14 @@ public abstract class AbstractInvokable {
 	 * @param environment
 	 *        the environment of this task
 	 */
-	public final void setEnvironment(final Environment environment) {
+	public final void setEnvironment(Environment environment) {
 		this.environment = environment;
 	}
 
 	/**
 	 * Returns the environment of this task.
 	 * 
-	 * @return the environment of this task or <code>null</code> if the environment has not yet been set
+	 * @return The environment of this task.
 	 */
 	public Environment getEnvironment() {
 		return this.environment;
@@ -108,9 +108,9 @@ public abstract class AbstractInvokable {
 	}
 
 	/**
-	 * Returns the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.AbstractJobVertex}.
+	 * Returns the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobVertex}.
 	 * 
-	 * @return the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.AbstractJobVertex}
+	 * @return the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobVertex}
 	 */
 	public Configuration getTaskConfiguration() {
 		return this.environment.getTaskConfiguration();
@@ -146,7 +146,7 @@ public abstract class AbstractInvokable {
 			return executionConfig;
 		}
 		catch (Exception e) {
-			LOG.warn("Could not load ExecutionConfig from Environment, returning default ExecutionConfig: {}", e);
+			LOG.warn("Could not load ExecutionConfig from Environment, returning default ExecutionConfig", e);
 			return new ExecutionConfig();
 		}
 	}

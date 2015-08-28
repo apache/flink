@@ -22,13 +22,17 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.DualInputOperator;
+import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.CoGroupDescriptor;
 import org.apache.flink.optimizer.operators.CoGroupWithSolutionSetFirstDescriptor;
 import org.apache.flink.optimizer.operators.CoGroupWithSolutionSetSecondDescriptor;
 import org.apache.flink.optimizer.operators.OperatorDescriptorDual;
+import org.apache.flink.api.common.operators.util.FieldSet;
 
 /**
  * The Optimizer representation of a <i>CoGroup</i> operator.
@@ -74,6 +78,41 @@ public class CoGroupNode extends TwoInputNode {
 			throw new IllegalArgumentException();
 		}
 		this.dataProperties = Collections.<OperatorDescriptorDual>singletonList(op);
+	}
+
+	@Override
+	protected SemanticProperties getSemanticPropertiesForLocalPropertyFiltering() {
+
+		// Local properties for CoGroup may only be preserved on key fields.
+		DualInputSemanticProperties origProps = ((DualInputOperator<?, ?, ?, ?>) getOperator()).getSemanticProperties();
+
+		DualInputSemanticProperties filteredProps = new DualInputSemanticProperties();
+		FieldSet readSet1 = origProps.getReadFields(0);
+		FieldSet readSet2 = origProps.getReadFields(1);
+		if(readSet1 != null) {
+			filteredProps.addReadFields(0, readSet1);
+		}
+		if(readSet2 != null) {
+			filteredProps.addReadFields(1, readSet2);
+		}
+
+		// preserve only key fields (first input)
+		for(int f : this.keys1) {
+			FieldSet targets = origProps.getForwardingTargetFields(0, f);
+			for(int t : targets) {
+				filteredProps.addForwardedField(0, f, t);
+			}
+		}
+
+		// preserve only key fields (second input)
+		for(int f : this.keys2) {
+			FieldSet targets = origProps.getForwardingTargetFields(1, f);
+			for(int t : targets) {
+				filteredProps.addForwardedField(1, f, t);
+			}
+		}
+
+		return filteredProps;
 	}
 
 	@Override

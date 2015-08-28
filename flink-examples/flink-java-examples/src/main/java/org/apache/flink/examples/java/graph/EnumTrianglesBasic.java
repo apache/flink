@@ -50,7 +50,7 @@ import org.apache.flink.examples.java.graph.util.EnumTrianglesDataTypes.Triad;
  * <ul>
  * <li>Edges are represented as pairs for vertex IDs which are separated by space 
  * characters. Edges are separated by new-line characters.<br>
- * For example <code>"1 2\n2 12\n1 12\n42 63\n"</code> gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63)
+ * For example <code>"1 2\n2 12\n1 12\n42 63"</code> gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63)
  * that include a triangle
  * </ul>
  * <pre>
@@ -104,15 +104,13 @@ public class EnumTrianglesBasic {
 				.join(edgesById).where(Triad.V2, Triad.V3).equalTo(Edge.V1, Edge.V2).with(new TriadFilter());
 
 		// emit result
-		if(fileOutput) {
+		if (fileOutput) {
 			triangles.writeAsCsv(outputPath, "\n", ",");
+			// execute program
+			env.execute("Basic Triangle Enumeration Example");
 		} else {
 			triangles.print();
 		}
-
-		// execute program
-		env.execute("Basic Triangle Enumeration Example");
-
 	}
 	
 	// *************************************************************************

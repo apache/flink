@@ -23,19 +23,28 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.operators.GroupReduceOperator;
+import org.apache.flink.api.java.operators.JoinOperator;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("serial")
 public class JoinOperatorTest {
@@ -298,7 +307,7 @@ public class JoinOperatorTest {
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 		try {
 			TypeInformation<?> t = ds1.join(ds2).where("f0.myInt").equalTo(4).getType();
-			Assert.assertTrue("not a composite type", t instanceof CompositeType);
+			assertTrue("not a composite type", t instanceof CompositeType);
 		} catch(Exception e) {
 			e.printStackTrace();
 			Assert.fail();
@@ -575,6 +584,78 @@ public class JoinOperatorTest {
 						}
 					}
 				);
+	}
+
+	@Test
+	public void testJoinKeyAtomic1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 0);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		ds1.join(ds2).where("*").equalTo(0);
+	}
+
+	@Test
+	public void testJoinKeyAtomic2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 0);
+
+		ds1.join(ds2).where(0).equalTo("*");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyInvalidAtomic1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 0);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		ds1.join(ds2).where("*", "invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyInvalidAtomic2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 0);
+
+		ds1.join(ds2).where(0).equalTo("*", "invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyInvalidAtomic3() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 0);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		ds1.join(ds2).where("invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyInvalidAtomic4() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 0);
+
+		ds1.join(ds2).where(0).equalTo("invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyInvalidAtomic5() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<ArrayList<Integer>> ds1 = env.fromElements(new ArrayList<Integer>());
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 0);
+
+		ds1.join(ds2).where("*").equalTo("*");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyInvalidAtomic6() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 0);
+		DataSet<ArrayList<Integer>> ds2 = env.fromElements(new ArrayList<Integer>());
+
+		ds1.join(ds2).where("*").equalTo("*");
 	}
 	
 	@Test
@@ -946,7 +1027,136 @@ public class JoinOperatorTest {
 		.projectFirst(0)
 		.projectSecond(-1);
 	}
-	
+
+	@Test
+	public void testSemanticPropsWithKeySelector1() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		JoinOperator<?,?,?> joinOp = tupleDs1.join(tupleDs2)
+				.where(new DummyTestKeySelector()).equalTo(new DummyTestKeySelector())
+				.with(new DummyTestJoinFunction1());
+
+		SemanticProperties semProps = joinOp.getSemanticProperties();
+
+		assertTrue(semProps.getForwardingTargetFields(0, 0).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,1).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,2).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(0,2).contains(4));
+		assertTrue(semProps.getForwardingTargetFields(0,3).size() == 2);
+		assertTrue(semProps.getForwardingTargetFields(0,3).contains(1));
+		assertTrue(semProps.getForwardingTargetFields(0,3).contains(3));
+		assertTrue(semProps.getForwardingTargetFields(0,4).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,5).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,6).size() == 0);
+
+		assertTrue(semProps.getForwardingTargetFields(1,0).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,1).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,2).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,3).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,4).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(1,4).contains(2));
+		assertTrue(semProps.getForwardingTargetFields(1,5).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,6).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(1,6).contains(0));
+
+		assertTrue(semProps.getReadFields(0).size() == 3);
+		assertTrue(semProps.getReadFields(0).contains(2));
+		assertTrue(semProps.getReadFields(0).contains(4));
+		assertTrue(semProps.getReadFields(0).contains(6));
+
+		assertTrue(semProps.getReadFields(1).size() == 2);
+		assertTrue(semProps.getReadFields(1).contains(3));
+		assertTrue(semProps.getReadFields(1).contains(5));
+	}
+
+	@Test
+	public void testSemanticPropsWithKeySelector2() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		JoinOperator<?,?,?> joinOp = tupleDs1.join(tupleDs2)
+				.where(new DummyTestKeySelector()).equalTo(new DummyTestKeySelector())
+				.with(new DummyTestJoinFunction2())
+					.withForwardedFieldsFirst("2;4->0")
+					.withForwardedFieldsSecond("0->4;1;1->3");
+
+		SemanticProperties semProps = joinOp.getSemanticProperties();
+
+		assertTrue(semProps.getForwardingTargetFields(0,0).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,1).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,2).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,3).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,4).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(0,4).contains(2));
+		assertTrue(semProps.getForwardingTargetFields(0,5).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,6).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(0,6).contains(0));
+
+		assertTrue(semProps.getForwardingTargetFields(1,0).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,1).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,2).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(1,2).contains(4));
+		assertTrue(semProps.getForwardingTargetFields(1,3).size() == 2);
+		assertTrue(semProps.getForwardingTargetFields(1,3).contains(1));
+		assertTrue(semProps.getForwardingTargetFields(1,3).contains(3));
+		assertTrue(semProps.getForwardingTargetFields(1,4).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,5).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,6).size() == 0);
+
+		assertTrue(semProps.getReadFields(0).size() == 3);
+		assertTrue(semProps.getReadFields(0).contains(2));
+		assertTrue(semProps.getReadFields(0).contains(3));
+		assertTrue(semProps.getReadFields(0).contains(4));
+
+		assertTrue(semProps.getReadFields(1) == null);
+	}
+
+	@Test
+	public void testSemanticPropsWithKeySelector3() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		JoinOperator<?, ?, ? extends Tuple> joinOp = tupleDs1.join(tupleDs2)
+				.where(new DummyTestKeySelector()).equalTo(new DummyTestKeySelector())
+				.projectFirst(2)
+				.projectSecond(0, 0, 3)
+				.projectFirst(0, 4)
+				.projectSecond(2);
+
+		SemanticProperties semProps = joinOp.getSemanticProperties();
+
+		assertTrue(semProps.getForwardingTargetFields(0, 0).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0, 1).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0, 2).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(0, 2).contains(4));
+		assertTrue(semProps.getForwardingTargetFields(0, 3).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0, 4).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(0, 4).contains(0));
+		assertTrue(semProps.getForwardingTargetFields(0, 5).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0, 6).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(0, 6).contains(5));
+
+		assertTrue(semProps.getForwardingTargetFields(1, 0).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1, 1).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1, 2).size() == 2);
+		assertTrue(semProps.getForwardingTargetFields(1, 2).contains(1));
+		assertTrue(semProps.getForwardingTargetFields(1, 2).contains(2));
+		assertTrue(semProps.getForwardingTargetFields(1, 3).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1, 4).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(1, 4).contains(6));
+		assertTrue(semProps.getForwardingTargetFields(1, 5).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(1, 5).contains(3));
+		assertTrue(semProps.getForwardingTargetFields(1, 6).size() == 0);
+
+	}
+
 	/*
 	 * ####################################################################
 	 */
@@ -1001,8 +1211,8 @@ public class JoinOperatorTest {
 		public NestedCustomType nested;
 		public String myString;
 		public Object nothing;
-	//	public List<String> countries; need Kryo to support this
-	//	public Writable interfaceTest; need kryo
+		public List<String> countries;
+		public Writable interfaceTest;
 		
 		public CustomType() {};
 		
@@ -1010,6 +1220,8 @@ public class JoinOperatorTest {
 			myInt = i;
 			myLong = l;
 			myString = s;
+			countries = null;
+			interfaceTest = null;
 			nested = new NestedCustomType(i, l, s);
 		}
 		
@@ -1046,5 +1258,40 @@ public class JoinOperatorTest {
 		}
 	}
 
+	public static class DummyTestKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Tuple2<Long, Integer>> {
+		@Override
+		public Tuple2<Long, Integer> getKey(Tuple5<Integer, Long, String, Long, Integer> value) throws Exception {
+			return new Tuple2<Long, Integer>();
+		}
+	}
+
+	@FunctionAnnotation.ForwardedFieldsFirst("0->4;1;1->3")
+	@FunctionAnnotation.ForwardedFieldsSecond("2;4->0")
+	@FunctionAnnotation.ReadFieldsFirst("0;2;4")
+	@FunctionAnnotation.ReadFieldsSecond("1;3")
+	public static class DummyTestJoinFunction1
+			implements JoinFunction<Tuple5<Integer, Long, String, Long, Integer>,
+									Tuple5<Integer, Long, String, Long, Integer>,
+									Tuple5<Integer, Long, String, Long, Integer>> {
+		@Override
+		public Tuple5<Integer, Long, String, Long, Integer> join(
+				Tuple5<Integer, Long, String, Long, Integer> first,
+				Tuple5<Integer, Long, String, Long, Integer> second) throws Exception {
+			return new Tuple5<Integer, Long, String, Long, Integer>();
+		}
+	}
+
+	@FunctionAnnotation.ReadFieldsFirst("0;1;2")
+	public static class DummyTestJoinFunction2
+			implements JoinFunction<Tuple5<Integer, Long, String, Long, Integer>,
+			Tuple5<Integer, Long, String, Long, Integer>,
+			Tuple5<Integer, Long, String, Long, Integer>> {
+		@Override
+		public Tuple5<Integer, Long, String, Long, Integer> join(
+				Tuple5<Integer, Long, String, Long, Integer> first,
+				Tuple5<Integer, Long, String, Long, Integer> second) throws Exception {
+			return new Tuple5<Integer, Long, String, Long, Integer>();
+		}
+	}
 	
 }

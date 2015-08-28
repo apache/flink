@@ -36,16 +36,18 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	protected List<File> jars;
 	protected Client client;
+	private final boolean wait;
 
-	protected StreamContextEnvironment(Client client, List<File> jars, int parallelism) {
+	protected StreamContextEnvironment(Client client, List<File> jars, int parallelism, boolean wait) {
 		this.client = client;
 		this.jars = jars;
+		this.wait = wait;
 		if (parallelism > 0) {
 			setParallelism(parallelism);
 		} else {
 			// first check for old parallelism config key
 			setParallelism(GlobalConfiguration.getInteger(
-					ConfigConstants.DEFAULT_PARALLELISM_KEY,
+					ConfigConstants.DEFAULT_PARALLELISM_KEY_OLD,
 					ConfigConstants.DEFAULT_PARALLELISM));
 			// then for new
 			setParallelism(GlobalConfiguration.getInteger(
@@ -61,20 +63,21 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		currentEnvironment = null;
 
 		JobGraph jobGraph;
 		if (jobName == null) {
-			jobGraph = this.streamGraph.getJobGraph();
+			jobGraph = this.getStreamGraph().getJobGraph();
 		} else {
-			jobGraph = this.streamGraph.getJobGraph(jobName);
+			jobGraph = this.getStreamGraph().getJobGraph(jobName);
 		}
+
+		transformations.clear();
 
 		for (File file : jars) {
 			jobGraph.addJar(new Path(file.getAbsolutePath()));
 		}
 
-		JobSubmissionResult result = client.run(jobGraph, true);
+		JobSubmissionResult result = client.run(jobGraph, wait);
 		if(result instanceof JobExecutionResult) {
 			return (JobExecutionResult) result;
 		} else {
@@ -82,5 +85,4 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			return new JobExecutionResult(result.getJobID(), -1, null);
 		}
 	}
-
 }

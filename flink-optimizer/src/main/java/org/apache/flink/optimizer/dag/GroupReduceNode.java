@@ -23,6 +23,9 @@ import java.util.List;
 
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.SemanticProperties;
+import org.apache.flink.api.common.operators.SingleInputOperator;
+import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
@@ -32,6 +35,7 @@ import org.apache.flink.optimizer.operators.AllGroupWithPartialPreGroupPropertie
 import org.apache.flink.optimizer.operators.GroupReduceProperties;
 import org.apache.flink.optimizer.operators.GroupReduceWithCombineProperties;
 import org.apache.flink.optimizer.operators.OperatorDescriptorSingle;
+import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -134,6 +138,30 @@ public class GroupReduceNode extends SingleInputNode {
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
 		return this.possibleProperties;
+	}
+
+	@Override
+	protected SemanticProperties getSemanticPropertiesForLocalPropertyFiltering() {
+
+		// Local properties for GroupReduce may only be preserved on key fields.
+		SingleInputSemanticProperties origProps =
+				((SingleInputOperator<?,?,?>) getOperator()).getSemanticProperties();
+		SingleInputSemanticProperties filteredProps = new SingleInputSemanticProperties();
+		FieldSet readSet = origProps.getReadFields(0);
+		if(readSet != null) {
+			filteredProps.addReadFields(readSet);
+		}
+
+		// only add forward field information for key fields
+		if(this.keys != null) {
+			for (int f : this.keys) {
+				FieldSet targets = origProps.getForwardingTargetFields(0, f);
+				for (int t : targets) {
+					filteredProps.addForwardedField(f, t);
+				}
+			}
+		}
+		return filteredProps;
 	}
 	
 	// --------------------------------------------------------------------------------------------

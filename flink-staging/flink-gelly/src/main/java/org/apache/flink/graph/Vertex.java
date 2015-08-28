@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph;
 
-import java.io.Serializable;
-
 import org.apache.flink.api.java.tuple.Tuple2;
 
 /**
@@ -29,8 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
  * @param <K>
  * @param <V>
  */
-public class Vertex<K extends Comparable<K> & Serializable, V extends Serializable> 
-	extends Tuple2<K, V> {
+public class Vertex<K, V> extends Tuple2<K, V> {
 
 	private static final long serialVersionUID = 1L;
 

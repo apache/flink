@@ -32,6 +32,7 @@ import org.apache.flink.api.common.operators.util.ListKeyGroupedIterator;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.GenericPairComparator;
@@ -273,12 +274,15 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 		return result;
 	}
 
+	@SuppressWarnings("unchecked")
 	private <T> TypeComparator<T> getTypeComparator(ExecutionConfig executionConfig, TypeInformation<T> inputType, int[] inputKeys, boolean[] inputSortDirections) {
-		if (!(inputType instanceof CompositeType)) {
-			throw new InvalidProgramException("Input types of coGroup must be composite types.");
+		if (inputType instanceof CompositeType) {
+			return ((CompositeType<T>) inputType).createComparator(inputKeys, inputSortDirections, 0, executionConfig);
+		} else if (inputType instanceof AtomicType) {
+			return ((AtomicType<T>) inputType).createComparator(inputSortDirections[0], executionConfig);
 		}
 
-		return ((CompositeType<T>) inputType).createComparator(inputKeys, inputSortDirections, 0, executionConfig);
+		throw new InvalidProgramException("Input type of coGroup must be one of composite types or atomic types.");
 	}
 
 	private static class CoGroupSortListIterator<IN1, IN2> {

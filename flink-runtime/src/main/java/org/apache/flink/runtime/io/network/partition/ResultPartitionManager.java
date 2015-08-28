@@ -73,22 +73,26 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 					partitionId.getPartitionId());
 
 			if (partition == null) {
-				throw new IOException("Unknown partition " + partitionId + ".");
+				throw new PartitionNotFoundException(partitionId);
 			}
 
-			LOG.debug("Requested partition {}.", partition);
+			LOG.debug("Requesting subpartition {} of {}.", subpartitionIndex, partition);
 
 			return partition.createSubpartitionView(subpartitionIndex, bufferProvider);
 		}
 	}
 
 	public void releasePartitionsProducedBy(ExecutionAttemptID executionId) {
+		releasePartitionsProducedBy(executionId, null);
+	}
+
+	public void releasePartitionsProducedBy(ExecutionAttemptID executionId, Throwable cause) {
 		synchronized (registeredPartitions) {
 			final Map<IntermediateResultPartitionID, ResultPartition> partitions =
 					registeredPartitions.row(executionId);
 
 			for (ResultPartition partition : partitions.values()) {
-				partition.release();
+				partition.release(cause);
 			}
 
 			for (IntermediateResultPartitionID partitionId : ImmutableList

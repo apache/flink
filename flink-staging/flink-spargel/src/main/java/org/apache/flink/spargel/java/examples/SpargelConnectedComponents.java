@@ -70,6 +70,7 @@ public class SpargelConnectedComponents {
 	 * A map function that takes a Long value and creates a 2-tuple out of it:
 	 * <pre>(Long value) -> (value, value)</pre>
 	 */
+	@Deprecated
 	public static final class IdAssigner implements MapFunction<Long, Tuple2<Long, Long>> {
 		@Override
 		public Tuple2<Long, Long> map(Long value) {

@@ -30,8 +30,7 @@ import org.apache.flink.graph.Graph;
  * @param <EV> the edge value type
  */
 @SuppressWarnings("serial")
-public abstract class GraphValidator<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
-		implements Serializable {
+public abstract class GraphValidator<K, VV, EV>	implements Serializable {
 
 	public abstract boolean validate(Graph<K, VV, EV> graph) throws Exception;
 

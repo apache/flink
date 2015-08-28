@@ -18,6 +18,8 @@
 
 package org.apache.flink.graph.test.operations;
 
+import java.util.List;
+
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -28,11 +30,7 @@ import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomType;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -43,21 +41,7 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-    private String resultPath;
     private String expectedResult;
-
-    @Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
 
 	@Test
 	public void testWithSameValue() throws Exception {
@@ -70,9 +54,8 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
 		DataSet<Edge<Long, Long>> mappedEdges = graph.mapEdges(new AddOneMapper()).getEdges();
-		
-		mappedEdges.writeAsCsv(resultPath);
-		env.execute();
+        List<Edge<Long, Long>> result= mappedEdges.collect();
+        
 		expectedResult = "1,2,13\n" +
 				"1,3,14\n" +
 				"2,3,24\n" +
@@ -80,6 +63,8 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 				"3,5,36\n" + 
 				"4,5,46\n" + 
 				"5,1,52\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -93,9 +78,8 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
 		DataSet<Edge<Long, String>> mappedEdges = graph.mapEdges(new ToStringMapper()).getEdges();
+		List<Edge<Long, String>> result= mappedEdges.collect();
 		
-		mappedEdges.writeAsCsv(resultPath);
-		env.execute();
 		expectedResult = "1,2,string(12)\n" +
 				"1,3,string(13)\n" +
 				"2,3,string(23)\n" +
@@ -103,6 +87,8 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 				"3,5,string(35)\n" + 
 				"4,5,string(45)\n" + 
 				"5,1,string(51)\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -116,9 +102,7 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
 		DataSet<Edge<Long, Tuple1<Long>>> mappedEdges = graph.mapEdges(new ToTuple1Mapper()).getEdges();
-		
-		mappedEdges.writeAsCsv(resultPath);
-		env.execute();
+		List<Edge<Long, Tuple1<Long>>> result= mappedEdges.collect();
 
 		expectedResult = "1,2,(12)\n" +
 				"1,3,(13)\n" +
@@ -127,6 +111,8 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 				"3,5,(35)\n" + 
 				"4,5,(45)\n" + 
 				"5,1,(51)\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -140,9 +126,7 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
 		DataSet<Edge<Long, DummyCustomType>> mappedEdges = graph.mapEdges(new ToCustomTypeMapper()).getEdges();
-		
-		mappedEdges.writeAsCsv(resultPath);
-		env.execute();
+		List<Edge<Long, DummyCustomType>> result= mappedEdges.collect();
 
 		expectedResult = "1,2,(T,12)\n" +
 			"1,3,(T,13)\n" +
@@ -151,6 +135,8 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 			"3,5,(T,35)\n" + 
 			"4,5,(T,45)\n" + 
 			"5,1,(T,51)\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -165,9 +151,7 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 		
 		DataSet<Edge<Long, DummyCustomParameterizedType<Double>>> mappedEdges = graph.mapEdges(
 				new ToCustomParametrizedTypeMapper()).getEdges();
-		
-		mappedEdges.writeAsCsv(resultPath);
-		env.execute();
+		List<Edge<Long, DummyCustomParameterizedType<Double>>> result= mappedEdges.collect();
 	
 		expectedResult = "1,2,(12.0,12)\n" +
 			"1,3,(13.0,13)\n" +
@@ -176,6 +160,8 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 			"3,5,(35.0,35)\n" + 
 			"4,5,(45.0,45)\n" + 
 			"5,1,(51.0,51)\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")

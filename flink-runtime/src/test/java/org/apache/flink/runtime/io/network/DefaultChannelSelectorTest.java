@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
+import org.apache.flink.types.StringValue;
 import org.junit.Test;
 
 /**
@@ -37,8 +36,8 @@ public class DefaultChannelSelectorTest {
 	@Test
 	public void channelSelect() {
 
-		final StringRecord dummyRecord = new StringRecord("abc");
-		final RoundRobinChannelSelector<StringRecord> selector = new RoundRobinChannelSelector<StringRecord>();
+		final StringValue dummyRecord = new StringValue("abc");
+		final RoundRobinChannelSelector<StringValue> selector = new RoundRobinChannelSelector<StringValue>();
 		// Test with two channels
 		final int numberOfOutputChannels = 2;
 		int[] selectedChannels = selector.selectChannels(dummyRecord, numberOfOutputChannels);

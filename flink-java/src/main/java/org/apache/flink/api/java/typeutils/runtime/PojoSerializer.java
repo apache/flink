@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -78,7 +79,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		this.numFields = fieldSerializers.length;
 		this.executionConfig = executionConfig;
 
-		List<Class<?>> registeredPojoTypes = executionConfig.getRegisteredPojoTypes();
+		LinkedHashSet<Class<?>> registeredPojoTypes = executionConfig.getRegisteredPojoTypes();
 
 		for (int i = 0; i < numFields; i++) {
 			this.fields[i].setAccessible(true);
@@ -293,7 +294,14 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 				for (int i = 0; i < numFields; i++) {
 					Object value = fields[i].get(from);
 					if (value != null) {
-						Object copy = fieldSerializers[i].copy(fields[i].get(from), fields[i].get(reuse));
+						Object reuseValue = fields[i].get(reuse);
+						Object copy;
+						if(reuseValue != null) {
+							copy = fieldSerializers[i].copy(value, reuseValue);
+						}
+						else {
+							copy = fieldSerializers[i].copy(value);
+						}
 						fields[i].set(reuse, copy);
 					}
 					else {
@@ -484,7 +492,15 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					if (isNull) {
 						fields[i].set(reuse, null);
 					} else {
-						Object field = fieldSerializers[i].deserialize(fields[i].get(reuse), source);
+						Object field;
+
+						Object reuseField = fields[i].get(reuse);
+						if(reuseField != null) {
+							field = fieldSerializers[i].deserialize(reuseField, source);
+						}
+						else {
+							field = fieldSerializers[i].deserialize(source);
+						}
 
 						fields[i].set(reuse, field);
 					}

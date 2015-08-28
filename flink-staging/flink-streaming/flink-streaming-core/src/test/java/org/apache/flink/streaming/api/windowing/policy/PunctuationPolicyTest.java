@@ -41,6 +41,7 @@ public class PunctuationPolicyTest {
 				policy.notifyTrigger(new TestObject(0)));
 		assertFalse("There was a punctuation detected which wasn't present. (POS 2)",
 				policy.notifyTrigger(new TestObject(1)));
+		policy.toString();
 	}
 
 	@Test

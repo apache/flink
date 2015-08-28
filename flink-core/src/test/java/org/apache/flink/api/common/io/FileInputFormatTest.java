@@ -18,25 +18,37 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
+import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.testutils.TestFileUtils;
+import org.apache.flink.types.IntValue;
+
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 
-import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
-import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileInputSplit;
-import org.apache.flink.testutils.TestFileUtils;
-import org.apache.flink.types.IntValue;
-import org.junit.Assert;
-import org.junit.Test;
+import static org.junit.Assert.*;
 
-public class FileInputFormatTest { 
+/**
+ * Tests for the FileInputFormat
+ */
+public class FileInputFormatTest {
 
+	// ------------------------------------------------------------------------
+	//  Statistics
+	// ------------------------------------------------------------------------
+	
 	@Test
 	public void testGetStatisticsNonExistingFile() {
 		try {
@@ -187,6 +199,10 @@ public class FileInputFormatTest {
 			Assert.fail(ex.getMessage());
 		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  Unsplittable input files
+	// ------------------------------------------------------------------------
 	
 	// ---- Tests for .deflate ---------
 	
@@ -232,6 +248,10 @@ public class FileInputFormatTest {
 			Assert.fail(ex.getMessage());
 		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  Ignored Files
+	// ------------------------------------------------------------------------
 	
 	@Test
 	public void testIgnoredUnderscoreFiles() {
@@ -241,11 +261,13 @@ public class FileInputFormatTest {
 			// create some accepted, some ignored files
 			
 			File tempDir = new File(System.getProperty("java.io.tmpdir"));
-			File f = null;
+			File f;
 			do {
 				f = new File(tempDir, TestFileUtils.randomFileName(""));
-			} while (f.exists());
-			f.mkdirs();
+			}
+			while (f.exists());
+
+			assertTrue(f.mkdirs());
 			f.deleteOnExit();
 			
 			File child1 = new File(f, "dataFile1.txt");
@@ -299,11 +321,13 @@ public class FileInputFormatTest {
 
 			// create two accepted and two ignored files
 			File tempDir = new File(System.getProperty("java.io.tmpdir"));
-			File f = null;
+			File f;
 			do {
 				f = new File(tempDir, TestFileUtils.randomFileName(""));
-			} while (f.exists());
-			f.mkdirs();
+			}
+			while (f.exists());
+			
+			assertTrue(f.mkdirs());
 			f.deleteOnExit();
 
 			File child1 = new File(f, "dataFile1.txt");
@@ -339,6 +363,43 @@ public class FileInputFormatTest {
 			Assert.fail(e.getMessage());
 		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  Stream Decoration
+	// ------------------------------------------------------------------------
+	
+	@Test
+	public void testDecorateInputStream() throws IOException {
+		// create temporary file with 3 blocks
+		final File tempFile = File.createTempFile("input-stream-decoration-test", "tmp");
+		tempFile.deleteOnExit();
+		final int blockSize = 8;
+		final int numBlocks = 3;
+		FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
+		for (int i = 0; i < blockSize * numBlocks; i++) {
+			fileOutputStream.write(new byte[]{1});
+		}
+		fileOutputStream.close();
+
+		final Configuration config = new Configuration();
+
+		final FileInputFormat<byte[]> inputFormat = new MyDecoratedInputFormat();
+		inputFormat.setFilePath(tempFile.toURI().toString());
+
+		inputFormat.configure(config);
+
+		FileInputSplit[] inputSplits = inputFormat.createInputSplits(3);
+
+		byte[] bytes = null;
+		for (FileInputSplit inputSplit : inputSplits) {
+			inputFormat.open(inputSplit);
+			while (!inputFormat.reachedEnd()) {
+				if ((bytes = inputFormat.nextRecord(bytes)) != null) {
+					Assert.assertArrayEquals(new byte[]{(byte) 0xFE}, bytes);
+				}
+			}
+		}
+	}
 	
 	// ------------------------------------------------------------------------
 	
@@ -353,6 +414,51 @@ public class FileInputFormatTest {
 		@Override
 		public IntValue nextRecord(IntValue record) throws IOException {
 			return null;
+		}
+	}
+
+
+	private static final class MyDecoratedInputFormat extends FileInputFormat<byte[]> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean reachedEnd() throws IOException {
+			return this.splitLength <= this.stream.getPos();
+		}
+
+		@Override
+		public byte[] nextRecord(byte[] reuse) throws IOException {
+			int read = this.stream.read();
+			if (read == -1) throw new IllegalStateException();
+			return new byte[]{(byte) read};
+		}
+
+		@Override
+		protected FSDataInputStream decorateInputStream(FSDataInputStream inputStream, FileInputSplit fileSplit) throws Throwable {
+			inputStream = super.decorateInputStream(inputStream, fileSplit);
+			return new InputStreamFSInputWrapper(new InvertedInputStream(inputStream));
+		}
+
+	}
+
+	private static final class InvertedInputStream extends InputStream {
+
+		private final InputStream originalStream;
+
+		private InvertedInputStream(InputStream originalStream) {
+			this.originalStream = originalStream;
+		}
+
+		@Override
+		public int read() throws IOException {
+			int read = this.originalStream.read();
+			return read == -1 ? -1 : (~read & 0xFF);
+		}
+
+		@Override
+		public int available() throws IOException {
+			return this.originalStream.available();
 		}
 	}
 }

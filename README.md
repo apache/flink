@@ -1,6 +1,6 @@
 # Apache Flink
 
-Apache Flink is an open source system for fast and versatile data analytics in clusters. Flink supports batch and streaming analytics,
+Apache Flink is an open source platform for scalable batch and stream data processing. Flink supports batch and streaming analytics,
 in one system. Analytical programs can be written in concise and elegant APIs in Java and Scala.
 
 ```scala
@@ -16,13 +16,13 @@ val counts = text.flatMap { _.split("\\W+") }
 counts.writeAsCsv(outputPath)
 ```
 
-Flink is highlighted by some unique features:
+These are some of the unique features of Flink:
 
 * Hybrid batch/streaming runtime that supports batch processing and data streaming programs.
-* Custom memory management to guarantee efficient, adaptive, and highly robust switching between in-memory and data processing out-of-core algorithms.
-* Flexible and expressive windowing semantics for data stream programs
-* Built-in program optimizer that chooses the proper runtime operations for each program
-* Custom type analysis and serialization stack for high performance
+* Custom memory management to guarantee efficient, adaptive, and highly robust switching between in-memory and out-of-core data processing algorithms.
+* Flexible and expressive windowing semantics for data stream programs.
+* Built-in program optimizer that chooses the proper runtime operations for each program.
+* Custom type analysis and serialization stack for high performance.
 
 
 Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
@@ -30,10 +30,12 @@ Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
 
 ## Building Apache Flink from Source
 
+Prerequisites for building Flink:
+
 * Unix-like environment (We use Linux, Mac OS X, Cygwin)
 * git
 * Maven (at least version 3.0.4)
-* Java 6, 7 or 8 (Note that Oracle's JDK 6 library will fail to build Flink, but is able to run a pre-compiled package without problem)
+* Java 7 or 8
 
 ```
 git clone https://github.com/apache/flink.git
@@ -41,26 +43,26 @@ cd flink
 mvn clean package -DskipTests # this will take up to 5 minutes
 ```
 
-Flink is now installed in `flink-dist/target`
+Flink is now installed in `build-target`
 
 
 ## Developing Flink
 
-The Flink committers use the IntelliJ IDE and Eclipse to develop the Flink codebase.
+The Flink committers use IntelliJ IDEA and Eclipse IDE to develop the Flink codebase.
 
 Minimal requirements for an IDE are:
 * Support for Java and Scala (also mixed projects)
 * Support for Maven with Java and Scala
 
 
-### IntelliJ
+### IntelliJ IDEA
 
 The IntelliJ IDE supports Maven out of the box and offers a plugin for Scala development.
 
 * IntelliJ download: [https://www.jetbrains.com/idea/](https://www.jetbrains.com/idea/)
 * IntelliJ Scala Plugin: [http://plugins.jetbrains.com/plugin/?id=1347](http://plugins.jetbrains.com/plugin/?id=1347)
 
-Check out our [Setting up IntelliJ](https://github.com/apache/flink/blob/master/docs/internal_setup_intellij.md) guide for details.
+Check out our [Setting up IntelliJ](https://github.com/apache/flink/blob/master/docs/internals/ide_setup.md#intellij-idea) guide for details.
 
 ### Eclipse Scala IDE
 
@@ -68,13 +70,13 @@ For Eclipse users, we recommend using Scala IDE 3.0.3, based on Eclipse Kepler. 
 we found it to be the version that works most robustly for a complex project like Flink.
 
 Further details, and a guide to newer Scala IDE versions can be found in the
-[How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internal_setup_eclipse.md) docs.
+[How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internals/ide_setup.md#eclipse) docs.
 
 **Note:** Before following this setup, make sure to run the build from the command line once
-(`mvn clean package -DskipTests`, see above)
+(`mvn clean install -DskipTests`, see above)
 
 1. Download the Scala IDE (preferred) or install the plugin to Eclipse Kepler. See 
-   [How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internal_setup_eclipse.md) for download links and instructions.
+   [How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internals/ide_setup.md#eclipse) for download links and instructions.
 2. Add the "macroparadise" compiler plugin to the Scala compiler.
    Open "Window" -> "Preferences" -> "Scala" -> "Compiler" -> "Advanced" and put into the "Xplugin" field the path to
    the *macroparadise* jar file (typically "/home/*-your-user-*/.m2/repository/org/scalamacros/paradise_2.10.4/2.0.1/paradise_2.10.4-2.0.1.jar").
@@ -88,7 +90,7 @@ Further details, and a guide to newer Scala IDE versions can be found in the
 
 Don’t hesitate to ask!
 
-Please contact the developers on our [mailing lists](http://flink.apache.org/community.html#mailing-lists) if you need help.
+Contact the developers and community on the [mailing lists](http://flink.apache.org/community.html#mailing-lists) if you need any help.
 
 [Open an issue](https://issues.apache.org/jira/browse/FLINK) if you found a bug in Flink.
 

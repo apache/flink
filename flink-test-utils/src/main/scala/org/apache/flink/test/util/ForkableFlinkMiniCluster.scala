@@ -21,12 +21,13 @@ package org.apache.flink.test.util
 import akka.actor.{Props, ActorRef, ActorSystem}
 import akka.pattern.Patterns._
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.jobmanager.web.WebInfoServer
-import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
+import org.apache.flink.runtime.StreamingMode
+import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingJobManager,
 TestingMemoryArchivist, TestingTaskManager}
+import org.apache.flink.runtime.webmonitor.WebMonitor
 
 import scala.concurrent.Await
 
@@ -39,11 +40,20 @@ import scala.concurrent.Await
  * @param singleActorSystem true, if all actors (JobManager and TaskManager) shall be run in the
  *                          same [[ActorSystem]], otherwise false.
  */
-class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem: Boolean)
-  extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem) {
+class ForkableFlinkMiniCluster(
+    userConfiguration: Configuration,
+    singleActorSystem: Boolean,
+    streamingMode: StreamingMode)
+  extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
+  
+
+  def this(userConfiguration: Configuration, singleActorSystem: Boolean) 
+       = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
 
   def this(userConfiguration: Configuration) = this(userConfiguration, true)
-
+  
+  // --------------------------------------------------------------------------
+  
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
     val forNumberString = System.getProperty("forkNumber")
 
@@ -69,27 +79,41 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
     super.generateConfiguration(config)
   }
 
-  override def startJobManager(actorSystem: ActorSystem): ActorRef = {
+  override def startJobManager(actorSystem: ActorSystem): (ActorRef, Option[WebMonitor]) = {
 
-    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager, _,
-    executionRetries, delayBetweenRetries,
-    timeout, archiveCount) = JobManager.createJobManagerComponents(configuration)
+    val (executionContext,
+      instanceManager,
+      scheduler,
+      libraryCacheManager,
+      _,
+      executionRetries,
+      delayBetweenRetries,
+      timeout,
+      archiveCount) = JobManager.createJobManagerComponents(configuration)
 
-    val testArchiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
-    val archive = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
+    val testArchiveProps = Props(
+      new TestingMemoryArchivist(archiveCount))
 
-    val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
-      libraryCacheManager, archive, accumulatorManager, None, executionRetries,
-      delayBetweenRetries, timeout) with TestingJobManager)
+    val archiver = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
+    
+    val jobManagerProps = Props(
+      new TestingJobManager(
+        configuration,
+        executionContext,
+        instanceManager,
+        scheduler,
+        libraryCacheManager,
+        archiver,
+        executionRetries,
+        delayBetweenRetries,
+        timeout,
+        streamingMode))
 
     val jobManager = actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
 
-    if (userConfiguration.getBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER,false)){
-      val webServer = new WebInfoServer(configuration, jobManager, archive)
-      webServer.start()
-    }
+    val webMonitorOption = startWebServer(configuration, jobManager, archiver)
 
-    jobManager
+    (jobManager, webMonitorOption)
   }
 
   override def startTaskManager(index: Int, system: ActorSystem): ActorRef = {
@@ -110,20 +134,33 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
 
     val localExecution = numTaskManagers == 1
 
-    TaskManager.startTaskManagerActor(config, system, HOSTNAME,
-        TaskManager.TASK_MANAGER_NAME + index, singleActorSystem, localExecution,
-         classOf[TestingTaskManager])
+    val jobManagerAkkaUrl: Option[String] = if (singleActorSystem) {
+      Some(jobManagerActor.path.toString)
+    } else {
+      None
+    }
+
+    TaskManager.startTaskManagerComponentsAndActor(config, system, hostname,
+        Some(TaskManager.TASK_MANAGER_NAME + index), jobManagerAkkaUrl, localExecution,
+      streamingMode, classOf[TestingTaskManager])
   }
 
   def restartJobManager(): Unit = {
     val stopped = gracefulStop(jobManagerActor, TestingUtils.TESTING_DURATION)
     Await.result(stopped, TestingUtils.TESTING_DURATION)
 
+    webMonitor foreach {
+      _.stop()
+    }
+
     jobManagerActorSystem.shutdown()
     jobManagerActorSystem.awaitTermination()
 
     jobManagerActorSystem = startJobManagerActorSystem()
-    jobManagerActor = startJobManager(jobManagerActorSystem)
+    val (newJobManagerActor, newWebMonitor) = startJobManager(jobManagerActorSystem)
+
+    jobManagerActor = newJobManagerActor
+    webMonitor = newWebMonitor
   }
 
   def restartTaskManager(index: Int): Unit = {

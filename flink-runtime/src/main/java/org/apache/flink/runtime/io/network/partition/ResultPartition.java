@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkElementIndex;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -75,6 +76,8 @@ import static com.google.common.base.Preconditions.checkState;
 public class ResultPartition implements BufferPoolOwner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
+	
+	private final String owningTaskName;
 
 	private final JobID jobId;
 
@@ -107,6 +110,8 @@ public class ResultPartition implements BufferPoolOwner {
 
 	private boolean isFinished;
 
+	private volatile Throwable cause;
+
 	// - Statistics ----------------------------------------------------------
 
 	/** The total number of buffers (both data and event buffers) */
@@ -116,6 +121,7 @@ public class ResultPartition implements BufferPoolOwner {
 	private long totalNumberOfBytes;
 
 	public ResultPartition(
+			String owningTaskName,
 			JobID jobId,
 			ResultPartitionID partitionId,
 			ResultPartitionType partitionType,
@@ -125,6 +131,7 @@ public class ResultPartition implements BufferPoolOwner {
 			IOManager ioManager,
 			IOMode defaultIoMode) {
 
+		this.owningTaskName = checkNotNull(owningTaskName);
 		this.jobId = checkNotNull(jobId);
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
@@ -156,7 +163,7 @@ public class ResultPartition implements BufferPoolOwner {
 		// Initially, partitions should be consumed once before release.
 		pin();
 
-		LOG.debug("Initialized {}", this);
+		LOG.debug("{}: Initialized {}", owningTaskName, this);
 	}
 
 	/**
@@ -270,31 +277,40 @@ public class ResultPartition implements BufferPoolOwner {
 		}
 	}
 
+	public void release() {
+		release(null);
+	}
+
 	/**
 	 * Releases the result partition.
 	 */
-	public void release() {
+	public void release(Throwable cause) {
 		if (isReleased.compareAndSet(false, true)) {
-			LOG.debug("Releasing {}", this);
+			LOG.debug("{}: Releasing {}.", owningTaskName, this);
 
-			try {
-				for (ResultSubpartition subpartition : subpartitions) {
-					try {
-						synchronized (subpartition) {
-							subpartition.release();
-						}
-					}
-					// Catch this in order to ensure that release is called on all subpartitions
-					catch (Throwable t) {
-						LOG.error("Error during release of result subpartition: " + t.getMessage(), t);
+			// Set the error cause
+			if (cause != null) {
+				this.cause = cause;
+			}
+
+			// Release all subpartitions
+			for (ResultSubpartition subpartition : subpartitions) {
+				try {
+					synchronized (subpartition) {
+						subpartition.release();
 					}
 				}
-			}
-			finally {
-				if (bufferPool != null) {
-					bufferPool.lazyDestroy();
+				// Catch this in order to ensure that release is called on all subpartitions
+				catch (Throwable t) {
+					LOG.error("Error during release of result subpartition: " + t.getMessage(), t);
 				}
 			}
+		}
+	}
+
+	public void destroyBufferPool() {
+		if (bufferPool != null) {
+			bufferPool.lazyDestroy();
 		}
 	}
 
@@ -307,7 +323,13 @@ public class ResultPartition implements BufferPoolOwner {
 		checkState(refCnt != -1, "Partition released.");
 		checkState(refCnt > 0, "Partition not pinned.");
 
+		checkElementIndex(index, subpartitions.length, "Subpartition not found.");
+
 		return subpartitions[index].createReadView(bufferProvider);
+	}
+
+	public Throwable getFailureCause() {
+		return cause;
 	}
 
 	/**

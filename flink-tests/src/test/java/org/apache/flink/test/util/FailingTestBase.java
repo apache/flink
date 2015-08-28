@@ -18,10 +18,8 @@
 
 package org.apache.flink.test.util;
 
-import akka.actor.ActorRef;
 import org.junit.Assert;
 
-import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
@@ -29,6 +27,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
  * Base class for integration tests which test whether the system recovers from failed executions.
  */
 public abstract class FailingTestBase extends RecordAPITestBase {
+	
 	/**
 	 * Returns the {@link JobGraph} of the failing job. 
 	 * 
@@ -116,13 +115,16 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 	 */
 	private class SubmissionThread extends Thread {
 
-		// reference to the timeout thread
+		/** reference to the timeout thread */
 		private final Thread timeoutThread;
-		// cluster to submit the job to.
+		
+		//**cluster to submit the job to. */
 		private final ForkableFlinkMiniCluster executor;
-		// job graph of the failing job (submitted first)
+		
+		/** job graph of the failing job (submitted first) */
 		private final JobGraph failingJob;
-		// job graph of the working job (submitted after return from failing job)
+		
+		/** job graph of the working job (submitted after return from failing job) */
 		private final JobGraph job;
 		
 		private volatile Exception error;
@@ -142,24 +144,24 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 		 */
 		@Override
 		public void run() {
-			ActorRef client = this.executor.getJobClient();
-
 			try {
 				// submit failing job
-				JobClient.submitJobAndWait(this.failingJob, false, client, executor.timeout());
-				
+				this.executor.submitJobAndWait(this.failingJob, false);
 				this.error = new Exception("The job did not fail.");
-			} catch(JobExecutionException jee) {
+			}
+			catch(JobExecutionException jee) {
 				// as expected
-			} catch (Exception e) {
+			}
+			catch (Exception e) {
 				this.error = e;
 			}
 			
 			
 			try {
 				// submit working job
-				JobClient.submitJobAndWait(this.job, false, client, executor.timeout());
-			} catch (Exception e) {
+				this.executor.submitJobAndWait(this.job, false);
+			}
+			catch (Exception e) {
 				this.error = e;
 			}
 			

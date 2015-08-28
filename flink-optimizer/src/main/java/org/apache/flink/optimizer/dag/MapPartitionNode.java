@@ -22,10 +22,13 @@ package org.apache.flink.optimizer.dag;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.MapPartitionDescriptor;
 import org.apache.flink.optimizer.operators.OperatorDescriptorSingle;
+import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
+import org.apache.flink.api.common.operators.util.FieldSet;
 
 /**
  * The optimizer's internal representation of a <i>MapPartition</i> operator node.
@@ -53,6 +56,21 @@ public class MapPartitionNode extends SingleInputNode {
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
 		return this.possibleProperties;
+	}
+
+	@Override
+	protected SemanticProperties getSemanticPropertiesForLocalPropertyFiltering() {
+
+		// Local properties for MapPartition may not be preserved.
+		SingleInputSemanticProperties origProps =
+				((SingleInputOperator<?,?,?>) getOperator()).getSemanticProperties();
+		SingleInputSemanticProperties filteredProps = new SingleInputSemanticProperties();
+		FieldSet readSet = origProps.getReadFields(0);
+		if(readSet != null) {
+			filteredProps.addReadFields(readSet);
+		}
+
+		return filteredProps;
 	}
 
 	/**

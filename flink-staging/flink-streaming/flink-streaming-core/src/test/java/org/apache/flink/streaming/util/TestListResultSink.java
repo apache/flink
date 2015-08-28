@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.TreeSet;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
 public class TestListResultSink<T> extends RichSinkFunction<T> {
 

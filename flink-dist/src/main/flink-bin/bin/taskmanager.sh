@@ -17,92 +17,51 @@
 # limitations under the License.
 ################################################################################
 
+# Start/stop a Flink JobManager.
+USAGE="Usage: taskmanager.sh (start [batch|streaming])|stop|stop-all)"
 
 STARTSTOP=$1
+STREAMINGMODE=$2
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-if [ "$FLINK_IDENT_STRING" = "" ]; then
-    FLINK_IDENT_STRING="$USER"
-fi
+if [[ $STARTSTOP == "start" ]]; then
 
-# auxilliary function to construct a lightweight classpath for the
-# Flink TaskManager
-constructTaskManagerClassPath() {
-
-    for jarfile in "$FLINK_LIB_DIR"/*.jar ; do
-        if [[ $FLINK_TM_CLASSPATH = "" ]]; then
-            FLINK_TM_CLASSPATH=$jarfile;
-        else
-            FLINK_TM_CLASSPATH=$FLINK_TM_CLASSPATH:$jarfile
-        fi
-    done
-
-    echo $FLINK_TM_CLASSPATH
-}
-
-FLINK_TM_CLASSPATH=`manglePathList "$(constructTaskManagerClassPath)"`
-
-log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-taskmanager-$HOSTNAME.log
-out=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-taskmanager-$HOSTNAME.out
-pid=$FLINK_PID_DIR/flink-$FLINK_IDENT_STRING-taskmanager.pid
-log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
-
-JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/java version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
-
-if [ "$JAVA_VERSION" -lt 18 ]; then
-    JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
-fi
-
-case $STARTSTOP in
-
-    (start)
-
-        if [[ ! ${FLINK_TM_HEAP} =~ ${IS_NUMBER} ]]; then
-            echo "ERROR: Configured task manager heap size is not a number. Cancelling task manager startup."
-            exit 1
-        fi
-
-        if [ "$FLINK_TM_HEAP" -gt 0 ]; then
-            JVM_ARGS="$JVM_ARGS -Xms"$FLINK_TM_HEAP"m -Xmx"$FLINK_TM_HEAP"m"
-        fi
-
-        mkdir -p "$FLINK_PID_DIR"
-        if [ -f $pid ]; then
-            if kill -0 `cat $pid` > /dev/null 2>&1; then
-                echo Task manager running as process `cat $pid` on host $HOSTNAME.  Stop it first.
-                exit 1
-            fi
-        fi
-
-        # Rotate log files
-        rotateLogFile $log
-        rotateLogFile $out
-
-        echo Starting task manager on host $HOSTNAME
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS" org.apache.flink.runtime.taskmanager.TaskManager --configDir "$FLINK_CONF_DIR" > "$out" 2>&1 < /dev/null &
-        echo $! > $pid
-
-    ;;
-
-    (stop)
-        if [ -f $pid ]; then
-            if kill -0 `cat $pid` > /dev/null 2>&1; then
-                echo Stopping task manager on host $HOSTNAME
-                kill `cat $pid`
+    # Use batch mode as default
+    if [ -z $STREAMINGMODE ]; then
+        echo "Missing streaming mode (batch|streaming). Using 'batch'."
+        STREAMINGMODE="batch"
+    fi
+    
+    # if mode is streaming and no other JVM options are set, set the 'Concurrent Mark Sweep GC'
+    if [[ $STREAMINGMODE == "streaming" ]] && [ -z $FLINK_ENV_JAVA_OPTS ]; then
+    
+        JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
+    
+        # set the GC to G1 in Java 8 and to CMS in Java 7
+        if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
+            if [ "$JAVA_VERSION" -lt 18 ]; then
+                export JVM_ARGS="$JVM_ARGS -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled"
             else
-                echo No task manager to stop on host $HOSTNAME
+                export JVM_ARGS="$JVM_ARGS -XX:+UseG1GC"
             fi
-        else
-            echo No task manager to stop on host $HOSTNAME
         fi
-    ;;
+    fi
 
-    (*)
-        echo Please specify start or stop
-    ;;
+    if [[ ! ${FLINK_TM_HEAP} =~ ${IS_NUMBER} ]]; then
+        echo "[ERROR] Configured TaskManager JVM heap size is not a number. Please set '$KEY_TASKM_HEAP_MB' in $FLINK_CONF_FILE."
+        exit 1
+    fi
 
-esac
+    if [ "$FLINK_TM_HEAP" -gt 0 ]; then
+        export JVM_ARGS="$JVM_ARGS -Xms"$FLINK_TM_HEAP"m -Xmx"$FLINK_TM_HEAP"m"
+    fi
+
+    # Startup parameters
+    args="--configDir ${FLINK_CONF_DIR} --streamingMode ${STREAMINGMODE}"
+fi
+
+${bin}/flink-daemon.sh $STARTSTOP taskmanager "${args}"

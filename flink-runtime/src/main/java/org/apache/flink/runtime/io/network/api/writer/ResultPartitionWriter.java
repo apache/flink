@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.runtime.event.task.AbstractEvent;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.TaskEventHandler;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
@@ -36,9 +36,6 @@ import java.io.IOException;
  * <p>
  * The {@link ResultPartitionWriter} is the runtime API for producing results. It
  * supports two kinds of data to be sent: buffers and events.
- * <p>
- * <strong>Important</strong>: When working directly with this API, it is
- * necessary to call {@link #finish()} after all data has been produced.
  */
 public final class ResultPartitionWriter implements EventListener<TaskEvent> {
 
@@ -92,17 +89,9 @@ public final class ResultPartitionWriter implements EventListener<TaskEvent> {
 		}
 	}
 
-	public void finish() throws IOException, InterruptedException {
-		partition.finish();
-	}
-
 	// ------------------------------------------------------------------------
 	// Event handling
 	// ------------------------------------------------------------------------
-
-	public TaskEventHandler getTaskEventHandler() {
-		return taskEventHandler;
-	}
 
 	public void subscribeToEvent(EventListener<TaskEvent> eventListener, Class<? extends TaskEvent> eventType) {
 		taskEventHandler.subscribe(eventListener, eventType);

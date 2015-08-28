@@ -72,7 +72,7 @@ public class AccumulatorIterativeITCase extends RecordAPITestBase {
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(EXPECTED, resultPath);
 		
-		Integer res = (Integer) getJobExecutionResult().getAccumulatorResult("test");
+		Integer res = getJobExecutionResult().getAccumulatorResult("test");
 		Assert.assertEquals(Integer.valueOf(NUM_ITERATIONS * 6), res);
 	}
 
@@ -117,18 +117,12 @@ public class AccumulatorIterativeITCase extends RecordAPITestBase {
 		private static final long serialVersionUID = 1L;
 		
 		private IntCounter testCounter = new IntCounter();
-		
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			getRuntimeContext().addAccumulator("test", this.testCounter);
-		}
-		
+
 		@Override
 		public void reduce(Iterator<Record> records, Collector<Record> out) {
 			// Compute the sum
 			int sum = 0;
-			
+
 			while (records.hasNext()) {
 				Record r = records.next();
 				Integer value = Integer.parseInt(r.getField(0, StringValue.class).getValue());
@@ -136,6 +130,12 @@ public class AccumulatorIterativeITCase extends RecordAPITestBase {
 				testCounter.add(value);
 			}
 			out.collect(new Record(new StringValue(Integer.toString(sum))));
+		}
+
+		@Override
+		public void close() throws Exception {
+			super.close();
+			getRuntimeContext().addAccumulator("test", this.testCounter);
 		}
 	}
 

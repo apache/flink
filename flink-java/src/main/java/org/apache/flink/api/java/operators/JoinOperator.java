@@ -202,6 +202,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			this.function = function;
 			this.joinLocationName = joinLocationName;
+
+			UdfOperatorUtils.analyzeDualInputUdf(this, FlatJoinFunction.class, joinLocationName, function, keys1, keys2);
 		}
 
 		public EquiJoin(DataSet<I1> input1, DataSet<I2> input2,
@@ -217,11 +219,36 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			}
 
 			this.function = generatedFunction;
+
+			UdfOperatorUtils.analyzeDualInputUdf(this, JoinFunction.class, joinLocationName, function, keys1, keys2);
 		}
 		
 		@Override
 		protected FlatJoinFunction<I1, I2, OUT> getFunction() {
 			return function;
+		}
+
+		@Override
+		public DualInputSemanticProperties getSemanticProperties() {
+
+			DualInputSemanticProperties props = super.getSemanticProperties();
+
+			// offset semantic information by extracted key fields
+			if(props != null &&
+					(this.keys1 instanceof Keys.SelectorFunctionKeys ||
+							this.keys2 instanceof Keys.SelectorFunctionKeys)) {
+
+				int numFields1 = this.getInput1Type().getTotalFields();
+				int numFields2 = this.getInput2Type().getTotalFields();
+				int offset1 = (this.keys1 instanceof Keys.SelectorFunctionKeys) ?
+						((Keys.SelectorFunctionKeys<?,?>) this.keys1).getKeyType().getTotalFields() : 0;
+				int offset2 = (this.keys2 instanceof Keys.SelectorFunctionKeys) ?
+						((Keys.SelectorFunctionKeys<?,?>) this.keys2).getKeyType().getTotalFields() : 0;
+
+				props = SemanticPropUtil.addSourceFieldOffsets(props, numFields1, numFields2, offset1, offset2);
+			}
+
+			return props;
 		}
 
 		@Override
@@ -1296,7 +1323,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 		/**
 		 * Chooses a projectTupleX according to the length of
-		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#fieldIndexes} 
+		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#fieldIndexes}
 		 * 
 		 * @return The projected DataSet.
 		 * 

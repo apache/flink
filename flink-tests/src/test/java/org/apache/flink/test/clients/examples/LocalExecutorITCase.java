@@ -21,6 +21,8 @@ package org.apache.flink.test.clients.examples;
 import java.io.File;
 import java.io.FileWriter;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.test.recordJobs.wordcount.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
@@ -53,14 +55,13 @@ public class LocalExecutorITCase {
 			executor.setTaskManagerNumSlots(parallelism);
 			executor.setPrintStatusDuringExecution(false);
 			executor.start();
-			
-			executor.executePlan(wc.getPlan(Integer.valueOf(parallelism).toString(), inFile.toURI().toString(),
-					outFile.toURI().toString()));
+			Plan wcPlan = wc.getPlan(Integer.valueOf(parallelism).toString(), inFile.toURI().toString(),outFile.toURI().toString());
+			wcPlan.setExecutionConfig(new ExecutionConfig());
+			executor.executePlan(wcPlan);
 			executor.stop();
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
-		
 	}
 }

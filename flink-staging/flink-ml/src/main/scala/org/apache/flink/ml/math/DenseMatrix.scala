@@ -106,8 +106,14 @@ case class DenseMatrix(
     obj match {
       case dense: DenseMatrix =>
         numRows == dense.numRows && numCols == dense.numCols && data.sameElements(dense.data)
-      case _ => super.equals(obj)
+      case _ => false
     }
+  }
+
+  override def hashCode: Int = {
+    val hashCodes = List(numRows.hashCode(), numCols.hashCode(), java.util.Arrays.hashCode(data))
+
+    hashCodes.foldLeft(3){(left, right) => left * 41 + right}
   }
 
   /** Element wise update function

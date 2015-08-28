@@ -67,6 +67,10 @@ public abstract class ResultSubpartition {
 		parent.onConsumedSubpartition(index);
 	}
 
+	protected Throwable getFailureCause() {
+		return parent.getFailureCause();
+	}
+
 	abstract public boolean add(Buffer buffer) throws IOException;
 
 	abstract public void finish() throws IOException;
@@ -76,5 +80,7 @@ public abstract class ResultSubpartition {
 	abstract public ResultSubpartitionView createReadView(BufferProvider bufferProvider) throws IOException;
 
 	abstract int releaseMemory() throws IOException;
+
+	abstract public boolean isReleased();
 
 }

@@ -16,26 +16,20 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.StringUtils;
 
 /**
  * This class extends a standard {@link java.util.HashMap} by implementing the
- * {@link org.apache.flink.core.io.IOReadableWritable} interface. As a result, hash maps of this type can be used
- * with Nephele's RPC system.
- * <p>
- * This class is not thread-safe.
+ * {@link org.apache.flink.core.io.IOReadableWritable} interface.
  * 
  * @param <K>
  *        the type of the key used in this hash map
@@ -56,16 +50,14 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 		
 		out.writeInt(size());
 
-		final Iterator<Map.Entry<K, V>> it = entrySet().iterator();
-
-		while (it.hasNext()) {
-
-			final Map.Entry<K, V> entry = it.next();
+		for (Map.Entry<K, V> entry : entrySet()) {
 			final K key = entry.getKey();
 			final V value = entry.getValue();
-			StringRecord.writeString(out, key.getClass().getName());
+
+			StringUtils.writeNullableString(key.getClass().getName(), out);
 			key.write(out);
-			StringRecord.writeString(out, value.getClass().getName());
+
+			StringUtils.writeNullableString(value.getClass().getName(), out);
 			value.write(out);
 		}
 	}
@@ -79,8 +71,8 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 
 		for (int i = 0; i < numberOfMapEntries; i++) {
 
-			final String keyType = StringRecord.readString(in);
-			Class<K> keyClass = null;
+			final String keyType = StringUtils.readNullableString(in);
+			Class<K> keyClass;
 			try {
 				keyClass = (Class<K>) Class.forName(keyType);
 			} catch (ClassNotFoundException e) {
@@ -96,15 +88,15 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 
 			key.read(in);
 
-			final String valueType = StringRecord.readString(in);
-			Class<V> valueClass = null;
+			final String valueType = StringUtils.readNullableString(in);
+			Class<V> valueClass;
 			try {
 				valueClass = (Class<V>) Class.forName(valueType);
 			} catch (ClassNotFoundException e) {
 				throw new IOException(StringUtils.stringifyException(e));
 			}
 
-			V value = null;
+			V value;
 			try {
 				value = valueClass.newInstance();
 			} catch (Exception e) {

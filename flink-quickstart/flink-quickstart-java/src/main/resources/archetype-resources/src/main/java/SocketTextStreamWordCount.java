@@ -57,6 +57,11 @@ public class SocketTextStreamWordCount {
 
 	public static void main(String[] args) throws Exception {
 
+		if (args.length != 2){
+			System.err.println("USAGE:\nSocketTextStreamWordCount <hostname> <port>");
+			return;
+		}
+
 		String hostName = args[0];
 		Integer port = Integer.parseInt(args[1]);
 

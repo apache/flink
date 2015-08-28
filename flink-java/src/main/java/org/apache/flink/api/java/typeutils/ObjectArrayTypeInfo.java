@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -126,6 +127,24 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 		return this.getClass().getSimpleName() + "<" + this.componentInfo + ">";
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		ObjectArrayTypeInfo<?, ?> that = (ObjectArrayTypeInfo<?, ?>) o;
+		return this.arrayType.equals(that.arrayType) && this.componentType.equals(that.componentType);
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * this.arrayType.hashCode() + this.componentType.hashCode();
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(Type type, TypeInformation<C> componentInfo) {
@@ -141,6 +160,21 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 			return new ObjectArrayTypeInfo<T, C>(type, ((Class<?>) type).getComponentType(), componentInfo);
 		}
 		throw new InvalidTypesException("The given type is not a valid object array.");
+	}
+
+	/**
+	 * Creates a new {@link org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo} from a
+	 * {@link TypeInformation} for the component type.
+	 *
+	 * <p>
+	 * This must be used in cases where the complete type of the array is not available as a
+	 * {@link java.lang.reflect.Type} or {@link java.lang.Class}.
+	 */
+	public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(TypeInformation<C> componentInfo) {
+		return new ObjectArrayTypeInfo<T, C>(
+				Array.newInstance(componentInfo.getTypeClass(), 0).getClass(),
+				componentInfo.getTypeClass(),
+				componentInfo);
 	}
 
 	@SuppressWarnings("unchecked")

@@ -17,28 +17,28 @@
 
 package org.apache.flink.streaming.examples.join;
 
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
-
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.source.RichSourceFunction;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.util.Collector;
+import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+
+import java.util.Random;
 
 /**
  * Example illustrating join over sliding windows of streams in Flink.
- * 
+ * <p/>
  * <p>
  * his example will join two streams with a sliding window. One which emits
  * grades and one which emits salaries of people.
  * </p>
- * 
- * <p>
+ * <p/>
+ * <p/>
  * This example shows how to:
  * <ul>
  * <li>do windowed joins,
@@ -51,6 +51,9 @@ public class WindowJoin {
 	// PROGRAM
 	// *************************************************************************
 
+	private static DataStream<Tuple2<String, Integer>> grades;
+	private static DataStream<Tuple2<String, Integer>> salaries;
+
 	public static void main(String[] args) throws Exception {
 
 		if (!parseParameters(args)) {
@@ -61,18 +64,17 @@ public class WindowJoin {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		// connect to the data sources for grades and salaries
-		DataStream<Tuple2<String, Integer>> grades = env.addSource(new GradeSource());
-		DataStream<Tuple2<String, Integer>> salaries = env.addSource(new SalarySource());
+		setInputStreams(env);
 
 		// apply a temporal join over the two stream based on the names over one
 		// second windows
 		DataStream<Tuple3<String, Integer, Integer>> joinedStream = grades
-						.join(salaries)
-						.onWindow(1, TimeUnit.SECONDS)
-						.where(0)
-						.equalTo(0)
-						.with(new MyJoinFunction());
-		
+				.join(salaries)
+				.onWindow(1, new MyTimestamp(0), new MyTimestamp(0))
+				.where(0)
+				.equalTo(0)
+				.with(new MyJoinFunction());
+
 		// emit result
 		if (fileOutput) {
 			joinedStream.writeAsText(outputPath, 1);
@@ -88,7 +90,7 @@ public class WindowJoin {
 	// USER FUNCTIONS
 	// *************************************************************************
 
-	private final static String[] names = { "tom", "jerry", "alice", "bob", "john", "grace" };
+	private final static String[] names = {"tom", "jerry", "alice", "bob", "john", "grace"};
 	private final static int GRADE_COUNT = 5;
 	private final static int SALARY_MAX = 10000;
 	private final static int SLEEP_TIME = 10;
@@ -101,6 +103,8 @@ public class WindowJoin {
 
 		private Random rand;
 		private Tuple2<String, Integer> outTuple;
+		private volatile boolean isRunning = true;
+		private int counter;
 
 		public GradeSource() {
 			rand = new Random();
@@ -108,18 +112,19 @@ public class WindowJoin {
 		}
 
 		@Override
-		public void run(Collector<Tuple2<String, Integer>> out) throws Exception {
-			while (true) {
+		public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
+			while (isRunning && counter < 100) {
 				outTuple.f0 = names[rand.nextInt(names.length)];
 				outTuple.f1 = rand.nextInt(GRADE_COUNT) + 1;
-				out.collect(outTuple);
 				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
+				counter++;
+				ctx.collect(outTuple);
 			}
 		}
-		
+
 		@Override
 		public void cancel() {
-			// No cleanup needed
+			isRunning = false;
 		}
 	}
 
@@ -131,26 +136,48 @@ public class WindowJoin {
 
 		private transient Random rand;
 		private transient Tuple2<String, Integer> outTuple;
+		private volatile boolean isRunning;
+		private int counter;
 
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 			rand = new Random();
 			outTuple = new Tuple2<String, Integer>();
+			isRunning = true;
+		}
+
+
+		@Override
+		public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
+			while (isRunning && counter < 100) {
+				outTuple.f0 = names[rand.nextInt(names.length)];
+				outTuple.f1 = rand.nextInt(SALARY_MAX) + 1;
+				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
+				counter++;
+				ctx.collect(outTuple);
+			}
 		}
 
 		@Override
-		public void run(Collector<Tuple2<String, Integer>> out) throws Exception {
-			while (true) {
-				outTuple.f0 = names[rand.nextInt(names.length)];
-				outTuple.f1 = rand.nextInt(SALARY_MAX) + 1;
-				out.collect(outTuple);
-				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
-			}
-		}
-		
-		@Override
 		public void cancel() {
-			// No cleanup needed
+			isRunning = false;
+		}
+	}
+
+	public static class MySourceMap extends RichMapFunction<String, Tuple2<String, Integer>> {
+
+		private static final long serialVersionUID = 1L;
+
+		private String[] record;
+
+		public MySourceMap() {
+			record = new String[2];
+		}
+
+		@Override
+		public Tuple2<String, Integer> map(String line) throws Exception {
+			record = line.substring(1, line.length() - 1).split(",");
+			return new Tuple2<String, Integer>(record[0], Integer.parseInt(record[1]));
 		}
 	}
 
@@ -172,22 +199,50 @@ public class WindowJoin {
 		}
 	}
 
+	public static class MyTimestamp implements Timestamp<Tuple2<String, Integer>> {
+
+		private static final long serialVersionUID = 1L;
+
+		private int counter;
+
+		public MyTimestamp(int starttime) {
+			this.counter = starttime;
+		}
+
+		@Override
+		public long getTimestamp(Tuple2<String, Integer> value) {
+			counter += SLEEP_TIME;
+			return counter;
+		}
+	}
+
 	// *************************************************************************
 	// UTIL METHODS
 	// *************************************************************************
 
+	private static boolean fileInput = false;
 	private static boolean fileOutput = false;
+
+	private static String gradesPath;
+	private static String salariesPath;
 	private static String outputPath;
 
 	private static boolean parseParameters(String[] args) {
 
 		if (args.length > 0) {
 			// parse input arguments
-			fileOutput = true;
 			if (args.length == 1) {
+				fileOutput = true;
 				outputPath = args[0];
+			} else if (args.length == 3) {
+				fileInput = true;
+				fileOutput = true;
+				gradesPath = args[0];
+				salariesPath = args[1];
+				outputPath = args[2];
 			} else {
-				System.err.println("Usage: WindowJoin <result path>");
+				System.err.println("Usage: WindowJoin <result path> or WindowJoin <input path 1> <input path 2> " +
+						"<result path>");
 				return false;
 			}
 		} else {
@@ -196,5 +251,15 @@ public class WindowJoin {
 			System.out.println("  Usage: WindowJoin <result path>");
 		}
 		return true;
+	}
+
+	private static void setInputStreams(StreamExecutionEnvironment env) {
+		if (fileInput) {
+			grades = env.readTextFile(gradesPath).map(new MySourceMap());
+			salaries = env.readTextFile(salariesPath).map(new MySourceMap());
+		} else {
+			grades = env.addSource(new GradeSource());
+			salaries = env.addSource(new SalarySource());
+		}
 	}
 }

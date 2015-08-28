@@ -31,6 +31,7 @@ import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.ListKeyGroupedIterator;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
+import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -77,6 +78,16 @@ public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<I
 		return this.groupOrder;
 	}
 
+	private TypeComparator<IN> getTypeComparator(TypeInformation<IN> typeInfo, int[] sortColumns, boolean[] sortOrderings, ExecutionConfig executionConfig) {
+		if (typeInfo instanceof CompositeType) {
+			return ((CompositeType<IN>) typeInfo).createComparator(sortColumns, sortOrderings, 0, executionConfig);
+		} else if (typeInfo instanceof AtomicType) {
+			return ((AtomicType<IN>) typeInfo).createComparator(sortOrderings[0], executionConfig);
+		}
+
+		throw new InvalidProgramException("Input type of GroupCombine must be one of composite types or atomic types.");
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -87,11 +98,6 @@ public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<I
 		TypeInformation<IN> inputType = operatorInfo.getInputType();
 
 		int[] keyColumns = getKeyColumns(0);
-
-		if (!(inputType instanceof CompositeType) && (keyColumns.length > 0 || groupOrder != null)) {
-			throw new InvalidProgramException("Grouping or group-sorting is only possible on composite type.");
-		}
-
 		int[] sortColumns = keyColumns;
 		boolean[] sortOrderings = new boolean[sortColumns.length];
 
@@ -100,19 +106,17 @@ public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<I
 			sortOrderings = ArrayUtils.addAll(sortOrderings, groupOrder.getFieldSortDirections());
 		}
 
-		if (inputType instanceof CompositeType) {
-			if(sortColumns.length == 0) { // => all reduce. No comparator
-				Preconditions.checkArgument(sortOrderings.length == 0);
-			} else {
-				final TypeComparator<IN> sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings, 0, executionConfig);
+		if(sortColumns.length == 0) { // => all reduce. No comparator
+			Preconditions.checkArgument(sortOrderings.length == 0);
+		} else {
+			final TypeComparator<IN> sortComparator = getTypeComparator(inputType, sortColumns, sortOrderings, executionConfig);
 
-				Collections.sort(inputData, new Comparator<IN>() {
-					@Override
-					public int compare(IN o1, IN o2) {
-						return sortComparator.compare(o1, o2);
-					}
-				});
-			}
+			Collections.sort(inputData, new Comparator<IN>() {
+				@Override
+				public int compare(IN o1, IN o2) {
+					return sortComparator.compare(o1, o2);
+				}
+			});
 		}
 
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
@@ -133,7 +137,7 @@ public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<I
 		} else {
 			final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
 			boolean[] keyOrderings = new boolean[keyColumns.length];
-			final TypeComparator<IN> comparator = ((CompositeType<IN>) inputType).createComparator(keyColumns, keyOrderings, 0, executionConfig);
+			final TypeComparator<IN> comparator = getTypeComparator(inputType, keyColumns, keyOrderings, executionConfig);
 
 			ListKeyGroupedIterator<IN> keyedIterator = new ListKeyGroupedIterator<IN>(inputData, inputSerializer, comparator);
 

@@ -17,16 +17,15 @@
  */
 package org.apache.flink.api.scala
 
-import org.apache.commons.lang3.Validate
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.functions.{RichCrossFunction, CrossFunction}
-import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
+import org.apache.flink.api.common.functions.{CrossFunction, RichCrossFunction}
+import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.Collector
-import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 
 import scala.reflect.ClassTag
 
@@ -59,7 +58,7 @@ class CrossDataSet[L, R](
    * of the given function.
    */
   def apply[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] = {
-    Validate.notNull(fun, "Cross function must not be null.")
+    require(fun != null, "Cross function must not be null.")
     val crosser = new CrossFunction[L, R, O] {
       val cleanFun = clean(fun)
       def cross(left: L, right: R): O = {
@@ -85,7 +84,7 @@ class CrossDataSet[L, R](
    * broadcast variables and the [[org.apache.flink.api.common.functions.RuntimeContext]].
    */
   def apply[O: TypeInformation: ClassTag](crosser: CrossFunction[L, R, O]): DataSet[O] = {
-    Validate.notNull(crosser, "Cross function must not be null.")
+    require(crosser != null, "Cross function must not be null.")
     val crossOperator = new CrossOperator[L, R, O](
       leftInput.javaSet,
       rightInput.javaSet,

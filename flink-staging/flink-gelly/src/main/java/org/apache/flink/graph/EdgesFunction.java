@@ -22,17 +22,17 @@ import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.Collector;
 
 /**
  * Interface to be implemented by the function applied to a vertex neighborhood
- * in the {@link Graph#reduceOnEdges(EdgesFunction, EdgeDirection)} method.
+ * in the {@link Graph#groupReduceOnEdges(EdgesFunction, EdgeDirection)} method.
  *
  * @param <K> the vertex key type
  * @param <EV> the edge value type
  * @param <O> the type of the return value
  */
-public interface EdgesFunction<K extends Comparable<K> & Serializable, 
-	EV extends Serializable, O> extends Function, Serializable {
+public interface EdgesFunction<K, EV, O> extends Function, Serializable {
 
-	O iterateEdges(Iterable<Tuple2<K, Edge<K, EV>>> edges) throws Exception;
+	void iterateEdges(Iterable<Tuple2<K, Edge<K, EV>>> edges, Collector<O> out) throws Exception;
 }

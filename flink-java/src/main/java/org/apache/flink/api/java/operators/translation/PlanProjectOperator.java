@@ -28,32 +28,47 @@ import org.apache.flink.api.java.tuple.Tuple;
 
 public class PlanProjectOperator<T, R extends Tuple> extends MapOperatorBase<T, R, MapFunction<T, R>> {
 
-	public PlanProjectOperator(int[] fields, String name, TypeInformation<T> inType, TypeInformation<R> outType, ExecutionConfig executionConfig) {
-		super(new MapProjector<T, R>(fields, outType.createSerializer(executionConfig).createInstance()), new UnaryOperatorInformation<T, R>(inType, outType), name);
+	public PlanProjectOperator(int[] fields, String name,
+								TypeInformation<T> inType, TypeInformation<R> outType,
+								ExecutionConfig executionConfig)
+	{
+		super(PlanProjectOperator.<T, R, Tuple>createTypedProjector(fields), new UnaryOperatorInformation<T, R>(inType, outType), name);
 	}
 	
-	public static final class MapProjector<T, R extends Tuple>
-		extends AbstractRichFunction
-		implements MapFunction<T, R>
+	@SuppressWarnings("unchecked")
+	private static <T, R extends Tuple, X extends Tuple> MapFunction<T, R> createTypedProjector(int[] fields) {
+		return (MapFunction<T, R>) new MapProjector<X, R>(fields);
+	}
+	
+	
+	public static final class MapProjector<T extends Tuple, R extends Tuple> 
+			extends AbstractRichFunction implements MapFunction<T, R>
 	{
 		private static final long serialVersionUID = 1L;
 		
 		private final int[] fields;
-		private final R outTuple;
+		private final Tuple outTuple;
 		
-		private MapProjector(int[] fields, R outTupleInstance) {
+		private MapProjector(int[] fields) {
 			this.fields = fields;
-			this.outTuple = outTupleInstance;
+			try {
+				this.outTuple = Tuple.getTupleClass(fields.length).newInstance();
+			}
+			catch (Exception e) {
+				// this should never happen
+				throw new RuntimeException(e);
+			}
 		}
 
 		// TODO We should use code generation for this.
+		@SuppressWarnings("unchecked")
 		@Override
-		public R map(T inTuple) throws Exception {
-			
-			for(int i=0; i<fields.length; i++) {
-				outTuple.setField(((Tuple)inTuple).getField(fields[i]), i);
+		public R map(Tuple inTuple) throws Exception {
+			for (int i = 0; i < fields.length; i++) {
+				outTuple.setField(inTuple.getField(fields[i]), i);
 			}
-			return outTuple;
+			
+			return (R) outTuple;
 		}
 	}
 }

@@ -22,6 +22,12 @@ import org.apache.flink.runtime.util.event.EventListener;
 
 import java.io.IOException;
 
+/**
+ * A buffer provider to request buffers from in a synchronous or asynchronous fashion.
+ *
+ * <p> The data producing side (result partition writers) request buffers in a synchronous fashion,
+ * whereas the input side requests asynchronously.
+ */
 public interface BufferProvider {
 
 	/**
@@ -50,8 +56,15 @@ public interface BufferProvider {
 	 */
 	boolean addListener(EventListener<Buffer> listener);
 
+	/**
+	 * Returns whether the buffer provider has been destroyed.
+	 */
 	boolean isDestroyed();
 
+	/**
+	 * Returns the size of the underlying memory segments. This is the maximum size a {@link Buffer}
+	 * instance can have.
+	 */
 	int getMemorySegmentSize();
 
 }

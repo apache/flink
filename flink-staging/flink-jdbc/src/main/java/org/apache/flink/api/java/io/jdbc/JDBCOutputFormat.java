@@ -26,7 +26,7 @@ import java.sql.SQLException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 
@@ -38,7 +38,7 @@ import org.apache.flink.configuration.Configuration;
  * @see Tuple
  * @see DriverManager
  */
-public class JDBCOutputFormat<OUT extends Tuple> implements OutputFormat<OUT> {
+public class JDBCOutputFormat<OUT extends Tuple> extends RichOutputFormat<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	@SuppressWarnings("unused")

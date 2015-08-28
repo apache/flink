@@ -117,7 +117,14 @@ public interface MemoryManager {
 	 * code that allocated them from the memory manager.
 	 */
 	void shutdown();
-	
+
+	/**
+	 * Checks whether the MemoryManager has been shut down.
+	 *
+	 * @return True, if the memory manager is shut down, false otherwise.
+	 */
+	boolean isShutdown();
+
 	/**
 	 * Checks if the memory manager all memory available.
 	 * 

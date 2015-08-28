@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.windowing.policy;
 
 
 /**
- * When used in {@link GroupedWindowInvokable}, eviction policies must
+ * When used in grouped windowing, eviction policies must
  * provide a clone method. Eviction policies get cloned to provide an own
  * instance for each group and respectively each individual element buffer as
  * groups maintain their own buffers with the elements belonging to the

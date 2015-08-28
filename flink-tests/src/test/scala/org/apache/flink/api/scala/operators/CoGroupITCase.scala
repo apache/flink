@@ -23,7 +23,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{MultipleProgramsTestBase}
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.util.Collector
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -50,7 +50,7 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
 
   @After
   def after(): Unit = {
-    compareResultsByLinesInMemory(expectedResult, resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory(expectedResult, resultPath)
   }
 
   @Test
@@ -382,6 +382,48 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     coGroupDs.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expectedResult = "-1,20000,Flink\n" + "-1,10000,Flink\n" + "-1,30000,Flink\n"
+  }
+
+  @Test
+  def testCoGroupWithAtomic1(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
+    val ds2 = env.fromElements(0, 1, 2)
+    val coGroupDs = ds1.coGroup(ds2).where(0).equalTo("*") {
+      (first, second, out: Collector[(Int, Long, String)]) =>
+        for (p <- first) {
+          for (t <- second) {
+            if (p._1 == t) {
+              out.collect(p)
+            }
+          }
+        }
+    }
+
+    coGroupDs.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expectedResult = "(1,1,Hi)\n(2,2,Hello)"
+  }
+
+  @Test
+  def testCoGroupWithAtomic2(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = env.fromElements(0, 1, 2)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env)
+    val coGroupDs = ds1.coGroup(ds2).where("*").equalTo(0) {
+      (first, second, out: Collector[(Int, Long, String)]) =>
+        for (p <- first) {
+          for (t <- second) {
+            if (p == t._1) {
+              out.collect(t)
+            }
+          }
+        }
+    }
+
+    coGroupDs.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expectedResult = "(1,1,Hi)\n(2,2,Hello)"
   }
 }
 

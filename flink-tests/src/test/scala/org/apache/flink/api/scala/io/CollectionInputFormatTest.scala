@@ -74,7 +74,7 @@ class CollectionInputFormatTest {
     assertTrue(serializationResult.isInstanceOf[CollectionInputFormat[_]])
 
     val result = serializationResult.asInstanceOf[CollectionInputFormat[ElementType]]
-    val inputSplit = new GenericInputSplit
+    val inputSplit = new GenericInputSplit(0, 1)
     inputFormat.open(inputSplit)
     result.open(inputSplit)
 
@@ -125,7 +125,7 @@ class CollectionInputFormatTest {
     assertTrue(result.isInstanceOf[CollectionInputFormat[_]])
     var i: Int = 0
     val in = result.asInstanceOf[CollectionInputFormat[String]]
-    in.open(new GenericInputSplit)
+    in.open(new GenericInputSplit(0, 1))
 
     while (!in.reachedEnd) {
       assertEquals(data(i), in.nextRecord(""))

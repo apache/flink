@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 /**
@@ -47,7 +48,8 @@ public class SlotSharingGroup implements java.io.Serializable {
 			this.ids.add(id);
 		}
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
 	
 	public void addVertexToGroup(JobVertexID id) {
 		this.ids.add(id);
@@ -79,7 +81,9 @@ public class SlotSharingGroup implements java.io.Serializable {
 		this.taskAssignment = null;
 	}
 	
-	// --------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 	
 	@Override
 	public String toString() {

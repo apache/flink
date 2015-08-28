@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelHandler;
 
 public interface NettyProtocol {
 
-	void setServerChannelPipeline(ChannelPipeline channelPipeline);
+	ChannelHandler[] getServerChannelHandlers();
 
-	void setClientChannelPipeline(ChannelPipeline channelPipeline);
+	ChannelHandler[] getClientChannelHandlers();
 
 }

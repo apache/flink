@@ -26,7 +26,6 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.junit.Assert;
@@ -48,9 +47,8 @@ public class CollectionModeSuperstepITCase {
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(), 
 				TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
 		
-		VertexCentricIteration<Long, Long, Long, Long> iteration = 
-				graph.createVertexCentricIteration(new UpdateFunction(), new MessageFunction(), 10);
-		Graph<Long, Long, Long> result = graph.runVertexCentricIteration(iteration);
+		Graph<Long, Long, Long> result = graph.runVertexCentricIteration(
+				new UpdateFunction(), new MessageFunction(), 10);
 
 		result.getVertices().map(
 				new VertexToTuple2Map<Long, Long>()).output(
@@ -60,20 +58,20 @@ public class CollectionModeSuperstepITCase {
 	
 	public static final class UpdateFunction extends VertexUpdateFunction<Long, Long, Long> {
 		@Override
-		public void updateVertex(Long vertexKey, Long vertexValue, MessageIterator<Long> inMessages) {
+		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) {
 			long superstep = getSuperstepNumber();
-			Assert.assertEquals(true, vertexValue == superstep);
-			setNewVertexValue(vertexValue + 1);
+			Assert.assertEquals(true, vertex.getValue() == superstep);
+			setNewVertexValue(vertex.getValue() + 1);
 		}
 	}
 	
 	public static final class MessageFunction extends MessagingFunction<Long, Long, Long, Long> {
 		@Override
-		public void sendMessages(Long vertexId, Long vertexValue) {
+		public void sendMessages(Vertex<Long, Long> vertex) {
 			long superstep = getSuperstepNumber();
-			Assert.assertEquals(true, vertexValue == superstep);
+			Assert.assertEquals(true, vertex.getValue() == superstep);
 			//send message to keep vertices active
-			sendMessageToAllNeighbors(vertexValue);
+			sendMessageToAllNeighbors(vertex.getValue());
 		}
 	}
 
@@ -83,5 +81,4 @@ public class CollectionModeSuperstepITCase {
 			return 1l;
 		}
 	}
-
 }

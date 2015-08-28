@@ -27,7 +27,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
-import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestCollector;
+import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestOutput;
 import org.junit.Test;
 
 public class JumpingTimePreReducerTest {
@@ -39,7 +39,7 @@ public class JumpingTimePreReducerTest {
 	@Test
 	public void testEmitWindow() throws Exception {
 
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 		List<StreamWindow<Integer>> collected = collector.getCollected();
 
 		WindowBuffer<Integer> wb = new JumpingTimePreReducer<Integer>(

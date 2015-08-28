@@ -24,6 +24,7 @@ import akka.actor.PoisonPill;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -84,7 +85,7 @@ public class TaskManagerProcessReapingTest {
 			jmActorSystem = AkkaUtils.createActorSystem(
 					new Configuration(), new Some<Tuple2<String, Object>>(localAddress));
 
-			JobManager.startJobManagerActors(new Configuration(), jmActorSystem);
+			JobManager.startJobManagerActors(new Configuration(), jmActorSystem, StreamingMode.BATCH_ONLY);
 
 			final int taskManagerPort = NetUtils.getAvailablePort();
 
@@ -113,7 +114,7 @@ public class TaskManagerProcessReapingTest {
 			for (int i = 0; i < 40; i++) {
 				try {
 					taskManagerRef = TaskManager.getTaskManagerRemoteReference(
-							taskManagerActorName, jmActorSystem, new FiniteDuration(5, TimeUnit.SECONDS));
+							taskManagerActorName, jmActorSystem, new FiniteDuration(25, TimeUnit.SECONDS));
 					break;
 				}
 				catch (Throwable t) {
@@ -139,7 +140,7 @@ public class TaskManagerProcessReapingTest {
 			// wait for max 5 seconds for the process to terminate
 			{
 				long now = System.currentTimeMillis();
-				long deadline = now + 5000;
+				long deadline = now + 10000;
 
 				while (now < deadline && isProcessAlive(taskManagerProcess)) {
 					Thread.sleep(100);
@@ -198,7 +199,7 @@ public class TaskManagerProcessReapingTest {
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 256);
 
-				TaskManager.runTaskManager("localhost", taskManagerPort, cfg);
+				TaskManager.runTaskManager("localhost", taskManagerPort, cfg, StreamingMode.BATCH_ONLY);
 
 				// wait forever
 				Object lock = new Object();

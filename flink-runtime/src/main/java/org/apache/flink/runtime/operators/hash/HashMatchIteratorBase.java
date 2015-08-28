@@ -32,6 +32,7 @@ import java.util.List;
  * Common methods for all Hash Join Iterators.
  */
 public class HashMatchIteratorBase {
+	
 	public <BT, PT> MutableHashTable<BT, PT> getHashJoin(
 			TypeSerializer<BT> buildSideSerializer,
 			TypeComparator<BT> buildSideComparator,
@@ -41,11 +42,15 @@ public class HashMatchIteratorBase {
 			MemoryManager memManager,
 			IOManager ioManager,
 			AbstractInvokable ownerTask,
-			double memoryFraction) throws MemoryAllocationException {
+			double memoryFraction,
+			boolean useBloomFilters) throws MemoryAllocationException {
 
 		final int numPages = memManager.computeNumberOfPages(memoryFraction);
 		final List<MemorySegment> memorySegments = memManager.allocatePages(ownerTask, numPages);
-		return new MutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, pairComparator, memorySegments, ioManager);
+		
+		return new MutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer,
+				buildSideComparator, probeSideComparator, pairComparator,
+				memorySegments, ioManager,
+				useBloomFilters);
 	}
-
 }

@@ -187,7 +187,12 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 
 	@Override
 	public boolean isReleased() {
-		return isReleased;
+		return parent.isReleased() || isReleased;
+	}
+
+	@Override
+	public Throwable getFailureCause() {
+		return parent.getFailureCause();
 	}
 
 	/**

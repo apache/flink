@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -204,6 +206,23 @@ public class CollectionDataSets {
 
 		return env.fromCollection(data, type);
 	}
+	
+	public static DataSet<Tuple2<byte[], Integer>> getTuple2WithByteArrayDataSet(ExecutionEnvironment env) {
+		List<Tuple2<byte[], Integer>> data = new ArrayList<Tuple2<byte[], Integer>>();
+		data.add(new Tuple2<byte[], Integer>(new byte[]{0, 4}, 1));
+		data.add(new Tuple2<byte[], Integer>(new byte[]{2, 0}, 1));
+		data.add(new Tuple2<byte[], Integer>(new byte[]{2, 0, 4}, 4));
+		data.add(new Tuple2<byte[], Integer>(new byte[]{2, 1}, 3));
+		data.add(new Tuple2<byte[], Integer>(new byte[]{0}, 0));
+		data.add(new Tuple2<byte[], Integer>(new byte[]{2, 0}, 1));
+				
+		TupleTypeInfo<Tuple2<byte[], Integer>> type = new TupleTypeInfo<Tuple2<byte[], Integer>>(
+				PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
+				BasicTypeInfo.INT_TYPE_INFO
+		);
+		
+		return env.fromCollection(data, type);
+	}
 
 	public static DataSet<String> getStringDataSet(ExecutionEnvironment env) {
 
@@ -311,6 +330,19 @@ public class CollectionDataSets {
 		public String toString() {
 			return myInt + "," + myLong + "," + myString;
 		}
+	}
+
+	public static class CustomTypeComparator implements Comparator<CustomType> {
+		@Override
+		public int compare(CustomType o1, CustomType o2) {
+			int diff = o1.myInt - o2.myInt;
+			if (diff != 0) {
+				return diff;
+			}
+			diff = (int) (o1.myLong - o2.myLong);
+			return diff != 0 ? diff : o1.myString.compareTo(o2.myString);
+		}
+
 	}
 
 	public static DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> getSmallTuplebasedDataSet(ExecutionEnvironment env) {

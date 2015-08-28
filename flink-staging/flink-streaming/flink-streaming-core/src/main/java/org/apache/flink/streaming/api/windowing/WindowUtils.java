@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.api.windowing.policy.CountEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CountTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
+import org.apache.flink.streaming.api.windowing.policy.KeepAllEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
@@ -118,7 +119,7 @@ public class WindowUtils {
 	}
 
 	public static boolean isTumblingPolicy(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
-		if (eviction instanceof TumblingEvictionPolicy) {
+		if (eviction instanceof TumblingEvictionPolicy || eviction instanceof KeepAllEvictionPolicy) {
 			return true;
 		} else if (isTimeOnly(trigger, eviction)) {
 			long slide = getSlideSize(trigger);
@@ -140,7 +141,8 @@ public class WindowUtils {
 	}
 
 	public static boolean isTimeOnly(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
-		return trigger instanceof TimeTriggerPolicy && eviction instanceof TimeEvictionPolicy;
+		return trigger instanceof TimeTriggerPolicy
+				&& (eviction instanceof TimeEvictionPolicy || eviction instanceof KeepAllEvictionPolicy);
 	}
 
 	public static boolean isCountOnly(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
@@ -170,7 +172,7 @@ public class WindowUtils {
 
 			return slide > window
 					&& ((CountTriggerPolicy<?>) trigger).getStart() == ((CountEvictionPolicy<?>) eviction)
-					.getStart()
+							.getStart()
 					&& ((CountEvictionPolicy<?>) eviction).getDeleteOnEviction() == 1;
 		} else {
 			return false;

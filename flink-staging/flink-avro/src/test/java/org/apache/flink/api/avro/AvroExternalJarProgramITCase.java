@@ -53,6 +53,7 @@ public class AvroExternalJarProgramITCase {
 						
 			Client c = new Client(new InetSocketAddress("localhost", testMiniCluster.getJobManagerRPCPort()),
 					new Configuration(), program.getUserCodeClassLoader(), -1);
+			c.setPrintStatusDuringExecution(false);
 			c.run(program, 4, true);
 		}
 		catch (Throwable t) {

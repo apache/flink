@@ -20,9 +20,13 @@ package org.apache.flink.optimizer;
 
 import static org.junit.Assert.*;
 
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.optimizer.util.CompilerTestBase;
+import org.apache.flink.optimizer.dag.TempMode;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.junit.Test;
+
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.DeltaIteration;
@@ -49,7 +53,6 @@ import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 
-
 @SuppressWarnings({"serial", "unchecked"})
 public class IterationsCompilerTest extends CompilerTestBase {
 
@@ -72,7 +75,8 @@ public class IterationsCompilerTest extends CompilerTestBase {
 					.map(new IdentityMapper<Tuple2<Long, Long>>()).withBroadcastSet(iter.getWorkset(), "bc data")
 					.join(iter.getSolutionSet()).where(0).equalTo(1).projectFirst(1).projectSecond(1);
 			
-			iter.closeWith(result.map(new IdentityMapper<Tuple2<Long,Long>>()), result).print();
+			iter.closeWith(result.map(new IdentityMapper<Tuple2<Long,Long>>()), result)
+					.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 			
 			OptimizedPlan p = compileNoStats(env.createProgramPlan());
 			
@@ -104,7 +108,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			DataSet<Tuple2<Long, Long>> depResult = doDeltaIteration(mappedBulk, edges);
 			
-			depResult.print();
+			depResult.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -115,12 +119,16 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			WorksetIterationPlanNode wipn = (WorksetIterationPlanNode) op.getDataSinks().iterator().next().getInput().getSource();
 			
 			assertEquals(ShipStrategyType.PARTITION_HASH, wipn.getInput1().getShipStrategy());
-			assertTrue(wipn.getInput2().getTempMode().breaksPipeline());
+			
+			assertEquals(TempMode.NONE, wipn.getInput1().getTempMode());
+			assertEquals(TempMode.NONE, wipn.getInput2().getTempMode());
+
+			assertEquals(DataExchangeMode.BATCH, wipn.getInput1().getDataExchangeMode());
+			assertEquals(DataExchangeMode.BATCH, wipn.getInput2().getDataExchangeMode());
 			
 			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -140,7 +148,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			DataSet<Tuple2<Long, Long>> depResult = doDeltaIteration(bulkResult, edges);
 			
-			depResult.print();
+			depResult.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -151,12 +159,16 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			WorksetIterationPlanNode wipn = (WorksetIterationPlanNode) op.getDataSinks().iterator().next().getInput().getSource();
 			
 			assertEquals(ShipStrategyType.PARTITION_HASH, wipn.getInput1().getShipStrategy());
-			assertTrue(wipn.getInput2().getTempMode().breaksPipeline());
+
+			assertEquals(DataExchangeMode.BATCH, wipn.getInput1().getDataExchangeMode());
+			assertEquals(DataExchangeMode.BATCH, wipn.getInput2().getDataExchangeMode());
+			
+			assertEquals(TempMode.NONE, wipn.getInput1().getTempMode());
+			assertEquals(TempMode.NONE, wipn.getInput2().getTempMode());
 			
 			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -176,7 +188,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			DataSet<Tuple2<Long, Long>> secondResult = doDeltaIteration(firstResult, edges);
 			
-			secondResult.print();
+			secondResult.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -187,12 +199,16 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			WorksetIterationPlanNode wipn = (WorksetIterationPlanNode) op.getDataSinks().iterator().next().getInput().getSource();
 			
 			assertEquals(ShipStrategyType.FORWARD, wipn.getInput1().getShipStrategy());
-			assertTrue(wipn.getInput2().getTempMode().breaksPipeline());
+
+			assertEquals(DataExchangeMode.BATCH, wipn.getInput1().getDataExchangeMode());
+			assertEquals(DataExchangeMode.BATCH, wipn.getInput2().getDataExchangeMode());
+
+			assertEquals(TempMode.NONE, wipn.getInput1().getTempMode());
+			assertEquals(TempMode.NONE, wipn.getInput2().getTempMode());
 			
 			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -208,7 +224,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			DataSet<Tuple2<Long, Long>> input2 = env.readCsvFile("/some/file/path").types(Long.class, Long.class);
 			
-			doBulkIteration(input1, input2).print();
+			doBulkIteration(input1, input2).output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -226,7 +242,6 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -253,7 +268,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			initialWorkset
 				.join(result, JoinHint.REPARTITION_HASH_FIRST)
 				.where(0).equalTo(0)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>>());
 			
 			Plan p = env.createProgramPlan();
 			compileNoStats(p);
@@ -295,7 +310,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			DataSet<Long> result = iteration.closeWith(width.union(update).union(lastGradient));
 			
-			result.print();
+			result.output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -348,7 +363,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 				.flatMap(new FlatMapJoin());
 		
 		DataSet<Tuple2<Long, Long>> depResult = depIteration.closeWith(updatedComponentId, updatedComponentId);
-		
+
 		return depResult;
 		
 	}

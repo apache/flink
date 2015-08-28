@@ -180,6 +180,7 @@ public abstract class CostEstimator {
 			// this operations does not do any actual grouping, since every element is in the same single group
 			
 		case CO_GROUP:
+		case CO_GROUP_RAW:
 		case SORTED_GROUP_REDUCE:
 		case SORTED_REDUCE:
 			// grouping or co-grouping over sorted streams for free

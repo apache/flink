@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.classloading.jar;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -36,8 +35,6 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
 @SuppressWarnings("serial")
 public class CustomInputSplitProgram {
@@ -47,8 +44,11 @@ public class CustomInputSplitProgram {
 		final String jarFile = args[0];
 		final String host = args[1];
 		final int port = Integer.parseInt(args[2]);
+		final int parallelism = Integer.parseInt(args[3]);
 		
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
+		env.setParallelism(parallelism);
+		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> data = env.createInput(new CustomInputFormat());
 
@@ -123,11 +123,7 @@ public class CustomInputSplitProgram {
 
 		private static final long serialVersionUID = 1L;
 
-		private int splitNumber;
-
-		public CustomInputSplit() {
-			this(-1);
-		}
+		private final int splitNumber;
 
 		public CustomInputSplit(int splitNumber) {
 			this.splitNumber = splitNumber;
@@ -136,16 +132,6 @@ public class CustomInputSplitProgram {
 		@Override
 		public int getSplitNumber() {
 			return this.splitNumber;
-		}
-
-		@Override
-		public void write(DataOutputView out) throws IOException {
-			out.writeInt(splitNumber);
-		}
-
-		@Override
-		public void read(DataInputView in) throws IOException {
-			splitNumber = in.readInt();
 		}
 	}
 

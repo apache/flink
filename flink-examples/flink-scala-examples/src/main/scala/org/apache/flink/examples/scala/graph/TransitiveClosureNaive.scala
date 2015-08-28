@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData
 import org.apache.flink.util.Collector
 
-object TransitiveClosureNaive {
+object  TransitiveClosureNaive {
 
   def main (args: Array[String]): Unit = {
     if (!parseParameters(args)) {
@@ -57,11 +57,11 @@ object TransitiveClosureNaive {
 
     if (fileOutput) {
       paths.writeAsCsv(outputPath, "\n", " ")
+      env.execute("Scala Transitive Closure Example")
     } else {
       paths.print()
     }
 
-    env.execute("Scala Transitive Closure Example")
 
 
   }

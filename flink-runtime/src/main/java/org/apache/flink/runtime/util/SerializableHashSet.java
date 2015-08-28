@@ -16,25 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Iterator;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.StringUtils;
 
 /**
  * This class extends a standard {@link java.util.HashSet} by implementing the
- * {@link org.apache.flink.core.io.IOReadableWritable} interface. As a result, hash sets of this type can be used
- * with Nephele's RPC system.
- * <p>
- * This class is not thread-safe.
+ * {@link org.apache.flink.core.io.IOReadableWritable} interface.
  * 
  * @param <T>
  *        the type used in this hash set
@@ -49,49 +43,36 @@ public class SerializableHashSet<T extends IOReadableWritable> extends HashSet<T
 
 	@Override
 	public void write(final DataOutputView out) throws IOException {
-
 		out.writeInt(size());
 
-		final Iterator<T> it = iterator();
-
-		while (it.hasNext()) {
-
-			final T entry = it.next();
-			StringRecord.writeString(out, entry.getClass().getName());
+		for (T entry : this) {
+			StringUtils.writeNullableString(entry.getClass().getName(), out);
 			entry.write(out);
 		}
 	}
 
-
-	@SuppressWarnings("unchecked")
-	// TODO: See if type safety can be improved here
 	@Override
 	public void read(final DataInputView in) throws IOException {
-
 		final int numberOfMapEntries = in.readInt();
 
 		for (int i = 0; i < numberOfMapEntries; i++) {
+			final String type = StringUtils.readNullableString(in);
 
-			final String type = StringRecord.readString(in);
-			Class<T> clazz = null;
+			T entry;
 			try {
-				clazz = (Class<T>) Class.forName(type);
-			} catch (ClassNotFoundException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			}
-
-			T entry = null;
-			try {
+				@SuppressWarnings("unchecked")
+				Class<T> clazz = (Class<T>) Class.forName(type);
 				entry = clazz.newInstance();
-			} catch (Exception e) {
-				throw new IOException(StringUtils.stringifyException(e));
+			}
+			catch (ClassNotFoundException e) {
+				throw new IOException(e);
+			}
+			catch (Exception e) {
+				throw new IOException(e);
 			}
 
 			entry.read(in);
-
 			add(entry);
 		}
-
 	}
-
 }

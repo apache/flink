@@ -17,6 +17,10 @@
  */
 package org.apache.flink.optimizer;
 
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -24,22 +28,13 @@ import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.optimizer.util.DummyInputFormat;
-import org.apache.flink.optimizer.util.DummyMatchStub;
-import org.apache.flink.optimizer.util.DummyOutputFormat;
-import org.apache.flink.optimizer.util.IdentityMap;
-import org.apache.flink.optimizer.util.IdentityReduce;
+import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
+import org.apache.flink.optimizer.testfunctions.IdentityJoiner;
+import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Assert;
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.JoinOperator;
-import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.types.IntValue;
 import org.apache.flink.util.Visitor;
 import org.junit.Test;
 
@@ -50,7 +45,7 @@ import org.junit.Test;
  *       parallelism between tasks is increased or decreased.
  * </ul>
  */
-@SuppressWarnings({"serial", "deprecation"})
+@SuppressWarnings({"serial"})
 public class ParallelismChangeTest extends CompilerTestBase {
 	
 	/**
@@ -62,34 +57,24 @@ public class ParallelismChangeTest extends CompilerTestBase {
 	 */
 	@Test
 	public void checkPropertyHandlingWithIncreasingGlobalParallelism1() {
-		final int degOfPar = DEFAULT_PARALLELISM;
-		
+		final int p = DEFAULT_PARALLELISM;
+
 		// construct the plan
-		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
-		source.setParallelism(degOfPar);
-		
-		MapOperator map1 = MapOperator.builder(new IdentityMap()).name("Map1").build();
-		map1.setParallelism(degOfPar);
-		map1.setInput(source);
-		
-		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 1").build();
-		reduce1.setParallelism(degOfPar);
-		reduce1.setInput(map1);
-		
-		MapOperator map2 = MapOperator.builder(new IdentityMap()).name("Map2").build();
-		map2.setParallelism(degOfPar * 2);
-		map2.setInput(reduce1);
-		
-		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 2").build();
-		reduce2.setParallelism(degOfPar * 2);
-		reduce2.setInput(map2);
-		
-		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
-		sink.setParallelism(degOfPar * 2);
-		sink.setInput(reduce2);
-		
-		Plan plan = new Plan(sink, "Test Increasing parallelism");
-		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(p);
+		DataSet<Long> set1 = env.generateSequence(0,1).setParallelism(p);
+
+		set1.map(new IdentityMapper<Long>())
+					.withForwardedFields("*").setParallelism(p).name("Map1")
+				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>())
+					.withForwardedFields("*").setParallelism(p).name("Reduce1")
+				.map(new IdentityMapper<Long>())
+					.withForwardedFields("*").setParallelism(p * 2).name("Map2")
+				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>())
+					.withForwardedFields("*").setParallelism(p * 2).name("Reduce2")
+				.output(new DiscardingOutputFormat<Long>()).setParallelism(p * 2).name("Sink");
+
+		JavaPlan plan = env.createProgramPlan();
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
 		
@@ -116,33 +101,24 @@ public class ParallelismChangeTest extends CompilerTestBase {
 	 */
 	@Test
 	public void checkPropertyHandlingWithIncreasingGlobalParallelism2() {
-		final int degOfPar = DEFAULT_PARALLELISM;
-		
+		final int p = DEFAULT_PARALLELISM;
+
 		// construct the plan
-		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
-		source.setParallelism(degOfPar);
-		
-		MapOperator map1 = MapOperator.builder(new IdentityMap()).name("Map1").build();
-		map1.setParallelism(degOfPar);
-		map1.setInput(source);
-		
-		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 1").build();
-		reduce1.setParallelism(degOfPar);
-		reduce1.setInput(map1);
-		
-		MapOperator map2 = MapOperator.builder(new IdentityMap()).name("Map2").build();
-		map2.setParallelism(degOfPar);
-		map2.setInput(reduce1);
-		
-		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 2").build();
-		reduce2.setParallelism(degOfPar * 2);
-		reduce2.setInput(map2);
-		
-		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
-		sink.setParallelism(degOfPar * 2);
-		sink.setInput(reduce2);
-		
-		Plan plan = new Plan(sink, "Test Increasing parallelism");
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(p);
+		DataSet<Long> set1 = env.generateSequence(0,1).setParallelism(p);
+
+		set1.map(new IdentityMapper<Long>())
+				.withForwardedFields("*").setParallelism(p).name("Map1")
+				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>())
+				.withForwardedFields("*").setParallelism(p).name("Reduce1")
+				.map(new IdentityMapper<Long>())
+				.withForwardedFields("*").setParallelism(p).name("Map2")
+				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>())
+				.withForwardedFields("*").setParallelism(p * 2).name("Reduce2")
+				.output(new DiscardingOutputFormat<Long>()).setParallelism(p * 2).name("Sink");
+
+		JavaPlan plan = env.createProgramPlan();
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -170,34 +146,24 @@ public class ParallelismChangeTest extends CompilerTestBase {
 	 */
 	@Test
 	public void checkPropertyHandlingWithIncreasingLocalParallelism() {
-		final int degOfPar = 2 * DEFAULT_PARALLELISM;
-		
+		final int p = DEFAULT_PARALLELISM * 2;
+
 		// construct the plan
-		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
-		source.setParallelism(degOfPar);
-		
-		MapOperator map1 = MapOperator.builder(new IdentityMap()).name("Map1").build();
-		map1.setParallelism(degOfPar);
-		map1.setInput(source);
-		
-		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 1").build();
-		reduce1.setParallelism(degOfPar);
-		reduce1.setInput(map1);
-		
-		MapOperator map2 = MapOperator.builder(new IdentityMap()).name("Map2").build();
-		map2.setParallelism(degOfPar * 2);
-		map2.setInput(reduce1);
-		
-		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 2").build();
-		reduce2.setParallelism(degOfPar * 2);
-		reduce2.setInput(map2);
-		
-		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
-		sink.setParallelism(degOfPar * 2);
-		sink.setInput(reduce2);
-		
-		Plan plan = new Plan(sink, "Test Increasing parallelism");
-		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(p);
+		DataSet<Long> set1 = env.generateSequence(0,1).setParallelism(p);
+
+		set1.map(new IdentityMapper<Long>())
+				.withForwardedFields("*").setParallelism(p).name("Map1")
+				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>())
+				.withForwardedFields("*").setParallelism(p).name("Reduce1")
+				.map(new IdentityMapper<Long>())
+				.withForwardedFields("*").setParallelism(p * 2).name("Map2")
+				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>())
+				.withForwardedFields("*").setParallelism(p * 2).name("Reduce2")
+				.output(new DiscardingOutputFormat<Long>()).setParallelism(p * 2).name("Sink");
+
+		JavaPlan plan = env.createProgramPlan();
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
 		
@@ -217,38 +183,27 @@ public class ParallelismChangeTest extends CompilerTestBase {
 				(ShipStrategyType.PARTITION_HASH == mapIn && ShipStrategyType.FORWARD == reduceIn));
 	}
 	
-	
-	
 	@Test
 	public void checkPropertyHandlingWithDecreasingParallelism() {
-		final int degOfPar = DEFAULT_PARALLELISM;
-		
+		final int p = DEFAULT_PARALLELISM;
+
 		// construct the plan
-		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
-		source.setParallelism(degOfPar * 2);
-		
-		MapOperator map1 = MapOperator.builder(new IdentityMap()).name("Map1").build();
-		map1.setParallelism(degOfPar * 2);
-		map1.setInput(source);
-		
-		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 1").build();
-		reduce1.setParallelism(degOfPar * 2);
-		reduce1.setInput(map1);
-		
-		MapOperator map2 = MapOperator.builder(new IdentityMap()).name("Map2").build();
-		map2.setParallelism(degOfPar);
-		map2.setInput(reduce1);
-		
-		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 2").build();
-		reduce2.setParallelism(degOfPar);
-		reduce2.setInput(map2);
-		
-		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
-		sink.setParallelism(degOfPar);
-		sink.setInput(reduce2);
-		
-		Plan plan = new Plan(sink, "Test Increasing parallelism");
-		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(p);
+
+		env
+			.generateSequence(0, 1).setParallelism(p * 2)
+			.map(new IdentityMapper<Long>())
+				.withForwardedFields("*").setParallelism(p * 2).name("Map1")
+			.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>())
+				.withForwardedFields("*").setParallelism(p * 2).name("Reduce1")
+			.map(new IdentityMapper<Long>())
+				.withForwardedFields("*").setParallelism(p).name("Map2")
+			.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>())
+				.withForwardedFields("*").setParallelism(p).name("Reduce2")
+			.output(new DiscardingOutputFormat<Long>()).setParallelism(p).name("Sink");
+
+		JavaPlan plan = env.createProgramPlan();
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
 
@@ -284,40 +239,29 @@ public class ParallelismChangeTest extends CompilerTestBase {
 	 */
 	@Test
 	public void checkPropertyHandlingWithTwoInputs() {
-		// construct the plan
 
-		FileDataSource sourceA = new FileDataSource(new DummyInputFormat(), IN_FILE);
-		FileDataSource sourceB = new FileDataSource(new DummyInputFormat(), IN_FILE);
-		
-		ReduceOperator redA = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
-			.input(sourceA)
-			.build();
-		ReduceOperator redB = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
-			.input(sourceB)
-			.build();
-		
-		JoinOperator mat = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
-			.input1(redA)
-			.input2(redB)
-			.build();
-		
-		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, mat);
-		
-		sourceA.setParallelism(5);
-		sourceB.setParallelism(7);
-		redA.setParallelism(5);
-		redB.setParallelism(7);
-		
-		mat.setParallelism(5);
-		
-		sink.setParallelism(5);
-		
-		
-		// return the PACT plan
-		Plan plan = new Plan(sink, "Partition on DoP Change");
-		
+		// construct the plan
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+
+		DataSet<Long> set1 = env.generateSequence(0,1).setParallelism(5);
+		DataSet<Long> set2 = env.generateSequence(0,1).setParallelism(7);
+
+		DataSet<Long> reduce1 = set1
+				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>())
+					.withForwardedFields("*").setParallelism(5);
+		DataSet<Long> reduce2 = set2
+				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>())
+					.withForwardedFields("*").setParallelism(7);
+
+		reduce1.join(reduce2).where("*").equalTo("*")
+					.with(new IdentityJoiner<Long>()).setParallelism(5)
+				.output(new DiscardingOutputFormat<Long>()).setParallelism(5);
+
+		JavaPlan plan = env.createProgramPlan();
+		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
-		
+
 		JobGraphGenerator jobGen = new JobGraphGenerator();
 		
 		//Compile plan to verify that no error is thrown

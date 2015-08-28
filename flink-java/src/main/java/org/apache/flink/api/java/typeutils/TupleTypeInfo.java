@@ -21,15 +21,18 @@ package org.apache.flink.api.java.typeutils;
 import java.util.Arrays;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.api.java.typeutils.runtime.Tuple0Serializer;
 //CHECKSTYLE.ON: AvoidStarImport
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
+import org.apache.flink.types.Value;
 
 /**
  * A {@link TypeInformation} for the tuple types of the Java API.
@@ -49,7 +52,7 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 
 	public TupleTypeInfo(Class<T> tupleType, TypeInformation<?>... types) {
 		super(tupleType, types);
-		if (types == null || types.length == 0 || types.length > Tuple.MAX_ARITY) {
+		if (types == null || types.length > Tuple.MAX_ARITY) {
 			throw new IllegalArgumentException();
 		}
 		this.fieldNames = new String[types.length];
@@ -72,8 +75,13 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 		return fieldIndex;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public TupleSerializer<T> createSerializer(ExecutionConfig executionConfig) {
+		if (this.tupleType == Tuple0.class) {
+			return (TupleSerializer<T>) Tuple0Serializer.INSTANCE;
+		}
+
 		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[getArity()];
 		for (int i = 0; i < types.length; i++) {
 			fieldSerializers[i] = types[i].createSerializer(executionConfig);
@@ -153,7 +161,7 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static <X extends Tuple> TupleTypeInfo<X> getBasicTupleTypeInfo(Class<?>... basicTypes) {
 		if (basicTypes == null || basicTypes.length == 0) {
 			throw new IllegalArgumentException();
@@ -172,9 +180,40 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 			}
 			infos[i] = info;
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		TupleTypeInfo<X> tupleInfo = (TupleTypeInfo<X>) new TupleTypeInfo<Tuple>(infos);
 		return tupleInfo;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <X extends Tuple> TupleTypeInfo<X> getBasicAndBasicValueTupleTypeInfo(Class<?>... basicTypes) {
+		if (basicTypes == null || basicTypes.length == 0) {
+			throw new IllegalArgumentException();
+		}
+
+		TypeInformation<?>[] infos = new TypeInformation<?>[basicTypes.length];
+		for (int i = 0; i < infos.length; i++) {
+			Class<?> type = basicTypes[i];
+			if (type == null) {
+				throw new IllegalArgumentException("Type at position " + i + " is null.");
+			}
+
+			TypeInformation<?> info = BasicTypeInfo.getInfoFor(type);
+			if (info == null) {
+				try {
+					info = ValueTypeInfo.getValueTypeInfo((Class<Value>) type);
+					if (!((ValueTypeInfo<?>) info).isBasicValueType()) {
+						throw new IllegalArgumentException("Type at position " + i + " is not a basic or value type.");
+					}
+				} catch (ClassCastException | InvalidTypesException e) {
+					throw new IllegalArgumentException("Type at position " + i + " is not a basic or value type.", e);
+				}
+			}
+			infos[i] = info;
+		}
+
+
+		return (TupleTypeInfo<X>) new TupleTypeInfo<>(infos);
 	}
 }

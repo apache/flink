@@ -134,19 +134,16 @@ public final class StringUtils {
 				sb.append("&lt;");
 			} else if (c == '&') {
 				sb.append("&amp;");
+			} else if (c < ' ') {
+				// Unreadable throw away
 			} else {
-				if (c < ' ') {
-					// Unreadable throw away
-				} else {
-					sb.append(c);
-				}
+				sb.append(c);
 			}
 		}
 
 		return sb.toString();
 	}
-	
-	
+
 	/**
 	 * This method calls {@link Object#toString()} on the given object, unless the
 	 * object is an array. In that case, it will use the {@link #arrayToString(Object)}
@@ -156,7 +153,7 @@ public final class StringUtils {
 	 * @param o The object for which to create the string representation.
 	 * @return The string representation of the object.
 	 */
-	public static final String arrayAwareToString(Object o) {
+	public static String arrayAwareToString(Object o) {
 		if (o == null) {
 			return "null";
 		}
@@ -175,7 +172,7 @@ public final class StringUtils {
 	 * @return The string representation of the array.
 	 * @throws IllegalArgumentException If the given object is no array.
 	 */
-	public static final String arrayToString(Object array) {
+	public static String arrayToString(Object array) {
 		if (array == null) {
 			throw new NullPointerException();
 		}
@@ -224,7 +221,7 @@ public final class StringUtils {
 	 * @param str The string in which to replace the control characters.
 	 * @return The string with the replaced characters.
 	 */
-	public static final String showControlCharacters(String str) {
+	public static String showControlCharacters(String str) {
 		int len = str.length();
 		StringBuilder sb = new StringBuilder();
 

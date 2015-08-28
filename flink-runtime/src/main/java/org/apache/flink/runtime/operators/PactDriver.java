@@ -16,16 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.functions.Function;
 
-
 /**
- * The interface to be implemented by all pact drivers that run alone (or as the primary driver) in a nephele task.
- * The driver is the code that deals with everything that specific to a certain PACT. It implements the actual
- * <i>map</i> or <i>reduce</i> specific code.
+ * The interface to be implemented by all drivers that run alone (or as the primary driver) in a task.
+ * A driver implements the actual code to perform a batch operation, like <i>map()</i>,
+ * <i>reduce()</i>, <i>join()</i>, or <i>coGroup()</i>.
  *
  * @see PactTaskContext
  * 
@@ -37,7 +35,7 @@ public interface PactDriver<S extends Function, OT> {
 	void setup(PactTaskContext<S, OT> context);
 	
 	/**
-	 * Gets the number of inputs (= Nephele Gates and Readers) that the task has.
+	 * Gets the number of inputs that the task has.
 	 * 
 	 * @return The number of inputs.
 	 */
@@ -74,7 +72,7 @@ public interface PactDriver<S extends Function, OT> {
 	 *                   code typically signal situations where this instance in unable to proceed, exceptions
 	 *                   from the user code should be forwarded.
 	 */
-	void run() throws Exception; 
+	void run() throws Exception;
 	
 	/**
 	 * This method is invoked in any case (clean termination and exception) at the end of the tasks operation.

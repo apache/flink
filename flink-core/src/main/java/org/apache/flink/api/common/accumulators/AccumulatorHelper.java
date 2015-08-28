@@ -16,10 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.util.SerializedValue;
+
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,13 +42,14 @@ public class AccumulatorHelper {
 		for (Map.Entry<String, Accumulator<?, ?>> otherEntry : toMerge.entrySet()) {
 			Accumulator<?, ?> ownAccumulator = target.get(otherEntry.getKey());
 			if (ownAccumulator == null) {
-				// Take over counter from chained task
-				target.put(otherEntry.getKey(), otherEntry.getValue());
-			} else {
+				// Create initial counter (copy!)
+				target.put(otherEntry.getKey(), otherEntry.getValue().clone());
+			}
+			else {
 				// Both should have the same type
 				AccumulatorHelper.compareAccumulatorTypes(otherEntry.getKey(),
 						ownAccumulator.getClass(), otherEntry.getValue().getClass());
-				// Merge counter from chained task into counter from stub
+				// Merge target counter with other counter
 				mergeSingle(ownAccumulator, otherEntry.getValue());
 			}
 		}
@@ -69,13 +73,27 @@ public class AccumulatorHelper {
 	 * Compare both classes and throw {@link UnsupportedOperationException} if
 	 * they differ
 	 */
+	@SuppressWarnings("rawtypes")
 	public static void compareAccumulatorTypes(Object name,
-			@SuppressWarnings("rawtypes") Class<? extends Accumulator> first,
-			@SuppressWarnings("rawtypes") Class<? extends Accumulator> second)
-			throws UnsupportedOperationException {
+												Class<? extends Accumulator> first,
+												Class<? extends Accumulator> second)
+			throws UnsupportedOperationException
+	{
+		if (first == null || second == null) {
+			throw new NullPointerException();
+		}
+
 		if (first != second) {
-			throw new UnsupportedOperationException("The accumulator object '" + name
-					+ "' was created with two different types: " + first + " and " + second);
+			if (!first.getName().equals(second.getName())) {
+				throw new UnsupportedOperationException("The accumulator object '" + name
+					+ "' was created with two different types: " + first.getName() + " and " + second.getName());
+			} else {
+				// damn, name is the same, but different classloaders
+				throw new UnsupportedOperationException("The accumulator object '" + name
+						+ "' was created with two different classes: " + first + " and " + second
+						+ " Both have the same type (" + first.getName() + ") but different classloaders: "
+						+ first.getClassLoader() + " and " + second.getClassLoader());
+			}
 		}
 	}
 
@@ -91,15 +109,6 @@ public class AccumulatorHelper {
 		return resultMap;
 	}
 
-	public static String getAccumulatorsFormated(Map<?, Accumulator<?, ?>> newAccumulators) {
-		StringBuilder builder = new StringBuilder();
-		for (Map.Entry<?, Accumulator<?, ?>> entry : newAccumulators.entrySet()) {
-			builder.append("- " + entry.getKey() + " (" + entry.getValue().getClass().getName()
-					+ ")" + ": " + entry.getValue().toString() + "\n");
-		}
-		return builder.toString();
-	}
-
 	public static String getResultsFormated(Map<String, Object> map) {
 		StringBuilder builder = new StringBuilder();
 		for (Map.Entry<String, Object> entry : map.entrySet()) {
@@ -109,12 +118,13 @@ public class AccumulatorHelper {
 		return builder.toString();
 	}
 
-	public static void resetAndClearAccumulators(
-			Map<String, Accumulator<?, ?>> accumulators) {
-		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulators.entrySet()) {
-			entry.getValue().resetLocal();
+	public static void resetAndClearAccumulators(Map<String, Accumulator<?, ?>> accumulators) {
+		if (accumulators != null) {
+			for (Map.Entry<String, Accumulator<?, ?>> entry : accumulators.entrySet()) {
+				entry.getValue().resetLocal();
+			}
+			accumulators.clear();
 		}
-		accumulators.clear();
 	}
 
 	public static Map<String, Accumulator<?, ?>> copy(final Map<String, Accumulator<?,
@@ -126,6 +136,38 @@ public class AccumulatorHelper {
 		}
 
 		return result;
+	}
+
+	/**
+	 * Takes the serialized accumulator results and tries to deserialize them using the provided
+	 * class loader.
+	 * @param serializedAccumulators The serialized accumulator results.
+	 * @param loader The class loader to use.
+	 * @return The deserialized accumulator results.
+	 * @throws IOException
+	 * @throws ClassNotFoundException
+	 */
+	public static Map<String, Object> deserializeAccumulators(
+			Map<String, SerializedValue<Object>> serializedAccumulators, ClassLoader loader)
+			throws IOException, ClassNotFoundException {
+
+		if (serializedAccumulators == null || serializedAccumulators.isEmpty()) {
+			return Collections.emptyMap();
+		}
+
+		Map<String, Object> accumulators = new HashMap<>(serializedAccumulators.size());
+
+		for (Map.Entry<String, SerializedValue<Object>> entry : serializedAccumulators.entrySet()) {
+
+			Object value = null;
+			if (entry.getValue() != null) {
+				value = entry.getValue().deserializeValue(loader);
+			}
+
+			accumulators.put(entry.getKey(), value);
+		}
+
+		return accumulators;
 	}
 
 }

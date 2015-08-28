@@ -65,8 +65,6 @@ private[flink] abstract class UnfinishedKeyPairOperation[L, R, O](
    * a [[HalfUnfinishedKeyPairOperation]] on which `equalTo` must be called to specify the
    * key for the right side. The result after specifying the right side key is the finished
    * operation.
-   *
-   * This only works on a CaseClass [[DataSet]].
    */
   def where(firstLeftField: String, otherLeftFields: String*) = {
     val leftKey = new ExpressionKeys[L](
@@ -113,8 +111,6 @@ private[flink] class HalfUnfinishedKeyPairOperation[L, R, O](
   /**
    * Specify the key fields for the right side of the key based operation. This returns
    * the finished operation.
-   *
-   * This only works on a CaseClass [[DataSet]].
    */
   def equalTo(firstRightField: String, otherRightFields: String*): O = {
     val rightKey = new ExpressionKeys[R](
@@ -125,7 +121,6 @@ private[flink] class HalfUnfinishedKeyPairOperation[L, R, O](
         leftKey + " Right: " + rightKey)
     }
     unfinished.finish(leftKey, rightKey)
-
   }
 
   /**

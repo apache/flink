@@ -57,11 +57,11 @@ object WordCount {
 
     if (fileOutput) {
       counts.writeAsCsv(outputPath, "\n", " ")
+      env.execute("Scala WordCount Example")
     } else {
       counts.print()
     }
 
-    env.execute("Scala WordCount Example")
   }
 
   private def parseParameters(args: Array[String]): Boolean = {

@@ -120,8 +120,21 @@ public class NetworkBufferPoolTest {
 			assertEquals(globalPool.getTotalNumberOfMemorySegments(), globalPool.getNumberOfAvailableMemorySegments());
 
 			// can request no more buffers
-			assertNull(fixedPool.requestBuffer());
-			assertNull(nonFixedPool.requestBuffer());
+			try {
+				fixedPool.requestBuffer();
+				fail("Should fail with an IllegalStateException");
+			}
+			catch (IllegalStateException e) {
+				// that's the way we like it, aha, aha
+			}
+
+			try {
+				nonFixedPool.requestBuffer();
+				fail("Should fail with an IllegalStateException");
+			}
+			catch (IllegalStateException e) {
+				// stayin' alive
+			}
 
 			// can create a new pool now
 			assertNotNull(globalPool.createBufferPool(10, false));

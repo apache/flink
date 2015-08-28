@@ -21,24 +21,28 @@ import java.io.{PrintWriter, FileWriter, BufferedWriter}
 import java.security.PrivilegedAction
 
 import akka.actor._
+import grizzled.slf4j.Logger
 import org.apache.flink.client.CliFrontend
 import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
+import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.instance.AkkaActorGateway
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.util.EnvironmentInformation
+import org.apache.flink.runtime.webmonitor.WebMonitor
 import org.apache.flink.yarn.Messages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
 import org.apache.hadoop.yarn.conf.YarnConfiguration
-import org.slf4j.LoggerFactory
+
 
 import scala.io.Source
 
 object ApplicationMaster {
   import scala.collection.JavaConversions._
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  val LOG = Logger(getClass)
 
   val CONF_FILE = "flink-conf.yaml"
   val MODIFIED_CONF_FILE = "flink-conf-modified.yaml"
@@ -50,9 +54,11 @@ object ApplicationMaster {
     LOG.info(s"YARN daemon runs as ${UserGroupInformation.getCurrentUser.getShortUserName} " +
       s"setting user to execute Flink ApplicationMaster/JobManager to ${yarnClientUsername}")
 
-    EnvironmentInformation.logEnvironmentInfo(LOG, "YARN ApplicationMaster/JobManager", args)
+    EnvironmentInformation.logEnvironmentInfo(LOG.logger, "YARN ApplicationMaster/JobManager", args)
     EnvironmentInformation.checkJavaVersion()
-    org.apache.flink.runtime.util.SignalHandler.register(LOG)
+    org.apache.flink.runtime.util.SignalHandler.register(LOG.logger)
+    
+    var streamingMode = StreamingMode.BATCH_ONLY
 
     val ugi = UserGroupInformation.createRemoteUser(yarnClientUsername)
 
@@ -64,7 +70,7 @@ object ApplicationMaster {
       override def run(): Object = {
 
         var actorSystem: ActorSystem = null
-        var webserver: WebInfoServer = null
+        var webserver: WebMonitor = null
 
         try {
           val conf = new YarnConfiguration()
@@ -80,6 +86,11 @@ object ApplicationMaster {
 
           val logDirs = env.get(Environment.LOG_DIRS.key())
 
+          if(hasStreamingMode(env)) {
+            LOG.info("Starting ApplicationMaster/JobManager in streaming mode")
+            streamingMode = StreamingMode.STREAMING
+          }
+
           // Note that we use the "ownHostname" given by YARN here, to make sure
           // we use the hostnames given by YARN consistently throughout akka.
           // for akka "localhost" and "localhost.localdomain" are different actors.
@@ -90,19 +101,44 @@ object ApplicationMaster {
           val slots = env.get(FlinkYarnClient.ENV_SLOTS).toInt
           val dynamicPropertiesEncodedString = env.get(FlinkYarnClient.ENV_DYNAMIC_PROPERTIES)
 
-          val (config, system, jobManager, archiver) = startJobManager(currDir, ownHostname,
-                                                      dynamicPropertiesEncodedString)
+          val config = createConfiguration(currDir, dynamicPropertiesEncodedString)
+
+          val (
+            system: ActorSystem,
+            jobManager: ActorRef,
+            archiver: ActorRef) = startJobManager(
+              config,
+              ownHostname,
+              streamingMode)
 
           actorSystem = system
           val extActor = system.asInstanceOf[ExtendedActorSystem]
           val jobManagerPort = extActor.provider.getDefaultAddress.port.get
 
-          // start the web info server
           if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) != -1) {
+            // start the web info server
+            val lookupTimeout = AkkaUtils.getLookupTimeout(config)
+            val jobManagerGateway = JobManager.getJobManagerGateway(jobManager, lookupTimeout)
+            val archiverGateway = new AkkaActorGateway(
+              archiver,
+              jobManagerGateway.leaderSessionID())
+
             LOG.info("Starting Job Manger web frontend.")
             config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDirs)
             config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0); // set port to 0.
-            webserver = new WebInfoServer(config, jobManager, archiver)
+            // set JobManager host/port for web interface.
+            config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, ownHostname)
+            config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort)
+
+            webserver = if(
+              config.getBoolean(
+                ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY,
+                false)) {
+              JobManager.startWebRuntimeMonitor(config, jobManagerGateway, archiverGateway)
+            } else {
+              new WebInfoServer(config, jobManagerGateway, archiverGateway)
+            }
+
             webserver.start()
           }
 
@@ -145,11 +181,17 @@ object ApplicationMaster {
 
   }
 
-  def generateConfigurationFile(fileName: String, currDir: String, ownHostname: String,
-                               jobManagerPort: Int,
-                               jobManagerWebPort: Int, logDirs: String, slots: Int,
-                               taskManagerCount: Int, dynamicPropertiesEncodedString: String)
-  : Unit = {
+  def generateConfigurationFile(
+      fileName: String,
+      currDir: String,
+      ownHostname: String,
+      jobManagerPort: Int,
+      jobManagerWebPort: Int,
+      logDirs: String,
+      slots: Int,
+      taskManagerCount: Int,
+      dynamicPropertiesEncodedString: String)
+    : Unit = {
     LOG.info("Generate configuration file for application master.")
     val output = new PrintWriter(new BufferedWriter(
       new FileWriter(fileName))
@@ -191,24 +233,62 @@ object ApplicationMaster {
   /**
    * Starts the JobManager and all its components.
    *
-   * @param currDir
-   * @param hostname
-   * @param dynamicPropertiesEncodedString
-   *
    * @return (Configuration, JobManager ActorSystem, JobManager ActorRef, Archiver ActorRef)
    */
-  def startJobManager(currDir: String,
-                      hostname: String,
-                      dynamicPropertiesEncodedString: String):
-    (Configuration, ActorSystem, ActorRef, ActorRef) = {
+  def startJobManager(
+      configuration: Configuration,
+      hostname: String,
+      streamingMode: StreamingMode)
+    : (ActorSystem, ActorRef, ActorRef) = {
 
     LOG.info("Starting JobManager for YARN")
-    LOG.info("Loading config from: {}", currDir)
 
-    GlobalConfiguration.loadConfiguration(currDir)
+    // set port to 0 to let Akka automatically determine the port.
+    LOG.debug("Starting JobManager actor system")
+    val jobManagerSystem = AkkaUtils.createActorSystem(configuration, Some((hostname, 0)))
+
+    // start all the components inside the job manager
+    LOG.debug("Starting JobManager components")
+    val (executionContext,
+      instanceManager,
+      scheduler,
+      libraryCacheManager,
+      archiveProps,
+      executionRetries,
+      delayBetweenRetries,
+      timeout,
+      _) = JobManager.createJobManagerComponents(configuration)
+
+    // start the archiver
+    val archiver: ActorRef = jobManagerSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
+
+    val jobManagerProps = Props(
+      new JobManager(
+        configuration,
+        executionContext,
+        instanceManager,
+        scheduler,
+        libraryCacheManager,
+        archiver,
+        executionRetries,
+        delayBetweenRetries,
+        timeout,
+        streamingMode)
+      with ApplicationMasterActor)
+
+    LOG.debug("Starting JobManager actor")
+    val jobManager = JobManager.startActor(jobManagerProps, jobManagerSystem)
+
+    (jobManagerSystem, jobManager, archiver)
+  }
+
+  def createConfiguration(curDir: String, dynamicPropertiesEncodedString: String): Configuration = {
+    LOG.info(s"Loading config from: $curDir.")
+
+    GlobalConfiguration.loadConfiguration(curDir)
     val configuration = GlobalConfiguration.getConfiguration()
 
-    configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, currDir)
+    configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, curDir)
 
     // add dynamic properties to JobManager configuration.
     val dynamicProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncodedString)
@@ -217,30 +297,15 @@ object ApplicationMaster {
       configuration.setString(property.f0, property.f1)
     }
 
-    // set port to 0 to let Akka automatically determine the port.
-    LOG.debug("Starting JobManager actor system")
-    val jobManagerSystem = AkkaUtils.createActorSystem(configuration, Some((hostname, 0)))
+    configuration
+  }
 
-    // start all the components inside the job manager
-    LOG.debug("Starting JobManager components")
-    val (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
-                   profilerProps, executionRetries, delayBetweenRetries,
-                   timeout, _) = JobManager.createJobManagerComponents(configuration)
 
-    // start the profiler, if needed
-    val profiler: Option[ActorRef] =
-      profilerProps.map( props => jobManagerSystem.actorOf(props, JobManager.PROFILER_NAME) )
-
-    // start the archiver
-    val archiver: ActorRef = jobManagerSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
-
-    val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
-      libraryCacheManager, archiver, accumulatorManager, profiler, executionRetries,
-      delayBetweenRetries, timeout) with ApplicationMasterActor)
-
-    LOG.debug("Starting JobManager actor")
-    val jobManager = JobManager.startActor(jobManagerProps, jobManagerSystem)
-
-    (configuration, jobManagerSystem, jobManager, archiver)
+  def hasStreamingMode(env: java.util.Map[String, String]): Boolean = {
+    val sModeString = env.get(FlinkYarnClient.ENV_STREAMING_MODE)
+    if(sModeString != null) {
+      return sModeString.toBoolean
+    }
+    false
   }
 }

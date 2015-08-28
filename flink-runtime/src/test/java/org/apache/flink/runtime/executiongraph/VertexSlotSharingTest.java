@@ -26,10 +26,11 @@ import java.util.List;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 
 public class VertexSlotSharingTest {
@@ -43,11 +44,11 @@ public class VertexSlotSharingTest {
 	@Test
 	public void testAssignSlotSharingGroup() {
 		try {
-			AbstractJobVertex v1 = new AbstractJobVertex("v1");
-			AbstractJobVertex v2 = new AbstractJobVertex("v2");
-			AbstractJobVertex v3 = new AbstractJobVertex("v3");
-			AbstractJobVertex v4 = new AbstractJobVertex("v4");
-			AbstractJobVertex v5 = new AbstractJobVertex("v5");
+			JobVertex v1 = new JobVertex("v1");
+			JobVertex v2 = new JobVertex("v2");
+			JobVertex v3 = new JobVertex("v3");
+			JobVertex v4 = new JobVertex("v4");
+			JobVertex v5 = new JobVertex("v5");
 			
 			v1.setParallelism(4);
 			v2.setParallelism(5);
@@ -66,9 +67,13 @@ public class VertexSlotSharingTest {
 			v4.setSlotSharingGroup(jg2);
 			v5.setSlotSharingGroup(jg2);
 			
-			List<AbstractJobVertex> vertices = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
+			List<JobVertex> vertices = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 			
-			ExecutionGraph eg = new ExecutionGraph(new JobID(), "test job", new Configuration(),
+			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
+					new JobID(),
+					"test job",
+					new Configuration(),
 					AkkaUtils.getDefaultTimeout());
 			eg.attachJobGraph(vertices);
 			

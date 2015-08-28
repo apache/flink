@@ -44,7 +44,7 @@ public class CloneableMultiEvictionPolicy<DATA> extends MultiEvictionPolicy<DATA
 	 * 
 	 * When using this constructor the MAX strategy is used by default. You can
 	 * select other strategies using
-	 * {@link CloneableMultiEvictionPolicy#CloneableMultiEvictionPolicy(org.apache.flink.streaming.api.windowing.policy.MultiEvictionPolicy.EvictionStrategy, CloneableEvictionPolicy...)}
+	 * {@link CloneableMultiEvictionPolicy#CloneableMultiEvictionPolicy(EvictionStrategy, CloneableEvictionPolicy...)}
 	 * .
 	 * 
 	 * @param evictionPolicies
@@ -60,7 +60,7 @@ public class CloneableMultiEvictionPolicy<DATA> extends MultiEvictionPolicy<DATA
 	 * constructor.
 	 * 
 	 * @param strategy
-	 *            the strategy to be used. See {@link EvictionStrategy} for a
+	 *            the strategy to be used. See {@link MultiEvictionPolicy.EvictionStrategy} for a
 	 *            list of possible options.
 	 * @param evictionPolicies
 	 *            some cloneable policies to be tied together.

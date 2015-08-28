@@ -41,7 +41,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 	private boolean isFinished;
 
 	/** Flag indicating whether the subpartition has been released. */
-	private boolean isReleased;
+	private volatile boolean isReleased;
 
 	/**
 	 * A data availability listener. Registered, when the consuming task is faster than the
@@ -167,16 +167,22 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
+	public boolean isReleased() {
+		return isReleased;
+	}
+
+	@Override
 	public PipelinedSubpartitionView createReadView(BufferProvider bufferProvider) {
 		synchronized (buffers) {
 			if (readView != null) {
-				throw new IllegalStateException("Subpartition is being or already has been " +
+				throw new IllegalStateException("Subpartition " + index + " of "
+						+ parent.getPartitionId() + " is being or already has been " +
 						"consumed, but pipelined subpartitions can only be consumed once.");
 			}
 
 			readView = new PipelinedSubpartitionView(this);
 
-			LOG.debug("Created {}.", readView);
+			LOG.debug("Created read view for subpartition {} of partition {}.", index, parent.getPartitionId());
 
 			return readView;
 		}

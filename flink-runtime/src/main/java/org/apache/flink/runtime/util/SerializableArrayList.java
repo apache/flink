@@ -16,34 +16,25 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.StringUtils;
 
 /**
  * This class extends a standard {@link java.util.ArrayList} by implementing the
- * {@link org.apache.flink.core.io.IOReadableWritable} interface. As a result, array lists of this type can be used
- * with Nephele's RPC system.
- * <p>
- * This class is not thread-safe.
- * 
+ * {@link org.apache.flink.core.io.IOReadableWritable} interface.
+ *
  * @param <E>
  *        the type of object stored inside this array list
  */
 public class SerializableArrayList<E extends IOReadableWritable> extends ArrayList<E> implements IOReadableWritable {
 
-	/**
-	 * Generated serial version UID.
-	 */
 	private static final long serialVersionUID = 8196856588290198537L;
 
 	/**
@@ -63,44 +54,38 @@ public class SerializableArrayList<E extends IOReadableWritable> extends ArrayLi
 		super(initialCapacity);
 	}
 
-
 	@Override
 	public void write(final DataOutputView out) throws IOException {
 
 		out.writeInt(size());
-		final Iterator<E> it = iterator();
-		while (it.hasNext()) {
-
-			final E element = it.next();
+		for (E element : this) {
 			// Write out type
-			StringRecord.writeString(out, element.getClass().getName());
+			StringUtils.writeNullableString(element.getClass().getName(), out);
 			// Write out element itself
 			element.write(out);
 		}
 	}
 
-
-	@SuppressWarnings("unchecked")
 	@Override
 	public void read(final DataInputView in) throws IOException {
-
 		// Make sure the list is empty
 		clear();
+
 		final int numberOfElements = in.readInt();
 		for (int i = 0; i < numberOfElements; i++) {
-			final String elementType = StringRecord.readString(in);
-			Class<E> clazz = null;
-			try {
-				clazz = (Class<E>) Class.forName(elementType);
-			} catch (ClassNotFoundException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			}
+			final String elementType = StringUtils.readNullableString(in);
 
-			E element = null;
+			E element;
 			try {
+				@SuppressWarnings("unchecked")
+				Class<E> clazz = (Class<E>) Class.forName(elementType);
 				element = clazz.newInstance();
-			} catch (Exception e) {
-				throw new IOException(StringUtils.stringifyException(e));
+			}
+			catch (ClassNotFoundException e) {
+				throw new IOException(e);
+			}
+			catch (Exception e) {
+				throw new IOException(e);
 			}
 
 			element.read(in);
@@ -108,13 +93,8 @@ public class SerializableArrayList<E extends IOReadableWritable> extends ArrayLi
 		}
 	}
 
-
 	@Override
 	public boolean equals(Object obj) {
-		if (!(obj instanceof SerializableArrayList<?>)) {
-			return false;
-		}
-
-		return (obj instanceof SerializableArrayList) && super.equals(obj);
+		return obj instanceof SerializableArrayList<?> && super.equals(obj);
 	}
 }

@@ -27,9 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
-import org.apache.flink.streaming.api.windowing.windowbuffer.TumblingPreReducer;
-import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
-import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestCollector;
+import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestOutput;
 import org.junit.Test;
 
 public class TumblingPreReducerTest {
@@ -49,7 +47,7 @@ public class TumblingPreReducerTest {
 		inputs.add(new Tuple2<Integer, Integer>(3, -1));
 		inputs.add(new Tuple2<Integer, Integer>(4, -2));
 
-		TestCollector<StreamWindow<Tuple2<Integer, Integer>>> collector = new TestCollector<StreamWindow<Tuple2<Integer, Integer>>>();
+		TestOutput<StreamWindow<Tuple2<Integer, Integer>>> collector = new TestOutput<StreamWindow<Tuple2<Integer, Integer>>>();
 		List<StreamWindow<Tuple2<Integer, Integer>>> collected = collector.getCollected();
 
 		WindowBuffer<Tuple2<Integer, Integer>> wb = new TumblingPreReducer<Tuple2<Integer, Integer>>(
@@ -59,6 +57,7 @@ public class TumblingPreReducerTest {
 		wb.store(serializer.copy(inputs.get(1)));
 
 		wb.emitWindow(collector);
+		wb.evict(2);
 
 		assertEquals(1, collected.size());
 		assertEquals(StreamWindow.fromElements(new Tuple2<Integer, Integer>(3, 1)),
@@ -68,12 +67,10 @@ public class TumblingPreReducerTest {
 		wb.store(serializer.copy(inputs.get(1)));
 		wb.store(serializer.copy(inputs.get(2)));
 
-		// Nothing should happen here
-		wb.evict(3);
-
 		wb.store(serializer.copy(inputs.get(3)));
 
 		wb.emitWindow(collector);
+		wb.evict(4);
 
 		assertEquals(2, collected.size());
 		assertEquals(StreamWindow.fromElements(new Tuple2<Integer, Integer>(10, -2)),

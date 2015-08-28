@@ -30,15 +30,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestListResultSink;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.Test;
 
-public class WindowCrossJoinTest implements Serializable {
-
-	private static final long serialVersionUID = 1L;
-
-	private static final long MEMORYSIZE = 32;
+public class WindowCrossJoinTest extends StreamingMultipleProgramsTestBase {
 
 	private static ArrayList<Tuple2<Tuple2<Integer, String>, Integer>> joinExpectedResults = new ArrayList<Tuple2<Tuple2<Integer, String>, Integer>>();
 	private static ArrayList<Tuple2<Tuple2<Integer, String>, Integer>> crossExpectedResults = new ArrayList<Tuple2<Tuple2<Integer, String>, Integer>>();
@@ -55,7 +52,8 @@ public class WindowCrossJoinTest implements Serializable {
 
 	@Test
 	public void test() throws Exception {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORYSIZE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
 		env.setBufferTimeout(1);
 
 		TestListResultSink<Tuple2<Tuple2<Integer, String>, Integer>> joinResultSink =

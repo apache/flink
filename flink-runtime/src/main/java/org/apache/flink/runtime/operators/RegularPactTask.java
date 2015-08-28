@@ -18,10 +18,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Function;
@@ -32,7 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -45,7 +43,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableObjectIterator;
@@ -63,10 +60,12 @@ import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,7 +113,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	protected List<RecordWriter<?>> eventualOutputs;
 
 	/**
-	 * The input readers to this task.
+	 * The input readers of this task.
 	 */
 	protected MutableReader<?>[] inputReaders;
 
@@ -212,7 +211,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	protected volatile boolean running = true;
 
-	
+	/**
+	 * The accumulator map used in the RuntimeContext.
+	 */
+	protected Map<String, Accumulator<?,?>> accumulatorMap;
+
 	// --------------------------------------------------------------------------------------------
 	//                                  Task Interface
 	// --------------------------------------------------------------------------------------------
@@ -223,7 +226,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * and as a setup method on the TaskManager.
 	 */
 	@Override
-	public void registerInputOutput() {
+	public void registerInputOutput() throws Exception {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Start registering input and output."));
 		}
@@ -236,26 +239,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		final Class<? extends PactDriver<S, OT>> driverClass = this.config.getDriver();
 		this.driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
 
-		// initialize the readers. this is necessary for nephele to create the input gates
-		// however, this does not trigger any local processing.
-		try {
-			initInputReaders();
-			initBroadcastInputReaders();
-		} catch (Exception e) {
-			throw new RuntimeException("Initializing the input streams failed in Task " + getEnvironment().getTaskName() +
-					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
-		}
+		// initialize the readers.
+		// this does not yet trigger any stream consuming or processing.
+		initInputReaders();
+		initBroadcastInputReaders();
 
-		// initialize the writers. this is necessary for nephele to create the output gates.
-		// because in the presence of chained tasks, the tasks writers depend on the last task in the chain,
-		// we need to initialize the chained tasks as well. the chained tasks are only set up, but no work
-		// (such as setting up a sorter, etc.) starts
-		try {
-			initOutputs();
-		} catch (Exception e) {
-			throw new RuntimeException("Initializing the output handlers failed" +
-					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
-		}
+		// initialize the writers.
+		initOutputs();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Finished registering input and output."));
@@ -273,7 +263,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			LOG.debug(formatLogString("Start task code."));
 		}
 
-		this.runtimeUdfContext = createRuntimeContext(getEnvironment().getTaskName());
+		Environment env = getEnvironment();
+
+		this.runtimeUdfContext = createRuntimeContext(env.getTaskName());
 
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
@@ -367,6 +359,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 			clearReaders(inputReaders);
 			clearWriters(eventualOutputs);
+
 		}
 
 		if (this.running) {
@@ -505,19 +498,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 			// close all chained tasks letting them report failure
 			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
-
-			// Collect the accumulators of all involved UDFs and send them to the
-			// JobManager. close() has been called earlier for all involved UDFs
-			// (using this.stub.close() and closeChainedTasks()), so UDFs can no longer
-			// modify accumulators.ll;
-			if (this.stub != null) {
-				// collect the counters from the stub
-				if (FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext) != null) {
-					Map<String, Accumulator<?, ?>> accumulators =
-							FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
-					RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
-				}
-			}
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
@@ -555,49 +535,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		}
 		finally {
 			this.driver.cleanup();
-		}
-	}
-
-	/**
-	 * This method is called at the end of a task, receiving the accumulators of
-	 * the task and the chained tasks. It merges them into a single map of
-	 * accumulators and sends them to the JobManager.
-	 *
-	 * @param chainedTasks
-	 *          Each chained task might have accumulators which will be merged
-	 *          with the accumulators of the stub.
-	 */
-	protected static void reportAndClearAccumulators(
-			Environment env, Map<String, Accumulator<?, ?>> accumulators, ArrayList<ChainedDriver<?, ?>> chainedTasks) {
-
-		// We can merge here the accumulators from the stub and the chained
-		// tasks. Type conflicts can occur here if counters with same name but
-		// different type were used.
-		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			if (FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null) != null) {
-				Map<String, Accumulator<?, ?>> chainedAccumulators = FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators();
-				AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
-			}
-		}
-
-		// Don't report if the UDF didn't collect any accumulators
-		if (accumulators.size() == 0) {
-			return;
-		}
-
-		// Report accumulators to JobManager
-		JobManagerMessages.ReportAccumulatorResult accResult = new JobManagerMessages.ReportAccumulatorResult(new
-				AccumulatorEvent(env.getJobID(), AccumulatorHelper.copy(accumulators)));
-		env.getJobManager().tell(accResult, ActorRef.noSender());
-
-		// We also clear the accumulators, since stub instances might be reused
-		// (e.g. in iterations) and we don't want to count twice. This may not be
-		// done before sending
-		AccumulatorHelper.resetAndClearAccumulators(accumulators);
-		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			if (FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null) != null) {
-				AccumulatorHelper.resetAndClearAccumulators(FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators());
-			}
 		}
 	}
 
@@ -711,9 +648,12 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	protected void initInputReaders() throws Exception {
 		final int numInputs = getNumTaskInputs();
-		final MutableReader<?>[] inputReaders = new MutableReader[numInputs];
+		final MutableReader<?>[] inputReaders = new MutableReader<?>[numInputs];
 
 		int currentReaderOffset = 0;
+
+		AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
+		AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
 
 		for (int i = 0; i < numInputs; i++) {
 			//  ---------------- create the input readers ---------------------
@@ -734,6 +674,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
 
+			inputReaders[i].setReporter(reporter);
+
 			currentReaderOffset += groupSize;
 		}
 		this.inputReaders = inputReaders;
@@ -751,7 +693,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	protected void initBroadcastInputReaders() throws Exception {
 		final int numBroadcastInputs = this.config.getNumBroadcastInputs();
-		final MutableReader<?>[] broadcastInputReaders = new MutableReader[numBroadcastInputs];
+		final MutableReader<?>[] broadcastInputReaders = new MutableReader<?>[numBroadcastInputs];
 
 		int currentReaderOffset = config.getNumInputs();
 
@@ -783,8 +725,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	protected void initInputsSerializersAndComparators(int numInputs, int numComparators) throws Exception {
 		this.inputSerializers = new TypeSerializerFactory<?>[numInputs];
-		this.inputComparators = numComparators > 0 ? new TypeComparator[numComparators] : null;
-		this.inputIterators = new MutableObjectIterator[numInputs];
+		this.inputComparators = numComparators > 0 ? new TypeComparator<?>[numComparators] : null;
+		this.inputIterators = new MutableObjectIterator<?>[numInputs];
 
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		
@@ -810,7 +752,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * Creates all the serializers and iterators for the broadcast inputs.
 	 */
 	protected void initBroadcastInputsSerializers(int numBroadcastInputs) throws Exception {
-		this.broadcastInputSerializers = new TypeSerializerFactory[numBroadcastInputs];
+		this.broadcastInputSerializers = new TypeSerializerFactory<?>[numBroadcastInputs];
 
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
@@ -833,8 +775,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		final MemoryManager memMan = getMemoryManager();
 		final IOManager ioMan = getIOManager();
 
-		this.localStrategies = new CloseableInputProvider[numInputs];
-		this.inputs = new MutableObjectIterator[numInputs];
+		this.localStrategies = new CloseableInputProvider<?>[numInputs];
+		this.inputs = new MutableObjectIterator<?>[numInputs];
 		this.excludeFromReset = new boolean[numInputs];
 		this.inputIsCached = new boolean[numInputs];
 		this.inputIsAsyncMaterialized = new boolean[numInputs];
@@ -853,8 +795,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// acts as a pipeline breaker. this one should only be there, if a pipeline breaker is needed.
 		// the second variant spills to the side and will not read unless the result is also consumed
 		// in a pipelined fashion.
-		this.resettableInputs = new SpillingResettableMutableObjectIterator[numInputs];
-		this.tempBarriers = new TempBarrier[numInputs];
+		this.resettableInputs = new SpillingResettableMutableObjectIterator<?>[numInputs];
+		this.tempBarriers = new TempBarrier<?>[numInputs];
 
 		for (int i = 0; i < numInputs; i++) {
 			final int memoryPages;
@@ -1063,13 +1005,21 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
-		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs, this.getExecutionConfig());
+		AccumulatorRegistry accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
+		AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
+
+		this.accumulatorMap = accumulatorRegistry.getUserMap();
+
+		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs,
+				this.getExecutionConfig(), reporter, this.accumulatorMap);
 	}
 
 	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
+
 		return new DistributedRuntimeUDFContext(taskName, env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(), env.getCopyTask());
+				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
+				env.getDistributedCacheEntries(), this.accumulatorMap);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1079,6 +1029,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	@Override
 	public TaskConfig getTaskConfig() {
 		return this.config;
+	}
+
+	@Override
+	public TaskManagerRuntimeInfo getTaskManagerInfo() {
+		return getEnvironment().getTaskManagerInfo();
 	}
 
 	@Override
@@ -1141,7 +1096,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			} catch (InterruptedException iex) {
 				throw new RuntimeException("Interrupted while waiting for input " + index + " to become available.");
 			} catch (IOException ioex) {
-				throw new RuntimeException("An I/O Exception occurred whily obaining input " + index + ".");
+				throw new RuntimeException("An I/O Exception occurred while obtaining input " + index + ".");
 			}
 		}
 	}
@@ -1246,7 +1201,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
 	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl,
-			List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs) throws Exception
+			List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs, AccumulatorRegistry.Reporter reporter) throws Exception
 	{
 		if (numOutputs == 0) {
 			return null;
@@ -1275,11 +1230,15 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 					}
 					final DataDistribution distribution = config.getOutputDataDistribution(i, cl);
 					final Partitioner<?> partitioner = config.getOutputPartitioner(i, cl);
-					
+
 					oe = new RecordOutputEmitter(strategy, comparator, partitioner, distribution);
 				}
 
-				writers.add(new RecordWriter<Record>(task.getEnvironment().getWriter(outputOffset + i), oe));
+				// setup accumulator counters
+				final RecordWriter<Record> recordWriter = new RecordWriter<Record>(task.getEnvironment().getWriter(outputOffset + i), oe);
+				recordWriter.setReporter(reporter);
+
+				writers.add(recordWriter);
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
@@ -1307,12 +1266,18 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				else {
 					final DataDistribution dataDist = config.getOutputDataDistribution(i, cl);
 					final Partitioner<?> partitioner = config.getOutputPartitioner(i, cl);
-					
+
 					final TypeComparator<T> comparator = compFactory.createComparator();
 					oe = new OutputEmitter<T>(strategy, comparator, partitioner, dataDist);
 				}
 
-				writers.add(new RecordWriter<SerializationDelegate<T>>(task.getEnvironment().getWriter(outputOffset + i), oe));
+				final RecordWriter<SerializationDelegate<T>> recordWriter =
+						new RecordWriter<SerializationDelegate<T>>(task.getEnvironment().getWriter(outputOffset + i), oe);
+
+				// setup live accumulator counters
+				recordWriter.setReporter(reporter);
+
+				writers.add(recordWriter);
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
@@ -1327,7 +1292,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config,
-					List<ChainedDriver<?, ?>> chainedTasksTarget, List<RecordWriter<?>> eventualOutputs, ExecutionConfig executionConfig)
+										List<ChainedDriver<?, ?>> chainedTasksTarget,
+										List<RecordWriter<?>> eventualOutputs,
+										ExecutionConfig executionConfig,
+										AccumulatorRegistry.Reporter reporter,
+										Map<String, Accumulator<?,?>> accumulatorMap)
 	throws Exception
 	{
 		final int numOutputs = config.getNumOutputs();
@@ -1359,12 +1328,12 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				final TaskConfig chainedStubConf = config.getChainedStubConfig(i);
 				final String taskName = config.getChainedTaskName(i);
 
-				if (i == numChained -1) {
+				if (i == numChained - 1) {
 					// last in chain, instantiate the output collector for this task
-					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs());
+					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs(), reporter);
 				}
 
-				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl, executionConfig);
+				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl, executionConfig, accumulatorMap);
 				chainedTasksTarget.add(0, ct);
 
 				previous = ct;
@@ -1375,7 +1344,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// else
 
 		// instantiate the output collector the default way from this configuration
-		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, 0, numOutputs);
+		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, 0, numOutputs, reporter);
 	}
 	
 	// --------------------------------------------------------------------------------------------

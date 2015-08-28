@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-staging</artifactId>
-		<version>0.9-SNAPSHOT</version>
+		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -34,8 +34,8 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<hbase.hadoop1.version>0.98.6.1-hadoop1</hbase.hadoop1.version>
-		<hbase.hadoop2.version>0.98.6.1-hadoop2</hbase.hadoop2.version>
+		<hbase.hadoop1.version>0.98.11-hadoop1</hbase.hadoop1.version>
+		<hbase.hadoop2.version>0.98.11-hadoop2</hbase.hadoop2.version>
 	</properties>
 
 	<dependencies>
@@ -54,6 +54,12 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>${shading-artifact.name}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		
@@ -82,16 +88,38 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-		
+
+		<!-- HBase server needed for TableOutputFormat -->
+		<!-- TODO implement bulk output format for HBase -->
 		<dependency>
 			<groupId>org.apache.hbase</groupId>
-			<artifactId>hbase-client</artifactId>
+			<artifactId>hbase-server</artifactId>
 			<version>${hbase.version}</version>
 			<exclusions>
 				<!-- Remove unneeded dependency, which is conflicting with our jetty-util version. -->
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty-sslengine</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jsp-2.1</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jsp-api-2.1</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>servlet-api-2.5</artifactId>
 				</exclusion>
 				<!-- The hadoop dependencies are handled through flink-shaded-hadoop -->
 				<exclusion>
@@ -109,6 +137,19 @@ under the License.
 				<exclusion>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-mapreduce-client-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-client</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
+				</exclusion>
+				<!-- Bug in hbase annotations, can be removed when fixed. See FLINK-2153. -->
+				<exclusion>
+					<groupId>org.apache.hbase</groupId>
+					<artifactId>hbase-annotations</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -130,6 +171,18 @@ under the License.
 		
 		<profile>
 			<id>hadoop-2</id>
+			<repositories>
+				<repository>
+					<id>hadoop-2-repo2</id>
+					<url>https://repo.maven.apache.org/maven2</url>
+					<releases>
+						<enabled>true</enabled>
+					</releases>
+					<snapshots>
+						<enabled>false</enabled>
+					</snapshots>
+				</repository>
+			</repositories>
 			<activation>
 				<property>
 					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->

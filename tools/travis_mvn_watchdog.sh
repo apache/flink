@@ -81,7 +81,7 @@ upload_artifacts_s3() {
 		# Install artifacts tool
 		curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash
 
-		PATH=$HOME/bin:$PATH
+		PATH=$HOME/bin/artifacts:$HOME/bin:$PATH
 
 		echo "UPLOADING build artifacts."
 
@@ -200,7 +200,7 @@ upload_artifacts_s3
 cd ../../
 
 
-UBERJAR=`find . | grep uberjar | head -n 1`
+UBERJAR=`find . | grep flink-dist  | grep jar | head -n 1`
 if [ -z "$UBERJAR" ] ; then
 	echo "Uberjar not found. Assuming failed build";
 else 

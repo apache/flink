@@ -18,36 +18,67 @@
 
 package org.apache.flink.graph.library;
 
-import java.io.Serializable;
-
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
-public class PageRank<K extends Comparable<K> & Serializable> implements
-		GraphAlgorithm<K, Double, Double> {
+/**
+ * This is an implementation of a simple PageRank algorithm, using a vertex-centric iteration.
+ * The user can define the damping factor and the maximum number of iterations.
+ * If the number of vertices of the input graph is known, it should be provided as a parameter
+ * to speed up computation. Otherwise, the algorithm will first execute a job to count the vertices.
+ * 
+ * The implementation assumes that each page has at least one incoming and one outgoing link.
+ */
+public class PageRank<K> implements
+	GraphAlgorithm<K, Double, Double, Graph<K, Double, Double>> {
 
 	private double beta;
 	private int maxIterations;
+	private long numberOfVertices;
 
+	/**
+	 * @param beta the damping factor
+	 * @param maxIterations the maximum number of iterations
+	 */
 	public PageRank(double beta, int maxIterations) {
 		this.beta = beta;
 		this.maxIterations = maxIterations;
+		this.numberOfVertices = 0;
+	}
+
+	/**
+	 * @param beta the damping factor
+	 * @param maxIterations the maximum number of iterations
+	 * @param numVertices the number of vertices in the input
+	 */
+	public PageRank(double beta, long numVertices, int maxIterations) {
+		this.beta = beta;
+		this.maxIterations = maxIterations;
+		this.numberOfVertices = numVertices;
 	}
 
 	@Override
 	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) throws Exception {
 
-		final long numberOfVertices = network.numberOfVertices();
+		if (numberOfVertices == 0) {
+			numberOfVertices = network.numberOfVertices();
+		}
 
-		VertexCentricIteration<K, Double, Double, Double> iteration = network.createVertexCentricIteration(
-				new VertexRankUpdater<K>(beta, numberOfVertices), new RankMessenger<K>(numberOfVertices),
-				maxIterations);
-		return network.runVertexCentricIteration(iteration);
+		DataSet<Tuple2<K, Long>> vertexOutDegrees = network.outDegrees();
+
+		Graph<K, Double, Double> networkWithWeights = network
+				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeightsMapper());
+
+		return networkWithWeights.runVertexCentricIteration(new VertexRankUpdater<K>(beta, numberOfVertices),
+				new RankMessenger<K>(numberOfVertices), maxIterations);
 	}
 
 	/**
@@ -55,8 +86,7 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	 * ranks from all incoming messages and then applying the dampening formula.
 	 */
 	@SuppressWarnings("serial")
-	public static final class VertexRankUpdater<K extends Comparable<K> & Serializable>
-			extends VertexUpdateFunction<K, Double, Double> {
+	public static final class VertexRankUpdater<K> extends VertexUpdateFunction<K, Double, Double> {
 
 		private final double beta;
 		private final long numVertices;
@@ -67,8 +97,7 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 		}
 
 		@Override
-		public void updateVertex(K vertexKey, Double vertexValue,
-				MessageIterator<Double> inMessages) {
+		public void updateVertex(Vertex<K, Double> vertex, MessageIterator<Double> inMessages) {
 			double rankSum = 0.0;
 			for (double msg : inMessages) {
 				rankSum += msg;
@@ -86,8 +115,7 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	 * value.
 	 */
 	@SuppressWarnings("serial")
-	public static final class RankMessenger<K extends Comparable<K> & Serializable>
-			extends MessagingFunction<K, Double, Double, Double> {
+	public static final class RankMessenger<K> extends MessagingFunction<K, Double, Double, Double> {
 
 		private final long numVertices;
 
@@ -96,14 +124,23 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 		}
 
 		@Override
-		public void sendMessages(K vertexId, Double newRank) {
+		public void sendMessages(Vertex<K, Double> vertex) {
 			if (getSuperstepNumber() == 1) {
 				// initialize vertex ranks
-				newRank = 1.0 / numVertices;
+				vertex.setValue(new Double(1.0 / numVertices));
 			}
-			for (Edge<K, Double> edge : getOutgoingEdges()) {
-				sendMessageTo(edge.getTarget(), newRank * edge.getValue());
+
+			for (Edge<K, Double> edge : getEdges()) {
+				sendMessageTo(edge.getTarget(), vertex.getValue() * edge.getValue());
 			}
 		}
 	}
+
+	@SuppressWarnings("serial")
+	private static final class InitWeightsMapper implements MapFunction<Tuple2<Double, Long>, Double> {
+		public Double map(Tuple2<Double, Long> value) {
+			return value.f0 / value.f1;
+		}
+	}
+
 }

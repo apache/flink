@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import scala.Tuple2;
 
 import java.io.IOException;
 
@@ -43,19 +44,24 @@ public class UnknownInputChannel extends InputChannel {
 
 	private final ConnectionManager connectionManager;
 
+	/** Initial and maximum backoff (in ms) after failed partition requests. */
+	private final Tuple2<Integer, Integer> partitionRequestInitialAndMaxBackoff;
+
 	public UnknownInputChannel(
 			SingleInputGate gate,
 			int channelIndex,
 			ResultPartitionID partitionId,
 			ResultPartitionManager partitionManager,
 			TaskEventDispatcher taskEventDispatcher,
-			ConnectionManager connectionManager) {
+			ConnectionManager connectionManager,
+			Tuple2<Integer, Integer> partitionRequestInitialAndMaxBackoff) {
 
-		super(gate, channelIndex, partitionId);
+		super(gate, channelIndex, partitionId, partitionRequestInitialAndMaxBackoff);
 
-		this.partitionManager = partitionManager;
-		this.taskEventDispatcher = taskEventDispatcher;
-		this.connectionManager = connectionManager;
+		this.partitionManager = checkNotNull(partitionManager);
+		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
+		this.connectionManager = checkNotNull(connectionManager);
+		this.partitionRequestInitialAndMaxBackoff = checkNotNull(partitionRequestInitialAndMaxBackoff);
 	}
 
 	@Override
@@ -106,10 +112,10 @@ public class UnknownInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	public RemoteInputChannel toRemoteInputChannel(ConnectionID producerAddress) {
-		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress), connectionManager);
+		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress), connectionManager, partitionRequestInitialAndMaxBackoff);
 	}
 
 	public LocalInputChannel toLocalInputChannel() {
-		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher);
+		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher, partitionRequestInitialAndMaxBackoff);
 	}
 }

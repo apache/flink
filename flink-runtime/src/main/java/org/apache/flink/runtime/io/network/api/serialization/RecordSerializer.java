@@ -22,6 +22,7 @@ package org.apache.flink.runtime.io.network.api.serialization;
 import java.io.IOException;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 /**
@@ -29,7 +30,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
  */
 public interface RecordSerializer<T extends IOReadableWritable> {
 
-	public static enum SerializationResult {
+	enum SerializationResult {
 		PARTIAL_RECORD_MEMORY_SEGMENT_FULL(false, true),
 		FULL_RECORD_MEMORY_SEGMENT_FULL(true, true),
 		FULL_RECORD(true, false);
@@ -57,8 +58,15 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	SerializationResult setNextBuffer(Buffer buffer) throws IOException;
 
 	Buffer getCurrentBuffer();
+
+	void clearCurrentBuffer();
 	
 	void clear();
 	
 	boolean hasData();
+
+	/**
+	 * Setter for the reporter, e.g. for the number of records emitted and the number of bytes read.
+	 */
+	void setReporter(AccumulatorRegistry.Reporter reporter);
 }

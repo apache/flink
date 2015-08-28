@@ -19,21 +19,23 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 
 /**
  * The DataStreamSource represents the starting point of a DataStream.
  * 
- * @param <OUT>
- *            Type of the DataStream created.
+ * @param <T> Type of the elements in the DataStream created from the this source.
  */
-public class DataStreamSource<OUT> extends SingleOutputStreamOperator<OUT, DataStreamSource<OUT>> {
+public class DataStreamSource<T> extends SingleOutputStreamOperator<T, DataStreamSource<T>> {
 
 	boolean isParallel;
 
-	public DataStreamSource(StreamExecutionEnvironment environment, String operatorType,
-			TypeInformation<OUT> outTypeInfo, StreamInvokable<?, ?> invokable, boolean isParallel) {
-		super(environment, operatorType, outTypeInfo, invokable);
+	public DataStreamSource(StreamExecutionEnvironment environment,
+			TypeInformation<T> outTypeInfo, StreamSource<T> operator,
+			boolean isParallel, String sourceName) {
+		super(environment, new SourceTransformation<T>(sourceName, operator, outTypeInfo, environment.getParallelism()));
+
 		this.isParallel = isParallel;
 		if (!isParallel) {
 			setParallelism(1);
@@ -41,11 +43,11 @@ public class DataStreamSource<OUT> extends SingleOutputStreamOperator<OUT, DataS
 	}
 
 	@Override
-	public DataStreamSource<OUT> setParallelism(int parallelism) {
+	public DataStreamSource<T> setParallelism(int parallelism) {
 		if (parallelism > 1 && !isParallel) {
-			throw new IllegalArgumentException("Source: " + this.id + " is not a parallel source");
+			throw new IllegalArgumentException("Source: " + transformation.getId() + " is not a parallel source");
 		} else {
-			return (DataStreamSource<OUT>) super.setParallelism(parallelism);
+			return (DataStreamSource<T>) super.setParallelism(parallelism);
 		}
 	}
 }

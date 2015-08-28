@@ -18,36 +18,39 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.util.InstantiationUtil;
-
-import java.io.IOException;
-import java.util.Map;
+import java.io.Serializable;
 
 /**
- * A StateHandle that includes a copy of the state itself. This state handle is recommended for 
- * cases where the operatorState is lightweight enough to pass throughout the network.
- *
- * State is kept in a byte[] because it may contain userclasses, which akka is not able to handle.
+ * A StateHandle that includes the operator states directly.
  */
-public class LocalStateHandle implements StateHandle{
-	
-	transient private Map<String, OperatorState<?>> stateMap;
-	private final byte[] state;
+public class LocalStateHandle<T extends Serializable> implements StateHandle<T> {
 
-	public LocalStateHandle(Map<String,OperatorState<?>> state) throws IOException {
-		this.stateMap = state;
-		this.state = InstantiationUtil.serializeObject(state);
+	private static final long serialVersionUID = 2093619217898039610L;
+
+	private final T state;
+
+	public LocalStateHandle(T state) {
+		this.state = state;
 	}
 
 	@Override
-	public Map<String,OperatorState<?>> getState(ClassLoader usercodeClassloader) {
-		if(stateMap == null) {
-			try {
-				stateMap = (Map<String, OperatorState<?>>) InstantiationUtil.deserializeObject(this.state, usercodeClassloader);
-			} catch (Exception e) {
-				throw new RuntimeException("Error while deserializing the state", e);
-			}
+	public T getState() {
+		return state;
+	}
+
+	@Override
+	public void discardState() throws Exception {
+	}
+
+	public static class LocalStateHandleProvider<R extends Serializable> implements
+			StateHandleProvider<R> {
+
+		private static final long serialVersionUID = 4665419208932921425L;
+
+		@Override
+		public LocalStateHandle<R> createStateHandle(R state) {
+			return new LocalStateHandle<R>(state);
 		}
-		return stateMap;
+
 	}
 }

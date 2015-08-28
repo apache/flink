@@ -18,17 +18,13 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import akka.actor.ActorRef;
-
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.util.InstantiationUtil;
 
 import scala.concurrent.Await;
@@ -37,7 +33,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 public class TaskInputSplitProvider implements InputSplitProvider {
 
-	private final ActorRef jobManager;
+	private final ActorGateway jobManager;
 	
 	private final JobID jobId;
 	
@@ -49,9 +45,13 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 	
 	private final FiniteDuration timeout;
 	
-	public TaskInputSplitProvider(ActorRef jobManager, JobID jobId, JobVertexID vertexId,
-								ExecutionAttemptID executionID, ClassLoader userCodeClassLoader,
-								FiniteDuration timeout)
+	public TaskInputSplitProvider(
+			ActorGateway jobManager,
+			JobID jobId,
+			JobVertexID vertexId,
+			ExecutionAttemptID executionID,
+			ClassLoader userCodeClassLoader,
+			FiniteDuration timeout)
 	{
 		this.jobManager = jobManager;
 		this.jobId = jobId;
@@ -64,27 +64,28 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 	@Override
 	public InputSplit getNextInputSplit() {
 		try {
-			final Future<Object> response = Patterns.ask(jobManager,
+			final Future<Object> response = jobManager.ask(
 					new JobManagerMessages.RequestNextInputSplit(jobId, vertexId, executionID),
-					new Timeout(timeout));
+					timeout);
 
 			final Object result = Await.result(response, timeout);
 
-			if (result == null) {
-				return null;
-			}
-
-			if(!(result instanceof TaskManagerMessages.NextInputSplit)){
+			if(!(result instanceof JobManagerMessages.NextInputSplit)){
 				throw new RuntimeException("RequestNextInputSplit requires a response of type " +
 						"NextInputSplit. Instead response is of type " + result.getClass() + ".");
 			} else {
-				final TaskManagerMessages.NextInputSplit nextInputSplit =
-						(TaskManagerMessages.NextInputSplit) result;
+				final JobManagerMessages.NextInputSplit nextInputSplit =
+						(JobManagerMessages.NextInputSplit) result;
 
 				byte[] serializedData = nextInputSplit.splitData();
-				Object deserialized = InstantiationUtil.deserializeObject(serializedData,
-						usercodeClassLoader);
-				return (InputSplit) deserialized;
+
+				if(serializedData == null) {
+					return null;
+				} else {
+					Object deserialized = InstantiationUtil.deserializeObject(serializedData,
+							usercodeClassLoader);
+					return (InputSplit) deserialized;
+				}
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Requesting the next InputSplit failed.", e);

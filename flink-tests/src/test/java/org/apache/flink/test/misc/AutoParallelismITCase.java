@@ -79,6 +79,7 @@ public class AutoParallelismITCase {
 					"localhost", cluster.getJobManagerRPCPort());
 
 			env.setParallelism(ExecutionConfig.PARALLELISM_AUTO_MAX);
+			env.getConfig().disableSysoutLogging();
 
 			DataSet<Integer> result = env
 					.createInput(new ParallelismDependentInputFormat())

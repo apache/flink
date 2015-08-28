@@ -7,9 +7,7 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
-
   http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,7 +16,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+		 xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 	<parent>
 		<groupId>org.apache</groupId>
@@ -30,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>0.9-SNAPSHOT</version>
+	<version>0.10-SNAPSHOT</version>
 
 	<name>flink</name>
 	<packaging>pom</packaging>
@@ -57,6 +55,7 @@ under the License.
 		<module>flink-java</module>
 		<module>flink-scala</module>
 		<module>flink-runtime</module>
+		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
@@ -84,10 +83,11 @@ under the License.
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3.7</akka.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
-		<kryoserialization.version>0.3.2</kryoserialization.version>
-		<protobuf.version>2.5.0</protobuf.version>
 		<chill.version>0.5.2</chill.version>
-		<asm.version>4.0</asm.version>
+		<asm.version>5.0.4</asm.version>
+		<tez.version>0.6.1</tez.version>
+		<zookeeper.version>3.4.6</zookeeper.version>
+		<curatorrecipes.version>2.8.0</curatorrecipes.version>
 	</properties>
 
 	<dependencies>
@@ -155,7 +155,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-	
+
 	<!-- this section defines the module versions that are used if nothing else is specified. -->
 	<dependencyManagement>
 		<!-- WARN: 
@@ -202,7 +202,7 @@ under the License.
 				<artifactId>avro-ipc</artifactId>
 				<version>1.7.6</version>
 			</dependency>
-			
+
 			<!-- Make sure we use a consistent commons-cli version throughout the project -->
 			<dependency>
 				<groupId>commons-cli</groupId>
@@ -215,14 +215,20 @@ under the License.
 				<artifactId>commons-io</artifactId>
 				<version>2.4</version>
 			</dependency>
-			
+
 			<!-- common-collections is used by us and by hadoop, so we need to define a common version -->
 			<dependency>
 				<groupId>commons-collections</groupId>
 				<artifactId>commons-collections</artifactId>
 				<version>3.2.1</version>
 			</dependency>
-			
+
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-math3</artifactId>
+				<version>3.5</version>
+			</dependency>
+
 			<!-- Managed dependency required for HBase in flink-hbase -->
 			<dependency>
 				<groupId>org.javassist</groupId>
@@ -267,6 +273,12 @@ under the License.
 				<groupId>org.scala-lang</groupId>
 				<artifactId>scala-compiler</artifactId>
 				<version>${scala.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.clapper</groupId>
+				<artifactId>grizzled-slf4j_${scala.binary.version}</artifactId>
+				<version>1.0.2</version>
 			</dependency>
 
 			<dependency>
@@ -317,6 +329,18 @@ under the License.
 						<artifactId>scala-library</artifactId>
 					</exclusion>
 				</exclusions>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.zookeeper</groupId>
+				<artifactId>zookeeper</artifactId>
+				<version>${zookeeper.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.curator</groupId>
+				<artifactId>curator-recipes</artifactId>
+				<version>${curatorrecipes.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -375,6 +399,12 @@ under the License.
 			</properties>
 		</profile>
 
+		<profile>
+			<id>include-tez</id>
+			<properties>
+				<hadoop.version>2.6.0</hadoop.version>
+			</properties>
+		</profile>
 		<profile>
 			<id>include-yarn</id>
 			<activation>
@@ -554,21 +584,21 @@ under the License.
 		
 		<profile>
 			<id>release</id>
-				<build>
+			<build>
 				<plugins>
 					<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-gpg-plugin</artifactId>
-					<version>1.4</version>
-					<executions>
-						<execution>
-						<id>sign-artifacts</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>sign</goal>
-						</goals>
-						</execution>
-					</executions>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+						<version>1.4</version>
+						<executions>
+							<execution>
+								<id>sign-artifacts</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>sign</goal>
+								</goals>
+							</execution>
+						</executions>
 					</plugin>
 				</plugins>
 				<pluginManagement>
@@ -589,36 +619,37 @@ under the License.
 		</profile>
 		<profile>
 			<id>jdk8</id>
-				<activation>
-					<activeByDefault>false</activeByDefault>
-					<jdk>1.8</jdk>
-				</activation>
-				<modules>
-					<module>flink-java8</module>
-				</modules>
-				<build>
-					<plugins>
-						<plugin>
-							<groupId>org.apache.maven.plugins</groupId>
-							<artifactId>maven-javadoc-plugin</artifactId>
-							<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
-							<configuration>
-								<quiet>true</quiet>
-							</configuration>
-							<executions>
-								<execution>
-									<id>attach-javadocs</id>
-									<goals>
-										<goal>jar</goal>
-									</goals>
-									<configuration>
-										<additionalparam>-Xdoclint:none</additionalparam>
-									</configuration>
-								</execution>
-							</executions>
-						</plugin>
-					</plugins>
-				</build>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+				<jdk>1.8</jdk>
+			</activation>
+			<modules>
+				<module>flink-java8</module>
+			</modules>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
+						<configuration>
+							<quiet>true</quiet>
+						</configuration>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+								<configuration>
+									<additionalparam>-Xdoclint:none</additionalparam>
+									<detectOfflineLinks>false</detectOfflineLinks>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 	</profiles>
 
@@ -637,11 +668,11 @@ under the License.
 					</archive>
 				</configuration>
 			</plugin>
-			
+
 			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
-				<version>0.10</version><!--$NO-MVN-MAN-VER$-->
+				<version>0.11</version><!--$NO-MVN-MAN-VER$-->
 				<inherited>false</inherited>
 				<executions>
 					<execution>
@@ -663,9 +694,7 @@ under the License.
 							to you under the Apache License, Version 2.0 (the
 							"License"); you may not use this file except in compliance
 							with the License.  You may obtain a copy of the License at
-
 							  http://www.apache.org/licenses/LICENSE-2.0
-
 							Unless required by applicable law or agreed to in writing,
 							software distributed under the License is distributed on an
 							"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -673,7 +702,7 @@ under the License.
 							specific language governing permissions and limitations
 							under the License.
 						-->
-							<license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
+						<license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
 							<licenseFamilyCategory>AL2 </licenseFamilyCategory>
 							<licenseFamilyName>Apache License 2.0</licenseFamilyName>
 							<notes />
@@ -694,6 +723,7 @@ under the License.
 						<exclude>**/*.log</exclude>
 						<!-- External web libraries. -->
 						<exclude>docs/**/bootstrap*</exclude>
+						<exclude>docs/img/*.svg</exclude>
 						<exclude>**/resources/**/font-awesome/**</exclude>
 						<exclude>**/resources/**/jquery*</exclude>
 						<exclude>**/resources/**/bootstrap*</exclude>
@@ -706,19 +736,45 @@ under the License.
 						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/d3.layout.min.js</exclude>
 						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/rickshaw.*</exclude>
 						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/css/rickshaw.*</exclude>
+
+						<!-- web dashboard config JSON files -->
+						<exclude>flink-runtime-web/web-dashboard/package.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/bower.json</exclude>
+
+						<!-- web dashboard files under 3rd party license -->
+						<exclude>flink-runtime-web/web-dashboard/vendor-local/d3-timeline.js</exclude>
+						<exclude>flink-runtime-web/web-dashboard/assets/fonts/FontAwesome.otf</exclude>
+						<exclude>flink-runtime-web/web-dashboard/assets/fonts/fontawesome*</exclude>
+						<exclude>flink-runtime-web/web-dashboard/web/css/vendor.css</exclude>
+						<exclude>flink-runtime-web/web-dashboard/web/fonts/FontAwesome.otf</exclude>
+						<exclude>flink-runtime-web/web-dashboard/web/fonts/fontawesome*</exclude>
+						<exclude>flink-runtime-web/web-dashboard/web/js/index.js</exclude>
+                        <exclude>flink-runtime-web/web-dashboard/web/js/vendor.js</exclude>
+
+						<!-- downloaded and generated web libraries. -->
+						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>
+						<exclude>flink-runtime-web/web-dashboard/bower_components/**</exclude>
+						<exclude>flink-runtime-web/web-dashboard/tmp/**</exclude>
+
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
 						<exclude>flink-staging/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
+						<!-- TweetInputFormat Test Data-->
+						<exclude>flink-contrib/flink-tweet-inputformat/src/main/resources/HashTagTweetSample.json</exclude>
 						<exclude>flink-staging/flink-avro/src/test/resources/testdata.avro</exclude>
 						<exclude>flink-staging/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
-						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
+						<exclude>flink-staging/flink-language-binding/flink-python/src/test/python/org/apache/flink/languagebinding/api/python/flink/test/data_csv</exclude>
+						<exclude>flink-staging/flink-language-binding/flink-python/src/test/python/org/apache/flink/languagebinding/api/python/flink/test/data_text</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
+						<exclude>**/flink-bin/conf/masters</exclude>
+						<exclude>**/flink-bin/conf/zoo.cfg</exclude>
                         <exclude>flink-contrib/docker-flink/flink/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
 						<exclude>CHANGELOG</exclude>
+						<exclude>CONTRIBUTING.md</exclude>
 						<exclude>CONTRIBUTORS</exclude>
 						<exclude>DEPENDENCIES</exclude>
 						<!-- Build files -->
@@ -731,6 +787,8 @@ under the License.
 						<exclude>build-target/**</exclude>
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
+						<!-- PyCharm -->
+						<exclude>**/.idea/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
@@ -760,8 +818,8 @@ under the License.
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
-					<source>1.6</source>
-					<target>1.6</target>
+					<source>1.7</source>
+					<target>1.7</target>
 					<!-- The output of Xlint is not show by default, but we activate it for the QA bot
 					to be able to get more warnings -->
 					<compilerArgument>-Xlint:all</compilerArgument>
@@ -847,7 +905,6 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>2.3</version>
 				<executions>
 					<execution>
 						<id>shade-flink</id>
@@ -860,6 +917,16 @@ under the License.
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<createDependencyReducedPom>true</createDependencyReducedPom>
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+							<filters>
+								<!-- Globally exclude log4j.properties from our JAR files. -->
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>log4j.properties</exclude>
+										<exclude>log4j-test.properties</exclude>
+									</excludes>
+								</filter>
+							</filters>
 							<artifactSet>
 								<includes>
 									<include>com.google.guava:*</include>
@@ -893,6 +960,12 @@ under the License.
 		-->
 		<pluginManagement>
 			<plugins>
+				<!--set maven shade plugin version-->
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<version>2.4.1</version>
+				</plugin>
 				<!--This plugin's configuration is used to store Eclipse m2e settings
 					only. It has no influence on the Maven build itself. -->
 				<plugin>

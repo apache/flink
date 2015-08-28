@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.windowing.policy;
 
 import java.util.LinkedList;
 
+import org.apache.flink.streaming.api.windowing.helper.SystemTimestamp;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 
@@ -46,7 +47,7 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 
 	/**
 	 * This is mostly the same as
-	 * {@link TimeTriggerPolicy#TimeTriggerPolicy(long, Timestamp)}. In addition
+	 * {@link TimeTriggerPolicy#TimeTriggerPolicy(long, TimestampWrapper)}. In addition
 	 * to granularity and timestamp a delay can be specified for the first
 	 * trigger. If the start time given by the timestamp is x, the delay is y,
 	 * and the granularity is z, the first trigger will happen at x+y+z.
@@ -57,11 +58,6 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 * @param timestampWrapper
 	 *            The {@link TimestampWrapper} to measure the time with. This
 	 *            can be either user defined of provided by the API.
-	 * @param timeWrapper
-	 *            This policy creates fake elements to not miss windows in case
-	 *            no element arrived within the duration of the window. This
-	 *            extractor should wrap a long into such an element of type
-	 *            DATA.
 	 */
 	public TimeTriggerPolicy(long granularity, TimestampWrapper<DATA> timestampWrapper) {
 		this.startTime = timestampWrapper.getStartTime();
@@ -86,9 +82,9 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	}
 
 	/**
-	 * In case {@link DefaultTimeStamp} is used, a runnable is returned which
+	 * In case {@link SystemTimestamp} is used, a runnable is returned which
 	 * triggers based on the current system time. If any other time measure is
-	 * used the method return null.
+	 * used the method returns null.
 	 * 
 	 * @param callback
 	 *            The object which is takes the callbacks for adding fake
@@ -107,7 +103,7 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 
 	/**
 	 * This method is only called in case the runnable triggers a window end
-	 * according to the {@link DefaultTimeStamp}.
+	 * according to the {@link SystemTimestamp}.
 	 * 
 	 * @param callback
 	 *            The callback object.

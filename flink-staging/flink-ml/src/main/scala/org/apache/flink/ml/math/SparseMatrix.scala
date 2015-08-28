@@ -112,6 +112,23 @@ class SparseMatrix(
     result.toString
   }
 
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case sm: SparseMatrix if numRows == sm.numRows && numCols == sm.numCols =>
+        rowIndices.sameElements(sm.rowIndices) && colPtrs.sameElements(sm.colPtrs) &&
+        data.sameElements(sm.data)
+      case _ => false
+    }
+  }
+
+  override def hashCode: Int = {
+    val hashCodes = List(numRows.hashCode(), numCols.hashCode(),
+      java.util.Arrays.hashCode(rowIndices), java.util.Arrays.hashCode(colPtrs),
+      java.util.Arrays.hashCode(data))
+
+    hashCodes.foldLeft(5){(left, right) => left * 41 + right}
+  }
+
   private def locate(row: Int, col: Int): Int = {
     require(0 <= row && row < numRows && 0 <= col && col < numCols,
       (row, col) + " not in [0, " + numRows + ") x [0, " + numCols + ")")
@@ -232,5 +249,19 @@ object SparseMatrix{
     }
 
     new SparseMatrix(numRows, numCols, prunedRowIndices, colPtrs, prunedData)
+  }
+
+  /** Convenience method to convert a single tuple with an integer value into a SparseMatrix.
+    * The problem is that providing a single tuple to the fromCOO method, the Scala type inference
+    * cannot infer that the tuple has to be of type (Int, Int, Double) because of the overloading
+    * with the Iterable type.
+    *
+    * @param numRows
+    * @param numCols
+    * @param entry
+    * @return
+    */
+  def fromCOO(numRows: Int, numCols: Int, entry: (Int, Int, Int)): SparseMatrix = {
+    fromCOO(numRows, numCols, (entry._1, entry._2, entry._3.toDouble))
   }
 }

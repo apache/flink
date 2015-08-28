@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+
 public class SimpleStringSchema implements DeserializationSchema<String>,
 		SerializationSchema<String, String> {
 
@@ -37,4 +40,8 @@ public class SimpleStringSchema implements DeserializationSchema<String>,
 		return element;
 	}
 
+	@Override
+	public TypeInformation<String> getProducedType() {
+		return BasicTypeInfo.STRING_TYPE_INFO;
+	}
 }

@@ -28,6 +28,7 @@ import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest.ComplexNestedClass;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.junit.Assert;
@@ -253,5 +254,31 @@ public class KeysTest {
 
 		ek = new ExpressionKeys<PojoWithMultiplePojos>(new String[]{"i0"}, ti);
 		Assert.assertArrayEquals(new int[] {0}, ek.computeLogicalKeyPositions());
+	}
+
+	@Test
+	public void testTupleWithNestedPojo() {
+
+		TypeInformation<Tuple3<Integer, Pojo1, PojoWithMultiplePojos>> ti =
+				new TupleTypeInfo<Tuple3<Integer, Pojo1, PojoWithMultiplePojos>>(
+					BasicTypeInfo.INT_TYPE_INFO,
+					TypeExtractor.getForClass(Pojo1.class),
+					TypeExtractor.getForClass(PojoWithMultiplePojos.class)
+				);
+
+		ExpressionKeys<Tuple3<Integer, Pojo1, PojoWithMultiplePojos>> ek;
+
+		ek = new ExpressionKeys<Tuple3<Integer, Pojo1, PojoWithMultiplePojos>>(new int[]{0}, ti);
+		Assert.assertArrayEquals(new int[] {0}, ek.computeLogicalKeyPositions());
+
+		ek = new ExpressionKeys<Tuple3<Integer, Pojo1, PojoWithMultiplePojos>>(new int[]{1}, ti);
+		Assert.assertArrayEquals(new int[] {1,2}, ek.computeLogicalKeyPositions());
+
+		ek = new ExpressionKeys<Tuple3<Integer, Pojo1, PojoWithMultiplePojos>>(new int[]{2}, ti);
+		Assert.assertArrayEquals(new int[] {3,4,5,6,7}, ek.computeLogicalKeyPositions());
+
+		ek = new ExpressionKeys<Tuple3<Integer, Pojo1, PojoWithMultiplePojos>>(new int[]{}, ti, true);
+		Assert.assertArrayEquals(new int[] {0,1,2,3,4,5,6,7}, ek.computeLogicalKeyPositions());
+
 	}
 }

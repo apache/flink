@@ -25,6 +25,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.ARGS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
 
 /**
  * Base class for command line options that refer to a JAR file program.
@@ -38,6 +39,8 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	private final String[] programArgs;
 
 	private final int parallelism;
+
+	private final boolean stdoutLogging;
 
 	protected ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
@@ -77,6 +80,12 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		else {
 			parallelism = -1;
 		}
+
+		if(line.hasOption(LOGGING_OPTION.getOpt())){
+			stdoutLogging = false;
+		} else{
+			stdoutLogging = true;
+		}
 	}
 
 	public String getJarFilePath() {
@@ -93,5 +102,9 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	public int getParallelism() {
 		return parallelism;
+	}
+
+	public boolean getStdoutLogging() {
+		return stdoutLogging;
 	}
 }

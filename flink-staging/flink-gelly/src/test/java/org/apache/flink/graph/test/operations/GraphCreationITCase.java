@@ -18,6 +18,9 @@
 
 package org.apache.flink.graph.test.operations;
 
+import java.util.LinkedList;
+import java.util.List;
+
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -29,11 +32,7 @@ import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
 import org.apache.flink.graph.validation.InvalidVertexIdsValidator;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -44,21 +43,8 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-    private String resultPath;
+
     private String expectedResult;
-
-    @Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
 
 	@Test
 	public void testCreateWithoutVertexValues() throws Exception {
@@ -68,13 +54,16 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, NullValue, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env), env);
 
-		graph.getVertices().writeAsCsv(resultPath);
-		env.execute();
+        DataSet<Vertex<Long,NullValue>> data = graph.getVertices();
+        List<Vertex<Long,NullValue>> result= data.collect();
+        
 		expectedResult = "1,(null)\n" +
 					"2,(null)\n" +
 					"3,(null)\n" +
 					"4,(null)\n" +
 					"5,(null)\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -86,13 +75,16 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env),
 				new AssignIdAsValueMapper(), env);
 
-		graph.getVertices().writeAsCsv(resultPath);
-		env.execute();
+        DataSet<Vertex<Long,Long>> data = graph.getVertices();
+        List<Vertex<Long,Long>> result= data.collect();
+        
 		expectedResult = "1,1\n" +
 					"2,2\n" +
 					"3,3\n" +
 					"4,4\n" +
 					"5,5\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -104,13 +96,16 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		Graph<Long, DummyCustomParameterizedType<Double>, Long> graph = Graph.fromDataSet(
 				TestGraphUtils.getLongLongEdgeData(env), new AssignCustomVertexValueMapper(), env);
 
-		graph.getVertices().writeAsCsv(resultPath);
-		env.execute();
+        DataSet<Vertex<Long,DummyCustomParameterizedType<Double>>> data = graph.getVertices();
+        List<Vertex<Long,DummyCustomParameterizedType<Double>>> result= data.collect();
+        
 		expectedResult = "1,(2.0,0)\n" +
 				"2,(4.0,1)\n" +
 				"3,(6.0,2)\n" +
 				"4,(8.0,3)\n" +
 				"5,(10.0,4)\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -123,12 +118,16 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
-		Boolean result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
+		Boolean valid = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
 
-		env.fromElements(result).writeAsText(resultPath);
-		env.execute();
-
-		expectedResult = "true\n";
+		//env.fromElements(result).writeAsText(resultPath);
+		
+		String res= valid.toString();//env.fromElements(valid);
+        List<String> result= new LinkedList<String>();
+        result.add(res);
+		expectedResult = "true";
+		
+		compareResultAsText(result, expectedResult);
 	}
 
 	@Test
@@ -141,11 +140,15 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
-		Boolean result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
-		env.fromElements(result).writeAsText(resultPath);
-		env.execute();
+		Boolean valid = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
+		
+		String res= valid.toString();//env.fromElements(valid);
+        List<String> result= new LinkedList<String>();
+        result.add(res);
 
 		expectedResult = "false\n";
+		
+		compareResultAsText(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 /**
@@ -37,29 +38,37 @@ public class TumblingGroupedPreReducer<T> extends WindowBuffer<T> implements Pre
 	private KeySelector<T, ?> keySelector;
 
 	private Map<Object, T> reducedValues;
-	private Map<Object, T> keyInstancePerKey = new HashMap<Object, T>();
 
 	private TypeSerializer<T> serializer;
 
+	private boolean evict = true;
+
 	public TumblingGroupedPreReducer(ReduceFunction<T> reducer, KeySelector<T, ?> keySelector,
 			TypeSerializer<T> serializer) {
+		this(reducer, keySelector, serializer, true);
+	}
+
+	public TumblingGroupedPreReducer(ReduceFunction<T> reducer, KeySelector<T, ?> keySelector,
+			TypeSerializer<T> serializer, boolean evict) {
 		this.reducer = reducer;
 		this.serializer = serializer;
 		this.keySelector = keySelector;
 		this.reducedValues = new HashMap<Object, T>();
+		this.evict = evict;
 	}
 
-	public void emitWindow(Collector<StreamWindow<T>> collector) {
+	public void emitWindow(Collector<StreamRecord<StreamWindow<T>>> collector) {
 
 		if (!reducedValues.isEmpty()) {
 			StreamWindow<T> currentWindow = createEmptyWindow();
 			currentWindow.addAll(reducedValues.values());
-			collector.collect(currentWindow);
-			reducedValues.clear();
+			collector.collect(new StreamRecord<StreamWindow<T>>(currentWindow));
 		} else if (emitEmpty) {
-			collector.collect(createEmptyWindow());
+			collector.collect(new StreamRecord<StreamWindow<T>>(createEmptyWindow()));
 		}
-
+		if (evict) {
+			reducedValues.clear();
+		}
 	}
 
 	public void store(T element) throws Exception {
@@ -74,23 +83,25 @@ public class TumblingGroupedPreReducer<T> extends WindowBuffer<T> implements Pre
 		}
 
 		reducedValues.put(key, reduced);
-
-		if (emitPerGroup && !keyInstancePerKey.containsKey(key)) {
-			keyInstancePerKey.put(key, element);
-		}
 	}
 
+	@Override
 	public void evict(int n) {
 	}
 
 	@Override
 	public TumblingGroupedPreReducer<T> clone() {
-		return new TumblingGroupedPreReducer<T>(reducer, keySelector, serializer);
+		return new TumblingGroupedPreReducer<T>(reducer, keySelector, serializer, evict);
 	}
 
 	@Override
 	public String toString() {
 		return reducedValues.toString();
+	}
+
+	public TumblingGroupedPreReducer<T> noEvict() {
+		this.evict = false;
+		return this;
 	}
 
 }

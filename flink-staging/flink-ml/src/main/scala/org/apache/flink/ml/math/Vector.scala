@@ -18,10 +18,12 @@
 
 package org.apache.flink.ml.math
 
+import breeze.linalg.{SparseVector => BreezeSparseVector, DenseVector => BreezeDenseVector, Vector => BreezeVector}
+
 /** Base trait for Vectors
   *
   */
-trait Vector {
+trait Vector extends Serializable {
 
   /** Number of elements in a vector
     *
@@ -49,14 +51,46 @@ trait Vector {
     */
   def copy: Vector
 
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case vector: Vector if size == vector.size =>
-        0 until size forall { idx =>
-          this(idx) == vector(idx)
-        }
+  /** Returns the dot product of the recipient and the argument
+    *
+    * @param other a Vector
+    * @return a scalar double of dot product
+    */
+  def dot(other: Vector): Double
 
-      case _ => false
+  /** Magnitude of a vector
+    *
+    * @return
+    */
+  def magnitude: Double
+
+  def equalsVector(vector: Vector): Boolean = {
+    if(size == vector.size) {
+      (0 until size) forall { idx =>
+        this(idx) == vector(idx)
+      }
+    } else {
+      false
+    }
+  }
+}
+
+object Vector{
+  /** BreezeVectorConverter implementation for [[Vector]]
+    *
+    * This allows to convert Breeze vectors into [[Vector]].
+    */
+  implicit val vectorConverter = new BreezeVectorConverter[Vector] {
+    override def convert(vector: BreezeVector[Double]): Vector = {
+      vector match {
+        case dense: BreezeDenseVector[Double] => new DenseVector(dense.data)
+
+        case sparse: BreezeSparseVector[Double] =>
+          new SparseVector(
+            sparse.length,
+            sparse.index.take(sparse.used),
+            sparse.data.take(sparse.used))
+      }
     }
   }
 }

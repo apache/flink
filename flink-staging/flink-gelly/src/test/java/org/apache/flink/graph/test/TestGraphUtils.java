@@ -249,6 +249,17 @@ public class TestGraphUtils {
 		return vertices;
 	}
 
+	public static final List<Vertex<Long, Boolean>> getLongBooleanVertices() {
+		List<Vertex<Long, Boolean>> vertices = new ArrayList<Vertex<Long, Boolean>>();
+		vertices.add(new Vertex<Long, Boolean>(1L, true));
+		vertices.add(new Vertex<Long, Boolean>(2L, true));
+		vertices.add(new Vertex<Long, Boolean>(3L, true));
+		vertices.add(new Vertex<Long, Boolean>(4L, true));
+		vertices.add(new Vertex<Long, Boolean>(5L, true));
+
+		return vertices;
+	}
+
 	public static final DataSet<Edge<Long, Long>> getDisconnectedLongLongEdgeData(
 				ExecutionEnvironment env) {
 			List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
@@ -358,5 +369,49 @@ public class TestGraphUtils {
 	private static final class BlackholeOutputSteam extends java.io.OutputStream {
 		@Override
 		public void write(int b){}
+	}
+
+	/**
+	 * utils for getting the second graph for the test of method difference();
+	 * @param env
+	 */
+	public static final DataSet<Edge<Long,Long>> getLongLongEdgeDataDifference(
+			ExecutionEnvironment env){
+		return env.fromCollection(getLongLongEdgesForDifference());
+	}
+
+	public static final DataSet<Edge<Long,Long>> getLongLongEdgeDataDifference2(
+			ExecutionEnvironment env){
+		return env.fromCollection(getLongLongEdgesForDifference2());
+	}
+
+	public static final DataSet<Vertex<Long,Long>> getLongLongVertexDataDifference(
+			ExecutionEnvironment env)
+	{
+		return env.fromCollection(getVerticesForDifference());
+	}
+
+	public static final List<Vertex<Long,Long>> getVerticesForDifference(){
+		List<Vertex<Long,Long>> vertices = new ArrayList<Vertex<Long,Long>>();
+		vertices.add(new Vertex<Long, Long>(1L, 1L));
+		vertices.add(new Vertex<Long, Long>(3L, 3L));
+		vertices.add(new Vertex<Long, Long>(6L, 6L));
+
+		return vertices;
+
+	}
+
+	public static final List<Edge<Long, Long>> getLongLongEdgesForDifference() {
+		List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
+		edges.add(new Edge<Long, Long>(1L, 3L, 13L));
+		edges.add(new Edge<Long, Long>(1L, 6L, 26L));
+		edges.add(new Edge<Long, Long>(6L, 3L, 63L));
+		return edges;
+	}
+
+	public static final List<Edge<Long, Long>> getLongLongEdgesForDifference2() {
+		List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
+		edges.add(new Edge<Long, Long>(6L, 6L, 66L));
+		return edges;
 	}
 }

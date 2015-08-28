@@ -17,31 +17,31 @@
  */
 package org.apache.flink.api.table.runtime
 
-import org.apache.flink.api.table.codegen.GenerateUnaryPredicate
-import org.apache.flink.api.table.tree.{NopExpression, Expression}
-import org.apache.flink.api.common.functions.RichFilterFunction
+import org.apache.flink.api.common.functions.{FilterFunction, RichFilterFunction}
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.table.codegen.GenerateFilter
+import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.configuration.Configuration
 
+/**
+ * Proxy function that takes an expression predicate. This is compiled
+ * upon runtime and calls to [[filter()]] are forwarded to the compiled code.
+ */
 class ExpressionFilterFunction[T](
     predicate: Expression,
     inputType: CompositeType[T]) extends RichFilterFunction[T] {
 
-  var compiledPredicate: (T) => Boolean = null
+  var compiledFilter: FilterFunction[T] = null
 
   override def open(config: Configuration): Unit = {
-    if (compiledPredicate == null) {
-      compiledPredicate = predicate match {
-        case n: NopExpression => null
-        case _ =>
-          val codegen = new GenerateUnaryPredicate[T](
-            inputType,
-            predicate,
-            getRuntimeContext.getUserCodeClassLoader)
-          codegen.generate()
-      }
+    if (compiledFilter == null) {
+      val codegen = new GenerateFilter[T](
+        inputType,
+        predicate,
+        getRuntimeContext.getUserCodeClassLoader)
+      compiledFilter = codegen.generate()
     }
   }
 
-  override def filter(in: T) = compiledPredicate(in)
+  override def filter(in: T) = compiledFilter.filter(in)
 }

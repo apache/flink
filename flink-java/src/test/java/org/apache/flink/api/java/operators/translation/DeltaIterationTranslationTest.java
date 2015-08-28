@@ -33,6 +33,7 @@ import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
@@ -91,7 +92,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 						joined,
 						joined.map(new NextWorksetMapper()).name(BEFORE_NEXT_WORKSET_MAP));
 				
-				result.print();
+				result.output(new DiscardingOutputFormat<Tuple3<Double, Long, String>>());
 				result.writeAsText("/dev/null");
 			}
 			

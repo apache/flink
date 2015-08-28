@@ -29,6 +29,7 @@ import static org.junit.Assert.*;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -37,7 +38,7 @@ import org.junit.Test;
  *
  * @param <T>
  */
-public abstract class ComparatorTestBase<T> {
+public abstract class ComparatorTestBase<T> extends TestLogger {
 
 	// Same as in the NormalizedKeySorter
 	private static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 8;

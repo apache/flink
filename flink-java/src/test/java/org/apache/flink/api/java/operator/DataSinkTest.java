@@ -256,23 +256,6 @@ public class DataSinkTest {
 	}
 
 	@Test
-	public void testPojoSingleOrderFull() {
-
-		final ExecutionEnvironment env = ExecutionEnvironment
-				.getExecutionEnvironment();
-		DataSet<CustomType> pojoDs = env
-				.fromCollection(pojoData);
-
-		// should work
-		try {
-			pojoDs.writeAsText("/tmp/willNotHappen")
-					.sortLocalOutput("*", Order.ASCENDING);
-		} catch (Exception e) {
-			Assert.fail();
-		}
-	}
-
-	@Test
 	public void testPojoTwoOrder() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment
@@ -315,6 +298,35 @@ public class DataSinkTest {
 		pojoDs.writeAsText("/tmp/willNotHappen")
 				.sortLocalOutput("myInt", Order.ASCENDING)
 				.sortLocalOutput("notThere", Order.DESCENDING);
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testPojoSingleOrderFull() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment
+				.getExecutionEnvironment();
+		DataSet<CustomType> pojoDs = env
+				.fromCollection(pojoData);
+
+		// must not work
+		pojoDs.writeAsText("/tmp/willNotHappen")
+				.sortLocalOutput("*", Order.ASCENDING);
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testArrayOrderFull() {
+
+		List<Object[]> arrayData = new ArrayList<Object[]>();
+		arrayData.add(new Object[0]);
+
+		final ExecutionEnvironment env = ExecutionEnvironment
+				.getExecutionEnvironment();
+		DataSet<Object[]> pojoDs = env
+				.fromCollection(arrayData);
+
+		// must not work
+		pojoDs.writeAsText("/tmp/willNotHappen")
+				.sortLocalOutput("*", Order.ASCENDING);
 	}
 
 	/**

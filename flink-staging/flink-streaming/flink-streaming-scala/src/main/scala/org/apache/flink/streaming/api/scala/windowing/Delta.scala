@@ -18,9 +18,8 @@
 
 package org.apache.flink.streaming.api.scala.windowing
 
+import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.streaming.api.windowing.helper.{ Delta => JavaDelta }
-import org.apache.commons.lang.Validate
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.windowing.deltafunction.DeltaFunction
 
 object Delta {
@@ -36,10 +35,10 @@ object Delta {
    * the eviction stops.
    */
   def of[T](threshold: Double, deltaFunction: (T, T) => Double, initVal: T): JavaDelta[T] = {
-    Validate.notNull(deltaFunction, "Delta function must not be null")
+    require(deltaFunction != null, "Delta function must not be null")
     val df = new DeltaFunction[T] {
-      val cleanFun = clean(deltaFunction)
-      override def getDelta(first: T, second: T) = cleanFun(first, second)
+      ClosureCleaner.clean(deltaFunction, true)
+      override def getDelta(first: T, second: T) = deltaFunction(first, second)
     }
     JavaDelta.of(threshold, df, initVal)
   }

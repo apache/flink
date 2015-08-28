@@ -55,10 +55,10 @@ import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
  * Input files are plain text files and must be formatted as follows:
  * <ul>
  * <li>Vertices represented as IDs and separated by new-line characters.<br> 
- * For example <code>"1\n2\n12\n42\n63\n"</code> gives five vertices (1), (2), (12), (42), and (63). 
+ * For example <code>"1\n2\n12\n42\n63"</code> gives five vertices (1), (2), (12), (42), and (63).
  * <li>Edges are represented as pairs for vertex IDs which are separated by space 
  * characters. Edges are separated by new-line characters.<br>
- * For example <code>"1 2\n2 12\n1 12\n42 63\n"</code> gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63).
+ * For example <code>"1 2\n2 12\n1 12\n42 63"</code> gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63).
  * </ul>
  * 
  * <p>
@@ -109,14 +109,13 @@ public class ConnectedComponents implements ProgramDescription {
 		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
 		
 		// emit result
-		if(fileOutput) {
+		if (fileOutput) {
 			result.writeAsCsv(outputPath, "\n", " ");
+			// execute program
+			env.execute("Connected Components Example");
 		} else {
 			result.print();
 		}
-		
-		// execute program
-		env.execute("Connected Components Example");
 	}
 	
 	// *************************************************************************

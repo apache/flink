@@ -25,14 +25,14 @@ import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
-import java.io.Serializable;
-
+/**
+ * This is an implementation of the Single-Source-Shortest Paths algorithm, using a vertex-centric iteration.
+ */
 @SuppressWarnings("serial")
-public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
-		implements GraphAlgorithm<K, Double, Double> {
+public class SingleSourceShortestPaths<K> implements
+	GraphAlgorithm<K, Double, Double, Graph<K, Double, Double>> {
 
 	private final K srcVertexId;
 	private final Integer maxIterations;
@@ -45,16 +45,12 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
 	@Override
 	public Graph<K, Double, Double> run(Graph<K, Double, Double> input) {
 
-		Graph<K, Double, Double> mappedInput = input.mapVertices(new InitVerticesMapper<K>(srcVertexId));
-
-		VertexCentricIteration<K, Double, Double, Double> iteration = mappedInput.createVertexCentricIteration(
-				new VertexDistanceUpdater<K>(), new MinDistanceMessenger<K>(), maxIterations);
-
-		return mappedInput.runVertexCentricIteration(iteration);
+		return input.mapVertices(new InitVerticesMapper<K>(srcVertexId))
+				.runVertexCentricIteration(new VertexDistanceUpdater<K>(), new MinDistanceMessenger<K>(),
+				maxIterations);
 	}
 
-	public static final class InitVerticesMapper<K extends Comparable<K> & Serializable>
-			implements MapFunction<Vertex<K, Double>, Double> {
+	public static final class InitVerticesMapper<K>	implements MapFunction<Vertex<K, Double>, Double> {
 
 		private K srcVertexId;
 
@@ -77,11 +73,10 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
 	 * 
 	 * @param <K>
 	 */
-	public static final class VertexDistanceUpdater<K extends Comparable<K> & Serializable>
-			extends VertexUpdateFunction<K, Double, Double> {
+	public static final class VertexDistanceUpdater<K> extends VertexUpdateFunction<K, Double, Double> {
 
 		@Override
-		public void updateVertex(K vertexKey, Double vertexValue,
+		public void updateVertex(Vertex<K, Double> vertex,
 				MessageIterator<Double> inMessages) {
 
 			Double minDistance = Double.MAX_VALUE;
@@ -92,7 +87,7 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
 				}
 			}
 
-			if (vertexValue > minDistance) {
+			if (vertex.getValue() > minDistance) {
 				setNewVertexValue(minDistance);
 			}
 		}
@@ -104,14 +99,13 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
 	 * 
 	 * @param <K>
 	 */
-	public static final class MinDistanceMessenger<K extends Comparable<K> & Serializable>
-			extends MessagingFunction<K, Double, Double, Double> {
+	public static final class MinDistanceMessenger<K> extends MessagingFunction<K, Double, Double, Double> {
 
 		@Override
-		public void sendMessages(K vertexKey, Double newDistance)
+		public void sendMessages(Vertex<K, Double> vertex)
 				throws Exception {
-			for (Edge<K, Double> edge : getOutgoingEdges()) {
-				sendMessageTo(edge.getTarget(), newDistance + edge.getValue());
+			for (Edge<K, Double> edge : getEdges()) {
+				sendMessageTo(edge.getTarget(), vertex.getValue() + edge.getValue());
 			}
 		}
 	}

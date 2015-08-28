@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.table
 
 import org.apache.flink.api.table._
-import org.apache.flink.api.table.tree.{UnresolvedFieldReference, Expression}
+import org.apache.flink.api.table.expressions.{UnresolvedFieldReference, Expression}
 import org.apache.flink.api.common.typeutils.CompositeType
 
 import org.apache.flink.api.scala._
@@ -40,7 +40,7 @@ class DataSetConversions[T](set: DataSet[T], inputType: CompositeType[T]) {
    * This results in a [[Table]] that has field `a` of type `String` and field `b`
    * of type `Int`.
    */
-  def as(fields: Expression*): Table[ScalaBatchTranslator] = {
+  def as(fields: Expression*): Table = {
      new ScalaBatchTranslator().createTable(set, fields.toArray)
   }
 
@@ -58,7 +58,7 @@ class DataSetConversions[T](set: DataSet[T], inputType: CompositeType[T]) {
    * Here, the result is a [[Table]] that has field `_1` of type `String` and field `_2`
    * of type `Int`.
    */
-  def toTable: Table[ScalaBatchTranslator] = {
+  def toTable: Table = {
     val resultFields = inputType.getFieldNames.map(UnresolvedFieldReference)
     as(resultFields: _*)
   }

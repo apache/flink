@@ -19,20 +19,27 @@
 package org.apache.flink.api.java;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
-import org.apache.flink.api.common.accumulators.ListAccumulator;
+import java.util.Random;
+
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+import static org.apache.flink.api.java.functions.FunctionAnnotation.SkipCodeAnalysis;
 
 
 public class Utils {
+	
+	public static final Random RNG = new Random();
 
 	public static String getCallLocationName() {
 		return getCallLocationName(4);
@@ -69,6 +76,7 @@ public class Utils {
 		}
 	}
 
+	@SkipCodeAnalysis
 	public static class CountHelper<T> extends RichFlatMapFunction<T, Long> {
 
 		private static final long serialVersionUID = 1L;
@@ -92,26 +100,35 @@ public class Utils {
 		}
 	}
 
+	@SkipCodeAnalysis
 	public static class CollectHelper<T> extends RichFlatMapFunction<T, T> {
 
 		private static final long serialVersionUID = 1L;
 
 		private final String id;
-		private final ListAccumulator<T> accumulator;
+		private final TypeSerializer<T> serializer;
+		
+		private SerializedListAccumulator<T> accumulator;
 
-		public CollectHelper(String id) {
+		public CollectHelper(String id, TypeSerializer<T> serializer) {
 			this.id = id;
-			this.accumulator = new ListAccumulator<T>();
+			this.serializer = serializer;
 		}
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			getRuntimeContext().addAccumulator(id, accumulator);
+			this.accumulator = new SerializedListAccumulator<T>();
 		}
 
 		@Override
 		public void flatMap(T value, Collector<T> out) throws Exception {
-			accumulator.add(value);
+			accumulator.add(value, serializer);
+		}
+
+		@Override
+		public void close() throws Exception {
+			// Important: should only be added in close method to minimize traffic of accumulators
+			getRuntimeContext().addAccumulator(id, accumulator);
 		}
 	}
 

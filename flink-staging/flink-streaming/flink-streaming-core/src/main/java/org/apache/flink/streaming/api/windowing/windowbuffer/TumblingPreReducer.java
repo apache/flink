@@ -20,10 +20,12 @@ package org.apache.flink.streaming.api.windowing.windowbuffer;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 /**
- * Non-grouped pre-reducer for tumbling eviction policy (the slide size is the same as the window size).
+ * Non-grouped pre-reducer for tumbling eviction policy (the slide size is the
+ * same as the window size).
  */
 public class TumblingPreReducer<T> extends WindowBuffer<T> implements PreAggregator {
 
@@ -34,19 +36,30 @@ public class TumblingPreReducer<T> extends WindowBuffer<T> implements PreAggrega
 	private T reduced;
 	private TypeSerializer<T> serializer;
 
+	private boolean evict = true;
+
 	public TumblingPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer) {
-		this.reducer = reducer;
-		this.serializer = serializer;
+		this(reducer, serializer, true);
 	}
 
-	public void emitWindow(Collector<StreamWindow<T>> collector) {
+	private TumblingPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer,
+			boolean evict) {
+		this.reducer = reducer;
+		this.serializer = serializer;
+		this.evict = evict;
+	}
+
+	public void emitWindow(Collector<StreamRecord<StreamWindow<T>>> collector) {
 		if (reduced != null) {
 			StreamWindow<T> currentWindow = createEmptyWindow();
 			currentWindow.add(reduced);
-			collector.collect(currentWindow);
-			reduced = null;
+			collector.collect(new StreamRecord<StreamWindow<T>>(currentWindow));
 		} else if (emitEmpty) {
-			collector.collect(createEmptyWindow());
+			collector.collect(new StreamRecord<StreamWindow<T>>(createEmptyWindow()));
+		}
+
+		if (evict) {
+			reduced = null;
 		}
 	}
 
@@ -63,7 +76,7 @@ public class TumblingPreReducer<T> extends WindowBuffer<T> implements PreAggrega
 
 	@Override
 	public TumblingPreReducer<T> clone() {
-		return new TumblingPreReducer<T>(reducer, serializer);
+		return new TumblingPreReducer<T>(reducer, serializer, evict);
 	}
 
 	@Override
@@ -74,6 +87,11 @@ public class TumblingPreReducer<T> extends WindowBuffer<T> implements PreAggrega
 	@Override
 	public WindowBuffer<T> emitEmpty() {
 		emitEmpty = true;
+		return this;
+	}
+
+	public TumblingPreReducer<T> noEvict() {
+		this.evict = false;
 		return this;
 	}
 

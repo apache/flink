@@ -18,13 +18,11 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import akka.actor.ActorRef;
 import akka.dispatch.OnComplete;
 import akka.dispatch.OnFailure;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -32,6 +30,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -43,16 +42,21 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFutureAction;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
+import org.apache.flink.runtime.messages.Messages;
+import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeoutException;
@@ -68,12 +72,12 @@ import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.CancelTask;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.FailIntermediateResultPartitions;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.SubmitTask;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.UpdateTask;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.UpdateTaskSinglePartitionInfo;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.createUpdateTaskMultiplePartitionInfos;
+import static org.apache.flink.runtime.messages.TaskMessages.CancelTask;
+import static org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
+import static org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
+import static org.apache.flink.runtime.messages.TaskMessages.UpdatePartitionInfo;
+import static org.apache.flink.runtime.messages.TaskMessages.UpdateTaskSinglePartitionInfo;
+import static org.apache.flink.runtime.messages.TaskMessages.createUpdateTaskMultiplePartitionInfos;
 
 /**
  * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times (for recovery,
@@ -126,11 +130,31 @@ public class Execution implements Serializable {
 	
 	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
 	
-	private StateHandle operatorState;
+	private SerializedValue<StateHandle<?>> operatorState;
+
+	/** The execution context which is used to execute futures. */
+	@SuppressWarnings("NonSerializableFieldInSerializableClass")
+	private ExecutionContext executionContext;
+
+	/* Lock for updating the accumulators atomically. */
+	private final Object accumulatorLock = new Object();
+
+	/* Continuously updated map of user-defined accumulators */
+	private volatile Map<String, Accumulator<?, ?>> userAccumulators;
+
+	/* Continuously updated map of internal accumulators */
+	private volatile Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
 
 	// --------------------------------------------------------------------------------------------
 	
-	public Execution(ExecutionVertex vertex, int attemptNumber, long startTimestamp, FiniteDuration timeout) {
+	public Execution(
+			ExecutionContext executionContext,
+			ExecutionVertex vertex,
+			int attemptNumber,
+			long startTimestamp,
+			FiniteDuration timeout) {
+		this.executionContext = checkNotNull(executionContext);
+
 		this.vertex = checkNotNull(vertex);
 		this.attemptId = new ExecutionAttemptID();
 		
@@ -197,8 +221,17 @@ public class Execution implements Serializable {
 		}
 		assignedResource = null;
 
+		executionContext = null;
+
 		partialInputChannelDeploymentDescriptors.clear();
 		partialInputChannelDeploymentDescriptors = null;
+	}
+	
+	public void setInitialState(SerializedValue<StateHandle<?>> initialState) {
+		if (state != ExecutionState.CREATED) {
+			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
+		}
+		this.operatorState = initialState;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -274,7 +307,7 @@ public class Execution implements Serializable {
 			return true;
 		}
 		else {
-			// call race, already deployed
+			// call race, already deployed, or already done
 			return false;
 		}
 	}
@@ -322,14 +355,15 @@ public class Execution implements Serializable {
 						attemptNumber, slot.getInstance().getInstanceConnectionInfo().getHostname()));
 			}
 			
-			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot);
+			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot, operatorState);
 			
 			// register this execution at the execution graph, to receive call backs
 			vertex.getExecutionGraph().registerExecution(this);
 
-			Instance instance = slot.getInstance();
-			Future<Object> deployAction = Patterns.ask(instance.getTaskManager(),
-					new SubmitTask(deployment), new Timeout(timeout));
+			final Instance instance = slot.getInstance();
+			final ActorGateway gateway = instance.getActorGateway();
+
+			final Future<Object> deployAction = gateway.ask(new SubmitTask(deployment), timeout);
 
 			deployAction.onComplete(new OnComplete<Object>(){
 
@@ -337,37 +371,26 @@ public class Execution implements Serializable {
 				public void onComplete(Throwable failure, Object success) throws Throwable {
 					if (failure != null) {
 						if (failure instanceof TimeoutException) {
-							markFailed(new Exception("Cannot deploy task - TaskManager not responding.", failure));
+							String taskname = Task.getTaskNameWithSubtaskAndID(deployment.getTaskName(),
+									deployment.getIndexInSubtaskGroup(), deployment.getNumberOfSubtasks(),
+									attemptId);
+							
+							markFailed(new Exception(
+									"Cannot deploy task " + taskname + " - TaskManager (" + instance
+											+ ") not responding after a timeout of " + timeout, failure));
 						}
 						else {
 							markFailed(failure);
 						}
 					}
 					else {
-						if (success == null) {
-							markFailed(new Exception("Failed to deploy the task to slot " + slot + ": TaskOperationResult was null"));
-						}
-
-						if (success instanceof TaskOperationResult) {
-							TaskOperationResult result = (TaskOperationResult) success;
-
-							if (!result.executionID().equals(attemptId)) {
-								markFailed(new Exception("Answer execution id does not match the request execution id."));
-							} else if (result.success()) {
-								switchToRunning();
-							} else {
-								// deployment failed :(
-								markFailed(new Exception("Failed to deploy the task " +
-										getVertexWithAttempt() + " to slot " + slot + ": " + result
-										.description()));
-							}
-						} else {
+						if (!(success.equals(Messages.getAcknowledge()))) {
 							markFailed(new Exception("Failed to deploy the task to slot " + slot +
-									": Response was not of type TaskOperationResult"));
+									": Response was not of type Acknowledge"));
 						}
 					}
 				}
-			}, AkkaUtils.globalExecutionContext());
+			}, executionContext);
 		}
 		catch (Throwable t) {
 			markFailed(t);
@@ -403,7 +426,7 @@ public class Execution implements Serializable {
 			else if (current == FINISHED || current == FAILED) {
 				// nothing to do any more. finished failed before it could be cancelled.
 				// in any case, the task is removed from the TaskManager already
-				sendFailIntermediateResultPartitionsRPCCall();
+				sendFailIntermediateResultPartitionsRpcCall();
 
 				return;
 			}
@@ -415,13 +438,13 @@ public class Execution implements Serializable {
 					markTimestamp(CANCELING, getStateTimestamp(CANCELED));
 					
 					try {
-						vertex.executionCanceled();
-					}
-					finally {
 						vertex.getExecutionGraph().deregisterExecution(this);
 						if (assignedResource != null) {
 							assignedResource.releaseSlot();
 						}
+					}
+					finally {
+						vertex.executionCanceled();
 					}
 					return;
 				}
@@ -434,8 +457,13 @@ public class Execution implements Serializable {
 	}
 
 	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> allConsumers) {
-		if (allConsumers.size() != 1) {
+		final int numConsumers = allConsumers.size();
+
+		if (numConsumers > 1) {
 			fail(new IllegalStateException("Currently, only a single consumer group per partition is supported."));
+		}
+		else if (numConsumers == 0) {
+			return;
 		}
 
 		for (ExecutionEdge edge : allConsumers.get(0)) {
@@ -469,8 +497,6 @@ public class Execution implements Serializable {
 					@Override
 					public Boolean call() throws Exception {
 						try {
-							final ExecutionGraph consumerGraph = consumerVertex.getExecutionGraph();
-
 							consumerVertex.scheduleForExecution(
 									consumerVertex.getExecutionGraph().getScheduler(),
 									consumerVertex.getExecutionGraph().isQueuedSchedulingAllowed());
@@ -481,7 +507,7 @@ public class Execution implements Serializable {
 
 						return true;
 					}
-				}, AkkaUtils.globalExecutionContext());
+				}, executionContext);
 
 				// double check to resolve race conditions
 				if(consumerVertex.getExecutionState() == RUNNING){
@@ -526,10 +552,10 @@ public class Execution implements Serializable {
 					final InputChannelDeploymentDescriptor descriptor = new InputChannelDeploymentDescriptor(
 							partitionId, partitionLocation);
 
-					final UpdateTask updateTaskMessage = new UpdateTaskSinglePartitionInfo(
+					final UpdatePartitionInfo updateTaskMessage = new UpdateTaskSinglePartitionInfo(
 							consumer.getAttemptId(), partition.getIntermediateResult().getId(), descriptor);
 
-					sendUpdateTaskRpcCall(consumerSlot, updateTaskMessage);
+					sendUpdatePartitionInfoRpcCall(consumerSlot, updateTaskMessage);
 				}
 				// ----------------------------------------------------------------
 				// Consumer is scheduled or deploying => cache input channel
@@ -577,6 +603,10 @@ public class Execution implements Serializable {
 	}
 
 	void markFinished() {
+		markFinished(null, null);
+	}
+
+	void markFinished(Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators, Map<String, Accumulator<?, ?>> userAccumulators) {
 
 		// this call usually comes during RUNNING, but may also come while still in deploying (very fast tasks!)
 		while (true) {
@@ -595,6 +625,11 @@ public class Execution implements Serializable {
 							for (IntermediateResultPartition partition : allPartitions) {
 								scheduleOrUpdateConsumers(partition.getConsumers());
 							}
+						}
+
+						synchronized (accumulatorLock) {
+							this.flinkAccumulators = flinkAccumulators;
+							this.userAccumulators = userAccumulators;
 						}
 
 						assignedResource.releaseSlot();
@@ -685,11 +720,12 @@ public class Execution implements Serializable {
 				inputChannelDeploymentDescriptors.add(partialInputChannelDeploymentDescriptor.createInputChannelDeploymentDescriptor(this));
 			}
 
-			UpdateTask updateTaskMessage =
-					createUpdateTaskMultiplePartitionInfos(attemptId, resultIDs,
-							inputChannelDeploymentDescriptors);
+			UpdatePartitionInfo updateTaskMessage = createUpdateTaskMultiplePartitionInfos(
+				attemptId,
+				resultIDs,
+				inputChannelDeploymentDescriptors);
 
-			sendUpdateTaskRpcCall(assignedResource, updateTaskMessage);
+			sendUpdatePartitionInfoRpcCall(assignedResource, updateTaskMessage);
 		}
 	}
 
@@ -756,7 +792,7 @@ public class Execution implements Serializable {
 		}
 	}
 
-	private boolean switchToRunning() {
+	boolean switchToRunning() {
 
 		if (transitionState(DEPLOYING, RUNNING)) {
 			sendPartitionInfos();
@@ -800,14 +836,23 @@ public class Execution implements Serializable {
 		}
 	}
 
+	/**
+	 * This method sends a CancelTask message to the instance of the assigned slot.
+	 *
+	 * The sending is tried up to NUM_CANCEL_CALL_TRIES times.
+	 */
 	private void sendCancelRpcCall() {
 		final SimpleSlot slot = this.assignedResource;
 
 		if (slot != null) {
 
-			Future<Object> cancelResult = AkkaUtils.retry(slot.getInstance().getTaskManager(), new
-							CancelTask(attemptId), NUM_CANCEL_CALL_TRIES,
-					AkkaUtils.globalExecutionContext(), timeout);
+			final ActorGateway gateway = slot.getInstance().getActorGateway();
+
+			Future<Object> cancelResult = gateway.retry(
+				new CancelTask(attemptId),
+				NUM_CANCEL_CALL_TRIES,
+				timeout,
+				executionContext);
 
 			cancelResult.onComplete(new OnComplete<Object>() {
 
@@ -823,35 +868,40 @@ public class Execution implements Serializable {
 						}
 					}
 				}
-			}, AkkaUtils.globalExecutionContext());
+			}, executionContext);
 		}
 	}
 
-	private void sendFailIntermediateResultPartitionsRPCCall() {
+	private void sendFailIntermediateResultPartitionsRpcCall() {
 		final SimpleSlot slot = this.assignedResource;
 
 		if (slot != null) {
 			final Instance instance = slot.getInstance();
 
 			if (instance.isAlive()) {
-				try {
-					// TODO For some tests this could be a problem when querying too early if all resources were released
-					instance.getTaskManager().tell(new FailIntermediateResultPartitions(attemptId), ActorRef.noSender());
-				} catch (Throwable t) {
-					fail(new Exception("Intermediate result partition could not be failed.", t));
-				}
+				final ActorGateway gateway = instance.getActorGateway();
+
+				// TODO For some tests this could be a problem when querying too early if all resources were released
+				gateway.tell(new FailIntermediateResultPartitions(attemptId));
 			}
 		}
 	}
 
-	private void sendUpdateTaskRpcCall(final SimpleSlot consumerSlot,
-									final UpdateTask updateTaskMsg) {
+	/**
+	 * Sends an UpdatePartitionInfo message to the instance of the consumerSlot.
+	 *
+	 * @param consumerSlot Slot to whose instance the message will be sent
+	 * @param updatePartitionInfo UpdatePartitionInfo message
+	 */
+	private void sendUpdatePartitionInfoRpcCall(
+			final SimpleSlot consumerSlot,
+			final UpdatePartitionInfo updatePartitionInfo) {
 
 		if (consumerSlot != null) {
 			final Instance instance = consumerSlot.getInstance();
+			final ActorGateway gateway = instance.getActorGateway();
 
-			Future<Object> futureUpdate = Patterns.ask(instance.getTaskManager(), updateTaskMsg,
-					new Timeout(timeout));
+			Future<Object> futureUpdate = gateway.ask(updatePartitionInfo, timeout);
 
 			futureUpdate.onFailure(new OnFailure() {
 				@Override
@@ -859,7 +909,7 @@ public class Execution implements Serializable {
 					fail(new IllegalStateException("Update task on instance " + instance +
 							" failed due to:", failure));
 				}
-			}, AkkaUtils.globalExecutionContext());
+			}, executionContext);
 		}
 	}
 
@@ -875,10 +925,8 @@ public class Execution implements Serializable {
 		if (STATE_UPDATER.compareAndSet(this, currentState, targetState)) {
 			markTimestamp(targetState);
 
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} ({}) switched from {} to {}.",
-						getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
-			}
+			LOG.info(getVertex().getTaskNameWithSubtaskIndex() + " ("  + getAttemptId() + ") switched from "
+				+ currentState + " to " + targetState);
 
 			// make sure that the state transition completes normally.
 			// potential errors (in listeners may not affect the main logic)
@@ -906,17 +954,31 @@ public class Execution implements Serializable {
 		return vertex.getSimpleName() + " - execution #" + attemptNumber;
 	}
 
+	/**
+	 * Update accumulators (discarded when the Execution has already been terminated).
+	 * @param flinkAccumulators the flink internal accumulators
+	 * @param userAccumulators the user accumulators
+	 */
+	public void setAccumulators(Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
+								Map<String, Accumulator<?, ?>> userAccumulators) {
+		synchronized (accumulatorLock) {
+			if (!state.isTerminal()) {
+				this.flinkAccumulators = flinkAccumulators;
+				this.userAccumulators = userAccumulators;
+			}
+		}
+	}
+	public Map<String, Accumulator<?, ?>> getUserAccumulators() {
+		return userAccumulators;
+	}
+
+	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getFlinkAccumulators() {
+		return flinkAccumulators;
+	}
+
 	@Override
 	public String toString() {
 		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getSimpleName(),
 				(assignedResource == null ? "(unassigned)" : assignedResource.toString()), state);
-	}
-
-	public void setOperatorState(StateHandle operatorStates) {
-		this.operatorState = operatorStates;
-	}
-
-	public StateHandle getOperatorState() {
-		return operatorState;
 	}
 }

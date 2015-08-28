@@ -108,6 +108,10 @@ class NettyServer {
 			bootstrap.childOption(ChannelOption.SO_RCVBUF, receiveAndSendBufferSize);
 		}
 
+		// Low and high water marks for flow control
+		bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, config.getMemorySegmentSize() + 1);
+		bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, 2 * config.getMemorySegmentSize());
+
 		// --------------------------------------------------------------------
 		// Child channel pipeline for accepted connections
 		// --------------------------------------------------------------------
@@ -115,7 +119,7 @@ class NettyServer {
 		bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
-				protocol.setServerChannelPipeline(channel.pipeline());
+				channel.pipeline().addLast(protocol.getServerChannelHandlers());
 			}
 		});
 
@@ -126,7 +130,11 @@ class NettyServer {
 		bindFuture = bootstrap.bind().syncUninterruptibly();
 
 		long end = System.currentTimeMillis();
-		LOG.info("Successful initialization  (took {} ms). Listening on SocketAddress {}.", (end - start), bindFuture.channel().localAddress().toString());
+		LOG.info("Successful initialization (took {} ms). Listening on SocketAddress {}.", (end - start), bindFuture.channel().localAddress().toString());
+	}
+
+	NettyConfig getConfig() {
+		return config;
 	}
 
 	void shutdown() {

@@ -27,6 +27,7 @@ import java.text.DecimalFormat;
 import java.util.Locale;
 import java.util.Random;
 
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.clustering.KMeans;
 
 /**
@@ -52,14 +53,15 @@ public class KMeansDataGenerator {
 	 * <p>
 	 * The generator creates to files:
 	 * <ul>
-	 * <li><code>{tmp.dir}/points</code> for the data points
-	 * <li><code>{tmp.dir}/centers</code> for the cluster centers
+	 * <li><code>&lt; output-path &gt;/points</code> for the data points
+	 * <li><code>&lt; output-path &gt;/centers</code> for the cluster centers
 	 * </ul> 
 	 * 
 	 * @param args 
 	 * <ol>
 	 * <li>Int: Number of data points
 	 * <li>Int: Number of cluster centers
+	 * <li><b>Optional</b> String: Output path, default value is {tmp.dir}
 	 * <li><b>Optional</b> Double: Standard deviation of data points
 	 * <li><b>Optional</b> Double: Value range of cluster centers
 	 * <li><b>Optional</b> Long: Random seed
@@ -69,20 +71,23 @@ public class KMeansDataGenerator {
 
 		// check parameter count
 		if (args.length < 2) {
-			System.out.println("KMeansDataGenerator <numberOfDataPoints> <numberOfClusterCenters> [<relative stddev>] [<centroid range>] [<seed>]");
+			System.out.println("KMeansDataGenerator -points <num> -k <num clusters> [-output <output-path>] [-stddev <relative stddev>] [-range <centroid range>] [-seed <seed>]");
 			System.exit(1);
 		}
 
 		// parse parameters
-		final int numDataPoints = Integer.parseInt(args[0]);
-		final int k = Integer.parseInt(args[1]);
-		final double stddev = args.length > 2 ? Double.parseDouble(args[2]) : RELATIVE_STDDEV;
-		final double range = args.length > 3 ? Double.parseDouble(args[4]) : DEFAULT_VALUE_RANGE;
-		final long firstSeed = args.length > 4 ? Long.parseLong(args[4]) : DEFAULT_SEED;
+
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		final int numDataPoints = params.getInt("points");
+		final int k = params.getInt("k");
+		final String outDir = params.get("output", System.getProperty("java.io.tmpdir"));
+		final double stddev = params.getDouble("stddev", RELATIVE_STDDEV);
+		final double range = params.getDouble("range", DEFAULT_VALUE_RANGE);
+		final long firstSeed = params.getLong("seed", DEFAULT_SEED);
+
 		
 		final double absoluteStdDev = stddev * range;
 		final Random random = new Random(firstSeed);
-		final String tmpDir = System.getProperty("java.io.tmpdir");
 		
 		// the means around which data points are distributed
 		final double[][] means = uniformRandomCenters(random, k, DIMENSIONALITY, range);
@@ -90,7 +95,7 @@ public class KMeansDataGenerator {
 		// write the points out
 		BufferedWriter pointsOut = null;
 		try {
-			pointsOut = new BufferedWriter(new FileWriter(new File(tmpDir+"/"+POINTS_FILE)));
+			pointsOut = new BufferedWriter(new FileWriter(new File(outDir+"/"+POINTS_FILE)));
 			StringBuilder buffer = new StringBuilder();
 			
 			double[] point = new double[DIMENSIONALITY];
@@ -115,7 +120,7 @@ public class KMeansDataGenerator {
 		// write the uniformly distributed centers to a file
 		BufferedWriter centersOut = null;
 		try {
-			centersOut = new BufferedWriter(new FileWriter(new File(tmpDir+"/"+CENTERS_FILE)));
+			centersOut = new BufferedWriter(new FileWriter(new File(outDir+"/"+CENTERS_FILE)));
 			StringBuilder buffer = new StringBuilder();
 			
 			double[][] centers = uniformRandomCenters(random, k, DIMENSIONALITY, range);
@@ -130,8 +135,8 @@ public class KMeansDataGenerator {
 			}
 		}
 		
-		System.out.println("Wrote "+numDataPoints+" data points to "+tmpDir+"/"+POINTS_FILE);
-		System.out.println("Wrote "+k+" cluster centers to "+tmpDir+"/"+CENTERS_FILE);
+		System.out.println("Wrote "+numDataPoints+" data points to "+outDir+"/"+POINTS_FILE);
+		System.out.println("Wrote "+k+" cluster centers to "+outDir+"/"+CENTERS_FILE);
 	}
 	
 	private static double[][] uniformRandomCenters(Random rnd, int num, int dimensionality, double range) {

@@ -19,11 +19,10 @@
 package org.apache.flink.streaming.api.scala.windowing
 
 import java.util.concurrent.TimeUnit
+import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.streaming.api.windowing.helper.{ Time => JavaTime }
 
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.windowing.helper.Timestamp
-import org.apache.commons.lang.Validate
 
 object Time {
 
@@ -43,10 +42,10 @@ object Time {
    *
    */
   def of[R](windowSize: Long, timestamp: R => Long, startTime: Long = 0): JavaTime[R] = {
-    Validate.notNull(timestamp, "Timestamp must not be null.")
+    require(timestamp != null, "Timestamp must not be null.")
     val ts = new Timestamp[R] {
-      val fun = clean(timestamp, true)
-      override def getTimestamp(in: R) = fun(in)
+      ClosureCleaner.clean(timestamp, true)
+      override def getTimestamp(in: R) = timestamp(in)
     }
     JavaTime.of(windowSize, ts, startTime)
   }

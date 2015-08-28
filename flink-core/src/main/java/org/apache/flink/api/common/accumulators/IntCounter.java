@@ -19,18 +19,24 @@
 
 package org.apache.flink.api.common.accumulators;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-
+/**
+ * An accumulator that sums up {@code Integer} values.
+ */
 public class IntCounter implements SimpleAccumulator<Integer> {
 
 	private static final long serialVersionUID = 1L;
 
 	private int localValue = 0;
 
+	/**
+	 * Consider using {@link #add(int)} instead for primitive int values
+	 */
 	@Override
 	public void add(Integer value) {
+		localValue += value;
+	}
+
+	public void add(int value){
 		localValue += value;
 	}
 
@@ -41,7 +47,7 @@ public class IntCounter implements SimpleAccumulator<Integer> {
 
 	@Override
 	public void merge(Accumulator<Integer, Integer> other) {
-		this.localValue += ((IntCounter) other).getLocalValue();
+		this.localValue += other.getLocalValue();
 	}
 
 	@Override
@@ -50,26 +56,14 @@ public class IntCounter implements SimpleAccumulator<Integer> {
 	}
 
 	@Override
-	public void write(ObjectOutputStream out) throws IOException {
-		out.writeInt(localValue);
-	}
-
-	@Override
-	public void read(ObjectInputStream in) throws IOException {
-		localValue = in.readInt();
-	}
-
-	@Override
 	public Accumulator<Integer, Integer> clone() {
 		IntCounter result = new IntCounter();
 		result.localValue = localValue;
-
 		return result;
 	}
 
 	@Override
 	public String toString() {
-		return "IntCounter object. Local value: " + this.localValue;
+		return "IntCounter " + this.localValue;
 	}
-
 }

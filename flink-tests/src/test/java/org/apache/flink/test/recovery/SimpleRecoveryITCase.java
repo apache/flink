@@ -81,6 +81,7 @@ public class SimpleRecoveryITCase {
 
 				env.setParallelism(4);
 				env.setNumberOfExecutionRetries(0);
+				env.getConfig().disableSysoutLogging();
 
 				env.generateSequence(1, 10)
 						.rebalance()
@@ -95,7 +96,7 @@ public class SimpleRecoveryITCase {
 
 				try {
 					JobExecutionResult res = env.execute();
-					String msg = res == null ? "null result" : "result in " + res.getNetRuntime();
+					String msg = res == null ? "null result" : "result in " + res.getNetRuntime() + " ms";
 					fail("The program should have failed, but returned " + msg);
 				}
 				catch (ProgramInvocationException e) {
@@ -110,6 +111,7 @@ public class SimpleRecoveryITCase {
 
 				env.setParallelism(4);
 				env.setNumberOfExecutionRetries(0);
+				env.getConfig().disableSysoutLogging();
 
 				env.generateSequence(1, 10)
 						.rebalance()
@@ -156,6 +158,7 @@ public class SimpleRecoveryITCase {
 
 			env.setParallelism(4);
 			env.setNumberOfExecutionRetries(1);
+			env.getConfig().disableSysoutLogging();
 
 			env.generateSequence(1, 10)
 					.rebalance()
@@ -199,7 +202,8 @@ public class SimpleRecoveryITCase {
 					"localhost", cluster.getJobManagerRPCPort());
 
 			env.setParallelism(4);
-			env.setNumberOfExecutionRetries(3);
+			env.setNumberOfExecutionRetries(5);
+			env.getConfig().disableSysoutLogging();
 
 			env.generateSequence(1, 10)
 					.rebalance()
@@ -238,7 +242,7 @@ public class SimpleRecoveryITCase {
 
 	private static class FailingMapper1<T> extends RichMapFunction<T, T> {
 
-		private static int failuresBeforeSuccess = 1;
+		private static volatile int failuresBeforeSuccess = 1;
 
 		@Override
 		public T map(T value) throws Exception {
@@ -253,7 +257,7 @@ public class SimpleRecoveryITCase {
 
 	private static class FailingMapper2<T> extends RichMapFunction<T, T> {
 
-		private static int failuresBeforeSuccess = 1;
+		private static volatile int failuresBeforeSuccess = 1;
 
 		@Override
 		public T map(T value) throws Exception {
@@ -268,7 +272,7 @@ public class SimpleRecoveryITCase {
 
 	private static class FailingMapper3<T> extends RichMapFunction<T, T> {
 
-		private static int failuresBeforeSuccess = 3;
+		private static volatile int failuresBeforeSuccess = 3;
 
 		@Override
 		public T map(T value) throws Exception {

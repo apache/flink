@@ -62,10 +62,12 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 		JobSubmissionResult result = this.client.run(toRun, getParallelism(), wait);
 		if(result instanceof JobExecutionResult) {
+			this.lastJobExecutionResult = (JobExecutionResult) result;
 			return (JobExecutionResult) result;
 		} else {
 			LOG.warn("The Client didn't return a JobExecutionResult");
-			return new JobExecutionResult(result.getJobID(), -1, null);
+			this.lastJobExecutionResult = new JobExecutionResult(result.getJobID(), -1, null);
+			return this.lastJobExecutionResult;
 		}
 	}
 
@@ -78,8 +80,11 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 		return gen.getOptimizerPlanAsJSON(op);
 	}
-	
-	
+
+	public boolean isWait() {
+		return wait;
+	}
+
 	@Override
 	public String toString() {
 		return "Context Environment (parallelism = " + (getParallelism() == -1 ? "default" : getParallelism())

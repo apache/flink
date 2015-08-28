@@ -18,11 +18,13 @@
 
 package org.apache.flink.api.common.functions.util;
 
+import java.io.IOException;
 import java.io.Serializable;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.FutureTask;
+import java.util.concurrent.Future;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -32,6 +34,8 @@ import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.StateCheckpointer;
 import org.apache.flink.core.fs.Path;
 
 /**
@@ -49,22 +53,23 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final ExecutionConfig executionConfig;
 
-	private final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
-	
-	private final DistributedCache distributedCache = new DistributedCache();
-	
-	
-	public AbstractRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig) {
+	private final Map<String, Accumulator<?, ?>> accumulators;
+
+	private final DistributedCache distributedCache;
+
+	public AbstractRuntimeUDFContext(String name,
+										int numParallelSubtasks, int subtaskIndex,
+										ClassLoader userCodeClassLoader,
+										ExecutionConfig executionConfig,
+										Map<String, Accumulator<?,?>> accumulators,
+										Map<String, Future<Path>> cpTasks) {
 		this.name = name;
 		this.numParallelSubtasks = numParallelSubtasks;
 		this.subtaskIndex = subtaskIndex;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
-	}
-	
-	public AbstractRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig, Map<String, FutureTask<Path>> cpTasks) {
-		this(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig);
-		this.distributedCache.setCopyTasks(cpTasks);
+		this.distributedCache = new DistributedCache(Preconditions.checkNotNull(cpTasks));
+		this.accumulators = Preconditions.checkNotNull(accumulators);
 	}
 
 	@Override
@@ -110,7 +115,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	@Override
 	public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator) {
 		if (accumulators.containsKey(name)) {
-			throw new UnsupportedOperationException("The counter '" + name
+			throw new UnsupportedOperationException("The accumulator '" + name
 					+ "' already exists and cannot be added.");
 		}
 		accumulators.put(name, accumulator);
@@ -123,8 +128,8 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	}
 
 	@Override
-	public HashMap<String, Accumulator<?, ?>> getAllAccumulators() {
-		return this.accumulators;
+	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
+		return Collections.unmodifiableMap(this.accumulators);
 	}
 	
 	@Override
@@ -141,8 +146,8 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	
 	@SuppressWarnings("unchecked")
 	private <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name,
-			Class<? extends Accumulator<V, A>> accumulatorClass) {
-
+			Class<? extends Accumulator<V, A>> accumulatorClass)
+	{
 		Accumulator<?, ?> accumulator = accumulators.get(name);
 
 		if (accumulator != null) {
@@ -151,13 +156,24 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 			// Create new accumulator
 			try {
 				accumulator = accumulatorClass.newInstance();
-			} catch (InstantiationException e) {
-				e.printStackTrace();
-			} catch (IllegalAccessException e) {
-				e.printStackTrace();
+			}
+			catch (Exception e) {
+				throw new RuntimeException("Cannot create accumulator " + accumulatorClass.getName());
 			}
 			accumulators.put(name, accumulator);
 		}
 		return (Accumulator<V, A>) accumulator;
+	}
+	
+	@Override
+	public <S, C extends Serializable> OperatorState<S> getOperatorState(String name,
+			S defaultState, boolean partitioned, StateCheckpointer<S, C> checkpointer) throws IOException {
+	throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
+	}
+
+	@Override
+	public <S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
+			boolean partitioned) throws IOException{
+	throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
 	}
 }

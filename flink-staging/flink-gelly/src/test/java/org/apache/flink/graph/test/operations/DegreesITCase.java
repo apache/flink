@@ -18,16 +18,15 @@
 
 package org.apache.flink.graph.test.operations;
 
+import java.util.List;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -38,21 +37,8 @@ public class DegreesITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-    private String resultPath;
     private String expectedResult;
 
-    @Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
 
 	@Test
 	public void testOutDegrees() throws Exception {
@@ -64,14 +50,18 @@ public class DegreesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                 TestGraphUtils.getLongLongEdgeData(env), env);
 
-        graph.outDegrees().writeAsCsv(resultPath);
-        env.execute();
-
+        DataSet<Tuple2<Long,Long>> data =graph.outDegrees();
+        List<Tuple2<Long,Long>> result= data.collect();
+       
+        
         expectedResult = "1,2\n" +
                     "2,1\n" +
                     "3,2\n" +
                     "4,1\n" +
                     "5,1\n";
+        
+        compareResultAsTuples(result, expectedResult);
+        
     }
 
 	@Test
@@ -84,14 +74,18 @@ public class DegreesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                 TestGraphUtils.getLongLongEdgeDataWithZeroDegree(env), env);
 
-        graph.outDegrees().writeAsCsv(resultPath);
-        env.execute();
-
+        
+        
+        DataSet<Tuple2<Long,Long>> data =graph.outDegrees();
+        List<Tuple2<Long,Long>> result= data.collect();
+        
         expectedResult = "1,3\n" +
                 "2,1\n" +
                 "3,1\n" +
                 "4,1\n" +
                 "5,0\n";
+        
+        compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -104,13 +98,16 @@ public class DegreesITCase extends MultipleProgramsTestBase {
 	    Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 	            TestGraphUtils.getLongLongEdgeData(env), env);
 
-	    graph.inDegrees().writeAsCsv(resultPath);
-	    env.execute();
+
+        DataSet<Tuple2<Long,Long>> data =graph.inDegrees();
+        List<Tuple2<Long,Long>> result= data.collect();
+	    
 	    expectedResult = "1,1\n" +
 		            "2,1\n" +
 		            "3,2\n" +
 		            "4,1\n" +
 		            "5,2\n";
+	    compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -123,13 +120,16 @@ public class DegreesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                 TestGraphUtils.getLongLongEdgeDataWithZeroDegree(env), env);
 
-        graph.inDegrees().writeAsCsv(resultPath);
-        env.execute();
+        DataSet<Tuple2<Long,Long>> data =graph.inDegrees();
+        List<Tuple2<Long,Long>> result= data.collect();
+        
         expectedResult = "1,0\n" +
 	                "2,1\n" +
 	                "3,1\n" +
 	                "4,1\n" +
 	                "5,3\n";
+        
+        compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -142,13 +142,16 @@ public class DegreesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                 TestGraphUtils.getLongLongEdgeData(env), env);
 
-        graph.getDegrees().writeAsCsv(resultPath);
-        env.execute();
+        DataSet<Tuple2<Long,Long>> data =graph.getDegrees();
+        List<Tuple2<Long,Long>> result= data.collect();
+        
         expectedResult = "1,3\n" +
 	                "2,2\n" +
 	                "3,4\n" +
 	                "4,2\n" +
 	                "5,3\n";
+        
+        compareResultAsTuples(result, expectedResult);
     }
 
 	@Test
@@ -161,12 +164,15 @@ public class DegreesITCase extends MultipleProgramsTestBase {
         Graph<Long, NullValue, Long> graph =
                 Graph.fromDataSet(TestGraphUtils.getDisconnectedLongLongEdgeData(env), env);
 
-        graph.outDegrees().writeAsCsv(resultPath);
-        env.execute();
+        DataSet<Tuple2<Long,Long>> data =graph.outDegrees();
+        List<Tuple2<Long,Long>> result= data.collect();
+        
         expectedResult = "1,2\n" +
                 "2,1\n" +
                 "3,0\n" +
                 "4,1\n" +
                 "5,0\n";
+        
+        compareResultAsTuples(result, expectedResult);
     }
 }

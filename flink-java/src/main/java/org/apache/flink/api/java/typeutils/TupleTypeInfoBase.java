@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
@@ -69,6 +68,10 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		return true;
 	}
 
+	public boolean isCaseClass() {
+		return false;
+	}
+
 	@Override
 	public int getArity() {
 		return types.length;
@@ -82,25 +85,6 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	@Override
 	public Class<T> getTypeClass() {
 		return tupleType;
-	}
-
-	/**
-	 * Recursively add all fields in this tuple type. We need this in particular to get all
-	 * the types.
-	 * @param startKeyId
-	 * @param keyFields
-	 */
-	public void addAllFields(int startKeyId, List<FlatFieldDescriptor> keyFields) {
-		for(int i = 0; i < this.getArity(); i++) {
-			TypeInformation<?> type = this.types[i];
-			if(type instanceof AtomicType) {
-				keyFields.add(new FlatFieldDescriptor(startKeyId, type));
-			} else if(type instanceof TupleTypeInfoBase<?>) {
-				TupleTypeInfoBase<?> ttb = (TupleTypeInfoBase<?>) type;
-				ttb.addAllFields(startKeyId, keyFields);
-			}
-			startKeyId += type.getTotalFields();
-		}
 	}
 
 	@Override
@@ -176,6 +160,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		}
 	}
 
+	@Override
 	public <X> TypeInformation<X> getTypeAt(String fieldExpression) {
 
 		Matcher matcher = PATTERN_NESTED_FIELDS.matcher(fieldExpression);
@@ -212,6 +197,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		}
 	}
 	
+	@Override
 	public <X> TypeInformation<X> getTypeAt(int pos) {
 		if (pos < 0 || pos >= this.types.length) {
 			throw new IndexOutOfBoundsException();
@@ -222,11 +208,6 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		return typed;
 	}
 	
-	@Override
-	public boolean isKeyType() {
-		return isValidKeyType(this);
-	}
-
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof TupleTypeInfoBase) {
@@ -245,31 +226,19 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		return this.types.hashCode() ^ Arrays.deepHashCode(this.types);
 	}
 
-	private boolean isValidKeyType(TypeInformation<?> typeInfo) {
-		if(typeInfo instanceof TupleTypeInfoBase) {
-			TupleTypeInfoBase<?> tupleType = ((TupleTypeInfoBase<?>)typeInfo);
-			for(int i=0;i<tupleType.getArity();i++) {
-				if (!isValidKeyType(tupleType.getTypeAt(i))) {
-					return false;
-				}
-			}
-			return true;
-		} else  {
-			return typeInfo.isKeyType();
-		}
-	}
-
 	@Override
 	public String toString() {
 		StringBuilder bld = new StringBuilder("Tuple");
-		bld.append(types.length).append('<');
-		bld.append(types[0]);
-		
-		for (int i = 1; i < types.length; i++) {
-			bld.append(", ").append(types[i]);
+		bld.append(types.length);
+		if (types.length > 0) {
+			bld.append('<').append(types[0]);
+
+			for (int i = 1; i < types.length; i++) {
+				bld.append(", ").append(types[i]);
+			}
+
+			bld.append('>');
 		}
-		
-		bld.append('>');
 		return bld.toString();
 	}
 

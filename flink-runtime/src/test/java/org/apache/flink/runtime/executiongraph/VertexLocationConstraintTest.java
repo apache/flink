@@ -26,12 +26,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -39,41 +40,13 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import scala.concurrent.duration.FiniteDuration;
-import akka.actor.Actor;
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.testkit.JavaTestKit;
-import akka.testkit.TestActorRef;
 
 public class VertexLocationConstraintTest {
 
 	private static final FiniteDuration timeout = new FiniteDuration(100, TimeUnit.SECONDS);
-	
-	private static ActorSystem system;
-	
-	private static TestActorRef<? extends Actor> taskManager;
-	
-	
-	@BeforeClass
-	public static void setup() {
-		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
-		
-		taskManager = TestActorRef.create(system,
-				Props.create(ExecutionGraphTestUtils.SimpleAcknowledgingTaskManager.class));
-	}
-
-	@AfterClass
-	public static void teardown() {
-		JavaTestKit.shutdownActorSystem(system);
-		system = null;
-	}
-	
 	
 	@Test
 	public void testScheduleWithConstraint1() {
@@ -91,18 +64,23 @@ public class VertexLocationConstraintTest {
 			Instance instance2 = getInstance(address2, 6789, hostname2);
 			Instance instance3 = getInstance(address3, 6789, hostname3);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 			scheduler.newInstanceAvailable(instance1);
 			scheduler.newInstanceAvailable(instance2);
 			scheduler.newInstanceAvailable(instance3);
 			
 			// prepare the execution graph
-			AbstractJobVertex jobVertex = new AbstractJobVertex("test vertex", new JobVertexID());
+			JobVertex jobVertex = new JobVertex("test vertex", new JobVertexID());
 			jobVertex.setInvokableClass(DummyInvokable.class);
 			jobVertex.setParallelism(2);
 			JobGraph jg = new JobGraph("test job", jobVertex);
 			
-			ExecutionGraph eg = new ExecutionGraph(jg.getJobID(), jg.getName(), jg.getJobConfiguration(), timeout);
+			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
+					jg.getJobID(),
+					jg.getName(),
+					jg.getJobConfiguration(),
+					timeout);
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -157,18 +135,23 @@ public class VertexLocationConstraintTest {
 			Instance instance2 = getInstance(address2, 6789, hostname2);
 			Instance instance3 = getInstance(address3, 6789, hostname3);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 			scheduler.newInstanceAvailable(instance1);
 			scheduler.newInstanceAvailable(instance2);
 			scheduler.newInstanceAvailable(instance3);
 			
 			// prepare the execution graph
-			AbstractJobVertex jobVertex = new AbstractJobVertex("test vertex", new JobVertexID());
+			JobVertex jobVertex = new JobVertex("test vertex", new JobVertexID());
 			jobVertex.setInvokableClass(DummyInvokable.class);
 			jobVertex.setParallelism(2);
 			JobGraph jg = new JobGraph("test job", jobVertex);
 			
-			ExecutionGraph eg = new ExecutionGraph(jg.getJobID(), jg.getName(), jg.getJobConfiguration(), timeout);
+			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
+					jg.getJobID(),
+					jg.getName(),
+					jg.getJobConfiguration(),
+					timeout);
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -219,14 +202,14 @@ public class VertexLocationConstraintTest {
 			Instance instance2 = getInstance(address2, 6789, hostname2);
 			Instance instance3 = getInstance(address3, 6789, hostname3);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 			scheduler.newInstanceAvailable(instance1);
 			scheduler.newInstanceAvailable(instance2);
 			scheduler.newInstanceAvailable(instance3);
 			
 			// prepare the execution graph
-			AbstractJobVertex jobVertex1 = new AbstractJobVertex("v1", new JobVertexID());
-			AbstractJobVertex jobVertex2 = new AbstractJobVertex("v2", new JobVertexID());
+			JobVertex jobVertex1 = new JobVertex("v1", new JobVertexID());
+			JobVertex jobVertex2 = new JobVertex("v2", new JobVertexID());
 			jobVertex1.setInvokableClass(DummyInvokable.class);
 			jobVertex2.setInvokableClass(DummyInvokable.class);
 			jobVertex1.setParallelism(2);
@@ -238,7 +221,12 @@ public class VertexLocationConstraintTest {
 			
 			JobGraph jg = new JobGraph("test job", jobVertex1, jobVertex2);
 			
-			ExecutionGraph eg = new ExecutionGraph(jg.getJobID(), jg.getName(), jg.getJobConfiguration(), timeout);
+			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
+					jg.getJobID(),
+					jg.getName(),
+					jg.getJobConfiguration(),
+					timeout);
 			eg.attachJobGraph(Arrays.asList(jobVertex1, jobVertex2));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex1.getID());
@@ -290,16 +278,21 @@ public class VertexLocationConstraintTest {
 			Instance instance1 = getInstance(address1, 6789, hostname1);
 			Instance instance2 = getInstance(address2, 6789, hostname2);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 			scheduler.newInstanceAvailable(instance1);
 			
 			// prepare the execution graph
-			AbstractJobVertex jobVertex = new AbstractJobVertex("test vertex", new JobVertexID());
+			JobVertex jobVertex = new JobVertex("test vertex", new JobVertexID());
 			jobVertex.setInvokableClass(DummyInvokable.class);
 			jobVertex.setParallelism(1);
 			JobGraph jg = new JobGraph("test job", jobVertex);
 			
-			ExecutionGraph eg = new ExecutionGraph(jg.getJobID(), jg.getName(), jg.getJobConfiguration(), timeout);
+			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
+					jg.getJobID(),
+					jg.getName(),
+					jg.getJobConfiguration(),
+					timeout);
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -343,12 +336,12 @@ public class VertexLocationConstraintTest {
 			Instance instance1 = getInstance(address1, 6789, hostname1);
 			Instance instance2 = getInstance(address2, 6789, hostname2);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 			scheduler.newInstanceAvailable(instance1);
 			
 			// prepare the execution graph
-			AbstractJobVertex jobVertex1 = new AbstractJobVertex("v1", new JobVertexID());
-			AbstractJobVertex jobVertex2 = new AbstractJobVertex("v2", new JobVertexID());
+			JobVertex jobVertex1 = new JobVertex("v1", new JobVertexID());
+			JobVertex jobVertex2 = new JobVertex("v2", new JobVertexID());
 			
 			jobVertex1.setInvokableClass(DummyInvokable.class);
 			jobVertex2.setInvokableClass(DummyInvokable.class);
@@ -362,7 +355,12 @@ public class VertexLocationConstraintTest {
 			jobVertex1.setSlotSharingGroup(sharingGroup);
 			jobVertex2.setSlotSharingGroup(sharingGroup);
 			
-			ExecutionGraph eg = new ExecutionGraph(jg.getJobID(), jg.getName(), jg.getJobConfiguration(), timeout);
+			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
+					jg.getJobID(),
+					jg.getName(),
+					jg.getJobConfiguration(),
+					timeout);
 			eg.attachJobGraph(Arrays.asList(jobVertex1, jobVertex2));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex1.getID());
@@ -392,15 +390,20 @@ public class VertexLocationConstraintTest {
 	@Test
 	public void testArchivingClearsFields() {
 		try {
-			AbstractJobVertex vertex = new AbstractJobVertex("test vertex", new JobVertexID());
+			JobVertex vertex = new JobVertex("test vertex", new JobVertexID());
 			JobGraph jg = new JobGraph("test job", vertex);
 			
-			ExecutionGraph eg = new ExecutionGraph(jg.getJobID(), jg.getName(), jg.getJobConfiguration(), timeout);
+			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
+					jg.getJobID(),
+					jg.getName(),
+					jg.getJobConfiguration(),
+					timeout);
 			eg.attachJobGraph(Collections.singletonList(vertex));
 			
 			ExecutionVertex ev = eg.getAllVertices().get(vertex.getID()).getTaskVertices()[0];
 			
-			Instance instance = ExecutionGraphTestUtils.getInstance(ActorRef.noSender());
+			Instance instance = ExecutionGraphTestUtils.getInstance(DummyActorGateway.INSTANCE);
 			ev.setLocationConstraintHosts(Collections.singletonList(instance));
 			
 			assertNotNull(ev.getPreferredLocations());
@@ -431,6 +434,12 @@ public class VertexLocationConstraintTest {
 		when(connection.getHostname()).thenReturn(hostname);
 		when(connection.getFQDNHostname()).thenReturn(hostname);
 		
-		return new Instance(taskManager, connection, new InstanceID(), hardwareDescription, 1);
+		return new Instance(
+				new ExecutionGraphTestUtils.SimpleActorGateway(
+						TestingUtils.defaultExecutionContext()),
+				connection,
+				new InstanceID(),
+				hardwareDescription,
+				1);
 	}
 }

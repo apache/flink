@@ -17,11 +17,11 @@
  */
 package org.apache.flink.api.table.codegen
 
-import org.apache.flink.api.table.tree.Expression
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.table.typeinfo.RowTypeInfo
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, PojoTypeInfo}
+import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.api.table.typeinfo.RowTypeInfo
 
 /**
  * Base class for unary and binary result assembler code generators.
@@ -30,12 +30,24 @@ abstract class GenerateResultAssembler[R](
     inputs: Seq[(String, CompositeType[_])],
     cl: ClassLoader)
   extends ExpressionCodeGenerator[R](inputs, cl = cl) {
-  import scala.reflect.runtime.{universe => ru}
-  import scala.reflect.runtime.universe._
+
+  def reuseCode[A](resultTypeInfo: CompositeType[A]) = {
+      val resultTpe = typeTermForTypeInfo(resultTypeInfo)
+      resultTypeInfo match {
+        case pj: PojoTypeInfo[_] => s"$resultTpe out = new ${pj.getTypeClass.getCanonicalName}();"
+
+        case row: RowTypeInfo =>
+          s"org.apache.flink.api.table.Row out =" +
+            s" new org.apache.flink.api.table.Row(${row.getArity});"
+
+        case _ => ""
+      }
+  }
 
   def createResult[T](
       resultTypeInfo: CompositeType[T],
-      outputFields: Seq[Expression]): Tree = {
+      outputFields: Seq[Expression],
+      result: String => String): String = {
 
     val resultType = typeTermForTypeInfo(resultTypeInfo)
 
@@ -43,54 +55,57 @@ abstract class GenerateResultAssembler[R](
 
     val block = resultTypeInfo match {
       case ri: RowTypeInfo =>
-        val resultSetters: Seq[Tree] = fieldsCode.zipWithIndex map {
+        val resultSetters: String = fieldsCode.zipWithIndex map {
           case (fieldCode, i) =>
-            q"""
-              out.setField($i, { ..${fieldCode.code}; ${fieldCode.resultTerm} })
-            """
-        }
+            s"""
+              |${fieldCode.code}
+              |out.setField($i, ${fieldCode.resultTerm});
+            """.stripMargin
+        } mkString("\n")
 
-        q"""
-          ..$resultSetters
-          out
-        """
+        s"""
+          |$resultSetters
+          |${result("out")}
+        """.stripMargin
 
       case pj: PojoTypeInfo[_] =>
-        val resultSetters: Seq[Tree] = fieldsCode.zip(outputFields) map {
+        val resultSetters: String = fieldsCode.zip(outputFields) map {
         case (fieldCode, expr) =>
-          val fieldName = newTermName(expr.name)
-          q"""
-              out.$fieldName = { ..${fieldCode.code}; ${fieldCode.resultTerm} }
-            """
-        }
+          val fieldName = expr.name
+          s"""
+            |${fieldCode.code}
+            |out.$fieldName = ${fieldCode.resultTerm};
+          """.stripMargin
+        } mkString("\n")
 
-        q"""
-          ..$resultSetters
-          out
-        """
+        s"""
+          |$resultSetters
+          |${result("out")}
+        """.stripMargin
 
       case tup: TupleTypeInfo[_] =>
-        val resultSetters: Seq[Tree] = fieldsCode.zip(outputFields) map {
+        val resultSetters: String = fieldsCode.zip(outputFields) map {
           case (fieldCode, expr) =>
-            val fieldName = newTermName(expr.name)
-            q"""
-              out.$fieldName = { ..${fieldCode.code}; ${fieldCode.resultTerm} }
-            """
-        }
+            val fieldName = expr.name
+            s"""
+              |${fieldCode.code}
+              |out.$fieldName = ${fieldCode.resultTerm};
+            """.stripMargin
+        } mkString("\n")
 
-        q"""
-          ..$resultSetters
-          out
-        """
+        s"""
+          |$resultSetters
+          |${result("out")}
+        """.stripMargin
 
       case cc: CaseClassTypeInfo[_] =>
-        val resultFields: Seq[Tree] = fieldsCode map {
-          fieldCode =>
-            q"{ ..${fieldCode.code}; ${fieldCode.resultTerm}}"
-        }
-        q"""
-          new $resultType(..$resultFields)
-        """
+        val fields: String = fieldsCode.map(_.code).mkString("\n")
+        val ctorParams: String = fieldsCode.map(_.resultTerm).mkString(",")
+
+        s"""
+          |$fields
+          |return new $resultType($ctorParams);
+        """.stripMargin
     }
 
     block

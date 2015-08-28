@@ -18,6 +18,8 @@
 
 package org.apache.flink.graph.test.operations;
 
+import java.util.List;
+
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -28,11 +30,7 @@ import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomType;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -43,21 +41,7 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-    private String resultPath;
     private String expectedResult;
-
-    @Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
 
 	@Test
 	public void testWithSameValue() throws Exception {
@@ -69,15 +53,16 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
-		DataSet<Vertex<Long, Long>> mappedVertices = graph.mapVertices(new AddOneMapper()).getVertices();
-		
-		mappedVertices.writeAsCsv(resultPath);
-		env.execute();
+		DataSet<Vertex<Long, Long>> mappedVertices = graph.mapVertices(new AddOneMapper()).getVertices();	
+        List<Vertex<Long, Long>> result= mappedVertices.collect();
+        
 		expectedResult = "1,2\n" +
 			"2,3\n" +
 			"3,4\n" +
 			"4,5\n" +
 			"5,6\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -91,15 +76,15 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
 		DataSet<Vertex<Long, String>> mappedVertices = graph.mapVertices(new ToStringMapper()).getVertices();
-		
-		mappedVertices.writeAsCsv(resultPath);
-		env.execute();
+        List<Vertex<Long, String>> result= mappedVertices.collect();
 
 		expectedResult = "1,one\n" +
 			"2,two\n" +
 			"3,three\n" +
 			"4,four\n" +
 			"5,five\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -113,15 +98,15 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
 		DataSet<Vertex<Long, Tuple1<Long>>> mappedVertices = graph.mapVertices(new ToTuple1Mapper()).getVertices();
-		
-		mappedVertices.writeAsCsv(resultPath);
-		env.execute();
+        List<Vertex<Long, Tuple1<Long>>> result= mappedVertices.collect();
 
 		expectedResult = "1,(1)\n" +
 			"2,(2)\n" +
 			"3,(3)\n" +
 			"4,(4)\n" +
 			"5,(5)\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -135,15 +120,15 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
 		DataSet<Vertex<Long, DummyCustomType>> mappedVertices = graph.mapVertices(new ToCustomTypeMapper()).getVertices();
-		
-		mappedVertices.writeAsCsv(resultPath);
-		env.execute();
+        List<Vertex<Long, DummyCustomType>> result= mappedVertices.collect();
 
 		expectedResult = "1,(T,1)\n" +
 			"2,(T,2)\n" +
 			"3,(T,3)\n" +
 			"4,(T,4)\n" +
 			"5,(T,5)\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
@@ -158,15 +143,15 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 		
 		DataSet<Vertex<Long, DummyCustomParameterizedType<Double>>> mappedVertices = graph.mapVertices(
 				new ToCustomParametrizedTypeMapper()).getVertices();
-		
-		mappedVertices.writeAsCsv(resultPath);
-		env.execute();
+        List<Vertex<Long, DummyCustomParameterizedType<Double>>> result= mappedVertices.collect();
 	
 		expectedResult = "1,(1.0,1)\n" +
 			"2,(2.0,2)\n" +
 			"3,(3.0,3)\n" +
 			"4,(4.0,4)\n" +
 			"5,(5.0,5)\n";
+		
+		compareResultAsTuples(result, expectedResult);
 	}
 
 	@SuppressWarnings("serial")

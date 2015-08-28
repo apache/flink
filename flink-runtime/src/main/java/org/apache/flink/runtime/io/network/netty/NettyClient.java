@@ -93,10 +93,6 @@ class NettyClient {
 		// Pooled allocator for Netty's ByteBuf instances
 		bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
 
-		// Low and high water marks for flow control
-		bootstrap.option(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, config.getMemorySegmentSize() / 2);
-		bootstrap.option(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, config.getMemorySegmentSize());
-
 		// Receive and send buffer size
 		int receiveAndSendBufferSize = config.getSendAndReceiveBufferSize();
 		if (receiveAndSendBufferSize > 0) {
@@ -111,12 +107,16 @@ class NettyClient {
 		bootstrap.handler(new ChannelInitializer<SocketChannel>() {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
-				protocol.setClientChannelPipeline(channel.pipeline());
+				channel.pipeline().addLast(protocol.getClientChannelHandlers());
 			}
 		});
 
 		long end = System.currentTimeMillis();
 		LOG.info("Successful initialization (took {} ms).", (end - start));
+	}
+
+	NettyConfig getConfig() {
+		return config;
 	}
 
 	void shutdown() {
@@ -158,6 +158,23 @@ class NettyClient {
 	ChannelFuture connect(SocketAddress serverSocketAddress) {
 		checkState(bootstrap != null, "Client has not been initialized yet.");
 
-		return bootstrap.connect(serverSocketAddress);
+		try {
+			return bootstrap.connect(serverSocketAddress);
+		}
+		catch (io.netty.channel.ChannelException e) {
+			if ( (e.getCause() instanceof java.net.SocketException &&
+					e.getCause().getMessage().equals("Too many open files")) ||
+				(e.getCause() instanceof io.netty.channel.ChannelException &&
+						e.getCause().getCause() instanceof java.net.SocketException &&
+						e.getCause().getCause().getMessage().equals("Too many open files")))
+			{
+				throw new io.netty.channel.ChannelException(
+						"The operating system does not offer enough file handles to open the network connection. " +
+								"Please increase the number of of available file handles.", e.getCause());
+			}
+			else {
+				throw e;
+			}
+		}
 	}
 }

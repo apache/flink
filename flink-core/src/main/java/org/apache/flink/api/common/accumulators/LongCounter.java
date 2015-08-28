@@ -16,24 +16,29 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.accumulators;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-
+/**
+ * An accumulator that sums up {@code long} values.
+ */
 public class LongCounter implements SimpleAccumulator<Long> {
 
 	private static final long serialVersionUID = 1L;
 	
 	private long localValue = 0;
-	
+
+	/**
+	 * Consider using {@link #add(long)} instead for primitive long values
+	 */
 	@Override
 	public void add(Long value) {
 		this.localValue += value;
 	}
-	
+
+	public void add(long value){
+		this.localValue += value;
+	}
+
 	@Override
 	public Long getLocalValue() {
 		return this.localValue;
@@ -41,7 +46,7 @@ public class LongCounter implements SimpleAccumulator<Long> {
 	
 	@Override
 	public void merge(Accumulator<Long, Long> other) {
-		this.localValue += ((LongCounter)other).getLocalValue();
+		this.localValue += other.getLocalValue();
 	}
 	
 	@Override
@@ -50,26 +55,14 @@ public class LongCounter implements SimpleAccumulator<Long> {
 	}
 
 	@Override
-	public void write(ObjectOutputStream out) throws IOException {
-		out.writeLong(this.localValue);
-	}
-
-	@Override
-	public void read(ObjectInputStream in) throws IOException {
-		this.localValue = in.readLong();
-	}
-
-	@Override
-	public Accumulator<Long, Long> clone() {
+	public LongCounter clone() {
 		LongCounter result = new LongCounter();
 		result.localValue = localValue;
-
 		return result;
 	}
 
 	@Override
 	public String toString() {
-		return "LongCounter object. Local value: " + this.localValue;
+		return "LongCounter " + this.localValue;
 	}
-
 }

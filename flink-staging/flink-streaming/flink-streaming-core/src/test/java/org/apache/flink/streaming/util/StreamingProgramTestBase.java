@@ -21,13 +21,15 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.junit.Assert;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 public abstract class StreamingProgramTestBase extends AbstractTestBase {
 
 	private static final int DEFAULT_PARALLELISM = 4;
+
+	private TestStreamEnvironment env;
 
 	private JobExecutionResult latestExecutionResult;
 
@@ -86,7 +88,7 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 			}
 
 			// prepare the test environment
-			TestStreamEnvironment env = new TestStreamEnvironment(this.executor, this.parallelism);
+			env = new TestStreamEnvironment(this.executor, this.parallelism);
 			env.setAsContext();
 
 			// call the test program
@@ -112,7 +114,10 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 				Assert.fail("Post-submit work caused an error: " + e.getMessage());
 			}
 		} finally {
-			stopCluster();
+			if(env.clusterRunsSynchronous()) {
+				stopCluster();
+			}
 		}
 	}
+
 }

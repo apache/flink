@@ -18,30 +18,27 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.OperatorState;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.function.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
-import org.apache.flink.util.Collector;
 
-import java.io.BufferedReader;
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.charset.Charset;
-import java.util.HashSet;
 import java.util.UUID;
 
-import static org.junit.Assert.*;
+import org.apache.commons.io.FileUtils;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FileStateHandle;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.junit.Assert;
 
 /**
  * Test for streaming program behaviour in case of TaskManager failure
@@ -63,83 +60,46 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 
 	@Override
 	public void testProgram(int jobManagerPort, final File coordinateDir) throws Exception {
+		
+		final File tempCheckpointDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH),
+				UUID.randomUUID().toString());
 
-		final File tempTestOutput = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH),
-												UUID.randomUUID().toString());
-
-		assertTrue("Cannot create directory for temp output", tempTestOutput.mkdirs());
+		assertTrue("Cannot create directory for checkpoints", tempCheckpointDir.mkdirs());
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 									.createRemoteEnvironment("localhost", jobManagerPort);
 		env.setParallelism(PARALLELISM);
+		env.getConfig().disableSysoutLogging();
 		env.setNumberOfExecutionRetries(1);
 		env.enableCheckpointing(200);
+		env.setStateHandleProvider(FileStateHandle.createProvider(tempCheckpointDir.getAbsolutePath()));
 
 		DataStream<Long> result = env.addSource(new SleepyDurableGenerateSequence(coordinateDir, DATA_COUNT))
-
-				// make sure every mapper is involved
-//				.shuffle()
-
-				// populate the coordinate directory so we can proceed to TaskManager failure
-				.map(new RichMapFunction<Long, Long>() {
-
-					private boolean markerCreated = false;
-
+				// add a non-chained no-op map to test the chain state restore logic
+				.map(new MapFunction<Long, Long>() {
 					@Override
 					public Long map(Long value) throws Exception {
-						if (!markerCreated) {
-							int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
-							touchFile(new File(coordinateDir, READY_MARKER_FILE_PREFIX + taskIndex));
-							markerCreated = true;
-						}
 						return value;
 					}
-				});
+				}).startNewChain()
+				// populate the coordinate directory so we can proceed to TaskManager failure
+				.map(new Mapper(coordinateDir));				
 
 		//write result to temporary file
-		result.addSink(new RichSinkFunction<Long>() {
-
-			// the sink needs to do its write operations synchronized with
-			// the disk FS, otherwise the process kill will discard data
-			// in buffers in the process
-			private transient FileChannel writer;
-
-			@Override
-			public void open(Configuration parameters) throws IOException {
-
-				int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
-				File output = new File(tempTestOutput, "task-" + taskIndex + "-" + UUID.randomUUID().toString());
-
-				// "rws" causes writes to go synchronously to the filesystem, nothing is cached
-				RandomAccessFile outputFile = new RandomAccessFile(output, "rws");
-				this.writer = outputFile.getChannel();
-			}
-
-			@Override
-			public void invoke(Long value) throws Exception {
-				String text = value + "\n";
-				byte[] bytes = text.getBytes(Charset.defaultCharset());
-				ByteBuffer buffer = ByteBuffer.wrap(bytes);
-				writer.write(buffer);
-			}
-
-			@Override
-			public void close() throws Exception {
-				writer.close();
-			}
-		});
+		result.addSink(new CheckpointedSink(DATA_COUNT));
 
 		try {
 			// blocking call until execution is done
 			env.execute();
 
-			// validate
-			fileBatchHasEveryNumberLower(PARALLELISM, DATA_COUNT, tempTestOutput);
+			// TODO: Figure out why this fails when ran with other tests
+			// Check whether checkpoints have been cleaned up properly
+			// assertDirectoryEmpty(tempCheckpointDir);
 		}
 		finally {
 			// clean up
-			if (tempTestOutput.exists()) {
-				FileUtils.deleteDirectory(tempTestOutput);
+			if (tempCheckpointDir.exists()) {
+				FileUtils.deleteDirectory(tempCheckpointDir);
 			}
 		}
 	}
@@ -151,38 +111,29 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		private final File coordinateDir;
 		private final long end;
 
+		private volatile boolean isRunning = true;
+		
+		private OperatorState<Long> collected;
+
 		public SleepyDurableGenerateSequence(File coordinateDir, long end) {
 			this.coordinateDir = coordinateDir;
 			this.end = end;
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
-		public void run(Collector<Long> collector) throws Exception {
+		public void run(SourceContext<Long> sourceCtx) throws Exception {
+			final Object checkpointLock = sourceCtx.getCheckpointLock();
 
-			StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
-			OperatorState<Long> collectedState;
-			if (context.containsState("collected")) {
-				collectedState = (OperatorState<Long>) context.getState("collected");
+			RuntimeContext runtimeCtx = getRuntimeContext();
 
-//				if (collected == 0) {
-//					throw new RuntimeException("The state did not capture a completed checkpoint");
-//				}
-			}
-			else {
-				collectedState = new OperatorState<Long>(0L);
-				context.registerState("collected", collectedState);
-			}
-
-			final long stepSize = context.getNumberOfParallelSubtasks();
-			final long congruence = context.getIndexOfThisSubtask();
+			final long stepSize = runtimeCtx.getNumberOfParallelSubtasks();
+			final long congruence = runtimeCtx.getIndexOfThisSubtask();
 			final long toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
-			long collected = collectedState.getState();
 
 			final File proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
 			boolean checkForProceedFile = true;
 
-			while (collected < toCollect) {
+			while (isRunning && collected.value() < toCollect) {
 				// check if the proceed file exists (then we go full speed)
 				// if not, we always recheck and sleep
 				if (checkForProceedFile) {
@@ -194,43 +145,84 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 					}
 				}
 
-				collector.collect(collected * stepSize + congruence);
-				collectedState.update(collected);
-				collected++;
+				synchronized (checkpointLock) {
+					sourceCtx.collect(collected.value() * stepSize + congruence);
+					collected.update(collected.value() + 1);
+				}
 			}
+		}
+		
+		@Override
+		public void open(Configuration conf) throws IOException {
+			collected = getRuntimeContext().getOperatorState("count", 0L, false);
 		}
 
 		@Override
-		public void cancel() {}
+		public void cancel() {
+			isRunning = false;
+		}
 	}
+	
+	public static class Mapper extends RichMapFunction<Long, Long> {
+		private boolean markerCreated = false;
+		private File coordinateDir;
 
-
-	private static void fileBatchHasEveryNumberLower(int numFiles, int numbers, File path) throws IOException {
-
-		HashSet<Integer> set = new HashSet<Integer>(numbers);
-
-		File[] files = path.listFiles();
-		assertNotNull(files);
-		assertTrue("Not enough output files", files.length >= numFiles);
-
-		for (File file : files) {
-			assertTrue("Output file does not exist", file.exists());
-
-			BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
-
-			String line;
-			while ((line = bufferedReader.readLine()) != null) {
-				int num = Integer.parseInt(line);
-				set.add(num);
-			}
-
-			bufferedReader.close();
+		public Mapper(File coordinateDir) {
+			this.coordinateDir = coordinateDir;
 		}
 
-		for (int i = 0; i < numbers; i++) {
-			if (!set.contains(i)) {
-				fail("Missing number: " + i);
+		@Override
+		public Long map(Long value) throws Exception {
+			if (!markerCreated) {
+				int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
+				touchFile(new File(coordinateDir, READY_MARKER_FILE_PREFIX + taskIndex));
+				markerCreated = true;
 			}
+			return value;
+		}
+	}
+
+	private static class CheckpointedSink extends RichSinkFunction<Long> implements Checkpointed<Long> {
+
+		private long stepSize;
+		private long congruence;
+		private long toCollect;
+		private Long collected = 0L;
+		private long end;
+
+		public CheckpointedSink(long end) {
+			this.end = end;
+		}
+
+		@Override
+		public void open(Configuration parameters) throws IOException {
+			stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
+			congruence = getRuntimeContext().getIndexOfThisSubtask();
+			toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
+		}
+
+		@Override
+		public void invoke(Long value) throws Exception {
+			long expected = collected * stepSize + congruence;
+
+			Assert.assertTrue("Value did not match expected value. " + expected + " != " + value, value.equals(expected));
+
+			collected++;
+
+			if (collected > toCollect) {
+				Assert.fail("Collected <= toCollect: " + collected + " > " + toCollect);
+			}
+
+		}
+
+		@Override
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+			return collected;
+		}
+
+		@Override
+		public void restoreState(Long state) {
+			collected = state;
 		}
 	}
 }

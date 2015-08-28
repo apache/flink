@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.operators.translation
 
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase
+import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.junit.Assert
 import org.junit.Test
 
@@ -31,7 +32,7 @@ class DistinctTranslationTest {
       val input = env.fromElements("1", "2", "1", "3")
 
       val op = input.distinct { x => x}
-      op.print()
+      op.output(new DiscardingOutputFormat[String])
 
       val p = env.createProgramPlan()
 

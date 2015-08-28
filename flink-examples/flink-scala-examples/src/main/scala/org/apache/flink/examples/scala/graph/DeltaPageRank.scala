@@ -100,6 +100,5 @@ object DeltaPageRank {
 
     iteration.print()
 
-    env.execute("Page Rank")
   }
 }

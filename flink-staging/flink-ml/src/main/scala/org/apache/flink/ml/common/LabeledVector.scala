@@ -26,7 +26,7 @@ import org.apache.flink.ml.math.Vector
   * @param label Label of the data point
   * @param vector Data point
   */
-case class LabeledVector(label: Double, vector: Vector) {
+case class LabeledVector(label: Double, vector: Vector) extends Serializable {
 
   override def equals(obj: Any): Boolean = {
     obj match {

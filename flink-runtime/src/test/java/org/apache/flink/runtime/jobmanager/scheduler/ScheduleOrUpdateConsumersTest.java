@@ -18,19 +18,19 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import akka.actor.ActorRef;
 import com.google.common.collect.Lists;
-import org.apache.flink.runtime.client.JobClient;
+
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.SlotCountExceedingParallelismTest;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.types.IntegerRecord;
+import org.apache.flink.types.IntValue;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -46,7 +46,6 @@ public class ScheduleOrUpdateConsumersTest {
 	private final static int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
 
 	private static TestingCluster flink;
-	private static ActorRef jobClient;
 
 	@BeforeClass
 	public static void setUp() throws Exception {
@@ -54,11 +53,6 @@ public class ScheduleOrUpdateConsumersTest {
 				NUMBER_OF_SLOTS_PER_TM,
 				NUMBER_OF_TMS,
 				TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
-
-		jobClient = JobClient.createJobClientFromConfig(
-				flink.configuration(),
-				true,
-				flink.jobManagerActorSystem());
 	}
 
 	@AfterClass
@@ -85,12 +79,12 @@ public class ScheduleOrUpdateConsumersTest {
 	 */
 	@Test
 	public void testMixedPipelinedAndBlockingResults() throws Exception {
-		final AbstractJobVertex sender = new AbstractJobVertex("Sender");
+		final JobVertex sender = new JobVertex("Sender");
 		sender.setInvokableClass(BinaryRoundRobinSubtaskIndexSender.class);
 		sender.getConfiguration().setInteger(BinaryRoundRobinSubtaskIndexSender.CONFIG_KEY, PARALLELISM);
 		sender.setParallelism(PARALLELISM);
 
-		final AbstractJobVertex pipelinedReceiver = new AbstractJobVertex("Pipelined Receiver");
+		final JobVertex pipelinedReceiver = new JobVertex("Pipelined Receiver");
 		pipelinedReceiver.setInvokableClass(SlotCountExceedingParallelismTest.SubtaskIndexReceiver.class);
 		pipelinedReceiver.getConfiguration().setInteger(CONFIG_KEY, PARALLELISM);
 		pipelinedReceiver.setParallelism(PARALLELISM);
@@ -100,7 +94,7 @@ public class ScheduleOrUpdateConsumersTest {
 				DistributionPattern.ALL_TO_ALL,
 				ResultPartitionType.PIPELINED);
 
-		final AbstractJobVertex blockingReceiver = new AbstractJobVertex("Blocking Receiver");
+		final JobVertex blockingReceiver = new JobVertex("Blocking Receiver");
 		blockingReceiver.setInvokableClass(SlotCountExceedingParallelismTest.SubtaskIndexReceiver.class);
 		blockingReceiver.getConfiguration().setInteger(CONFIG_KEY, PARALLELISM);
 		blockingReceiver.setParallelism(PARALLELISM);
@@ -122,7 +116,7 @@ public class ScheduleOrUpdateConsumersTest {
 				pipelinedReceiver,
 				blockingReceiver);
 
-		JobClient.submitJobAndWait(jobGraph, false, jobClient, TestingUtils.TESTING_DURATION());
+		flink.submitJobAndWait(jobGraph, false, TestingUtils.TESTING_DURATION());
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -131,7 +125,7 @@ public class ScheduleOrUpdateConsumersTest {
 
 		public final static String CONFIG_KEY = "number-of-times-to-send";
 
-		private List<RecordWriter<IntegerRecord>> writers = Lists.newArrayListWithCapacity(2);
+		private List<RecordWriter<IntValue>> writers = Lists.newArrayListWithCapacity(2);
 
 		private int numberOfTimesToSend;
 
@@ -139,11 +133,11 @@ public class ScheduleOrUpdateConsumersTest {
 		public void registerInputOutput() {
 			// The order of intermediate result creation in the job graph specifies which produced
 			// result partition is pipelined/blocking.
-			final RecordWriter<IntegerRecord> pipelinedWriter =
-					new RecordWriter<IntegerRecord>(getEnvironment().getWriter(0));
+			final RecordWriter<IntValue> pipelinedWriter =
+					new RecordWriter<IntValue>(getEnvironment().getWriter(0));
 
-			final RecordWriter<IntegerRecord> blockingWriter =
-					new RecordWriter<IntegerRecord>(getEnvironment().getWriter(1));
+			final RecordWriter<IntValue> blockingWriter =
+					new RecordWriter<IntValue>(getEnvironment().getWriter(1));
 
 			writers.add(pipelinedWriter);
 			writers.add(blockingWriter);
@@ -153,11 +147,11 @@ public class ScheduleOrUpdateConsumersTest {
 
 		@Override
 		public void invoke() throws Exception {
-			final IntegerRecord subtaskIndex = new IntegerRecord(
+			final IntValue subtaskIndex = new IntValue(
 					getEnvironment().getIndexInSubtaskGroup());
 
 			// Produce the first intermediate result and then the second in a serial fashion.
-			for (RecordWriter<IntegerRecord> writer : writers) {
+			for (RecordWriter<IntValue> writer : writers) {
 				try {
 					for (int i = 0; i < numberOfTimesToSend; i++) {
 						writer.emit(subtaskIndex);

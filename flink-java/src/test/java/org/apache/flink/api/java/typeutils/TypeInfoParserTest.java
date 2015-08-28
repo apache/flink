@@ -144,6 +144,14 @@ public class TypeInfoParserTest {
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ((TupleTypeInfo<?>)ti).getTypeAt(0));
 		Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, ((TupleTypeInfo<?>)ti).getTypeAt(1));
 		
+		ti = TypeInfoParser.parse("Tuple0");
+		Assert.assertEquals(0, ti.getArity());
+		Assert.assertEquals("Java Tuple0", ti.toString());
+		
+		ti = TypeInfoParser.parse("org.apache.flink.api.java.tuple.Tuple0");
+		Assert.assertEquals(0, ti.getArity());
+		Assert.assertEquals("Java Tuple0", ti.toString());
+		
 		ti = TypeInfoParser.parse("Tuple3<Tuple1<String>, Tuple1<Integer>, Tuple2<Long, Long>>");
 		Assert.assertEquals("Java Tuple3<Java Tuple1<String>, Java Tuple1<Integer>, Java Tuple2<Long, Long>>", ti.toString());
 	}

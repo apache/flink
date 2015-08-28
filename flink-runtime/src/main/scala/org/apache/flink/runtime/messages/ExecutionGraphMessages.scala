@@ -45,11 +45,18 @@ object ExecutionGraphMessages {
    * @param timestamp of the execution state change
    * @param optionalMessage
    */
-  case class ExecutionStateChanged(jobID: JobID, vertexID: JobVertexID,
-                                   taskName: String, totalNumberOfSubTasks: Int, subtaskIndex: Int,
-                                   executionID: ExecutionAttemptID,
-                                   newExecutionState: ExecutionState, timestamp: Long,
-                                   optionalMessage: String){
+  case class ExecutionStateChanged(
+      jobID: JobID,
+      vertexID: JobVertexID,
+      taskName: String,
+      totalNumberOfSubTasks: Int,
+      subtaskIndex: Int,
+      executionID: ExecutionAttemptID,
+      newExecutionState: ExecutionState,
+      timestamp: Long,
+      optionalMessage: String)
+    extends RequiresLeaderSessionID {
+
     override def toString: String = {
       val oMsg = if (optionalMessage != null) {
         s"\n$optionalMessage"
@@ -64,13 +71,17 @@ object ExecutionGraphMessages {
   /**
    * Denotes the job state change of a job.
    *
-   * @param jobID identifying the correspong job
+   * @param jobID identifying the corresponding job
    * @param newJobStatus
    * @param timestamp
    * @param error
    */
-  case class JobStatusChanged(jobID: JobID, newJobStatus: JobStatus, timestamp: Long,
-                              error: Throwable){
+  case class JobStatusChanged(
+      jobID: JobID,
+      newJobStatus: JobStatus,
+      timestamp: Long,
+      error: Throwable)
+    extends RequiresLeaderSessionID {
     override def toString: String = {
       s"${timestampToString(timestamp)}\tJob execution switched to status $newJobStatus."
     }

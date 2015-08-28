@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.environment;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,9 +38,9 @@ import org.slf4j.LoggerFactory;
 public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteStreamEnvironment.class);
 
-	private String host;
-	private int port;
-	private List<File> jarFiles;
+	private final String host;
+	private final int port;
+	private final List<File> jarFiles;
 
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
@@ -69,11 +70,12 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		this.host = host;
 		this.port = port;
 		this.jarFiles = new ArrayList<File>();
-		for (int i = 0; i < jarFiles.length; i++) {
-			File file = new File(jarFiles[i]);
+		for (String jarFile : jarFiles) {
+			File file = new File(jarFile);
 			try {
 				JobWithJars.checkJarFile(file);
-			} catch (IOException e) {
+			}
+			catch (IOException e) {
 				throw new RuntimeException("Problem with jar file " + file.getAbsolutePath(), e);
 			}
 			this.jarFiles.add(file);
@@ -81,16 +83,16 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute() {
-
-		JobGraph jobGraph = streamGraph.getJobGraph();
+	public JobExecutionResult execute() throws ProgramInvocationException {
+		JobGraph jobGraph = getStreamGraph().getJobGraph();
+		transformations.clear();
 		return executeRemotely(jobGraph);
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) {
-
-		JobGraph jobGraph = streamGraph.getJobGraph(jobName);
+	public JobExecutionResult execute(String jobName) throws ProgramInvocationException {
+		JobGraph jobGraph = getStreamGraph().getJobGraph(jobName);
+		transformations.clear();
 		return executeRemotely(jobGraph);
 	}
 
@@ -101,7 +103,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            jobGraph to execute
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	private JobExecutionResult executeRemotely(JobGraph jobGraph) {
+	private JobExecutionResult executeRemotely(JobGraph jobGraph) throws ProgramInvocationException {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
@@ -111,19 +113,29 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 
 		Configuration configuration = jobGraph.getJobConfiguration();
-		Client client = new Client(new InetSocketAddress(host, port), configuration,
-				JobWithJars.buildUserCodeClassLoader(jarFiles, JobWithJars.class.getClassLoader()), -1);
+		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, getClass().getClassLoader());
 
 		try {
+			Client client = new Client(new InetSocketAddress(host, port), configuration, usercodeClassLoader, -1);
+			client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
+			
 			JobSubmissionResult result = client.run(jobGraph, true);
-			if(result instanceof JobExecutionResult) {
+			if (result instanceof JobExecutionResult) {
 				return (JobExecutionResult) result;
 			} else {
 				LOG.warn("The Client didn't return a JobExecutionResult");
 				return new JobExecutionResult(result.getJobID(), -1, null);
 			}
-		} catch (ProgramInvocationException e) {
-			throw new RuntimeException("Cannot execute job due to ProgramInvocationException", e);
+		}
+		catch (ProgramInvocationException e) {
+			throw e;
+		}
+		catch (UnknownHostException e) {
+			throw new ProgramInvocationException(e.getMessage(), e);
+		}
+		catch (Exception e) {
+			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
+			throw new ProgramInvocationException("The program execution failed" + term, e);
 		}
 	}
 
@@ -133,4 +145,23 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 				+ (getParallelism() == -1 ? "default" : getParallelism()) + ")";
 	}
 
+	/**
+	 * Gets the hostname of the master (JobManager), where the
+	 * program will be executed.
+	 *
+	 * @return The hostname of the master
+	 */
+	public String getHost() {
+		return host;
+	}
+
+	/**
+	 * Gets the port of the master (JobManager), where the
+	 * program will be executed.
+	 *
+	 * @return The port of the master
+	 */
+	public int getPort() {
+		return port;
+	}
 }

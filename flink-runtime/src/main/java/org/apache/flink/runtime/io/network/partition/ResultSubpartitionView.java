@@ -49,11 +49,12 @@ public interface ResultSubpartitionView {
 	 */
 	boolean registerListener(NotificationListener listener) throws IOException;
 
-
 	void releaseAllResources() throws IOException;
 
 	void notifySubpartitionConsumed() throws IOException;
 
 	boolean isReleased();
+
+	Throwable getFailureCause();
 
 }

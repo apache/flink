@@ -18,13 +18,18 @@
 
 package org.apache.flink.ml.math
 
+import breeze.linalg.{SparseVector => BreezeSparseVector, DenseVector => BreezeDenseVector, Vector => BreezeVector}
+
 /**
  * Dense vector implementation of [[Vector]]. The data is represented in a continuous array of
  * doubles.
  *
  * @param data Array of doubles to store the vector elements
  */
-case class DenseVector(val data: Array[Double]) extends Vector with Serializable {
+case class DenseVector(
+    val data: Array[Double])
+  extends Vector
+  with Serializable {
 
   /**
    * Number of elements in a vector
@@ -52,8 +57,12 @@ case class DenseVector(val data: Array[Double]) extends Vector with Serializable
   override def equals(obj: Any): Boolean = {
     obj match {
       case dense: DenseVector => data.length == dense.data.length && data.sameElements(dense.data)
-      case _ => super.equals(obj)
+      case _ => false
     }
+  }
+
+  override def hashCode: Int = {
+    java.util.Arrays.hashCode(data)
   }
 
   /**
@@ -61,7 +70,7 @@ case class DenseVector(val data: Array[Double]) extends Vector with Serializable
    *
    * @return Copy of the vector instance
    */
-  override def copy: Vector = {
+  override def copy: DenseVector = {
     DenseVector(data.clone())
   }
 
@@ -75,6 +84,29 @@ case class DenseVector(val data: Array[Double]) extends Vector with Serializable
 
     data(index) = value
   }
+
+  /** Returns the dot product of the recipient and the argument
+    *
+    * @param other a Vector
+    * @return a scalar double of dot product
+    */
+  override def dot(other: Vector): Double = {
+    require(size == other.size, "The size of vector must be equal.")
+
+    other match {
+      case SparseVector(_, otherIndices, otherData) =>
+        otherIndices.zipWithIndex.map {
+          case (idx, sparseIdx) => data(idx) * otherData(sparseIdx)
+        }.sum
+      case _ => (0 until size).map(i => data(i) * other(i)).sum
+    }
+  }
+
+  /** Magnitude of a vector
+    *
+    * @return
+    */
+  override def magnitude: Double = math.sqrt(data.map(x => x * x).sum)
 
   def toSparseVector: SparseVector = {
     val nonZero = (0 until size).zip(data).filter(_._2 != 0)
@@ -103,5 +135,18 @@ object DenseVector {
 
   def init(size: Int, value: Double): DenseVector = {
     new DenseVector(Array.fill(size)(value))
+  }
+
+  /** BreezeVectorConverter implementation for [[org.apache.flink.ml.math.DenseVector]]
+    *
+    * This allows to convert Breeze vectors into [[DenseVector]].
+    */
+  implicit val denseVectorConverter = new BreezeVectorConverter[DenseVector] {
+    override def convert(vector: BreezeVector[Double]): DenseVector = {
+      vector match {
+        case dense: BreezeDenseVector[Double] => new DenseVector(dense.data)
+        case sparse: BreezeSparseVector[Double] => new DenseVector(sparse.toDenseVector.data)
+      }
+    }
   }
 }

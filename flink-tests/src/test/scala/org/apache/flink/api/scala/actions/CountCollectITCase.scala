@@ -19,8 +19,8 @@
 package org.apache.flink.api.scala.actions
 
 import org.apache.flink.api.scala._
-import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.MultipleProgramsTestBase
 
 import org.junit.Test
 import org.junit.Assert._
@@ -39,11 +39,11 @@ class CountCollectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val inputDS = env.fromElements(input: _*)
 
     // count
-    val numEntries = inputDS.count
+    val numEntries = inputDS.count()
     assertEquals(input.length, numEntries)
 
     // collect
-    val list = inputDS.collect
+    val list = inputDS.collect()
     assertArrayEquals(input.toArray, list.toArray)
   }
 
@@ -60,10 +60,10 @@ class CountCollectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     val result = inputDS1 cross inputDS2
 
-    val numEntries = result.count
+    val numEntries = result.count()
     assertEquals(input1.length * input2.length, numEntries)
 
-    val list = result.collect
+    val list = result.collect()
 
     val marker = Array.fill(input1.length, input2.length)(false)
 

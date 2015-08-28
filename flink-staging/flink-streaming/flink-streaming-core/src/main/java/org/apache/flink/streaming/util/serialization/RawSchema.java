@@ -17,8 +17,16 @@
 
 package org.apache.flink.streaming.util.serialization;
 
-public class RawSchema implements DeserializationSchema<byte[]>,
-		SerializationSchema<byte[], byte[]> {
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+
+/**
+ * A "no-op" serialization and deserialization schema for byte strings. The serialized representation is
+ * identical with the original representation.
+ * 
+ * <p>This schema never considers a byte string to signal end-of-stream.</p>
+ */
+public class RawSchema implements DeserializationSchema<byte[]>, SerializationSchema<byte[], byte[]> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -35,5 +43,10 @@ public class RawSchema implements DeserializationSchema<byte[]>,
 	@Override
 	public byte[] serialize(byte[] element) {
 		return element;
+	}
+
+	@Override
+	public TypeInformation<byte[]> getProducedType() {
+		return PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
 	}
 }

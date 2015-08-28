@@ -17,33 +17,26 @@
 # limitations under the License.
 ################################################################################
 
-
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-HOSTLIST=$FLINK_SLAVES
+# Stop TaskManager instance(s)
+readSlaves
 
-if [ "$HOSTLIST" = "" ]; then
-    HOSTLIST="${FLINK_CONF_DIR}/slaves"
+for slave in ${SLAVES[@]}; do
+    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l $bin/taskmanager.sh stop &"
+done
+
+# Stop JobManager instance(s)
+if [[ -z $ZK_QUORUM ]]; then
+    "$bin"/jobmanager.sh stop
+else
+	# HA Mode
+    readMasters
+
+    for master in ${MASTERS[@]}; do
+        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l $bin/jobmanager.sh stop &"
+    done
 fi
-
-if [ ! -f "$HOSTLIST" ]; then
-    echo $HOSTLIST is not a valid slave list
-    exit 1
-fi
-
-
-GOON=true
-while $GOON
-do
-    read line || GOON=false
-    if [ -n "$line" ]; then
-        HOST=$( extractHostName $line)
-        ssh -n $FLINK_SSH_OPTS $HOST -- "nohup /bin/bash $FLINK_BIN_DIR/taskmanager.sh stop &"
-    fi
-done < $HOSTLIST
-
-# cluster mode, stop the job manager locally and stop the task manager on every slave host
-"$FLINK_BIN_DIR"/jobmanager.sh stop

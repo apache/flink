@@ -19,8 +19,8 @@ package org.apache.flink.streaming.api.windowing.policy;
 
 
 /**
- * When used in {@link GroupedWindowInvokable}, trigger policies can provide
- * a clone method. Cloneable triggers can can be used in a distributed manner,
+ * When used in grouped windowing, trigger policies can provide
+ * a clone method. Cloneable triggers can be used in a distributed manner,
  * which means they get cloned to provide an own instance for each group. This
  * allows each group to trigger individually and only based on the elements
  * belonging to the respective group.

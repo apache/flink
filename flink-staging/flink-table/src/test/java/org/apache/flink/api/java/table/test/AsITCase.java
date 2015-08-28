@@ -24,7 +24,6 @@ import org.apache.flink.api.table.Row;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
-import org.apache.flink.api.java.table.JavaBatchTranslator;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -65,10 +64,10 @@ public class AsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a, b, c");
+		Table table =
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c");
 
-		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -86,10 +85,10 @@ public class AsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a, b");
+		Table table =
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b");
 
-		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -102,10 +101,10 @@ public class AsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
+		Table table =
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
 
-		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -118,10 +117,10 @@ public class AsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
+		Table table =
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
 
-		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -134,10 +133,10 @@ public class AsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
+		Table table =
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
 
-		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -150,11 +149,11 @@ public class AsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
-				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a as foo, b," +
+		Table table =
+				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a as foo, b," +
 						" c");
 
-		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();

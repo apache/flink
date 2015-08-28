@@ -38,9 +38,18 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 
 /**
- * A job graph represents an entire Flink runtime job.
+ * The JobGraph represents a Flink dataflow program, at the low level that the JobManager accepts.
+ * All programs from higher level APIs are transformed into JobGraphs.
+ * 
+ * <p>The JobGraph is a graph of vertices and intermediate results that are connected together to
+ * form a DAG. Note that iterations (feedback edges) are currently not encoded inside the JobGraph
+ * but inside certain special vertices that establish the feedback channel amongst themselves.</p>
+ * 
+ * <p>The JobGraph defines the job-wide configuration settings, while each vertex and intermediate result
+ * define the characteristics of the concrete operation and intermediate data.</p>
  */
 public class JobGraph implements Serializable {
 
@@ -51,7 +60,7 @@ public class JobGraph implements Serializable {
 	// --------------------------------------------------------------------------------------------
 
 	/** List of task vertices included in this job graph. */
-	private final Map<JobVertexID, AbstractJobVertex> taskVertices = new LinkedHashMap<JobVertexID, AbstractJobVertex>();
+	private final Map<JobVertexID, JobVertex> taskVertices = new LinkedHashMap<JobVertexID, JobVertex>();
 
 	/** The job configuration attached to this job. */
 	private final Configuration jobConfiguration = new Configuration();
@@ -74,16 +83,15 @@ public class JobGraph implements Serializable {
 	/** flag to enable queued scheduling */
 	private boolean allowQueuedScheduling;
 
+	/** The mode in which the job is scheduled */
 	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 	
-	public enum JobType {STREAMING, BATCH}
+	/** The settings for asynchronous snapshotting */
+	private JobSnapshottingSettings snapshotSettings;
 	
-	private JobType jobType = JobType.BATCH;
 	
-	private boolean checkpointingEnabled = false;
-	
-	private long checkpointingInterval = 10000;
-	
+	private String jsonPlan;
+
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -118,7 +126,7 @@ public class JobGraph implements Serializable {
 	 * 
 	 * @param vertices The vertices to add to the graph.
 	 */
-	public JobGraph(AbstractJobVertex... vertices) {
+	public JobGraph(JobVertex... vertices) {
 		this(null, vertices);
 	}
 
@@ -128,7 +136,7 @@ public class JobGraph implements Serializable {
 	 * @param jobName The name of the job.
 	 * @param vertices The vertices to add to the graph.
 	 */
-	public JobGraph(String jobName, AbstractJobVertex... vertices) {
+	public JobGraph(String jobName, JobVertex... vertices) {
 		this(null, jobName, vertices);
 	}
 	
@@ -139,10 +147,10 @@ public class JobGraph implements Serializable {
 	 * @param jobName The name of the job.
 	 * @param vertices The vertices to add to the graph.
 	 */
-	public JobGraph(JobID jobId, String jobName, AbstractJobVertex... vertices) {
+	public JobGraph(JobID jobId, String jobName, JobVertex... vertices) {
 		this(jobId, jobName);
 		
-		for (AbstractJobVertex vertex : vertices) {
+		for (JobVertex vertex : vertices) {
 			addVertex(vertex);
 		}
 	}
@@ -217,15 +225,23 @@ public class JobGraph implements Serializable {
 		return scheduleMode;
 	}
 
+	public String getJsonPlan() {
+		return jsonPlan;
+	}
+
+	public void setJsonPlan(String jsonPlan) {
+		this.jsonPlan = jsonPlan;
+	}
+
 	/**
 	 * Adds a new task vertex to the job graph if it is not already included.
 	 * 
 	 * @param vertex
 	 *        the new task vertex to be added
 	 */
-	public void addVertex(AbstractJobVertex vertex) {
+	public void addVertex(JobVertex vertex) {
 		final JobVertexID id = vertex.getID();
-		AbstractJobVertex previous = taskVertices.put(id, vertex);
+		JobVertex previous = taskVertices.put(id, vertex);
 		
 		// if we had a prior association, restore and throw an exception
 		if (previous != null) {
@@ -239,7 +255,7 @@ public class JobGraph implements Serializable {
 	 * 
 	 * @return an Iterable to iterate all vertices registered with the job graph
 	 */
-	public Iterable<AbstractJobVertex> getVertices() {
+	public Iterable<JobVertex> getVertices() {
 		return this.taskVertices.values();
 	}
 	
@@ -249,8 +265,8 @@ public class JobGraph implements Serializable {
 	 * 
 	 * @return an array of all job vertices that are registered with the job graph
 	 */
-	public AbstractJobVertex[] getVerticesAsArray() {
-		return this.taskVertices.values().toArray(new AbstractJobVertex[this.taskVertices.size()]);
+	public JobVertex[] getVerticesAsArray() {
+		return this.taskVertices.values().toArray(new JobVertex[this.taskVertices.size()]);
 	}
 
 	/**
@@ -262,29 +278,24 @@ public class JobGraph implements Serializable {
 		return this.taskVertices.size();
 	}
 
-
-	public void setJobType(JobType jobType) {
-		this.jobType = jobType;
+	/**
+	 * Sets the settings for asynchronous snapshots. A value of {@code null} means that
+	 * snapshotting is not enabled.
+	 *
+	 * @param settings The snapshot settings, or null, to disable snapshotting.
+	 */
+	public void setSnapshotSettings(JobSnapshottingSettings settings) {
+		this.snapshotSettings = settings;
 	}
 
-	public JobType getJobType() {
-		return jobType;
-	}
-
-	public void setCheckpointingEnabled(boolean checkpointingEnabled) {
-		this.checkpointingEnabled = checkpointingEnabled;
-	}
-
-	public boolean isCheckpointingEnabled() {
-		return checkpointingEnabled;
-	}
-
-	public void setCheckpointingInterval(long checkpointingInterval) {
-		this.checkpointingInterval = checkpointingInterval;
-	}
-
-	public long getCheckpointingInterval() {
-		return checkpointingInterval;
+	/**
+	 * Gets the settings for asynchronous snapshots. This method returns null, when
+	 * snapshotting is not enabled.
+	 * 
+	 * @return The snapshot settings, or null, if snapshotting is not enabled.
+	 */
+	public JobSnapshottingSettings getSnapshotSettings() {
+		return snapshotSettings;
 	}
 
 	/**
@@ -294,27 +305,27 @@ public class JobGraph implements Serializable {
 	 *        the ID of the vertex to search for
 	 * @return the vertex with the matching ID or <code>null</code> if no vertex with such ID could be found
 	 */
-	public AbstractJobVertex findVertexByID(JobVertexID id) {
+	public JobVertex findVertexByID(JobVertexID id) {
 		return this.taskVertices.get(id);
 	}
 	
 	// --------------------------------------------------------------------------------------------
 
-	public List<AbstractJobVertex> getVerticesSortedTopologicallyFromSources() throws InvalidProgramException {
+	public List<JobVertex> getVerticesSortedTopologicallyFromSources() throws InvalidProgramException {
 		// early out on empty lists
 		if (this.taskVertices.isEmpty()) {
 			return Collections.emptyList();
 		}
 		
-		List<AbstractJobVertex> sorted = new ArrayList<AbstractJobVertex>(this.taskVertices.size());
-		Set<AbstractJobVertex> remaining = new LinkedHashSet<AbstractJobVertex>(this.taskVertices.values());
+		List<JobVertex> sorted = new ArrayList<JobVertex>(this.taskVertices.size());
+		Set<JobVertex> remaining = new LinkedHashSet<JobVertex>(this.taskVertices.values());
 		
 		// start by finding the vertices with no input edges
 		// and the ones with disconnected inputs (that refer to some standalone data set)
 		{
-			Iterator<AbstractJobVertex> iter = remaining.iterator();
+			Iterator<JobVertex> iter = remaining.iterator();
 			while (iter.hasNext()) {
-				AbstractJobVertex vertex = iter.next();
+				JobVertex vertex = iter.next();
 				
 				if (vertex.hasNoConnectedInputs()) {
 					sorted.add(vertex);
@@ -334,21 +345,21 @@ public class JobGraph implements Serializable {
 				throw new InvalidProgramException("The job graph is cyclic.");
 			}
 			
-			AbstractJobVertex current = sorted.get(startNodePos++);
+			JobVertex current = sorted.get(startNodePos++);
 			addNodesThatHaveNoNewPredecessors(current, sorted, remaining);
 		}
 		
 		return sorted;
 	}
 	
-	private void addNodesThatHaveNoNewPredecessors(AbstractJobVertex start, List<AbstractJobVertex> target, Set<AbstractJobVertex> remaining) {
+	private void addNodesThatHaveNoNewPredecessors(JobVertex start, List<JobVertex> target, Set<JobVertex> remaining) {
 		
 		// forward traverse over all produced data sets and all their consumers
 		for (IntermediateDataSet dataSet : start.getProducedDataSets()) {
 			for (JobEdge edge : dataSet.getConsumers()) {
 				
 				// a vertex can be added, if it has no predecessors that are still in the 'remaining' set
-				AbstractJobVertex v = edge.getTarget();
+				JobVertex v = edge.getTarget();
 				if (!remaining.contains(v)) {
 					continue;
 				}

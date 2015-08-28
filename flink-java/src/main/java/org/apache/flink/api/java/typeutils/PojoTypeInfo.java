@@ -33,11 +33,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoComparator;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 
 import com.google.common.base.Joiner;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * TypeInformation for "Java Beans"-style types. Flink refers to them as POJOs,
@@ -54,6 +58,8 @@ import com.google.common.base.Joiner;
 public class PojoTypeInfo<T> extends CompositeType<T> {
 	
 	private static final long serialVersionUID = 1L;
+
+	private static final Logger LOG = LoggerFactory.getLogger(PojoTypeInfo.class);
 
 	private final static String REGEX_FIELD = "[\\p{L}_\\$][\\p{L}\\p{Digit}_\\$]*";
 	private final static String REGEX_NESTED_FIELDS = "("+REGEX_FIELD+")(\\.(.+))?";
@@ -118,8 +124,11 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	}
 
 	@Override
-	public boolean isKeyType() {
-		return Comparable.class.isAssignableFrom(typeClass);
+	public boolean isSortKeyType() {
+		// Support for sorting POJOs that implement Comparable is not implemented yet.
+		// Since the order of fields in a POJO type is not well defined, sorting on fields
+		//   gives only some undefined order.
+		return false;
 	}
 	
 
@@ -310,6 +319,13 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 
 	@Override
 	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+		if(config.isForceKryoEnabled()) {
+			return new KryoSerializer<T>(this.typeClass, config);
+		}
+		if(config.isForceAvroEnabled()) {
+			return new AvroSerializer<T>(this.typeClass);
+		}
+
 		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[fields.length ];
 		Field[] reflectiveFields = new Field[fields.length];
 

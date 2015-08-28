@@ -18,8 +18,8 @@
 package org.apache.flink.api.table.parser
 
 import org.apache.flink.api.table.ExpressionException
-import org.apache.flink.api.table.operations.As
-import org.apache.flink.api.table.tree._
+import org.apache.flink.api.table.plan.As
+import org.apache.flink.api.table.expressions._
 
 import scala.util.parsing.combinator.{PackratParsers, JavaTokenParsers}
 
@@ -33,6 +33,21 @@ import scala.util.parsing.combinator.{PackratParsers, JavaTokenParsers}
  * lazy valined in the above files.
  */
 object ExpressionParser extends JavaTokenParsers with PackratParsers {
+  case class Keyword(key: String)
+
+  // Convert the keyword into an case insensitive Parser
+  implicit def keyword2Parser(kw: Keyword): Parser[String] = {
+    ("""(?i)\Q""" + kw.key + """\E""").r
+  }
+
+  // KeyWord
+
+  lazy val AS: Keyword = Keyword("as")
+  lazy val COUNT: Keyword = Keyword("count")
+  lazy val AVG: Keyword = Keyword("avg")
+  lazy val MIN: Keyword = Keyword("min")
+  lazy val MAX: Keyword = Keyword("max")
+  lazy val SUM: Keyword = Keyword("sum")
 
   // Literals
 
@@ -81,11 +96,16 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val abs: PackratParser[Expression] = atom <~ ".abs" ^^ { e => Abs(e) }
 
-  lazy val sum: PackratParser[Expression] = atom <~ ".sum" ^^ { e => Sum(e) }
-  lazy val min: PackratParser[Expression] = atom <~ ".min" ^^ { e => Min(e) }
-  lazy val max: PackratParser[Expression] = atom <~ ".max" ^^ { e => Max(e) }
-  lazy val count: PackratParser[Expression] = atom <~ ".count" ^^ { e => Count(e) }
-  lazy val avg: PackratParser[Expression] = atom <~ ".avg" ^^ { e => Avg(e) }
+  lazy val sum: PackratParser[Expression] =
+    (atom <~ ".sum" ^^ { e => Sum(e) }) | (SUM ~ "(" ~> atom <~ ")" ^^ { e => Sum(e) })
+  lazy val min: PackratParser[Expression] =
+    (atom <~ ".min" ^^ { e => Min(e) }) | (MIN ~ "(" ~> atom <~ ")" ^^ { e => Min(e) })
+  lazy val max: PackratParser[Expression] =
+    (atom <~ ".max" ^^ { e => Max(e) }) | (MAX ~ "(" ~> atom <~ ")" ^^ { e => Max(e) })
+  lazy val count: PackratParser[Expression] =
+    (atom <~ ".count" ^^ { e => Count(e) }) | (COUNT ~ "(" ~> atom <~ ")" ^^ { e => Count(e) })
+  lazy val avg: PackratParser[Expression] =
+    (atom <~ ".avg" ^^ { e => Avg(e) }) | (AVG ~ "(" ~> atom <~ ")" ^^ { e => Avg(e) })
 
   lazy val as: PackratParser[Expression] = atom ~ ".as(" ~ fieldReference ~ ")" ^^ {
     case e ~ _ ~ as ~ _ => Naming(e, as.name)
@@ -139,15 +159,11 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // Comparison
 
-  lazy val equalTo: PackratParser[Expression] = term ~ "===" ~ term ^^ {
+  lazy val equalTo: PackratParser[Expression] = term ~ ("===" | "=") ~ term ^^ {
     case l ~ _ ~ r => EqualTo(l, r)
   }
 
-  lazy val equalToAlt: PackratParser[Expression] = term ~ "=" ~ term ^^ {
-    case l ~ _ ~ r => EqualTo(l, r)
-  }
-
-  lazy val notEqualTo: PackratParser[Expression] = term ~ "!==" ~ term ^^ {
+  lazy val notEqualTo: PackratParser[Expression] = term ~ ("!==" | "!=" | "<>") ~ term ^^ {
     case l ~ _ ~ r => NotEqualTo(l, r)
   }
 
@@ -168,7 +184,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val comparison: PackratParser[Expression] =
-      equalTo | equalToAlt | notEqualTo |
+      equalTo | notEqualTo |
       greaterThan | greaterThanOrEqual |
       lessThan | lessThanOrEqual | term
 
@@ -180,7 +196,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // alias
 
-  lazy val alias: PackratParser[Expression] = logic ~ "as" ~ fieldReference ^^ {
+  lazy val alias: PackratParser[Expression] = logic ~ AS ~ fieldReference ^^ {
     case e ~ _ ~ name => Naming(e, name.name)
   } | logic
 

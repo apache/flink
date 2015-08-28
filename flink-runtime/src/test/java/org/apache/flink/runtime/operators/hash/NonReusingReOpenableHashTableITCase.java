@@ -101,10 +101,9 @@ public class NonReusingReOpenableHashTableITCase {
 	private TypeComparator<Record> recordProbeSideComparator;
 	private TypePairComparator<Record, Record> pactRecordComparator;
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Before
-	public void beforeTest()
-	{
+	public void beforeTest() {
 		this.recordSerializer = RecordSerializer.get();
 
 		this.record1Comparator = new RecordComparator(new int[] {0}, new Class[] {Key.class});
@@ -121,13 +120,12 @@ public class NonReusingReOpenableHashTableITCase {
 		this.recordProbeSideComparator = new RecordComparator(keyPos, keyType);
 		this.pactRecordComparator = new HashTableITCase.RecordPairComparatorFirstInt();
 
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE,1, PAGE_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1, PAGE_SIZE, true);
 		this.ioManager = new IOManagerAsync();
 	}
 
 	@After
-	public void afterTest()
-	{
+	public void afterTest() {
 		if (this.ioManager != null) {
 			this.ioManager.shutdown();
 			if (!this.ioManager.isProperlyShutDown()) {
@@ -241,7 +239,7 @@ public class NonReusingReOpenableHashTableITCase {
 				new NonReusingBuildFirstReOpenableHashMatchIterator<Record, Record, Record>(
 						buildInput, probeInput, this.recordSerializer, this.record1Comparator,
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-					this.memoryManager, ioManager, this.parentTask, 1.0);
+					this.memoryManager, ioManager, this.parentTask, 1.0, true);
 
 		iterator.open();
 		// do first join with both inputs
@@ -279,7 +277,7 @@ public class NonReusingReOpenableHashTableITCase {
 	//
 	//
 
-	private final MutableObjectIterator<Record> getProbeInput(final int numKeys,
+	private MutableObjectIterator<Record> getProbeInput(final int numKeys,
 			final int probeValsPerKey, final int repeatedValue1, final int repeatedValue2) {
 		MutableObjectIterator<Record> probe1 = new UniformRecordGenerator(numKeys, probeValsPerKey, true);
 		MutableObjectIterator<Record> probe2 = new ConstantsKeyValuePairsIterator(repeatedValue1, 17, 5);
@@ -336,9 +334,9 @@ public class NonReusingReOpenableHashTableITCase {
 		final ReOpenableMutableHashTable<Record, Record> join = new ReOpenableMutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor,
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
-				memSegments, ioManager);
+				memSegments, ioManager, true);
 
-		for(int probe = 0; probe < NUM_PROBES; probe++) {
+		for (int probe = 0; probe < NUM_PROBES; probe++) {
 			// create a probe input that gives 10 million pairs with 10 values sharing a key
 			MutableObjectIterator<Record> probeInput = getProbeInput(NUM_KEYS, PROBE_VALS_PER_KEY, REPEATED_VALUE_1, REPEATED_VALUE_2);
 			if(probe == 0) {
@@ -350,9 +348,8 @@ public class NonReusingReOpenableHashTableITCase {
 			Record record;
 			final Record recordReuse = new Record();
 
-			while (join.nextRecord())
-			{
-				int numBuildValues = 0;
+			while (join.nextRecord()) {
+				long numBuildValues = 0;
 
 				final Record probeRec = join.getCurrentProbeRecord();
 				int key = probeRec.getField(0, IntValue.class).getValue();
@@ -372,10 +369,10 @@ public class NonReusingReOpenableHashTableITCase {
 
 				Long contained = map.get(key);
 				if (contained == null) {
-					contained = Long.valueOf(numBuildValues);
+					contained = numBuildValues;
 				}
 				else {
-					contained = Long.valueOf(contained.longValue() + numBuildValues);
+					contained = contained + numBuildValues;
 				}
 
 				map.put(key, contained);
@@ -452,11 +449,12 @@ public class NonReusingReOpenableHashTableITCase {
 		final ReOpenableMutableHashTable<Record, Record> join = new ReOpenableMutableHashTable<Record, Record>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor,
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
-				memSegments, ioManager);
-		for(int probe = 0; probe < NUM_PROBES; probe++) {
+				memSegments, ioManager, true);
+		
+		for (int probe = 0; probe < NUM_PROBES; probe++) {
 			// create a probe input that gives 10 million pairs with 10 values sharing a key
 			MutableObjectIterator<Record> probeInput = getProbeInput(NUM_KEYS, PROBE_VALS_PER_KEY, REPEATED_VALUE_1, REPEATED_VALUE_2);
-			if(probe == 0) {
+			if (probe == 0) {
 				join.open(buildInput, probeInput);
 			} else {
 				join.reopenProbe(probeInput);
@@ -464,9 +462,8 @@ public class NonReusingReOpenableHashTableITCase {
 			Record record;
 			final Record recordReuse = new Record();
 
-			while (join.nextRecord())
-			{
-				int numBuildValues = 0;
+			while (join.nextRecord()) {
+				long numBuildValues = 0;
 
 				final Record probeRec = join.getCurrentProbeRecord();
 				int key = probeRec.getField(0, IntValue.class).getValue();
@@ -486,10 +483,10 @@ public class NonReusingReOpenableHashTableITCase {
 
 				Long contained = map.get(key);
 				if (contained == null) {
-					contained = Long.valueOf(numBuildValues);
+					contained = numBuildValues;
 				}
 				else {
-					contained = Long.valueOf(contained.longValue() + numBuildValues);
+					contained = contained + numBuildValues;
 				}
 
 				map.put(key, contained);

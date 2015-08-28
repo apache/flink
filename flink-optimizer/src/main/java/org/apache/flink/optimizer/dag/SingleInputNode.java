@@ -148,7 +148,14 @@ public abstract class SingleInputNode extends OptimizerNode {
 	public SemanticProperties getSemanticProperties() {
 		return getOperator().getSemanticProperties();
 	}
-	
+
+	protected SemanticProperties getSemanticPropertiesForLocalPropertyFiltering() {
+		return this.getSemanticProperties();
+	}
+
+	protected SemanticProperties getSemanticPropertiesForGlobalPropertyFiltering() {
+		return this.getSemanticProperties();
+	}
 
 	@Override
 	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode, ExecutionMode defaultExchangeMode)
@@ -426,7 +433,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 				}
 				
 				// check if there is a common predecessor and whether there is a dam on the way to all common predecessors
-				if (this.hereJoinedBranches != null) {
+				if (in.isOnDynamicPath() && this.hereJoinedBranches != null) {
 					for (OptimizerNode brancher : this.hereJoinedBranches) {
 						PlanNode candAtBrancher = in.getSource().getCandidateAtBranchPoint(brancher);
 						
@@ -467,10 +474,9 @@ public abstract class SingleInputNode extends OptimizerNode {
 			gProps = dps.computeGlobalProperties(gProps);
 			lProps = dps.computeLocalProperties(lProps);
 
-			SemanticProperties props = this.getSemanticProperties();
 			// filter by the user code field copies
-			gProps = gProps.filterBySemanticProperties(props, 0);
-			lProps = lProps.filterBySemanticProperties(props, 0);
+			gProps = gProps.filterBySemanticProperties(getSemanticPropertiesForGlobalPropertyFiltering(), 0);
+			lProps = lProps.filterBySemanticProperties(getSemanticPropertiesForLocalPropertyFiltering(), 0);
 			
 			// apply
 			node.initProperties(gProps, lProps);
@@ -478,7 +484,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 			target.add(node);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                                     Branch Handling
 	// --------------------------------------------------------------------------------------------

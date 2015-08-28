@@ -26,6 +26,7 @@ import java.io.FileReader;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.java.record.functions.MapFunction;
@@ -125,6 +126,7 @@ public class DistributedCacheTest extends RecordAPITestBase {
 
 		Plan plan = new Plan(out, "Distributed Cache");
 		plan.setDefaultParallelism(numSubTasks);
+		plan.setExecutionConfig(new ExecutionConfig());
 		return plan;
 	}
 

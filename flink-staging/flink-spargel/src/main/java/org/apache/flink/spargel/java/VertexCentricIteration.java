@@ -24,14 +24,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.aggregators.Aggregator;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -39,6 +38,8 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+
+import com.google.common.base.Preconditions;
 
 /**
  * This class represents iterative graph computations, programmed in a vertex-centric perspective.
@@ -70,6 +71,7 @@ import org.apache.flink.util.Collector;
  * @param <Message> The type of the message sent between vertices along the edges.
  * @param <EdgeValue> The type of the values that are associated with the edges.
  */
+@Deprecated
 public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue> 
 	implements CustomUnaryOperation<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>
 {
@@ -106,17 +108,17 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			DataSet<Tuple2<VertexKey, VertexKey>> edgesWithoutValue,
 			int maximumNumberOfIterations)
 	{
-		Validate.notNull(uf);
-		Validate.notNull(mf);
-		Validate.notNull(edgesWithoutValue);
-		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
+		Preconditions.checkNotNull(uf);
+		Preconditions.checkNotNull(mf);
+		Preconditions.checkNotNull(edgesWithoutValue);
+		Preconditions.checkArgument(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
 		
 		// check that the edges are actually a valid tuple set of vertex key types
 		TypeInformation<Tuple2<VertexKey, VertexKey>> edgesType = edgesWithoutValue.getType();
-		Validate.isTrue(edgesType.isTupleType() && edgesType.getArity() == 2, "The edges data set (for edges without edge values) must consist of 2-tuples.");
+		Preconditions.checkArgument(edgesType.isTupleType() && edgesType.getArity() == 2, "The edges data set (for edges without edge values) must consist of 2-tuples.");
 		
 		TupleTypeInfo<?> tupleInfo = (TupleTypeInfo<?>) edgesType;
-		Validate.isTrue(tupleInfo.getTypeAt(0).equals(tupleInfo.getTypeAt(1))
+		Preconditions.checkArgument(tupleInfo.getTypeAt(0).equals(tupleInfo.getTypeAt(1))
 			&& Comparable.class.isAssignableFrom(tupleInfo.getTypeAt(0).getTypeClass()),
 			"Both tuple fields (source and target vertex id) must be of the data type that represents the vertex key and implement the java.lang.Comparable interface.");
 		
@@ -136,21 +138,21 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			int maximumNumberOfIterations,
 			boolean edgeHasValueMarker)
 	{
-		Validate.notNull(uf);
-		Validate.notNull(mf);
-		Validate.notNull(edgesWithValue);
-		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
+		Preconditions.checkNotNull(uf);
+		Preconditions.checkNotNull(mf);
+		Preconditions.checkNotNull(edgesWithValue);
+		Preconditions.checkArgument(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
 		
 		// check that the edges are actually a valid tuple set of vertex key types
 		TypeInformation<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesType = edgesWithValue.getType();
-		Validate.isTrue(edgesType.isTupleType() && edgesType.getArity() == 3, "The edges data set (for edges with edge values) must consist of 3-tuples.");
+		Preconditions.checkArgument(edgesType.isTupleType() && edgesType.getArity() == 3, "The edges data set (for edges with edge values) must consist of 3-tuples.");
 		
 		TupleTypeInfo<?> tupleInfo = (TupleTypeInfo<?>) edgesType;
-		Validate.isTrue(tupleInfo.getTypeAt(0).equals(tupleInfo.getTypeAt(1))
+		Preconditions.checkArgument(tupleInfo.getTypeAt(0).equals(tupleInfo.getTypeAt(1))
 			&& Comparable.class.isAssignableFrom(tupleInfo.getTypeAt(0).getTypeClass()),
 			"The first two tuple fields (source and target vertex id) must be of the data type that represents the vertex key and implement the java.lang.Comparable interface.");
 		
-		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
+		Preconditions.checkArgument(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
 		
 		this.updateFunction = uf;
 		this.messagingFunction = mf;
@@ -174,6 +176,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * @param name The name of the aggregator, used to retrieve it and its aggregates during execution. 
 	 * @param aggregator The aggregator.
 	 */
+	@Deprecated
 	public void registerAggregator(String name, Aggregator<?> aggregator) {
 		this.aggregators.put(name, aggregator);
 	}
@@ -184,6 +187,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * @param name The name under which the broadcast data is available in the messaging function.
 	 * @param data The data set to be broadcasted.
 	 */
+	@Deprecated
 	public void addBroadcastSetForMessagingFunction(String name, DataSet<?> data) {
 		this.bcVarsMessaging.add(new Tuple2<String, DataSet<?>>(name, data));
 	}
@@ -194,6 +198,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * @param name The name under which the broadcast data is available in the vertex update function.
 	 * @param data The data set to be broadcasted.
 	 */
+	@Deprecated
 	public void addBroadcastSetForUpdateFunction(String name, DataSet<?> data) {
 		this.bcVarsUpdate.add(new Tuple2<String, DataSet<?>>(name, data));
 	}
@@ -203,6 +208,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @param name The name for the iteration.
 	 */
+	@Deprecated
 	public void setName(String name) {
 		this.name = name;
 	}
@@ -212,6 +218,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @return The name of the iteration.
 	 */
+	@Deprecated
 	public String getName() {
 		return name;
 	}
@@ -221,8 +228,9 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @param parallelism The parallelism.
 	 */
+	@Deprecated
 	public void setParallelism(int parallelism) {
-		Validate.isTrue(parallelism > 0 || parallelism == -1, "The parallelism must be positive, or -1 (use default).");
+		Preconditions.checkArgument(parallelism > 0 || parallelism == -1, "The parallelism must be positive, or -1 (use default).");
 		this.parallelism = parallelism;
 	}
 	
@@ -231,6 +239,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @return The iterations parallelism, or -1, if not set.
 	 */
+	@Deprecated
 	public int getParallelism() {
 		return parallelism;
 	}
@@ -242,6 +251,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @param unmanaged True, to keep the solution set in unmanaged memory, false otherwise.
 	 */
+	@Deprecated
 	public void setSolutionSetUnmanagedMemory(boolean unmanaged) {
 		this.unmanagedSolutionSet = unmanaged;
 	}
@@ -253,6 +263,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @return True, if the solution set is in unmanaged memory, false otherwise.
 	 */
+	@Deprecated
 	public boolean isSolutionSetUnmanagedMemory() {
 		return this.unmanagedSolutionSet;
 	}
@@ -274,14 +285,14 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	public void setInput(DataSet<Tuple2<VertexKey, VertexValue>> inputData) {
 		// sanity check that we really have two tuples
 		TypeInformation<Tuple2<VertexKey, VertexValue>> inputType = inputData.getType();
-		Validate.isTrue(inputType.isTupleType() && inputType.getArity() == 2, "The input data set (the initial vertices) must consist of 2-tuples.");
+		Preconditions.checkArgument(inputType.isTupleType() && inputType.getArity() == 2, "The input data set (the initial vertices) must consist of 2-tuples.");
 
 		// check that the key type here is the same as for the edges
 		TypeInformation<VertexKey> keyType = ((TupleTypeInfo<?>) inputType).getTypeAt(0);
 		TypeInformation<?> edgeType = edgesWithoutValue != null ? edgesWithoutValue.getType() : edgesWithValue.getType();
 		TypeInformation<VertexKey> edgeKeyType = ((TupleTypeInfo<?>) edgeType).getTypeAt(0);
 		
-		Validate.isTrue(keyType.equals(edgeKeyType), "The first tuple field (the vertex id) of the input data set (the initial vertices) " +
+		Preconditions.checkArgument(keyType.equals(edgeKeyType), "The first tuple field (the vertex id) of the input data set (the initial vertices) " +
 				"must be the same data type as the first fields of the edge data set (the source vertex id). " +
 				"Here, the key type for the vertex ids is '%s' and the key type  for the edges is '%s'.", keyType, edgeKeyType);
 
@@ -373,6 +384,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @return An in stance of the vertex-centric graph computation operator.
 	 */
+	@Deprecated
 	public static final <VertexKey extends Comparable<VertexKey>, VertexValue, Message>
 			VertexCentricIteration<VertexKey, VertexValue, Message, ?> withPlainEdges(
 					DataSet<Tuple2<VertexKey, VertexKey>> edgesWithoutValue,
@@ -402,6 +414,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @return An in stance of the vertex-centric graph computation operator.
 	 */
+	@Deprecated
 	public static final <VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue>
 			VertexCentricIteration<VertexKey, VertexValue, Message, EdgeValue> withValuedEdges(
 					DataSet<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesWithValue,

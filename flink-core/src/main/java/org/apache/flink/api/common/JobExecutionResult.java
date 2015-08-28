@@ -19,6 +19,7 @@
 package org.apache.flink.api.common;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The result of a job execution. Gives access to the execution time of the job,
@@ -27,13 +28,14 @@ import java.util.Map;
 public class JobExecutionResult extends JobSubmissionResult {
 
 	private long netRuntime;
+
 	private Map<String, Object> accumulatorResults;
 
 	/**
 	 * Creates a new JobExecutionResult.
 	 *
-	 * @param jobID
-	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer)
+	 * @param jobID The job's ID.
+	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer) in milliseconds
 	 * @param accumulators A map of all accumulators produced by the job.
 	 */
 	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, Object> accumulators) {
@@ -46,10 +48,21 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 * Gets the net execution time of the job, i.e., the execution time in the parallel system,
 	 * without the pre-flight steps like the optimizer.
 	 *
-	 * @return The net execution time.
+	 * @return The net execution time in milliseconds.
 	 */
 	public long getNetRuntime() {
 		return this.netRuntime;
+	}
+
+    /**
+	 * Gets the net execution time of the job, i.e., the execution time in the parallel system,
+	 * without the pre-flight steps like the optimizer in a desired time unit.
+	 *
+	 * @param desiredUnit the unit of the <tt>NetRuntime</tt>
+	 * @return The net execution time in the desired unit.
+	 */
+	public long getNetRuntime(TimeUnit desiredUnit) {
+		return desiredUnit.convert(getNetRuntime(), TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -93,7 +106,4 @@ public class JobExecutionResult extends JobSubmissionResult {
 		}
 		return (Integer) result;
 	}
-
-
-	// TODO Create convenience methods for the other shipped accumulator types
 }

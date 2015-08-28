@@ -22,7 +22,9 @@ import com.esotericsoftware.kryo.Serializer;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A config to define the behavior of the program execution. It allows to define (among other
@@ -42,10 +44,14 @@ import java.util.List;
  *         handling <i>generic types</i> and <i>POJOs</i>. This is usually only needed
  *         when the functions return not only the types declared in their signature, but
  *         also subclasses of those types.</li>
+ *     <li>The {@link CodeAnalysisMode} of the program: Enable hinting/optimizing or disable
+ *         the "static code analyzer". The static code analyzer pre-interprets user-defined functions in order to
+ *         get implementation insights for program improvements that can be printed to the log or
+ *         automatically applied.</li>
  * </ul>
  */
 public class ExecutionConfig implements Serializable {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	// Key for storing it in the Job Configuration
@@ -72,9 +78,20 @@ public class ExecutionConfig implements Serializable {
 
 	private boolean objectReuse = false;
 
-	private boolean disableAutoTypeRegistration = false;
+	private boolean autoTypeRegistrationEnabled = true;
 
-	private boolean serializeGenericTypesWithAvro = false;
+	private boolean forceAvro = false;
+
+	private CodeAnalysisMode codeAnalysisMode = CodeAnalysisMode.DISABLE;
+
+	/** If set to true, progress updates are printed to System.out during execution */
+	private boolean printProgressDuringExecution = true;
+
+	private GlobalJobParameters globalJobParameters = null;
+
+	private long autoWatermarkInterval = 0;
+
+	private boolean timestampsEnabled = false;
 
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in lists to ensure they are registered in order in all kryo instances.
@@ -91,9 +108,9 @@ public class ExecutionConfig implements Serializable {
 	private final List<Entry<Class<?>, Class<? extends Serializer<?>>>> defaultKryoSerializerClasses =
 			new ArrayList<Entry<Class<?>, Class<? extends Serializer<?>>>>();
 
-	private final List<Class<?>> registeredKryoTypes = new ArrayList<Class<?>>();
+	private final LinkedHashSet<Class<?>> registeredKryoTypes = new LinkedHashSet<Class<?>>();
 
-	private final List<Class<?>> registeredPojoTypes = new ArrayList<Class<?>>();
+	private final LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<Class<?>>();
 
 	// --------------------------------------------------------------------------------------------
 
@@ -125,6 +142,62 @@ public class ExecutionConfig implements Serializable {
 	 */
 	public boolean isClosureCleanerEnabled() {
 		return useClosureCleaner;
+	}
+
+	/**
+	 * Sets the interval of the automatic watermark emission. Watermaks are used throughout
+	 * the streaming system to keep track of the progress of time. They are used, for example,
+	 * for time based windowing.
+	 *
+	 * @param interval The interval between watermarks in milliseconds.
+	 */
+	public ExecutionConfig setAutoWatermarkInterval(long interval) {
+		this.autoWatermarkInterval = interval;
+		return this;
+	}
+
+	/**
+	 * Enables streaming timestamps. When this is enabled all records that are emitted
+	 * from a source have a timestamp attached. This is required if a topology contains
+	 * operations that rely on watermarks and timestamps to perform operations, such as
+	 * event-time windows.
+	 *
+	 * <p>
+	 * This is automatically enabled if you enable automatic watermarks.
+	 *
+	 * @see #setAutoWatermarkInterval(long)
+	 */
+	public ExecutionConfig enableTimestamps() {
+		this.timestampsEnabled = true;
+		return this;
+	}
+
+	/**
+	 * Disables streaming timestamps.
+	 *
+	 * @see #enableTimestamps()
+	 */
+	public ExecutionConfig disableTimestamps() {
+		this.timestampsEnabled = false;
+		return this;
+	}
+
+	/**
+	 * Returns true when timestamps are enabled.
+	 *
+	 * @see #enableTimestamps()
+	 */
+	public boolean areTimestampsEnabled() {
+		return timestampsEnabled;
+	}
+
+	/**
+	 * Returns the interval of the automatic watermark emission.
+	 *
+	 * @see #setAutoWatermarkInterval(long)
+	 */
+	public long getAutoWatermarkInterval()  {
+		return this.autoWatermarkInterval;
 	}
 
 	/**
@@ -269,19 +342,20 @@ public class ExecutionConfig implements Serializable {
 		return forceKryo;
 	}
 
-	public void enableGenericTypeSerializationWithAvro() {
-		serializeGenericTypesWithAvro = true;
+	/**
+	 * Force Flink to use the AvroSerializer for POJOs.
+	 */
+	public void enableForceAvro() {
+		forceAvro = true;
 	}
 
-	public void disableGenericTypeSerializationWithAvro() {
-		serializeGenericTypesWithAvro = true;
+	public void disableForceAvro() {
+		forceAvro = false;
 	}
 
-	public boolean serializeGenericTypesWithAvro() {
-		return serializeGenericTypesWithAvro;
+	public boolean isForceAvroEnabled() {
+		return forceAvro;
 	}
-
-
 
 	/**
 	 * Enables reusing objects that Flink internally uses for deserialization and passing
@@ -307,6 +381,67 @@ public class ExecutionConfig implements Serializable {
 	 */
 	public boolean isObjectReuseEnabled() {
 		return objectReuse;
+	}
+	
+	/**
+	 * Sets the {@link CodeAnalysisMode} of the program. Specifies to which extent user-defined
+	 * functions are analyzed in order to give the Flink optimizer an insight of UDF internals
+	 * and inform the user about common implementation mistakes. The static code analyzer pre-interprets
+	 * user-defined functions in order to get implementation insights for program improvements
+	 * that can be printed to the log, automatically applied, or disabled.
+	 * 
+	 * @param codeAnalysisMode see {@link CodeAnalysisMode}
+	 */
+	public void setCodeAnalysisMode(CodeAnalysisMode codeAnalysisMode) {
+		this.codeAnalysisMode = codeAnalysisMode;
+	}
+	
+	/**
+	 * Returns the {@link CodeAnalysisMode} of the program.
+	 */
+	public CodeAnalysisMode getCodeAnalysisMode() {
+		return codeAnalysisMode;
+	}
+
+	/**
+	 * Enables the printing of progress update messages to {@code System.out}
+	 * 
+	 * @return The ExecutionConfig object, to allow for function chaining.
+	 */
+	public ExecutionConfig enableSysoutLogging() {
+		this.printProgressDuringExecution = true;
+		return this;
+	}
+
+	/**
+	 * Disables the printing of progress update messages to {@code System.out}
+	 *
+	 * @return The ExecutionConfig object, to allow for function chaining.
+	 */
+	public ExecutionConfig disableSysoutLogging() {
+		this.printProgressDuringExecution = false;
+		return this;
+	}
+
+	/**
+	 * Gets whether progress update messages should be printed to {@code System.out}
+	 * 
+	 * @return True, if progress update messages should be printed, false otherwise.
+	 */
+	public boolean isSysoutLoggingEnabled() {
+		return this.printProgressDuringExecution;
+	}
+
+	public GlobalJobParameters getGlobalJobParameters() {
+		return globalJobParameters;
+	}
+
+	/**
+	 * Register a custom, serializable user configuration object.
+	 * @param globalJobParameters Custom user configuration object
+	 */
+	public void setGlobalJobParameters(GlobalJobParameters globalJobParameters) {
+		this.globalJobParameters = globalJobParameters;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -457,11 +592,11 @@ public class ExecutionConfig implements Serializable {
 	/**
 	 * Returns the registered Kryo types.
 	 */
-	public List<Class<?>> getRegisteredKryoTypes() {
+	public LinkedHashSet<Class<?>> getRegisteredKryoTypes() {
 		if (isForceKryoEnabled()) {
 			// if we force kryo, we must also return all the types that
 			// were previously only registered as POJO
-			List<Class<?>> result = new ArrayList<Class<?>>();
+			LinkedHashSet<Class<?>> result = new LinkedHashSet<Class<?>>();
 			result.addAll(registeredKryoTypes);
 			for(Class<?> t : registeredPojoTypes) {
 				if (!result.contains(t)) {
@@ -477,13 +612,13 @@ public class ExecutionConfig implements Serializable {
 	/**
 	 * Returns the registered POJO types.
 	 */
-	public List<Class<?>> getRegisteredPojoTypes() {
+	public LinkedHashSet<Class<?>> getRegisteredPojoTypes() {
 		return registeredPojoTypes;
 	}
 
 
 	public boolean isAutoTypeRegistrationDisabled() {
-		return disableAutoTypeRegistration;
+		return !autoTypeRegistrationEnabled;
 	}
 
 	/**
@@ -492,9 +627,11 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 */
 	public void disableAutoTypeRegistration() {
-		this.disableAutoTypeRegistration = false;
+		this.autoTypeRegistrationEnabled = false;
 	}
 
+
+	// ------------------------------ Utilities  ----------------------------------
 
 	public static class Entry<K, V> implements Serializable {
 
@@ -552,4 +689,25 @@ public class ExecutionConfig implements Serializable {
 					'}';
 		}
 	}
+
+	/**
+	 * Abstract class for a custom user configuration object registered at the execution config.
+	 *
+	 * This user config is accessible at runtime through
+	 * getRuntimeContext().getExecutionConfig().getUserConfig()
+	 */
+	public static class GlobalJobParameters implements Serializable {
+		private static final long serialVersionUID = 1L;
+
+		/**
+		 * Convert UserConfig into a Map<String, String> representation.
+		 * This can be used by the runtime, for example for presenting the user config in the web frontend.
+		 *
+		 * @return Key/Value representation of the UserConfig, or null.
+		 */
+		public Map<String, String> toMap() {
+			return null;
+		}
+	}
+
 }

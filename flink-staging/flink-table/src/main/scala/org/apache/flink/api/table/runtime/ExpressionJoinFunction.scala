@@ -17,14 +17,17 @@
  */
 package org.apache.flink.api.table.runtime
 
-import org.apache.flink.api.table.tree.{NopExpression, Expression}
-import org.apache.flink.api.common.functions.RichFlatJoinFunction
+import org.apache.flink.api.common.functions.{FlatJoinFunction, RichFlatJoinFunction}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.table.codegen.{GenerateBinaryResultAssembler,
-GenerateBinaryPredicate}
+import org.apache.flink.api.table.codegen.GenerateJoin
+import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.util.Collector
 
+/**
+ * Proxy function that takes an expression predicate and output fields. These are compiled
+ * upon runtime and calls to [[join()]] are forwarded to the compiled code.
+ */
 class ExpressionJoinFunction[L, R, O](
     predicate: Expression,
     leftType: CompositeType[L],
@@ -32,45 +35,20 @@ class ExpressionJoinFunction[L, R, O](
     resultType: CompositeType[O],
     outputFields: Seq[Expression]) extends RichFlatJoinFunction[L, R, O] {
 
-  var compiledPredicate: (L, R) => Boolean = null
-  var resultAssembler: (L, R, O) => O = null
-  var result: O = null.asInstanceOf[O]
+  var compiledJoin: FlatJoinFunction[L, R, O] = null
 
   override def open(config: Configuration): Unit = {
-    result = resultType.createSerializer(getRuntimeContext.getExecutionConfig).createInstance()
-    if (compiledPredicate == null) {
-      compiledPredicate = predicate match {
-        case n: NopExpression => null
-        case _ =>
-          val codegen = new GenerateBinaryPredicate[L, R](
-            leftType,
-            rightType,
-            predicate,
-            getRuntimeContext.getUserCodeClassLoader)
-          codegen.generate()
-      }
-    }
-
-    if (resultAssembler == null) {
-      val resultCodegen = new GenerateBinaryResultAssembler[L, R, O](
-        leftType,
-        rightType,
-        resultType,
-        outputFields,
-        getRuntimeContext.getUserCodeClassLoader)
-
-      resultAssembler = resultCodegen.generate()
-    }
+    val codegen = new GenerateJoin[L, R, O](
+      leftType,
+      rightType,
+      resultType,
+      predicate,
+      outputFields,
+      getRuntimeContext.getUserCodeClassLoader)
+    compiledJoin = codegen.generate()
   }
 
   def join(left: L, right: R, out: Collector[O]) = {
-    if (compiledPredicate == null) {
-      result = resultAssembler(left, right, result)
-      out.collect(result)
-    } else {
-      if (compiledPredicate(left, right)) {
-        result = resultAssembler(left, right, result)
-        out.collect(result)      }
-    }
+    compiledJoin.join(left, right, out)
   }
 }

@@ -18,45 +18,40 @@
 
 package org.apache.flink.runtime.executiongraph
 
-import akka.actor.{Props, ActorSystem}
-import akka.testkit.TestKit
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, AbstractJobVertex}
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway
+import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.testingUtils.TestingUtils
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 
-class ExecutionGraphRestartTest(_system: ActorSystem) extends TestKit(_system) with WordSpecLike
-with Matchers with BeforeAndAfterAll {
-
-  def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
-
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
+class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
 
   val NUM_TASKS = 31
 
   "The execution graph" must {
     "be manually restartable" in {
       try {
-        val tm = system.actorOf(Props(classOf[ExecutionGraphTestUtils
-        .SimpleAcknowledgingTaskManager], "TaskManager"))
-        val instance = ExecutionGraphTestUtils.getInstance(tm)
+        val instance = ExecutionGraphTestUtils.getInstance(
+          new SimpleActorGateway(TestingUtils.directExecutionContext))
 
-        val scheduler = new Scheduler
+        val scheduler = new Scheduler(TestingUtils.defaultExecutionContext)
         scheduler.newInstanceAvailable(instance)
 
-        val sender = new AbstractJobVertex("Task")
+        val sender = new JobVertex("Task")
         sender.setInvokableClass(classOf[Tasks.NoOpInvokable])
         sender.setParallelism(NUM_TASKS)
 
         val jobGraph = new JobGraph("Pointwise job", sender)
 
-        val eg = new ExecutionGraph(new JobID(), "test job", new Configuration(),
+        val eg = new ExecutionGraph(
+          TestingUtils.defaultExecutionContext,
+          new JobID(),
+          "test job",
+          new Configuration(),
           AkkaUtils.getDefaultTimeout)
         eg.setNumberOfRetriesLeft(0)
         eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources)
@@ -87,20 +82,23 @@ with Matchers with BeforeAndAfterAll {
 
     "restart itself automatically" in {
       try {
-        val tm = system.actorOf(Props
-          (classOf[ExecutionGraphTestUtils.SimpleAcknowledgingTaskManager], "TaskManager"))
-        val instance = ExecutionGraphTestUtils.getInstance(tm)
+        val instance = ExecutionGraphTestUtils.getInstance(
+          new SimpleActorGateway(TestingUtils.directExecutionContext))
 
-        val scheduler = new Scheduler
+        val scheduler = new Scheduler(TestingUtils.defaultExecutionContext)
         scheduler.newInstanceAvailable(instance)
 
-        val sender = new AbstractJobVertex("Task")
+        val sender = new JobVertex("Task")
         sender.setInvokableClass(classOf[Tasks.NoOpInvokable])
         sender.setParallelism(NUM_TASKS)
 
         val jobGraph = new JobGraph("Pointwise job", sender)
 
-        val eg = new ExecutionGraph(new JobID(), "Test job", new Configuration(),
+        val eg = new ExecutionGraph(
+          TestingUtils.defaultExecutionContext,
+          new JobID(),
+          "Test job",
+          new Configuration(),
           AkkaUtils.getDefaultTimeout)
         eg.setNumberOfRetriesLeft(1)
         eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources)

@@ -22,10 +22,11 @@ import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.util.Collector;
 
 /**
  * Interface to be implemented by the function applied to a vertex neighborhood
- * in the {@link Graph#reduceOnNeighbors(NeighborsFunctionWithVertexValue, EdgeDirection)}
+ * in the {@link Graph#groupReduceOnNeighbors(NeighborsFunction, EdgeDirection)}
  * method.
  *
  * @param <K> the vertex key type
@@ -33,8 +34,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
  * @param <EV> the edge value type
  * @param <O> the type of the return value
  */
-public interface NeighborsFunction<K extends Comparable<K> & Serializable, VV extends Serializable, 
-	EV extends Serializable, O> extends Function, Serializable {
+public interface NeighborsFunction<K, VV, EV, O> extends Function, Serializable {
 
-	O iterateNeighbors(Iterable<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> neighbors) throws Exception;
+	void iterateNeighbors(Iterable<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> neighbors, Collector<O> out) throws Exception;
 }

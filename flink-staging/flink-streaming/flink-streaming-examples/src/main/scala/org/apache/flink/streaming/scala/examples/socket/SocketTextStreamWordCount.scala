@@ -61,7 +61,7 @@ object SocketTextStreamWordCount {
       .sum(1)
 
     if (fileOutput) {
-      counts.writeAsCsv(outputPath, 1)
+      counts.writeAsText(outputPath, 1)
     } else {
       counts print
     }

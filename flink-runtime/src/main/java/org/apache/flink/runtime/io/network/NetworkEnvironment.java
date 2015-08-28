@@ -18,30 +18,32 @@
 
 package org.apache.flink.runtime.io.network;
 
-import akka.actor.ActorRef;
 import akka.dispatch.OnFailure;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
+import scala.Tuple2;
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -49,7 +51,7 @@ import java.io.IOException;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.FailTask;
+import static org.apache.flink.runtime.messages.TaskMessages.FailTask;
 
 /**
  * Network I/O components of each {@link TaskManager} instance. The network environment contains
@@ -80,15 +82,25 @@ public class NetworkEnvironment {
 
 	private ResultPartitionConsumableNotifier partitionConsumableNotifier;
 
+	private PartitionStateChecker partitionStateChecker;
+
 	private boolean isShutdown;
 
+	/**
+	 * ExecutionEnvironment which is used to execute remote calls with the
+	 * {@link JobManagerResultPartitionConsumableNotifier}
+	 */
+	private final ExecutionContext executionContext;
 
 	/**
 	 * Initializes all network I/O components.
 	 */
-	public NetworkEnvironment(FiniteDuration jobManagerTimeout,
-								NetworkEnvironmentConfiguration config) throws IOException {
+	public NetworkEnvironment(
+		ExecutionContext executionContext,
+		FiniteDuration jobManagerTimeout,
+		NetworkEnvironmentConfiguration config) throws IOException {
 
+		this.executionContext = executionContext;
 		this.configuration = checkNotNull(config);
 		this.jobManagerTimeout = checkNotNull(jobManagerTimeout);
 
@@ -130,6 +142,14 @@ public class NetworkEnvironment {
 		return partitionConsumableNotifier;
 	}
 
+	public PartitionStateChecker getPartitionStateChecker() {
+		return partitionStateChecker;
+	}
+
+	public Tuple2<Integer, Integer> getPartitionRequestInitialAndMaxBackoff() {
+		return configuration.partitionRequestInitialAndMaxBackoff();
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Association / Disassociation with JobManager / TaskManager
 	// --------------------------------------------------------------------------------------------
@@ -142,16 +162,17 @@ public class NetworkEnvironment {
 	 * This associates the network environment with a TaskManager and JobManager.
 	 * This will actually start the network components.
 	 *
-	 * @param jobManagerRef The JobManager actor reference.
-	 * @param taskManagerRef The TaskManager actor reference.
+	 * @param jobManagerGateway Gateway to the JobManager.
+	 * @param taskManagerGateway Gateway to the TaskManager.
 	 *
 	 * @throws IOException Thrown if the network subsystem (Netty) cannot be properly started.
 	 */
-	public void associateWithTaskManagerAndJobManager(ActorRef jobManagerRef, ActorRef taskManagerRef)
-			throws IOException
+	public void associateWithTaskManagerAndJobManager(
+			ActorGateway jobManagerGateway,
+			ActorGateway taskManagerGateway) throws IOException
 	{
-		checkNotNull(jobManagerRef);
-		checkNotNull(taskManagerRef);
+		checkNotNull(jobManagerGateway);
+		checkNotNull(taskManagerGateway);
 
 		synchronized (lock) {
 			if (isShutdown) {
@@ -165,10 +186,17 @@ public class NetworkEnvironment {
 			{
 				// good, not currently associated. start the individual components
 
+				LOG.debug("Starting result partition manager and network connection manager");
 				this.partitionManager = new ResultPartitionManager();
 				this.taskEventDispatcher = new TaskEventDispatcher();
 				this.partitionConsumableNotifier = new JobManagerResultPartitionConsumableNotifier(
-													jobManagerRef, taskManagerRef, new Timeout(jobManagerTimeout));
+					executionContext,
+					jobManagerGateway,
+					taskManagerGateway,
+					jobManagerTimeout);
+
+				this.partitionStateChecker = new JobManagerPartitionStateChecker(
+						jobManagerGateway, taskManagerGateway);
 
 				// -----  Network connections  -----
 				final Option<NettyConfig> nettyConfig = configuration.nettyConfig();
@@ -176,6 +204,7 @@ public class NetworkEnvironment {
 															: new LocalConnectionManager();
 
 				try {
+					LOG.debug("Starting network connection manager");
 					connectionManager.start(partitionManager, taskEventDispatcher, networkBufferPool);
 				}
 				catch (Throwable t) {
@@ -223,6 +252,8 @@ public class NetworkEnvironment {
 
 			partitionConsumableNotifier = null;
 
+			partitionStateChecker = null;
+
 			if (taskEventDispatcher != null) {
 				taskEventDispatcher.clearAll();
 				taskEventDispatcher = null;
@@ -233,15 +264,13 @@ public class NetworkEnvironment {
 		}
 	}
 
-
-
 	// --------------------------------------------------------------------------------------------
 	//  Task operations
 	// --------------------------------------------------------------------------------------------
 
 	public void registerTask(Task task) throws IOException {
 		final ResultPartition[] producedPartitions = task.getProducedPartitions();
-		final ResultPartitionWriter[] writers = task.getWriters();
+		final ResultPartitionWriter[] writers = task.getAllWriters();
 
 		if (writers.length != producedPartitions.length) {
 			throw new IllegalStateException("Unequal number of writers and partitions.");
@@ -286,7 +315,7 @@ public class NetworkEnvironment {
 			}
 
 			// Setup the buffer pool for each buffer reader
-			final SingleInputGate[] inputGates = task.getInputGates();
+			final SingleInputGate[] inputGates = task.getAllInputGates();
 
 			for (SingleInputGate gate : inputGates) {
 				BufferPool bufferPool = null;
@@ -312,7 +341,7 @@ public class NetworkEnvironment {
 	}
 
 	public void unregisterTask(Task task) {
-		LOG.debug("Unregistering task {} ({}) from network environment (state: {}).",
+		LOG.debug("Unregister task {} from network environment (state: {}).",
 				task.getTaskNameWithSubtasks(), task.getExecutionState());
 
 		final ExecutionAttemptID executionId = task.getExecutionId();
@@ -324,18 +353,24 @@ public class NetworkEnvironment {
 			}
 
 			if (task.isCanceledOrFailed()) {
-				partitionManager.releasePartitionsProducedBy(executionId);
+				partitionManager.releasePartitionsProducedBy(executionId, task.getFailureCause());
 			}
 
-			ResultPartitionWriter[] writers = task.getWriters();
-
+			ResultPartitionWriter[] writers = task.getAllWriters();
 			if (writers != null) {
-				for (ResultPartitionWriter writer : task.getWriters()) {
+				for (ResultPartitionWriter writer : writers) {
 					taskEventDispatcher.unregisterWriter(writer);
 				}
 			}
 
-			final SingleInputGate[] inputGates = task.getInputGates();
+			ResultPartition[] partitions = task.getProducedPartitions();
+			if (partitions != null) {
+				for (ResultPartition partition : partitions) {
+					partition.destroyBufferPool();
+				}
+			}
+
+			final SingleInputGate[] inputGates = task.getAllInputGates();
 
 			if (inputGates != null) {
 				for (SingleInputGate gate : inputGates) {
@@ -350,30 +385,6 @@ public class NetworkEnvironment {
 				}
 			}
 		}
-	}
-
-	public boolean hasReleasedAllResources() {
-		String msg = String.format("Network buffer pool: %d missing memory segments. %d registered buffer pools. Connection manager: %d active connections. Task event dispatcher: %d registered writers.",
-				networkBufferPool.getTotalNumberOfMemorySegments() - networkBufferPool.getNumberOfAvailableMemorySegments(),
-				networkBufferPool.getNumberOfRegisteredBufferPools(), connectionManager.getNumberOfActiveConnections(),
-				taskEventDispatcher.getNumberOfRegisteredWriters());
-
-		boolean success = networkBufferPool.getTotalNumberOfMemorySegments() == networkBufferPool.getNumberOfAvailableMemorySegments() &&
-				networkBufferPool.getNumberOfRegisteredBufferPools() == 0 &&
-				connectionManager.getNumberOfActiveConnections() == 0 &&
-				taskEventDispatcher.getNumberOfRegisteredWriters() == 0;
-
-		if (success) {
-			String successMsg = "Network environment did release all resources: " + msg;
-			LOG.debug(successMsg);
-		}
-		else {
-			String errMsg = "Network environment did *not* release all resources: " + msg;
-
-			LOG.error(errMsg);
-		}
-
-		return success;
 	}
 
 	/**
@@ -414,15 +425,25 @@ public class NetworkEnvironment {
 	 */
 	private static class JobManagerResultPartitionConsumableNotifier implements ResultPartitionConsumableNotifier {
 
-		private final ActorRef jobManager;
+		/**
+		 * {@link ExecutionContext} which is used for the failure handler of {@link ScheduleOrUpdateConsumers}
+		 * messages.
+		 */
+		private final ExecutionContext executionContext;
 
-		private final ActorRef taskManager;
+		private final ActorGateway jobManager;
 
-		private final Timeout jobManagerMessageTimeout;
+		private final ActorGateway taskManager;
 
-		public JobManagerResultPartitionConsumableNotifier(ActorRef jobManager,
-															ActorRef taskManager,
-															Timeout jobManagerMessageTimeout) {
+		private final FiniteDuration jobManagerMessageTimeout;
+
+		public JobManagerResultPartitionConsumableNotifier(
+			ExecutionContext executionContext,
+			ActorGateway jobManager,
+			ActorGateway taskManager,
+			FiniteDuration jobManagerMessageTimeout) {
+
+			this.executionContext = executionContext;
 			this.jobManager = jobManager;
 			this.taskManager = taskManager;
 			this.jobManagerMessageTimeout = jobManagerMessageTimeout;
@@ -433,7 +454,7 @@ public class NetworkEnvironment {
 
 			final ScheduleOrUpdateConsumers msg = new ScheduleOrUpdateConsumers(jobId, partitionId);
 
-			Future<Object> futureResponse = Patterns.ask(jobManager, msg, jobManagerMessageTimeout);
+			Future<Object> futureResponse = jobManager.ask(msg, jobManagerMessageTimeout);
 
 			futureResponse.onFailure(new OnFailure() {
 				@Override
@@ -446,9 +467,34 @@ public class NetworkEnvironment {
 							new RuntimeException("Could not notify JobManager to schedule or update consumers",
 									failure));
 
-					taskManager.tell(failMsg, ActorRef.noSender());
+					taskManager.tell(failMsg);
 				}
-			}, AkkaUtils.globalExecutionContext());
+			}, executionContext);
+		}
+	}
+
+	private static class JobManagerPartitionStateChecker implements PartitionStateChecker {
+
+		private final ActorGateway jobManager;
+
+		private final ActorGateway taskManager;
+
+		public JobManagerPartitionStateChecker(ActorGateway jobManager, ActorGateway taskManager) {
+			this.jobManager = jobManager;
+			this.taskManager = taskManager;
+		}
+
+		@Override
+		public void triggerPartitionStateCheck(
+				JobID jobId,
+				ExecutionAttemptID executionAttemptID,
+				IntermediateDataSetID resultId,
+				ResultPartitionID partitionId) {
+
+			RequestPartitionState msg = new RequestPartitionState(
+					jobId, partitionId, executionAttemptID, resultId);
+
+			jobManager.tell(msg, taskManager);
 		}
 	}
 }

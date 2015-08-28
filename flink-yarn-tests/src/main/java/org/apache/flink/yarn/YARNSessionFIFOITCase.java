@@ -20,10 +20,12 @@ package org.apache.flink.yarn;
 import com.google.common.base.Joiner;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.FlinkYarnSessionCli;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
+import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.yarn.appMaster.YarnTaskManagerRunner;
 import org.apache.hadoop.fs.Path;
@@ -45,6 +47,7 @@ import org.codehaus.jettison.json.JSONObject;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,13 +63,15 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.yarn.UtilsTest.addTestAppender;
 import static org.apache.flink.yarn.UtilsTest.checkForLogString;
 
 
 /**
- * This test starts a MiniYARNCluster with a FIFO scheudler.
+ * This test starts a MiniYARNCluster with a FIFO scheduler.
  * There are no queues for that scheduler.
  */
 public class YARNSessionFIFOITCase extends YarnTestBase {
@@ -86,7 +91,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 	@After
 	public void checkForProhibitedLogContents() {
-		ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS);
+		ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS, WHITELISTED_STRINGS);
 	}
 
 	/**
@@ -97,11 +102,11 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Starting testClientStartup()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 						"-n", "1",
-						"-jm", "512",
+						"-jm", "768",
 						"-tm", "1024",
 						"-s", "2" // Test that 2 slots are started on the TaskManager.
 				},
-				"Number of connected TaskManagers changed to 1. Slots available: 2",null, RunTypes.YARN_SESSION);
+				"Number of connected TaskManagers changed to 1. Slots available: 2", null, RunTypes.YARN_SESSION, 0);
 		LOG.info("Finished testClientStartup()");
 	}
 
@@ -114,14 +119,22 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		addTestAppender(FlinkYarnSessionCli.class, Level.INFO);
 		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 						"-n", "1",
-						"-jm", "512",
+						"-jm", "768",
 						"-tm", "1024",
+						"--name", "MyCustomName", // test setting a custom name
 						"--detached"},
 				"Flink JobManager is now running on", RunTypes.YARN_SESSION);
 
 		checkForLogString("The Flink YARN client has been started in detached mode");
 
 		Assert.assertFalse("The runner should detach.", runner.isAlive());
+
+		LOG.info("Waiting until two containers are running");
+		// wait until two containers are running
+		while(getRunningContainers() < 2) {
+			sleep(500);
+		}
+		LOG.info("Two containers are running. Killing the application");
 
 		// kill application "externally".
 		try {
@@ -130,7 +143,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			yc.start();
 			List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
 			Assert.assertEquals(1, apps.size()); // Only one running
-			ApplicationId id = apps.get(0).getApplicationId();
+			ApplicationReport app = apps.get(0);
+			Assert.assertEquals("MyCustomName", app.getName());
+			ApplicationId id = app.getApplicationId();
 			yc.killApplication(id);
 
 			while(yc.getApplications(EnumSet.of(YarnApplicationState.KILLED)).size() == 0) {
@@ -152,8 +167,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Starting testTaskManagerFailure()");
 		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 				"-n", "1",
-				"-jm", "512",
+				"-jm", "768",
 				"-tm", "1024",
+				"-nm", "customName",
 				"-Dfancy-configuration-value=veryFancy",
 				"-Dyarn.maximum-failed-containers=3"},
 				"Number of connected TaskManagers changed to 1. Slots available: 1",
@@ -168,7 +184,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			yc.start();
 			List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
 			Assert.assertEquals(1, apps.size()); // Only one running
-			String url = apps.get(0).getTrackingUrl();
+			ApplicationReport app = apps.get(0);
+			Assert.assertEquals("customName", app.getName());
+			String url = app.getTrackingUrl();
 			if(!url.endsWith("/")) {
 				url += "/";
 			}
@@ -185,6 +203,22 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			JSONObject parsed = new JSONObject(config);
 			Assert.assertEquals("veryFancy", parsed.getString("fancy-configuration-value"));
 			Assert.assertEquals("3", parsed.getString("yarn.maximum-failed-containers"));
+
+			// -------------- FLINK-1902: check if jobmanager hostname/port are shown in web interface
+			// first, get the hostname/port
+			String oC = outContent.toString();
+			Pattern p = Pattern.compile("Flink JobManager is now running on ([a-zA-Z0-9.-]+):([0-9]+)");
+			Matcher matches = p.matcher(oC);
+			String hostname = null;
+			String port = null;
+			while(matches.find()) {
+				hostname = matches.group(1).toLowerCase();
+				port = matches.group(2);
+			}
+			LOG.info("Extracted hostname:port: {} {}", hostname, port);
+
+			Assert.assertEquals("unable to find hostname in " + parsed, hostname, parsed.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY).toLowerCase());
+			Assert.assertEquals("unable to find port in " + parsed, port, parsed.getString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY));
 
 			// test logfile access
 			String logs = TestBaseUtils.getFromHTTP(url + "logInfo");
@@ -291,7 +325,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@Test
 	public void testQueryCluster() {
 		LOG.info("Starting testQueryCluster()");
-		runWithArgs(new String[] {"-q"}, "Summary: totalMemory 8192 totalCores 1332",null, RunTypes.YARN_SESSION); // we have 666*2 cores.
+		runWithArgs(new String[] {"-q"}, "Summary: totalMemory 8192 totalCores 1332",null, RunTypes.YARN_SESSION, 0); // we have 666*2 cores.
 		LOG.info("Finished testQueryCluster()");
 	}
 
@@ -304,9 +338,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Starting testNonexistingQueue()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 				"-n", "1",
-				"-jm", "512",
+				"-jm", "768",
 				"-tm", "1024",
-				"-qu", "doesntExist"}, "Number of connected TaskManagers changed to 1. Slots available: 1", null, RunTypes.YARN_SESSION);
+				"-qu", "doesntExist"}, "Number of connected TaskManagers changed to 1. Slots available: 1", null, RunTypes.YARN_SESSION, 0);
 		LOG.info("Finished testNonexistingQueue()");
 	}
 
@@ -322,17 +356,15 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 * user sees a total request of: 8181 MB (fits)
 	 * system sees a total request of: 8437 (doesn't fit due to min alloc mb)
 	 */
+	@Ignore("The test is too resource consuming (8.5 GB of memory)")
 	@Test
 	public void testResourceComputation() {
-		if(ignoreOnTravis()) {
-			return;
-		}
 		addTestAppender(FlinkYarnClient.class, Level.WARN);
 		LOG.info("Starting testResourceComputation()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 				"-n", "5",
 				"-jm", "256",
-				"-tm", "1585"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION);
+				"-tm", "1585"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
 		LOG.info("Finished testResourceComputation()");
 		checkForLogString("This YARN session requires 8437MB of memory in the cluster. There are currently only 8192MB available.");
 	}
@@ -352,17 +384,15 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 *
 	 * --> check if the system properly rejects allocating this session.
 	 */
+	@Ignore("The test is too resource consuming (8 GB of memory)")
 	@Test
 	public void testfullAlloc() {
-		if(ignoreOnTravis()) {
-			return;
-		}
 		addTestAppender(FlinkYarnClient.class, Level.WARN);
 		LOG.info("Starting testfullAlloc()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 				"-n", "2",
 				"-jm", "256",
-				"-tm", "3840"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION);
+				"-tm", "3840"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
 		LOG.info("Finished testfullAlloc()");
 		checkForLogString("There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n" +
 				"After allocating the JobManager (512MB) and (1/2) TaskManagers, the following NodeManagers are available: [3584, 256]");
@@ -372,23 +402,25 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 * Test per-job yarn cluster
 	 *
 	 * This also tests the prefixed CliFrontend options for the YARN case
+	 * We also test if the requested parallelism of 2 is passed through.
+	 * The parallelism is requested at the YARN client (-ys).
 	 */
 	@Test
 	public void perJobYarnCluster() {
 		LOG.info("Starting perJobYarnCluster()");
-		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName("-WordCount.jar", "streaming")); // exclude streaming wordcount here.
+		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"-WordCount.jar"} , "streaming")); // exclude streaming wordcount here.
 		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
 		runWithArgs(new String[]{"run", "-m", "yarn-cluster",
 						"-yj", flinkUberjar.getAbsolutePath(),
 						"-yn", "1",
 						"-ys", "2", //test that the job is executed with a DOP of 2
-						"-yjm", "512",
+						"-yjm", "768",
 						"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
 				"Job execution switched to status FINISHED.",
 				/* prohibited strings: (we want to see (2/2)) */
 				new String[]{"System.out)(1/1) switched to FINISHED "},
-				RunTypes.CLI_FRONTEND);
+				RunTypes.CLI_FRONTEND, 0);
 		LOG.info("Finished perJobYarnCluster()");
 	}
 
@@ -397,46 +429,57 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 */
 	@Test
 	public void perJobYarnClusterWithParallelism() {
-		LOG.info("Starting perJobYarnCluster()");
-		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName("-WordCount.jar", "streaming")); // exclude streaming wordcount here.
+		LOG.info("Starting perJobYarnClusterWithParallelism()");
+		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"-WordCount.jar"}, "streaming")); // exclude streaming wordcount here.
 		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
 		runWithArgs(new String[]{"run",
 						"-p", "2", //test that the job is executed with a DOP of 2
 						"-m", "yarn-cluster",
 						"-yj", flinkUberjar.getAbsolutePath(),
 						"-yn", "1",
-						"-yjm", "512",
+						"-yjm", "768",
 						"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
 				"Job execution switched to status FINISHED.",
 				/* prohibited strings: (we want to see (2/2)) */
 				new String[]{"System.out)(1/1) switched to FINISHED "},
-				RunTypes.CLI_FRONTEND);
-		LOG.info("Finished perJobYarnCluster()");
+				RunTypes.CLI_FRONTEND, 0);
+		LOG.info("Finished perJobYarnClusterWithParallelism()");
 	}
 
-	/**
-	 * Test a fire-and-forget job submission to a YARN cluster.
-	 */
-	@Test(timeout=60000)
-	public void testDetachedPerJobYarnCluster() {
-		LOG.info("Starting testDetachedPerJobYarnCluster()");
-
-		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName("-WordCount.jar", "streaming")); // exclude streaming wordcount here.
-		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
-
+	private void testDetachedPerJobYarnClusterInternal(String job) {
 		YarnClient yc = YarnClient.createYarnClient();
 		yc.init(yarnConfiguration);
 		yc.start();
 
+		// get temporary folder for writing output of wordcount example
+		File tmpOutFolder = null;
+		try{
+			tmpOutFolder = tmp.newFolder();
+		}
+		catch(IOException e) {
+			throw new RuntimeException(e);
+		}
+
+		// get temporary file for reading input data for wordcount example
+		File tmpInFile = null;
+		try{
+			tmpInFile = tmp.newFile();
+			FileUtils.writeStringToFile(tmpInFile,WordCountData.TEXT);
+		}
+		catch(IOException e) {
+			throw new RuntimeException(e);
+		}
+
 		Runner runner = startWithArgs(new String[]{"run", "-m", "yarn-cluster", "-yj", flinkUberjar.getAbsolutePath(),
-					"-yn", "1",
-					"-yjm", "512",
-					"-yD", "yarn.heap-cutoff-ratio=0.5", // test if the cutoff is passed correctly
-					"-ytm", "1024",
-					"--yarndetached", exampleJarLocation.getAbsolutePath()},
-			"The Job has been submitted with JobID",
-			RunTypes.CLI_FRONTEND);
+						"-yn", "1",
+						"-yjm", "768",
+						"-yD", "yarn.heap-cutoff-ratio=0.5", // test if the cutoff is passed correctly
+						"-ytm", "1024",
+						"-ys", "2", // test requesting slots from YARN.
+						"--yarndetached", job, tmpInFile.getAbsoluteFile().toString() , tmpOutFolder.getAbsoluteFile().toString()},
+				"The Job has been submitted with JobID",
+				RunTypes.CLI_FRONTEND);
 
 		// it should usually be 2, but on slow machines, the number varies
 		Assert.assertTrue("There should be at most 2 containers running", getRunningContainers() <= 2);
@@ -447,7 +490,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		try {
 			List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
 
-			ApplicationId tmpAppId = null;
+			ApplicationId tmpAppId;
 			if (apps.size() == 1) {
 				// Better method to find the right appId. But sometimes the app is shutting down very fast
 				// Only one running
@@ -455,7 +498,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 				LOG.info("waiting for the job with appId {} to finish", tmpAppId);
 				// wait until the app has finished
-				while(yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING)).size() == 0) {
+				while(yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING)).size() > 0) {
 					sleep(500);
 				}
 			} else {
@@ -471,21 +514,28 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				LOG.info("Selected {} as the last appId from {}", tmpAppId, Arrays.toString(apps.toArray()));
 			}
 			final ApplicationId id = tmpAppId;
-			
+
 			// now it has finished.
-			// check the output.
-			File taskmanagerOut = YarnTestBase.findFile("..", new FilenameFilter() {
-				@Override
-				public boolean accept(File dir, String name) {
-					return name.contains("taskmanager") && name.contains("stdout") && dir.getAbsolutePath().contains(id.toString());
+			// check the output files.
+			File[] listOfOutputFiles = tmpOutFolder.listFiles();
+
+
+			Assert.assertNotNull("Taskmanager output not found", listOfOutputFiles);
+			LOG.info("The job has finished. TaskManager output files found in {}", tmpOutFolder );
+
+			// read all output files in output folder to one output string
+			String content = "";
+			for(File f:listOfOutputFiles)
+			{
+				if(f.isFile())
+				{
+					content += FileUtils.readFileToString(f) + "\n";
 				}
-			});
-			Assert.assertNotNull("Taskmanager output not found", taskmanagerOut);
-			LOG.info("The job has finished. TaskManager output file found {}", taskmanagerOut.getAbsolutePath());
-			String content = FileUtils.readFileToString(taskmanagerOut);
+			}
+			//String content = FileUtils.readFileToString(taskmanagerOut);
 			// check for some of the wordcount outputs.
-			Assert.assertTrue("Expected string '(all,2)' not found ", content.contains("(all,2)"));
-			Assert.assertTrue("Expected string '(mind,1)' not found", content.contains("(mind,1)"));
+			Assert.assertTrue("Expected string 'da 5' or '(all,2)' not found in string '"+content+"'", content.contains("da 5") || content.contains("(da,5)") || content.contains("(all,2)"));
+			Assert.assertTrue("Expected string 'der 29' or '(mind,1)' not found in string'"+content+"'",content.contains("der 29") || content.contains("(der,29)") || content.contains("(mind,1)"));
 
 			// check if the heap size for the TaskManager was set correctly
 			File jobmanagerLog = YarnTestBase.findFile("..", new FilenameFilter() {
@@ -494,10 +544,14 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 					return name.contains("jobmanager-main") && dir.getAbsolutePath().contains(id.toString());
 				}
 			});
+			Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
 			content = FileUtils.readFileToString(jobmanagerLog);
 			// expecting 512 mb, because TM was started with 1024, we cut off 50% (NOT THE DEFAULT VALUE).
-			Assert.assertTrue("Expected string 'Starting TM with command=$JAVA_HOME/bin/java -Xmx512m' not found in JobManager log",
-					content.contains("Starting TM with command=$JAVA_HOME/bin/java -Xmx512m"));
+			Assert.assertTrue("Expected string 'Starting TM with command=$JAVA_HOME/bin/java -Xms424m -Xmx424m' not found in JobManager log: '"+jobmanagerLog+"'",
+					content.contains("Starting TM with command=$JAVA_HOME/bin/java -Xms424m -Xmx424m"));
+			Assert.assertTrue("Expected string ' (2/2) (attempt #0) to ' not found in JobManager log." +
+							"This string checks that the job has been started with a parallelism of 2. Log contents: '"+jobmanagerLog+"'",
+					content.contains(" (2/2) (attempt #0) to "));
 
 			// make sure the detached app is really finished.
 			LOG.info("Checking again that app has finished");
@@ -510,11 +564,40 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		} catch(Throwable t) {
 			LOG.warn("Error while detached yarn session was running", t);
-			Assert.fail();
+			Assert.fail(t.getMessage());
 		}
+	}
+
+	/**
+	 * Test a fire-and-forget job submission to a YARN cluster.
+	 */
+	@Test(timeout=60000)
+	public void testDetachedPerJobYarnCluster() {
+		LOG.info("Starting testDetachedPerJobYarnCluster()");
+
+		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"-WordCount.jar"}, "streaming")); // exclude streaming wordcount here.
+		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
+
+		testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
 
 		LOG.info("Finished testDetachedPerJobYarnCluster()");
 	}
+
+	/**
+	 * Test a fire-and-forget job submission to a YARN cluster.
+	 */
+	@Test(timeout=60000)
+	public void testDetachedPerJobYarnClusterWithStreamingJob() {
+		LOG.info("Starting testDetachedPerJobYarnClusterWithStreamingJob()");
+
+		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"flink-streaming-examples", "-WordCount.jar"}));
+		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
+
+		testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
+
+		LOG.info("Finished testDetachedPerJobYarnClusterWithStreamingJob()");
+	}
+
 
 	/**
 	 * Test the YARN Java API
@@ -525,9 +608,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Starting testJavaAPI()");
 
 		AbstractFlinkYarnClient flinkYarnClient = FlinkYarnSessionCli.getFlinkYarnClient();
+		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
 		flinkYarnClient.setTaskManagerCount(1);
-		flinkYarnClient.setJobManagerMemory(512);
-		flinkYarnClient.setTaskManagerMemory(512);
+		flinkYarnClient.setJobManagerMemory(768);
+		flinkYarnClient.setTaskManagerMemory(768);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 		String confDirPath = System.getenv("FLINK_CONF_DIR");
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
@@ -537,7 +621,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		// deploy
 		AbstractFlinkYarnCluster yarnCluster = null;
 		try {
-			yarnCluster = flinkYarnClient.deploy(null);
+			yarnCluster = flinkYarnClient.deploy();
 			yarnCluster.connectToCluster();
 		} catch (Exception e) {
 			System.err.println("Error while deploying YARN cluster: "+e.getMessage());
@@ -569,19 +653,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		LOG.info("Shutting down cluster. All tests passed");
 		// shutdown cluster
-		yarnCluster.shutdown();
+		yarnCluster.shutdown(false);
 		LOG.info("Finished testJavaAPI()");
 	}
-
-
-	public static boolean ignoreOnTravis() {
-		if(isOnTravis()) {
-			// we skip the test until we are able to start a smaller yarn clsuter
-			// right now, the miniyarncluster has the size of the nodemanagers fixed on 4 GBs.
-			LOG.warn("Skipping test on travis for now");
-			return true;
-		}
-		return false;
-	}
-
 }

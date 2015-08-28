@@ -18,14 +18,13 @@
 
 package org.apache.flink.api.java;
 
-import java.util.List;
-
-import org.apache.commons.lang3.Validate;
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -35,10 +34,11 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.Order;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.functions.FormattingMapper;
@@ -60,8 +60,8 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
 import org.apache.flink.api.java.operators.FlatMapOperator;
-import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.GroupCombineOperator;
+import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
@@ -71,22 +71,23 @@ import org.apache.flink.api.java.operators.PartitionOperator;
 import org.apache.flink.api.java.operators.ProjectOperator;
 import org.apache.flink.api.java.operators.ProjectOperator.Projection;
 import org.apache.flink.api.java.operators.ReduceOperator;
+import org.apache.flink.api.java.operators.SortPartitionOperator;
 import org.apache.flink.api.java.operators.SortedGrouping;
 import org.apache.flink.api.java.operators.UnionOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.AbstractID;
 
-import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A DataSet represents a collection of elements of the same type.<br/>
@@ -119,11 +120,7 @@ public abstract class DataSet<T> {
 		}
 
 		this.context = context;
-		if (typeInfo instanceof PojoTypeInfo && context.getConfig().isForceKryoEnabled()) {
-			this.type = new GenericTypeInfo<T>(typeInfo.getTypeClass());
-		} else {
-			this.type = typeInfo;
-		}
+		this.type = typeInfo;
 	}
 
 	/**
@@ -342,7 +339,7 @@ public abstract class DataSet<T> {
 	 *
 	 * @see org.apache.flink.api.java.operators.AggregateOperator
 	 */
-	public AggregateOperator<T> sum (int field) {
+	public AggregateOperator<T> sum(int field) {
 		return aggregate(Aggregations.SUM, field);
 	}
 
@@ -381,41 +378,47 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Convenience method to get the count (number of elements) of a DataSet
+	 * Convenience method to get the count (number of elements) of a DataSet.
 	 *
-	 * @return A long integer that represents the number of elements in the set
-	 *
-	 * @see org.apache.flink.api.java.Utils.CountHelper
+	 * @return A long integer that represents the number of elements in the data set.
 	 */
 	public long count() throws Exception {
-
 		final String id = new AbstractID().toString();
 
-		flatMap(new Utils.CountHelper<T>(id)).output(
-				new DiscardingOutputFormat<Long>());
+		flatMap(new Utils.CountHelper<T>(id)).name("count()")
+				.output(new DiscardingOutputFormat<Long>()).name("count() sink");
 
 		JobExecutionResult res = getExecutionEnvironment().execute();
 		return res.<Long> getAccumulatorResult(id);
 	}
 
 
-	 /* Convenience method to get the elements of a DataSet as a List
+	/**
+	 * Convenience method to get the elements of a DataSet as a List.
 	 * As DataSet can contain a lot of data, this method should be used with caution.
 	 *
 	 * @return A List containing the elements of the DataSet
-	 *
-	 * @see org.apache.flink.api.java.Utils.CollectHelper
 	 */
 	public List<T> collect() throws Exception {
-
 		final String id = new AbstractID().toString();
+		final TypeSerializer<T> serializer = getType().createSerializer(getExecutionEnvironment().getConfig());
+		
+		this.flatMap(new Utils.CollectHelper<T>(id, serializer)).name("collect()")
+				.output(new DiscardingOutputFormat<T>()).name("collect() sink");
+		JobExecutionResult res = getExecutionEnvironment().execute();
 
-		this.flatMap(new Utils.CollectHelper<T>(id)).output(
-				new DiscardingOutputFormat<T>());
-
-		JobExecutionResult res = this.getExecutionEnvironment().execute();
-
-		return (List<T>) res.getAccumulatorResult(id);
+		ArrayList<byte[]> accResult = res.getAccumulatorResult(id);
+		if (accResult != null) {
+			try {
+				return SerializedListAccumulator.deserializeList(accResult, serializer);
+			} catch (ClassNotFoundException e) {
+				throw new RuntimeException("Cannot find type class of collected data type.", e);
+			} catch (IOException e) {
+				throw new RuntimeException("Serialization error while deserializing collected data", e);
+			}
+		} else {
+			throw new RuntimeException("The call to collect() could not retrieve the DataSet.");
+		}
 	}
 
 	/**
@@ -603,13 +606,13 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using expression keys.
+	 * Returns a distinct set of a {@link DataSet} using expression keys.
 	 * <p>
-	 * The field position keys specify the fields of Tuples or Pojos on which the decision is made if two elements are distinct or
-	 * not.
-	 * <p>
+	 * The field expression keys specify the fields of a {@link org.apache.flink.api.common.typeutils.CompositeType}
+	 * (e.g., Tuple or Pojo type) on which the decision is made if two elements are distinct or not.
+	 * In case of a {@link org.apache.flink.api.common.typeinfo.AtomicType}, only the wildcard expression ("*") is valid.
 	 *
-	 * @param fields One or more field positions on which the distinction of the DataSet is decided. 
+	 * @param fields One or more field expressions on which the distinction of the DataSet is decided.
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public DistinctOperator<T> distinct(String... fields) {
@@ -617,9 +620,10 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using all fields of the tuple.
+	 * Returns a distinct set of a {@link DataSet}.
 	 * <p>
-	 * Note: This operator can only be applied to Tuple DataSets.
+	 * If the input is a {@link org.apache.flink.api.common.typeutils.CompositeType} (Tuple or Pojo type),
+	 * distinct is performed on all fields and each field must be a key type
 	 * 
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
@@ -993,7 +997,7 @@ public abstract class DataSet<T> {
 	 * <pre>
 	 * {@code
 	 * DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
-	 *                                                  initialState.iterateDelta(initialFeedbakSet, 100, 0);
+	 *                                                  initialState.iterateDelta(initialFeedbackSet, 100, 0);
 	 * 
 	 * DataSet<Tuple2<Long, Long>> delta = iteration.groupBy(0).aggregate(Aggregations.AVG, 1)
 	 *                                              .join(iteration.getSolutionSet()).where(0).equalTo(0)
@@ -1035,7 +1039,7 @@ public abstract class DataSet<T> {
 	 * @return The data set produced by the operation.
 	 */
 	public <X> DataSet<X> runOperation(CustomUnaryOperation<T, X> operation) {
-		Validate.notNull(operation, "The custom operator must not be null.");
+		Preconditions.checkNotNull(operation, "The custom operator must not be null.");
 		operation.setInput(this);
 		return operation.createResult();
 	}
@@ -1053,7 +1057,7 @@ public abstract class DataSet<T> {
 	public UnionOperator<T> union(DataSet<T> other){
 		return new UnionOperator<T>(this, other, Utils.getCallLocationName());
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Partitioning
 	// --------------------------------------------------------------------------------------------
@@ -1127,14 +1131,14 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Partitions a DataSet on the key returned by the selector, using a custom partitioner.
-	 * This method takes the key selector t get the key to partition on, and a partitioner that
+	 * This method takes the key selector to get the key to partition on, and a partitioner that
 	 * accepts the key type.
 	 * <p>
 	 * Note: This method works only on single field keys, i.e. the selector cannot return tuples
 	 * of fields.
 	 * 
 	 * @param partitioner The partitioner to assign partitions to keys.
-	 * @param keyExtractor The KeyExtractor with which the DataSet is hash-partitioned.
+	 * @param keyExtractor The KeyExtractor with which the DataSet is partitioned.
 	 * @return The partitioned DataSet.
 	 * 
 	 * @see KeySelector
@@ -1232,7 +1236,7 @@ public abstract class DataSet<T> {
 	 * @see TextOutputFormat
 	 */
 	public DataSink<String> writeAsFormattedText(String filePath, TextFormatter<T> formatter) {
-		return this.map(new FormattingMapper<T>(formatter)).writeAsText(filePath);
+		return map(new FormattingMapper<T>(clean(formatter))).writeAsText(filePath);
 	}
 
 	/**
@@ -1246,8 +1250,8 @@ public abstract class DataSet<T> {
 	 *
 	 * @see TextOutputFormat
 	 */
-	public DataSink<String> writeAsFormattedText(String filePath, WriteMode writeMode, final TextFormatter<T> formatter) {
-		return this.map(new FormattingMapper<T>(clean(formatter))).writeAsText(filePath, writeMode);
+	public DataSink<String> writeAsFormattedText(String filePath, WriteMode writeMode, TextFormatter<T> formatter) {
+		return map(new FormattingMapper<T>(clean(formatter))).writeAsText(filePath, writeMode);
 	}
 	
 	/**
@@ -1320,7 +1324,7 @@ public abstract class DataSet<T> {
 	
 	@SuppressWarnings("unchecked")
 	private <X extends Tuple> DataSink<T> internalWriteAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter, WriteMode wm) {
-		Validate.isTrue(getType().isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
+		Preconditions.checkArgument(getType().isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(filePath, rowDelimiter, fieldDelimiter);
 		if(wm != null) {
 			of.setWriteMode(wm);
@@ -1329,23 +1333,94 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Writes a DataSet to the standard output stream (stdout).<br/>
-	 * For each element of the DataSet the result of {@link Object#toString()} is written.
+	 * Prints the elements in a DataSet to the standard output stream {@link System#out} of the JVM that calls
+	 * the print() method. For programs that are executed in a cluster, this method needs
+	 * to gather the contents of the DataSet back to the client, to print it there.
 	 * 
-	 *  @return The DataSink that writes the DataSet.
+	 * <p>The string written for each element is defined by the {@link Object#toString()} method.</p>
+	 * 
+	 * <p>This method immediately triggers the program execution, similar to the
+	 * {@link #collect()} and {@link #count()} methods.</p>
+	 * 
+	 * @see #printToErr()
+	 * @see #printOnTaskManager(String)
 	 */
-	public DataSink<T> print() {
-		return output(new PrintingOutputFormat<T>(false));
+	public void print() throws Exception {
+		List<T> elements = collect();
+		for (T e: elements) {
+			System.out.println(e);
+		}
+	}
+
+	/**
+	 * Prints the elements in a DataSet to the standard error stream {@link System#err} of the JVM that calls
+	 * the print() method. For programs that are executed in a cluster, this method needs
+	 * to gather the contents of the DataSet back to the client, to print it there.
+	 *
+	 * <p>The string written for each element is defined by the {@link Object#toString()} method.</p>
+	 *
+	 * <p>This method immediately triggers the program execution, similar to the
+	 * {@link #collect()} and {@link #count()} methods.</p>
+	 * 
+	 * @see #print()
+	 * @see #printOnTaskManager(String)
+	 */
+	public void printToErr() throws Exception {
+		List<T> elements = collect();
+		for (T e: elements) {
+			System.err.println(e);
+		}
+	}
+
+	/**
+	 * Writes a DataSet to the standard output streams (stdout) of the TaskManagers that execute
+	 * the program (or more specifically, the data sink operators). On a typical cluster setup, the
+	 * data will appear in the TaskManagers' <i>.out</i> files.
+	 * 
+	 * <p>To print the data to the console or stdout stream of the client process instead, use the
+	 * {@link #print()} method.</p>
+	 * 
+	 * <p>For each element of the DataSet the result of {@link Object#toString()} is written.</p>
+	 *
+	 * @param prefix The string to prefix each line of the output with. This helps identifying outputs
+	 *               from different printing sinks.   
+	 * @return The DataSink operator that writes the DataSet.
+	 *  
+	 * @see #print()
+	 */
+	public DataSink<T> printOnTaskManager(String prefix) {
+		return output(new PrintingOutputFormat<T>(prefix, false));
 	}
 	
 	/**
-	 * Writes a DataSet to the standard error stream (stderr).<br/>
-	 * For each element of the DataSet the result of {@link Object#toString()} is written.
+	 * Writes a DataSet to the standard output stream (stdout).
 	 * 
+	 * <p>For each element of the DataSet the result of {@link Object#toString()} is written.</p>
+	 *
+	 * @param sinkIdentifier The string to prefix the output with.
 	 * @return The DataSink that writes the DataSet.
+	 * 
+	 * @deprecated Use {@link #printOnTaskManager(String)} instead.
 	 */
-	public DataSink<T> printToErr() {
-		return output(new PrintingOutputFormat<T>(true));
+	@Deprecated
+	public DataSink<T> print(String sinkIdentifier) {
+		return output(new PrintingOutputFormat<T>(sinkIdentifier, false));
+	}
+
+	/**
+	 * Writes a DataSet to the standard error stream (stderr).
+	 * 
+	 * <p>For each element of the DataSet the result of {@link Object#toString()} is written.</p>
+	 *
+	 * @param sinkIdentifier The string to prefix the output with.
+	 * @return The DataSink that writes the DataSet.
+	 * 
+	 * @deprecated Use {@link #printOnTaskManager(String)} instead, othe 
+	 *             {@link PrintingOutputFormat} instead.
+	 */
+	@Deprecated
+	public DataSink<T> printToErr(String sinkIdentifier) {
+		return output(new PrintingOutputFormat<T>(sinkIdentifier, true));
 	}
 	
 	/**
@@ -1359,8 +1434,8 @@ public abstract class DataSet<T> {
 	 * @see FileOutputFormat
 	 */
 	public DataSink<T> write(FileOutputFormat<T> outputFormat, String filePath) {
-		Validate.notNull(filePath, "File path must not be null.");
-		Validate.notNull(outputFormat, "Output format must not be null.");
+		Preconditions.checkNotNull(filePath, "File path must not be null.");
+		Preconditions.checkNotNull(outputFormat, "Output format must not be null.");
 
 		outputFormat.setOutputFilePath(new Path(filePath));
 		return output(outputFormat);
@@ -1378,9 +1453,9 @@ public abstract class DataSet<T> {
 	 * @see FileOutputFormat
 	 */
 	public DataSink<T> write(FileOutputFormat<T> outputFormat, String filePath, WriteMode writeMode) {
-		Validate.notNull(filePath, "File path must not be null.");
-		Validate.notNull(writeMode, "Write mode must not be null.");
-		Validate.notNull(outputFormat, "Output format must not be null.");
+		Preconditions.checkNotNull(filePath, "File path must not be null.");
+		Preconditions.checkNotNull(writeMode, "Write mode must not be null.");
+		Preconditions.checkNotNull(outputFormat, "Output format must not be null.");
 
 		outputFormat.setOutputFilePath(new Path(filePath));
 		outputFormat.setWriteMode(writeMode);
@@ -1399,7 +1474,7 @@ public abstract class DataSet<T> {
 	 * @see DataSink
 	 */
 	public DataSink<T> output(OutputFormat<T> outputFormat) {
-		Validate.notNull(outputFormat);
+		Preconditions.checkNotNull(outputFormat);
 		
 		// configure the type if needed
 		if (outputFormat instanceof InputTypeConfigurable) {

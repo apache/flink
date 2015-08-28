@@ -21,7 +21,8 @@ package org.apache.flink.runtime.jobmanager
 import org.apache.flink.runtime.io.network.api.reader.RecordReader
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
-import org.apache.flink.runtime.types.IntegerRecord
+import org.apache.flink.types.IntValue
+
 
 object Tasks {
   class BlockingNoOpInvokable extends AbstractInvokable {
@@ -52,15 +53,15 @@ object Tasks {
   }
 
   class Sender extends AbstractInvokable{
-    var writer: RecordWriter[IntegerRecord] = _
+    var writer: RecordWriter[IntValue] = _
     override def registerInputOutput(): Unit = {
-      writer = new RecordWriter[IntegerRecord](getEnvironment.getWriter(0))
+      writer = new RecordWriter[IntValue](getEnvironment.getWriter(0))
     }
 
     override def invoke(): Unit = {
       try{
-        writer.emit(new IntegerRecord(42))
-        writer.emit(new IntegerRecord(1337))
+        writer.emit(new IntValue(42))
+        writer.emit(new IntValue(1337))
         writer.flush()
       }finally{
         writer.clearBuffers()
@@ -69,12 +70,12 @@ object Tasks {
   }
 
   class Forwarder extends AbstractInvokable {
-    var reader: RecordReader[IntegerRecord] = _
-    var writer: RecordWriter[IntegerRecord] = _
+    var reader: RecordReader[IntValue] = _
+    var writer: RecordWriter[IntValue] = _
     override def registerInputOutput(): Unit = {
-      reader = new RecordReader[IntegerRecord](getEnvironment.getInputGate(0),
-        classOf[IntegerRecord])
-      writer = new RecordWriter[IntegerRecord](getEnvironment.getWriter(0))
+      reader = new RecordReader[IntValue](getEnvironment.getInputGate(0),
+        classOf[IntValue])
+      writer = new RecordWriter[IntValue](getEnvironment.getWriter(0))
     }
 
     override def invoke(): Unit = {
@@ -97,12 +98,12 @@ object Tasks {
   }
 
   class Receiver extends AbstractInvokable {
-    var reader: RecordReader[IntegerRecord] = _
+    var reader: RecordReader[IntValue] = _
 
     override def registerInputOutput(): Unit = {
       val env = getEnvironment
 
-      reader = new RecordReader[IntegerRecord](env.getInputGate(0), classOf[IntegerRecord])
+      reader = new RecordReader[IntValue](env.getInputGate(0), classOf[IntValue])
     }
 
     override def invoke(): Unit = {
@@ -154,12 +155,12 @@ object Tasks {
   }
 
   class AgnosticReceiver extends AbstractInvokable {
-    var reader: RecordReader[IntegerRecord] = _
+    var reader: RecordReader[IntValue] = _
 
     override def registerInputOutput(): Unit = {
       val env = getEnvironment
 
-      reader = new RecordReader[IntegerRecord](env.getInputGate(0), classOf[IntegerRecord])
+      reader = new RecordReader[IntValue](env.getInputGate(0), classOf[IntValue])
     }
 
     override def invoke(): Unit = {
@@ -168,14 +169,14 @@ object Tasks {
   }
 
   class AgnosticBinaryReceiver extends AbstractInvokable {
-    var reader1: RecordReader[IntegerRecord] = _
-    var reader2: RecordReader[IntegerRecord] = _
+    var reader1: RecordReader[IntValue] = _
+    var reader2: RecordReader[IntValue] = _
 
     override def registerInputOutput(): Unit = {
       val env = getEnvironment
 
-      reader1 = new RecordReader[IntegerRecord](env.getInputGate(0), classOf[IntegerRecord])
-      reader2 = new RecordReader[IntegerRecord](env.getInputGate(1), classOf[IntegerRecord])
+      reader1 = new RecordReader[IntValue](env.getInputGate(0), classOf[IntValue])
+      reader2 = new RecordReader[IntValue](env.getInputGate(1), classOf[IntValue])
     }
 
     override def invoke(): Unit = {
@@ -185,16 +186,16 @@ object Tasks {
   }
 
   class AgnosticTertiaryReceiver extends AbstractInvokable {
-    var reader1: RecordReader[IntegerRecord] = _
-    var reader2: RecordReader[IntegerRecord] = _
-    var reader3: RecordReader[IntegerRecord] = _
+    var reader1: RecordReader[IntValue] = _
+    var reader2: RecordReader[IntValue] = _
+    var reader3: RecordReader[IntValue] = _
 
     override def registerInputOutput(): Unit = {
       val env = getEnvironment
 
-      reader1 = new RecordReader[IntegerRecord](env.getInputGate(0), classOf[IntegerRecord])
-      reader2 = new RecordReader[IntegerRecord](env.getInputGate(1), classOf[IntegerRecord])
-      reader3 = new RecordReader[IntegerRecord](env.getInputGate(2), classOf[IntegerRecord])
+      reader1 = new RecordReader[IntValue](env.getInputGate(0), classOf[IntValue])
+      reader2 = new RecordReader[IntValue](env.getInputGate(1), classOf[IntValue])
+      reader3 = new RecordReader[IntValue](env.getInputGate(2), classOf[IntValue])
     }
 
     override def invoke(): Unit = {
@@ -205,10 +206,10 @@ object Tasks {
   }
 
   class ExceptionSender extends AbstractInvokable{
-    var writer: RecordWriter[IntegerRecord] = _
+    var writer: RecordWriter[IntValue] = _
 
     override def registerInputOutput(): Unit = {
-      writer = new RecordWriter[IntegerRecord](getEnvironment.getWriter(0))
+      writer = new RecordWriter[IntValue](getEnvironment.getWriter(0))
     }
 
     override def invoke(): Unit = {
@@ -217,10 +218,10 @@ object Tasks {
   }
 
   class SometimesExceptionSender extends AbstractInvokable {
-    var writer: RecordWriter[IntegerRecord] = _
+    var writer: RecordWriter[IntValue] = _
 
     override def registerInputOutput(): Unit = {
-      writer = new RecordWriter[IntegerRecord](getEnvironment.getWriter(0))
+      writer = new RecordWriter[IntValue](getEnvironment.getWriter(0))
     }
 
     override def invoke(): Unit = {
@@ -240,7 +241,7 @@ object Tasks {
 
   class ExceptionReceiver extends AbstractInvokable {
     override def registerInputOutput(): Unit = {
-      new RecordReader[IntegerRecord](getEnvironment.getInputGate(0), classOf[IntegerRecord])
+      new RecordReader[IntValue](getEnvironment.getInputGate(0), classOf[IntValue])
     }
 
     override def invoke(): Unit = {
@@ -266,7 +267,7 @@ object Tasks {
     }
 
     override def registerInputOutput(): Unit = {
-      new RecordWriter[IntegerRecord](getEnvironment.getWriter(0))
+      new RecordWriter[IntValue](getEnvironment.getWriter(0))
     }
 
     override def invoke(): Unit = {
@@ -281,7 +282,7 @@ object Tasks {
 
   class BlockingReceiver extends AbstractInvokable {
     override def registerInputOutput(): Unit = {
-      new RecordReader[IntegerRecord](getEnvironment.getInputGate(0), classOf[IntegerRecord])
+      new RecordReader[IntValue](getEnvironment.getInputGate(0), classOf[IntValue])
     }
 
     override def invoke(): Unit = {

@@ -22,10 +22,10 @@ import static org.junit.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
-import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBuffer;
-import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
-import org.apache.flink.util.Collector;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.junit.Test;
 
 public class BasicWindowBufferTest {
@@ -33,7 +33,7 @@ public class BasicWindowBufferTest {
 	@Test
 	public void testEmitWindow() throws Exception {
 
-		TestCollector<StreamWindow<Integer>> collector = new TestCollector<StreamWindow<Integer>>();
+		TestOutput<StreamWindow<Integer>> collector = new TestOutput<StreamWindow<Integer>>();
 		List<StreamWindow<Integer>> collected = collector.getCollected();
 
 		WindowBuffer<Integer> wb = new BasicWindowBuffer<Integer>();
@@ -60,13 +60,13 @@ public class BasicWindowBufferTest {
 		assertEquals(2, collected.size());
 	}
 
-	public static class TestCollector<T> implements Collector<T> {
+	public static class TestOutput<T> implements Output<StreamRecord<T>> {
 
 		private final List<T> collected = new ArrayList<T>();
 
 		@Override
-		public void collect(T record) {
-			collected.add(record);
+		public void collect(StreamRecord<T> record) {
+			collected.add(record.getValue());
 		}
 
 		@Override
@@ -77,6 +77,10 @@ public class BasicWindowBufferTest {
 			return collected;
 		}
 
+		@Override
+		public void emitWatermark(Watermark mark) {
+
+		}
 	}
 
 }

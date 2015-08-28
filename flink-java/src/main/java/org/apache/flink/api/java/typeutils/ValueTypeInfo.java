@@ -28,7 +28,17 @@ import org.apache.flink.api.java.typeutils.runtime.CopyableValueComparator;
 import org.apache.flink.api.java.typeutils.runtime.CopyableValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.ValueComparator;
 import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
+import org.apache.flink.types.BooleanValue;
+import org.apache.flink.types.ByteValue;
+import org.apache.flink.types.CharValue;
 import org.apache.flink.types.CopyableValue;
+import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.FloatValue;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.LongValue;
+import org.apache.flink.types.NullValue;
+import org.apache.flink.types.ShortValue;
+import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 
 /**
@@ -73,6 +83,12 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	@Override
 	public boolean isBasicType() {
 		return false;
+	}
+
+	public boolean isBasicValueType() {
+		return type.equals(StringValue.class) || type.equals(ByteValue.class) || type.equals(ShortValue.class) || type.equals(CharValue.class) ||
+				type.equals(DoubleValue.class) || type.equals(FloatValue.class) || type.equals(IntValue.class) || type.equals(LongValue.class) ||
+				type.equals(NullValue.class) || type.equals(BooleanValue.class);
 	}
 
 	@Override

@@ -23,7 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.MultipleProgramsTestBase
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
 import org.junit.rules.TemporaryFolder
@@ -45,12 +45,12 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
   }
 
   @After
-  def after: Unit = {
-    compareResultsByLinesInMemory(expected, resultPath)
+  def after(): Unit = {
+    TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testGroupingOnNonExistentField: Unit = {
+  def testGroupingOnNonExistentField(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
@@ -63,7 +63,7 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
   }
 
   @Test
-  def testGroupedAggregate: Unit = {
+  def testGroupedAggregate(): Unit = {
 
     // the grouping key needs to be forwarded to the intermediate DataSet, even
     // if we don't want the key in the output
@@ -79,7 +79,7 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
   }
 
   @Test
-  def testGroupingKeyForwardIfNotUsed: Unit = {
+  def testGroupingKeyForwardIfNotUsed(): Unit = {
 
     // the grouping key needs to be forwarded to the intermediate DataSet, even
     // if we don't want the key in the output
@@ -92,5 +92,26 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = "1\n" + "5\n" + "15\n" + "34\n" + "65\n" + "111\n"
+  }
+
+  @Test
+  def testSQLStyleAggregations(): Unit = {
+
+    // the grouping key needs to be forwarded to the intermediate DataSet, even
+    // if we don't want the key in the output
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+      .select(
+        """Sum( a) as a1, a.sum as a2,
+          |Min (a) as b1, a.min as b2,
+          |Max (a ) as c1, a.max as c2,
+          |Avg ( a ) as d1, a.avg as d2,
+          |Count(a) as e1, a.count as e2
+        """.stripMargin)
+
+    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "231,231,1,1,21,21,11,11,21,21"
   }
 }

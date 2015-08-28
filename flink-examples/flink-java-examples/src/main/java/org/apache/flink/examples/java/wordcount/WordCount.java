@@ -60,10 +60,10 @@ public class WordCount {
 		
 		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		// get input data
 		DataSet<String> text = getTextDataSet(env);
-		
+
 		DataSet<Tuple2<String, Integer>> counts = 
 				// split up the lines in pairs (2-tuples) containing: (word,1)
 				text.flatMap(new Tokenizer())
@@ -74,12 +74,13 @@ public class WordCount {
 		// emit result
 		if(fileOutput) {
 			counts.writeAsCsv(outputPath, "\n", " ");
+			// execute program
+			env.execute("WordCount Example");
 		} else {
 			counts.print();
 		}
 		
-		// execute program
-		env.execute("WordCount Example");
+
 	}
 	
 	// *************************************************************************

@@ -220,9 +220,8 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 
 	// -------------------------- Interaction with the cluster ------------------------
 
-	/**
+	/*
 	 * This call blocks until the message has been recevied.
-	 * @param jobID
 	 */
 	@Override
 	public void stopAfterJob(JobID jobID) {
@@ -232,6 +231,11 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to tell application master to stop once the specified job has been finised", e);
 		}
+	}
+
+	@Override
+	public org.apache.flink.configuration.Configuration getFlinkConfiguration() {
+		return flinkConfig;
 	}
 
 	@Override
@@ -265,10 +269,10 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 	@Override
 	public FlinkYarnClusterStatus getClusterStatus() {
 		if(!isConnected) {
-			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
+			throw new IllegalStateException("The cluster is not connected to the ApplicationMaster.");
 		}
 		if(hasBeenStopped()) {
-			throw new RuntimeException("The FlinkYarnCluster has alread been stopped");
+			throw new RuntimeException("The FlinkYarnCluster has already been stopped");
 		}
 		Future<Object> clusterStatusOption = ask(applicationClient, Messages.LocalGetYarnClusterStatus$.MODULE$, akkaTimeout);
 		Object clusterStatus;
@@ -282,7 +286,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		} else if(clusterStatus instanceof Some) {
 			return (FlinkYarnClusterStatus) (((Some) clusterStatus).get());
 		} else {
-			throw new RuntimeException("Unexpected type: "+clusterStatus.getClass().getCanonicalName());
+			throw new RuntimeException("Unexpected type: " + clusterStatus.getClass().getCanonicalName());
 		}
 	}
 
@@ -297,12 +301,12 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		}
 		ApplicationReport lastReport = pollingRunner.getLastReport();
 		if(lastReport == null) {
-			LOG.warn("FlinkYarnCluster.hasFailed() has been called on a cluster. that didn't receive a status so far." +
+			LOG.warn("FlinkYarnCluster.hasFailed() has been called on a cluster that didn't receive a status so far." +
 					"The system might be in an erroneous state");
 			return false;
 		} else {
 			YarnApplicationState appState = lastReport.getYarnApplicationState();
-			boolean status= (appState == YarnApplicationState.FAILED ||
+			boolean status = (appState == YarnApplicationState.FAILED ||
 					appState == YarnApplicationState.KILLED);
 			if(status) {
 				LOG.warn("YARN reported application state {}", appState);
@@ -368,9 +372,9 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 
 					if(obj instanceof Messages.YarnMessage) {
 						Messages.YarnMessage msg = (Messages.YarnMessage) obj;
-						ret.add("["+msg.date()+"] "+msg.message());
+						ret.add("[" + msg.date() + "] " + msg.message());
 					} else {
-						LOG.warn("LocalGetYarnMessage returned unexpected type: "+messageOption);
+						LOG.warn("LocalGetYarnMessage returned unexpected type: " + messageOption);
 					}
 				}
 			}
@@ -381,12 +385,13 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 	// -------------------------- Shutdown handling ------------------------
 
 	private AtomicBoolean hasBeenShutDown = new AtomicBoolean(false);
-	@Override
-	public void shutdown() {
-		shutdownInternal(true);
-	}
 
-	private void shutdownInternal(boolean removeShutdownHook) {
+	/**
+	 * Shutdown the YARN cluster.
+	 * @param failApplication whether we should fail the YARN application (in case of errors in Flink)
+	 */
+	@Override
+	public void shutdown(boolean failApplication) {
 		if(!isConnected) {
 			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
 		}
@@ -394,16 +399,25 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		if(hasBeenShutDown.getAndSet(true)) {
 			return;
 		}
-		// the session is being stopped explicitly.
-		if(removeShutdownHook) {
+
+		try {
 			Runtime.getRuntime().removeShutdownHook(clientShutdownHook);
+		} catch (IllegalStateException e) {
+			// we are already in the shutdown hook
 		}
+
 		if(actorSystem != null){
 			LOG.info("Sending shutdown request to the Application Master");
 			if(applicationClient != ActorRef.noSender()) {
 				try {
+					FinalApplicationStatus finalStatus;
+					if (failApplication) {
+						finalStatus = FinalApplicationStatus.FAILED;
+					} else {
+						finalStatus = FinalApplicationStatus.SUCCEEDED;
+					}
 					Future<Object> response = Patterns.ask(applicationClient,
-							new Messages.StopYarnSession(FinalApplicationStatus.SUCCEEDED,
+							new Messages.StopYarnSession(finalStatus,
 									"Flink YARN Client requested shutdown"),
 							new Timeout(akkaDuration));
 
@@ -419,7 +433,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 			actorSystem = null;
 		}
 
-		LOG.info("Deleting files in "+sessionFilesDir );
+		LOG.info("Deleting files in " + sessionFilesDir );
 		try {
 			FileSystem shutFS = FileSystem.get(hadoopConfig);
 			shutFS.delete(sessionFilesDir, true); // delete conf and jar file.
@@ -457,7 +471,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		@Override
 		public void run() {
 			LOG.info("Shutting down FlinkYarnCluster from the client shutdown hook");
-			shutdownInternal(false);
+			shutdown(true);
 		}
 	}
 
@@ -512,7 +526,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 			}
 			if(running.get() && !yarnClient.isInState(Service.STATE.STARTED)) {
 				// == if the polling thread is still running but the yarn client is stopped.
-				LOG.warn("YARN client is unexpected in state "+yarnClient.getServiceState());
+				LOG.warn("YARN client is unexpected in state " + yarnClient.getServiceState());
 			}
 		}
 	}

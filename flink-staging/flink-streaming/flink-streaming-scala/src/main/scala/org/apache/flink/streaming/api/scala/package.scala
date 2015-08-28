@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
 import org.apache.flink.streaming.api.datastream.{ WindowedDataStream => JavaWStream }
 import org.apache.flink.streaming.api.datastream.{ SplitDataStream => SplitJavaStream }
 import org.apache.flink.streaming.api.datastream.{ ConnectedDataStream => JavaConStream }
+import org.apache.flink.streaming.api.datastream.{ GroupedDataStream => GroupedJavaStream }
 import language.implicitConversions
 import org.apache.flink.streaming.api.windowing.StreamWindow
 
@@ -36,6 +37,9 @@ package object scala {
 
   implicit def javaToScalaStream[R](javaStream: JavaStream[R]): DataStream[R] =
     new DataStream[R](javaStream)
+    
+  implicit def javaToScalaGroupedStream[R](javaStream: GroupedJavaStream[R]): 
+  GroupedDataStream[R] = new GroupedDataStream[R](javaStream)    
 
   implicit def javaToScalaWindowedStream[R](javaWStream: JavaWStream[R]): WindowedDataStream[R] =
     new WindowedDataStream[R](javaWStream)
@@ -48,9 +52,6 @@ package object scala {
 
   implicit def seqToFlinkSource[T: ClassTag: TypeInformation](scalaSeq: Seq[T]) : DataStream[T] =
     StreamExecutionEnvironment.getExecutionEnvironment.fromCollection(scalaSeq)
-    
-  implicit def windowedToDataStream[R](windowedStream: WindowedDataStream[R]): DataStream[R] =
-    windowedStream.flatten      
 
   private[flink] def fieldNames2Indices(
       typeInfo: TypeInformation[_],

@@ -24,10 +24,10 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-staging</artifactId>
-		<version>0.9-SNAPSHOT</version>
+		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
-	
+
 	<artifactId>flink-ml</artifactId>
 	<name>flink-ml</name>
 
@@ -42,8 +42,8 @@
 
 		<dependency>
 			<groupId>org.scalanlp</groupId>
-			<artifactId>breeze_2.10</artifactId>
-			<version>0.11.1</version>
+			<artifactId>breeze_${scala.binary.version}</artifactId>
+			<version>0.11.2</version>
 		</dependency>
 
 		<dependency>
@@ -117,6 +117,7 @@
 						</goals>
 						<configuration>
 							<suffixes>(?&lt;!(IT|Integration))(Test|Suite|Case)</suffixes>
+							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -XX:-UseGCOverheadLimit</argLine>
 						</configuration>
 					</execution>
 					<execution>
@@ -127,6 +128,7 @@
 						</goals>
 						<configuration>
 							<suffixes>(IT|Integration)(Test|Suite|Case)</suffixes>
+							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -XX:-UseGCOverheadLimit</argLine>
 						</configuration>
 					</execution>
 				</executions>

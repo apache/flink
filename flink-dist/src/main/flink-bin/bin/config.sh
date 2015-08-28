@@ -17,6 +17,18 @@
 # limitations under the License.
 ################################################################################
 
+constructFlinkClassPath() {
+
+    for jarfile in "$FLINK_LIB_DIR"/*.jar ; do
+        if [[ $FLINK_CLASSPATH = "" ]]; then
+            FLINK_CLASSPATH=$jarfile;
+        else
+            FLINK_CLASSPATH=$FLINK_CLASSPATH:$jarfile
+        fi
+    done
+
+    echo $FLINK_CLASSPATH
+}
 
 # These are used to mangle paths that are passed to java when using 
 # cygwin. Cygwin paths are like linux paths, i.e. /path/to/somewhere
@@ -25,7 +37,7 @@
 manglePath() {
     UNAME=$(uname -s)
     if [ "${UNAME:0:6}" == "CYGWIN" ]; then
-        echo `cygpath -w $1`
+        echo `cygpath -w "$1"`
     else
         echo $1
     fi
@@ -35,7 +47,7 @@ manglePathList() {
     UNAME=$(uname -s)
     # a path list, for example a java classpath
     if [ "${UNAME:0:6}" == "CYGWIN" ]; then
-        echo `cygpath -wp $1`
+        echo `cygpath -wp "$1"`
     else
         echo $1
     fi
@@ -82,38 +94,42 @@ KEY_ENV_LOG_MAX="env.log.max"
 KEY_ENV_JAVA_HOME="env.java.home"
 KEY_ENV_JAVA_OPTS="env.java.opts"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
+KEY_ZK_QUORUM="ha.zookeeper.quorum"
+KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 
 ########################################################################################################################
 # PATHS AND CONFIG
 ########################################################################################################################
 
-# Resolve links
-this="$0"
-while [ -h "$this" ]; do
-  ls=`ls -ld "$this"`
-  link=`expr "$ls" : '.*-> \(.*\)$'`
-  if expr "$link" : '.*/.*' > /dev/null; then
-    this="$link"
-  else
-    this=`dirname "$this"`/"$link"
-  fi
+target="$0"
+# For the case, the executable has been directly symlinked, figure out
+# the correct bin path by following its symlink up to an upper bound.
+# Note: we can't use the readlink utility here if we want to be POSIX
+# compatible.
+iteration=0
+while [ -L "$target" ]; do
+    if [ "$iteration" -gt 100 ]; then
+        echo "Cannot resolve path: You have a cyclic symlink in $target."
+        break
+    fi
+    ls=`ls -ld -- "$target"`
+    target=`expr "$ls" : '.* -> \(.*\)$'`
+    iteration=$((iteration + 1))
 done
 
-# Convert relative path to absolute path
-bin=`dirname "$this"`
-script=`basename "$this"`
-bin=`cd "$bin"; pwd`
-this="$bin/$script"
+# Convert relative path to absolute path and resolve directory symlinks
+bin=`dirname "$target"`
+SYMLINK_RESOLVED_BIN=`cd "$bin"; pwd -P`
 
 # Define the main directory of the flink installation
-FLINK_ROOT_DIR=`dirname "$this"`/..
+FLINK_ROOT_DIR=`dirname "$SYMLINK_RESOLVED_BIN"`
 FLINK_LIB_DIR=$FLINK_ROOT_DIR/lib
 
 # These need to be mangled because they are directly passed to java.
 # The above lib path is used by the shell script to retrieve jars in a 
 # directory, so it needs to be unmangled.
 FLINK_ROOT_DIR_MANGLED=`manglePath "$FLINK_ROOT_DIR"`
-FLINK_CONF_DIR=$FLINK_ROOT_DIR_MANGLED/conf
+if [ -z "$FLINK_CONF_DIR" ]; then FLINK_CONF_DIR=$FLINK_ROOT_DIR_MANGLED/conf; fi
 FLINK_BIN_DIR=$FLINK_ROOT_DIR_MANGLED/bin
 FLINK_LOG_DIR=$FLINK_ROOT_DIR_MANGLED/log
 YAML_CONF=${FLINK_CONF_DIR}/flink-conf.yaml
@@ -184,13 +200,21 @@ if [ -z "${FLINK_SSH_OPTS}" ]; then
     FLINK_SSH_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" "${YAML_CONF}")
 fi
 
+# Define ZK_HEAP if it is not already set
+if [ -z "${ZK_HEAP}" ]; then
+    ZK_HEAP=$(readFromConfig ${KEY_ZK_HEAP_MB} 0 "${YAML_CONF}")
+fi
+
+if [ -z "${ZK_QUORUM}" ]; then
+    ZK_QUORUM=$(readFromConfig ${KEY_ZK_QUORUM} "" "${YAML_CONF}")
+fi
+
 # Arguments for the JVM. Used for job and task manager JVMs.
 # DO NOT USE FOR MEMORY SETTINGS! Use conf/flink-conf.yaml with keys
 # KEY_JOBM_HEAP_MB and KEY_TASKM_HEAP_MB for that!
-JVM_ARGS=""
-
-# Default classpath 
-CLASSPATH=`manglePathList $( echo $FLINK_LIB_DIR/*.jar . | sed 's/ /:/g' )`
+if [ -z "${JVM_ARGS}" ]; then
+    JVM_ARGS=""
+fi
 
 # Check if deprecated HADOOP_HOME is set.
 if [ -n "$HADOOP_HOME" ]; then
@@ -210,12 +234,9 @@ INTERNAL_HADOOP_CLASSPATHS="$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR"
 # Auxilliary function which extracts the name of host from a line which
 # also potentialy includes topology information and the taskManager type
 extractHostName() {
-    # extract first part of string (before any whitespace characters)
-    SLAVE=$1
-    # Remove types and possible comments
-    if [[ "$SLAVE" =~ ^([0-9a-zA-Z/.-]+).*$ ]]; then
-            SLAVE=${BASH_REMATCH[1]}
-    fi
+    # handle comments: extract first part of string (before first # character)
+    SLAVE=`echo $1 | cut -d'#' -f 1`
+
     # Extract the hostname from the network hierarchy
     if [[ "$SLAVE" =~ ^.*/([0-9a-zA-Z.-]+)$ ]]; then
             SLAVE=${BASH_REMATCH[1]}
@@ -236,4 +257,44 @@ rotateLogFile() {
         done
         mv "$log" "$log.$num";
     fi
+}
+
+readMasters() {
+    MASTERS_FILE="${FLINK_CONF_DIR}/masters"
+
+    if [[ ! -f "${MASTERS_FILE}" ]]; then
+        echo "No masters file. Please specify masters in 'conf/masters'."
+        exit 1
+    fi
+
+    MASTERS=()
+
+    GOON=true
+    while $GOON; do
+        read line || GOON=false
+        HOST=$( extractHostName $line)
+        if [ -n "$HOST" ]; then
+            MASTERS+=(${HOST})
+        fi
+    done < "$MASTERS_FILE"
+}
+
+readSlaves() {
+    SLAVES_FILE="${FLINK_CONF_DIR}/slaves"
+
+    if [[ ! -f "$SLAVES_FILE" ]]; then
+        echo "No slaves file. Please specify slaves in 'conf/slaves'."
+        exit 1
+    fi
+
+    SLAVES=()
+
+    GOON=true
+    while $GOON; do
+        read line || GOON=false
+        HOST=$( extractHostName $line)
+        if [ -n "$HOST" ]; then
+            SLAVES+=(${HOST})
+        fi
+    done < "$SLAVES_FILE"
 }

@@ -19,18 +19,21 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
+import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
@@ -39,7 +42,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -102,7 +104,14 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			LOG.debug(getLogString("Starting data source operator"));
 		}
 
-		ExecutionConfig executionConfig = new ExecutionConfig();
+		if(RichInputFormat.class.isAssignableFrom(this.format.getClass())){
+			((RichInputFormat) this.format).setRuntimeContext(createRuntimeContext());
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(getLogString("Rich Source detected. Initializing runtime context."));
+			}
+		}
+
+		ExecutionConfig executionConfig;
 		try {
 			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
 					getJobConfiguration(),
@@ -110,6 +119,9 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 					getUserCodeClassLoader());
 			if (c != null) {
 				executionConfig = c;
+			} else {
+				LOG.warn("ExecutionConfig from job configuration is null. Creating empty config");
+				executionConfig = new ExecutionConfig();
 			}
 		} catch (IOException e) {
 			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: ", e);
@@ -184,25 +196,22 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 					format.close();
 				}
 			} // end for all input splits
-			
+
 			// close the collector. if it is a chaining task collector, it will close its chained tasks
 			this.output.close();
-			
+
 			// close all chained tasks letting them report failure
 			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
-			
-			// Merge and report accumulators
-			RegularPactTask.reportAndClearAccumulators(getEnvironment(),
-					new HashMap<String, Accumulator<?,?>>(), chainedTasks);
+
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
 			try {
 				this.format.close();
 			} catch (Throwable ignored) {}
-			
+
 			RegularPactTask.cancelChainedTasks(this.chainedTasks);
-			
+
 			ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
 
 			if (ex instanceof CancelTaskException) {
@@ -265,14 +274,20 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 					ccex);
 		}
 
-		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
+		Thread thread = Thread.currentThread();
+		ClassLoader original = thread.getContextClassLoader();
+		// configure the stub. catch exceptions here extra, to report them as originating from the user code
 		try {
+			thread.setContextClassLoader(userCodeClassLoader);
 			this.format.configure(this.config.getStubParameters());
 		}
 		catch (Throwable t) {
 			throw new RuntimeException("The user defined 'configure()' method caused an error: " + t.getMessage(), t);
 		}
-		
+		finally {
+			thread.setContextClassLoader(original);
+		}
+
 		// get the factory for the type serializer
 		this.serializerFactory = this.config.getOutputSerializer(userCodeClassLoader);
 	}
@@ -284,7 +299,12 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	private void initOutputs(ClassLoader cl) throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.eventualOutputs = new ArrayList<RecordWriter<?>>();
-		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs, getExecutionConfig());
+
+		final AccumulatorRegistry accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
+		final AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
+
+		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs,
+				getExecutionConfig(), reporter, getEnvironment().getAccumulatorRegistry().getUserMap());
 	}
 
 	// ------------------------------------------------------------------------
@@ -362,5 +382,13 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				throw new UnsupportedOperationException();
 			}
 		};
+	}
+
+	public DistributedRuntimeUDFContext createRuntimeContext() {
+		Environment env = getEnvironment();
+
+		return new DistributedRuntimeUDFContext(env.getTaskName(), env.getNumberOfSubtasks(),
+				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
+				env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap());
 	}
 }

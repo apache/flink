@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.reader;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
@@ -64,7 +65,9 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 				DeserializationResult result = currentRecordDeserializer.getNextRecord(target);
 
 				if (result.isBufferConsumed()) {
-					currentRecordDeserializer.getCurrentBuffer().recycle();
+					final Buffer currentBuffer = currentRecordDeserializer.getCurrentBuffer();
+
+					currentBuffer.recycle();
 					currentRecordDeserializer = null;
 				}
 
@@ -79,16 +82,27 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 				currentRecordDeserializer = recordDeserializers[bufferOrEvent.getChannelIndex()];
 				currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
 			}
-			else if (handleEvent(bufferOrEvent.getEvent())) {
-				if (inputGate.isFinished()) {
-					isFinished = true;
-
-					return false;
+			else {
+				// sanity check for leftover data in deserializers. events should only come between
+				// records, not in the middle of a fragment
+				if (recordDeserializers[bufferOrEvent.getChannelIndex()].hasUnfinishedData()) {
+					throw new IOException(
+							"Received an event in channel " + bufferOrEvent.getChannelIndex() + " while still having "
+							+ "data from a record. This indicates broken serialization logic. "
+							+ "If you are using custom serialization code (Writable or Value types), check their "
+							+ "serialization routines. In the case of Kryo, check the respective Kryo serializer.");
 				}
-				else if (hasReachedEndOfSuperstep()) {
 
-					return false;
-				} // else: More data is coming...
+				if (handleEvent(bufferOrEvent.getEvent())) {
+					if (inputGate.isFinished()) {
+						isFinished = true;
+						return false;
+					}
+					else if (hasReachedEndOfSuperstep()) {
+						return false;
+					}
+					// else: More data is coming...
+				}
 			}
 		}
 	}
@@ -99,6 +113,13 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycle();
 			}
+		}
+	}
+
+	@Override
+	public void setReporter(AccumulatorRegistry.Reporter reporter) {
+		for (RecordDeserializer<?> deserializer : recordDeserializers) {
+			deserializer.setReporter(reporter);
 		}
 	}
 }

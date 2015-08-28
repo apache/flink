@@ -16,42 +16,35 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.configuration;
 
 /**
- * An <code>IllegalConfigurationException</code> is thrown when the user
- * has configured job vertices in a way that either conflicts
- * with the expected usage of the respective task of the configuration
- * of the Nephele framework.
+ * An {@code IllegalConfigurationException} is thrown when
+ * the values in a given {@link Configuration} are not valid. This may refer
+ * to the Flink configuration with which the framework is started,
+ * or a Configuration passed internally between components.
  */
 public class IllegalConfigurationException extends RuntimeException {
 
-	/**
-	 * Generated serial UID.
-	 */
 	private static final long serialVersionUID = 695506964810499989L;
 
 	/**
-	 * Constructs an new illegal configuration exception with the given error message.
+	 * Constructs an new IllegalConfigurationException with the given error message.
 	 * 
-	 * @param errorMsg
-	 *        the error message to be included in the exception
+	 * @param message The error message for the exception.
 	 */
-	public IllegalConfigurationException(final String errorMsg) {
-		super(errorMsg);
+	public IllegalConfigurationException(String message) {
+		super(message);
 	}
 
 	/**
-	 * Constructs an new illegal configuration exception with the given error message
+	 * Constructs an new IllegalConfigurationException with the given error message
 	 * and a given cause.
-	 * 
-	 * @param errorMsg
-	 *        The error message to be included in the exception.
-	 * @param cause
-	 *        The exception that caused this exception.
+	 *
+	 * @param message The error message for the exception.
+	 * @param cause The exception that caused this exception.
 	 */
-	public IllegalConfigurationException(final String errorMsg, final Throwable cause) {
-		super(errorMsg, cause);
+	public IllegalConfigurationException(String message, Throwable cause) {
+		super(message, cause);
 	}
 }
