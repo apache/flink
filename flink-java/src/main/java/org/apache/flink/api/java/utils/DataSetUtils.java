@@ -106,12 +106,13 @@ public class DataSetUtils {
 	}
 
 	/**
-	 * Method that assigns unique Long labels to all the elements in the input data set by making use of the
-	 * following abstractions:
+	 * Method that assigns a unique {@link Long} value to all elements in the input data set in the following way:
 	 * <ul>
-	 * 	<li> a map function generates an n-bit (n - number of parallel tasks) ID based on its own index
-	 * 	<li> with each record, a counter c is increased
-	 * 	<li> the unique label is then produced by shifting the counter c by the n-bit mapper ID
+	 *  <li> a map function is applied to the input data set
+	 *  <li> each map task holds a counter c which is increased for each record
+	 *  <li> c is shifted by n bits where n = log2(number of parallel tasks)
+	 * 	<li> to create a unique ID among all tasks, the task id is added to the counter
+	 * 	<li> for each record, the resulting counter is collected
 	 * </ul>
 	 *
 	 * @param input the input data set
@@ -121,6 +122,7 @@ public class DataSetUtils {
 
 		return input.mapPartition(new RichMapPartitionFunction<T, Tuple2<Long, T>>() {
 
+			long maxLength = log2(Long.MAX_VALUE);
 			long shifter = 0;
 			long start = 0;
 			long taskId = 0;
@@ -136,9 +138,9 @@ public class DataSetUtils {
 			@Override
 			public void mapPartition(Iterable<T> values, Collector<Tuple2<Long, T>> out) throws Exception {
 				for(T value: values) {
-					label = start << shifter + taskId;
+					label = (start << shifter) + taskId;
 
-					if(log2(start) + shifter < log2(Long.MAX_VALUE)) {
+					if(log2(start) + shifter < maxLength) {
 						out.collect(new Tuple2<Long, T>(label, value));
 						start++;
 					} else {
