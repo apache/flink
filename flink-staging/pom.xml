@@ -42,7 +42,6 @@ under the License.
 		<module>flink-streaming</module>
 		<module>flink-hbase</module>
 		<module>flink-gelly</module>
-		<module>flink-hcatalog</module>
 		<module>flink-table</module>
 		<module>flink-ml</module>
 		<module>flink-language-binding</module>
@@ -64,6 +63,21 @@ under the License.
 				 	The HDFS minicluster interfaces changed between the two versions.
 				 -->
 				<module>flink-fs-tests</module>
+			</modules>
+		</profile>
+		<profile>
+			<id>hadoop-1</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop1--><name>hadoop.profile</name><value>1</value>
+				</property>
+			</activation>
+			<modules>
+				<!-- Include the flink-hcatalog project only for HD1.
+				 	The maven hcatalog jar is compiled against hadoop1
+				 -->
+				<module>flink-hcatalog</module>
 			</modules>
 		</profile>
 		<profile>
