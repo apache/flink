@@ -18,66 +18,59 @@
 
 package org.apache.flink.test.util;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.DataSetUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
+import org.junit.Assert;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+
 @RunWith(Parameterized.class)
 public class DataSetUtilsITCase extends MultipleProgramsTestBase {
-
-	private String resultPath;
-	private String expectedResult;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	public DataSetUtilsITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
 	@Test
 	public void testZipWithIndex() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F");
+		long expectedSize = 100L;
+		DataSet<Long> numbers = env.generateSequence(0, expectedSize - 1);
 
-		DataSet<Tuple2<Long, String>> result = DataSetUtils.zipWithIndex(in);
+		List<Tuple2<Long, Long>> result = Lists.newArrayList(DataSetUtils.zipWithIndex(numbers).collect());
 
-		result.writeAsCsv(resultPath, "\n", ",");
-		env.execute();
-
-		expectedResult = "0,A\n" + "1,B\n" + "2,C\n" + "3,D\n" + "4,E\n" + "5,F";
+		Assert.assertEquals(expectedSize, result.size());
+		// sort result by created index
+		Collections.sort(result, new Comparator<Tuple2<Long, Long>>() {
+			@Override
+			public int compare(Tuple2<Long, Long> o1, Tuple2<Long, Long> o2) {
+				return o1.f0.compareTo(o2.f0);
+			}
+		});
+		// test if index is consecutive
+		for (int i = 0; i < expectedSize; i++) {
+			Assert.assertEquals(i, (long) result.get(i).f0);
+		}
 	}
 
 	@Test
 	public void testZipWithUniqueId() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F");
+		long expectedSize = 100L;
+		DataSet<Long> numbers = env.generateSequence(1L, expectedSize);
 
-		DataSet<Tuple2<Long, String>> result = DataSetUtils.zipWithUniqueId(in);
+		Set<Tuple2<Long, Long>> result = Sets.newHashSet(DataSetUtils.zipWithUniqueId(numbers).collect());
 
-		result.writeAsCsv(resultPath, "\n", ",");
-		env.execute();
-
-		expectedResult = "0,A\n" + "2,B\n" + "4,C\n" + "6,D\n" + "8,E\n" + "10,F";
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath);
+		Assert.assertEquals(expectedSize, result.size());
 	}
 }
