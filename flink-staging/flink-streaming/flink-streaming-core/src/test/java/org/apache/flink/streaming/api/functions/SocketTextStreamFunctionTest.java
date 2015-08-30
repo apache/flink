@@ -171,6 +171,7 @@ public class SocketTextStreamFunctionTest {
         assertTrue(actualList.get(0).indexOf('\r') == -1);
         assertTrue(actualList.get(0).indexOf('\n') == -1);
     }
+    
     @Test
     public void testWindowsLineEndSuffixDelimited() throws Exception {
         List<String> actualList = new ArrayList<>();
