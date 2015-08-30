@@ -37,7 +37,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 
 	private String hostname;
 	private int port;
-	private char delimiter;
+	private String delimiter;
 	private long maxRetry;
 	private boolean retryForever;
 	private Socket socket;
@@ -47,6 +47,10 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	private volatile boolean isRunning;
 
 	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxRetry) {
+		this(hostname,port,String.valueOf(delimiter),maxRetry);
+	}
+
+	public SocketTextStreamFunction(String hostname, int port, String delimiter, long maxRetry) {
 		this.hostname = hostname;
 		this.port = port;
 		this.delimiter = delimiter;
@@ -70,13 +74,14 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	public void streamFromSocket(SourceContext<String> ctx, Socket socket) throws Exception {
 		try {
 			StringBuffer buffer = new StringBuffer();
+            char[] charBuffer = new char[Math.max(8192, 2*delimiter.length())];
 			BufferedReader reader = new BufferedReader(new InputStreamReader(
 					socket.getInputStream()));
 
 			while (isRunning) {
-				int data;
+				int readCount;
 				try {
-					data = reader.read();
+                    readCount = reader.read(charBuffer);
 				} catch (SocketException e) {
 					if (!isRunning) {
 						break;
@@ -85,7 +90,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 					}
 				}
 
-				if (data == -1) {
+				if (readCount == -1) {
 					socket.close();
 					long retry = 0;
 					boolean success = false;
@@ -116,12 +121,13 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 					continue;
 				}
 
-				if (data == delimiter) {
-					ctx.collect(buffer.toString());
-					buffer = new StringBuffer();
-				} else if (data != '\r') { // ignore carriage return
-					buffer.append((char) data);
-				}
+                buffer.append(charBuffer,0,readCount);
+                String[] splits = buffer.toString().split(delimiter);
+                int i = 0;
+                for (; i < splits.length-1; i++) {
+                    ctx.collect(splits[i].replace("\r", ""));
+                }
+                buffer = new StringBuffer(splits[i].replace("\r", ""));
 			}
 
 			if (buffer.length() > 0) {
