@@ -16,29 +16,20 @@
  * limitations under the License.
  */
 
-
-package org.apache.flink.runtime.memorymanager;
+package org.apache.flink.core.memory;
 
 /**
- * An exception to be thrown when a memory allocation operation is not successful.
+ * The class of memory, such as heap or off-heap.
  */
-public class MemoryAllocationException extends Exception {
-	
-	private static final long serialVersionUID = -403983866457947012L;
+public enum MemoryType {
 
-	public MemoryAllocationException() {
-		super();
-	}
+	/**
+	 * Denotes memory that is part of the Java heap.
+	 */
+	HEAP,
 
-	public MemoryAllocationException(String message, Throwable cause) {
-		super(message, cause);
-	}
-
-	public MemoryAllocationException(String message) {
-		super(message);
-	}
-
-	public MemoryAllocationException(Throwable cause) {
-		super(cause);
-	}
+	/**
+	 * Denotes memory that is outside the Java heap (but still part of tha Java process).
+	 */
+	OFF_HEAP
 }

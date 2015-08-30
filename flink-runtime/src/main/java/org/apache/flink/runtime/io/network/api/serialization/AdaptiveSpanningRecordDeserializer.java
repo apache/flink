@@ -230,21 +230,21 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 		@Override
 		public final short readShort() throws IOException {
-			final short v = this.segment.getShort(this.position);
+			final short v = this.segment.getShortBigEndian(this.position);
 			this.position += 2;
 			return v;
 		}
 
 		@Override
 		public final int readUnsignedShort() throws IOException {
-			final int v = this.segment.getShort(this.position) & 0xffff;
+			final int v = this.segment.getShortBigEndian(this.position) & 0xffff;
 			this.position += 2;
 			return v;
 		}
 
 		@Override
 		public final char readChar() throws IOException  {
-			final char v = this.segment.getChar(this.position);
+			final char v = this.segment.getCharBigEndian(this.position);
 			this.position += 2;
 			return v;
 		}

@@ -20,7 +20,8 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.HeapMemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
@@ -84,7 +85,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 		for (int i = 0; i < numInputChannels; i++) {
 			final int channelIndex = i;
 			final RecordSerializer<SerializationDelegate<Object>> recordSerializer = new SpanningRecordSerializer<SerializationDelegate<Object>>();
-			final SerializationDelegate<Object> delegate = new SerializationDelegate(new MultiplexingStreamRecordSerializer<T>(serializer));
+			final SerializationDelegate<Object> delegate = new SerializationDelegate<Object>(new MultiplexingStreamRecordSerializer<T>(serializer));
 
 			inputQueues[channelIndex] = new ConcurrentLinkedQueue<InputValue<Object>>();
 			inputChannels[channelIndex] = new TestInputChannel(inputGate, i);
@@ -98,20 +99,25 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 						when(inputChannels[channelIndex].getInputChannel().isReleased()).thenReturn(
 								true);
 						return EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
-					} else if (input != null && input.isStreamRecord()) {
+					}
+					else if (input != null && input.isStreamRecord()) {
 						Object inputElement = input.getStreamRecord();
-						final Buffer buffer = new Buffer(new MemorySegment(new byte[bufferSize]),
+						final Buffer buffer = new Buffer(
+								MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
 								mock(BufferRecycler.class));
+						
 						recordSerializer.setNextBuffer(buffer);
 						delegate.setInstance(inputElement);
 						recordSerializer.addRecord(delegate);
 
 						// Call getCurrentBuffer to ensure size is set
 						return recordSerializer.getCurrentBuffer();
-					} else if (input != null && input.isEvent()) {
+					}
+					else if (input != null && input.isEvent()) {
 						AbstractEvent event = input.getEvent();
 						return EventSerializer.toBuffer(event);
-					} else {
+					}
+					else {
 						synchronized (inputQueues[channelIndex]) {
 							inputQueues[channelIndex].wait();
 							return answer(invocationOnMock);

@@ -18,22 +18,19 @@
 
 package org.apache.flink.tez.runtime;
 
-
+import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 
 public class TezRuntimeEnvironment {
-
-	private static int DEFAULT_PAGE_SIZE = 32768;
-
+	
 	private final IOManager ioManager;
 
 	private final MemoryManager memoryManager;
 
 	public TezRuntimeEnvironment(long totalMemory) {
-		this.memoryManager = new DefaultMemoryManager(totalMemory, 1, DefaultMemoryManager.DEFAULT_PAGE_SIZE, true);
+		this.memoryManager = new MemoryManager(totalMemory, 1, MemoryManager.DEFAULT_PAGE_SIZE, MemoryType.HEAP, true);
 		this.ioManager = new IOManagerAsync();
 	}
 
