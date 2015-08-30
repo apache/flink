@@ -85,17 +85,15 @@ case class SparseVector(
     }
   }
 
-  /** Returns the outer product of the recipient and the argument
+  /** Returns the outer product (a.k.a. Kronecker product) of `this`
+    * with `other`. The result is given in [[org.apache.flink.ml.math.SparseMatrix]]
+    * representation.
     *
-    *
-    * @param other
-    * @return
-    *
-    * TODO: Dense x Dense should yield Dense,
-    * Sparse x Sparse should yield Sparse,
-    * Dense x Sparse (and the other way around) should yield Sparse
+    * @param other a Vector
+    * @return the [[org.apache.flink.ml.math.SparseMatrix]] which equals the outer product of `this`
+    *         with `other.`
     */
-  override def outer(other: Vector): Matrix = {
+  override def outer(other: Vector): SparseMatrix = {
     val numRows = size
     val numCols = other.size
 
