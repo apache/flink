@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -62,7 +63,7 @@ public class IOManagerAsyncTest {
 			final FileIOChannel.ID channelID = this.ioManager.createChannel();
 			final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channelID);
 			
-			MemorySegment memSeg = new MemorySegment(new byte[32 * 1024]);
+			MemorySegment memSeg = MemorySegmentFactory.allocateUnpooledSegment(32 * 1024);
 			
 			for (int i = 0; i < NUM_IOS; i++) {
 				for (int pos = 0; pos < memSeg.size(); pos += 4) {
@@ -103,7 +104,7 @@ public class IOManagerAsyncTest {
 		try {
 			final List<MemorySegment> memSegs = new ArrayList<MemorySegment>();
 			for (int i = 0; i < NUM_SEGS; i++) {
-				memSegs.add(new MemorySegment(new byte[32 * 1024]));
+				memSegs.add(MemorySegmentFactory.allocateUnpooledSegment(32 * 1024));
 			}
 			
 			final FileIOChannel.ID channelID = this.ioManager.createChannel();

@@ -36,10 +36,14 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.AbstractMergeOuterJoinIterator.OuterJoinType;
-import org.apache.flink.runtime.operators.testutils.*;
+import org.apache.flink.runtime.operators.testutils.CollectionIterator;
+import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
+import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+import org.apache.flink.runtime.operators.testutils.Match;
+import org.apache.flink.runtime.operators.testutils.MatchRemovingJoiner;
+import org.apache.flink.runtime.operators.testutils.SimpleTupleJoinFunction;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleConstantValueIterator;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
@@ -48,11 +52,18 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGeneratorItera
 import org.apache.flink.runtime.util.ResettableMutableObjectIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 public abstract class AbstractSortMergeOuterJoinIteratorITCase {
@@ -99,7 +110,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase {
 		comparator2 = typeInfo2.createComparator(new int[]{0}, new boolean[]{true}, 0, config);
 		pairComp = new GenericPairComparator<Tuple2<String, String>, Tuple2<String, Integer>>(comparator1, comparator2);
 
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
+		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManagerAsync();
 	}
 
@@ -283,7 +294,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase {
 		TypePairComparator<Tuple2<Integer, String>, Tuple2<Integer, String>> pairComparator =
 				new GenericPairComparator<Tuple2<Integer, String>, Tuple2<Integer, String>>(comparator1, comparator2);
 
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
+		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManagerAsync();
 
 		final int DUPLICATE_KEY = 13;
@@ -298,11 +309,11 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase {
 			final TupleConstantValueIterator const1Iter = new TupleConstantValueIterator(DUPLICATE_KEY, "LEFT String for Duplicate Keys", input1Duplicates);
 			final TupleConstantValueIterator const2Iter = new TupleConstantValueIterator(DUPLICATE_KEY, "RIGHT String for Duplicate Keys", input2Duplicates);
 
-			final List<MutableObjectIterator<Tuple2<Integer, String>>> inList1 = new ArrayList<MutableObjectIterator<Tuple2<Integer, String>>>();
+			final List<MutableObjectIterator<Tuple2<Integer, String>>> inList1 = new ArrayList<>();
 			inList1.add(gen1Iter);
 			inList1.add(const1Iter);
 
-			final List<MutableObjectIterator<Tuple2<Integer, String>>> inList2 = new ArrayList<MutableObjectIterator<Tuple2<Integer, String>>>();
+			final List<MutableObjectIterator<Tuple2<Integer, String>>> inList2 = new ArrayList<>();
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 
@@ -339,7 +350,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase {
 			final FlatJoinFunction<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> joinFunction =
 					new MatchRemovingJoiner(expectedMatchesMap);
 
-			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<Tuple2<Integer, String>>();
+			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 
 
 			// we create this sort-merge iterator with little memory for the block-nested-loops fall-back to make sure it
@@ -367,7 +378,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase {
 		}
 	}
 
-	protected abstract <T1, T2> AbstractMergeOuterJoinIterator createOuterJoinIterator(OuterJoinType outerJoinType,
+	protected abstract <T1, T2, O> AbstractMergeOuterJoinIterator<T1, T2, O> createOuterJoinIterator(OuterJoinType outerJoinType,
 																			  MutableObjectIterator<T1> input1,
 																			  MutableObjectIterator<T2> input2,
 																			  TypeSerializer<T1> serializer1, TypeComparator<T1> comparator1,
@@ -376,7 +387,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase {
 																			  MemoryManager memoryManager,
 																			  IOManager ioManager,
 																			  int numMemoryPages,
-																			  AbstractInvokable parentTask) throws Exception;
+																			  AbstractInvokable owningTask) throws Exception;
 
 	// --------------------------------------------------------------------------------------------
 	//                                    Utilities
@@ -387,7 +398,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase {
 			Map<Integer, Collection<String>> leftMap,
 			Map<Integer, Collection<String>> rightMap,
 			OuterJoinType outerJoinType) {
-		Map<Integer, Collection<Match>> map = new HashMap<Integer, Collection<Match>>();
+		Map<Integer, Collection<Match>> map = new HashMap<>();
 
 		for (Integer key : leftMap.keySet()) {
 			Collection<String> leftValues = leftMap.get(key);
@@ -458,5 +469,4 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase {
 
 		return map;
 	}
-
 }

@@ -20,14 +20,19 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.core.memory.MemoryType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * The NetworkBufferPool is a fixed size pool of {@link MemorySegment} instances
@@ -62,7 +67,9 @@ public class NetworkBufferPool implements BufferPoolFactory {
 	/**
 	 * Allocates all {@link MemorySegment} instances managed by this pool.
 	 */
-	public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize) {
+	public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize, MemoryType memoryType) {
+		checkNotNull(memoryType);
+		
 		this.totalNumberOfMemorySegments = numberOfSegmentsToAllocate;
 		this.memorySegmentSize = segmentSize;
 
@@ -72,12 +79,25 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			this.availableMemorySegments = new ArrayBlockingQueue<MemorySegment>(numberOfSegmentsToAllocate);
 		}
 		catch (OutOfMemoryError err) {
-			throw new OutOfMemoryError("Could not allocate buffer queue of length " + numberOfSegmentsToAllocate);
+			throw new OutOfMemoryError("Could not allocate buffer queue of length "
+					+ numberOfSegmentsToAllocate + " - " + err.getMessage());
 		}
 
 		try {
-			for (int i = 0; i < numberOfSegmentsToAllocate; i++) {
-				availableMemorySegments.add(new MemorySegment(new byte[segmentSize]));
+			if (memoryType == MemoryType.HEAP) {
+				for (int i = 0; i < numberOfSegmentsToAllocate; i++) {
+					byte[] memory = new byte[segmentSize];
+					availableMemorySegments.add(MemorySegmentFactory.wrapPooledHeapMemory(memory, null));
+				}
+			}
+			else if (memoryType == MemoryType.OFF_HEAP) {
+				for (int i = 0; i < numberOfSegmentsToAllocate; i++) {
+					ByteBuffer memory = ByteBuffer.allocateDirect(segmentSize);
+					availableMemorySegments.add(MemorySegmentFactory.wrapPooledOffHeapMemory(memory, null));
+				}
+			}
+			else {
+				throw new IllegalArgumentException("Unknown memory type " + memoryType);
 			}
 		}
 		catch (OutOfMemoryError err) {
@@ -93,7 +113,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			throw new OutOfMemoryError("Could not allocate enough memory segments for NetworkBufferPool " +
 					"(required (Mb): " + requiredMb +
 					", allocated (Mb): " + allocatedMb +
-					", missing (Mb): " + missingMb + ").");
+					", missing (Mb): " + missingMb + "). Cause: " + err.getMessage());
 		}
 
 		long allocatedMb = (sizeInLong * availableMemorySegments.size()) >> 20;

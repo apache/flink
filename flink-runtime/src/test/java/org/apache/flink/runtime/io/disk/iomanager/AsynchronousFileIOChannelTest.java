@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.util.TestNotificationListener;
 import org.junit.Test;
@@ -274,7 +276,7 @@ public class AsynchronousFileIOChannelTest {
 		try {
 
 			final int NUM_BLOCKS = 100;
-			final MemorySegment seg = new MemorySegment(new byte[32 * 1024]);
+			final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(32 * 1024);
 
 			final AtomicInteger callbackCounter = new AtomicInteger();
 			final AtomicBoolean exceptionOccurred = new AtomicBoolean();
@@ -336,7 +338,7 @@ public class AsynchronousFileIOChannelTest {
 
 	private void testExceptionForwardsToClose(IOManagerAsync ioMan, final int numBlocks, final int failingBlock) {
 		try {
-			MemorySegment seg = new MemorySegment(new byte[32 * 1024]);
+			MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(32 * 1024);
 			FileIOChannel.ID channelId = ioMan.createChannel();
 
 			BlockChannelWriterWithCallback<MemorySegment> writer = new AsynchronousBlockWriterWithCallback(channelId,
@@ -371,7 +373,7 @@ public class AsynchronousFileIOChannelTest {
 			finally {
 				try {
 					writer.closeAndDelete();
-				} catch (Throwable t) {}
+				} catch (Throwable ignored) {}
 			}
 		}
 		catch (Exception e) {

@@ -52,7 +52,7 @@ under the License.
 		<module name="Regexp">
 			<property name="format" value="org\.apache\.commons\.lang3\.Validate"/>
 			<property name="illegalPattern" value="true"/>
-			<property name="message" value="Use Guava Checks instead of Commons Validate. Please refer coding guidelines."/>
+			<property name="message" value="Use Guava Checks instead of Commons Validate. Please refer to the coding guidelines."/>
 		</module>
 		<module name="NeedBraces">
 			<property name="tokens" value="LITERAL_IF, LITERAL_ELSE"/>
