@@ -122,13 +122,13 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 					continue;
 				}
 
-				buffer.append(charBuffer, 0, readCount);
-				String[] splits = buffer.toString().split(delimiter);
-				int sc = 0;
-				for (; sc < splits.length - 1; sc++) {
-					ctx.collect(splits[sc].replace("\r", ""));
-				}
-				buffer = new StringBuffer(splits[sc].replace("\r", ""));
+                buffer.append(charBuffer,0,readCount);
+                String[] splits = buffer.toString().split(delimiter);
+                int sc = 0;
+                for (; sc < splits.length-1; sc++) {
+                    ctx.collect(splits[sc].replace("\r", ""));
+                }
+                buffer = new StringBuffer(splits[sc].replace("\r", ""));
 			}
 
 			if (buffer.length() > 0) {
