@@ -427,7 +427,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 
 					Await.ready(response, akkaDuration);
 				} catch(Exception e) {
-					throw new RuntimeException("Error while stopping YARN Application Client", e);
+					LOG.warn("Error while stopping YARN Application Client", e);
 				}
 			}
 
