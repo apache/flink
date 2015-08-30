@@ -119,7 +119,14 @@ class SparseVectorSuite extends FlatSpec with Matchers {
     vec1.dot(vec2) should be(0)
   }
 
-  //====================================================================================================================
+  it should "fail in case of calculation dot product with different size vector" in {
+    val vec1 = SparseVector.fromCOO(4, (0, 1), (2, 1))
+    val vec2 = DenseVector(Array(0, 1, 0))
+
+    intercept[IllegalArgumentException] {
+      vec1.dot(vec2)
+    }
+  }
 
   it should "calculate outer product with SparseVector correctly as SparseMatrix" in {
     val vec1 = SparseVector(3, Array(0, 2), Array(1, 1))
@@ -137,7 +144,43 @@ class SparseVectorSuite extends FlatSpec with Matchers {
     vec1.outer(vec2) should be(SparseMatrix.fromCOO(3, 3, (0, 1, 1), (2, 1, 1)))
   }
 
-  it should "calculate outer product with SparseVector via multiplication if bothe vectors are one-dimensional" in {
+  it should "calculate outer product with a DenseVector correctly as SparseMatrix 2" in {
+    val vec1 = SparseVector(5, Array(0, 2), Array(1, 1))
+    val vec2 = DenseVector(Array(0, 0, 1, 0, 1))
+
+    vec1.outer(vec2) should be(SparseMatrix.fromCOO(5, 5, (0, 2, 1), (0, 4, 1), (2, 2, 1), (2, 4, 1)))
+  }
+
+  it should "calculate outer product with a SparseVector correctly as SparseMatrix 2" in {
+    val vec1 = SparseVector(5, Array(0, 2), Array(1, 1))
+    val vec2 = SparseVector.fromCOO(5, (2, 1), (4, 1))
+
+    vec1.outer(vec2) should be(SparseMatrix.fromCOO(5, 5, (0, 2, 1), (0, 4, 1), (2, 2, 1), (2, 4, 1)))
+  }
+
+
+  it should "calculate right outer product with DenseVector with one-dimensional unit DenseVector as identity" in {
+    val vec = SparseVector(5, Array(0, 2), Array(1, 1))
+    val unit = DenseVector(1)
+
+    vec.outer(unit) should equal(SparseMatrix.fromCOO(vec.size, 1, (0, 0, 1), (2, 0, 1)))
+  }
+
+  it should "calculate right outer product with DenseVector with one-dimensional unit SparseVector as identity" in {
+    val vec = SparseVector(5, Array(0, 2), Array(1, 1))
+    val unit = SparseVector(1, Array(0), Array(1))
+
+    vec.outer(unit) should equal(SparseMatrix.fromCOO(vec.size, 1, (0, 0, 1), (2, 0, 1)))
+  }
+
+  it should "calculate left outer product for SparseVector with one-dimensional unit DenseVector as identity" in {
+    val vec = SparseVector(5, Array(0, 1, 2, 3, 4), Array(1, 2, 3, 4, 5))
+    val unit = DenseVector(1)
+
+    unit.outer(vec) should equal(SparseMatrix.fromCOO(1, vec.size, (0, 0, 1), (0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 5)))
+  }
+
+  it should "calculate outer product with SparseVector via multiplication if both vectors are one-dimensional" in {
     val vec1 = SparseVector.fromCOO(1, (0, 2))
     val vec2 = SparseVector.fromCOO(1, (0, 3))
 
@@ -149,17 +192,6 @@ class SparseVectorSuite extends FlatSpec with Matchers {
     val vec2 = DenseVector(Array(3))
 
     vec1.outer(vec2) should be(SparseMatrix.fromCOO(1, 1, (0, 0, 2 * 3)))
-  }
-
-  //====================================================================================================================
-
-  it should "fail in case of calculation dot product with different size vector" in {
-    val vec1 = SparseVector.fromCOO(4, (0, 1), (2, 1))
-    val vec2 = DenseVector(Array(0, 1, 0))
-
-    intercept[IllegalArgumentException] {
-      vec1.dot(vec2)
-    }
   }
 
   it should "calculate magnitude of vector" in {
