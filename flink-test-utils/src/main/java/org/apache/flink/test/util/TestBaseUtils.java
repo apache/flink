@@ -588,4 +588,49 @@ public class TestBaseUtils extends TestLogger {
 
 		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
 	}
+	
+	public static class TupleComparator<T extends Tuple> implements Comparator<T> {
+
+		@Override
+		public int compare(T o1, T o2) {
+			if (o1 == null || o2 == null) {
+				throw new IllegalArgumentException("Cannot compare null tuples");
+			}
+			else if (o1.getArity() != o2.getArity()) {
+				return o1.getArity() - o2.getArity();
+			}
+			else {
+				for (int i = 0; i < o1.getArity(); i++) {
+					Object val1 = o1.getField(i);
+					Object val2 = o2.getField(i);
+					
+					int cmp;
+					if (val1 != null && val2 != null) {
+						cmp = compareValues(val1, val2);
+					}
+					else {
+						cmp = val1 == null ? (val2 == null ? 0 : -1) : 1;
+					}
+					
+					if (cmp != 0) {
+						return cmp;
+					}
+				}
+				
+				return 0;
+			}
+		}
+		
+		@SuppressWarnings("unchecked")
+		private static <X extends Comparable<X>> int compareValues(Object o1, Object o2) {
+			if (o1 instanceof Comparable && o2 instanceof Comparable) {
+				X c1 = (X) o1;
+				X c2 = (X) o2;
+				return c1.compareTo(c2);
+			}
+			else {
+				throw new IllegalArgumentException("Cannot compare tuples with non comparable elements");
+			}
+		}
+	}
 }
