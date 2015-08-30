@@ -28,6 +28,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+
 import org.junit.Test;
 
 /**
@@ -88,7 +89,7 @@ public class TaskExecutionStateTest {
 	}
 	
 	@Test
-	public void hanleNonSerializableException() {
+	public void handleNonSerializableException() {
 		try {
 			@SuppressWarnings({"ThrowableInstanceNeverThrown", "serial"})
 			Exception hostile = new Exception() {

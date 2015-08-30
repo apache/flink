@@ -28,11 +28,12 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{NoOpInvokable, BlockingNoOpInvokable, BlockingReceiver, Sender}
-import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, RequestNumberRegisteredTaskManager, SubmitJob}
+import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{RegisteredAtJobManager, NotifyWhenRegisteredAtJobManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
+import org.apache.flink.runtime.util.SerializedThrowable
 import org.apache.flink.test.util.ForkableFlinkMiniCluster
 
 import org.junit.runner.RunWith
@@ -62,7 +63,7 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       val cluster = startDeathwatchCluster(num_slots, 2)
 
       val taskManagers = cluster.getTaskManagers
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getJobManagerGateway()
 
       jmGateway.tell(DisableDisconnect)
 
@@ -102,12 +103,12 @@ class TaskManagerFailsITCase(_system: ActorSystem)
 
       val cluster = ForkableFlinkMiniCluster.startCluster(num_tasks, 2)
 
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getJobManagerGateway()
 
       try {
         within(TestingUtils.TESTING_DURATION) {
           jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
 
           jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), self)
 
@@ -125,9 +126,9 @@ class TaskManagerFailsITCase(_system: ActorSystem)
             case None => fail("Could not retrieve a working task manager.")
           }
 
-          val failure = expectMsgType[Failure]
-
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -155,12 +156,12 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       val cluster = ForkableFlinkMiniCluster.startCluster(num_tasks, 2)
 
       val taskManagers = cluster.getTaskManagers
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getJobManagerGateway()
 
       try {
         within(TestingUtils.TESTING_DURATION) {
           jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
 
           jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), self)
           expectMsg(AllVerticesRunning(jobID))
@@ -168,9 +169,9 @@ class TaskManagerFailsITCase(_system: ActorSystem)
           // kill one task manager
           taskManagers(0) ! Kill
 
-          val failure = expectMsgType[Failure]
-
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -198,18 +199,18 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       val cluster = startDeathwatchCluster(num_slots/2, 2)
 
       var tm = cluster.getTaskManagers(0)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getJobManagerGateway()
 
       try{
         within(TestingUtils.TESTING_DURATION){
           jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           tm ! PoisonPill
 
-          val failure = expectMsgType[Failure]
-
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -226,7 +227,7 @@ class TaskManagerFailsITCase(_system: ActorSystem)
 
           jmGateway.tell(SubmitJob(jobGraph2, false), self)
 
-          expectMsgType[Success]
+          expectMsg(JobSubmitSuccess(jobGraph2.getJobID()))
 
           val result = expectMsgType[JobResultSuccess]
           result.result.getJobId() should equal(jobGraph2.getJobID)

@@ -46,9 +46,12 @@ import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
+
 import org.slf4j.Logger;
+
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -137,7 +140,7 @@ public class Execution implements Serializable {
 	private ExecutionContext executionContext;
 
 	/* Lock for updating the accumulators atomically. */
-	private final Object accumulatorLock = new Object();
+	private final SerializableObject accumulatorLock = new SerializableObject();
 
 	/* Continuously updated map of user-defined accumulators */
 	private volatile Map<String, Accumulator<?, ?>> userAccumulators;

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGra
 import org.apache.flink.runtime.instance.{InstanceID, Instance}
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID
 import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, JobGraph, JobStatus, JobVertexID}
+import org.apache.flink.runtime.util.SerializedThrowable
 
 import scala.collection.JavaConverters._
 
@@ -163,9 +164,22 @@ object JobManagerMessages {
   case class ResponseLeaderSessionID(leaderSessionID: Option[UUID])
 
   /**
+   * Denotes a successful job submission.
+   * @param jobId Ths job's ID.
+   */
+  case class JobSubmitSuccess(jobId: JobID)
+  
+  /**
    * Denotes a successful job execution.
+   * @param result The result of the job execution, in serialized form.
    */
   case class JobResultSuccess(result: SerializedJobExecutionResult)
+
+  /**
+   * Denotes an unsuccessful job execution.
+   * @param cause The exception that caused the job to fail, in serialized form.
+   */
+  case class JobResultFailure(cause: SerializedThrowable)
 
 
   sealed trait CancellationResponse{

@@ -38,8 +38,8 @@ public class OperatorStateHandle implements StateHandle<Serializable> {
 	}
 
 	@Override
-	public Serializable getState() throws Exception {
-		return handle.getState();
+	public Serializable getState(ClassLoader userCodeClassLoader) throws Exception {
+		return handle.getState(userCodeClassLoader);
 	}
 
 	@Override

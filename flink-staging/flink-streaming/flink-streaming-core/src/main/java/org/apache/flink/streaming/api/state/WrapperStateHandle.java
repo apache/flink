@@ -42,7 +42,8 @@ public class WrapperStateHandle extends LocalStateHandle<Serializable> {
 	@Override
 	public void discardState() throws Exception {
 		@SuppressWarnings("unchecked")
-		List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>> chainedStates = (List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>>) getState();
+		List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>> chainedStates =
+				(List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>>) getState(null); // we can pass "null" here because the LocalStateHandle is not using the ClassLoader anyways
 		for (Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> state : chainedStates) {
 			if (state != null) {
 				if (state.f0 != null) {

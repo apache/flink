@@ -109,7 +109,8 @@ public class TaskCancelTest {
 
 			// Run test
 			JobClient.submitJobDetached(
-					flink.getJobManagerGateway(), jobGraph, TestingUtils.TESTING_DURATION());
+					flink.getJobManagerGateway(), jobGraph,
+					TestingUtils.TESTING_DURATION(), getClass().getClassLoader());
 
 			// Wait for the job to make some progress and then cancel
 			awaitRunning(

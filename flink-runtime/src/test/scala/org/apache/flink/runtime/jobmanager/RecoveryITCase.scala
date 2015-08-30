@@ -18,14 +18,13 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.Status.Success
 import akka.actor.{PoisonPill, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, DistributionPattern, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingOnceReceiver, FailingOnceReceiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
-import org.apache.flink.runtime.messages.JobManagerMessages.{ JobResultSuccess, SubmitJob}
+import org.apache.flink.runtime.messages.JobManagerMessages.{JobSubmitSuccess, JobResultSuccess, SubmitJob}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
 import org.junit.runner.RunWith
@@ -79,13 +78,13 @@ class RecoveryITCase(_system: ActorSystem)
       jobGraph.setNumberOfExecutionRetries(1)
 
       val cluster = startTestClusterWithHeartbeatTimeout(2 * NUM_TASKS, 1, "2 s")
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getJobManagerGateway()
 
       try {
         within(TestingUtils.TESTING_DURATION){
           jmGateway.tell(SubmitJob(jobGraph, false), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           val result = expectMsgType[JobResultSuccess]
 
@@ -122,13 +121,13 @@ class RecoveryITCase(_system: ActorSystem)
       jobGraph.setNumberOfExecutionRetries(1)
 
       val cluster = startTestClusterWithHeartbeatTimeout(NUM_TASKS, 1, "2 s")
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getJobManagerGateway()
 
       try {
         within(TestingUtils.TESTING_DURATION){
           jmGateway.tell(SubmitJob(jobGraph, false), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           val result = expectMsgType[JobResultSuccess]
 
@@ -166,13 +165,13 @@ class RecoveryITCase(_system: ActorSystem)
 
       val cluster = startTestClusterWithHeartbeatTimeout(NUM_TASKS, 2, "2 s")
 
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getJobManagerGateway()
 
       try {
         within(TestingUtils.TESTING_DURATION){
           jmGateway.tell(SubmitJob(jobGraph, false), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobGraph.getJobID), self)
 

@@ -20,9 +20,9 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,8 +67,7 @@ public class ClusterUtil {
 				exec.submitJobDetached(jobGraph);
 				return null;
 			} else {
-				SerializedJobExecutionResult result = exec.submitJobAndWait(jobGraph, printDuringExecution);
-				return result.toJobExecutionResult(ClusterUtil.class.getClassLoader());
+				return exec.submitJobAndWait(jobGraph, printDuringExecution);
 			}
 		} finally {
 			if (exec != null && !detached) {

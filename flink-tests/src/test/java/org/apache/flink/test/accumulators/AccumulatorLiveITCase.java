@@ -20,10 +20,10 @@ package org.apache.flink.test.accumulators;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.Status;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
+
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -55,11 +55,14 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -190,7 +193,7 @@ public class AccumulatorLiveITCase {
 			// submit job
 
 			jobManagerGateway.tell(new JobManagerMessages.SubmitJob(jobGraph, false), selfGateway);
-			expectMsgClass(TIMEOUT, Status.Success.class);
+			expectMsgClass(TIMEOUT, JobManagerMessages.JobSubmitSuccess.class);
 
 
 			TestingJobManagerMessages.UpdatedAccumulators msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);

@@ -21,7 +21,9 @@ package org.apache.flink.api.scala.runtime.jobmanager
 import akka.actor.Status.Success
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
+
 import org.junit.runner.RunWith
+
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
@@ -57,7 +59,7 @@ class JobManagerFailsITCase(_system: ActorSystem)
       val cluster = startDeathwatchCluster(num_slots, 1)
 
       val tm = cluster.getTaskManagers(0)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getJobManagerGateway()
 
       // disable disconnect message to test death watch
       tm ! DisableDisconnect
@@ -76,7 +78,7 @@ class JobManagerFailsITCase(_system: ActorSystem)
 
         cluster.waitForTaskManagersToBeRegistered()
 
-        cluster.getJobManagerGateway.tell(RequestNumberRegisteredTaskManager, self)
+        cluster.getJobManagerGateway().tell(RequestNumberRegisteredTaskManager, self)
 
         expectMsg(1)
       } finally {
@@ -99,13 +101,13 @@ class JobManagerFailsITCase(_system: ActorSystem)
 
       val cluster = startDeathwatchCluster(num_slots / 2, 2)
 
-      var jmGateway = cluster.getJobManagerGateway
+      var jmGateway = cluster.getJobManagerGateway()
       val tm = cluster.getTaskManagers(0)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
           jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           tm.tell(NotifyWhenJobManagerTerminated(jmGateway.actor()), self)
 
@@ -115,13 +117,13 @@ class JobManagerFailsITCase(_system: ActorSystem)
 
           cluster.restartJobManager()
 
-          jmGateway = cluster.getJobManagerGateway
+          jmGateway = cluster.getJobManagerGateway()
 
           cluster.waitForTaskManagersToBeRegistered()
 
           jmGateway.tell(SubmitJob(jobGraph2, false), self)
 
-          val failure = expectMsgType[Success]
+          expectMsg(JobSubmitSuccess(jobGraph2.getJobID()))
 
           val result = expectMsgType[JobResultSuccess]
 

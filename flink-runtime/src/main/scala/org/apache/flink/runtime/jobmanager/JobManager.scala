@@ -23,7 +23,7 @@ import java.lang.reflect.{InvocationTargetException, Constructor}
 import java.net.InetSocketAddress
 import java.util.{UUID, Collections}
 
-import akka.actor.Status.{Failure, Success}
+import akka.actor.Status.Failure
 import akka.actor._
 
 import grizzled.slf4j.Logger
@@ -47,11 +47,10 @@ import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.util.ZooKeeperUtil
-import org.apache.flink.runtime.util.EnvironmentInformation
+import org.apache.flink.runtime.util.{SerializedThrowable, ZooKeeperUtil, EnvironmentInformation}
 import org.apache.flink.runtime.webmonitor.WebMonitor
 import org.apache.flink.runtime.{FlinkActor, StreamingMode, LeaderSessionMessages}
-import org.apache.flink.runtime.{LogMessages}
+import org.apache.flink.runtime.LogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway, InstanceManager}
@@ -327,49 +326,50 @@ class JobManager(
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
 
-          log.info(s"Status of job $jobID (${executionGraph.getJobName}) changed to $newJobStatus.",
+          log.info(
+            s"Status of job $jobID (${executionGraph.getJobName}) changed to $newJobStatus.",
             error)
 
-          if (newJobStatus.isTerminalState) {
+          if (newJobStatus.isTerminalState()) {
             jobInfo.end = timeStamp
 
             // is the client waiting for the job result?
             newJobStatus match {
               case JobStatus.FINISHED =>
                 val accumulatorResults: java.util.Map[String, SerializedValue[AnyRef]] = try {
-                  executionGraph.getAccumulatorsSerialized
+                  executionGraph.getAccumulatorsSerialized()
                 } catch {
                   case e: Exception =>
                     log.error(s"Cannot fetch serialized accumulators for job $jobID", e)
                     Collections.emptyMap()
                 }
-                val result = new SerializedJobExecutionResult(jobID, jobInfo.duration,
-                                                              accumulatorResults)
+                val result = new SerializedJobExecutionResult(
+                  jobID,
+                  jobInfo.duration,
+                  accumulatorResults)
                 jobInfo.client ! decorateMessage(JobResultSuccess(result))
 
               case JobStatus.CANCELED =>
-                jobInfo.client ! decorateMessage(
-                  Failure(
-                    new JobCancellationException(
-                      jobID,
-                    "Job was cancelled.", error)
-                  )
-                )
+                // the error may be packed as a serialized throwable
+                val unpackedError = SerializedThrowable.get(
+                  error, executionGraph.getUserClassLoader())
+                
+                jobInfo.client ! decorateMessage(JobResultFailure(
+                  new SerializedThrowable(
+                    new JobCancellationException(jobID, "Job was cancelled.", unpackedError))))
 
               case JobStatus.FAILED =>
-                jobInfo.client ! decorateMessage(
-                  Failure(
-                    new JobExecutionException(
-                      jobID,
-                      "Job execution failed.",
-                      error)
-                  )
-                )
+                val unpackedError = SerializedThrowable.get(
+                  error, executionGraph.getUserClassLoader())
+                
+                jobInfo.client ! decorateMessage(JobResultFailure(
+                  new SerializedThrowable(
+                    new JobExecutionException(jobID, "Job execution failed.", unpackedError))))
 
               case x =>
-                val exception = new JobExecutionException(jobID, s"$x is not a " +
-                  "terminal state.")
-                jobInfo.client ! decorateMessage(Failure(exception))
+                val exception = new JobExecutionException(jobID, s"$x is not a terminal state.")
+                jobInfo.client ! decorateMessage(JobResultFailure(
+                  new SerializedThrowable(exception)))
                 throw exception
             }
 
@@ -524,11 +524,11 @@ class JobManager(
    */
   private def submitJob(jobGraph: JobGraph, listenToEvents: Boolean): Unit = {
     if (jobGraph == null) {
-      sender ! decorateMessage(
-        Failure(
+      sender() ! decorateMessage(JobResultFailure(
+        new SerializedThrowable(
           new JobSubmissionException(null, "JobGraph must not be null.")
         )
-      )
+      ))
     }
     else {
       val jobId = jobGraph.getJobID
@@ -567,17 +567,17 @@ class JobManager(
             executionContext,
             jobGraph.getJobID,
             jobGraph.getName,
-            jobGraph.getJobConfiguration,
+            jobGraph.getJobConfiguration(),
             timeout,
-            jobGraph.getUserJarBlobKeys,
+            jobGraph.getUserJarBlobKeys(),
             userCodeLoader),
             JobInfo(sender(), System.currentTimeMillis())
           )
         )._1
 
         // configure the execution graph
-        val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries >= 0) {
-          jobGraph.getNumberOfExecutionRetries
+        val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries() >= 0) {
+          jobGraph.getNumberOfExecutionRetries()
         } else {
           defaultExecutionRetries
         }
@@ -611,8 +611,9 @@ class JobManager(
             vertex.initializeOnMaster(userCodeLoader)
           }
           catch {
-            case t: Throwable => throw new JobExecutionException(jobId,
-              "Cannot initialize task '" + vertex.getName + "': " + t.getMessage, t)
+            case t: Throwable =>
+              throw new JobExecutionException(jobId,
+                "Cannot initialize task '" + vertex.getName() + "': " + t.getMessage, t)
           }
         }
 
@@ -642,13 +643,13 @@ class JobManager(
           }
 
           val triggerVertices: java.util.List[ExecutionJobVertex] =
-            snapshotSettings.getVerticesToTrigger.asScala.map(idToVertex).asJava
+            snapshotSettings.getVerticesToTrigger().asScala.map(idToVertex).asJava
 
           val ackVertices: java.util.List[ExecutionJobVertex] =
-            snapshotSettings.getVerticesToAcknowledge.asScala.map(idToVertex).asJava
+            snapshotSettings.getVerticesToAcknowledge().asScala.map(idToVertex).asJava
 
           val confirmVertices: java.util.List[ExecutionJobVertex] =
-            snapshotSettings.getVerticesToConfirm.asScala.map(idToVertex).asJava
+            snapshotSettings.getVerticesToConfirm().asScala.map(idToVertex).asJava
 
           executionGraph.enableSnapshotCheckpointing(
             snapshotSettings.getCheckpointInterval,
@@ -672,7 +673,7 @@ class JobManager(
         }
 
         // done with submitting the job
-        sender ! decorateMessage(Success(jobGraph.getJobID))
+        sender() ! decorateMessage(JobSubmitSuccess(jobGraph.getJobID))
       }
       catch {
         case t: Throwable =>
@@ -691,7 +692,7 @@ class JobManager(
             new JobExecutionException(jobId, s"Failed to submit job ${jobId} (${jobName})", t)
           }
 
-          sender ! decorateMessage(Failure(rt))
+          sender() ! decorateMessage(JobResultFailure(new SerializedThrowable(rt)))
           return
       }
 

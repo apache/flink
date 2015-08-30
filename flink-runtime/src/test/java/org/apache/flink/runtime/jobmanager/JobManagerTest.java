@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.jobmanager;
 
 import akka.actor.ActorSystem;
-import akka.actor.Status;
 import akka.testkit.JavaTestKit;
+
 import com.typesafe.config.Config;
+
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
@@ -46,9 +48,11 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ExecutionGraphFound;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.RequestExecutionGraph;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunningOrFinished;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
@@ -124,7 +128,7 @@ public class JobManagerTest {
 
 				// Submit the job and wait for all vertices to be running
 				jobManagerGateway.tell(new SubmitJob(jobGraph, false), testActorGateway);
-				expectMsgClass(Status.Success.class);
+				expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
 
 				jobManagerGateway.tell(
 						new WaitForAllVerticesToBeRunningOrFinished(jobGraph.getJobID()),
