@@ -156,10 +156,10 @@ public class SocketTextStreamFunctionTest {
     @Test
     public void testNewLineDelimited() throws Exception {
         List<String> actualList = new ArrayList<>();
-        String delimiter = "\n";
-        prepareTest(delimiter,actualList);
+        char delimiter = '\n';
+        prepareTestForOld(delimiter, actualList);
         assertEquals(5, actualList.size());
-        assertEquals(content,restoreContentFromActual(delimiter,actualList));
+        assertEquals(content,restoreContentFromActual(String.valueOf(delimiter),actualList));
     }
 
     @Test
