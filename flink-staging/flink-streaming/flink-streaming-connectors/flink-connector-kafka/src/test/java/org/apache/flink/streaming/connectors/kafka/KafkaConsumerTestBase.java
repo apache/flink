@@ -806,6 +806,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		zkClient.close();
 
 		final String leaderToShutDown = firstPart.leader().get().connectionString();
+		final int leaderIdToShutDown = firstPart.leader().get().id();
 		LOG.info("Leader to shutdown {}", leaderToShutDown);
 
 
@@ -832,10 +833,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		BrokerKillingMapper.killedLeaderBefore = false;
 		tryExecute(env, "One-to-one exactly once test");
 
-		// this cannot be reliably checked, as checkpoints come in time intervals, and
-		// failures after a number of elements
-//			assertTrue("Job did not do a checkpoint before the failure",
-//					BrokerKillingMapper.hasBeenCheckpointedBeforeFailure);
+		// start a new broker:
+		brokers.set(leaderIdToShutDown, getKafkaServer(leaderIdToShutDown, tmpKafkaDirs.get(leaderIdToShutDown), kafkaHost, zookeeperConnectionString));
 
 		LOG.info("finished runBrokerFailureTest()");
 	}
