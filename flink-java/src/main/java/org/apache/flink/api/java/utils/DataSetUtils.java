@@ -34,6 +34,7 @@ import org.apache.flink.util.Collector;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * This class provides simple utility methods for zipping elements in a data set with an index
@@ -82,7 +83,9 @@ public class DataSetUtils {
 			public void open(Configuration parameters) throws Exception {
 				super.open(parameters);
 
-				List<Tuple2<Integer, Long>> offsets = getRuntimeContext().getBroadcastVariable("counts");
+
+				List<Tuple2<Integer, Long>> offsets =
+						new CopyOnWriteArrayList<Tuple2<Integer, Long>>(getRuntimeContext().<Tuple2<Integer, Long>>getBroadcastVariable("counts"));
 
 				Collections.sort(offsets, new Comparator<Tuple2<Integer, Long>>() {
 					@Override
