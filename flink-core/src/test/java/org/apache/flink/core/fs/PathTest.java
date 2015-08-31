@@ -19,6 +19,8 @@ package org.apache.flink.core.fs;
 
 import java.io.IOException;
 import java.net.URI;
+
+import org.apache.flink.util.FileSystemUtil;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -284,7 +286,7 @@ public class PathTest {
 		path = "test/test";
 		p = new Path(path);
 		u = p.toUri();
-		p = p.makeQualified(FileSystem.get(u));
+		p = FileSystemUtil.makeQualified(p, FileSystem.get(u));
 		u = p.toUri();
 		assertEquals("file", u.getScheme());
 		assertEquals(null, u.getAuthority());
@@ -293,7 +295,7 @@ public class PathTest {
 		path = "/test/test";
 		p = new Path(path);
 		u = p.toUri();
-		p = p.makeQualified(FileSystem.get(u));
+		p = FileSystemUtil.makeQualified(p, FileSystem.get(u));
 		u = p.toUri();
 		assertEquals("file", u.getScheme());
 		assertEquals(null, u.getAuthority());
