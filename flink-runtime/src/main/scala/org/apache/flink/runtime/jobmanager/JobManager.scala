@@ -991,24 +991,6 @@ object JobManager {
       }
     }
 
-    // we want to check that the JobManager hostname is in the config
-    // if it is not in there, the actor system will bind to the loopback interface's
-    // address and will not be reachable from anyone remote
-    if (listeningHost == null) {
-      val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY +
-        "' is missing (hostname/address to bind JobManager to)."
-      LOG.error(message)
-      System.exit(STARTUP_FAILURE_RETURN_CODE)
-    }
-
-    // address and will not be reachable from anyone remote
-    if (listeningPort <= 0 || listeningPort >= 65536) {
-      val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
-        "' is invalid, it must be great than 0 and less than 65536."
-      LOG.error(message)
-      System.exit(STARTUP_FAILURE_RETURN_CODE)
-    }
-
     // run the job manager
     try {
       if (SecurityUtils.isSecurityEnabled) {
@@ -1264,8 +1246,25 @@ object JobManager {
         val host = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
         val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
             ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+
+        // address and will not be reachable from anyone remote
+        if (port <= 0 || port >= 65536) {
+          throw new IllegalArgumentException("Config parameter '" +
+            ConfigConstants.JOB_MANAGER_IPC_PORT_KEY + "' is invalid, it must be greater than " +
+            "0 and less than 65536.")
+        }
+
         (host, port)
       }
+
+    // we want to check that the JobManager hostname is in the config
+    // if it is not in there, the actor system will bind to the loopback interface's
+    // address and will not be reachable from anyone remote
+    if (hostname == null) {
+      throw new IllegalArgumentException("Config parameter '" +
+        ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY + "' is missing (hostname/address to " +
+        "bind JobManager to).")
+    }
 
     (configuration, config.getJobManagerMode(), config.getStreamingMode(), hostname, port)
   }

@@ -39,7 +39,7 @@ while read server ; do
         id=${BASH_REMATCH[1]}
         server=${BASH_REMATCH[2]}
 
-        ssh -n $FLINK_SSH_OPTS $server -- "nohup /bin/bash -l $bin/zookeeper.sh stop &"
+        ssh -n $FLINK_SSH_OPTS $server -- "nohup /bin/bash -l $FLINK_BIN_DIR/zookeeper.sh stop &"
     else
         echo "[WARN] Parse error. Skipping config entry '$server'."
     fi
