@@ -36,7 +36,7 @@ public class AbstractIDTest extends TestLogger {
 	public void testSerialization() {
 		final AbstractID origID = new AbstractID();
 		try {
-			final AbstractID copyID = CommonTestUtils.createCopy(origID);
+			final AbstractID copyID = CommonTestUtils.createCopyWritable(origID);
 
 			assertEquals(origID.hashCode(), copyID.hashCode());
 			assertEquals(origID, copyID);
@@ -83,16 +83,16 @@ public class AbstractIDTest extends TestLogger {
 			AbstractID id10 = new AbstractID(Long.MIN_VALUE, Long.MAX_VALUE);
 			
 			// test self equality
-			assertEquals(0, id1.compareTo(CommonTestUtils.createCopy(id1)));
-			assertEquals(0, id2.compareTo(CommonTestUtils.createCopy(id2)));
-			assertEquals(0, id3.compareTo(CommonTestUtils.createCopy(id3)));
-			assertEquals(0, id4.compareTo(CommonTestUtils.createCopy(id4)));
-			assertEquals(0, id5.compareTo(CommonTestUtils.createCopy(id5)));
-			assertEquals(0, id6.compareTo(CommonTestUtils.createCopy(id6)));
-			assertEquals(0, id7.compareTo(CommonTestUtils.createCopy(id7)));
-			assertEquals(0, id8.compareTo(CommonTestUtils.createCopy(id8)));
-			assertEquals(0, id9.compareTo(CommonTestUtils.createCopy(id9)));
-			assertEquals(0, id10.compareTo(CommonTestUtils.createCopy(id10)));
+			assertEquals(0, id1.compareTo(CommonTestUtils.createCopyWritable(id1)));
+			assertEquals(0, id2.compareTo(CommonTestUtils.createCopyWritable(id2)));
+			assertEquals(0, id3.compareTo(CommonTestUtils.createCopyWritable(id3)));
+			assertEquals(0, id4.compareTo(CommonTestUtils.createCopyWritable(id4)));
+			assertEquals(0, id5.compareTo(CommonTestUtils.createCopyWritable(id5)));
+			assertEquals(0, id6.compareTo(CommonTestUtils.createCopyWritable(id6)));
+			assertEquals(0, id7.compareTo(CommonTestUtils.createCopyWritable(id7)));
+			assertEquals(0, id8.compareTo(CommonTestUtils.createCopyWritable(id8)));
+			assertEquals(0, id9.compareTo(CommonTestUtils.createCopyWritable(id9)));
+			assertEquals(0, id10.compareTo(CommonTestUtils.createCopyWritable(id10)));
 			
 			// test order
 			assertCompare(id1, id2, -1);

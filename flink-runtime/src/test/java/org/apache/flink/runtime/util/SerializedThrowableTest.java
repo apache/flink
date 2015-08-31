@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.core.memory.MemoryUtils;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
