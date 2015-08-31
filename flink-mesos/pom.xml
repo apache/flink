@@ -33,7 +33,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<mesos.version>0.22.1</mesos.version>
+		<mesos.version>0.23.0</mesos.version>
 		<unfiltererd.version>0.8.4</unfiltererd.version>
 	</properties>
 
