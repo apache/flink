@@ -64,4 +64,4 @@ if [[ $STARTSTOP == "start" ]]; then
     args="--configDir ${FLINK_CONF_DIR} --streamingMode ${STREAMINGMODE}"
 fi
 
-${bin}/flink-daemon.sh $STARTSTOP taskmanager "${args}"
+${FLINK_BIN_DIR}/flink-daemon.sh $STARTSTOP taskmanager "${args}"

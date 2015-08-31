@@ -49,7 +49,7 @@ else
     echo "Starting cluster (${STREAMING_MODE} mode)."
 
     # Start single JobManager on this machine
-    "$bin"/jobmanager.sh start cluster ${STREAMING_MODE}
+    "$FLINK_BIN_DIR"/jobmanager.sh start cluster ${STREAMING_MODE}
 fi
 shopt -u nocasematch
 

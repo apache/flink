@@ -72,4 +72,4 @@ if [[ $STARTSTOP == "start" ]]; then
     fi
 fi
 
-${bin}/flink-daemon.sh $STARTSTOP jobmanager "${args}"
+${FLINK_BIN_DIR}/flink-daemon.sh $STARTSTOP jobmanager "${args}"

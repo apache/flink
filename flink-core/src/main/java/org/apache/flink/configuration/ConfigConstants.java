@@ -452,12 +452,12 @@ public final class ConfigConstants {
 	
 	public static final String FLINK_JVM_OPTIONS = "env.java.opts";
 
-  	// --------------------------- Recovery -----------------------------------
+	// --------------------------- Recovery -----------------------------------
 
 	/** Defines recovery mode used for the cluster execution ("standalone", "zookeeper") */
 	public static final String RECOVERY_MODE = "recovery.mode";
 
-  	// --------------------------- ZooKeeper ----------------------------------
+	// --------------------------- ZooKeeper ----------------------------------
 
 	/** ZooKeeper servers. */
 	public static final String ZOOKEEPER_QUORUM_KEY = "ha.zookeeper.quorum";
