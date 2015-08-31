@@ -151,9 +151,9 @@ public class SocketTextStreamFunctionTest {
 
     @Test
     public void testNewLineDelimited() throws Exception {
-		    List<String> actualList = new ArrayList<>();
+		List<String> actualList = new ArrayList<>();
         prepareTest("\n",actualList);
-		    assertEquals(5, actualList.size());
+        assertEquals(5, actualList.size());
     }
 
     @Test
