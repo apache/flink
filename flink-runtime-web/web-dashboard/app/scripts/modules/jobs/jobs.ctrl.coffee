@@ -45,30 +45,68 @@ angular.module('flinkApp')
 .controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, $rootScope) ->
   $scope.jobid = $stateParams.jobid
   $rootScope.job = null
+  $rootScope.plan = null
 
   JobsService.loadJob($stateParams.jobid).then (data) ->
     $rootScope.job = data
+    $rootScope.plan = data.plan
 
   $scope.$on '$destroy', ->
     $rootScope.job = null
+    $rootScope.plan = null
 
 # --------------------------------------
 
 .controller 'JobPlanController', ($scope, $state, $stateParams, JobsService) ->
-  JobsService.loadPlan($stateParams.jobid).then (data) ->
-    $scope.plan = data
+  console.log 'JobPlanController'
+
+  $scope.stateList = JobsService.stateList()
 
 # --------------------------------------
 
-.controller 'JobPlanNodeController', ($scope, $state, $stateParams, JobsService) ->
+.controller 'JobPlanNodeController', ($scope, $state, $stateParams, JobsService, $anchorScroll) ->
+  console.log 'JobPlanNodeController'
+
   $scope.nodeid = $stateParams.nodeid
+
   $scope.stateList = JobsService.stateList()
 
   JobsService.getNode($scope.nodeid).then (data) ->
     $scope.node = data
+    $scope.job.currentNode = data
 
-  JobsService.getVertex($scope.nodeid).then (data) ->
-    $scope.vertex = data
+    # anchor = "vertex-row-" + data.id
+    # console.log anchor
+    # $anchorScroll(anchor)
+
+# --------------------------------------
+
+.controller 'JobPlanNodeTabsController', ($scope, $stateParams, JobsService) ->
+  console.log 'JobPlanNodeTabsController'
+
+  $scope.nodeid = $stateParams.nodeid
+
+  JobsService.getNode($scope.nodeid).then (data) ->
+    $scope.node = data
+    $scope.job.currentNode = data
+
+# --------------------------------------
+
+.controller 'JobPlanNodeListController', ($scope, $stateParams, JobsService) ->
+  console.log 'JobPlanNodeListController'
+
+  # $scope.nodeid = $stateParams.nodeid
+  $scope.stateList = JobsService.stateList()
+
+# --------------------------------------
+
+.controller 'JobPlanNodePropertiesController', ($scope, $state, $stateParams, JobsService) ->
+  console.log 'JobPlanNodePropertiesController'
+
+# --------------------------------------
+
+.controller 'JobPlanNodeAccumulatorsController', ($scope, $state, $stateParams, JobsService) ->
+  console.log 'JobPlanNodeAccumulatorsController'
 
 # --------------------------------------
 

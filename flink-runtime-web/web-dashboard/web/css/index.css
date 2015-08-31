@@ -349,6 +349,12 @@ pre.exception {
   -o-text-overflow: ellipsis;
   text-overflow: ellipsis;
 }
+.table.table-activable tr {
+  border-left: 2px solid transparent;
+}
+.table.table-activable tr.active {
+  border-left: 2px solid #000;
+}
 .label-group .label {
   display: inline-block;
   width: 2em;
@@ -377,6 +383,7 @@ svg.graph .node > rect {
   stroke-width: 5px;
   fill: #fff;
   margin: 0;
+  padding: 0;
 }
 svg.graph .node[active] > rect {
   fill: #eee;
@@ -415,7 +422,6 @@ svg.graph .label {
   margin: 0;
 }
 svg.graph .edge-label {
-  padding: 5px;
   font-size: 14px;
 }
 svg.graph .node-label {

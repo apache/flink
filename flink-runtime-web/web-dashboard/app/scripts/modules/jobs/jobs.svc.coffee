@@ -146,10 +146,10 @@ angular.module('flinkApp')
 
     deferred = $q.defer()
 
-    $q.all([deferreds.plan.promise, deferreds.job.promise]).then (data) =>
-      foundNode = seekNode(nodeid, currentPlan.nodes)
-
-      # $http.get flinkConfig.jobServer + "/jobsInfo?get=groupvertex&job=" + currentJob.jid + "&groupvertex=" + nodeid
+    # $q.all([deferreds.plan.promise, deferreds.job.promise]).then (data) =>
+    $q.all([deferreds.job.promise]).then (data) =>
+      # foundNode = seekNode(nodeid, currentPlan.nodes)
+      foundNode = seekNode(nodeid, currentJob.plan.nodes)
 
       foundNode.vertex = @seekVertex(nodeid)
 

@@ -1,0 +1,51 @@
+//
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+ 
+      http://www.apache.org/licenses/LICENSE-2.0
+ 
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+table.table.table-hover.table-clickable.table-activable
+  thead
+    tr
+      th Start Time
+      th End Time
+      th Duration
+      th Name
+      th Bytes read
+      th Records read
+      th Bytes written
+      th Records written
+      th Tasks
+      th Status
+
+  tbody
+    //- tr(ng-repeat="v in job.vertices" ng-class="{ active: job.currentNode && v.id == job.currentNode.id }" id="vertex-row-{{v.id}}" ng-click="changeNode(v.id)")
+    tr(ng-repeat="v in job.vertices" ng-class="{ active: job.currentNode && v.id == job.currentNode.id }" id="vertex-row-{{v.id}}" ui-sref="{nodeid: v.id}")
+      td
+        | {{ v['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
+        div(ui-view="node")
+
+      td {{ v['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
+      td {{ v.duration }} ms
+      td {{ v.name | humanizeTaskName }}
+      td {{ v.metrics['read-bytes'] }}
+      td {{ v.metrics['read-records'] }}
+      td {{ v.metrics['write-bytes'] }}
+      td {{ v.metrics['write-records'] }}
+      td
+        .label-group
+          bs-label(status="{{status}}" ng-repeat="(index, status) in stateList") {{v.tasks[status]}}
+
+      td 
+        bs-label(status="{{v.status}}") {{v.status}}
