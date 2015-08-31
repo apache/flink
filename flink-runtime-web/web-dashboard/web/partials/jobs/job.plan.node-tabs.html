@@ -1,0 +1,10 @@
+
+<div ng-if="node" class="panel panel-default panel-multi">
+  <nav ng-if="job.currentNode" class="navbar navbar-default navbar-secondary-additional">
+    <ul class="nav nav-tabs">
+      <li ui-sref-active="active"><a ui-sref=".generic({nodeid: nodeid})">Subtasks</a></li>
+      <li ui-sref-active="active"><a ui-sref=".properties({nodeid: nodeid})">Properties</a></li>
+    </ul>
+  </nav>
+  <div ui-view="node-details" class="panel-body clean"></div>
+</div>

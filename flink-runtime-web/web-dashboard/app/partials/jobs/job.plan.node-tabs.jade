@@ -1,0 +1,10 @@
+.panel.panel-default.panel-multi(ng-if="node")
+  nav.navbar.navbar-default.navbar-secondary-additional(ng-if="job.currentNode")
+    ul.nav.nav-tabs
+      li(ui-sref-active='active')
+        a(ui-sref=".generic({nodeid: nodeid})") Subtasks
+
+      li(ui-sref-active='active')
+        a(ui-sref=".properties({nodeid: nodeid})") Properties
+
+  div.panel-body.clean(ui-view="node-details")
