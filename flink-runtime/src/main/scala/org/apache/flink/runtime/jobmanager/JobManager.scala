@@ -824,33 +824,36 @@ class JobManager(
    * @param message The accumulator message.
    */
   private def handleAccumulatorMessage(message: AccumulatorMessage): Unit = {
-      message match {
-        case RequestAccumulatorResults(jobID) =>
-          try {
-            currentJobs.get(jobID) match {
-              case Some((graph, jobInfo)) =>
-                val accumulatorValues = graph.getAccumulatorsSerialized()
-                sender() ! decorateMessage(AccumulatorResultsFound(jobID, accumulatorValues))
-              case None =>
-                archive.forward(message)
-            }
-          } catch {
-          case e: Exception =>
-            log.error("Cannot serialize accumulator result.", e)
-            sender() ! decorateMessage(AccumulatorResultsErroneous(jobID, e))
-          }
-
-        case RequestAccumulatorResultsStringified(jobId) =>
-          currentJobs.get(jobId) match {
+    message match {
+      case RequestAccumulatorResults(jobID) =>
+        try {
+          currentJobs.get(jobID) match {
             case Some((graph, jobInfo)) =>
-              val stringifiedAccumulators = graph.getAccumulatorResultsStringified()
-              sender() ! decorateMessage(
-                AccumulatorResultStringsFound(jobId, stringifiedAccumulators)
-              )
+              val accumulatorValues = graph.getAccumulatorsSerialized()
+              sender() ! decorateMessage(AccumulatorResultsFound(jobID, accumulatorValues))
             case None =>
               archive.forward(message)
           }
-      }
+        } catch {
+        case e: Exception =>
+          log.error("Cannot serialize accumulator result.", e)
+          sender() ! decorateMessage(AccumulatorResultsErroneous(jobID, e))
+        }
+
+      case RequestAccumulatorResultsStringified(jobId) =>
+        currentJobs.get(jobId) match {
+          case Some((graph, jobInfo)) =>
+            val stringifiedAccumulators = graph.getAccumulatorResultsStringified()
+            sender() ! decorateMessage(
+              AccumulatorResultStringsFound(jobId, stringifiedAccumulators)
+            )
+          case None =>
+            archive.forward(message)
+        }
+
+      case unknown =>
+        log.warn(s"Received unknown AccumulatorMessage: $unknown")
+    }
   }
 
   /**
