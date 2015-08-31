@@ -34,13 +34,23 @@ under the License.
 
 	<properties>
 		<mesos.version>0.22.1</mesos.version>
+		<unfiltererd.version>0.8.4</unfiltererd.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
-			<groupId>org.rogach</groupId>
-			<artifactId>scallop_${scala.binary.version}</artifactId>
-			<version>0.9.5</version>
+			<groupId>com.github.scopt</groupId>
+			<artifactId>scopt_${scala.binary.version}</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>net.databinder</groupId>
+			<artifactId>unfiltered-jetty_${scala.binary.version}</artifactId>
+			<version>${unfiltererd.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.databinder</groupId>
+			<artifactId>unfiltered-filter_${scala.binary.version}</artifactId>
+			<version>${unfiltererd.version}</version>
 		</dependency>
 
 		<dependency>

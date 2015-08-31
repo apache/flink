@@ -18,6 +18,7 @@
 
 package org.apache.flink.mesos.scheduler
 
+import java.io.File
 import java.util.{List => JList}
 
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration}
@@ -25,6 +26,7 @@ import org.apache.mesos.Protos.TaskState._
 import org.apache.mesos.Protos._
 import org.apache.mesos.{Scheduler, SchedulerDriver}
 import org.slf4j.LoggerFactory
+import scopt.OptionParser
 
 import scala.collection.JavaConversions._
 
@@ -35,6 +37,8 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
   var currentConfiguration: Option[Configuration] = None
   var taskManagers: Set[RunningTaskManager] = Set()
   var taskManagerCount = 0
+  // http port where http server is hosting the configuration files
+  var httpConfigServerAddress: Option[String] = None
 
   override def offerRescinded(driver: SchedulerDriver, offerId: OfferID): Unit = { }
 
@@ -148,8 +152,9 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
 
       // create executor
       val command = createTaskManagerCommand(requiredMem.toInt)
-      val executorInfo = createExecutorInfo(
-        s"$taskManagerCount", role, Set(uberJarLocation), command, nativeLibPath)
+      val log4jUrl = s"${httpConfigServerAddress.get}/log4j-mesos.properties"
+      val executorInfo = createExecutorInfo(s"$taskManagerCount", role,
+        Set(uberJarLocation, httpConfigServerAddress.get), command, nativeLibPath)
 
       // create task
       val taskId = TaskID.newBuilder().setValue(s"TaskManager_$taskManagerCount").build()
@@ -165,16 +170,37 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
 
   def main(args: Array[String]) {
 
-    val cliConf = new Conf(args)
+    // create parser for the commandline args
+    val parser = new OptionParser[Conf]("flink-mesos-scheduler") {
+      head("Flink Mesos Framework")
+      opt[File]('c', "confDir") required() valueName "<directory path>" action { (path, conf) =>
+        conf.copy(confDir = path.toPath.toAbsolutePath.toString) } text "confDir is required"
+      opt[String]('h', "host") valueName "hostname override for the scheduler" action { (h, c) =>
+        c.copy(host = h) } text "hostname to use for the scheduler (if not same as localhost)"
+    }
+
+    // parse the config
+    val cliConf = parser.parse(args, Conf()) match {
+      case Some(c) => c
+      case None => sys.exit(-1)
+    }
 
     // startup checks
     checkEnvironment(args)
 
-    LOG.info(s"Loading configuration from ${cliConf.confDir()}")
-    GlobalConfiguration.loadConfiguration(cliConf.confDir())
+    LOG.info(s"Loading configuration from ${cliConf.confDir}")
+    GlobalConfiguration.loadConfiguration(cliConf.confDir)
+
+    // start the local http server for service the configuration
+    val server = new HttpServer(cliConf.confDir)
+    httpConfigServerAddress = Some(s"http://${cliConf.host}:${server.port}")
+    LOG.debug(s"Serving configuration via: $httpConfigServerAddress")
+
+    // start the http server is a separate thread
+    new Thread { override def run: Unit = { server.start() } }.start()
 
     // start job manager thread
-    val jobManagerThread = createJobManagerThread(cliConf.host())
+    val jobManagerThread = createJobManagerThread(cliConf.host)
     jobManager = Some(jobManagerThread)
     jobManagerThread.start()
 

@@ -18,24 +18,20 @@
 
 package org.apache.flink.mesos.executor
 
-import scala.util.{Failure, Success, Try}
-
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration}
 import org.apache.flink.mesos._
 import org.apache.flink.mesos.scheduler._
 import org.apache.flink.runtime.StreamingMode
-import org.apache.log4j.{ConsoleAppender, Level, Logger => ApacheLogger, PatternLayout}
-import org.apache.mesos.{Executor, ExecutorDriver}
 import org.apache.mesos.Protos._
+import org.apache.mesos.{Executor, ExecutorDriver}
+
+import scala.util.{Failure, Success, Try}
 
 trait FlinkExecutor extends Executor {
   // logger to use
   def LOG: org.slf4j.Logger
 
   var currentRunningTaskId: Option[TaskID] = None
-  val TASK_MANAGER_LOGGING_LEVEL_KEY = "taskmanager.logging.level"
-  val DEFAULT_TASK_MANAGER_LOGGING_LEVEL = "INFO"
-
 
   // methods that defines how the task is started when a launchTask is sent
   def startTask(streamingMode: StreamingMode): Try[Unit]
@@ -101,12 +97,6 @@ trait FlinkExecutor extends Executor {
     val taskConf: Configuration = Utils.deserialize(task.getData.toByteArray)
     GlobalConfiguration.includeConfiguration(taskConf)
 
-    // reconfigure log4j
-    val logLevel = GlobalConfiguration.getString(
-      TASK_MANAGER_LOGGING_LEVEL_KEY, DEFAULT_TASK_MANAGER_LOGGING_LEVEL)
-
-    initializeLog4j(Level.toLevel(logLevel, Level.DEBUG))
-
     // get streaming mode
     val streamingMode = getStreamingMode()
 
@@ -120,22 +110,6 @@ trait FlinkExecutor extends Executor {
       .setTaskId(task.getTaskId)
       .setState(TaskState.TASK_RUNNING)
       .build())
-  }
-
-  def initializeLog4j(level: Level): Unit = {
-    // remove all existing loggers
-    ApacheLogger.getRootLogger.removeAllAppenders()
-
-    // create a console appender
-    val consoleAppender = new ConsoleAppender()
-    consoleAppender.setLayout(new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n"))
-    consoleAppender.setThreshold(level)
-    consoleAppender.activateOptions()
-    // reconfigure log4j
-    ApacheLogger.getLogger("org.jboss.netty.channel.DefaultChannelPipeline").setLevel(Level.ERROR)
-    ApacheLogger.getLogger("org.apache.hadoop.util.NativeCodeLoader").setLevel(Level.OFF)
-    ApacheLogger.getRootLogger.addAppender(consoleAppender)
-    ApacheLogger.getRootLogger.setLevel(level)
   }
 
   def getStreamingMode(): StreamingMode = {

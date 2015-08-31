@@ -39,6 +39,10 @@ import org.apache.mesos.Protos.CommandInfo.URI
 import org.apache.mesos.Protos.Value.Ranges
 import org.apache.mesos.Protos.Value.Type._
 
+/**
+ * This code is borrowed and inspired from Apache Spark Project:
+ *   core/src/main/scala/org/apache/spark/scheduler/cluster/mesos/MesosSchedulerUtils.scala
+ */
 trait SchedulerUtils {
 
   /**
@@ -132,6 +136,9 @@ trait SchedulerUtils {
    * if attribute requirements are not specified - return true
    * else if attribute is defined and no values are given, simple attribute presence is performed
    * else if attribute name and value is specified, subset match is performed on slave attributes
+   *
+   * This code is borrowed and inspired from: Apache Spark:
+   *  core/src/main/scala/org/apache/spark/scheduler/cluster/mesos/MesosSchedulerUtils.scala
    */
   def matchesAttributeRequirements(
                                     slaveOfferConstraints: Map[String, Set[String]],
@@ -182,6 +189,9 @@ trait SchedulerUtils {
    * Mesos documentation: http://mesos.apache.org/documentation/attributes-resources/
    * https://github.com/apache/mesos/blob/master/src/common/values.cpp
    * https://github.com/apache/mesos/blob/master/src/common/attributes.cpp
+   *
+   * This code is borrowed and inspired from: Apache Spark:
+   *  core/src/main/scala/org/apache/spark/scheduler/cluster/mesos/MesosSchedulerUtils.scala
    *
    * @param constraintsVal constaints string consisting of ';' separated key-value pairs (separated
    * by ':')
@@ -234,7 +244,7 @@ trait SchedulerUtils {
     val webUIPort = GlobalConfiguration.getInteger(JOB_MANAGER_WEB_PORT_KEY, -1)
     if (webUIPort > 0) {
       val webUIHost = GlobalConfiguration.getString(
-        JOB_MANAGER_IPC_ADDRESS_KEY, cliConf.host())
+        JOB_MANAGER_IPC_ADDRESS_KEY, cliConf.host)
       frameworkBuilder.setWebuiUrl(s"http://$webUIHost:$webUIPort")
     }
 
@@ -259,12 +269,12 @@ trait SchedulerUtils {
 
 
   def createTaskManagerCommand(mem: Int): String = {
+    val log4jArgs = "-Dlog4j.configuration=log4j-mesos.properties"
     val tmJVMHeap = math.round(mem / (1 + JVM_MEM_OVERHEAD_PERCENT_DEFAULT))
     val tmJVMArgs = GlobalConfiguration.getString(
       TASK_MANAGER_JVM_ARGS_KEY, DEFAULT_TASK_MANAGER_JVM_ARGS)
-
     createJavaExecCommand(
-      jvmArgs = s"$tmJVMArgs -Xmx${tmJVMHeap}m",
+      jvmArgs = s"$tmJVMArgs -Xmx${tmJVMHeap}m $log4jArgs",
       classToExecute = "org.apache.flink.mesos.executor.TaskManagerExecutor")
   }
 

@@ -19,9 +19,9 @@
 package org.apache.flink.mesos
 
 import java.net.InetAddress
+import java.nio.file.Paths
 
 import org.apache.mesos.Protos.{SlaveID, TaskID}
-import org.rogach.scallop.ScallopConf
 
 package object scheduler {
 
@@ -101,14 +101,8 @@ package object scheduler {
   val MESOS_MASTER_KEY = "flink.mesos.master"
   val DEFAULT_MESOS_MASTER = "zk://127.0.0.1:2181/mesos"
 
-  class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
-    val confDir = opt[String](required = true,
-                            descr = "Configuration directory for flink")
-    val host = opt[String](required = false,
-                         default = Some(InetAddress.getLocalHost.getHostName),
-                         descr = "Override hostname for this jobManager")
-  }
-
+  case class Conf(confDir: String = Paths.get(".").toAbsolutePath.toString,
+                  host: String = InetAddress.getLocalHost.getHostName)
   sealed case class RunningTaskManager(taskId: TaskID, slaveId: SlaveID)
 
 }
