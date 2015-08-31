@@ -19,18 +19,19 @@
 package org.apache.flink.runtime.taskmanager;
 
 /**
- * Latch for synchronizing parts of code in tests. Once the latch has fired once calls to
- * {@link #await()} will return immediately in the future.
+ * Latch for synchronizing parts of code in tests. In contrast to
+ * {@link org.apache.flink.runtime.taskmanager.OneShotLatch} this will reset the state once
+ * {@link #await()} returns.
  *
  * <p>
  * A part of the code that should only run after other code calls {@link #await()}. The call
  * will only return once the other part is finished and calls {@link #trigger()}.
  */
-public final class OneShotLatch {
+public final class MultiShotLatch {
 	
 	private final Object lock = new Object();
 	
-	private boolean triggered;
+	private volatile boolean triggered;
 
 	/**
 	 * Fires the latch. Code that is blocked on {@link #await()} will now return.
@@ -43,14 +44,14 @@ public final class OneShotLatch {
 	}
 
 	/**
-	 * Waits until {@link #trigger())} is called. Once {@code trigger()} has been called this
-	 * call will always return immediately.
+	 * Waits until {@link #trigger())} is called.
 	 */
 	public void await() throws InterruptedException {
 		synchronized (lock) {
 			while (!triggered) {
 				lock.wait();
 			}
+			triggered = false;
 		}
 	}
 }

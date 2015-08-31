@@ -83,7 +83,7 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 	/**
 	 * Implementations are expected to provide test here to verify the correct behavior.
 	 */
-	abstract public void postSubmit();
+	abstract public void postSubmit() throws Exception ;
 
 	/**
 	 * Runs the following program the test program defined in {@link #testProgram(StreamExecutionEnvironment)}
