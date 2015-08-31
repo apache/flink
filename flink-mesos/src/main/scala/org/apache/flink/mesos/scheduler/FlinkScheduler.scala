@@ -209,6 +209,10 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
     val (fwInfo, creds) = createFrameworkInfoAndCredentials(cliConf)
     val driver = createDriver(scheduler, fwInfo, creds)
 
-    sys.exit(if (driver.run eq Status.DRIVER_STOPPED) 0 else 1)
+    try {
+      sys.exit(if (driver.run eq Status.DRIVER_STOPPED) 0 else 1)
+    } catch {
+      case _: Throwable => sys.exit(-1)
+    }
   }
 }
