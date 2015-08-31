@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager
 
 import akka.actor.{Kill, ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
+import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.util.SerializedThrowable
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class TaskManagerFailsWithSlotSharingITCase(_system: ActorSystem)
@@ -69,12 +71,12 @@ class TaskManagerFailsWithSlotSharingITCase(_system: ActorSystem)
       val jobID = jobGraph.getJobID
 
       val cluster = TestingUtils.startTestingCluster(num_tasks/2, 2)
-      val jmGateway = cluster.getJobManagerGateway()
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
       val taskManagers = cluster.getTaskManagers
 
       try{
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), self)
@@ -118,12 +120,12 @@ class TaskManagerFailsWithSlotSharingITCase(_system: ActorSystem)
       val jobID = jobGraph.getJobID
 
       val cluster = TestingUtils.startTestingCluster(num_tasks/2, 2)
-      val jmGateway = cluster.getJobManagerGateway()
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
       val taskManagers = cluster.getTaskManagers
 
       try{
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), self)

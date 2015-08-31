@@ -20,7 +20,9 @@ package org.apache.flink.runtime.messages
 
 import java.util.UUID
 
+import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
+import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.client.{SerializedJobExecutionResult, JobStatusMessage}
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{InstanceID, Instance}
@@ -35,17 +37,32 @@ import scala.collection.JavaConverters._
  */
 object JobManagerMessages {
 
-  case class LeaderSessionMessage(leaderSessionID: Option[UUID], message: Any)
+  /** Wrapper class for leader session messages. Leader session messages implement the
+    * [[RequiresLeaderSessionID]] interface and have to be wrapped in a [[LeaderSessionMessage]],
+    * which also contains the current leader session ID.
+    *
+    * @param leaderSessionID Current leader session ID or null, if no leader session ID was set
+    * @param message [[RequiresLeaderSessionID]] message to be wrapped in a [[LeaderSessionMessage]]
+    */
+  case class LeaderSessionMessage(leaderSessionID: UUID, message: Any)
 
   /**
-   * Submits a job to the job manager. If [[registerForEvents]] is true,
-   * then the sender will be registered as listener for the state change messages.
+   * Submits a job to the job manager. Depending on the [[listeningBehaviour]],
+   * the sender registers for different messages. If [[ListeningBehaviour.DETACHED]], then
+   * it will only be informed whether the submission was successful or not. If
+   * [[ListeningBehaviour.EXECUTION_RESULT]], then it will additionally receive the execution
+   * result. If [[ListeningBehaviour.EXECUTION_RESULT_AND_STATE_CHANGES]], then it will additionally
+   * receive the job status change notifications.
+   *
    * The submission result will be sent back to the sender as a success message.
    *
    * @param jobGraph The job to be submitted to the JobManager
-   * @param registerForEvents if true, then register for state change events
+   * @param listeningBehaviour Specifies to what the sender wants to listen (detached, execution
+   *                           result, execution result and state changes)
    */
-  case class SubmitJob(jobGraph: JobGraph, registerForEvents: Boolean)
+  case class SubmitJob(
+      jobGraph: JobGraph,
+      listeningBehaviour: ListeningBehaviour)
     extends RequiresLeaderSessionID
 
   /**
@@ -161,7 +178,7 @@ object JobManagerMessages {
     *
     * @param leaderSessionID
     */
-  case class ResponseLeaderSessionID(leaderSessionID: Option[UUID])
+  case class ResponseLeaderSessionID(leaderSessionID: UUID)
 
   /**
    * Denotes a successful job submission.
@@ -299,6 +316,22 @@ object JobManagerMessages {
 
   case object JobManagerStatusAlive extends JobManagerStatus
 
+  /** Grants leadership to the receiver. The message contains the new leader session id.
+    *
+     * @param leaderSessionID
+    */
+  case class GrantLeadership(leaderSessionID: Option[UUID])
+
+  /** Revokes leadership of the receiver.
+    */
+  case object RevokeLeadership
+
+  /** Requests the ActorRef of the archiver */
+  case object RequestArchive
+
+  /** Response containing the ActorRef of the archiver */
+  case class ResponseArchive(actor: ActorRef)
+
   // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
@@ -337,5 +370,9 @@ object JobManagerMessages {
 
   def getRequestLeaderSessionID: AnyRef = {
     RequestLeaderSessionID
+  }
+
+  def getRequestArchive: AnyRef = {
+    RequestArchive
   }
 }

@@ -32,6 +32,7 @@ import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.configuration.Configuration;
@@ -53,7 +54,7 @@ public class RemoteExecutor extends PlanExecutor {
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutor.class);
 
 	private final List<String> jarFiles;
-	private final InetSocketAddress address;
+	private final Configuration configuration;
 	
 	public RemoteExecutor(String hostname, int port) {
 		this(hostname, port, Collections.<String>emptyList());
@@ -73,7 +74,10 @@ public class RemoteExecutor extends PlanExecutor {
 
 	public RemoteExecutor(InetSocketAddress inet, List<String> jarFiles) {
 		this.jarFiles = jarFiles;
-		this.address = inet;
+		configuration = new Configuration();
+
+		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, inet.getHostName());
+		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, inet.getPort());
 	}
 
 	@Override
@@ -83,7 +87,7 @@ public class RemoteExecutor extends PlanExecutor {
 	}
 	
 	public JobExecutionResult executePlanWithJars(JobWithJars p) throws Exception {
-		Client c = new Client(this.address, new Configuration(), p.getUserCodeClassLoader(), -1);
+		Client c = new Client(configuration, p.getUserCodeClassLoader(), -1);
 		c.setPrintStatusDuringExecution(isPrintingStatusDuringExecution());
 		
 		JobSubmissionResult result = c.run(p, -1, true);
@@ -99,7 +103,7 @@ public class RemoteExecutor extends PlanExecutor {
 		File jarFile = new File(jarPath);
 		PackagedProgram program = new PackagedProgram(jarFile, assemblerClass, args);
 		
-		Client c = new Client(this.address, new Configuration(), program.getUserCodeClassLoader(), -1);
+		Client c = new Client(configuration, program.getUserCodeClassLoader(), -1);
 		c.setPrintStatusDuringExecution(isPrintingStatusDuringExecution());
 		
 		JobSubmissionResult result = c.run(program.getPlanWithJars(), -1, true);
@@ -114,7 +118,7 @@ public class RemoteExecutor extends PlanExecutor {
 	@Override
 	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
 		JobWithJars p = new JobWithJars(plan, this.jarFiles);
-		Client c = new Client(this.address, new Configuration(), p.getUserCodeClassLoader(), -1);
+		Client c = new Client(configuration, p.getUserCodeClassLoader(), -1);
 		
 		OptimizedPlan op = (OptimizedPlan) c.getOptimizedPlan(p, -1);
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();

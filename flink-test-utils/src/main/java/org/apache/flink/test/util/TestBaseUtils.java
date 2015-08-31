@@ -103,33 +103,54 @@ public class TestBaseUtils extends TestLogger {
 	}
 	
 	
-	public static ForkableFlinkMiniCluster startCluster(int numTaskManagers,
-															int taskManagerNumSlots,
-															StreamingMode mode,
-															boolean startWebserver,
-															boolean singleActorSystem) throws Exception {
+	public static ForkableFlinkMiniCluster startCluster(
+		int numTaskManagers,
+		int taskManagerNumSlots,
+		StreamingMode mode,
+		boolean startWebserver,
+		boolean startZooKeeper,
+		boolean singleActorSystem) throws Exception {
 		
+		Configuration config = new Configuration();
+
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
+		
+		config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, startWebserver);
+
+		if(startZooKeeper) {
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 3);
+			config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		}
+
+		return startCluster(config, mode, singleActorSystem);
+	}
+
+	public static ForkableFlinkMiniCluster startCluster(
+		Configuration config,
+		StreamingMode mode,
+		boolean singleActorSystem) throws Exception {
+
 		logDir = File.createTempFile("TestBaseUtils-logdir", null);
 		Assert.assertTrue("Unable to delete temp file", logDir.delete());
 		Assert.assertTrue("Unable to create temp directory", logDir.mkdir());
-	
-		Configuration config = new Configuration();
+
+		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 
-		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
-		
-		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
-		
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
 		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
-		
-		config.setBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, startWebserver);
+
 		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 8081);
 		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDir.toString());
-		
-		return new ForkableFlinkMiniCluster(config, singleActorSystem, mode);
+
+		ForkableFlinkMiniCluster cluster =  new ForkableFlinkMiniCluster(config, singleActorSystem, mode);
+
+		cluster.start();
+
+		return cluster;
 	}
+
 
 	public static void stopCluster(ForkableFlinkMiniCluster executor, FiniteDuration timeout) throws Exception {
 		if (logDir != null) {
@@ -587,5 +608,50 @@ public class TestBaseUtils extends TestLogger {
 		}
 
 		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
+	}
+	
+	public static class TupleComparator<T extends Tuple> implements Comparator<T> {
+
+		@Override
+		public int compare(T o1, T o2) {
+			if (o1 == null || o2 == null) {
+				throw new IllegalArgumentException("Cannot compare null tuples");
+			}
+			else if (o1.getArity() != o2.getArity()) {
+				return o1.getArity() - o2.getArity();
+			}
+			else {
+				for (int i = 0; i < o1.getArity(); i++) {
+					Object val1 = o1.getField(i);
+					Object val2 = o2.getField(i);
+					
+					int cmp;
+					if (val1 != null && val2 != null) {
+						cmp = compareValues(val1, val2);
+					}
+					else {
+						cmp = val1 == null ? (val2 == null ? 0 : -1) : 1;
+					}
+					
+					if (cmp != 0) {
+						return cmp;
+					}
+				}
+				
+				return 0;
+			}
+		}
+		
+		@SuppressWarnings("unchecked")
+		private static <X extends Comparable<X>> int compareValues(Object o1, Object o2) {
+			if (o1 instanceof Comparable && o2 instanceof Comparable) {
+				X c1 = (X) o1;
+				X c2 = (X) o2;
+				return c1.compareTo(c2);
+			}
+			else {
+				throw new IllegalArgumentException("Cannot compare tuples with non comparable elements");
+			}
+		}
 	}
 }

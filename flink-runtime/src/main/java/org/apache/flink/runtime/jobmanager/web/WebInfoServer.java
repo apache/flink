@@ -22,30 +22,41 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
+import java.util.UUID;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.instance.AkkaActorGateway;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
  * This class sets up a web-server that contains a web frontend to display information about running jobs.
  * It instantiates and configures an embedded jetty server.
  */
-public class WebInfoServer implements WebMonitor {
+public class WebInfoServer implements WebMonitor, LeaderRetrievalListener {
 
 	/** Web root dir in the jar */
 	private static final String WEB_ROOT_DIR = "web-docs-infoserver";
@@ -56,6 +67,30 @@ public class WebInfoServer implements WebMonitor {
 	/** The jetty server serving all requests. */
 	private final Server server;
 
+	/** Retrieval service for the current leading JobManager */
+	private final LeaderRetrievalService leaderRetrievalService;
+
+	/** ActorSystem used to retrieve the ActorRefs */
+	private final ActorSystem actorSystem;
+
+	/** Collection for the registered jetty handlers */
+	private final HandlerCollection handlers;
+
+	/** Associated configuration */
+	private final Configuration config;
+
+	/** Timeout for the servlets */
+	private final FiniteDuration timeout;
+
+	/** Actor look up timeout */
+	private final FiniteDuration lookupTimeout;
+
+	/** Default jetty handler responsible for serving static content */
+	private final ResourceHandler resourceHandler;
+
+	/** File paths to log dirs */
+	final File[] logDirFiles;
+
 	/** The assigned port where jetty is running. */
 	private int assignedPort = -1;
 
@@ -64,19 +99,23 @@ public class WebInfoServer implements WebMonitor {
 	 * to list all present information concerning the job manager
 	 *
 	 * @param config The Flink configuration.
-	 * @param jobmanager The ActorRef to the JobManager actor
-	 * @param archive The ActorRef to the archive for old jobs
+	 * @param leaderRetrievalService Retrieval service to obtain the current leader
 	 *
 	 * @throws IOException
 	 *         Thrown, if the server setup failed for an I/O related reason.
 	 */
-	public WebInfoServer(Configuration config, ActorGateway jobmanager, ActorGateway archive) throws IOException {
+	public WebInfoServer(
+			Configuration config,
+			LeaderRetrievalService leaderRetrievalService,
+			ActorSystem actorSystem)
+		throws IOException {
 		if (config == null) {
 			throw new IllegalArgumentException("No Configuration has been passed to the web server");
 		}
-		if (jobmanager == null || archive == null) {
-			throw new NullPointerException();
-		}
+
+		this.config = config;
+
+		this.leaderRetrievalService = Preconditions.checkNotNull(leaderRetrievalService);
 
 		// if port == 0, jetty will assign an available port.
 		int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
@@ -85,7 +124,10 @@ public class WebInfoServer implements WebMonitor {
 			throw new IllegalArgumentException("Invalid port for the webserver: " + port);
 		}
 
-		final FiniteDuration timeout = AkkaUtils.getTimeout(config);
+		timeout = AkkaUtils.getTimeout(config);
+		lookupTimeout = AkkaUtils.getLookupTimeout(config);
+
+		this.actorSystem = actorSystem;
 
 		// get base path of Flink installation
 		final String basePath = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, "");
@@ -99,7 +141,7 @@ public class WebInfoServer implements WebMonitor {
 					"resource " + WEB_ROOT_DIR + " is not included in the jar.");
 		}
 
-		final File[] logDirFiles = new File[logDirPaths.length];
+		logDirFiles = new File[logDirPaths.length];
 		int i = 0;
 		for(String path : logDirPaths) {
 			logDirFiles[i++] = new File(path);
@@ -113,24 +155,16 @@ public class WebInfoServer implements WebMonitor {
 
 		server = new Server(port);
 
-		// ----- the handlers for the servlets -----
-		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
-		servletContext.setContextPath("/");
-		servletContext.addServlet(new ServletHolder(new JobManagerInfoServlet(jobmanager, archive, timeout)), "/jobsInfo");
-		servletContext.addServlet(new ServletHolder(new LogfileInfoServlet(logDirFiles)), "/logInfo");
-		servletContext.addServlet(new ServletHolder(new SetupInfoServlet(config, jobmanager, timeout)), "/setupInfo");
-		servletContext.addServlet(new ServletHolder(new MenuServlet()), "/menu");
-
-
 		// ----- the handler serving all the static files -----
-		ResourceHandler resourceHandler = new ResourceHandler();
+		resourceHandler = new ResourceHandler();
 		resourceHandler.setDirectoriesListed(false);
 		resourceHandler.setResourceBase(webRootDir.toExternalForm());
 
 		// ----- add the handlers to the list handler -----
-		HandlerList handlers = new HandlerList();
+
+		// make the HandlerCollection mutable so that we can update it later on
+		handlers = new HandlerCollection(true);
 		handlers.addHandler(resourceHandler);
-		handlers.addHandler(servletContext);
 		server.setHandler(handlers);
 	}
 
@@ -158,17 +192,102 @@ public class WebInfoServer implements WebMonitor {
 		else {
 			LOG.warn("Unable to determine local endpoint of web frontend server");
 		}
+
+		leaderRetrievalService.start(this);
 	}
 
 	/**
 	 * Stop the webserver
 	 */
 	public void stop() throws Exception {
+		leaderRetrievalService.stop();
 		server.stop();
 		assignedPort = -1;
 	}
 
 	public int getServerPort() {
 		return this.assignedPort;
+	}
+
+	@Override
+	public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
+
+		if(leaderAddress != null && !leaderAddress.equals("")) {
+			try {
+				ActorRef jobManager = AkkaUtils.getActorRef(
+					leaderAddress,
+					actorSystem,
+					lookupTimeout);
+				ActorGateway jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID);
+
+				Future<Object> archiveFuture = jobManagerGateway.ask(
+					JobManagerMessages.getRequestArchive(),
+					timeout);
+
+				ActorRef archive = ((JobManagerMessages.ResponseArchive) Await.result(
+					archiveFuture,
+					timeout)).actor();
+
+				ActorGateway archiveGateway = new AkkaActorGateway(archive, leaderSessionID);
+
+				updateHandler(jobManagerGateway, archiveGateway);
+			} catch (Exception e) {
+				handleError(e);
+			}
+		}
+	}
+
+	@Override
+	public void handleError(Exception exception) {
+		LOG.error("Received error from LeaderRetrievalService.", exception);
+
+		try{
+			// stop the whole web server
+			stop();
+		} catch (Exception e) {
+			LOG.error("Error while stopping the web server due to a LeaderRetrievalService error.", e);
+		}
+	}
+
+	/**
+	 * Updates the Flink handlers with the current leading JobManager and archive
+	 *
+	 * @param jobManager ActorGateway to the current JobManager leader
+	 * @param archive ActorGateway to the current archive of the leading JobManager
+	 * @throws Exception
+	 */
+	private void updateHandler(ActorGateway jobManager, ActorGateway archive) throws Exception {
+		// ----- the handlers for the servlets -----
+		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
+		servletContext.setContextPath("/");
+		servletContext.addServlet(
+				new ServletHolder(
+						new JobManagerInfoServlet(
+								jobManager,
+								archive,
+								timeout)),
+				"/jobsInfo");
+		servletContext.addServlet(
+				new ServletHolder(
+						new LogfileInfoServlet(
+								logDirFiles)),
+				"/logInfo");
+		servletContext.addServlet(
+				new ServletHolder(
+						new SetupInfoServlet(
+								config,
+								jobManager,
+								timeout)),
+				"/setupInfo");
+		servletContext.addServlet(
+				new ServletHolder(
+						new MenuServlet()),
+				"/menu");
+
+		// replace old handlers with new ones
+		handlers.setHandlers(new Handler[]{resourceHandler, servletContext});
+
+		// start new handler
+		servletContext.start();
 	}
 }

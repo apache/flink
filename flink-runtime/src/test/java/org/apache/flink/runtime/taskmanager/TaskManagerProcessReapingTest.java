@@ -85,7 +85,10 @@ public class TaskManagerProcessReapingTest {
 			jmActorSystem = AkkaUtils.createActorSystem(
 					new Configuration(), new Some<Tuple2<String, Object>>(localAddress));
 
-			JobManager.startJobManagerActors(new Configuration(), jmActorSystem, StreamingMode.BATCH_ONLY);
+			JobManager.startJobManagerActors(
+				new Configuration(),
+				jmActorSystem,
+				StreamingMode.BATCH_ONLY);
 
 			final int taskManagerPort = NetUtils.getAvailablePort();
 

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.jobmanager.Tasks;
 
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 
 import scala.concurrent.Await;
@@ -49,8 +51,9 @@ public class CoordinatorShutdownTest {
 		LocalFlinkMiniCluster cluster = null;
 		try {
 			Configuration noTaskManagerConfig = new Configuration();
-			noTaskManagerConfig.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 0);
+			noTaskManagerConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 0);
 			cluster = new LocalFlinkMiniCluster(noTaskManagerConfig, true);
+			cluster.start();
 			
 			// build a test graph with snapshotting enabled
 			JobVertex vertex = new JobVertex("Test Vertex");
@@ -60,17 +63,19 @@ public class CoordinatorShutdownTest {
 			JobGraph testGraph = new JobGraph("test job", vertex);
 			testGraph.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList, 5000));
 			
-			ActorGateway jobManager = cluster.getJobManagerGateway();
+			ActorGateway jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
 			FiniteDuration timeout = new FiniteDuration(60, TimeUnit.SECONDS);
-			JobManagerMessages.SubmitJob submitMessage = new JobManagerMessages.SubmitJob(testGraph, false);
+			JobManagerMessages.SubmitJob submitMessage = new JobManagerMessages.SubmitJob(
+					testGraph,
+					ListeningBehaviour.EXECUTION_RESULT);
 			
 			// submit is successful, but then the job dies because no TaskManager / slot is available
-			Future<Object> submitFuture = jobManager.ask(submitMessage, timeout);
+			Future<Object> submitFuture = jmGateway.ask(submitMessage, timeout);
 			Await.result(submitFuture, timeout);
 
 			// get the execution graph and make sure the coordinator is properly shut down
-			Future<Object> jobRequestFuture = jobManager.ask(
+			Future<Object> jobRequestFuture = jmGateway.ask(
 					new JobManagerMessages.RequestJob(testGraph.getJobID()),
 					timeout);
 			
@@ -99,6 +104,7 @@ public class CoordinatorShutdownTest {
 		LocalFlinkMiniCluster cluster = null;
 		try {
 			cluster = new LocalFlinkMiniCluster(new Configuration(), true);
+			cluster.start();
 			
 			// build a test graph with snapshotting enabled
 			JobVertex vertex = new JobVertex("Test Vertex");
@@ -108,17 +114,19 @@ public class CoordinatorShutdownTest {
 			JobGraph testGraph = new JobGraph("test job", vertex);
 			testGraph.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList, 5000));
 			
-			ActorGateway jobManager = cluster.getJobManagerGateway();
+			ActorGateway jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
 			FiniteDuration timeout = new FiniteDuration(60, TimeUnit.SECONDS);
-			JobManagerMessages.SubmitJob submitMessage = new JobManagerMessages.SubmitJob(testGraph, false);
+			JobManagerMessages.SubmitJob submitMessage = new JobManagerMessages.SubmitJob(
+					testGraph,
+					ListeningBehaviour.EXECUTION_RESULT);
 
 			// submit is successful, but then the job dies because no TaskManager / slot is available
-			Future<Object> submitFuture = jobManager.ask(submitMessage, timeout);
+			Future<Object> submitFuture = jmGateway.ask(submitMessage, timeout);
 			Await.result(submitFuture, timeout);
 
 			// get the execution graph and make sure the coordinator is properly shut down
-			Future<Object> jobRequestFuture = jobManager.ask(
+			Future<Object> jobRequestFuture = jmGateway.ask(
 					new JobManagerMessages.RequestJob(testGraph.getJobID()),
 					timeout);
 

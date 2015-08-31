@@ -31,6 +31,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobClientMessages;
@@ -120,6 +121,8 @@ public class JobClient {
 	 * @param jobManagerGateway  Gateway to the JobManager that should execute the job.
 	 * @param jobGraph    JobGraph describing the Flink job
 	 * @param timeout     Timeout for futures
+	 * @param sysoutLogUpdates prints log updates to system out if true
+	 * @param userCodeClassloader class loader to be used for deserialization
 	 * @return The job execution result
 	 * @throws org.apache.flink.runtime.client.JobExecutionException Thrown if the job
 	 *                                                               execution fails.
@@ -236,7 +239,10 @@ public class JobClient {
 		Object result;
 		try {
 			Future<Object> future = jobManagerGateway.ask(
-					new JobManagerMessages.SubmitJob(jobGraph, false),
+				new JobManagerMessages.SubmitJob(
+					jobGraph,
+					ListeningBehaviour.DETACHED // only receive the Acknowledge for the job submission message
+				),
 					timeout);
 			
 			result = Await.result(future, timeout);

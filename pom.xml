@@ -87,7 +87,7 @@ under the License.
 		<asm.version>5.0.4</asm.version>
 		<tez.version>0.6.1</tez.version>
 		<zookeeper.version>3.4.6</zookeeper.version>
-		<curatorrecipes.version>2.8.0</curatorrecipes.version>
+		<curator.version>2.8.0</curator.version>
 	</properties>
 
 	<dependencies>
@@ -332,15 +332,22 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>org.apache.zookeeper</groupId>
-				<artifactId>zookeeper</artifactId>
-				<version>${zookeeper.version}</version>
+				<groupId>org.apache.curator</groupId>
+				<artifactId>curator-recipes</artifactId>
+				<version>${curator.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.curator</groupId>
-				<artifactId>curator-recipes</artifactId>
-				<version>${curatorrecipes.version}</version>
+				<artifactId>curator-test</artifactId>
+				<version>${curator.version}</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.zookeeper</groupId>
+				<artifactId>zookeeper</artifactId>
+				<version>${zookeeper.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

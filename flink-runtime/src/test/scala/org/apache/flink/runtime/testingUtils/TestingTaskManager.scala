@@ -19,20 +19,23 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{Terminated, ActorRef}
-import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.{ResponseLeaderSessionID,
 RequestLeaderSessionID}
-import org.apache.flink.runtime.messages.Messages.Disconnect
+import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
+import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered,
+AcknowledgeRegistration}
 import org.apache.flink.runtime.messages.TaskMessages.{UpdateTaskExecutionState, TaskInFinalState}
 import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
-import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
+import org.apache.flink.runtime.testingUtils.TestingMessages.{CheckIfJobRemoved, Alive,
+DisableDisconnect}
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages._
 
 import scala.concurrent.duration._
@@ -42,7 +45,6 @@ import scala.language.postfixOps
   *
   * @param config
   * @param connectionInfo
-  * @param jobManagerAkkaURL
   * @param memoryManager
   * @param ioManager
   * @param network
@@ -51,25 +53,25 @@ import scala.language.postfixOps
 class TestingTaskManager(
     config: TaskManagerConfiguration,
     connectionInfo: InstanceConnectionInfo,
-    jobManagerAkkaURL: String,
     memoryManager: DefaultMemoryManager,
     ioManager: IOManager,
     network: NetworkEnvironment,
-    numberOfSlots: Int)
+    numberOfSlots: Int,
+    leaderRetrievalService: LeaderRetrievalService)
   extends TaskManager(
     config,
     connectionInfo,
-    jobManagerAkkaURL,
     memoryManager,
     ioManager,
     network,
-    numberOfSlots) {
+    numberOfSlots,
+    leaderRetrievalService) {
 
   import scala.collection.JavaConverters._
 
   val waitForRemoval = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
-  val waitForJobRemoval = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
   val waitForJobManagerToBeTerminated = scala.collection.mutable.HashMap[String, Set[ActorRef]]()
+  val waitForRegisteredAtJobManager = scala.collection.mutable.HashMap[ActorRef, Set[ActorRef]]()
   val waitForRunning = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
   val unregisteredTasks = scala.collection.mutable.HashSet[ExecutionAttemptID]()
 
@@ -83,6 +85,8 @@ class TestingTaskManager(
   }
 
   def handleTestingMessage: Receive = {
+    case Alive => sender() ! Acknowledge
+
     case NotifyWhenTaskIsRunning(executionID) => {
       Option(runningTasks.get(executionID)) match {
         case Some(task) if task.getExecutionState == ExecutionState.RUNNING =>
@@ -136,32 +140,28 @@ class TestingTaskManager(
 
     case NotifyWhenJobRemoved(jobID) =>
       if(runningTasks.values.asScala.exists(_.getJobID == jobID)){
-        val set = waitForJobRemoval.getOrElse(jobID, Set())
-        waitForJobRemoval += (jobID -> (set + sender))
-        import context.dispatcher
         context.system.scheduler.scheduleOnce(
           200 milliseconds,
-          this.self,
-          decorateMessage(CheckIfJobRemoved(jobID)))
+          self,
+          decorateMessage(CheckIfJobRemoved(jobID)))(
+          context.dispatcher,
+          sender
+          )
       }else{
-        waitForJobRemoval.get(jobID) match {
-          case Some(listeners) => (listeners + sender) foreach (_ ! decorateMessage(true))
-          case None => sender ! decorateMessage(true)
-        }
+        sender ! decorateMessage(true)
       }
 
     case CheckIfJobRemoved(jobID) =>
       if(runningTasks.values.asScala.forall(_.getJobID != jobID)){
-        waitForJobRemoval.remove(jobID) match {
-          case Some(listeners) => listeners foreach (_ ! decorateMessage(true))
-          case None =>
-        }
+        sender ! decorateMessage(true)
       } else {
-        import context.dispatcher
         context.system.scheduler.scheduleOnce(
           200 milliseconds,
-          this.self,
-          decorateMessage(CheckIfJobRemoved(jobID)))
+          self,
+          decorateMessage(CheckIfJobRemoved(jobID)))(
+          context.dispatcher,
+          sender
+          )
       }
 
     case NotifyWhenJobManagerTerminated(jobManager) =>
@@ -218,6 +218,29 @@ class TestingTaskManager(
       }
 
     case RequestLeaderSessionID =>
-      sender() ! ResponseLeaderSessionID(leaderSessionID)
+      sender() ! ResponseLeaderSessionID(leaderSessionID.orNull)
+
+    case NotifyWhenRegisteredAtJobManager(jobManager: ActorRef) =>
+      if(isConnected && jobManager == currentJobManager.get) {
+        sender() ! true
+      } else {
+        val list = waitForRegisteredAtJobManager.getOrElse(
+          jobManager,
+          Set[ActorRef]())
+
+        waitForRegisteredAtJobManager += jobManager -> (list + sender())
+      }
+
+    case msg @ (_: AcknowledgeRegistration | _: AlreadyRegistered) =>
+      super.handleMessage(msg)
+
+      val jm = sender()
+
+      waitForRegisteredAtJobManager.remove(jm).foreach {
+        listeners => listeners.foreach{
+          listener =>
+            listener ! true
+        }
+      }
   }
 }

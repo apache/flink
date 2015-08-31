@@ -42,8 +42,6 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import scala.Option;
-import scala.Some;
 
 /**
  * Tests for {@link org.apache.flink.runtime.instance.InstanceManager}.
@@ -52,7 +50,7 @@ public class InstanceManagerTest{
 
 	static ActorSystem system;
 
-	static Option<UUID> leaderSessionID = new Some<UUID>(UUID.randomUUID());
+	static UUID leaderSessionID = UUID.randomUUID();
 
 	@BeforeClass
 	public static void setup(){

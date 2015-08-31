@@ -278,6 +278,10 @@ under the Apache License (v 2.0):
  - Jansi (org.fusesource.jansi:jansi:1.4 - https://github.com/fusesource/jansi)
  - Apache Camel Core (org.apache.camel:camel-core:2.10.3 - http://camel.apache.org/camel-core.html)
  - Apache Commons Math (org.apache.commons:commons-math3:3.5 - http://commons.apache.org/proper/commons-math/index.html)
+ - Apache ZooKeeper (org.apache.zookeeper:zookeeper:3.4.6 - https://zookeeper.apache.org/)
+ - Apache Curator (org.apache.curator:curator-recipes:2.8.0 - http://curator.apache.org/)
+ - Apache Curator (org.apache.curator:curator-framework:2.8.0 - http://curator.apache.org/)
+ - Apache Curator (org.apache.curator:curator-client:2.8.0 - http://curator.apache.org/)
 
 
 -----------------------------------------------------------------------
@@ -356,6 +360,7 @@ BSD-style licenses:
  - ASM (org.ow2.asm:asm:5.0.4 - http://asm.ow2.org/) - Copyright (c) 2000-2011 INRIA, France Telecom
  - Grizzled SLF4J (org.clapper:grizzled-slf4j_2.10:1.0.2 - http://software.clapper.org/grizzled-slf4j/) - Copyright (c) 2010 Brian M. Clapper
  - ParaNamer (com.thoughtworks.paranamer:paranamer:2.3 - https://github.com/paul-hammant/paranamer) - Copyright (c) 2006 Paul Hammant & ThoughtWorks Inc
+ - JLine (jline:jline:0.9.94 - http://jline.sourceforge.net/) - Copyright (c) 2002-2006, Marc Prud'hommeaux <mwp1@cornell.edu>
 
 
 (Below is the 3-clause BSD license)

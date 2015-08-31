@@ -92,18 +92,18 @@ public class CliFrontendRunTest {
 	
 	public static final class RunTestingCliFrontend extends CliFrontend {
 		
-		private final int expectedParallelim;
+		private final int expectedParallelism;
 		private final boolean sysoutLogging;
 		
-		public RunTestingCliFrontend(int expectedParallelim, boolean logging) throws Exception {
+		public RunTestingCliFrontend(int expectedParallelism, boolean logging) throws Exception {
 			super(CliFrontendTestUtils.getConfigDir());
-			this.expectedParallelim = expectedParallelim;
+			this.expectedParallelism = expectedParallelism;
 			this.sysoutLogging = logging;
 		}
 
 		@Override
 		protected int executeProgram(PackagedProgram program, Client client, int parallelism, boolean wait) {
-			assertEquals(this.expectedParallelim, parallelism);
+			assertEquals(this.expectedParallelism, parallelism);
 			assertEquals(client.getPrintStatusDuringExecution(), sysoutLogging);
 			return 0;
 		}

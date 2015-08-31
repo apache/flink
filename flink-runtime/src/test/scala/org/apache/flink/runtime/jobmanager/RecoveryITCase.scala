@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager
 import akka.actor.{PoisonPill, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, DistributionPattern, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingOnceReceiver, FailingOnceReceiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster,
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.junit.JUnitRunner
+import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class RecoveryITCase(_system: ActorSystem)
@@ -46,12 +48,14 @@ class RecoveryITCase(_system: ActorSystem)
     TestKit.shutdownActorSystem(system)
   }
 
-  def startTestClusterWithHeartbeatTimeout(numSlots: Int,
-                                                numTaskManagers: Int,
-                                                heartbeatTimeout: String): TestingCluster = {
+  def createTestClusterWithHeartbeatTimeout(
+      numSlots: Int,
+      numTaskManagers: Int,
+      heartbeatTimeout: String)
+    : TestingCluster = {
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
-    config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers)
+    config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers)
     config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, heartbeatTimeout)
     config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, heartbeatTimeout)
     new TestingCluster(config)
@@ -77,12 +81,14 @@ class RecoveryITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
       jobGraph.setNumberOfExecutionRetries(1)
 
-      val cluster = startTestClusterWithHeartbeatTimeout(2 * NUM_TASKS, 1, "2 s")
-      val jmGateway = cluster.getJobManagerGateway()
+      val cluster = createTestClusterWithHeartbeatTimeout(2 * NUM_TASKS, 1, "2 s")
+      cluster.start()
+
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION){
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
@@ -120,12 +126,14 @@ class RecoveryITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
       jobGraph.setNumberOfExecutionRetries(1)
 
-      val cluster = startTestClusterWithHeartbeatTimeout(NUM_TASKS, 1, "2 s")
-      val jmGateway = cluster.getJobManagerGateway()
+      val cluster = createTestClusterWithHeartbeatTimeout(NUM_TASKS, 1, "2 s")
+      cluster.start()
+
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION){
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
@@ -163,13 +171,14 @@ class RecoveryITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
       jobGraph.setNumberOfExecutionRetries(1)
 
-      val cluster = startTestClusterWithHeartbeatTimeout(NUM_TASKS, 2, "2 s")
+      val cluster = createTestClusterWithHeartbeatTimeout(NUM_TASKS, 2, "2 s")
+      cluster.start()
 
-      val jmGateway = cluster.getJobManagerGateway()
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION){
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 

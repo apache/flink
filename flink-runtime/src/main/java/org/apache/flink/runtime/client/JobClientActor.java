@@ -24,12 +24,12 @@ import akka.actor.Status;
 import akka.actor.Terminated;
 import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
+import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.slf4j.Logger;
-import scala.Option;
 
 import java.util.UUID;
 
@@ -44,18 +44,18 @@ public class JobClientActor extends FlinkUntypedActor {
 	private final boolean sysoutUpdates;
 
 	/** leader session ID of the JobManager when this actor was created */
-	private final Option<UUID> leaderSessionID;
+	private final UUID leaderSessionID;
 
 	/** Actor which submits a job to the JobManager via this actor */
 	private ActorRef submitter;
 
 	public JobClientActor(ActorRef jobManager, Logger logger, boolean sysoutUpdates,
-							Option<UUID> leaderSessionID) {
-		
+			UUID leaderSessionID) {
+
 		this.jobManager = Preconditions.checkNotNull(jobManager, "The JobManager ActorRef must not be null.");
 		this.logger = Preconditions.checkNotNull(logger, "The logger must not be null.");
-		this.leaderSessionID = Preconditions.checkNotNull(leaderSessionID, "The leader session ID option must not be null.");
 
+		this.leaderSessionID = leaderSessionID;
 		this.sysoutUpdates = sysoutUpdates;
 	}
 	
@@ -91,7 +91,11 @@ public class JobClientActor extends FlinkUntypedActor {
 
 					this.submitter = getSender();
 					jobManager.tell(
-							decorateMessage(new JobManagerMessages.SubmitJob(jobGraph, true)), getSelf());
+						decorateMessage(
+							new JobManagerMessages.SubmitJob(
+								jobGraph,
+								ListeningBehaviour.EXECUTION_RESULT_AND_STATE_CHANGES)),
+							getSelf());
 					
 					// make sure we notify the sender when the connection got lost
 					getContext().watch(jobManager);
@@ -102,8 +106,7 @@ public class JobClientActor extends FlinkUntypedActor {
 				String msg = "Received repeated 'SubmitJobAndWait'";
 				logger.error(msg);
 				getSender().tell(
-						decorateMessage(new Status.Failure(new Exception(msg))),
-						ActorRef.noSender());
+					decorateMessage(new Status.Failure(new Exception(msg))), ActorRef.noSender());
 
 				getContext().unwatch(jobManager);
 				getSelf().tell(decorateMessage(PoisonPill.getInstance()), ActorRef.noSender());
@@ -153,7 +156,7 @@ public class JobClientActor extends FlinkUntypedActor {
 	}
 
 	@Override
-	protected Option<UUID> getLeaderSessionID() {
+	protected UUID getLeaderSessionID() {
 		return leaderSessionID;
 	}
 

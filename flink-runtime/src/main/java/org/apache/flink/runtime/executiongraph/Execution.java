@@ -556,7 +556,9 @@ public class Execution implements Serializable {
 							partitionId, partitionLocation);
 
 					final UpdatePartitionInfo updateTaskMessage = new UpdateTaskSinglePartitionInfo(
-							consumer.getAttemptId(), partition.getIntermediateResult().getId(), descriptor);
+						consumer.getAttemptId(),
+						partition.getIntermediateResult().getId(),
+						descriptor);
 
 					sendUpdatePartitionInfoRpcCall(consumerSlot, updateTaskMessage);
 				}

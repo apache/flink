@@ -50,7 +50,7 @@ public class ClassLoaderITCase {
 	public void testJobsWithCustomClassLoader() {
 		try {
 			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
 			config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 s");
 
@@ -60,8 +60,10 @@ public class ClassLoaderITCase {
 
 			ForkableFlinkMiniCluster testCluster = new ForkableFlinkMiniCluster(config, false);
 
+			testCluster.start();
+
 			try {
-				int port = testCluster.getJobManagerRPCPort();
+				int port = testCluster.getLeaderRPCPort();
 
 				PackagedProgram inputSplitTestProg = new PackagedProgram(
 						new File(INPUT_SPLITS_PROG_JAR_FILE),

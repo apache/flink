@@ -27,6 +27,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -98,7 +100,7 @@ public class CommonTestUtils {
 	 *         thrown if an error occurs while creating the copy of the object
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends IOReadableWritable> T createCopy(final T original) throws IOException {
+	public static <T extends IOReadableWritable> T createCopyWritable(final T original) throws IOException {
 
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		final DataOutputStream dos = new DataOutputStream(baos);
@@ -139,6 +141,34 @@ public class CommonTestUtils {
 		final DataInputStream dis = new DataInputStream(bais);
 
 		copy.read(new InputViewDataInputStreamWrapper(dis));
+
+		return copy;
+	}
+
+	public static <T extends java.io.Serializable> T createCopySerializable(T original) throws IOException {
+		if (original == null) {
+			throw new IllegalArgumentException();
+		}
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos = new ObjectOutputStream(baos);
+		oos.writeObject(original);
+		oos.close();
+		baos.close();
+
+		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+		ObjectInputStream ois = new ObjectInputStream(bais);
+
+		T copy;
+		try {
+			copy = (T) ois.readObject();
+		}
+		catch (ClassNotFoundException e) {
+			throw new IOException(e);
+		}
+
+		ois.close();
+		bais.close();
 
 		return copy;
 	}

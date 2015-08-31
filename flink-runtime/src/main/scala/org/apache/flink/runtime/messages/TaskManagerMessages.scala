@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.messages
 
+import java.util.UUID
+
+import akka.actor.ActorRef
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.instance.InstanceID
 
@@ -92,16 +95,24 @@ object TaskManagerMessages {
 
   /**
    * Requests a notification from the task manager as soon as the task manager has been
-   * registered at the job manager. Once the task manager is registered at the job manager a
+   * registered at any job manager. Once the task manager is registered at any job manager a
    * [[RegisteredAtJobManager]] message will be sent to the sender.
    */
-  case object NotifyWhenRegisteredAtJobManager
+  case object NotifyWhenRegisteredAtAnyJobManager
 
   /**
-   * Acknowledges that the task manager has been successfully registered at the job manager. This
-   * message is a response to [[NotifyWhenRegisteredAtJobManager]].
+   * Acknowledges that the task manager has been successfully registered at any job manager. This
+   * message is a response to [[NotifyWhenRegisteredAtAnyJobManager]].
    */
   case object RegisteredAtJobManager
+
+  /** Tells the address of the new leading [[org.apache.flink.runtime.jobmanager.JobManager]]
+    * and the new leader session ID.
+    *
+    * @param jobManagerAddress Address of the new leading JobManager
+    * @param leaderSessionID New leader session ID
+    */
+  case class JobManagerLeaderAddress(jobManagerAddress: String, leaderSessionID: UUID)
 
 
   // --------------------------------------------------------------------------
@@ -113,7 +124,7 @@ object TaskManagerMessages {
    * @return The NotifyWhenRegisteredAtJobManager case object instance.
    */
   def getNotifyWhenRegisteredAtJobManagerMessage:
-            NotifyWhenRegisteredAtJobManager.type = NotifyWhenRegisteredAtJobManager
+            NotifyWhenRegisteredAtAnyJobManager.type = NotifyWhenRegisteredAtAnyJobManager
 
   /**
    * Accessor for the case object instance, to simplify Java interoperability.

@@ -26,17 +26,20 @@ bin=`cd "$bin"; pwd`
 readSlaves
 
 for slave in ${SLAVES[@]}; do
-    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l $bin/taskmanager.sh stop &"
+    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l $FLINK_BIN_DIR/taskmanager.sh stop &"
 done
 
 # Stop JobManager instance(s)
-if [[ -z $ZK_QUORUM ]]; then
-    "$bin"/jobmanager.sh stop
-else
-	# HA Mode
+shopt -s nocasematch
+if [[ $RECOVERY_MODE == "zookeeper" ]]; then
+    # HA Mode
     readMasters
 
     for master in ${MASTERS[@]}; do
-        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l $bin/jobmanager.sh stop &"
+        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l $FLINK_BIN_DIR/jobmanager.sh stop &"
     done
+
+else
+	  "$FLINK_BIN_DIR"/jobmanager.sh stop
 fi
+shopt -u nocasematch

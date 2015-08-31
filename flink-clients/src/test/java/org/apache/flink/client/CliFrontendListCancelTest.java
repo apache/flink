@@ -30,7 +30,6 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import scala.Option;
 
 import java.util.UUID;
 
@@ -83,7 +82,7 @@ public class CliFrontendListCancelTest {
 				JobID jid = new JobID();
 				String jidString = jid.toString();
 
-				final Option<UUID> leaderSessionID = Option.<UUID>apply(UUID.randomUUID());
+				final UUID leaderSessionID = UUID.randomUUID();
 
 				final ActorRef jm = actorSystem.actorOf(Props.create(
 								CliJobManager.class,
@@ -106,7 +105,7 @@ public class CliFrontendListCancelTest {
 				JobID jid1 = new JobID();
 				JobID jid2 = new JobID();
 
-				final Option<UUID> leaderSessionID = Option.<UUID>apply(UUID.randomUUID());
+				final UUID leaderSessionID = UUID.randomUUID();
 
 				final ActorRef jm = actorSystem.actorOf(
 						Props.create(
@@ -143,11 +142,11 @@ public class CliFrontendListCancelTest {
 			
 			// test list properly
 			{
-				final Option<UUID> leaderSessionID = Option.<UUID>apply(UUID.randomUUID());
+				final UUID leaderSessionID = UUID.randomUUID();
 				final ActorRef jm = actorSystem.actorOf(
 						Props.create(
 								CliJobManager.class,
-								(Object)null,
+								null,
 								leaderSessionID
 						)
 				);
@@ -183,9 +182,9 @@ public class CliFrontendListCancelTest {
 
 	protected static final class CliJobManager extends FlinkUntypedActor {
 		private final JobID jobID;
-		private final Option<UUID> leaderSessionID;
+		private final UUID leaderSessionID;
 
-		public CliJobManager(final JobID jobID, final Option<UUID> leaderSessionID){
+		public CliJobManager(final JobID jobID, final UUID leaderSessionID){
 			this.jobID = jobID;
 			this.leaderSessionID = leaderSessionID;
 		}
@@ -217,7 +216,7 @@ public class CliFrontendListCancelTest {
 		}
 
 		@Override
-		protected Option<UUID> getLeaderSessionID() {
+		protected UUID getLeaderSessionID() {
 			return leaderSessionID;
 		}
 	}

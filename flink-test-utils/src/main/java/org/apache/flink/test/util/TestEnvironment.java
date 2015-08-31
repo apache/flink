@@ -74,7 +74,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 	private OptimizedPlan compileProgram(String jobName) {
 		Plan p = createProgramPlan(jobName);
 
-		Optimizer pc = new Optimizer(new DataStatistics(), this.executor.getConfiguration());
+		Optimizer pc = new Optimizer(new DataStatistics(), this.executor.configuration());
 		return pc.compile(p);
 	}
 

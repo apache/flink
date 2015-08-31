@@ -18,7 +18,17 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import org.apache.flink.api.common.JobID
+
 object TestingMessages {
 
+  case class CheckIfJobRemoved(jobID: JobID)
+
   case object DisableDisconnect
+
+  case object Alive
+
+  def getAlive: AnyRef = Alive
+
+  def getDisableDisconnect: AnyRef = DisableDisconnect
 }
