@@ -81,7 +81,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 			while (isRunning) {
 				int readCount;
 				try {
-                    readCount = reader.read(charBuffer);
+					readCount = reader.read(charBuffer);
 				} catch (SocketException e) {
 					if (!isRunning) {
 						break;
