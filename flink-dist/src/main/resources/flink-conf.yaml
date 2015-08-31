@@ -136,5 +136,7 @@ state.backend: jobmanager
 # The list of ZooKepper quorum peers that coordinate the high-availability
 # setup. This must be a list of the form
 # "host_1[:peerPort[:leaderPort]],host_2[:peerPort[:leaderPort]],..."
-
-#ha.zookeeper.quorum: localhost
+#
+# recovery.mode: zookeeper
+#
+# ha.zookeeper.quorum: localhost

@@ -277,9 +277,14 @@ readMasters() {
 
         if [ -n "$HOSTWEBUIPORT" ]; then
             HOST=$(echo $HOSTWEBUIPORT | cut -f1 -d:)
-            WEBUIPORT=$(echo $HOSTWEBUIPORT | cut -f2 -d:)
+            WEBUIPORT=$(echo $HOSTWEBUIPORT | cut -s -f2 -d:)
             MASTERS+=(${HOST})
-            WEBUIPORTS+=(${WEBUIPORT})
+
+            if [ -z "$WEBUIPORT" ]; then
+                WEBUIPORTS+=(0)
+            else
+                WEBUIPORTS+=(${WEBUIPORT})
+            fi
         fi
     done < "$MASTERS_FILE"
 }
