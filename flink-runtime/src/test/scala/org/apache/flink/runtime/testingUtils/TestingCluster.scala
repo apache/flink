@@ -20,18 +20,18 @@ package org.apache.flink.runtime.testingUtils
 
 import java.util.concurrent.TimeoutException
 
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
-import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.testkit.CallingThreadDispatcher
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
-import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory
+import org.apache.flink.runtime.jobmanager.{StandaloneSubmittedJobGraphs, JobManager}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingMessages.Alive
-import org.apache.flink.runtime.webmonitor.WebMonitor
 
 import scala.concurrent.{Await, Future}
 
@@ -109,7 +109,9 @@ class TestingCluster(
       delayBetweenRetries,
       timeout,
       archiveCount,
-      leaderElectionService) = JobManager.createJobManagerComponents(config)
+      leaderElectionService,
+      submittedJobGraphs,
+      checkpointRecoveryFactory) = JobManager.createJobManagerComponents(config)
 
     val testArchiveProps = Props(new TestingMemoryArchivist(archiveCount))
     val archive = actorSystem.actorOf(testArchiveProps, archiveName)
@@ -128,7 +130,9 @@ class TestingCluster(
         delayBetweenRetries,
         timeout,
         streamingMode,
-        resolvedLeaderElectionService))
+        resolvedLeaderElectionService,
+        submittedJobGraphs,
+        checkpointRecoveryFactory))
 
     val dispatcherJobManagerProps = if (synchronousDispatcher) {
       // disable asynchronous futures (e.g. accumulator update in Heartbeat)
@@ -155,7 +159,7 @@ class TestingCluster(
       classOf[TestingTaskManager])
   }
 
-
+  // This looks unnecessary, but it is, because some sub classes override this method.
   def createLeaderElectionService(electionService: LeaderElectionService): LeaderElectionService = {
     electionService
   }

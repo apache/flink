@@ -60,4 +60,9 @@ public class StandaloneLeaderElectionService implements LeaderElectionService {
 	public boolean hasLeadership() {
 		return true;
 	}
+
+	@Override
+	public boolean syncHasLeadership() {
+		return true;
+	}
 }

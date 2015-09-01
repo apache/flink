@@ -60,7 +60,7 @@ class ForkableFlinkMiniCluster(
   // --------------------------------------------------------------------------
 
   var zookeeperCluster: Option[TestingCluster] = None
-  
+
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
     val forNumberString = System.getProperty("forkNumber")
 
@@ -109,7 +109,9 @@ class ForkableFlinkMiniCluster(
       delayBetweenRetries,
       timeout,
       archiveCount,
-      leaderElectionService) = JobManager.createJobManagerComponents(config)
+      leaderElectionService,
+      submittedJobGraphs,
+      checkpointRecoveryFactory) = JobManager.createJobManagerComponents(config)
       val testArchiveProps = Props(
         new TestingMemoryArchivist(archiveCount))
 
@@ -127,7 +129,9 @@ class ForkableFlinkMiniCluster(
         delayBetweenRetries,
         timeout,
         streamingMode,
-        leaderElectionService))
+        leaderElectionService,
+        submittedJobGraphs,
+        checkpointRecoveryFactory))
 
     val jobManager = actorSystem.actorOf(jobManagerProps, jobManagerName)
 

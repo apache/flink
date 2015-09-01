@@ -67,4 +67,20 @@ public interface LeaderElectionService {
 	 * @return true if the associated {@link LeaderContender} is the leader, otherwise false
 	 */
 	boolean hasLeadership();
+
+	/**
+	 * [EXPERIMENTAL] Returns <code>true</code> if the {@link LeaderContender} is leader. A call
+	 * to this method might block.
+	 *
+	 * <p>This forces a synchronous check at the respective state backend. It is possible
+	 * that is does not reflect the current state at the {@link LeaderContender}, which is notified
+	 * asynchronously. Therefore it is possible that {@link #hasLeadership()} and {@link
+	 * #syncHasLeadership()} have different return values.
+	 *
+	 * @TODO @tillrohrmann Is it OK to collapse this with {@link #hasLeadership()}?
+	 *
+	 * @return true if the associated {@link LeaderContender} is the leader, otherwise false
+	 */
+	boolean syncHasLeadership();
+
 }

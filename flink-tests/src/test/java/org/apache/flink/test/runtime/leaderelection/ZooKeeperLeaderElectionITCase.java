@@ -21,6 +21,7 @@ package org.apache.flink.test.runtime.leaderelection;
 import akka.actor.ActorSystem;
 import akka.actor.Kill;
 import akka.actor.PoisonPill;
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
@@ -39,16 +40,40 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
+import org.junit.AfterClass;
 import org.junit.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.junit.Assert.*;
+import java.io.File;
+import java.io.IOException;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 	private static final FiniteDuration timeout = TestingUtils.TESTING_DURATION();
+
+	private static final File tempDirectory;
+
+	static {
+		try {
+			tempDirectory = org.apache.flink.runtime.testutils
+					.CommonTestUtils.createTempDirectory();
+		}
+		catch (IOException e) {
+			throw new RuntimeException("Test setup failed", e);
+		}
+	}
+
+	@AfterClass
+	public static void tearDown() throws Exception {
+		if (tempDirectory != null) {
+			FileUtils.deleteDirectory(tempDirectory);
+		}
+	}
 
 	/**
 	 * Tests that the TaskManagers successfully register at the new leader once the old leader
@@ -64,13 +89,15 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, numJMs);
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
+		configuration.setString(ConfigConstants.STATE_BACKEND, "filesystem");
+		configuration.setString(ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH, tempDirectory.getPath());
 
 		ForkableFlinkMiniCluster cluster = new ForkableFlinkMiniCluster(configuration);
 
 		try {
 			cluster.start();
 
-			for(int i = 0; i < numJMs; i++) {
+			for (int i = 0; i < numJMs; i++) {
 				ActorGateway leadingJM = cluster.getLeaderGateway(timeout);
 
 				cluster.waitForTaskManagersToBeRegisteredAtJobManager(leadingJM.actor());
@@ -86,7 +113,8 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 				cluster.clearLeader();
 				leadingJM.tell(PoisonPill.getInstance());
 			}
-		} finally {
+		}
+		finally {
 			cluster.stop();
 		}
 	}
@@ -110,6 +138,13 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, numJMs);
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTM);
+		configuration.setString(ConfigConstants.STATE_BACKEND, "filesystem");
+		configuration.setString(ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH, tempDirectory.getPath());
+
+		// @TODO @tillrohrmann temporary "disable" recovery, because currently the client does
+		// not need to resubmit a failed job to a new leader. Should we keep this test and
+		// disable recovery fully or will this be subsumed by the real client changes anyways?
+		configuration.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, timeout.toString());
 
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(true);
 
@@ -152,7 +187,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 			thread.start();
 
 			// Kill all JobManager except for two
-			for(int i = 0; i < numJMs - 2; i++) {
+			for (int i = 0; i < numJMs - 2; i++) {
 				ActorGateway jm = cluster.getLeaderGateway(timeout);
 
 				cluster.waitForTaskManagersToBeRegisteredAtJobManager(jm.actor());
@@ -184,17 +219,18 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 			thread.join(timeout.toMillis());
 
-			if(thread.isAlive()) {
+			if (thread.isAlive()) {
 				jobSubmission.finished = true;
 				fail("The job submission thread did not stop (meaning it did not succeeded in" +
 						"executing the test job.");
 			}
-		} finally {
+		}
+		finally {
 			if (clientActorSystem != null) {
 				cluster.shutdownJobClientActorSystem(clientActorSystem);
 			}
 
-			if(thread != null && thread.isAlive() && jobSubmission != null) {
+			if (thread != null && thread.isAlive() && jobSubmission != null) {
 				jobSubmission.finished = true;
 			}
 			cluster.stop();
@@ -219,7 +255,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 		@Override
 		public void run() {
-			while(!finished) {
+			while (!finished) {
 				try {
 					LeaderRetrievalService lrService =
 							LeaderRetrievalUtils.createLeaderRetrievalService(
@@ -240,11 +276,14 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 							getClass().getClassLoader());
 
 					finished = true;
-				} catch (JobExecutionException e) {
+				}
+				catch (JobExecutionException e) {
 					// This was expected, so just try again to submit the job
-				} catch (LeaderRetrievalException e) {
+				}
+				catch (LeaderRetrievalException e) {
 					// This can also happen, so just try again to submit the job
-				} catch (Exception e) {
+				}
+				catch (Exception e) {
 					// This was not expected... fail the test case
 					e.printStackTrace();
 					fail("Caught unexpected exception in job submission test case.");

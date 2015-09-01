@@ -23,14 +23,14 @@ import akka.pattern.pipe
 import akka.pattern.ask
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
-import org.apache.flink.runtime.{StreamingMode, FlinkActor}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobgraph.JobStatus
-import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobmanager.{SubmittedJobGraphs, JobManager}
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.JobManagerMessages.GrantLeadership
@@ -70,7 +70,9 @@ class TestingJobManager(
     delayBetweenRetries: Long,
     timeout: FiniteDuration,
     mode: StreamingMode,
-    leaderElectionService: LeaderElectionService)
+    leaderElectionService: LeaderElectionService,
+    submittedJobGraphs : SubmittedJobGraphs,
+    checkpointRecoveryFactory : CheckpointRecoveryFactory)
   extends JobManager(
     flinkConfiguration,
     executionContext,
@@ -82,7 +84,9 @@ class TestingJobManager(
     delayBetweenRetries,
     timeout,
     mode,
-    leaderElectionService) {
+    leaderElectionService,
+    submittedJobGraphs,
+    checkpointRecoveryFactory) {
 
   import scala.collection.JavaConverters._
   import context._

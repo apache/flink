@@ -43,6 +43,7 @@ import java.util.UUID;
  * ZooKeeper as well.
  */
 public class ZooKeeperLeaderElectionService implements LeaderElectionService, LeaderLatchListener, NodeCacheListener {
+
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionService.class);
 
 	/** Client to the ZooKeeper quorum */
@@ -150,6 +151,31 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 		if(leaderLatch.getState().equals(LeaderLatch.State.STARTED)) {
 			return leaderLatch.hasLeadership();
 		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean syncHasLeadership() {
+		try {
+			byte[] data = client.getData().forPath(leaderPath);
+
+			ByteArrayInputStream bais = new ByteArrayInputStream(data);
+			ObjectInputStream ois = new ObjectInputStream(bais);
+
+			String leaderAddress = ois.readUTF();
+			UUID leaderSessionID = (UUID) ois.readObject();
+
+			synchronized (lock) {
+				return leaderContender.getAddress().equals(leaderAddress) &&
+						confirmedLeaderSessionID != null &&
+						confirmedLeaderSessionID.equals(leaderSessionID);
+			}
+		}
+		catch (KeeperException.NoNodeException ignored) {
+			return false;
+		}
+		catch (Exception e) {
 			return false;
 		}
 	}

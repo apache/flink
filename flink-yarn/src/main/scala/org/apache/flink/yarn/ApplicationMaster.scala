@@ -17,29 +17,28 @@
  */
 package org.apache.flink.yarn
 
-import java.io.{PrintWriter, FileWriter, BufferedWriter}
+import java.io.{BufferedWriter, FileWriter, PrintWriter}
 import java.security.PrivilegedAction
 
 import akka.actor._
 import grizzled.slf4j.Logger
 import org.apache.flink.client.CliFrontend
-import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
-import org.apache.flink.runtime.util.{StandaloneUtils, EnvironmentInformation}
+import org.apache.flink.runtime.util.{EnvironmentInformation, StandaloneUtils}
 import org.apache.flink.runtime.webmonitor.WebMonitor
 import org.apache.flink.yarn.Messages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
 import org.apache.hadoop.yarn.conf.YarnConfiguration
-import scala.collection.JavaConversions._
-
 
 import scala.io.Source
 
 object ApplicationMaster {
+  import scala.collection.JavaConversions._
 
   val LOG = Logger(getClass)
 
@@ -254,7 +253,9 @@ object ApplicationMaster {
       delayBetweenRetries,
       timeout,
       _,
-      leaderElectionService) = JobManager.createJobManagerComponents(configuration)
+      leaderElectionService,
+      submittedJobGraphs,
+      checkpointRecoveryFactory) = JobManager.createJobManagerComponents(configuration)
 
     // start the archiver
     val archiver: ActorRef = jobManagerSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
@@ -271,7 +272,9 @@ object ApplicationMaster {
         delayBetweenRetries,
         timeout,
         streamingMode,
-        leaderElectionService)
+        leaderElectionService,
+        submittedJobGraphs,
+        checkpointRecoveryFactory)
       with ApplicationMasterActor)
 
     LOG.debug("Starting JobManager actor")

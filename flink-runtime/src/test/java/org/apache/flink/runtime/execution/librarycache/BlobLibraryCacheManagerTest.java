@@ -177,6 +177,10 @@ public class BlobLibraryCacheManagerTest {
 
 				// un-register them again
 				libCache.unregisterTask(jid, executionId);
+
+				// Don't fail if called again
+				libCache.unregisterTask(jid, executionId);
+
 				assertEquals(0, libCache.getNumberOfReferenceHolders(jid));
 
 				// library is still cached (but not associated with job any more)

@@ -55,9 +55,9 @@ import static org.junit.Assert.assertTrue;
  * results without testing the checkpointing).
  */
 @SuppressWarnings("serial")
-public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
+public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StateCheckpoinedITCase.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StateCheckpointedITCase.class);
 
 	final long NUM_STRINGS = 10_000_000L;
 

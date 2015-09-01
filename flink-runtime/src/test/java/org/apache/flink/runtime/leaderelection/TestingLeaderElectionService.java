@@ -27,6 +27,8 @@ import java.util.UUID;
  */
 public class TestingLeaderElectionService implements LeaderElectionService, Serializable {
 
+	private static final long serialVersionUID = -8007939683948014574L;
+
 	private LeaderContender contender;
 	private boolean hasLeadership = false;
 
@@ -50,11 +52,18 @@ public class TestingLeaderElectionService implements LeaderElectionService, Seri
 		return hasLeadership;
 	}
 
+	@Override
+	public boolean syncHasLeadership() {
+		return hasLeadership;
+	}
+
 	public void isLeader(UUID leaderSessionID) {
+		hasLeadership = true;
 		contender.grantLeadership(leaderSessionID);
 	}
 
 	public void notLeader() {
+		hasLeadership = false;
 		contender.revokeLeadership();
 	}
 }

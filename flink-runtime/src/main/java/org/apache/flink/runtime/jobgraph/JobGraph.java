@@ -494,4 +494,9 @@ public class JobGraph implements Serializable {
 			}
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "JobGraph(jobId: " + jobID + ")";
+	}
 }
