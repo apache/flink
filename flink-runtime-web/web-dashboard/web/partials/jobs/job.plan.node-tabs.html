@@ -6,5 +6,8 @@
       <li ui-sref-active="active"><a ui-sref=".properties({nodeid: nodeid})">Properties</a></li>
     </ul>
   </nav>
+  <div ng-if="'single-job.plan.node.properties' | isState" class="panel-heading clearfix">
+    <div class="panel-title">{{ node.description | humanizeTaskName }}</div>
+  </div>
   <div ui-view="node-details" class="panel-body clean"></div>
 </div>

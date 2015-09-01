@@ -39,12 +39,31 @@
       white-space: nowrap
       overflow: hidden
       text-overflow: ellipsis
+
+  &.table-body-hover
+    > tbody
+      border-top: none
+      &:hover, &.active
+        td:not(.tab-column)
+          background-color: #f0f0f0
+        td.tab-column li.active
+            background-color: #f0f0f0
       
   &.table-activable
-    tr
-      border-left: 2px solid transparent
-      &.active
-        border-left: 2px solid #000000
+    // tbody
+    //   border-left: 2px solid transparent
+    //   &.active
+    //     border-left: 2px solid #000000
+
+    th.tab-column, td.tab-column
+      border-top: none
+      width: 47px
+
+    td.tab-column
+      border-right: 1px solid #dddddd
+      
+    td
+      position: relative
 
 
 .label-group

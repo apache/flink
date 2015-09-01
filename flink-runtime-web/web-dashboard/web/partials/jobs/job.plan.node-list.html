@@ -17,9 +17,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 -->
-<table class="table table-hover table-clickable table-activable">
+<table class="table table-body-hover table-clickable table-activable">
   <thead>
     <tr>
+      <th class="tab-column"></th>
       <th>Start Time</th>
       <th>End Time</th>
       <th>Duration</th>
@@ -32,13 +33,17 @@ limitations under the License.
       <th>Status</th>
     </tr>
   </thead>
-  <tbody>
-    <tr ng-repeat="v in job.vertices" ng-class="{ active: job.currentNode &amp;&amp; v.id == job.currentNode.id }" id="vertex-row-{{v.id}}" ui-sref="{nodeid: v.id}">
-      <td>{{ v['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
-        <div ui-view="node"></div>
+  <tbody ng-repeat="v in job.vertices" ng-class="{ active: job.currentNode &amp;&amp; v.id == job.currentNode.id }" ui-sref="{nodeid: v.id}">
+    <tr>
+      <td class="tab-column">
+        <ul ng-if="job.currentNode &amp;&amp; v.id == job.currentNode.id" class="nav nav-tabs tabs-vertical">
+          <li ng-class="{ active: ('single-job.plan.node.generic' | isState) }"><a ng-click="gotoGeneric(v.id)" title="Basic"><i class="fa fa-tasks"></i></a></li>
+          <li ng-class="{ active: ('single-job.plan.node.accumulators' | isState) }"><a ng-click="gotoAccumulators(v.id)" title="Accumulators"><i class="fa fa-calculator"></i></a></li>
+        </ul>
       </td>
-      <td>{{ v['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</td>
-      <td>{{ v.duration }} ms</td>
+      <td><span ng-if="v['start-time'] &gt; -1">{{ v['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
+      <td><span ng-if="v['end-time'] &gt; -1">{{ v['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
+      <td><span ng-if="v.duration &gt; -1">{{ v.duration }} ms</span></td>
       <td>{{ v.name | humanizeTaskName }}</td>
       <td>{{ v.metrics['read-bytes'] }}</td>
       <td>{{ v.metrics['read-records'] }}</td>
@@ -51,6 +56,13 @@ limitations under the License.
       </td>
       <td> 
         <bs-label status="{{v.status}}">{{v.status}}</bs-label>
+      </td>
+    </tr>
+    <tr ng-if="job.currentNode &amp;&amp; v.id == job.currentNode.id">
+      <td class="tab-column"></td>
+      <td colspan="10">
+        <div ng-if="'single-job.plan.node.generic' | isState" ng-include=" 'partials/jobs/job.plan.node.subtasks.html' "></div>
+        <div ng-if="'single-job.plan.node.accumulators' | isState" ng-include=" 'partials/jobs/job.plan.node.accumulators.html' "></div>
       </td>
     </tr>
   </tbody>

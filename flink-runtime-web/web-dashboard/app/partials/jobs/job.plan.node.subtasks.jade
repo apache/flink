@@ -15,33 +15,40 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-table.table.table-hover.table-clickable
+
+table.table.table-hover.table-clickable.table-activable.table-inner
   thead
     tr
       th Start Time
       th End Time
       th Duration
-      //- th Name
       th Bytes read
       th Records read
       th Bytes written
       th Records written
-      th Tasks
+      th Attempt
+      th Host
       th Status
 
   tbody
-    tr
-      td {{ vertex['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
-      td {{ vertex['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
-      td {{ vertex.duration }} ms
-      //- td {{ vertex.name | humanizeTaskName }}
-      td {{ vertex.metrics['read-bytes'] }}
-      td {{ vertex.metrics['read-records'] }}
-      td {{ vertex.metrics['write-bytes'] }}
-      td {{ vertex.metrics['write-records'] }}
+    tr(ng-repeat="subtask in vertex.st")
       td
-        .label-group
-          bs-label(status="{{status}}" ng-repeat="(index, status) in stateList") {{vertex.tasks[status]}}
+        span(ng-if="subtask['start-time'] > -1") {{ subtask['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
+      td
+        span(ng-if="subtask['end-time'] > -1") {{ subtask['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
+      td
+        span(ng-if="subtask.duration > -1") {{ subtask.duration }} ms
 
+      td
+        span(ng-if="subtask.metrics['read-bytes'] > -1") {{ subtask.metrics['read-bytes'] }}
+      td
+        span(ng-if="subtask.metrics['read-records'] > -1") {{ subtask.metrics['read-records'] }}
+      td
+        span(ng-if="subtask.metrics['write-bytes'] > -1") {{ subtask.metrics['write-bytes'] }}
+      td
+        span(ng-if="subtask.metrics['write-records'] > -1") {{ subtask.metrics['write-records'] }}
+
+      td {{ subtask.attempt + 1 }}
+      td {{ subtask.host }}
       td 
-        bs-label(status="{{vertex.status}}") {{vertex.status}}
+        bs-label(status="{{subtask.status}}") {{subtask.status}}

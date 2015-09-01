@@ -122,6 +122,9 @@ sidebar-width = 250px
   &.table-clickable
     tr
       cursor: pointer
+        
+  &.table-inner
+    background-color: transparent
 
 .panel
   &.panel-dashboard
@@ -263,12 +266,40 @@ sidebar-width = 250px
   &.indicator-danger
     color: #d9534f
 
-
 pre.exception
   border: none
   background-color: transparent
   padding: 0
   margin: 0
+
+.nav-tabs
+  &.tabs-vertical
+    // float: right
+    position: absolute
+    left: 0
+    top: 0
+    border-bottom: none
+    // border-right: 1px solid #dddddd
+    z-index: 100
+    li
+      float: none
+      margin-bottom: 0
+      margin-right: -1px
+      
+      > a
+        margin-right: 0
+        border-radius(0)
+        border-bottom: none
+        border-left: 2px solid transparent
+
+      > a:hover, > a:focus
+        border-bottom: none
+        border-left: 2px solid #000000
+        
+      &.active
+        > a
+          border-bottom: none
+          border-left: 2px solid #000000
 
 @import './job'
 @import './graph'
