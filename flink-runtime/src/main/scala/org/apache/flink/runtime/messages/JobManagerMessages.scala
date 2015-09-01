@@ -66,6 +66,18 @@ object JobManagerMessages {
     extends RequiresLeaderSessionID
 
   /**
+   * Triggers the recovery of the job with the given ID.
+   *
+   * @param jobId ID of the job to recover
+   */
+  case class RecoverJob(jobId: JobID) extends RequiresLeaderSessionID
+
+  /**
+   * Triggers recovery of all available jobs.
+   */
+  case class RecoverAllJobs() extends RequiresLeaderSessionID
+
+  /**
    * Cancels a job with the given [[jobID]] at the JobManager. The result of the cancellation is
    * sent back to the sender as a [[CancellationResponse]] message.
    *
@@ -354,6 +366,10 @@ object JobManagerMessages {
   // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
+
+  def getRequestJobStatus(jobId : JobID) : AnyRef = {
+    RequestJobStatus(jobId)
+  }
   
   def getRequestNumberRegisteredTaskManager : AnyRef = {
     RequestNumberRegisteredTaskManager

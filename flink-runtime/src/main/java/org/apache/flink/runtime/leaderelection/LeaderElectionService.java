@@ -67,4 +67,5 @@ public interface LeaderElectionService {
 	 * @return true if the associated {@link LeaderContender} is the leader, otherwise false
 	 */
 	boolean hasLeadership();
+
 }

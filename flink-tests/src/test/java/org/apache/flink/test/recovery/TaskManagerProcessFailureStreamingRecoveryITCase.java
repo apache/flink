@@ -41,7 +41,7 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * Test for streaming program behaviour in case of TaskManager failure
- * based on {@link AbstractProcessFailureRecoveryTest}.
+ * based on {@link AbstractTaskManagerProcessFailureRecoveryTest}.
  *
  * The logic in this test is as follows:
  *  - The source slowly emits records (every 10 msecs) until the test driver
@@ -53,20 +53,20 @@ import static org.junit.Assert.assertTrue;
  *    TaskManager.
  */
 @SuppressWarnings("serial")
-public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailureRecoveryTest {
+public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTaskManagerProcessFailureRecoveryTest {
 
 	private static final int DATA_COUNT = 10000;
 
 	@Override
-	public void testProgram(int jobManagerPort, final File coordinateDir) throws Exception {
-		
+	public void testTaskManagerFailure(int jobManagerPort, final File coordinateDir) throws Exception {
+
 		final File tempCheckpointDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH),
 				UUID.randomUUID().toString());
 
 		assertTrue("Cannot create directory for checkpoints", tempCheckpointDir.mkdirs());
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
-									.createRemoteEnvironment("localhost", jobManagerPort);
+				.createRemoteEnvironment("localhost", jobManagerPort);
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 		env.setNumberOfExecutionRetries(1);
@@ -82,7 +82,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 						return value;
 					}
 				}).startNewChain()
-				// populate the coordinate directory so we can proceed to TaskManager failure
+						// populate the coordinate directory so we can proceed to TaskManager failure
 				.map(new Mapper(coordinateDir));
 
 		//write result to temporary file
@@ -113,7 +113,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		private final long end;
 
 		private volatile boolean isRunning = true;
-		
+
 		private long collected;
 
 		public SleepyDurableGenerateSequence(File coordinateDir, long end) {
@@ -168,7 +168,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 			collected = state;
 		}
 	}
-	
+
 	public static class Mapper extends RichMapFunction<Long, Long> {
 		private boolean markerCreated = false;
 		private File coordinateDir;

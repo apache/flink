@@ -30,6 +30,8 @@ import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -39,6 +41,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -110,8 +113,6 @@ public class ExecutionGraph implements Serializable {
 	/** The log object used for debugging. */
 	static final Logger LOG = LoggerFactory.getLogger(ExecutionGraph.class);
 	
-	private static final int NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN = 1;
-
 	// --------------------------------------------------------------------------------------------
 
 	/** The lock used to secure all access to mutable fields, especially the tracking of progress
@@ -347,7 +348,11 @@ public class ExecutionGraph implements Serializable {
 			List<ExecutionJobVertex> verticesToWaitFor,
 			List<ExecutionJobVertex> verticesToCommitTo,
 			ActorSystem actorSystem,
-			UUID leaderSessionID) {
+			UUID leaderSessionID,
+			CheckpointIDCounter checkpointIDCounter,
+			CompletedCheckpointStore completedCheckpointStore,
+			RecoveryMode recoveryMode) throws Exception {
+
 		// simple sanity checks
 		if (interval < 10 || checkpointTimeout < 10) {
 			throw new IllegalArgumentException();
@@ -367,12 +372,14 @@ public class ExecutionGraph implements Serializable {
 		snapshotCheckpointsEnabled = true;
 		checkpointCoordinator = new CheckpointCoordinator(
 				jobID,
-				NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN,
 				checkpointTimeout,
 				tasksToTrigger,
 				tasksToWaitFor,
 				tasksToCommitTo,
-				userClassLoader);
+				userClassLoader,
+				checkpointIDCounter,
+				completedCheckpointStore,
+				recoveryMode);
 		
 		// the periodic checkpoint scheduler is activated and deactivated as a result of
 		// job status changes (running -> on, all other states -> off)
@@ -382,8 +389,14 @@ public class ExecutionGraph implements Serializable {
 						interval,
 						leaderSessionID));
 	}
-	
-	public void disableSnaphotCheckpointing() {
+
+	/**
+	 * Disables checkpointing.
+	 *
+	 * <p>The shutdown of the checkpoint coordinator might block. Make sure that calls to this
+	 * method don't block the job manager actor and run asynchronously.
+	 */
+	public void disableSnaphotCheckpointing() throws Exception {
 		if (state != JobStatus.CREATED) {
 			throw new IllegalStateException("Job must be in CREATED state");
 		}
@@ -773,6 +786,20 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	/**
+	 * Restores the latest checkpointed state.
+	 *
+	 * <p>The recovery of checkpoints might block. Make sure that calls to this method don't
+	 * block the job manager actor and run asynchronously.
+	 */
+	public void restoreLatestCheckpointedState() throws Exception {
+		synchronized (progressLock) {
+			if (checkpointCoordinator != null) {
+				checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), false, false);
+			}
+		}
+	}
+
+	/**
 	 * This method cleans fields that are irrelevant for the archived execution attempt.
 	 */
 	public void prepareForArchiving() {
@@ -886,7 +913,13 @@ public class ExecutionGraph implements Serializable {
 									}
 								}, executionContext);
 							} else {
-								restart();
+								future(new Callable<Object>() {
+									@Override
+									public Object call() throws Exception {
+										restart();
+										return null;
+									}
+								}, executionContext);
 							}
 							break;
 						}
@@ -906,7 +939,7 @@ public class ExecutionGraph implements Serializable {
 			}
 		}
 	}
-	
+
 	private void postRunCleanup() {
 		try {
 			CheckpointCoordinator coord = this.checkpointCoordinator;

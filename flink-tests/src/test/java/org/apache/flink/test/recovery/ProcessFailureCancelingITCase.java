@@ -115,13 +115,13 @@ public class ProcessFailureCancelingITCase {
 					"-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath(),
 					"-Xms80m", "-Xmx80m",
 					"-classpath", getCurrentClasspath(),
-					AbstractProcessFailureRecoveryTest.TaskManagerProcessEntryPoint.class.getName(),
+					AbstractTaskManagerProcessFailureRecoveryTest.TaskManagerProcessEntryPoint.class.getName(),
 					String.valueOf(jobManagerPort)
 			};
 
 			// start the first two TaskManager processes
 			taskManagerProcess = new ProcessBuilder(command).start();
-			new AbstractProcessFailureRecoveryTest.PipeForwarder(taskManagerProcess.getErrorStream(), processOutput);
+			new CommonTestUtils.PipeForwarder(taskManagerProcess.getErrorStream(), processOutput);
 			
 			// we wait for the JobManager to have the two TaskManagers available
 			// since some of the CI environments are very hostile, we need to give this a lot of time (2 minutes)
