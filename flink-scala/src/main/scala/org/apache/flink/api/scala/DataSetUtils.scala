@@ -18,11 +18,14 @@
 
 package org.apache.flink.api.scala
 
+import java.lang
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{Utils, utils => jutils}
 
 import _root_.scala.language.implicitConversions
 import _root_.scala.reflect.ClassTag
+import scala.collection.JavaConverters._
 
 /**
  * This class provides simple utility methods for zipping elements in a data set with an index
@@ -90,6 +93,22 @@ class DataSetUtils[T](val self: DataSet[T]) extends AnyVal {
                     (implicit ti: TypeInformation[T], ct: ClassTag[T]): DataSet[T] = {
 
     wrap(jutils.DataSetUtils.sampleWithSize(self.javaSet, withReplacement, numSample, seed))
+  }
+
+  /**
+   * Method that splits a data set randomly  into partitions based on the given list of fractions
+   *
+   * @param fractions List of fraction of points required in each split
+   * @param seed      Seed value for the random selection
+   * @return List of split data sets
+   */
+  def randomSplit(fractions: List[Double], seed: Long = Utils.RNG.nextLong())
+                 (implicit ti: TypeInformation[T], ct: ClassTag[T]): List[DataSet[T]] = {
+    val array = java.util.Arrays.asList(fractions.map(new lang.Double(_))).toArray
+    jutils.DataSetUtils.randomSplit(
+      self.javaSet,
+      fractions.map(new lang.Double(_)).asJava,
+      seed).asScala.map(split => wrap(split)).toList
   }
 }
 

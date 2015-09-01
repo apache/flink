@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -29,6 +30,18 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 @RunWith(Parameterized.class)
 public class DataSetUtilsITCase extends MultipleProgramsTestBase {
@@ -76,8 +89,43 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 		expectedResult = "0,A\n" + "2,B\n" + "4,C\n" + "6,D\n" + "8,E\n" + "10,F";
 	}
 
+	@Test
+	public void testRandomSplit() throws Exception {
+		List<Double> fractions = Arrays.asList(0.1, 0.3, 0.6);
+		List<DataSet<Integer>> result = DataSetUtils.randomSplit(getRandomSplitData(), fractions);
+		List<Integer> actual = new ArrayList<>();
+		for (DataSet<Integer> split : result) {
+			actual.addAll(split.collect());
+		}
+		Collections.sort(actual);
+		List<Integer> expected = getRandomSplitData().collect();
+		Collections.sort(expected);
+		assertEquals(expected, actual);
+		assertTrue(Math.abs(result.get(0).count() - 60) < 15);  // std 2.45
+		assertTrue(Math.abs(result.get(1).count() - 180) < 30); // std 7.35
+		assertTrue(Math.abs(result.get(2).count() - 360) < 50); // std 14.7
+		expectedResult = "";
+	}
+
 	@After
 	public void after() throws Exception{
 		compareResultsByLinesInMemory(expectedResult, resultPath);
+	}
+
+	private DataSet<Integer> getRandomSplitData() throws Exception {
+		File tmpFile = File.createTempFile("flinkTmpFile", "randomSplitTest");
+		BufferedWriter writer = new BufferedWriter(new FileWriter(tmpFile));
+		for (int i = 0; i < 600; i++) {
+			writer.write(i + "\n");
+		}
+		writer.close();
+		return ExecutionEnvironment.getExecutionEnvironment()
+				.readTextFile(tmpFile.toString()).setParallelism(2)
+				.map(new MapFunction<String, Integer>() {
+					@Override
+					public Integer map(String value) throws Exception {
+						return Integer.valueOf(value);
+					}
+				});
 	}
 }
