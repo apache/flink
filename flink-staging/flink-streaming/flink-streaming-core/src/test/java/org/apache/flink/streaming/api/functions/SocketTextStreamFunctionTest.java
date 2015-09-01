@@ -125,7 +125,7 @@ public class SocketTextStreamFunctionTest {
         source.run(flinkCollector);
     }
 
-    private String restoreContentFromActual(String delimiter, List<String> actualList, boolean newLineAsWindows){
+    private String restoreContentFromActual(String delimiter, List<String> actualList){
         StringBuilder sb = new StringBuilder();
         int i = 0;
         for (; i < actualList.size()-1; i++) {
@@ -141,7 +141,7 @@ public class SocketTextStreamFunctionTest {
         char delimiter = '\n';
         prepareTestForOld(delimiter, actualList);
         assertEquals(5, actualList.size());
-        assertEquals(content,restoreContentFromActual(String.valueOf(delimiter),actualList,true));
+        assertEquals(content,restoreContentFromActual(String.valueOf(delimiter),actualList));
     }
 
     @Test
@@ -150,7 +150,7 @@ public class SocketTextStreamFunctionTest {
         char delimiter = '\r';
         prepareTestForOld(delimiter,actualList);
         assertEquals(5, actualList.size());
-        assertEquals(content,restoreContentFromActual(String.valueOf(delimiter), actualList, false));
+        assertEquals(content,restoreContentFromActual(String.valueOf(delimiter), actualList));
     }
 
     @Test
@@ -159,7 +159,7 @@ public class SocketTextStreamFunctionTest {
         String delimiter = "\n";
         prepareTest(delimiter,actualList);
         assertEquals(5, actualList.size());
-        assertEquals(content,restoreContentFromActual(delimiter,actualList,true));
+        assertEquals(content,restoreContentFromActual(delimiter,actualList));
     }
 
     @Test
@@ -169,7 +169,7 @@ public class SocketTextStreamFunctionTest {
         prepareTest(delimiter,actualList);
         assertEquals(5, actualList.size());
         assertTrue(actualList.get(1).indexOf('\n') != -1);
-        assertEquals(content, restoreContentFromActual(delimiter, actualList, false));
+        assertEquals(content, restoreContentFromActual(delimiter, actualList));
     }
 
     @Test
@@ -180,7 +180,7 @@ public class SocketTextStreamFunctionTest {
         assertEquals(5, actualList.size());
         assertTrue(actualList.get(0).indexOf('\r') == -1);
         assertTrue(actualList.get(0).indexOf('\n') == -1);
-        assertEquals(content, restoreContentFromActual(delimiter, actualList, false));
+        assertEquals(content, restoreContentFromActual(delimiter, actualList));
     }
     
     @Test
@@ -191,7 +191,7 @@ public class SocketTextStreamFunctionTest {
         assertEquals(5, actualList.size());
         assertTrue(actualList.get(0).indexOf('\r') == -1);
         assertTrue(actualList.get(0).indexOf('\n') == -1);
-        assertEquals(content, restoreContentFromActual(delimiter, actualList, false));
+        assertEquals(content, restoreContentFromActual(delimiter, actualList));
     }
 
     @Test
@@ -217,7 +217,7 @@ public class SocketTextStreamFunctionTest {
                 "Curabitur pellentesque vel mi eget tempus. Donec cursus et leo quis viverra.";
 
         prepareTest(delimiter,actualList);
-        assertEquals(content, restoreContentFromActual(delimiter, actualList, false));
+        assertEquals(content, restoreContentFromActual(delimiter, actualList));
         assertEquals(2, actualList.size());
         assertTrue(actualList.get(0).indexOf('\r') == -1);
         assertTrue(actualList.get(0).indexOf('\n') != -1);
