@@ -18,22 +18,25 @@
 
 package org.apache.flink.yarn
 
-import java.net.InetSocketAddress
-import java.util.Date
+import java.util.{UUID, Date}
 
-import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
+
+import scala.concurrent.duration.{Deadline, FiniteDuration}
 
 object Messages {
 
   case class YarnMessage(message: String, date: Date = new Date())
   case class ApplicationMasterStatus(numTaskManagers: Int, numSlots: Int)
-  case class RegisterClient(client: ActorRef)
-  case object UnregisterClient
+
+  case object UnregisterClient extends RequiresLeaderSessionID
 
   case class StopYarnSession(status: FinalApplicationStatus, diagnostics: String)
+    extends RequiresLeaderSessionID
+  case class LocalStopYarnSession(status: FinalApplicationStatus, diagnostics: String)
 
   case object JobManagerStopped
 
@@ -42,27 +45,30 @@ object Messages {
       actorSystemPort: Int,
       webServerport: Int)
 
-  case class JobManagerActorRef(jobManager: ActorRef)
+  case class TriggerApplicationClientRegistration(
+      jobManagerAkkaURL: String,
+      timeout: FiniteDuration,
+      deadline: Option[Deadline]) extends RequiresLeaderSessionID
+
+  case object RegisterApplicationClient extends RequiresLeaderSessionID
+
+  case object AcknowledgeApplicationClientRegistration extends RequiresLeaderSessionID
+
+  case class JobManagerLeaderAddress(jobManagerAkkaURL: String, leaderSessionID: UUID)
 
   case object HeartbeatWithYarn
   case object PollYarnClusterStatus // see org.apache.flink.runtime.yarn.FlinkYarnClusterStatus for
                                     // the response
   case object CheckForUserCommand
 
-  case class StopAMAfterJob(jobId:JobID) // tell the AM to monitor the job and stop once it has
-    // finished.
+  // tell the AM to monitor the job and stop once it has finished
+  case class StopAMAfterJob(jobId:JobID) extends RequiresLeaderSessionID
+  case class LocalStopAMAfterJob(jobId:JobID)
 
-  // Client-local messages
-  case class LocalRegisterClient(jobManagerAddress: InetSocketAddress)
-  case object LocalUnregisterClient
   case object LocalGetYarnMessage // request new message
   case object LocalGetYarnClusterStatus // request the latest cluster status
 
   def getLocalGetYarnMessage(): AnyRef = {
     LocalGetYarnMessage
-  }
-
-  def getLocalUnregisterClient(): AnyRef = {
-    LocalUnregisterClient
   }
 }

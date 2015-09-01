@@ -267,7 +267,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	}
 
 
-	public void isReadyForDepoyment() throws YarnDeploymentException {
+	public void isReadyForDeployment() throws YarnDeploymentException {
 		if(taskManagerCount <= 0) {
 			throw new YarnDeploymentException("Taskmanager count must be positive");
 		}
@@ -341,7 +341,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	 * deployed on YARN.
 	 */
 	protected AbstractFlinkYarnCluster deployInternal() throws Exception {
-		isReadyForDepoyment();
+		isReadyForDeployment();
 
 		LOG.info("Using values:");
 		LOG.info("\tTaskManager count = {}", taskManagerCount);
@@ -481,21 +481,21 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		}
 
 		// Set up the container launch context for the application master
-		ContainerLaunchContext amContainer = Records
-				.newRecord(ContainerLaunchContext.class);
+		ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
 
 		String amCommand = "$JAVA_HOME/bin/java"
 					+ " -Xmx" + Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration) + "M " +javaOpts;
 
 		if(hasLogback || hasLog4j) {
 			amCommand += " -Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager-main.log\"";
-		}
 
-		if(hasLogback) {
-			amCommand += " -Dlogback.configurationFile=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
-		}
-		if(hasLog4j) {
-			amCommand += " -Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
+			if(hasLogback) {
+				amCommand += " -Dlogback.configurationFile=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
+			}
+
+			if(hasLog4j) {
+				amCommand += " -Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
+			}
 		}
 
 		amCommand 	+= " " + ApplicationMaster.class.getName() + " "
@@ -512,16 +512,17 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		final FileSystem fs = FileSystem.get(conf);
 
 		// hard coded check for the GoogleHDFS client because its not overriding the getScheme() method.
-		if( !fs.getClass().getSimpleName().equals("GoogleHadoopFileSystem") &&
+		if (!fs.getClass().getSimpleName().equals("GoogleHadoopFileSystem") &&
 				fs.getScheme().startsWith("file")) {
 			LOG.warn("The file system scheme is '" + fs.getScheme() + "'. This indicates that the "
-					+ "specified Hadoop configuration path is wrong and the sytem is using the default Hadoop configuration values."
+					+ "specified Hadoop configuration path is wrong and the system is using the default Hadoop configuration values."
 					+ "The Flink YARN client needs to store its files in a distributed file system");
 		}
 
 		// Set-up ApplicationSubmissionContext for the application
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
-		appContext.setMaxAppAttempts(flinkConfiguration.getInteger(ConfigConstants.YARN_APPLICATION_ATTEMPTS, 1));
+		appContext.setMaxAppAttempts(flinkConfiguration.getInteger(ConfigConstants.YARN_APPLICATION_ATTEMPTS, 2));
+		appContext.setKeepContainersAcrossApplicationAttempts(true);
 
 		final ApplicationId appId = appContext.getApplicationId();
 

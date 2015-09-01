@@ -18,28 +18,28 @@
 
 package org.apache.flink.yarn
 
-import java.net.InetSocketAddress
+import java.util.UUID
 
 import akka.actor._
-import akka.pattern.ask
 import grizzled.slf4j.Logger
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
-import org.apache.flink.runtime.util.LeaderRetrievalUtils
-import org.apache.flink.runtime.util.LeaderRetrievalUtils.LeaderGatewayListener
-import org.apache.flink.runtime.{FlinkActor, LogMessages}
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
+import org.apache.flink.runtime.{LeaderSessionMessageFilter, FlinkActor, LogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
 import org.apache.flink.yarn.Messages._
 import scala.collection.mutable
 import scala.concurrent.duration._
 
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
 
-class ApplicationClient(flinkConfig: Configuration)
-  extends FlinkActor with LogMessages {
+class ApplicationClient(
+    val flinkConfig: Configuration,
+    val leaderRetrievalService: LeaderRetrievalService)
+  extends FlinkActor
+  with LeaderSessionMessageFilter
+  with LogMessages
+  with LeaderRetrievalListener{
   import context._
 
   val log = Logger(getClass)
@@ -50,25 +50,36 @@ class ApplicationClient(flinkConfig: Configuration)
 
   var yarnJobManager: Option[ActorRef] = None
   var pollingTimer: Option[Cancellable] = None
-  implicit var timeout: FiniteDuration = 0 seconds
+  implicit val timeout: FiniteDuration = AkkaUtils.getTimeout(flinkConfig)
   var running = false
   var messagesQueue : mutable.Queue[YarnMessage] = mutable.Queue[YarnMessage]()
   var latestClusterStatus : Option[FlinkYarnClusterStatus] = None
   var stopMessageReceiver : Option[ActorRef] = None
 
+  var leaderSessionID: Option[UUID] = None
+
   override def preStart(): Unit = {
     super.preStart()
 
-    timeout = AkkaUtils.getTimeout(flinkConfig)
+    try {
+      leaderRetrievalService.start(this)
+    } catch {
+      case e: Exception =>
+        log.error("Could not start the leader retrieval service.", e)
+        throw new RuntimeException("Could not start the leader retrieval service.", e)
+    }
   }
 
   override def postStop(): Unit = {
     log.info("Stopped Application client.")
-    pollingTimer foreach {
-      _.cancel()
-    }
 
-    pollingTimer = None
+    disconnectFromJobManager()
+
+    try {
+      leaderRetrievalService.stop()
+    } catch {
+      case e: Exception => log.error("Leader retrieval service did not shout down properly.")
+    }
 
     // Terminate the whole actor system because there is only the application client running
     context.system.shutdown()
@@ -76,39 +87,50 @@ class ApplicationClient(flinkConfig: Configuration)
 
   override def handleMessage: Receive = {
     // ----------------------------- Registration -> Status updates -> shutdown ----------------
-    case LocalRegisterClient(address: InetSocketAddress) =>
-      flinkConfig.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.getHostName());
-      flinkConfig.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.getPort());
 
-      val leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig)
+    case TriggerApplicationClientRegistration(jobManagerAkkaURL, timeout, deadline) =>
+      if (isConnected) {
+        // we are already connected to the job manager
+        log.debug("ApplicationClient is already registered to the " +
+          s"JobManager ${yarnJobManager.get}.")
+      } else {
+        if (deadline.forall(_.isOverdue())) {
+          // we failed to register in time. That means we should quit
+          log.error(s"Failed to register at the JobManager with address ${jobManagerAkkaURL}. " +
+            s"Shutting down...")
 
-      val listener = new LeaderGatewayListener(context.system, timeout);
-
-      leaderRetrievalService.start(listener)
-
-      val jobManagerGatewayFuture = listener.getActorGatewayFuture
-
-      jobManagerGatewayFuture.onComplete {
-        case Success(gateway) => self ! decorateMessage(JobManagerActorRef(gateway.actor()))
-        case Failure(t) =>
-          log.error("Registration at JobManager/ApplicationMaster failed. Shutting " +
-            "ApplicationClient down.", t)
-
-          // we could not connect to the job manager --> poison ourselves
           self ! decorateMessage(PoisonPill)
+        } else {
+          log.info(s"Trying to register at JobManager $jobManagerAkkaURL.")
+
+          val jobManager = context.actorSelection(jobManagerAkkaURL)
+
+          jobManager ! decorateMessage(
+            RegisterApplicationClient
+          )
+
+          val nextTimeout = (timeout * 2).min(ApplicationClient.MAX_REGISTRATION_TIMEOUT)
+
+          context.system.scheduler.scheduleOnce(
+            timeout,
+            self,
+            decorateMessage(
+              TriggerApplicationClientRegistration(
+                jobManagerAkkaURL,
+                nextTimeout,
+                deadline
+              )
+            )
+          )(context.dispatcher)
+        }
       }
 
-    case JobManagerActorRef(jm) =>
+    case AcknowledgeApplicationClientRegistration =>
+      val jm = sender
+
+      log.info(s"Successfully registered at the JobManager ${jm}")
+
       yarnJobManager = Some(jm)
-
-      // the message came from the FlinkYarnCluster. We send the message to the JobManager.
-      // it is important not to forward the message because the JobManager is storing the
-      // sender as the Application Client (this class).
-      (jm ? decorateMessage(RegisterClient(self)))(timeout).onFailure{
-        case t: Throwable =>
-          log.error("Could not register at the job manager.", t)
-          self ! decorateMessage(PoisonPill)
-      }
 
       // schedule a periodic status report from the JobManager
       // request the number of task managers and slots from the job manager
@@ -116,23 +138,37 @@ class ApplicationClient(flinkConfig: Configuration)
         context.system.scheduler.schedule(
           INITIAL_POLLING_DELAY,
           WAIT_FOR_YARN_INTERVAL,
-          jm,
-          PollYarnClusterStatus)
+          yarnJobManager.get,
+          decorateMessage(PollYarnClusterStatus))
       )
 
-    case LocalUnregisterClient =>
-      // unregister client from AM
-      yarnJobManager foreach {
-        _ ! decorateMessage(UnregisterClient)
-      }
-      // poison ourselves
-      self ! decorateMessage(PoisonPill)
+    case JobManagerLeaderAddress(jobManagerAkkaURL, newLeaderSessionID) =>
+      log.info(s"Received address of new leader $jobManagerAkkaURL with session ID" +
+        s" $newLeaderSessionID.")
+      disconnectFromJobManager()
 
-    case msg: StopYarnSession =>
+      leaderSessionID = Some(newLeaderSessionID)
+
+      val maxRegistrationDuration = ApplicationClient.MAX_REGISTRATION_DURATION
+
+      val deadline = if (maxRegistrationDuration.isFinite()) {
+        Some(maxRegistrationDuration.fromNow)
+      } else {
+        None
+      }
+
+      // trigger registration at new leader
+      self ! decorateMessage(
+        TriggerApplicationClientRegistration(
+          jobManagerAkkaURL,
+          ApplicationClient.INITIAL_REGISTRATION_TIMEOUT,
+          deadline))
+
+    case LocalStopYarnSession(status, diagnostics) =>
       log.info("Sending StopYarnSession request to ApplicationMaster.")
       stopMessageReceiver = Some(sender)
       yarnJobManager foreach {
-        _ forward decorateMessage(msg)
+        _ ! decorateMessage(StopYarnSession(status, diagnostics))
       }
 
     case JobManagerStopped =>
@@ -154,9 +190,9 @@ class ApplicationClient(flinkConfig: Configuration)
       sender() ! decorateMessage(latestClusterStatus)
 
     // Forward message to Application Master
-    case msg: StopAMAfterJob =>
+    case LocalStopAMAfterJob(jobID) =>
       yarnJobManager foreach {
-        _ forward decorateMessage(msg)
+        _ forward decorateMessage(StopAMAfterJob(jobID))
       }
 
     // -----------------  handle messages from the cluster -------------------
@@ -174,6 +210,26 @@ class ApplicationClient(flinkConfig: Configuration)
       }
   }
 
+  def disconnectFromJobManager(): Unit = {
+    log.info(s"Disconnect from JobManager ${yarnJobManager.getOrElse(ActorRef.noSender)}.")
+
+    yarnJobManager foreach {
+      _ ! decorateMessage(UnregisterClient)
+    }
+
+    pollingTimer foreach {
+      _.cancel()
+    }
+
+    yarnJobManager = None
+    leaderSessionID = None
+    pollingTimer = None
+  }
+
+  def isConnected: Boolean = {
+    yarnJobManager.isDefined
+  }
+
   /**
    * Handle unmatched messages with an exception.
    */
@@ -181,4 +237,22 @@ class ApplicationClient(flinkConfig: Configuration)
     // let the actor crash
     throw new RuntimeException("Received unknown message " + message)
   }
+
+  override def notifyLeaderAddress(leaderAddress: String, leaderSessionID: UUID): Unit = {
+    log.info(s"Notification about new leader address $leaderAddress with " +
+      s"session ID $leaderSessionID.")
+    self ! JobManagerLeaderAddress(leaderAddress, leaderSessionID)
+  }
+
+  override def handleError(exception: Exception): Unit = {
+    log.error("Error in leader retrieval service.", exception)
+
+    self ! decorateMessage(PoisonPill)
+  }
+}
+
+object ApplicationClient {
+  val INITIAL_REGISTRATION_TIMEOUT: FiniteDuration = 500 milliseconds
+  val MAX_REGISTRATION_DURATION: FiniteDuration = 5 minutes
+  val MAX_REGISTRATION_TIMEOUT = 5 minutes
 }

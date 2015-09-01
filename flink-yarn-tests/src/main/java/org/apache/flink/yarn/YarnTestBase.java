@@ -239,6 +239,19 @@ public abstract class YarnTestBase extends TestLogger {
 		return yarnSiteXML;
 	}
 
+	public static File writeFlinkConfigYaml(org.apache.flink.configuration.Configuration flinkConfiguration) throws IOException {
+		tmp.create();
+		File flinkConfigYaml = new File(tmp.newFolder().getAbsolutePath() + "/flink-conf.yaml");
+
+		FileWriter writer = new FileWriter(flinkConfigYaml);
+		flinkConfiguration.writeYaml(writer);
+
+		writer.flush();
+		writer.close();
+
+		return flinkConfigYaml;
+	}
+
 	/**
 	 * This method checks the written TaskManager and JobManager log files
 	 * for exceptions.
@@ -356,9 +369,12 @@ public abstract class YarnTestBase extends TestLogger {
 			}
 
 			Map<String, String> map = new HashMap<String, String>(System.getenv());
-			File flinkConfFilePath = findFile(flinkDistRootDir, new ContainsName(new String[] {"flink-conf.yaml"}));
-			Assert.assertNotNull(flinkConfFilePath);
-			map.put("FLINK_CONF_DIR", flinkConfFilePath.getParent());
+
+			File flinkConfDirPath = findFile(flinkDistRootDir, new ContainsName(new String[]{"flink-conf.yaml"}));
+			Assert.assertNotNull(flinkConfDirPath);
+
+			map.put("FLINK_CONF_DIR", flinkConfDirPath.getParent());
+
 			File yarnConfFile = writeYarnSiteConfigXML(conf);
 			map.put("YARN_CONF_DIR", yarnConfFile.getParentFile().getAbsolutePath());
 			map.put("IN_TESTS", "yes we are in tests"); // see FlinkYarnClient() for more infos

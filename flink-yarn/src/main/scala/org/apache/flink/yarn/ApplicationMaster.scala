@@ -34,12 +34,12 @@ import org.apache.flink.yarn.Messages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
 import org.apache.hadoop.yarn.conf.YarnConfiguration
-import scala.collection.JavaConversions._
 
 
 import scala.io.Source
 
 object ApplicationMaster {
+  import scala.collection.JavaConverters._
 
   val LOG = Logger(getClass)
 
@@ -57,11 +57,9 @@ object ApplicationMaster {
     EnvironmentInformation.checkJavaVersion()
     org.apache.flink.runtime.util.SignalHandler.register(LOG.logger)
     
-    var streamingMode = StreamingMode.BATCH_ONLY
-
     val ugi = UserGroupInformation.createRemoteUser(yarnClientUsername)
 
-    for(token <- UserGroupInformation.getCurrentUser.getTokens){
+    for(token <- UserGroupInformation.getCurrentUser.getTokens.asScala){
       ugi.addToken(token)
     }
 
@@ -85,9 +83,12 @@ object ApplicationMaster {
 
           val logDirs = env.get(Environment.LOG_DIRS.key())
 
-          if(hasStreamingMode(env)) {
+          val executionMode = if(hasStreamingMode(env)) {
             LOG.info("Starting ApplicationMaster/JobManager in streaming mode")
-            streamingMode = StreamingMode.STREAMING
+            StreamingMode.STREAMING
+          } else {
+            LOG.info("Starting ApplicationMaster/JobManager in batch only mode")
+            StreamingMode.BATCH_ONLY
           }
 
           // Note that we use the "ownHostname" given by YARN here, to make sure
@@ -108,7 +109,7 @@ object ApplicationMaster {
             archiver: ActorRef) = startJobManager(
               config,
               ownHostname,
-              streamingMode)
+              executionMode)
 
           actorSystem = system
           val address = AkkaUtils.getAddress(actorSystem)
@@ -141,7 +142,9 @@ object ApplicationMaster {
           val jobManagerWebPort = if (webserver == null) {
             LOG.warn("Web server is null. It will not be accessible through YARN")
             -1
-          } else webserver.getServerPort
+          } else {
+            webserver.getServerPort
+          }
 
           // generate configuration file for TaskManagers
           generateConfigurationFile(s"$currDir/$MODIFIED_CONF_FILE", currDir, ownHostname,
@@ -174,7 +177,6 @@ object ApplicationMaster {
         null
       }
     })
-
   }
 
   def generateConfigurationFile(
@@ -260,7 +262,7 @@ object ApplicationMaster {
     val archiver: ActorRef = jobManagerSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
 
     val jobManagerProps = Props(
-      new JobManager(
+      new YarnJobManager(
         configuration,
         executionContext,
         instanceManager,
@@ -271,8 +273,7 @@ object ApplicationMaster {
         delayBetweenRetries,
         timeout,
         streamingMode,
-        leaderElectionService)
-      with ApplicationMasterActor)
+        leaderElectionService))
 
     LOG.debug("Starting JobManager actor")
     val jobManager = JobManager.startActor(jobManagerProps, jobManagerSystem)
