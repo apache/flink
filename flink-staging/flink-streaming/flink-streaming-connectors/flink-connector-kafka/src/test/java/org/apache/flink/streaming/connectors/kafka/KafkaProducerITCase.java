@@ -32,6 +32,8 @@ import org.apache.flink.streaming.util.serialization.TypeInformationSerializatio
 
 import org.junit.Test;
 
+import java.io.Serializable;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -165,7 +167,7 @@ public class KafkaProducerITCase extends KafkaTestBase {
 	
 	// ------------------------------------------------------------------------
 
-	public static class CustomPartitioner implements KafkaPartitioner {
+	public static class CustomPartitioner extends KafkaPartitioner implements Serializable {
 
 		private final int expectedPartitions;
 

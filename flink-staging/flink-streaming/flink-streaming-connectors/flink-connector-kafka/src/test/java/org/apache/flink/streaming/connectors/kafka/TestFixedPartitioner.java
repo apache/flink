@@ -25,11 +25,13 @@ public class TestFixedPartitioner {
 
 
 	/**
+	 * <pre>
 	 *   		Flink Sinks:		Kafka Partitions
 	 * 			1	---------------->	1
 	 * 			2   --------------/
 	 * 			3   -------------/
 	 * 			4	------------/
+	 * </pre>
 	 */
 	@Test
 	public void testMoreFlinkThanBrokers() {
@@ -37,38 +39,42 @@ public class TestFixedPartitioner {
 
 		int[] partitions = new int[]{0};
 
-		part.prepare(0, 4, partitions);
+		part.open(0, 4, partitions);
 		Assert.assertEquals(0, part.partition("abc1", partitions.length));
 
-		part.prepare(1, 4, partitions);
+		part.open(1, 4, partitions);
 		Assert.assertEquals(0, part.partition("abc2", partitions.length));
 
-		part.prepare(2, 4, partitions);
+		part.open(2, 4, partitions);
 		Assert.assertEquals(0, part.partition("abc3", partitions.length));
 		Assert.assertEquals(0, part.partition("abc3", partitions.length)); // check if it is changing ;)
 
-		part.prepare(3, 4, partitions);
+		part.open(3, 4, partitions);
 		Assert.assertEquals(0, part.partition("abc4", partitions.length));
 	}
 
-	/*
+	/**
+	 *
+	 * <pre>
 	 * 		Flink Sinks:		Kafka Partitions
 	 * 			1	---------------->	1
 	 * 			2	---------------->	2
 	 * 									3
 	 * 									4
 	 * 									5
+	 *
+	 * </pre>
 	 */
 	@Test
 	public void testFewerPartitions() {
 		FixedPartitioner part = new FixedPartitioner();
 
 		int[] partitions = new int[]{0, 1, 2, 3, 4};
-		part.prepare(0, 2, partitions);
+		part.open(0, 2, partitions);
 		Assert.assertEquals(0, part.partition("abc1", partitions.length));
 		Assert.assertEquals(0, part.partition("abc1", partitions.length));
 
-		part.prepare(1, 2, partitions);
+		part.open(1, 2, partitions);
 		Assert.assertEquals(1, part.partition("abc1", partitions.length));
 		Assert.assertEquals(1, part.partition("abc1", partitions.length));
 	}
@@ -84,13 +90,13 @@ public class TestFixedPartitioner {
 		FixedPartitioner part = new FixedPartitioner();
 		int[] partitions = new int[]{0,1};
 
-		part.prepare(0, 3, partitions);
+		part.open(0, 3, partitions);
 		Assert.assertEquals(0, part.partition("abc1", partitions.length));
 
-		part.prepare(1, 3, partitions);
+		part.open(1, 3, partitions);
 		Assert.assertEquals(1, part.partition("abc1", partitions.length));
 
-		part.prepare(2, 3, partitions);
+		part.open(2, 3, partitions);
 		Assert.assertEquals(0, part.partition("abc1", partitions.length));
 
 	}

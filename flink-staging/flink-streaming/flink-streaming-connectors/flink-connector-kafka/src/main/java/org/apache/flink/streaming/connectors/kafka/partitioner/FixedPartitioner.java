@@ -17,6 +17,8 @@
  */
 package org.apache.flink.streaming.connectors.kafka.partitioner;
 
+import java.io.Serializable;
+
 /**
  * A partitioner ensuring that each internal Flink partition ends up in one Kafka partition.
  *
@@ -24,23 +26,24 @@ package org.apache.flink.streaming.connectors.kafka.partitioner;
  *
  * Cases:
  * 	# More Flink partitions than kafka partitions
- *
+ * <pre>
  * 		Flink Sinks:		Kafka Partitions
  * 			1	---------------->	1
  * 			2   --------------/
  * 			3   -------------/
  * 			4	------------/
- *
+ * </pre>
  * 	--> Some (or all) kafka partitions contain the output of more than one flink partition
  *
  *# Fewer Flink partitions than Kafka
- *
+ * <pre>
  * 		Flink Sinks:		Kafka Partitions
  * 			1	---------------->	1
  * 			2	---------------->	2
  * 									3
  * 									4
  * 									5
+ * </pre>
  *
  *  --> Not all Kafka partitions contain data
  *  To avoid such an unbalanced partitioning, use a round-robin kafka partitioner. (note that this will
@@ -48,13 +51,13 @@ package org.apache.flink.streaming.connectors.kafka.partitioner;
  *
  *
  */
-public class FixedPartitioner extends RichKafkaPartitioner {
+public class FixedPartitioner extends KafkaPartitioner implements Serializable {
 	private static final long serialVersionUID = 1627268846962918126L;
 
 	int targetPartition = -1;
 
 	@Override
-	public void prepare(int parallelInstanceId, int parallelInstances, int[] partitions) {
+	public void open(int parallelInstanceId, int parallelInstances, int[] partitions) {
 		int p = 0;
 		for(int i = 0; i < parallelInstances; i++) {
 			if(i == parallelInstanceId) {

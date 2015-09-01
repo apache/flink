@@ -69,8 +69,8 @@ public class DataGenerators {
 					}
 				});
 
-		stream.addSink(new FlinkKafkaProducer<Tuple2<Integer, Integer>>(topic,
-				new TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(resultType, env.getConfig()),
+		stream.addSink(new FlinkKafkaProducer<>(topic,
+				new TypeInformationSerializationSchema<>(resultType, env.getConfig()),
 				FlinkKafkaProducer.getPropertiesFromBrokerList(brokerConnection),
 				new Tuple2Partitioner(numPartitions)
 		));

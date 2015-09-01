@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
-import org.apache.flink.streaming.connectors.kafka.partitioner.RichKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.NetUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -181,10 +180,7 @@ public class FlinkKafkaProducer<IN> extends RichSinkFunction<IN>  {
 	public void open(Configuration configuration) {
 		producer = new org.apache.kafka.clients.producer.KafkaProducer<>(this.producerConfig);
 
-		if(partitioner instanceof RichKafkaPartitioner) {
-			RichKafkaPartitioner richPartitioner = (RichKafkaPartitioner) partitioner;
-			richPartitioner.prepare(getRuntimeContext().getIndexOfThisSubtask(), getRuntimeContext().getNumberOfParallelSubtasks(), partitions);
-		}
+		partitioner.open(getRuntimeContext().getIndexOfThisSubtask(), getRuntimeContext().getNumberOfParallelSubtasks(), partitions);
 
 		LOG.info("Starting FlinkKafkaProducer ({}/{}) to produce into topic {}", getRuntimeContext().getIndexOfThisSubtask(), getRuntimeContext().getNumberOfParallelSubtasks(), topicId);
 	}
