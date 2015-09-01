@@ -21,19 +21,27 @@ package org.apache.flink.runtime.util;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
+import org.apache.flink.runtime.jobmanager.ZooKeeperSubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
+import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.runtime.state.StateHandleProviderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Utility class to work with Apache Zookeeper for Flink runtime.
- */
-public final class ZooKeeperUtils {
+import static com.google.common.base.Preconditions.checkNotNull;
+
+public class ZooKeeperUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtils.class);
 
@@ -47,8 +55,10 @@ public final class ZooKeeperUtils {
 	public static CuratorFramework startCuratorFramework(Configuration configuration) {
 		String zkQuorum = configuration.getString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, "");
 
-		if(zkQuorum == null || zkQuorum.equals("")) {
-			throw new RuntimeException("No valid ZooKeeper quorum has been specified.");
+		if (zkQuorum == null || zkQuorum.equals("")) {
+			throw new RuntimeException("No valid ZooKeeper quorum has been specified. " +
+					"You can specify the quorum via the configuration key '" +
+					ConfigConstants.ZOOKEEPER_QUORUM_KEY + "'.");
 		}
 
 		int sessionTimeout = configuration.getInteger(
@@ -59,7 +69,7 @@ public final class ZooKeeperUtils {
 				ConfigConstants.ZOOKEEPER_CONNECTION_TIMEOUT,
 				ConfigConstants.DEFAULT_ZOOKEEPER_CONNECTION_TIMEOUT);
 
-		int retryWait = configuration.getInteger (
+		int retryWait = configuration.getInteger(
 				ConfigConstants.ZOOKEEPER_RETRY_WAIT,
 				ConfigConstants.DEFAULT_ZOOKEEPER_RETRY_WAIT);
 
@@ -88,14 +98,10 @@ public final class ZooKeeperUtils {
 	}
 
 	/**
-	 * Returns whether high availability is enabled (<=> ZooKeeper quorum configured).
+	 * Returns whether {@link RecoveryMode#ZOOKEEPER} is configured.
 	 */
-	public static boolean isZooKeeperHighAvailabilityEnabled(Configuration flinkConf) {
-		String recoveryMode = flinkConf.getString(
-				ConfigConstants.RECOVERY_MODE,
-				ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
-
-		return recoveryMode.equals(RecoveryMode.ZOOKEEPER.name());
+	public static boolean isZooKeeperRecoveryMode(Configuration flinkConf) {
+		return RecoveryMode.fromConfig(flinkConf).equals(RecoveryMode.ZOOKEEPER);
 	}
 
 	/**
@@ -125,7 +131,7 @@ public final class ZooKeeperUtils {
 	 * @throws Exception
 	 */
 	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
-			Configuration configuration) throws Exception{
+			Configuration configuration) throws Exception {
 		CuratorFramework client = startCuratorFramework(configuration);
 		String leaderPath = configuration.getString(ConfigConstants.ZOOKEEPER_LEADER_PATH,
 				ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH);
@@ -134,7 +140,8 @@ public final class ZooKeeperUtils {
 	}
 
 	/**
-	 * Creates a {@link ZooKeeperLeaderElectionService} instance.
+	 * Creates a {@link ZooKeeperLeaderElectionService} instance and a new {@link
+	 * CuratorFramework} client.
 	 *
 	 * @param configuration {@link Configuration} object containing the configuration values
 	 * @return {@link ZooKeeperLeaderElectionService} instance.
@@ -142,7 +149,23 @@ public final class ZooKeeperUtils {
 	 */
 	public static ZooKeeperLeaderElectionService createLeaderElectionService(
 			Configuration configuration) throws Exception {
+
 		CuratorFramework client = startCuratorFramework(configuration);
+
+		return createLeaderElectionService(client, configuration);
+	}
+
+	/**
+	 * Creates a {@link ZooKeeperLeaderElectionService} instance.
+	 *
+	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
+	 * @param configuration {@link Configuration} object containing the configuration values
+	 * @return {@link ZooKeeperLeaderElectionService} instance.
+	 * @throws Exception
+	 */
+	public static ZooKeeperLeaderElectionService createLeaderElectionService(
+			CuratorFramework client,
+			Configuration configuration) throws Exception {
 
 		String latchPath = configuration.getString(ConfigConstants.ZOOKEEPER_LATCH_PATH,
 				ConfigConstants.DEFAULT_ZOOKEEPER_LATCH_PATH);
@@ -150,6 +173,89 @@ public final class ZooKeeperUtils {
 				ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH);
 
 		return new ZooKeeperLeaderElectionService(client, latchPath, leaderPath);
+	}
+
+	/**
+	 * Creates a {@link ZooKeeperSubmittedJobGraphStore} instance.
+	 *
+	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
+	 * @param configuration {@link Configuration} object
+	 * @return {@link ZooKeeperSubmittedJobGraphStore} instance
+	 */
+	public static ZooKeeperSubmittedJobGraphStore createSubmittedJobGraphs(
+			CuratorFramework client,
+			Configuration configuration) throws Exception {
+
+		checkNotNull(configuration, "Configuration");
+
+		StateHandleProvider<SubmittedJobGraph> stateHandleProvider =
+				StateHandleProviderFactory.createRecoveryFileStateHandleProvider(configuration);
+
+		// ZooKeeper submitted jobs root dir
+		String zooKeeperSubmittedJobsPath = configuration.getString(
+				ConfigConstants.ZOOKEEPER_JOBGRAPHS_PATH,
+				ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
+
+		return new ZooKeeperSubmittedJobGraphStore(
+				client, zooKeeperSubmittedJobsPath, stateHandleProvider);
+	}
+
+	/**
+	 * Creates a {@link ZooKeeperCompletedCheckpointStore} instance.
+	 *
+	 * @param client                         The {@link CuratorFramework} ZooKeeper client to use
+	 * @param configuration                  {@link Configuration} object
+	 * @param jobId                          ID of job to create the instance for
+	 * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain
+	 * @param userClassLoader                User code class loader
+	 * @return {@link ZooKeeperCompletedCheckpointStore} instance
+	 */
+	public static CompletedCheckpointStore createCompletedCheckpoints(
+			CuratorFramework client,
+			Configuration configuration,
+			JobID jobId,
+			int maxNumberOfCheckpointsToRetain,
+			ClassLoader userClassLoader) throws Exception {
+
+		checkNotNull(configuration, "Configuration");
+
+		StateHandleProvider<CompletedCheckpoint> stateHandleProvider =
+				StateHandleProviderFactory.createRecoveryFileStateHandleProvider(configuration);
+
+		String completedCheckpointsPath = configuration.getString(
+				ConfigConstants.ZOOKEEPER_CHECKPOINTS_PATH,
+				ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH);
+
+		completedCheckpointsPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
+
+		return new ZooKeeperCompletedCheckpointStore(
+				maxNumberOfCheckpointsToRetain,
+				userClassLoader,
+				client,
+				completedCheckpointsPath,
+				stateHandleProvider);
+	}
+
+	/**
+	 * Creates a {@link ZooKeeperCheckpointIDCounter} instance.
+	 *
+	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
+	 * @param configuration {@link Configuration} object
+	 * @param jobId         ID of job to create the instance for
+	 * @return {@link ZooKeeperCheckpointIDCounter} instance
+	 */
+	public static ZooKeeperCheckpointIDCounter createCheckpointIDCounter(
+			CuratorFramework client,
+			Configuration configuration,
+			JobID jobId) throws Exception {
+
+		String checkpointIdCounterPath = configuration.getString(
+				ConfigConstants.ZOOKEEPER_CHECKPOINT_COUNTER_PATH,
+				ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
+
+		checkpointIdCounterPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
+
+		return new ZooKeeperCheckpointIDCounter(client, checkpointIdCounterPath);
 	}
 
 	/**

@@ -419,6 +419,12 @@ public final class ConfigConstants {
 	 * Directory for saving streaming checkpoints
 	 */
 	public static final String STATE_BACKEND_FS_DIR = "state.backend.fs.checkpointdir";
+
+	/**
+	 * File system state backend base path for recoverable state handles. Recovery state is written
+	 * to this path and the file state handles are persisted for recovery.
+	 */
+	public static final String STATE_BACKEND_FS_RECOVERY_PATH = "state.backend.fs.dir.recovery";
 	
 	// ----------------------------- Miscellaneous ----------------------------
 	
@@ -445,6 +451,15 @@ public final class ConfigConstants {
 	public static final String ZOOKEEPER_LATCH_PATH = "ha.zookeeper.dir.latch";
 
 	public static final String ZOOKEEPER_LEADER_PATH = "ha.zookeeper.dir.leader";
+
+	/** ZooKeeper root path (ZNode) for job graphs. */
+	public static final String ZOOKEEPER_JOBGRAPHS_PATH = "ha.zookeeper.dir.jobgraphs";
+
+	/** ZooKeeper root path (ZNode) for completed checkpoints. */
+	public static final String ZOOKEEPER_CHECKPOINTS_PATH = "ha.zookeeper.dir.checkpoints";
+
+	/** ZooKeeper root path (ZNode) for checkpoint counters. */
+	public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "ha.zookeeper.dir.checkpoint-counter";
 
 	public static final String ZOOKEEPER_SESSION_TIMEOUT = "ha.zookeeper.client.session-timeout";
 
@@ -711,6 +726,12 @@ public final class ConfigConstants {
 	public static final String DEFAULT_ZOOKEEPER_LATCH_PATH = "/leaderlatch";
 
 	public static final String DEFAULT_ZOOKEEPER_LEADER_PATH = "/leader";
+
+	public static final String DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH = "/jobgraphs";
+
+	public static final String DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH = "/checkpoints";
+
+	public static final String DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "/checkpoint-counter";
 
 	public static final int DEFAULT_ZOOKEEPER_SESSION_TIMEOUT = 60000;
 

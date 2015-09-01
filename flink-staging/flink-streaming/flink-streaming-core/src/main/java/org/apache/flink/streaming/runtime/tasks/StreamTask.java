@@ -39,6 +39,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.state.FileStateHandle;
 import org.apache.flink.runtime.state.LocalStateHandle;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
@@ -456,10 +457,6 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 			LOG.info("Using user defined state backend for streaming checkpoitns.");
 			return provider;
 		}
-	}
-
-	private enum StateBackend {
-		JOBMANAGER, FILESYSTEM
 	}
 
 	/**

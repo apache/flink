@@ -19,29 +19,28 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * A successful checkpoint describes a checkpoint after all required tasks acknowledged it (with their state)
  * and that is considered completed.
  */
-public class SuccessfulCheckpoint {
-	
-	private static final Logger LOG = LoggerFactory.getLogger(SuccessfulCheckpoint.class);
-	
+public class CompletedCheckpoint implements Serializable {
+
+	private static final long serialVersionUID = -8360248179615702014L;
+
 	private final JobID job;
 	
 	private final long checkpointID;
 	
 	private final long timestamp;
 	
-	private final List<StateForTask> states;
+	private final ArrayList<StateForTask> states;
 
-
-	public SuccessfulCheckpoint(JobID job, long checkpointID, long timestamp, List<StateForTask> states) {
+	public CompletedCheckpoint(JobID job, long checkpointID, long timestamp, ArrayList<StateForTask> states) {
 		this.job = job;
 		this.checkpointID = checkpointID;
 		this.timestamp = timestamp;

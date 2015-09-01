@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.executiongraph
 
+import java.util.concurrent.TimeUnit
+
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
@@ -32,6 +35,7 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.FiniteDuration
 
 @RunWith(classOf[JUnitRunner])
 class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
@@ -126,8 +130,23 @@ class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
         for (vertex <- eg.getAllExecutionVertices.asScala) {
           vertex.getCurrentExecutionAttempt().cancelingComplete()
         }
-        
+
+        val timeout = new FiniteDuration(2, TimeUnit.MINUTES)
+
+        // Wait for async restart
+        var deadline = timeout.fromNow
+        while (deadline.hasTimeLeft() && eg.getState != JobStatus.RUNNING) {
+          Thread.sleep(100)
+        }
+
         eg.getState should equal(JobStatus.RUNNING)
+
+        // Wait for deploying after async restart
+        deadline = timeout.fromNow
+        while (deadline.hasTimeLeft() && eg.getAllExecutionVertices.asScala.exists(
+          _.getCurrentExecutionAttempt.getState != ExecutionState.DEPLOYING)) {
+          Thread.sleep(100)
+        }
         
         for (vertex <- eg.getAllExecutionVertices.asScala) {
           vertex.getCurrentExecutionAttempt().markFinished()
