@@ -25,19 +25,25 @@ import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
+import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.instance.InstanceManager;
+import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.util.LeaderElectionUtils;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -151,8 +157,19 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 	}
 
 	private Props createJobManagerProps(Configuration configuration) throws Exception {
-		LeaderElectionService leaderElectionService = LeaderElectionUtils.
-				createLeaderElectionService(configuration);
+		LeaderElectionService leaderElectionService;
+		if (RecoveryMode.fromConfig(configuration) == RecoveryMode.STANDALONE) {
+			leaderElectionService = new StandaloneLeaderElectionService();
+		}
+		else {
+			CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
+			leaderElectionService = ZooKeeperUtils.createLeaderElectionService(client,
+					configuration);
+		}
+
+		// We don't need recovery in this test
+		SubmittedJobGraphStore submittedJobGraphStore = new StandaloneSubmittedJobGraphStore();
+		CheckpointRecoveryFactory checkpointRecoveryFactory = new StandaloneCheckpointRecoveryFactory();
 
 		return Props.create(
 				TestingJobManager.class,
@@ -166,7 +183,9 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 				1L,
 				AkkaUtils.getDefaultTimeout(),
 				StreamingMode.BATCH_ONLY,
-				leaderElectionService
+				leaderElectionService,
+				submittedJobGraphStore,
+				checkpointRecoveryFactory
 		);
 	}
 }

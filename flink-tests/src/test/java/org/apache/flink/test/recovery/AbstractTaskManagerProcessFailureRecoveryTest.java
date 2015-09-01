@@ -50,9 +50,7 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.StringWriter;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -75,10 +73,11 @@ import static org.junit.Assert.fail;
  * guaranteed to remain empty (all tasks are already deployed) and kills one of
  * the original task managers. The recovery should restart the tasks on the new TaskManager.
  */
-public abstract class AbstractProcessFailureRecoveryTest extends TestLogger {
+public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends TestLogger {
 
 	protected static final String READY_MARKER_FILE_PREFIX = "ready_";
 	protected static final String PROCEED_MARKER_FILE = "proceed";
+	protected static final String FINISH_MARKER_FILE_PREFIX = "finish_";
 
 	protected static final int PARALLELISM = 4;
 
@@ -111,7 +110,7 @@ public abstract class AbstractProcessFailureRecoveryTest extends TestLogger {
 			CommonTestUtils.printLog4jDebugConfig(tempLogFile);
 
 			// coordination between the processes goes through a directory
-			coordinateTempDir = createTempDirectory();
+			coordinateTempDir = CommonTestUtils.createTempDirectory();
 
 			// find a free port to start the JobManager
 			final int jobManagerPort = NetUtils.getAvailablePort();
@@ -146,9 +145,9 @@ public abstract class AbstractProcessFailureRecoveryTest extends TestLogger {
 
 			// start the first two TaskManager processes
 			taskManagerProcess1 = new ProcessBuilder(command).start();
-			new PipeForwarder(taskManagerProcess1.getErrorStream(), processOutput1);
+			new CommonTestUtils.PipeForwarder(taskManagerProcess1.getErrorStream(), processOutput1);
 			taskManagerProcess2 = new ProcessBuilder(command).start();
-			new PipeForwarder(taskManagerProcess2.getErrorStream(), processOutput2);
+			new CommonTestUtils.PipeForwarder(taskManagerProcess2.getErrorStream(), processOutput2);
 
 			// we wait for the JobManager to have the two TaskManagers available
 			// since some of the CI environments are very hostile, we need to give this a lot of time (2 minutes)
@@ -166,7 +165,7 @@ public abstract class AbstractProcessFailureRecoveryTest extends TestLogger {
 				@Override
 				public void run() {
 					try {
-						testProgram(jobManagerPort, coordinateDirClosure);
+						testTaskManagerFailure(jobManagerPort, coordinateDirClosure);
 					}
 					catch (Throwable t) {
 						t.printStackTrace();
@@ -180,7 +179,7 @@ public abstract class AbstractProcessFailureRecoveryTest extends TestLogger {
 
 			// wait until all marker files are in place, indicating that all tasks have started
 			// max 20 seconds
-			if (!waitForMarkerFiles(coordinateTempDir, PARALLELISM, 120000)) {
+			if (!waitForMarkerFiles(coordinateTempDir, READY_MARKER_FILE_PREFIX, PARALLELISM, 120000)) {
 				// check if the program failed for some reason
 				if (errorRef.get() != null) {
 					Throwable error = errorRef.get();
@@ -195,7 +194,7 @@ public abstract class AbstractProcessFailureRecoveryTest extends TestLogger {
 
 			// start the third TaskManager
 			taskManagerProcess3 = new ProcessBuilder(command).start();
-			new PipeForwarder(taskManagerProcess3.getErrorStream(), processOutput3);
+			new CommonTestUtils.PipeForwarder(taskManagerProcess3.getErrorStream(), processOutput3);
 
 			// we wait for the third TaskManager to register
 			// since some of the CI environments are very hostile, we need to give this a lot of time (2 minutes)
@@ -269,7 +268,7 @@ public abstract class AbstractProcessFailureRecoveryTest extends TestLogger {
 	 * @param coordinateDir TaskManager failure will be triggered only after processes
 	 *                             have successfully created file under this directory
 	 */
-	public abstract void testProgram(int jobManagerPort, File coordinateDir) throws Exception;
+	public abstract void testTaskManagerFailure(int jobManagerPort, File coordinateDir) throws Exception;
 
 
 	protected void waitUntilNumTaskManagersAreRegistered(ActorRef jobManager, int numExpected, long maxDelay)
@@ -316,20 +315,6 @@ public abstract class AbstractProcessFailureRecoveryTest extends TestLogger {
 		System.out.println("-----------------------------------------");
 	}
 
-	protected static File createTempDirectory() throws IOException {
-		File tempDir = new File(System.getProperty("java.io.tmpdir"));
-
-		for (int i = 0; i < 10; i++) {
-			File dir = new File(tempDir, UUID.randomUUID().toString());
-			if (!dir.exists() && dir.mkdirs()) {
-				return dir;
-			}
-			System.err.println("Could not use temporary directory " + dir.getAbsolutePath());
-		}
-
-		throw new IOException("Could not create temporary file directory");
-	}
-
 	protected static void touchFile(File file) throws IOException {
 		if (!file.exists()) {
 			new FileOutputStream(file).close();
@@ -339,7 +324,7 @@ public abstract class AbstractProcessFailureRecoveryTest extends TestLogger {
 		}
 	}
 
-	protected static boolean waitForMarkerFiles(File basedir, int num, long timeout) {
+	protected static boolean waitForMarkerFiles(File basedir, String prefix, int num, long timeout) {
 		long now = System.currentTimeMillis();
 		final long deadline = now + timeout;
 
@@ -348,7 +333,7 @@ public abstract class AbstractProcessFailureRecoveryTest extends TestLogger {
 			boolean allFound = true;
 
 			for (int i = 0; i < num; i++) {
-				File nextToCheck = new File(basedir, READY_MARKER_FILE_PREFIX + i);
+				File nextToCheck = new File(basedir, prefix + i);
 				if (!nextToCheck.exists()) {
 					allFound = false;
 					break;
@@ -405,38 +390,6 @@ public abstract class AbstractProcessFailureRecoveryTest extends TestLogger {
 			catch (Throwable t) {
 				LOG.error("Failed to start TaskManager process", t);
 				System.exit(1);
-			}
-		}
-	}
-
-	/**
-	 * Utility class to read the output of a process stream and forward it into a StringWriter.
-	 */
-	protected static class PipeForwarder extends Thread {
-
-		private final StringWriter target;
-		private final InputStream source;
-
-		public PipeForwarder(InputStream source, StringWriter target) {
-			super("Pipe Forwarder");
-			setDaemon(true);
-
-			this.source = source;
-			this.target = target;
-
-			start();
-		}
-
-		@Override
-		public void run() {
-			try {
-				int next;
-				while ((next = source.read()) != -1) {
-					target.write(next);
-				}
-			}
-			catch (IOException e) {
-				// terminate
 			}
 		}
 	}

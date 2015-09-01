@@ -20,22 +20,20 @@ package org.apache.flink.test.util
 
 import java.util.concurrent.TimeoutException
 
-import akka.pattern.ask
-import akka.actor.{Props, ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.Patterns._
+import akka.pattern.ask
 import org.apache.curator.test.TestingCluster
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobmanager.{RecoveryMode, JobManager}
+import org.apache.flink.runtime.jobmanager.{JobManager, RecoveryMode}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages
-.NotifyWhenRegisteredAtJobManager
-import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingTaskManager,
-TestingJobManager, TestingMemoryArchivist}
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager
+import org.apache.flink.runtime.testingUtils.{TestingJobManager, TestingMemoryArchivist, TestingTaskManager, TestingUtils}
 
-import scala.concurrent.{Future, Await}
+import scala.concurrent.{Await, Future}
 
 /**
  * A forkable mini cluster is a special case of the mini cluster, used for parallel test execution
@@ -47,20 +45,20 @@ import scala.concurrent.{Future, Await}
  *                          same [[ActorSystem]], otherwise false.
  */
 class ForkableFlinkMiniCluster(
-    userConfiguration: Configuration,
-    singleActorSystem: Boolean,
-    streamingMode: StreamingMode)
+                                userConfiguration: Configuration,
+                                singleActorSystem: Boolean,
+                                streamingMode: StreamingMode)
   extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
 
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean) 
-       = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
+  def this(userConfiguration: Configuration, singleActorSystem: Boolean)
+  = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
 
   def this(userConfiguration: Configuration) = this(userConfiguration, true)
-  
+
   // --------------------------------------------------------------------------
 
   var zookeeperCluster: Option[TestingCluster] = None
-  
+
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
     val forNumberString = System.getProperty("forkNumber")
 
@@ -264,10 +262,10 @@ object ForkableFlinkMiniCluster {
   import org.apache.flink.runtime.testingUtils.TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT
 
   def startCluster(
-      numSlots: Int,
-      numTaskManagers: Int,
-      timeout: String = DEFAULT_AKKA_ASK_TIMEOUT)
-    : ForkableFlinkMiniCluster = {
+                    numSlots: Int,
+                    numTaskManagers: Int,
+                    timeout: String = DEFAULT_AKKA_ASK_TIMEOUT)
+  : ForkableFlinkMiniCluster = {
 
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)

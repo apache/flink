@@ -35,6 +35,19 @@ public enum RecoveryMode {
 	ZOOKEEPER;
 
 	/**
+	 * Return the configured {@link RecoveryMode}.
+	 *
+	 * @param config The config to parse
+	 * @return Configured recovery mode or {@link ConfigConstants#DEFAULT_RECOVERY_MODE} if not
+	 * configured.
+	 */
+	public static RecoveryMode fromConfig(Configuration config) {
+		return RecoveryMode.valueOf(config.getString(
+				ConfigConstants.RECOVERY_MODE,
+				ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase());
+	}
+
+	/**
 	 * Returns true if the defined recovery mode supports high availability.
 	 *
 	 * @param configuration Configuration which contains the recovery mode
