@@ -29,7 +29,7 @@ import _root_.scala.reflect.ClassTag
  * or with a unique identifier.
  */
 
-class DataSetUtils[T](val self: DataSet[T]) extends AnyVal {
+class DataSetUtils[T](val self: DataSet[T]) {
 
   /**
    * Method that takes a set of subtask index, total number of elements mappings

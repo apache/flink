@@ -20,6 +20,7 @@ package org.apache.flink.test.util;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -69,7 +70,14 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 		long expectedSize = 100L;
 		DataSet<Long> numbers = env.generateSequence(1L, expectedSize);
 
-		Set<Tuple2<Long, Long>> result = Sets.newHashSet(DataSetUtils.zipWithUniqueId(numbers).collect());
+		DataSet<Long> ids = DataSetUtils.zipWithUniqueId(numbers).map(new MapFunction<Tuple2<Long,Long>, Long>() {
+			@Override
+			public Long map(Tuple2<Long, Long> value) throws Exception {
+				return value.f0;
+			}
+		});
+
+		Set<Long> result = Sets.newHashSet(ids.collect());
 
 		Assert.assertEquals(expectedSize, result.size());
 	}
