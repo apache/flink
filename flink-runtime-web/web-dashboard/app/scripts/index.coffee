@@ -106,6 +106,15 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
         controller: 'JobPlanNodeListController' 
         templateUrl: "partials/jobs/job.plan.node-list.html"
 
+  .state "single-job.plan.node.accumulators",
+    url: "/accumulators"
+    views:
+      'node-details':
+        controller: 'JobPlanNodeListAccumulatorsController' 
+        templateUrl: "partials/jobs/job.plan.node-list.html"
+        # controller: 'JobPlanNodePropertiesController'
+        # templateUrl: "partials/jobs/job.plan.node.properties.html"
+
   .state "single-job.plan.node.properties",
     url: "/properties"
     views:
@@ -113,38 +122,7 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
         controller: 'JobPlanNodePropertiesController'
         templateUrl: "partials/jobs/job.plan.node.properties.html"
 
-  # .state "single-job.plan.node.accumulators",
-  #   url: "/accumulators"
-  #   views:
-  #     'node-contents':
-  #       controller: 'JobPlanNodeAccumulatorsController'
-  #       templateUrl: "partials/jobs/job.plan.node.accumulators.html"
 
-  # .state "single-job.plan.node",
-  #   url: "/vertex/{nodeid}"
-  #   abstract: true
-  #   views:
-  #     node:
-  #       templateUrl: "partials/jobs/job.plan.node.html"
-  #       controller: 'JobPlanNodeController'
-
-  # .state "single-job.plan.node.subtasks",
-  #   url: ""
-  #   views:
-  #     nodeTab:
-  #       templateUrl: "partials/jobs/job.plan.node.subtasks.html"
-
-  # .state "single-job.plan.node.properties",
-  #   url: "/properties"
-  #   views:
-  #     nodeTab:
-  #       templateUrl: "partials/jobs/job.plan.node.properties.html"
-
-  # .state "single-job.plan.node.accumulators",
-  #   url: "/properties"
-  #   views:
-  #     nodeTab:
-  #       templateUrl: "partials/jobs/job.plan.node.accumulators.html"
 
   .state "single-job.timeline",
     url: "/timeline"

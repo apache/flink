@@ -171,11 +171,27 @@ angular.module('flinkApp')
 
       $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasktimes"
       .success (data) ->
+        # TODO: change to subtasktimes
         vertex.subtasks = data.subtasks
 
         deferred.resolve(vertex)
 
     deferred.promise
+
+  @getSubtasks = (vertexid) ->
+    deferred = $q.defer()
+
+    $q.all([deferreds.job.promise]).then (data) =>
+      vertex = @seekVertex(vertexid)
+
+      $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid
+      .success (data) ->
+        vertex.st = data.subtasks
+
+        deferred.resolve(vertex)
+
+    deferred.promise
+
 
   @loadExceptions = ->
     deferred = $q.defer()

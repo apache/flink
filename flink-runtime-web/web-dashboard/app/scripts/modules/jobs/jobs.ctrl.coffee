@@ -85,6 +85,7 @@ angular.module('flinkApp')
   console.log 'JobPlanNodeTabsController'
 
   $scope.nodeid = $stateParams.nodeid
+  $scope.stateList = JobsService.stateList()
 
   JobsService.getNode($scope.nodeid).then (data) ->
     $scope.node = data
@@ -92,11 +93,25 @@ angular.module('flinkApp')
 
 # --------------------------------------
 
-.controller 'JobPlanNodeListController', ($scope, $stateParams, JobsService) ->
+.controller 'JobPlanNodeListController', ($scope, $stateParams, JobsService, $state) ->
   console.log 'JobPlanNodeListController'
 
-  # $scope.nodeid = $stateParams.nodeid
-  $scope.stateList = JobsService.stateList()
+  $scope.gotoAccumulators = (nodeid) ->
+    $state.go('^.accumulators', { nodeid: nodeid })
+
+  JobsService.getSubtasks($stateParams.nodeid).then (data) ->
+    $scope.vertex = data
+
+# --------------------------------------
+
+.controller 'JobPlanNodeListAccumulatorsController', ($scope, $stateParams, JobsService, $state) ->
+  console.log 'JobPlanNodeListAccumulatorsController'
+
+  $scope.gotoGeneric = (nodeid) ->
+    $state.go('^.generic', { nodeid: nodeid })
+
+  # JobsService.getSubtasks($stateParams.nodeid).then (data) ->
+  #   $scope.vertex = data
 
 # --------------------------------------
 

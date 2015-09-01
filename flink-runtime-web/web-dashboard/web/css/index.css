@@ -135,6 +135,9 @@
 .table.table-clickable tr {
   cursor: pointer;
 }
+.table.table-inner {
+  background-color: transparent;
+}
 .panel.panel-dashboard .huge {
   font-size: 28px;
 }
@@ -324,6 +327,34 @@ pre.exception {
   padding: 0;
   margin: 0;
 }
+.nav-tabs.tabs-vertical {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-bottom: none;
+  z-index: 100;
+}
+.nav-tabs.tabs-vertical li {
+  float: none;
+  margin-bottom: 0;
+  margin-right: -1px;
+}
+.nav-tabs.tabs-vertical li > a {
+  margin-right: 0;
+  -webkit-border-radius: 0;
+  border-radius: 0;
+  border-bottom: none;
+  border-left: 2px solid transparent;
+}
+.nav-tabs.tabs-vertical li > a:hover,
+.nav-tabs.tabs-vertical li > a:focus {
+  border-bottom: none;
+  border-left: 2px solid #000;
+}
+.nav-tabs.tabs-vertical li.active > a {
+  border-bottom: none;
+  border-left: 2px solid #000;
+}
 .canvas-wrapper {
   border: 1px solid #ddd;
   position: relative;
@@ -349,11 +380,27 @@ pre.exception {
   -o-text-overflow: ellipsis;
   text-overflow: ellipsis;
 }
-.table.table-activable tr {
-  border-left: 2px solid transparent;
+.table.table-body-hover > tbody {
+  border-top: none;
 }
-.table.table-activable tr.active {
-  border-left: 2px solid #000;
+.table.table-body-hover > tbody:hover td:not(.tab-column),
+.table.table-body-hover > tbody.active td:not(.tab-column) {
+  background-color: #f0f0f0;
+}
+.table.table-body-hover > tbody:hover td.tab-column li.active,
+.table.table-body-hover > tbody.active td.tab-column li.active {
+  background-color: #f0f0f0;
+}
+.table.table-activable th.tab-column,
+.table.table-activable td.tab-column {
+  border-top: none;
+  width: 47px;
+}
+.table.table-activable td.tab-column {
+  border-right: 1px solid #ddd;
+}
+.table.table-activable td {
+  position: relative;
 }
 .label-group .label {
   display: inline-block;

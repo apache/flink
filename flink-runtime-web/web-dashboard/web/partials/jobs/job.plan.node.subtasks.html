@@ -16,8 +16,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+
 -->
-<table class="table table-hover table-clickable">
+<table class="table table-hover table-clickable table-activable table-inner">
   <thead>
     <tr>
       <th>Start Time</th>
@@ -27,26 +28,24 @@ limitations under the License.
       <th>Records read</th>
       <th>Bytes written</th>
       <th>Records written</th>
-      <th>Tasks</th>
+      <th>Attempt</th>
+      <th>Host</th>
       <th>Status</th>
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td>{{ vertex['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</td>
-      <td>{{ vertex['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</td>
-      <td>{{ vertex.duration }} ms</td>
-      <td>{{ vertex.metrics['read-bytes'] }}</td>
-      <td>{{ vertex.metrics['read-records'] }}</td>
-      <td>{{ vertex.metrics['write-bytes'] }}</td>
-      <td>{{ vertex.metrics['write-records'] }}</td>
-      <td>
-        <div class="label-group">
-          <bs-label status="{{status}}" ng-repeat="(index, status) in stateList">{{vertex.tasks[status]}}</bs-label>
-        </div>
-      </td>
+    <tr ng-repeat="subtask in vertex.st">
+      <td><span ng-if="subtask['start-time'] &gt; -1">{{ subtask['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
+      <td><span ng-if="subtask['end-time'] &gt; -1">{{ subtask['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
+      <td><span ng-if="subtask.duration &gt; -1">{{ subtask.duration }} ms</span></td>
+      <td><span ng-if="subtask.metrics['read-bytes'] &gt; -1">{{ subtask.metrics['read-bytes'] }}</span></td>
+      <td><span ng-if="subtask.metrics['read-records'] &gt; -1">{{ subtask.metrics['read-records'] }}</span></td>
+      <td><span ng-if="subtask.metrics['write-bytes'] &gt; -1">{{ subtask.metrics['write-bytes'] }}</span></td>
+      <td><span ng-if="subtask.metrics['write-records'] &gt; -1">{{ subtask.metrics['write-records'] }}</span></td>
+      <td>{{ subtask.attempt + 1 }}</td>
+      <td>{{ subtask.host }}</td>
       <td> 
-        <bs-label status="{{vertex.status}}">{{vertex.status}}</bs-label>
+        <bs-label status="{{subtask.status}}">{{subtask.status}}</bs-label>
       </td>
     </tr>
   </tbody>
