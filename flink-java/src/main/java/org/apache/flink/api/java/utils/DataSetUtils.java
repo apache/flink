@@ -141,7 +141,7 @@ public class DataSetUtils {
 			@Override
 			public void open(Configuration parameters) throws Exception {
 				super.open(parameters);
-				shifter = getBitSize(getRuntimeContext().getNumberOfParallelSubtasks());
+				shifter = getBitSize(getRuntimeContext().getNumberOfParallelSubtasks() - 1);
 				taskId = getRuntimeContext().getIndexOfThisSubtask();
 			}
 
