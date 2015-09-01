@@ -235,10 +235,10 @@ public final class ConfigConstants {
 	public static final String YARN_MAX_FAILED_CONTAINERS = "yarn.maximum-failed-containers";
 
 	/**
-	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers.
-	 * This value is usually limited by YARN.
+	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers in high
+	 * availability mode. This value is usually limited by YARN.
 	 *
-	 * By default, its 1.
+	 * By default, it's 1 in the standalone case and 2 in the high availability case.
 	 */
 	public static final String YARN_APPLICATION_ATTEMPTS = "yarn.application-attempts";
 

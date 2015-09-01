@@ -16,41 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.testingUtils
+package org.apache.flink.yarn
 
-import akka.actor.{Terminated, ActorRef}
-import org.apache.flink.runtime.execution.ExecutionState
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
-import org.apache.flink.runtime.messages.JobManagerMessages.{ResponseLeaderSessionID,
-RequestLeaderSessionID}
-import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
-import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered,
-AcknowledgeRegistration}
-import org.apache.flink.runtime.messages.TaskMessages.{UpdateTaskExecutionState, TaskInFinalState}
-import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManager}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
-import org.apache.flink.runtime.testingUtils.TestingMessages.{CheckIfJobRemoved, Alive,
-DisableDisconnect}
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages._
+import org.apache.flink.runtime.taskmanager.TaskManagerConfiguration
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerLike
 
-import scala.concurrent.duration._
-import scala.language.postfixOps
-
-/** Subclass of the [[TaskManager]] to support testing messages
+/** [[YarnTaskManager]] implementation which mixes in the [[TestingTaskManagerLike]] mixin.
   *
-  * @param config
-  * @param connectionInfo
-  * @param memoryManager
-  * @param ioManager
-  * @param network
-  * @param numberOfSlots
+  * This actor class is used for testing purposes on Yarn. Here we use an explicit class definition
+  * instead of an anonymous class with the respective mixin to obtain a more readable logger name.
+  *
+  * @param config Configuration object for the actor
+  * @param connectionInfo Connection information of this actor
+  * @param memoryManager MemoryManager which is responsibel for Flink's managed memory allocation
+  * @param ioManager IOManager responsible for I/O
+  * @param network NetworkEnvironment for this actor
+  * @param numberOfSlots Number of slots for this TaskManager
+  * @param leaderRetrievalService [[LeaderRetrievalService]] to retrieve the current leading
+  *                              JobManager
   */
-class TestingTaskManager(
+class TestingYarnTaskManager(
     config: TaskManagerConfiguration,
     connectionInfo: InstanceConnectionInfo,
     memoryManager: MemoryManager,
@@ -58,7 +48,7 @@ class TestingTaskManager(
     network: NetworkEnvironment,
     numberOfSlots: Int,
     leaderRetrievalService: LeaderRetrievalService)
-  extends TaskManager(
+  extends YarnTaskManager(
     config,
     connectionInfo,
     memoryManager,

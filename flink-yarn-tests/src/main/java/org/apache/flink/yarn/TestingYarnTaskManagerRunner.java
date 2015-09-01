@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager
+package org.apache.flink.yarn;
 
-import org.apache.flink.configuration.Configuration
+import java.io.IOException;
 
-import scala.concurrent.duration.FiniteDuration
-
-case class TaskManagerConfiguration(
-    tmpDirPaths: Array[String],
-    cleanupInterval: Long,
-    timeout: FiniteDuration,
-    maxRegistrationDuration: Option[FiniteDuration],
-    numberOfSlots: Int,
-    configuration: Configuration)
+/**
+ * Yarn TaskManager runner which starts a {@link TestingYarnTaskManager}.
+ */
+public class TestingYarnTaskManagerRunner {
+	public static void main(String[] args) throws IOException {
+		YarnTaskManagerRunner.runYarnTaskManager(args, TestingYarnTaskManager.class);
+	}
+}

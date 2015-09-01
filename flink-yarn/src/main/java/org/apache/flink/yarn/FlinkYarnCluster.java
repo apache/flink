@@ -22,13 +22,17 @@ import akka.actor.ActorSystem;
 
 import static akka.pattern.Patterns.ask;
 
+import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.net.ConnectionUtils;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.hadoop.conf.Configuration;
@@ -147,19 +151,32 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		actorSystem = AkkaUtils.createActorSystem(flinkConfig,
 				new Some(new Tuple2<String, Integer>(ownHostname.getCanonicalHostName(), 0)));
 
+		// Create the leader election service
+		flinkConfig.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, this.jobManagerAddress.getHostName());
+		flinkConfig.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, this.jobManagerAddress.getPort());
+
+		LeaderRetrievalService leaderRetrievalService;
+
+		try {
+			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
+		} catch (Exception e) {
+			throw new IOException("Could not create the leader retrieval service.", e);
+		}
+
 		// start application client
 		LOG.info("Start application client.");
 
-		applicationClient = actorSystem.actorOf(Props.create(ApplicationClient.class, flinkConfig), "applicationClient");
-
-		// instruct ApplicationClient to start a periodical status polling
-		applicationClient.tell(new Messages.LocalRegisterClient(this.jobManagerAddress), applicationClient);
-
+		applicationClient = actorSystem.actorOf(
+			Props.create(
+				ApplicationClient.class,
+				flinkConfig,
+				leaderRetrievalService),
+			"applicationClient");
 
 		actorRunner = new Thread(new Runnable() {
 			@Override
 			public void run() {
-				// blocks until ApplicationMaster has been stopped
+				// blocks until ApplicationClient has been stopped
 				actorSystem.awaitTermination();
 
 				// get final application report
@@ -206,7 +223,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 			LOG.warn("Error while removing the shutdown hook. The YARN session might be killed unintentionally");
 		}
 		// tell the actor to shut down.
-		applicationClient.tell(Messages.getLocalUnregisterClient(), applicationClient);
+		applicationClient.tell(PoisonPill.getInstance(), applicationClient);
 
 		try {
 			actorRunner.join(1000); // wait for 1 second
@@ -233,7 +250,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 	@Override
 	public void stopAfterJob(JobID jobID) {
 		Preconditions.checkNotNull("The job id must not be null", jobID);
-		Future<Object> messageReceived = ask(applicationClient, new Messages.StopAMAfterJob(jobID), akkaTimeout);
+		Future<Object> messageReceived = ask(applicationClient, new YarnMessages.LocalStopAMAfterJob(jobID), akkaTimeout);
 		try {
 			Await.result(messageReceived, akkaDuration);
 		} catch (Exception e) {
@@ -282,7 +299,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		if(hasBeenStopped()) {
 			throw new RuntimeException("The FlinkYarnCluster has already been stopped");
 		}
-		Future<Object> clusterStatusOption = ask(applicationClient, Messages.LocalGetYarnClusterStatus$.MODULE$, akkaTimeout);
+		Future<Object> clusterStatusOption = ask(applicationClient, YarnMessages.getLocalGetyarnClusterStatus(), akkaTimeout);
 		Object clusterStatus;
 		try {
 			clusterStatus = Await.result(clusterStatusOption, akkaDuration);
@@ -359,7 +376,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 			Object result = null;
 			try {
 				Future<Object> response = Patterns.ask(applicationClient,
-						Messages.getLocalGetYarnMessage(), new Timeout(akkaDuration));
+						YarnMessages.getLocalGetYarnMessage(), new Timeout(akkaDuration));
 
 				result = Await.result(response, akkaDuration);
 			} catch(Exception ioe) {
@@ -378,8 +395,8 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 				} else {
 					Object obj = messageOption.get();
 
-					if(obj instanceof Messages.YarnMessage) {
-						Messages.YarnMessage msg = (Messages.YarnMessage) obj;
+					if(obj instanceof YarnMessages.YarnMessage) {
+						YarnMessages.YarnMessage msg = (YarnMessages.YarnMessage) obj;
 						ret.add("[" + msg.date() + "] " + msg.message());
 					} else {
 						LOG.warn("LocalGetYarnMessage returned unexpected type: " + messageOption);
@@ -425,7 +442,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 						finalStatus = FinalApplicationStatus.SUCCEEDED;
 					}
 					Future<Object> response = Patterns.ask(applicationClient,
-							new Messages.StopYarnSession(finalStatus,
+							new YarnMessages.LocalStopYarnSession(finalStatus,
 									"Flink YARN Client requested shutdown"),
 							new Timeout(akkaDuration));
 

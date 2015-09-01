@@ -100,36 +100,14 @@ class ForkableFlinkMiniCluster(
       config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort + index)
     }
 
-    val (executionContext,
-      instanceManager,
-      scheduler,
-      libraryCacheManager,
-      _,
-      executionRetries,
-      delayBetweenRetries,
-      timeout,
-      archiveCount,
-      leaderElectionService) = JobManager.createJobManagerComponents(config)
-      val testArchiveProps = Props(
-        new TestingMemoryArchivist(archiveCount))
-
-    val archiver = actorSystem.actorOf(testArchiveProps, archiveName)
-
-    val jobManagerProps = Props(
-      new TestingJobManager(
-        configuration,
-        executionContext,
-        instanceManager,
-        scheduler,
-        libraryCacheManager,
-        archiver,
-        executionRetries,
-        delayBetweenRetries,
-        timeout,
-        streamingMode,
-        leaderElectionService))
-
-    val jobManager = actorSystem.actorOf(jobManagerProps, jobManagerName)
+    val (jobManager, _) = JobManager.startJobManagerActors(
+      config,
+      actorSystem,
+      Some(jobManagerName),
+      Some(archiveName),
+      streamingMode,
+      classOf[TestingJobManager],
+      classOf[TestingMemoryArchivist])
 
     jobManager
   }

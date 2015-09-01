@@ -103,17 +103,16 @@ class TestingCluster(
       instanceManager,
       scheduler,
       libraryCacheManager,
-      _,
       executionRetries,
       delayBetweenRetries,
       timeout,
       archiveCount,
-      leaderElectionService) = JobManager.createJobManagerComponents(config)
+      leaderElectionService) = JobManager.createJobManagerComponents(
+        config,
+        createLeaderElectionService())
 
     val testArchiveProps = Props(new TestingMemoryArchivist(archiveCount))
     val archive = actorSystem.actorOf(testArchiveProps, archiveName)
-
-    val resolvedLeaderElectionService = createLeaderElectionService(leaderElectionService)
 
     val jobManagerProps = Props(
       new TestingJobManager(
@@ -127,7 +126,7 @@ class TestingCluster(
         delayBetweenRetries,
         timeout,
         streamingMode,
-        resolvedLeaderElectionService))
+        leaderElectionService))
 
     val dispatcherJobManagerProps = if (synchronousDispatcher) {
       // disable asynchronous futures (e.g. accumulator update in Heartbeat)
@@ -155,8 +154,8 @@ class TestingCluster(
   }
 
 
-  def createLeaderElectionService(electionService: LeaderElectionService): LeaderElectionService = {
-    electionService
+  def createLeaderElectionService(): Option[LeaderElectionService] = {
+    None
   }
 
   @throws(classOf[TimeoutException])

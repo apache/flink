@@ -49,8 +49,8 @@ trait LeaderSessionMessageFilter extends FlinkActor {
       msg: LeaderSessionMessage)
     : Unit = {
     log.warn(s"Discard message $msg because the expected leader session ID " +
-      s"$expectedLeaderSessionID did not equal the received leader session ID" +
-      s"${msg.leaderSessionID}.")
+      s"$expectedLeaderSessionID did not equal the received leader session ID " +
+      s"${Option(msg.leaderSessionID)}.")
   }
 
   /** Wrap [[RequiresLeaderSessionID]] messages in a [[LeaderSessionMessage]]

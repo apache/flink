@@ -24,7 +24,7 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.taskmanager.{NetworkEnvironmentConfiguration, TaskManagerConfiguration, TaskManager}
-import org.apache.flink.yarn.Messages.StopYarnSession
+import org.apache.flink.yarn.YarnMessages.StopYarnSession
 
 /** An extension of the TaskManager that listens for additional YARN related
   * messages.

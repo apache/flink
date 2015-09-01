@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn.appMaster;
+package org.apache.flink.yarn;
 
 import java.io.IOException;
 import java.security.PrivilegedAction;
@@ -28,7 +28,6 @@ import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.yarn.YarnTaskManager;
-import org.apache.flink.yarn.FlinkYarnClient;
 
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
@@ -46,8 +45,7 @@ public class YarnTaskManagerRunner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(YarnTaskManagerRunner.class);
 
-
-	public static void main(final String[] args) throws IOException {
+	public static <T extends YarnTaskManager> void runYarnTaskManager(String[] args, final Class<T> taskManager) throws IOException {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN TaskManager", args);
 		EnvironmentInformation.checkJavaVersion();
 		org.apache.flink.runtime.util.SignalHandler.register(LOG);
@@ -79,11 +77,11 @@ public class YarnTaskManagerRunner {
 		}
 		else {
 			LOG.info("Overriding YARN's temporary file directories with those " +
-					"specified in the Flink config: " + flinkTempDirs);
+				"specified in the Flink config: " + flinkTempDirs);
 		}
 
 		LOG.info("YARN daemon runs as '" + UserGroupInformation.getCurrentUser().getShortUserName() +
-				"' setting user to execute Flink TaskManager to '" + yarnClientUsername + "'");
+			"' setting user to execute Flink TaskManager to '" + yarnClientUsername + "'");
 
 		// tell akka to die in case of an error
 		configuration.setBoolean(ConfigConstants.AKKA_JVM_EXIT_ON_FATAL_ERROR, true);
@@ -97,7 +95,7 @@ public class YarnTaskManagerRunner {
 			public Object run() {
 				try {
 					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration,
-																		mode, YarnTaskManager.class);
+						mode, taskManager);
 				}
 				catch (Throwable t) {
 					LOG.error("Error while starting the TaskManager", t);
@@ -106,5 +104,10 @@ public class YarnTaskManagerRunner {
 				return null;
 			}
 		});
+	}
+
+
+	public static void main(final String[] args) throws IOException {
+		runYarnTaskManager(args, YarnTaskManager.class);
 	}
 }

@@ -16,16 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager
+package org.apache.flink.yarn;
 
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
 
-import scala.concurrent.duration.FiniteDuration
+/**
+ * Yarn application master which starts the {@link TestingYarnJobManager} and the
+ * {@link TestingMemoryArchivist}.
+ */
+public class TestingApplicationMaster extends ApplicationMasterBase {
+	@Override
+	public Class<? extends JobManager> getJobManagerClass() {
+		return TestingYarnJobManager.class;
+	}
 
-case class TaskManagerConfiguration(
-    tmpDirPaths: Array[String],
-    cleanupInterval: Long,
-    timeout: FiniteDuration,
-    maxRegistrationDuration: Option[FiniteDuration],
-    numberOfSlots: Int,
-    configuration: Configuration)
+	@Override
+	public Class<? extends MemoryArchivist> getArchivistClass() {
+		return TestingMemoryArchivist.class;
+	}
+
+	public static void main(String[] args) {
+		TestingApplicationMaster applicationMaster = new TestingApplicationMaster();
+
+		applicationMaster.run(args);
+	}
+}

@@ -162,7 +162,9 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       _system,
       None,
       None,
-      StreamingMode.BATCH_ONLY)
+      StreamingMode.BATCH_ONLY,
+      classOf[JobManager],
+      classOf[MemoryArchivist])
     new AkkaActorGateway(jm, null)
   }
 }

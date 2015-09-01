@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.jobmanager;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+
 /**
  * Recovery mode for Flink's cluster execution. Currently supported modes are:
  *
@@ -29,5 +32,28 @@ package org.apache.flink.runtime.jobmanager;
  */
 public enum RecoveryMode {
 	STANDALONE,
-	ZOOKEEPER
+	ZOOKEEPER;
+
+	/**
+	 * Returns true if the defined recovery mode supports high availability.
+	 *
+	 * @param configuration Configuration which contains the recovery mode
+	 * @return true if high availability is supported by the recovery mode, otherwise false
+	 */
+	public static boolean isHighAvailabilityModeActivated(Configuration configuration) {
+		String recoveryMode = configuration.getString(
+			ConfigConstants.RECOVERY_MODE,
+			ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
+
+		RecoveryMode mode = RecoveryMode.valueOf(recoveryMode);
+
+		switch(mode) {
+			case STANDALONE:
+				return false;
+			case ZOOKEEPER:
+				return true;
+			default:
+				return false;
+		}
+	}
 }

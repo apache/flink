@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.NetUtils;
 
@@ -90,7 +91,9 @@ public class TaskManagerProcessReapingTest {
 			JobManager.startJobManagerActors(
 				new Configuration(),
 				jmActorSystem,
-				StreamingMode.BATCH_ONLY);
+				StreamingMode.BATCH_ONLY,
+				JobManager.class,
+				MemoryArchivist.class);
 
 			final int taskManagerPort = NetUtils.getAvailablePort();
 

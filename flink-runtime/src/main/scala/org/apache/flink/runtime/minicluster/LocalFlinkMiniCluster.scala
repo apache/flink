@@ -25,7 +25,7 @@ import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.io.network.netty.NettyConfig
-import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
 
@@ -84,7 +84,9 @@ class LocalFlinkMiniCluster(
       system,
       Some(jobManagerName),
       Some(archiveName),
-      streamingMode)
+      streamingMode,
+      classOf[JobManager],
+      classOf[MemoryArchivist])
 
     jobManager
   }
