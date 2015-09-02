@@ -19,19 +19,15 @@
 package org.apache.flink.api.java.table.test;
 
 import java.io.Serializable;
+import java.util.List;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.table.Table;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -40,22 +36,6 @@ public class PojoGroupingITCase extends MultipleProgramsTestBase {
 
 	public PojoGroupingITCase(TestExecutionMode mode) {
 		super(mode);
-	}
-
-	private String resultPath;
-	private String expected = "";
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception {
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception {
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test
@@ -79,11 +59,9 @@ public class PojoGroupingITCase extends MultipleProgramsTestBase {
 		DataSet<MyPojo> result = myPojos.groupBy("groupMe")
 				.sortGroup("value", Order.DESCENDING)
 				.first(1);
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		List<MyPojo> resultList = result.collect();
 
-		env.execute();
-
-		expected = "A,24.0,Y";
+		compareResultAsText(resultList, "A,24.0,Y");
 	}
 
 	public static class MyPojo implements Serializable {
