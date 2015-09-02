@@ -60,7 +60,13 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	// --------------------------------------------------------------------------------------------
 
 	public void startCluster() throws Exception{
-		this.executor = startCluster(numTaskManagers, taskManagerNumSlots, StreamingMode.BATCH_ONLY, false, true);
+		this.executor = startCluster(
+			numTaskManagers,
+			taskManagerNumSlots,
+			StreamingMode.BATCH_ONLY,
+			false,
+			false,
+			true);
 	}
 
 	public void stopCluster() throws Exception {

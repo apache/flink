@@ -58,10 +58,12 @@ public class MiscellaneousIssuesITCase {
 	public static void startCluster() {
 		try {
 			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 3);
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
 			cluster = new ForkableFlinkMiniCluster(config, false);
+
+			cluster.start();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -85,7 +87,7 @@ public class MiscellaneousIssuesITCase {
 	public void testNullValues() {
 		try {
 			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
+					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(1);
 			env.getConfig().disableSysoutLogging();
@@ -119,7 +121,7 @@ public class MiscellaneousIssuesITCase {
 	public void testDisjointDataflows() {
 		try {
 			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
+					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(5);
 			env.getConfig().disableSysoutLogging();
@@ -142,7 +144,7 @@ public class MiscellaneousIssuesITCase {
 		
 		try {
 			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
+					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(6);
 			env.getConfig().disableSysoutLogging();

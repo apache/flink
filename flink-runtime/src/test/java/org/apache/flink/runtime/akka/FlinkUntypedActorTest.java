@@ -30,7 +30,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import scala.Option;
 
 import java.util.UUID;
 
@@ -51,10 +50,14 @@ public class FlinkUntypedActorTest {
 		JavaTestKit.shutdownActorSystem(actorSystem);
 	}
 
+	/**
+	 * Tests that LeaderSessionMessage messages with a wrong leader session ID are filtered
+	 * out.
+	 */
 	@Test
 	public void testLeaderSessionMessageFilteringOfFlinkUntypedActor() {
-		final Option<UUID> leaderSessionID = Option.apply(UUID.randomUUID());
-		final Option<UUID> oldSessionID = Option.apply(UUID.randomUUID());
+		final UUID leaderSessionID = UUID.randomUUID();
+		final UUID oldSessionID = UUID.randomUUID();
 
 		TestActorRef<PlainFlinkUntypedActor> actor = null;
 
@@ -76,9 +79,13 @@ public class FlinkUntypedActorTest {
 		}
 	}
 
+	/**
+	 * Tests that an exception is thrown, when the FlinkUntypedActore receives a message which
+	 * extends {@link RequiresLeaderSessionID} and is not wrapped in a LeaderSessionMessage.
+	 */
 	@Test
 	public void testThrowingExceptionWhenReceivingNonWrappedRequiresLeaderSessionIDMessage() {
-		final Option<UUID> leaderSessionID = Option.apply(UUID.randomUUID());
+		final UUID leaderSessionID = UUID.randomUUID();
 
 		TestActorRef<PlainFlinkUntypedActor> actor = null;
 
@@ -95,7 +102,8 @@ public class FlinkUntypedActorTest {
 						"message was sent without being wrapped in LeaderSessionMessage.");
 			} catch (Exception e) {
 				assertEquals("Received a message PlainRequiresLeaderSessionID " +
-						"without a leader session ID, even though it requires to have one.",
+						"without a leader session ID, even though the message requires a " +
+						"leader session ID.",
 						e.getMessage());
 			}
 
@@ -110,14 +118,14 @@ public class FlinkUntypedActorTest {
 		}
 	}
 
-
 	static class PlainFlinkUntypedActor extends FlinkUntypedActor {
 
-		private Option<UUID> leaderSessionID;
+		private UUID leaderSessionID;
 
 		private int messageCounter;
 
-		public PlainFlinkUntypedActor(Option<UUID> leaderSessionID) {
+		public PlainFlinkUntypedActor(UUID leaderSessionID) {
+
 			this.leaderSessionID = leaderSessionID;
 			this.messageCounter = 0;
 		}
@@ -128,7 +136,7 @@ public class FlinkUntypedActorTest {
 		}
 
 		@Override
-		protected Option<UUID> getLeaderSessionID() {
+		protected UUID getLeaderSessionID() {
 			return leaderSessionID;
 		}
 

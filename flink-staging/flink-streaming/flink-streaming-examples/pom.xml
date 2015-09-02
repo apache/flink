@@ -80,6 +80,7 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+
 	</dependencies>
 
 	<build>

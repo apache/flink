@@ -30,7 +30,7 @@ import java.io.Serializable;
 import org.apache.flink.runtime.state.FileStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
-import org.apache.flink.runtime.util.SerializedValue;
+import org.apache.flink.util.SerializedValue;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -114,7 +114,7 @@ public class FileStateHandleTest {
 		assertFalse(deserializedHandle.stateFetched());
 
 		// Fetch the and compare with original
-		assertEquals(state, deserializedHandle.getState());
+		assertEquals(state, deserializedHandle.getState(this.getClass().getClassLoader()));
 
 		// Test whether discard removes the checkpoint file properly
 		assertTrue(hdfs.listFiles(hdPath, true).hasNext());

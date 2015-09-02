@@ -39,7 +39,7 @@ public class StormOutputFieldsDeclarerTest extends AbstractTest {
 				.intValue());
 
 		final String sid = "streamId";
-		numberOfAttributes = 0 + this.r.nextInt(26);
+		numberOfAttributes = this.r.nextInt(26);
 		declarer.declareStream(sid, createSchema(numberOfAttributes));
 		Assert.assertEquals(2, declarer.outputSchemas.size());
 		Assert.assertEquals(numberOfAttributes, declarer.outputSchemas.get(sid).intValue());

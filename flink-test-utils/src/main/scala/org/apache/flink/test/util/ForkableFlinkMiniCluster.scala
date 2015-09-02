@@ -18,18 +18,25 @@
 
 package org.apache.flink.test.util
 
+import java.util.concurrent.TimeoutException
+
+import akka.pattern.ask
 import akka.actor.{Props, ActorRef, ActorSystem}
 import akka.pattern.Patterns._
+import org.apache.curator.test.TestingCluster
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
-import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.jobmanager.{RecoveryMode, JobManager}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingJobManager,
-TestingMemoryArchivist, TestingTaskManager}
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages
+.NotifyWhenRegisteredAtJobManager
+import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingTaskManager,
+TestingJobManager, TestingMemoryArchivist}
 import org.apache.flink.runtime.webmonitor.WebMonitor
 
-import scala.concurrent.Await
+import scala.concurrent.{Future, Promise, Await}
 
 /**
  * A forkable mini cluster is a special case of the mini cluster, used for parallel test execution
@@ -45,7 +52,6 @@ class ForkableFlinkMiniCluster(
     singleActorSystem: Boolean,
     streamingMode: StreamingMode)
   extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
-  
 
   def this(userConfiguration: Configuration, singleActorSystem: Boolean) 
        = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
@@ -53,6 +59,8 @@ class ForkableFlinkMiniCluster(
   def this(userConfiguration: Configuration) = this(userConfiguration, true)
   
   // --------------------------------------------------------------------------
+
+  var zookeeperCluster: Option[TestingCluster] = None
   
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
     val forNumberString = System.getProperty("forkNumber")
@@ -79,7 +87,19 @@ class ForkableFlinkMiniCluster(
     super.generateConfiguration(config)
   }
 
-  override def startJobManager(actorSystem: ActorSystem): (ActorRef, Option[WebMonitor]) = {
+  override def startJobManager(index: Int, actorSystem: ActorSystem): ActorRef = {
+    val config = configuration.clone()
+
+    val jobManagerName = getJobManagerName(index)
+    val archiveName = getArchiveName(index)
+
+    val jobManagerPort = config.getInteger(
+      ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+
+    if(jobManagerPort > 0) {
+      config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort + index)
+    }
 
     val (executionContext,
       instanceManager,
@@ -89,13 +109,13 @@ class ForkableFlinkMiniCluster(
       executionRetries,
       delayBetweenRetries,
       timeout,
-      archiveCount) = JobManager.createJobManagerComponents(configuration)
+      archiveCount,
+      leaderElectionService) = JobManager.createJobManagerComponents(config)
+      val testArchiveProps = Props(
+        new TestingMemoryArchivist(archiveCount))
 
-    val testArchiveProps = Props(
-      new TestingMemoryArchivist(archiveCount))
+    val archiver = actorSystem.actorOf(testArchiveProps, archiveName)
 
-    val archiver = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
-    
     val jobManagerProps = Props(
       new TestingJobManager(
         configuration,
@@ -107,23 +127,24 @@ class ForkableFlinkMiniCluster(
         executionRetries,
         delayBetweenRetries,
         timeout,
-        streamingMode))
+        streamingMode,
+        leaderElectionService))
 
-    val jobManager = actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
+    val jobManager = actorSystem.actorOf(jobManagerProps, jobManagerName)
 
-    val webMonitorOption = startWebServer(configuration, jobManager, archiver)
-
-    (jobManager, webMonitorOption)
+    jobManager
   }
 
   override def startTaskManager(index: Int, system: ActorSystem): ActorRef = {
     val config = configuration.clone()
 
-    val rpcPort = config.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
-                                    ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
+    val rpcPort = config.getInteger(
+      ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
 
-    val dataPort = config.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
-                                     ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT)
+    val dataPort = config.getInteger(
+      ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT)
 
     if (rpcPort > 0) {
       config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, rpcPort + index)
@@ -134,47 +155,130 @@ class ForkableFlinkMiniCluster(
 
     val localExecution = numTaskManagers == 1
 
-    val jobManagerAkkaUrl: Option[String] = if (singleActorSystem) {
-      Some(jobManagerActor.path.toString)
+    TaskManager.startTaskManagerComponentsAndActor(
+      config,
+      system,
+      hostname,
+      Some(TaskManager.TASK_MANAGER_NAME + index),
+      Some(createLeaderRetrievalService),
+      localExecution,
+      streamingMode,
+      classOf[TestingTaskManager])
+  }
+
+  def restartLeadingJobManager(): Unit = {
+    this.synchronized {
+      (jobManagerActorSystems, jobManagerActors) match {
+        case (Some(jmActorSystems), Some(jmActors)) =>
+          val leader = getLeaderGateway(AkkaUtils.getTimeout(configuration))
+          val index = getLeaderIndex(AkkaUtils.getTimeout(configuration))
+
+          clearLeader()
+
+          val stopped = gracefulStop(leader.actor(), TestingUtils.TESTING_DURATION)
+          Await.result(stopped, TestingUtils.TESTING_DURATION)
+
+          if(!singleActorSystem) {
+            jmActorSystems(index).shutdown()
+            jmActorSystems(index).awaitTermination()
+          }
+
+          val newJobManagerActorSystem = if(!singleActorSystem) {
+            startJobManagerActorSystem(index)
+          } else {
+            jmActorSystems(0)
+          }
+
+          val newJobManagerActor = startJobManager(index, newJobManagerActorSystem)
+
+          jobManagerActors = Some(jmActors.patch(index, Seq(newJobManagerActor), 1))
+          jobManagerActorSystems = Some(jmActorSystems.patch(
+            index,
+            Seq(newJobManagerActorSystem),
+            1))
+
+          val lrs = createLeaderRetrievalService
+
+          leaderRetrievalService = Some(lrs)
+          lrs.start(this)
+
+        case _ => throw new Exception("The JobManager of the ForkableFlinkMiniCluster have not " +
+          "been started properly.")
+      }
+    }
+  }
+
+  def restartTaskManager(index: Int): Unit = {
+    (taskManagerActorSystems, taskManagerActors) match {
+      case (Some(tmActorSystems), Some(tmActors)) =>
+        val stopped = gracefulStop(tmActors(index), TestingUtils.TESTING_DURATION)
+        Await.result(stopped, TestingUtils.TESTING_DURATION)
+
+        if(!singleActorSystem) {
+          tmActorSystems(index).shutdown()
+          tmActorSystems(index).awaitTermination()
+        }
+
+        val taskManagerActorSystem  = if(!singleActorSystem) {
+          startTaskManagerActorSystem(index)
+        } else {
+          tmActorSystems(0)
+        }
+
+        val taskManagerActor = startTaskManager(index, taskManagerActorSystem)
+
+        taskManagerActors = Some(tmActors.patch(index, Seq(taskManagerActor), 1))
+        taskManagerActorSystems = Some(tmActorSystems.patch(index, Seq(taskManagerActorSystem), 1))
+
+      case _ => throw new Exception("The TaskManager of the ForkableFlinkMiniCluster have not " +
+        "been started properly.")
+    }
+  }
+
+  override def start(): Unit = {
+    val zookeeperURL = configuration.getString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, "")
+
+    zookeeperCluster = if(recoveryMode == RecoveryMode.ZOOKEEPER && zookeeperURL.equals("")) {
+      LOG.info("Starting ZooKeeper cluster.")
+
+      val testingCluster = new TestingCluster(numJobManagers)
+
+      configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingCluster.getConnectString)
+
+      testingCluster.start()
+
+      Some(testingCluster)
     } else {
       None
     }
 
-    TaskManager.startTaskManagerComponentsAndActor(config, system, hostname,
-        Some(TaskManager.TASK_MANAGER_NAME + index), jobManagerAkkaUrl, localExecution,
-      streamingMode, classOf[TestingTaskManager])
+    super.start()
   }
 
-  def restartJobManager(): Unit = {
-    val stopped = gracefulStop(jobManagerActor, TestingUtils.TESTING_DURATION)
-    Await.result(stopped, TestingUtils.TESTING_DURATION)
+  override def stop(): Unit = {
+    super.stop()
 
-    webMonitor foreach {
-      _.stop()
+    zookeeperCluster.foreach{
+      LOG.info("Stopping ZooKeeper cluster.")
+      _.close()
+    }
+  }
+
+  def waitForTaskManagersToBeRegisteredAtJobManager(jobManager: ActorRef): Unit = {
+    val futures = taskManagerActors.map {
+      _.map {
+        tm => (tm ? NotifyWhenRegisteredAtJobManager(jobManager))(timeout)
+      }
+    }.getOrElse(Seq())
+
+    try {
+      Await.ready(Future.sequence(futures), timeout)
+    } catch {
+      case t: TimeoutException =>
+        throw new Exception("Timeout while waiting for TaskManagers to register at " +
+          s"${jobManager.path}")
     }
 
-    jobManagerActorSystem.shutdown()
-    jobManagerActorSystem.awaitTermination()
-
-    jobManagerActorSystem = startJobManagerActorSystem()
-    val (newJobManagerActor, newWebMonitor) = startJobManager(jobManagerActorSystem)
-
-    jobManagerActor = newJobManagerActor
-    webMonitor = newWebMonitor
-  }
-
-  def restartTaskManager(index: Int): Unit = {
-    val stopped = gracefulStop(taskManagerActors(index), TestingUtils.TESTING_DURATION)
-    Await.result(stopped, TestingUtils.TESTING_DURATION)
-
-    taskManagerActorSystems(index).shutdown()
-    taskManagerActorSystems(index).awaitTermination()
-
-    val taskManagerActorSystem  = startTaskManagerActorSystem(index)
-    val taskManagerActor = startTaskManager(index, taskManagerActorSystem)
-
-    taskManagerActors = taskManagerActors.patch(index, Seq(taskManagerActor), 1)
-    taskManagerActorSystems = taskManagerActorSystems.patch(index, Seq(taskManagerActorSystem), 1)
   }
 }
 
@@ -182,14 +286,21 @@ object ForkableFlinkMiniCluster {
 
   import org.apache.flink.runtime.testingUtils.TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT
 
-  def startCluster(numSlots: Int,
-                   numTaskManagers: Int,
-                   timeout: String = DEFAULT_AKKA_ASK_TIMEOUT): ForkableFlinkMiniCluster = {
+  def startCluster(
+      numSlots: Int,
+      numTaskManagers: Int,
+      timeout: String = DEFAULT_AKKA_ASK_TIMEOUT)
+    : ForkableFlinkMiniCluster = {
 
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
-    config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers)
+    config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers)
     config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, timeout)
-    new ForkableFlinkMiniCluster(config)
+
+    val cluster = new ForkableFlinkMiniCluster(config)
+
+    cluster.start()
+
+    cluster
   }
 }

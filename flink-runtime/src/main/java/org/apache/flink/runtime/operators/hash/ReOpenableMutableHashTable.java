@@ -101,7 +101,7 @@ public class ReOpenableMutableHashTable<BT, PT> extends MutableHashTable<BT, PT>
 						final int bucketArrayPos = posHashCode >> this.bucketsPerSegmentBits;
 						final int bucketInSegmentPos = (posHashCode & this.bucketsPerSegmentMask) << NUM_INTRA_BUCKET_BITS;
 						final MemorySegment bucket = this.buckets[bucketArrayPos];
-						insertBucketEntry(part, bucket, bucketInSegmentPos, hashCode, pointer);
+						insertBucketEntry(part, bucket, bucketInSegmentPos, hashCode, pointer, true);
 					}
 				} else {
 					this.writeBehindBuffersAvailable--; // we are not in-memory, thus the probe side buffer will grab one wbb.

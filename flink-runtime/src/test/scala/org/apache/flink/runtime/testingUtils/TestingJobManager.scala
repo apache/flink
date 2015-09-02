@@ -19,10 +19,13 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{Cancellable, Terminated, ActorRef}
-import akka.pattern.{ask, pipe}
+import akka.pattern.pipe
+import akka.pattern.ask
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.{StreamingMode, FlinkActor}
+import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
@@ -30,10 +33,12 @@ import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
-import org.apache.flink.runtime.messages.Messages.Disconnect
+import org.apache.flink.runtime.messages.JobManagerMessages.GrantLeadership
+import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
-import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
+import org.apache.flink.runtime.testingUtils.TestingMessages.{CheckIfJobRemoved, Alive,
+DisableDisconnect}
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.AccumulatorsChanged
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -64,7 +69,8 @@ class TestingJobManager(
     defaultExecutionRetries: Int,
     delayBetweenRetries: Long,
     timeout: FiniteDuration,
-    mode: StreamingMode)
+    mode: StreamingMode,
+    leaderElectionService: LeaderElectionService)
   extends JobManager(
     flinkConfiguration,
     executionContext,
@@ -75,7 +81,8 @@ class TestingJobManager(
     defaultExecutionRetries,
     delayBetweenRetries,
     timeout,
-    mode) {
+    mode,
+    leaderElectionService) {
 
   import scala.collection.JavaConverters._
   import context._
@@ -93,6 +100,8 @@ class TestingJobManager(
 
   val waitForAccumulatorUpdate = scala.collection.mutable.HashMap[JobID, (Boolean, Set[ActorRef])]()
 
+  val waitForLeader = scala.collection.mutable.HashSet[ActorRef]()
+
   var disconnectDisabled = false
 
   override def handleMessage: Receive = {
@@ -100,6 +109,8 @@ class TestingJobManager(
   }
 
   def handleTestingMessage: Receive = {
+    case Alive => sender() ! Acknowledge
+
     case RequestExecutionGraph(jobID) =>
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => sender ! decorateMessage(
@@ -168,9 +179,23 @@ class TestingJobManager(
         gateway => gateway.ask(NotifyWhenJobRemoved(jobID), timeout).mapTo[Boolean]
       }
 
-      import context.dispatcher
+      val jobRemovedOnJobManager = (self ? CheckIfJobRemoved(jobID))(timeout).mapTo[Boolean]
 
-      Future.fold(responses)(true)(_ & _).map(decorateMessage(_)) pipeTo sender
+      val allFutures = responses ++ Seq(jobRemovedOnJobManager)
+
+      import context.dispatcher
+      Future.fold(allFutures)(true)(_ & _) map(decorateMessage(_)) pipeTo sender
+
+    case CheckIfJobRemoved(jobID) =>
+      if(currentJobs.contains(jobID)) {
+        context.system.scheduler.scheduleOnce(
+          200 milliseconds,
+          self,
+          decorateMessage(CheckIfJobRemoved(jobID))
+        )(context.dispatcher, sender())
+      } else {
+        sender() ! decorateMessage(true)
+      }
 
     case NotifyWhenTaskManagerTerminated(taskManager) =>
       val waiting = waitForTaskManagerToBeTerminated.getOrElse(taskManager.path.name, Set())
@@ -293,6 +318,20 @@ class TestingJobManager(
           }
         }
       }
+
+    case NotifyWhenLeader =>
+      if (leaderElectionService.hasLeadership) {
+        sender() ! true
+      } else {
+        waitForLeader += sender()
+      }
+
+    case msg: GrantLeadership =>
+      super.handleMessage(msg)
+
+      waitForLeader.foreach(_ ! true)
+
+      waitForLeader.clear()
   }
 
   def checkIfAllVerticesRunning(jobID: JobID): Boolean = {

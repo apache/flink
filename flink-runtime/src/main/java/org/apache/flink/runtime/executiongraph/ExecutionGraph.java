@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import akka.actor.ActorSystem;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -42,14 +43,14 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
-import org.apache.flink.runtime.util.SerializedValue;
+import org.apache.flink.runtime.util.SerializedThrowable;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
-
 import org.apache.flink.util.InstantiationUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.Option;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -324,7 +325,7 @@ public class ExecutionGraph implements Serializable {
 			List<ExecutionJobVertex> verticesToWaitFor,
 			List<ExecutionJobVertex> verticesToCommitTo,
 			ActorSystem actorSystem,
-			Option<UUID> leaderSessionID) {
+			UUID leaderSessionID) {
 		// simple sanity checks
 		if (interval < 10 || checkpointTimeout < 10) {
 			throw new IllegalArgumentException();
@@ -907,9 +908,11 @@ public class ExecutionGraph implements Serializable {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Updates the state of the Task and sets the final accumulator results.
-	 * @param state
-	 * @return
+	 * Updates the state of one of the ExecutionVertex's Execution attempts.
+	 * If the new status if "FINISHED", this also updates the 
+	 * 
+	 * @param state The state update.
+	 * @return True, if the task update was properly applied, false, if the execution attempt was not found.
 	 */
 	public boolean updateState(TaskExecutionState state) {
 		Execution attempt = this.currentExecutions.get(state.getID());
@@ -925,8 +928,9 @@ public class ExecutionGraph implements Serializable {
 						AccumulatorSnapshot accumulators = state.getAccumulators();
 						flinkAccumulators = accumulators.deserializeFlinkAccumulators();
 						userAccumulators = accumulators.deserializeUserAccumulators(userClassLoader);
-					} catch (Exception e) {
-						// Exceptions would be thrown in the future here
+					}
+					catch (Exception e) {
+						// we do not fail the job on deserialization problems of accumulators, but only log
 						LOG.error("Failed to deserialize final accumulator results.", e);
 					}
 
@@ -1029,7 +1033,8 @@ public class ExecutionGraph implements Serializable {
 	private void notifyJobStatusChange(JobStatus newState, Throwable error) {
 		if (jobStatusListenerActors.size() > 0) {
 			ExecutionGraphMessages.JobStatusChanged message =
-					new ExecutionGraphMessages.JobStatusChanged(jobID, newState, System.currentTimeMillis(), error);
+					new ExecutionGraphMessages.JobStatusChanged(jobID, newState, System.currentTimeMillis(),
+							error == null ? null : new SerializedThrowable(error));
 
 			for (ActorGateway listener: jobStatusListenerActors) {
 				listener.tell(message);

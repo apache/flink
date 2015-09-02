@@ -20,10 +20,10 @@ package org.apache.flink.test.accumulators;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.Status;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
+
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -43,6 +43,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -55,11 +56,14 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -116,11 +120,12 @@ public class AccumulatorLiveITCase {
 
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
-		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1);
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
 		TestingCluster testingCluster = new TestingCluster(config, false, true);
+		testingCluster.start();
 
-		jobManagerGateway = testingCluster.getJobManagerGateway();
+		jobManagerGateway = testingCluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 		taskManager = testingCluster.getTaskManagersAsJava().get(0);
 
 		// generate test data
@@ -189,8 +194,12 @@ public class AccumulatorLiveITCase {
 
 			// submit job
 
-			jobManagerGateway.tell(new JobManagerMessages.SubmitJob(jobGraph, false), selfGateway);
-			expectMsgClass(TIMEOUT, Status.Success.class);
+			jobManagerGateway.tell(
+					new JobManagerMessages.SubmitJob(
+							jobGraph,
+							ListeningBehaviour.EXECUTION_RESULT),
+					selfGateway);
+			expectMsgClass(TIMEOUT, JobManagerMessages.JobSubmitSuccess.class);
 
 
 			TestingJobManagerMessages.UpdatedAccumulators msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);

@@ -18,14 +18,11 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import java.util.Arrays;
-
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.runtime.util.SerializedThrowable;
 
 /**
  * This class represents an update about a task's execution state.
@@ -47,11 +44,7 @@ public class TaskExecutionState implements java.io.Serializable {
 
 	private final ExecutionState executionState;
 
-	private final byte[] serializedError;
-
-	// The exception must not be (de)serialized with the class, as its
-	// class may not be part of the system class loader.
-	private transient Throwable cachedError;
+	private final SerializedThrowable throwable;
 
 	/** Serialized flink and user-defined accumulators */
 	private final AccumulatorSnapshot accumulators;
@@ -104,75 +97,37 @@ public class TaskExecutionState implements java.io.Serializable {
 			ExecutionState executionState, Throwable error,
 			AccumulatorSnapshot accumulators) {
 
-
-			if (jobID == null || executionId == null || executionState == null) {
+		if (jobID == null || executionId == null || executionState == null) {
 			throw new NullPointerException();
 		}
 
 		this.jobID = jobID;
 		this.executionId = executionId;
 		this.executionState = executionState;
-		this.cachedError = error;
-		this.accumulators = accumulators;
-
 		if (error != null) {
-			byte[] serializedError;
-			try {
-				serializedError = InstantiationUtil.serializeObject(error);
-			}
-			catch (Throwable t) {
-				// could not serialize exception. send the stringified version instead
-				try {
-					this.cachedError = new Exception(ExceptionUtils.stringifyException(error));
-					serializedError = InstantiationUtil.serializeObject(this.cachedError);
-				}
-				catch (Throwable tt) {
-					// seems like we cannot do much to report the actual exception
-					// report a placeholder instead
-					try {
-						this.cachedError = new Exception("Cause is a '" + error.getClass().getName()
-								+ "' (failed to serialize or stringify)");
-						serializedError = InstantiationUtil.serializeObject(this.cachedError);
-					}
-					catch (Throwable ttt) {
-						// this should never happen unless the JVM is fubar.
-						// we just report the state without the error
-						this.cachedError = null;
-						serializedError = null;
-					}
-				}
-			}
-			this.serializedError = serializedError;
+			this.throwable = new SerializedThrowable(error);
+		} else {
+			this.throwable = null;
 		}
-		else {
-			this.serializedError = null;
-		}
+		this.accumulators = accumulators;
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Gets the attached exception. Requires to pass a classloader, because the
-	 * class of the exception may be user-defined and hence only accessible through
-	 * the user code classloader, not the default classloader.
-	 *
-	 * @param usercodeClassloader The class loader for the user code of the
-	 *                            job this update refers to.
+	 * Gets the attached exception, which is in serialized form. Returns null,
+	 * if the status update is no failure with an associated exception.
+	 * 
+	 * @param userCodeClassloader The classloader that can resolve user-defined exceptions.
+	 * @return The attached exception, or null, if none.
 	 */
-	public Throwable getError(ClassLoader usercodeClassloader) {
-		if (this.serializedError == null) {
+	public Throwable getError(ClassLoader userCodeClassloader) {
+		if (this.throwable == null) {
 			return null;
 		}
-
-		if (this.cachedError == null) {
-			try {
-				cachedError = (Throwable) InstantiationUtil.deserializeObject(this.serializedError, usercodeClassloader);
-			}
-			catch (Exception e) {
-				throw new RuntimeException("Error while deserializing the attached exception", e);
-			}
+		else {
+			return this.throwable.deserializeError(userCodeClassloader);
 		}
-		return this.cachedError;
 	}
 
 	/**
@@ -218,8 +173,7 @@ public class TaskExecutionState implements java.io.Serializable {
 			return other.jobID.equals(this.jobID) &&
 					other.executionId.equals(this.executionId) &&
 					other.executionState == this.executionState &&
-					(other.serializedError == null ? this.serializedError == null :
-						(this.serializedError != null && Arrays.equals(this.serializedError, other.serializedError)));
+					(other.throwable == null) == (this.throwable == null);
 		}
 		else {
 			return false;
@@ -235,7 +189,6 @@ public class TaskExecutionState implements java.io.Serializable {
 	public String toString() {
 		return String.format("TaskState jobId=%s, executionId=%s, state=%s, error=%s", 
 				jobID, executionId, executionState,
-				cachedError == null ? (serializedError == null ? "(null)" : "(serialized)")
-									: (cachedError.getClass().getName() + ": " + cachedError.getMessage()));
+				throwable == null ? "(null)" : throwable.toString());
 	}
 }

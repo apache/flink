@@ -28,7 +28,6 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.junit.Assert;
 
@@ -51,9 +50,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 			JobGraphGenerator jgg = new JobGraphGenerator();
 			JobGraph jobGraph = jgg.compileJobGraph(op);
 			
-			SerializedJobExecutionResult result = executor.submitJobAndWait(jobGraph, false);
-
-			this.lastJobExecutionResult = result.toJobExecutionResult(getClass().getClassLoader());
+			this.lastJobExecutionResult = executor.submitJobAndWait(jobGraph, false);
 			return this.lastJobExecutionResult;
 		}
 		catch (Exception e) {
@@ -77,7 +74,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 	private OptimizedPlan compileProgram(String jobName) {
 		Plan p = createProgramPlan(jobName);
 
-		Optimizer pc = new Optimizer(new DataStatistics(), this.executor.getConfiguration());
+		Optimizer pc = new Optimizer(new DataStatistics(), this.executor.configuration());
 		return pc.compile(p);
 	}
 

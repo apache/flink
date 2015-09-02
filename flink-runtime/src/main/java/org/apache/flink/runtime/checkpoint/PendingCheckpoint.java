@@ -26,7 +26,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.util.SerializedValue;
+import org.apache.flink.util.SerializedValue;
 
 /**
  * A pending checkpoint is a checkpoint that has been started, but has not been

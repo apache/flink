@@ -49,7 +49,6 @@ import scala.concurrent.duration.FiniteDuration;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -89,7 +88,11 @@ public class TaskAsyncCallTest {
 			triggerLatch.await();
 			
 			assertFalse(task.isCanceledOrFailed());
-			assertEquals(ExecutionState.RUNNING, task.getExecutionState());
+
+			ExecutionState currentState = task.getExecutionState();
+			if (currentState != ExecutionState.RUNNING && currentState != ExecutionState.FINISHED) {
+				fail("Task should be RUNNING or FINISHED, but is " + currentState);
+			}
 			
 			task.cancelExecution();
 			task.getExecutingThread().join();
@@ -116,7 +119,10 @@ public class TaskAsyncCallTest {
 			triggerLatch.await();
 
 			assertFalse(task.isCanceledOrFailed());
-			assertEquals(ExecutionState.RUNNING, task.getExecutionState());
+			ExecutionState currentState = task.getExecutionState();
+			if (currentState != ExecutionState.RUNNING && currentState != ExecutionState.FINISHED) {
+				fail("Task should be RUNNING or FINISHED, but is " + currentState);
+			}
 
 			task.cancelExecution();
 			task.getExecutingThread().join();

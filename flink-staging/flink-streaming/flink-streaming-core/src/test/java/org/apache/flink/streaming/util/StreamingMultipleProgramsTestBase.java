@@ -76,7 +76,13 @@ public class StreamingMultipleProgramsTestBase extends TestBaseUtils {
 
 	@BeforeClass
 	public static void setup() throws Exception{
-		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, StreamingMode.STREAMING, false, true);
+		cluster = TestBaseUtils.startCluster(
+			1,
+			DEFAULT_PARALLELISM,
+			StreamingMode.STREAMING,
+			false,
+			false,
+			true);
 	}
 
 	@AfterClass

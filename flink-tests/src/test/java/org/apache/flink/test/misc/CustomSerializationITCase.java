@@ -52,6 +52,7 @@ public class CustomSerializationITCase {
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARLLELISM);
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 30);
 			cluster = new ForkableFlinkMiniCluster(config, false);
+			cluster.start();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -75,7 +76,7 @@ public class CustomSerializationITCase {
 	public void testIncorrectSerializer1() {
 		try {
 			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
+					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
 			
 			env.setParallelism(PARLLELISM);
 			env.getConfig().disableSysoutLogging();
@@ -108,7 +109,7 @@ public class CustomSerializationITCase {
 	public void testIncorrectSerializer2() {
 		try {
 			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
+					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(PARLLELISM);
 			env.getConfig().disableSysoutLogging();
@@ -141,7 +142,7 @@ public class CustomSerializationITCase {
 	public void testIncorrectSerializer3() {
 		try {
 			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
+					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(PARLLELISM);
 			env.getConfig().disableSysoutLogging();
@@ -174,7 +175,7 @@ public class CustomSerializationITCase {
 	public void testIncorrectSerializer4() {
 		try {
 			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
+					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(PARLLELISM);
 			env.getConfig().disableSysoutLogging();

@@ -20,18 +20,16 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-
 public class ClusterUtil {
-
+	
 	private static final Logger LOG = LoggerFactory.getLogger(ClusterUtil.class);
-	public static final String CANNOT_EXECUTE_EMPTY_JOB = "Cannot execute empty job";
 
 	/**
 	 * Executes the given JobGraph locally, on a FlinkMiniCluster
@@ -42,9 +40,12 @@ public class ClusterUtil {
 	 *            numberOfTaskTrackers
 	 * @param memorySize
 	 *            memorySize
+	 * @param customConf
+	 * 		Custom configuration for the LocalExecutor. Can be null.
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize, boolean printDuringExecution)
+	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize,
+													boolean printDuringExecution, boolean detached, Configuration customConf)
 			throws Exception {
 
 		Configuration configuration = jobGraph.getJobConfiguration();
@@ -53,59 +54,34 @@ public class ClusterUtil {
 
 		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
+		if(customConf != null) {
+			configuration.addAll(customConf);
+		}
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running on mini cluster");
 		}
 
 		try {
 			exec = new LocalFlinkMiniCluster(configuration, true);
-			SerializedJobExecutionResult result = exec.submitJobAndWait(jobGraph, printDuringExecution);
-			return result.toJobExecutionResult(ClusterUtil.class.getClassLoader());
-		} catch (Exception e) {
-			throw e;
+			exec.start();
+			
+			if (detached) {
+				exec.submitJobDetached(jobGraph);
+				return null;
+			} else {
+				return exec.submitJobAndWait(jobGraph, printDuringExecution);
+			}
 		} finally {
-			if (exec != null) {
+			if (exec != null && !detached) {
 				exec.stop();
 			}
 		}
 	}
 
-	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int numOfSlots, boolean printDuringExecution) throws Exception {
-		return runOnMiniCluster(jobGraph, numOfSlots, -1, printDuringExecution);
+	/**
+	 * Start a job in a detached mode on a local mini cluster.
+	 */
+	public static void startOnMiniCluster(JobGraph jobGraph, int parallelism) throws Exception {
+		runOnMiniCluster(jobGraph, parallelism, -1, true, true, null);
 	}
-
-	private static LocalFlinkMiniCluster exec = null;
-
-	public static void startOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize)
-			throws Exception {
-
-			Configuration configuration = jobGraph.getJobConfiguration();
-
-			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
-			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
-			if (LOG.isInfoEnabled()) {
-				LOG.info("Running on mini cluster");
-			}
-
-			try {
-				exec = new LocalFlinkMiniCluster(configuration, true);
-				exec.submitJobDetached(jobGraph);
-			} catch (Exception e) {
-				throw e;
-			}
-	}
-
-	public static void startOnMiniCluster(JobGraph jobGraph, int numOfSlots) throws Exception {
-		startOnMiniCluster(jobGraph, numOfSlots, -1);
-	}
-
-	public static void stopOnMiniCluster() {
-		if(exec != null) {
-			exec.stop();
-			exec = null;
-		} else {
-			throw new IllegalStateException("Cluster was not started via .start(...)");
-		}
-	}
-
 }

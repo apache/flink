@@ -23,7 +23,10 @@ import java.net.InetSocketAddress
 import akka.actor._
 import akka.pattern.ask
 import grizzled.slf4j.Logger
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
+import org.apache.flink.runtime.util.LeaderRetrievalUtils
+import org.apache.flink.runtime.util.LeaderRetrievalUtils.LeaderGatewayListener
 import org.apache.flink.runtime.{FlinkActor, LogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.JobManager
@@ -74,12 +77,19 @@ class ApplicationClient(flinkConfig: Configuration)
   override def handleMessage: Receive = {
     // ----------------------------- Registration -> Status updates -> shutdown ----------------
     case LocalRegisterClient(address: InetSocketAddress) =>
-      val jmAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(address)
+      flinkConfig.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.getHostName());
+      flinkConfig.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.getPort());
 
-      val jobManagerFuture = AkkaUtils.getReference(jmAkkaUrl, system, timeout)
+      val leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig)
 
-      jobManagerFuture.onComplete {
-        case Success(jm) => self ! decorateMessage(JobManagerActorRef(jm))
+      val listener = new LeaderGatewayListener(context.system, timeout);
+
+      leaderRetrievalService.start(listener)
+
+      val jobManagerGatewayFuture = listener.getActorGatewayFuture
+
+      jobManagerGatewayFuture.onComplete {
+        case Success(gateway) => self ! decorateMessage(JobManagerActorRef(gateway.actor()))
         case Failure(t) =>
           log.error("Registration at JobManager/ApplicationMaster failed. Shutting " +
             "ApplicationClient down.", t)

@@ -22,16 +22,16 @@ under the License.
 The web dashboard is work in progress towards the new Flink runtime monitor. In particular, it will
 provide the following missing features of the current web dashboard:
 
- - Live progress monitoring (via life accumulators)
+ - Live progress monitoring (via live accumulators)
  - A graph view of the program, as it is executed.
  - A REST style API to access the status of individual jobs.
  - A more modular design
 
 The web dashboard can be activated by adding/uncommenting the config parameter
 `jobmanager.new-web-frontend: true` in the `conf/fink-conf.yaml` file.
-The dashboard listens at `http://localhost:8082`.
+The dashboard listens at `http://localhost:8081`.
 
-The new web dashboard is work in progress. It starts an additional HTTP server (by default at port 8082)
+The new web dashboard is work in progress. It starts an additional HTTP server (by default at port 8081)
 that serves the new web pages and additional background requests. It also relies on the old HTTP server
 for some requests still.
 
@@ -116,5 +116,5 @@ re-compilation:
 1. Edit the file `app/scripts/index.coffee`. Comment/uncomment the lines that define the `webServer`, `jobServer`, and `newServer` URLs.
 2. Re-compile the files via `gulp`. By calling `gulp watch`, the build-tool autocompiles future changes.
 3. Start the proxy server via `node server.js`
-4. Access teh dashboardat [`http://localhost:3000`](http://localhost:3000)
+4. Access the dashboard at [`http://localhost:3000`](http://localhost:3000)
 

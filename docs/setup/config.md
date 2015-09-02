@@ -351,6 +351,37 @@ to set the JM host:port manually. It is recommended to leave this option at 1.
 
 - `yarn.heartbeat-delay` (Default: 5 seconds). Time between heartbeats with the ResourceManager.
 
+- `yarn.properties-file.location` (Default: temp directory). When a Flink job is submitted to YARN, 
+the JobManager's host and the number of available processing slots is written into a properties file, 
+so that the Flink client is able to pick those details up. This configuration parameter allows 
+changing the default location of that file (for example for environments sharing a Flink 
+installation between users)
+
+## High Availability Mode
+
+- `recovery.mode`: (Default 'standalone') Defines the recovery mode used for the cluster execution. Currently,
+Flink supports the 'standalone' mode where only a single JobManager runs and no JobManager state is checkpointed.
+The high availability mode 'zookeeper' supports the execution of multiple JobManagers and JobManager state checkpointing.
+Among the group of JobManagers, ZooKeeper elects one of them as the leader which is responsible for the cluster execution.
+In case of a JobManager failure, a standby JobManager will be elected as the new leader and is given the last checkpointed JobManager state.
+In order to use the 'zookeeper' mode, it is mandatory to also define the `ha.zookeeper.quorum` configuration value.
+
+- `ha.zookeeper.quorum`: Defines the ZooKeeper quorum URL which is used to connet to the ZooKeeper cluster when the 'zookeeper' recovery mode is selected
+
+- `ha.zookeeper.dir`: (Default '/flink') Defines the root dir under which the ZooKeeper recovery mode will create znodes. 
+
+- `ha.zookeeper.dir.latch`: (Default '/leaderlatch') Defines the znode of the leader latch which is used to elect the leader.
+
+- `ha.zookeeper.dir.leader`: (Default '/leader') Defines the znode of the leader which contains the URL to the leader and the current leader session ID
+
+- `ha.zookeeper.client.session-timeout`: (Default '60000') Defines the session timeout for the ZooKeeper session in ms.
+
+- `ha.zookeeper.client.connection-timeout`: (Default '15000') Defines the connection timeout for ZooKeeper in ms.
+
+- `ha.zookeeper.client.retry-wait`: (Default '5000') Defines the pause between consecutive retries in ms.
+
+- `ha.zookeeper.client.max-retry-attempts`: (Default '3') Defines the number of connection retries before the client gives up.
+
 ## Background
 
 ### Configuring the Network Buffers

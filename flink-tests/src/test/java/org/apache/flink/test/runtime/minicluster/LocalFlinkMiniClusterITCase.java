@@ -31,9 +31,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import scala.Option;
-
-import java.util.UUID;
 
 public class LocalFlinkMiniClusterITCase {
 
@@ -59,14 +56,16 @@ public class LocalFlinkMiniClusterITCase {
 
 		try{
 			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTMs);
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);
 			miniCluster = new LocalFlinkMiniCluster(config, true);
 
-			final ActorGateway jmGateway = miniCluster.getJobManagerGateway();
+			miniCluster.start();
+
+			final ActorGateway jmGateway = miniCluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
 			new JavaTestKit(system) {{
-				final ActorGateway selfGateway = new AkkaActorGateway(getRef(), Option.<UUID>empty());
+				final ActorGateway selfGateway = new AkkaActorGateway(getRef(), null);
 
 				new Within(TestingUtils.TESTING_DURATION()) {
 

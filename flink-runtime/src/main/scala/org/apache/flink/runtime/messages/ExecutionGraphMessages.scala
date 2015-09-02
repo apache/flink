@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.messages
 
 import java.text.SimpleDateFormat
-import java.util.Date
+import java.util.{UUID, Date}
 
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.execution.ExecutionState
@@ -31,6 +31,10 @@ import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID}
  */
 object ExecutionGraphMessages {
 
+  // --------------------------------------------------------------------------
+  //  Messages
+  // --------------------------------------------------------------------------
+  
   /**
    * Denotes the execution state change of an
    * [[org.apache.flink.runtime.executiongraph.ExecutionVertex]]
@@ -63,6 +67,7 @@ object ExecutionGraphMessages {
       } else {
         ""
       }
+      
       s"${timestampToString(timestamp)}\t$taskName(${subtaskIndex +
         1}/$totalNumberOfSubTasks) switched to $newExecutionState $oMsg"
     }
@@ -82,15 +87,21 @@ object ExecutionGraphMessages {
       timestamp: Long,
       error: Throwable)
     extends RequiresLeaderSessionID {
+    
     override def toString: String = {
       s"${timestampToString(timestamp)}\tJob execution switched to status $newJobStatus."
     }
   }
 
+  // --------------------------------------------------------------------------
+  //  Utilities
+  // --------------------------------------------------------------------------
+  
   private val DATE_FORMATTER: SimpleDateFormat = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss")
 
   private def timestampToString(timestamp: Long): String = {
-    DATE_FORMATTER.format(new Date(timestamp))
+    DATE_FORMATTER.synchronized {
+      DATE_FORMATTER.format(new Date(timestamp))
+    }
   }
-
 }

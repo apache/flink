@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import akka.actor.ActorSystem;
+import com.google.common.base.Preconditions;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -33,7 +35,8 @@ import io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.handlers.ExecutionPlanHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobConfigHandler;
@@ -67,7 +70,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	public static final FiniteDuration DEFAULT_REQUEST_TIMEOUT = new FiniteDuration(10, TimeUnit.SECONDS);
 	
 	public static final long DEFAULT_REFRESH_INTERVAL = 5000;
-	
+
 	/** Logger for web frontend startup / shutdown messages */
 	private static final Logger LOG = LoggerFactory.getLogger(WebRuntimeMonitor.class);
 	
@@ -77,22 +80,36 @@ public class WebRuntimeMonitor implements WebMonitor {
 	// ------------------------------------------------------------------------
 	
 	private final Object startupShutdownLock = new Object();
-	
-	private final Router router;
+
+	private final LeaderRetrievalService leaderRetrievalService;
+
+	/** LeaderRetrievalListener which stores the currently leading JobManager and its archive */
+	private final JobManagerArchiveRetriever retriever;
 
 	private final int configuredPort;
+
+	private final Router router;
 
 	private ServerBootstrap bootstrap;
 	
 	private Channel serverChannel;
 
-	
-	public WebRuntimeMonitor(Configuration config, ActorGateway jobManager, ActorGateway archive) throws IOException {
+	// ------------------------------------------------------------------------
+
+	public WebRuntimeMonitor(
+			Configuration config,
+			LeaderRetrievalService leaderRetrievalService,
+			ActorSystem actorSystem)
+		throws IOException {
+		Preconditions.checkNotNull(config);
+		this.leaderRetrievalService = Preconditions.checkNotNull(leaderRetrievalService);
+
 		// figure out where our static contents is
 		final String configuredWebRoot = config.getString(ConfigConstants.JOB_MANAGER_WEB_DOC_ROOT_KEY, null);
 		final String flinkRoot = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, null);
-		
+
 		final File webRootDir;
+		
 		if (configuredWebRoot != null) {
 			webRootDir = new File(configuredWebRoot);
 		}
@@ -113,22 +130,27 @@ public class WebRuntimeMonitor implements WebMonitor {
 		
 		// port configuration
 		this.configuredPort = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
-												ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
 		if (this.configuredPort < 0) {
 			throw new IllegalArgumentException("Web frontend port is invalid: " + this.configuredPort);
 		}
-		
-		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder(jobManager);
-		
+
+		FiniteDuration timeout = AkkaUtils.getTimeout(config);
+		FiniteDuration lookupTimeout = AkkaUtils.getTimeout(config);
+
+		retriever = new JobManagerArchiveRetriever(this, actorSystem, lookupTimeout, timeout);
+
+		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder(retriever);
+
 		router = new Router()
 			// config how to interact with this web server
 			.GET("/config", handler(new RequestConfigHandler(DEFAULT_REFRESH_INTERVAL)))
-			
+
 			// the overview - how many task managers, slots, free slots, ...
-			.GET("/overview", handler(new RequestOverviewHandler(jobManager)))
+			.GET("/overview", handler(new RequestOverviewHandler(retriever)))
 
 			// currently running jobs
-			.GET("/jobs", handler(new RequestJobIdsHandler(jobManager)))
+			.GET("/jobs", handler(new RequestJobIdsHandler(retriever)))
 			.GET("/jobs/:jobid", handler(new JobSummaryHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices", handler(new JobVerticesOverviewHandler(currentGraphs)))
 			.GET("/jobs/:jobid/plan", handler(new ExecutionPlanHandler(currentGraphs)))
@@ -137,12 +159,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 //			.GET("/running/:jobid/:jobvertex", handler(new ExecutionPlanHandler(currentGraphs)))
 
 			// the handler for the legacy requests
-			.GET("/jobsInfo", new JobManagerInfoHandler(jobManager, archive, DEFAULT_REQUEST_TIMEOUT))
-					
+			.GET("/jobsInfo", new JobManagerInfoHandler(retriever, DEFAULT_REQUEST_TIMEOUT))
+
 			// this handler serves all the static contents
 			.GET("/:*", new StaticFileServerHandler(webRootDir));
-
-		
 	}
 
 	@Override
@@ -151,13 +171,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 			if (this.bootstrap != null) {
 				throw new IllegalStateException("The server has already been started");
 			}
-			
+
+			final Handler handler = new Handler(router);
+
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
-	
+
 				@Override
 				protected void initChannel(SocketChannel ch) {
-					Handler handler = new Handler(router);
-					
 					ch.pipeline()
 						.addLast(new HttpServerCodec())
 						.addLast(new HttpObjectAggregator(65536))
@@ -168,7 +188,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			
 			NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
 			NioEventLoopGroup workerGroup = new NioEventLoopGroup();
-	
+
 			this.bootstrap = new ServerBootstrap();
 			this.bootstrap
 					.group(bossGroup, workerGroup)
@@ -177,18 +197,22 @@ public class WebRuntimeMonitor implements WebMonitor {
 	
 			Channel ch = this.bootstrap.bind(configuredPort).sync().channel();
 			this.serverChannel = ch;
-			
+
 			InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();
 			String address = bindAddress.getAddress().getHostAddress();
 			int port = bindAddress.getPort();
 			
 			LOG.info("Web frontend listening at " + address + ':' + port);
+
+			leaderRetrievalService.start(retriever);
 		}
 	}
 	
 	@Override
 	public void stop() throws Exception {
 		synchronized (startupShutdownLock) {
+			leaderRetrievalService.stop();
+
 			if (this.serverChannel != null) {
 				this.serverChannel.close().awaitUninterruptibly();
 				this.serverChannel = null;

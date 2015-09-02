@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
@@ -115,7 +116,8 @@ public abstract class CancellingTestBase extends TestLogger {
 				public void run() {
 					try {
 						Thread.sleep(msecsTillCanceling);
-						executor.getJobManagerGateway().tell(new JobManagerMessages.CancelJob(jobGraph.getJobID()));
+						executor.getLeaderGateway(TestingUtils.TESTING_DURATION())
+							.tell(new JobManagerMessages.CancelJob(jobGraph.getJobID()));
 					}
 					catch (Throwable t) {
 						error.set(t);
@@ -146,7 +148,7 @@ public abstract class CancellingTestBase extends TestLogger {
 	}
 
 	private JobGraph getJobGraph(final Plan plan) throws Exception {
-		final Optimizer pc = new Optimizer(new DataStatistics(), this.executor.getConfiguration());
+		final Optimizer pc = new Optimizer(new DataStatistics(), this.executor.configuration());
 		final OptimizedPlan op = pc.compile(plan);
 		final JobGraphGenerator jgg = new JobGraphGenerator();
 		return jgg.compileJobGraph(op);

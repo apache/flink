@@ -83,6 +83,12 @@ case $STARTSTOP in
         rotateLogFile $log
         rotateLogFile $out
 
+        # Print a warning if daemons are already running on host
+        if [ -f $pid ]; then
+            count=$(wc -l $pid | awk '{print $1}')
+            echo "[WARNING] $count instance(s) of $DAEMON are already running on $HOSTNAME."
+        fi
+
         echo "Starting $DAEMON daemon on host $HOSTNAME."
         $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} ${ARGS} > "$out" 2>&1 < /dev/null &
         mypid=$!

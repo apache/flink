@@ -51,7 +51,7 @@ import org.apache.flink.stormcompatibility.api.FlinkTopologyBuilder;
  */
 public class StormWordCountRemoteByClient {
 	public final static String topologyId = "Streaming WordCount";
-	private final static String uploadedJarLocation = "target/flink-storm-examples-0.9-SNAPSHOT-WordCountStorm.jar";
+	private final static String uploadedJarLocation = "target/WordCount-StormTopology.jar";
 
 	// *************************************************************************
 	// PROGRAM

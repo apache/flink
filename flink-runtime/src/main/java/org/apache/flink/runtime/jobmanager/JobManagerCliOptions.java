@@ -35,6 +35,8 @@ public class JobManagerCliOptions {
 
 	private String host;
 
+	private int webUIPort = -1;
+
 	// ------------------------------------------------------------------------
 
 	public String getConfigDir() {
@@ -85,5 +87,13 @@ public class JobManagerCliOptions {
 
 	public void setHost(String host) {
 		this.host = checkNotNull(host);
+	}
+
+	public int getWebUIPort() {
+		return webUIPort;
+	}
+
+	public void setWebUIPort(int webUIPort) {
+		this.webUIPort = webUIPort;
 	}
 }

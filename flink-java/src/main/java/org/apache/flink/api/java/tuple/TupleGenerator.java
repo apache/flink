@@ -457,7 +457,7 @@ class TupleGenerator {
 			// get TupleTypeInfo
 			sb.append("\t\tTupleTypeInfo<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> types = TupleTypeInfo.getBasicTupleTypeInfo(");
+			sb.append(">> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(");
 			for (int i = 0; i < numFields; i++) {
 				if (i > 0) {
 					sb.append(", ");

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.instance;
 
 import akka.actor.ActorRef;
-import scala.Option;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -62,7 +61,7 @@ public class DummyActorGateway implements ActorGateway {
 	}
 
 	@Override
-	public Option<UUID> leaderSessionID() {
-		return Option.<UUID>empty();
+	public UUID leaderSessionID() {
+		return null;
 	}
 }

@@ -23,7 +23,7 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.akka.{ListeningBehaviour, AkkaUtils}
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
 import org.apache.flink.runtime.messages.JobManagerMessages.{LeaderSessionMessage, CancelJob,
@@ -66,13 +66,13 @@ class JobManagerLeaderSessionIDITSuite(_system: ActorSystem)
     sender.setInvokableClass(classOf[BlockingUntilSignalNoOpInvokable])
     val jobGraph = new JobGraph("TestJob", sender)
 
-    val oldSessionID = Option(UUID.randomUUID())
+    val oldSessionID = UUID.randomUUID()
 
-    val jmGateway = cluster.getJobManagerGateway()
+    val jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
     val jm = jmGateway.actor()
 
     within(TestingUtils.TESTING_DURATION) {
-      jmGateway.tell(SubmitJob(jobGraph, false), self)
+      jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
       expectMsg(Success(jobGraph.getJobID))
 

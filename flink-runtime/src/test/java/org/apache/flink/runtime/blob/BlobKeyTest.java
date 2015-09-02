@@ -27,7 +27,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.StringUtils;
 import org.junit.Test;
 

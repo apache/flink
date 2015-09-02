@@ -21,14 +21,16 @@ package org.apache.flink.runtime.jobmanager
 import akka.actor.ActorSystem
 import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
+import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{Sender, AgnosticBinaryReceiver, Receiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
-import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, SubmitJob}
+import org.apache.flink.runtime.messages.JobManagerMessages.{JobSubmitSuccess, JobResultSuccess, SubmitJob}
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 class SlotSharingITCase(_system: ActorSystem)
@@ -66,12 +68,12 @@ class SlotSharingITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
 
         }
@@ -110,12 +112,12 @@ class SlotSharingITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Bipartite job", sender1, sender2, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
         }
       } finally {

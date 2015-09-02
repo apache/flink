@@ -44,7 +44,7 @@ under the License.
             <li class="dropdown{% if page.url contains setup %} active{% endif %}">
               <a href="{{ setup }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Setup <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
-                <li><a href="{{ setup }}/building.html">Get Flink {{ site.version }}</a></li>
+                <li><a href="{{ setup }}/building.html">Build Flink {{ site.version }}</a></li>
 
                 <li class="divider"></li>
                 <li role="presentation" class="dropdown-header"><strong>Deployment</strong></li>
@@ -69,10 +69,11 @@ under the License.
                 <li><a href="{{ apis }}/python.html">Python API <span class="badge">Beta</span></a></li>
 
                 <li class="divider"></li>
-                <li><a href="scala_shell.html">Interactive Scala Shell</a></li>
+                <li><a href="{{ apis }}/scala_shell.html">Interactive Scala Shell</a></li>
                 <li><a href="{{ apis }}/dataset_transformations.html">Dataset Transformations</a></li>
                 <li><a href="{{ apis }}/best_practices.html">Best Practices</a></li>
-                <li><a href="{{ apis }}/example_connectors.html">Connectors</a></li>
+                <li><a href="{{ apis }}/example_connectors.html">Connectors (Batch)</a></li>
+                <li><a href="{{ apis }}/kafka.html">Kafka Connector <span class="badge">Beta</span></a></li>
                 <li><a href="{{ apis }}/examples.html">Examples</a></li>
                 <li><a href="{{ apis }}/local_execution.html">Local Execution</a></li>
                 <li><a href="{{ apis }}/cluster_execution.html">Cluster Execution</a></li>
@@ -80,8 +81,8 @@ under the License.
                 <li><a href="{{ apis }}/web_client.html">Web Client</a></li>
                 <li><a href="{{ apis }}/iterations.html">Iterations</a></li>
                 <li><a href="{{ apis }}/java8.html">Java 8</a></li>
-                <li><a href="{{ apis }}/hadoop_compatibility.html">Hadoop Compatability <span class="badge">Beta</span></a></li>
-                <li><a href="{{ apis }}/storm_compatibility.html">Storm Compatability <span class="badge">Beta</span></a></li>
+                <li><a href="{{ apis }}/hadoop_compatibility.html">Hadoop Compatibility <span class="badge">Beta</span></a></li>
+                <li><a href="{{ apis }}/storm_compatibility.html">Storm Compatibility <span class="badge">Beta</span></a></li>
               </ul>
             </li>
 

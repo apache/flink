@@ -19,7 +19,6 @@
 package org.apache.flink.api.avro;
 
 import java.io.File;
-import java.net.InetSocketAddress;
 
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
@@ -45,14 +44,21 @@ public class AvroExternalJarProgramITCase {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
 			testMiniCluster = new ForkableFlinkMiniCluster(config, false);
+			testMiniCluster.start();
 			
 			String jarFile = JAR_FILE;
 			String testData = getClass().getResource(TEST_DATA_FILE).toString();
 			
 			PackagedProgram program = new PackagedProgram(new File(jarFile), new String[] { testData });
+
+			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
+			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, testMiniCluster.getLeaderRPCPort());
 						
-			Client c = new Client(new InetSocketAddress("localhost", testMiniCluster.getJobManagerRPCPort()),
-					new Configuration(), program.getUserCodeClassLoader(), -1);
+			Client c = new Client(
+					config,
+					program.getUserCodeClassLoader(),
+					-1);
+
 			c.setPrintStatusDuringExecution(false);
 			c.run(program, 4, true);
 		}

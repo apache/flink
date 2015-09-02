@@ -54,7 +54,7 @@ public class ConfigurationTest extends TestLogger {
 			orig.setBytes("bytes sequence", new byte[] { 1, 2, 3, 4, 5 } );
 			orig.setClass("myclass", this.getClass());
 	
-			final Configuration copy = (Configuration) CommonTestUtils.createCopy(orig);
+			final Configuration copy = CommonTestUtils.createCopyWritable(orig);
 			assertEquals("myvalue", copy.getString("mykey", "null"));
 			assertEquals(100, copy.getInteger("mynumber", 0));
 			assertEquals(478236947162389746L, copy.getLong("longvalue", 0L));

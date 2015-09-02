@@ -141,7 +141,7 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
     // new local cluster
     val host = "localhost"
     val port = cluster match {
-      case Some(c) => c.getJobManagerRPCPort
+      case Some(c) => c.getLeaderRPCPort
 
       case _ => throw new RuntimeException("Test cluster not initialized.")
     }
@@ -187,7 +187,14 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
   val parallelism = 4
 
   override def beforeAll(): Unit = {
-    val cl = TestBaseUtils.startCluster(1, parallelism, StreamingMode.BATCH_ONLY, false, false)
+    val cl = TestBaseUtils.startCluster(
+      1,
+      parallelism,
+      StreamingMode.BATCH_ONLY,
+      false,
+      false,
+      false)
+
     val clusterEnvironment = new TestEnvironment(cl, parallelism)
     clusterEnvironment.setAsContext()
 

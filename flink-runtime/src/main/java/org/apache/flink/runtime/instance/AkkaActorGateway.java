@@ -21,31 +21,33 @@ package org.apache.flink.runtime.instance;
 import akka.actor.ActorRef;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import org.apache.flink.runtime.LeaderSessionMessageDecorator;
-import org.apache.flink.runtime.MessageDecorator;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import scala.Option;
+import org.apache.flink.runtime.messages.LeaderSessionMessageDecorator;
+import org.apache.flink.runtime.messages.MessageDecorator;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.Serializable;
 import java.util.UUID;
 
 /**
  * Concrete {@link ActorGateway} implementation which uses Akka to communicate with remote actors.
  */
-public class AkkaActorGateway implements ActorGateway {
+public class AkkaActorGateway implements ActorGateway, Serializable {
+
+	private static final long serialVersionUID = 42l;
 
 	// ActorRef of the remote instance
 	private final ActorRef actor;
 
 	// Associated leader session ID, which is used for RequiresLeaderSessionID messages
-	private final Option<UUID> leaderSessionID;
+	private final UUID leaderSessionID;
 
 	// Decorator for messages
 	private final MessageDecorator decorator;
 
-	public AkkaActorGateway(ActorRef actor, Option<UUID> leaderSessionID) {
+	public AkkaActorGateway(ActorRef actor, UUID leaderSessionID) {
 		this.actor = actor;
 		this.leaderSessionID = leaderSessionID;
 		// we want to wrap RequiresLeaderSessionID messages in a LeaderSessionMessage
@@ -151,7 +153,7 @@ public class AkkaActorGateway implements ActorGateway {
 	}
 
 	@Override
-	public Option<UUID> leaderSessionID() {
+	public UUID leaderSessionID() {
 		return leaderSessionID;
 	}
 }

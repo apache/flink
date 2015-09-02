@@ -18,25 +18,24 @@
 package org.apache.flink.stormcompatibility.util;
 
 import backtype.storm.tuple.Values;
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 
 /**
- * Implements a Storm Spout that reads data from {@link WordCountData#WORDS}.
+ * Implements a Storm Spout that reads data from an in.
  */
-public class StormInMemorySpout extends AbstractStormSpout {
+public class StormInMemorySpout<T> extends AbstractStormSpout {
 	private static final long serialVersionUID = -4008858647468647019L;
 
-	private String[] source;
-	private int counter = 0;
+	protected T[] source;
+	protected int counter = 0;
 
-	public StormInMemorySpout(String[] source) {
+	public StormInMemorySpout(T[] source) {
 		this.source = source;
 	}
 
 	@Override
 	public void nextTuple() {
-		if (this.counter < WordCountData.WORDS.length) {
-			this.collector.emit(new Values(WordCountData.WORDS[this.counter++]));
+		if (this.counter < source.length) {
+			this.collector.emit(new Values(source[this.counter++]));
 		}
 	}
 

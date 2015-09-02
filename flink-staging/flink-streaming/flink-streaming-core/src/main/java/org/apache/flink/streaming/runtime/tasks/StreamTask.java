@@ -29,7 +29,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -106,7 +106,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	
 	public StreamTask() {
 		checkpointBarrierListener = new CheckpointBarrierListener();
-		contexts = new ArrayList<StreamingRuntimeContext>();
+		contexts = new ArrayList<>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -175,6 +175,12 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 				LOG.debug("Finished task {}", getName());
 			}
 
+			// make sure no further checkpoint and notification actions happen
+			// for that we set this task as not running and make sure no other thread is
+			// currently in the locked scope before we close the operators
+			this.isRunning = false;
+			synchronized (checkpointLock) {}
+			
 			// this is part of the main logic, so if this fails, the task is considered failed
 			closeAllOperators();
 			operatorOpen = false;
@@ -265,7 +271,7 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 		// We retrieve end restore the states for the chained operators.
 		List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>> chainedStates = 
-				(List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>>) stateHandle.getState();
+				(List<Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>>>) stateHandle.getState(this.userClassLoader);
 
 		// We restore all stateful operators
 		for (int i = 0; i < chainedStates.size(); i++) {
@@ -333,9 +339,11 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		synchronized (checkpointLock) {
-			for (StreamOperator<?> chainedOperator : outputHandler.getChainedOperators()) {
-				if (chainedOperator instanceof StatefulStreamOperator) {
-					((StatefulStreamOperator<?>) chainedOperator).notifyCheckpointComplete(checkpointId);
+			if (isRunning) {
+				for (StreamOperator<?> chainedOperator : outputHandler.getChainedOperators()) {
+					if (chainedOperator instanceof StatefulStreamOperator) {
+						((StatefulStreamOperator<?>) chainedOperator).notifyCheckpointComplete(checkpointId);
+					}
 				}
 			}
 		}
@@ -350,7 +358,8 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 
 		// If the user did not specify a provider in the program we try to get it from the config
 		if (provider == null) {
-			String backendName = GlobalConfiguration.getString(ConfigConstants.STATE_BACKEND,
+			Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
+			String backendName = flinkConfig.getString(ConfigConstants.STATE_BACKEND,
 					ConfigConstants.DEFAULT_STATE_BACKEND).toUpperCase();
 
 			StateBackend backend;
@@ -364,9 +373,9 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 			switch (backend) {
 				case JOBMANAGER:
 					LOG.info("State backend for state checkpoints is set to jobmanager.");
-					return new LocalStateHandle.LocalStateHandleProvider<Serializable>();
+					return new LocalStateHandle.LocalStateHandleProvider<>();
 				case FILESYSTEM:
-					String checkpointDir = GlobalConfiguration.getString(ConfigConstants.STATE_BACKEND_FS_DIR, null);
+					String checkpointDir = flinkConfig.getString(ConfigConstants.STATE_BACKEND_FS_DIR, null);
 					if (checkpointDir != null) {
 						LOG.info("State backend for state checkpoints is set to filesystem with directory: "
 								+ checkpointDir);

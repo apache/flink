@@ -372,12 +372,7 @@ public class RandomSamplerTest {
 	 * Some sample result may not order by the input sequence, we should make it in order to do K-S test.
 	 */
 	private double[] transferFromListToArrayWithOrder(List<Double> list) {
-		Collections.sort(list, new Comparator<Double>() {
-			@Override
-			public int compare(Double o1, Double o2) {
-				return o1 - o2 >= 0 ? 1 : -1;
-			}
-		});
+		Collections.sort(list);
 		double[] result = new double[list.size()];
 		for (int i = 0; i < list.size(); i++) {
 			result[i] = list.get(i);

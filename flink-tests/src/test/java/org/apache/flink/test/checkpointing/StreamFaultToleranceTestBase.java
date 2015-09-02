@@ -47,12 +47,14 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 	public static void startCluster() {
 		try {
 			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_TASK_SLOTS);
 			config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 ms");
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
 			
 			cluster = new ForkableFlinkMiniCluster(config, false);
+
+			cluster.start();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -61,9 +63,9 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 	}
 
 	@AfterClass
-	public static void shutdownCluster() {
+	public static void stopCluster() {
 		try {
-			cluster.shutdown();
+			cluster.stop();
 			cluster = null;
 		}
 		catch (Exception e) {
@@ -91,7 +93,7 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 	public void runCheckpointedProgram() {
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getJobManagerRPCPort());
+					"localhost", cluster.getLeaderRPCPort());
 			env.setParallelism(PARALLELISM);
 			env.enableCheckpointing(500);
 			env.getConfig().disableSysoutLogging();

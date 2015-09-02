@@ -71,6 +71,10 @@ class MemoryArchivist(private val max_entries: Int)
   var canceledCnt: Int = 0
   var failedCnt: Int = 0
 
+  override def preStart(): Unit = {
+    log.info(s"Started memory archivist ${self.path}")
+  }
+
   override def handleMessage: Receive = {
     
     /* Receive Execution Graph to archive */
@@ -133,23 +137,23 @@ class MemoryArchivist(private val max_entries: Int)
         graphs.get(jobID) match {
           case Some(graph) =>
             val accumulatorValues = graph.getAccumulatorsSerialized()
-            sender() ! AccumulatorResultsFound(jobID, accumulatorValues)
+            sender() ! decorateMessage(AccumulatorResultsFound(jobID, accumulatorValues))
           case None =>
-            sender() ! AccumulatorResultsNotFound(jobID)
+            sender() ! decorateMessage(AccumulatorResultsNotFound(jobID))
         }
       } catch {
         case e: Exception =>
           log.error("Cannot serialize accumulator result.", e)
-          sender() ! AccumulatorResultsErroneous(jobID, e)
+          sender() ! decorateMessage(AccumulatorResultsErroneous(jobID, e))
       }
 
       case RequestAccumulatorResultsStringified(jobID) =>
         graphs.get(jobID) match {
           case Some(graph) =>
             val accumulatorValues = graph.getAccumulatorResultsStringified()
-            sender() ! AccumulatorResultStringsFound(jobID, accumulatorValues)
+            sender() ! decorateMessage(AccumulatorResultStringsFound(jobID, accumulatorValues))
           case None =>
-            sender() ! AccumulatorResultsNotFound(jobID)
+            sender() ! decorateMessage(AccumulatorResultsNotFound(jobID))
         }
   }
 

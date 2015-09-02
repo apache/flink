@@ -70,11 +70,11 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
 
 			executor = new ForkableFlinkMiniCluster(configuration);
+			executor.start();
 		}
 		try {
 			sync = true;
-			SerializedJobExecutionResult result = executor.submitJobAndWait(jobGraph, false);
-			latestResult = result.toJobExecutionResult(getClass().getClassLoader());
+			latestResult = executor.submitJobAndWait(jobGraph, false);
 			return latestResult;
 		} catch (JobExecutionException e) {
 			if (e.getMessage().contains("GraphConversionException")) {
@@ -116,8 +116,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 			jobRunner = new Thread() {
 				public void run() {
 					try {
-						SerializedJobExecutionResult result = cluster.submitJobAndWait(jobGraph, false);
-						latestResult = result.toJobExecutionResult(getClass().getClassLoader());
+						latestResult = cluster.submitJobAndWait(jobGraph, false);
 					} catch (JobExecutionException e) {
 						// TODO remove: hack to make ITCase succeed because .submitJobAndWait() throws exception on .stop() (see this.shutdown())
 						latestResult = new JobExecutionResult(null, 0, null);
