@@ -54,7 +54,27 @@ public final class ConfigConstants {
 	public static final String DEFAULT_EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
 	
 	// -------------------------------- Runtime -------------------------------
-	
+
+	/**
+	 * The heartbeat interval for the Job Client to poll Job Manager for status updates
+	 */
+	public static final String JOB_CLIENT_HEARTBEAT_INTERVAL = "client.heartbeat.interval";
+
+	/**
+	 * Initial delay for the Job Client to start checking on the Job Manager for status updates
+	 */
+	public static final String JOB_CLIENT_INITIAL_DELAY = "client.heartbeat.delay";
+
+	/**
+	 * Maximum time the job client waits for the job to go to running state, before failing it.
+	 */
+	public static final String JOB_CLIENT_JOB_STATUS_TIMEOUT = "client.timeout.jobstatus";
+
+	/**
+	 * Maximum time the Job Client waits for a message from Job Manager before considering it dead.
+	 */
+	public static final String JOB_CLIENT_JOB_MANAGER_TIMEOUT= "client.timeout.jobmanager";
+
 	/**
 	 * The config parameter defining the network address to connect to
 	 * for communication with the job manager.
@@ -257,7 +277,6 @@ public final class ConfigConstants {
 	 * for environments sharing a Flink installation between users)
 	 */
 	public static final String YARN_PROPERTIES_FILE_LOCATION = "yarn.properties-file.location";
-
 
 	// ------------------------ Hadoop Configuration ------------------------
 
@@ -600,6 +619,26 @@ public final class ConfigConstants {
 	 * The default timeout for filesystem stream opening: infinite (means max long milliseconds).
 	 */
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
+
+	/**
+	 * Default heartbeat interval for the Job Client to poll Job Manager for status updates
+	 */
+	public static final String DEFAULT_JOB_CLIENT_HEARTBEAT_INTERVAL = "5 s";
+
+	/**
+	 * Default initial delay for the Job Client to start checking on the Job Manager for status updates
+	 */
+	public static final String DEFAULT_JOB_CLIENT_INITIAL_DELAY = "500 ms";
+
+	/**
+	 * Default maximum time the Job Client waits for the job to go to running state, before failing it.
+	 */
+	public static final String DEFAULT_JOB_CLIENT_JOB_STATUS_TIMEOUT = "30 s";
+
+	/**
+	 * Default maximum time Job Client waits for a message from Job Manager before considering it dead.
+	 */
+	public static final String DEFAULT_JOB_CLIENT_JOB_MANAGER_TIMEOUT = "20 s";
 
 	// ------------------------ YARN Configuration ------------------------
 

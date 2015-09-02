@@ -412,6 +412,7 @@ abstract class FlinkMiniCluster(
          }
 
      JobClient.submitJobAndWait(
+       configuration,
        clientActorSystem,
        jobManagerGateway,
        jobGraph,

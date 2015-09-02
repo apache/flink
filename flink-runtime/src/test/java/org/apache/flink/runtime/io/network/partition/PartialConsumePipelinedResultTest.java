@@ -103,6 +103,7 @@ public class PartialConsumePipelinedResultTest {
 		receiver.setSlotSharingGroup(slotSharingGroup);
 
 		JobClient.submitJobAndWait(
+				new Configuration(),
 				jobClient,
 				flink.getLeaderGateway(TestingUtils.TESTING_DURATION()),
 				jobGraph,
