@@ -204,6 +204,16 @@ under the License.
 										<exclude>web-docs/**</exclude>
 									</excludes>
 								</filter>
+								<filter>
+									<!-- Do not copy the signatures in the META-INF folder.
+									Otherwise, this might cause SecurityExceptions when using the JAR. -->
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
 							</filters>
 							<transformers>
 								<!-- add Main-Class to manifest file -->
