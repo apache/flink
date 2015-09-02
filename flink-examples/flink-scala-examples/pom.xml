@@ -213,7 +213,7 @@ under the License.
 						</goals>
 
 						<configuration>
-							<classifier>KMeans</classifier>
+							<finalName>KMeans</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -238,7 +238,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>TransitiveClosure</classifier>
+							<finalName>TransitiveClosure</finalName>
 				
 							<archive>
 								<manifestEntries>
@@ -262,7 +262,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>ConnectedComponents</classifier>
+							<finalName>ConnectedComponents</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -286,7 +286,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>EnumTrianglesBasic</classifier>
+							<finalName>EnumTrianglesBasic</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -310,7 +310,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>EnumTrianglesOpt</classifier>
+							<finalName>EnumTrianglesOpt</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -334,7 +334,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>PageRankBasic</classifier>
+							<finalName>PageRankBasic</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -407,7 +407,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>WebLogAnalysis</classifier>
+							<finalName>WebLogAnalysis</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -432,7 +432,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>WordCount</classifier>
+							<finalName>WordCount</finalName>
 
 							<archive>
 								<manifestEntries>
