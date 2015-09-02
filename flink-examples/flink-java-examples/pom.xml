@@ -322,6 +322,33 @@ under the License.
 					
 				</executions>
 			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>all</id>
+						<phase>package</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-KMeans.jar" dest="${project.basedir}/target/KMeans.jar" />
+								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-ConnectedComponents.jar" dest="${project.basedir}/target/ConnectedComponents.jar" />
+								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-EnumTrianglesBasic.jar" dest="${project.basedir}/target/EnumTrianglesBasic.jar" />
+								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-EnumTrianglesOpt.jar" dest="${project.basedir}/target/EnumTrianglesOpt.jar" />
+								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-PageRankBasic.jar" dest="${project.basedir}/target/PageRankBasic.jar" />
+								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-TransitiveClosure.jar" dest="${project.basedir}/target/TransitiveClosure.jar" />
+								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-WebLogAnalysis.jar" dest="${project.basedir}/target/WebLogAnalysis.jar" />
+								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-WordCount.jar" dest="${project.basedir}/target/WordCount.jar" />
+								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-WordCountPOJO.jar" dest="${project.basedir}/target/WordCountPOJO.jar" />
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 
