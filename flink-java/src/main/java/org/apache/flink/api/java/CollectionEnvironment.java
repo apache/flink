@@ -20,17 +20,21 @@ package org.apache.flink.api.java;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.operators.CollectionExecutor;
+import org.apache.flink.api.common.PlanExecutor;
 
 public class CollectionEnvironment extends ExecutionEnvironment {
+
+	private PlanExecutor executor;
+
+	public CollectionEnvironment() {
+		executor = PlanExecutor.createCollectionExecutor();
+	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 
-		// We need to reverse here. Object-Reuse enabled, means safe mode is disabled.
-		CollectionExecutor exec = new CollectionExecutor(getConfig());
-		this.lastJobExecutionResult = exec.execute(p);
+		this.lastJobExecutionResult = executor.executePlan(p);
 		return this.lastJobExecutionResult;
 	}
 

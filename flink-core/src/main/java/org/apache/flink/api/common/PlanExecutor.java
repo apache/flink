@@ -26,8 +26,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A PlanExecutor runs a plan. The specific implementation (such as the org.apache.flink.client.LocalExecutor
- * and org.apache.flink.client.RemoteExecutor) determines where and how to run the plan.
+ * A PlanExecutor runs a plan. The specific implementation (such as the org.apache.flink.client.LocalExecutor,
+ * org.apache.flink.client.RemoteExecutor, org.apache.flink.api.common.operators.CollectionExecutor)
+ * determines where and how to run the plan.
  * 
  * The concrete implementations are loaded dynamically, because they depend on the full set of
  * dependencies of all runtime classes.
@@ -36,6 +37,7 @@ public abstract class PlanExecutor {
 	
 	private static final String LOCAL_EXECUTOR_CLASS = "org.apache.flink.client.LocalExecutor";
 	private static final String REMOTE_EXECUTOR_CLASS = "org.apache.flink.client.RemoteExecutor";
+	private static final String COLLECTOR_EXECUTOR_CLASS = "org.apache.flink.api.common.operators.CollectionExecutor";
 
 	// ------------------------------------------------------------------------
 	//  Config Options
@@ -82,6 +84,23 @@ public abstract class PlanExecutor {
 	//  Executor Factories
 	// ------------------------------------------------------------------------
 	
+	/**
+	 * Creates an executor that runs the plan locally in a collection environment.
+	 *
+	 * @return A collection executor
+	 */
+	public static PlanExecutor createCollectionExecutor() {
+		Class<? extends PlanExecutor> leClass = loadExecutorClass(COLLECTOR_EXECUTOR_CLASS);
+
+		try {
+			return leClass.newInstance();
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("An error occurred while loading the collection executor ("
+					+ COLLECTOR_EXECUTOR_CLASS + ").", t);
+		}
+	}
+
 	/**
 	 * Creates an executor that runs the plan locally in a multi-threaded environment.
 	 * 

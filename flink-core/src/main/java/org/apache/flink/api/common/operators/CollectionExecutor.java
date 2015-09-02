@@ -36,6 +36,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -64,7 +65,7 @@ import org.apache.flink.util.Visitor;
 /**
  * Execution utility for serial, local, collection-based executions of Flink programs.
  */
-public class CollectionExecutor {
+public class CollectionExecutor extends PlanExecutor {
 	
 	private static final boolean DEFAULT_MUTABLE_OBJECT_SAFE_MODE = true;
 	
@@ -80,15 +81,13 @@ public class CollectionExecutor {
 	
 	private final ClassLoader classLoader;
 	
-	private final ExecutionConfig executionConfig;
+	private ExecutionConfig executionConfig;
 
 	private int iterationSuperstep;
 
 	// --------------------------------------------------------------------------------------------
 	
-	public CollectionExecutor(ExecutionConfig executionConfig) {
-		this.executionConfig = executionConfig;
-		
+	public CollectionExecutor() {
 		this.intermediateResults = new HashMap<Operator<?>, List<?>>();
 		this.accumulators = new HashMap<String, Accumulator<?,?>>();
 		this.previousAggregates = new HashMap<String, Value>();
@@ -101,7 +100,9 @@ public class CollectionExecutor {
 	//  General execution methods
 	// --------------------------------------------------------------------------------------------
 	
-	public JobExecutionResult execute(Plan program) throws Exception {
+	@Override
+	public JobExecutionResult executePlan(Plan program) throws Exception {
+		this.executionConfig = program.getExecutionConfig();
 		long startTime = System.currentTimeMillis();
 		initCache(program.getCachedFiles());
 		Collection<? extends GenericDataSinkBase<?>> sinks = program.getDataSinks();
@@ -112,6 +113,11 @@ public class CollectionExecutor {
 		long endTime = System.currentTimeMillis();
 		Map<String, Object> accumulatorResults = AccumulatorHelper.toResultMap(accumulators);
 		return new JobExecutionResult(null, endTime - startTime, accumulatorResults);
+	}
+
+	@Override
+	public String getOptimizerPlanAsJSON(Plan program) {
+		throw new UnsupportedOperationException("Collection environment doesn't provide optimized plans");
 	}
 
 	private void initCache(Set<Map.Entry<String, DistributedCache.DistributedCacheEntry>> files){
