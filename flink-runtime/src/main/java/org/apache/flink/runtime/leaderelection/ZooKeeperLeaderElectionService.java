@@ -114,8 +114,10 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 		leaderLatch.close();
 		client.close();
 
-		confirmedLeaderSessionID = null;
-		issuedLeaderSessionID = null;
+		synchronized (lock) {
+			confirmedLeaderSessionID = null;
+			issuedLeaderSessionID = null;
+		}
 	}
 
 	@Override
