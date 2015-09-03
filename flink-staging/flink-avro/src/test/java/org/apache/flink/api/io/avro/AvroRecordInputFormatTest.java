@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.esotericsoftware.kryo.Serializer;
+
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileWriter;
@@ -43,6 +44,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.io.avro.generated.Address;
 import org.apache.flink.api.io.avro.generated.Colors;
 import org.apache.flink.api.io.avro.generated.User;
 import org.apache.flink.api.java.io.AvroInputFormat;
@@ -81,6 +83,13 @@ public class AvroRecordInputFormatTest {
 	final static long TEST_MAP_VALUE1 = 8546456L;
 	final static String TEST_MAP_KEY2 = "KEY 2";
 	final static long TEST_MAP_VALUE2 = 17554L;
+	
+	final static Integer TEST_NUM = 239;
+	final static String TEST_STREET = "Baker Street";
+	final static String TEST_CITY = "London";
+	final static String TEST_STATE = "London";
+	final static String TEST_ZIP = "NW1 6XE";
+	
 
 	private Schema userSchema = new User().getSchema();
 
@@ -97,6 +106,13 @@ public class AvroRecordInputFormatTest {
 		HashMap<CharSequence, Long> longMap = new HashMap<CharSequence, Long>();
 		longMap.put(TEST_MAP_KEY1, TEST_MAP_VALUE1);
 		longMap.put(TEST_MAP_KEY2, TEST_MAP_VALUE2);
+		
+		Address addr = new Address();
+		addr.setNum(new Integer(TEST_NUM));
+		addr.setStreet(TEST_STREET);
+		addr.setCity(TEST_CITY);
+		addr.setState(TEST_STATE);
+		addr.setZip(TEST_ZIP);
 
 
 		User user1 = new User();
@@ -109,6 +125,7 @@ public class AvroRecordInputFormatTest {
 		user1.setTypeArrayBoolean(booleanArray);
 		user1.setTypeEnum(TEST_ENUM_COLOR);
 		user1.setTypeMap(longMap);
+		user1.setTypeNested(addr);
 
 		// Construct via builder
 		User user2 = User.newBuilder()
@@ -126,6 +143,10 @@ public class AvroRecordInputFormatTest {
 				.setTypeMap(new HashMap<CharSequence, Long>())
 				.setTypeFixed(null)
 				.setTypeUnion(null)
+				.setTypeNested(
+						Address.newBuilder().setNum(TEST_NUM).setStreet(TEST_STREET)
+								.setCity(TEST_CITY).setState(TEST_STATE).setZip(TEST_ZIP)
+								.build())
 				.build();
 		DatumWriter<User> userDatumWriter = new SpecificDatumWriter<User>(User.class);
 		DataFileWriter<User> dataFileWriter = new DataFileWriter<User>(userDatumWriter);
