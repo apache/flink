@@ -377,8 +377,6 @@ public class DataStream<T> {
 		return setConnectionType(new HashPartitioner<T>(clean(keySelector)));
 	}
 	
-	
-	
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output is
 	 * partitioned using the given {@link KeySelector}. This setting only
@@ -388,33 +386,6 @@ public class DataStream<T> {
 	 * @param keySelector The function that extracts the key from an element in the Stream
 	 * @return The partitioned DataStream
 	 */
-	public DataStream<T> partitionByPartial(KeySelector<T, ?> keySelector) {
-		return setConnectionType(new PartialPartitioner<T>(clean(keySelector)));
-	}
-	
-	public DataStream<T> partitionByPartial(String... fields) {
-		return partitionByPartial(new Keys.ExpressionKeys<T>(fields, getType()));
-	}
-	
-	public DataStream<T> partitionByPartial(int... fields) {
-		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
-			return partitionByPartial(new KeySelectorUtil.ArrayKeySelector<T>(fields));
-		} else {
-			return partitionByPartial(new Keys.ExpressionKeys<T>(fields, getType()));
-		}
-	}
-	
-	private DataStream<T> partitionByPartial(Keys<T> keys) {
-		KeySelector<T, ?> keySelector = clean(KeySelectorUtil.getSelectorForKeys(
-				keys,
-				getType(),
-				getExecutionConfig()));
-
-		return setConnectionType(new PartialPartitioner<T>(keySelector));
-	}
-	
-	
-
 	//private helper method for partitioning
 	private DataStream<T> partitionByHash(Keys<T> keys) {
 		KeySelector<T, ?> keySelector = clean(KeySelectorUtil.getSelectorForKeys(
