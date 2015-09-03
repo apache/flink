@@ -165,29 +165,26 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			logger.debug("Responding with file '" + file.getAbsolutePath() + '\'');
 		}
 
-		final RandomAccessFile raf;
-		try {
-			raf = new RandomAccessFile(file, "r");
-		}
-		catch (FileNotFoundException e) {
+		try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+			long fileLength = raf.length();
+
+			HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+			setContentTypeHeader(response, file);
+			setDateAndCacheHeaders(response, file);
+			if (HttpHeaders.isKeepAlive(request)) {
+				response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+			}
+			HttpHeaders.setContentLength(response, fileLength);
+
+			// write the initial line and the header.
+			ctx.write(response);
+
+			// write the content.
+			ctx.write(new DefaultFileRegion(raf.getChannel(), 0, fileLength), ctx.newProgressivePromise());
+		} catch (FileNotFoundException e) {
 			sendError(ctx, NOT_FOUND);
 			return;
 		}
-		long fileLength = raf.length();
-
-		HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-		setContentTypeHeader(response, file);
-		setDateAndCacheHeaders(response, file);
-		if (HttpHeaders.isKeepAlive(request)) {
-			response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-		}
-		HttpHeaders.setContentLength(response, fileLength);
-
-		// write the initial line and the header.
-		ctx.write(response);
-
-		// write the content.
-		ctx.write(new DefaultFileRegion(raf.getChannel(), 0, fileLength), ctx.newProgressivePromise());
 		ChannelFuture lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
 
 		// close the connection, if no keep-alive is needed
