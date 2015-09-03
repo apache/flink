@@ -31,6 +31,8 @@ import org.apache.flink.util.StringUtils;
 
 import java.util.Random;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Statehandle that writes the checkpointed state to a random file in the
  * provided checkpoint directory. Any Flink supported File system can be used
@@ -38,13 +40,13 @@ import java.util.Random;
  * failures, such as HDFS or Tachyon.
  * 
  */
-public class FileStateHandle extends ByteStreamStateHandle {
+public class FileStateHandle<T extends Serializable> extends ByteStreamStateHandle<T> {
 
 	private static final long serialVersionUID = 1L;
 
 	private String pathString;
 
-	public FileStateHandle(Serializable state, String folder) {
+	public FileStateHandle(T state, String folder) {
 		super(state);
 		this.pathString = folder + "/" + randomString();
 	}
@@ -73,8 +75,8 @@ public class FileStateHandle extends ByteStreamStateHandle {
 	 * {@link FileStateHandle}s for a given checkpoint directory.
 	 * 
 	 */
-	public static StateHandleProvider<Serializable> createProvider(String checkpointDir) {
-		return new FileStateHandleProvider(checkpointDir);
+	public static <T extends Serializable> StateHandleProvider<T> createProvider(String checkpointDir) {
+		return new FileStateHandleProvider<>(checkpointDir);
 	}
 
 	/**
@@ -82,18 +84,19 @@ public class FileStateHandle extends ByteStreamStateHandle {
 	 * given checkpoint directory.
 	 * 
 	 */
-	private static class FileStateHandleProvider implements StateHandleProvider<Serializable> {
+	private static class FileStateHandleProvider<T extends Serializable> implements StateHandleProvider<T> {
 
 		private static final long serialVersionUID = 3496670017955260518L;
 		private String path;
 
 		public FileStateHandleProvider(String path) {
-			this.path = path;
+			this.path = checkNotNull(path, "Path");
 		}
 
 		@Override
-		public FileStateHandle createStateHandle(Serializable state) {
-			return new FileStateHandle(state, path);
+		@SuppressWarnings("unchecked")
+		public FileStateHandle<T> createStateHandle(T state) {
+			return (FileStateHandle<T>) new FileStateHandle(state, path);
 		}
 
 	}
