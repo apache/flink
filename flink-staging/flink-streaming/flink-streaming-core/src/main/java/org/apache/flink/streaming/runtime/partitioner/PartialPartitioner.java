@@ -84,4 +84,48 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		returnArray[0] = selected;
 		return returnArray;
 	}
+	
+	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
+			int numChannels, int numWorkersPerKey) {
+		// TODO Auto-generated method stub
+		if(!initializedStats) {
+			this.targetChannelStats = new long[numChannels];
+			this.initializedStats = true;
+		}
+		Object key;
+		try {
+			key = keySelector.getKey(record.getInstance().getValue());
+		} catch (Exception e) {
+			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
+		}
+		if(numWorkersPerKey < 2 ) {
+			numWorkersPerKey = 2;
+		}
+		int choices[]  = new int[numWorkersPerKey];
+		int counter = 0;
+		choices[counter] = Math.abs(key.hashCode()) 
+				% numChannels;
+		counter++;
+		
+		while (counter <= numWorkersPerKey) {
+			choices[counter] = (choices[counter-1] + 1 ) 
+				% numChannels; 
+			counter++;		
+		}
+				
+		int selected = selectMinWorker(targetChannelStats,choices);
+		targetChannelStats[selected]++;
+		
+		returnArray[0] = selected;
+		return returnArray;
+	}
+	
+	private int selectMinWorker(long loadVector[], int choice[]) {
+		int index = choice[0];
+		for(int i = 0; i< choice.length; i++) {
+			if (loadVector[choice[i]]<loadVector[index])
+				index = choice[i];
+		}
+		return index;
+	}
 }
