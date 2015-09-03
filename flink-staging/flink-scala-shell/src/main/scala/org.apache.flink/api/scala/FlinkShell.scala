@@ -67,6 +67,7 @@ object FlinkShell {
     val (host,port) = if (userHost == "none" || userPort == -1 ) {
       println("Creating new local server")
       cluster = new LocalFlinkMiniCluster(new Configuration, false)
+      cluster.start()
       ("localhost",cluster.getLeaderRPCPort)
     } else {
       println(s"Connecting to remote server (host: $userHost, port: $userPort).")
