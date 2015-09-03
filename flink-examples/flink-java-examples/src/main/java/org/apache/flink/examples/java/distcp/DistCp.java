@@ -1,7 +1,7 @@
 package org.apache.flink.examples.java.distcp;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
@@ -31,7 +31,6 @@ public class DistCp {
     private static final Logger LOGGER = LoggerFactory.getLogger(DistCp.class);
 
     public static void main(String[] args) throws Exception {
-
         final Path sourcePath = new Path(args[0]);
         final Path targetPath = new Path(args[1]);
         int parallelism = Integer.valueOf(args[2], 10);
@@ -50,7 +49,7 @@ public class DistCp {
                 new GenericTypeInfo<>(FileCopyTask.class), "fileCopyTasks");
 
 
-        FlatMapOperator<FileCopyTask, Object> res = inputTasks.flatMap(new RichFlatMapFunction<FileCopyTask, Object>() {
+        FlatMapOperator<FileCopyTask, Object> res = inputTasks.flatMap(new FlatMapFunction<FileCopyTask, Object>() {
             @Override
             public void flatMap(FileCopyTask task, Collector<Object> out) throws Exception {
                 LOGGER.info("Processing task: " + task);
@@ -60,7 +59,7 @@ public class DistCp {
                 if (!targetFs.isDistributedFS()) {
                     File parentFile = new File(outPath.toUri()).getParentFile();
                     if (parentFile.mkdirs()) {
-                        throw new RuntimeException("Cannot create folders: " + parentFile);
+                        throw new RuntimeException("Cannot create local file system directories: " + parentFile);
                     }
                 }
 
@@ -69,7 +68,6 @@ public class DistCp {
                 try {
                     outputStream = targetFs.create(outPath, true);
                     inputStream = task.getPath().getFileSystem().open(task.getPath());
-
                     IOUtils.copy(inputStream, outputStream);
                 } finally {
                     IOUtils.closeQuietly(inputStream);
@@ -78,6 +76,7 @@ public class DistCp {
             }
         });
 
+        // executing the program. Since it does not have an explicit output, nothing needs to be written to a sink
         res.print();
     }
 
