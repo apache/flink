@@ -15,11 +15,28 @@ package org.apache.flink.languagebinding.api.java.python;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.api.java.LocalEnvironment;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import static org.apache.flink.languagebinding.api.java.python.PythonPlanBinder.ARGUMENT_PYTHON_2;
 import static org.apache.flink.languagebinding.api.java.python.PythonPlanBinder.ARGUMENT_PYTHON_3;
+
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
@@ -31,11 +48,16 @@ public class PythonPlanBinderTest {
 	private static boolean python2Supported = true;
 	private static boolean python3Supported = true;
 	private static List<String> TEST_FILES;
+
+	private static Configuration config = new Configuration();
+	private static LocalFlinkMiniCluster cluster = new LocalFlinkMiniCluster(config, true);
 	
 	@BeforeClass
 	public static void setup() throws Exception {
 		findTestFiles();
 		checkPythonSupport();
+		cluster.start();
+		new PythonTestEnvironment(cluster, 1).setAsContext();
 	}
 	
 	private static void findTestFiles() throws Exception {
@@ -84,6 +106,67 @@ public class PythonPlanBinderTest {
 				LOG.info("testing " + file);
 				PythonPlanBinder.main(new String[]{ARGUMENT_PYTHON_3, file});
 			}
+		}
+	}
+
+	@AfterClass
+	public static void tearDown() {
+		cluster.stop();
+	}
+
+	private static final class PythonTestEnvironment extends LocalEnvironment {
+
+		private final LocalFlinkMiniCluster executor;
+
+		public PythonTestEnvironment(LocalFlinkMiniCluster executor, int parallelism) {
+			this.executor = executor;
+			setParallelism(parallelism);
+		}
+
+		@Override
+		public JobExecutionResult execute(String jobName) throws Exception {
+			try {
+				OptimizedPlan op = compileProgram(jobName);
+
+				JobGraphGenerator jgg = new JobGraphGenerator();
+				JobGraph jobGraph = jgg.compileJobGraph(op);
+
+				this.lastJobExecutionResult = executor.submitJobAndWait(jobGraph, false);
+				return this.lastJobExecutionResult;
+			}
+			catch (Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Job execution failed!");
+				return null;
+			}
+		}
+
+
+		@Override
+		public String getExecutionPlan() throws Exception {
+			OptimizedPlan op = compileProgram("unused");
+
+			PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
+			return jsonGen.getOptimizerPlanAsJSON(op);
+		}
+
+		private OptimizedPlan compileProgram(String jobName) {
+			Plan p = createProgramPlan(jobName);
+
+			Optimizer pc = new Optimizer(new DataStatistics(), this.executor.configuration());
+			return pc.compile(p);
+		}
+
+		public void setAsContext() {
+			ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
+				@Override
+				public ExecutionEnvironment createExecutionEnvironment() {
+					return new PythonTestEnvironment(executor, getParallelism());
+				}
+			};
+
+			initializeContextEnvironment(factory);
 		}
 	}
 }

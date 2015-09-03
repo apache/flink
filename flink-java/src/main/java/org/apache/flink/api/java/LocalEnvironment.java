@@ -33,7 +33,9 @@ import org.apache.flink.configuration.Configuration;
  * machine.
  */
 public class LocalEnvironment extends ExecutionEnvironment {
-	private Configuration configuration;
+
+	private PlanExecutor executor;
+
 	/**
 	 * Creates a new local environment.
 	 */
@@ -41,6 +43,8 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		if(!ExecutionEnvironment.localExecutionIsAllowed()) {
 			throw new InvalidProgramException("The LocalEnvironment cannot be used when submitting a program through a client.");
 		}
+		// in case no custom configuration is provided ever.
+		setConfiguration(null);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -48,8 +52,6 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
-		
-		PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
 		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
 		this.lastJobExecutionResult = executor.executePlan(p);
 		return this.lastJobExecutionResult;
@@ -58,8 +60,6 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	@Override
 	public String getExecutionPlan() throws Exception {
 		Plan p = createProgramPlan(null, false);
-		
-		PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
 		return executor.getOptimizerPlanAsJSON(p);
 	}
 	// --------------------------------------------------------------------------------------------
@@ -71,6 +71,6 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	}
 
 	public void setConfiguration(Configuration customConfiguration) {
-		this.configuration = customConfiguration;
+		executor = PlanExecutor.createLocalExecutor(customConfiguration);
 	}
 }

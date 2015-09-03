@@ -147,12 +147,8 @@ public class LocalExecutor extends PlanExecutor {
 		}
 		
 		synchronized (this.lock) {
-			
-			// check if we start a session dedicated for this execution
-			final boolean shutDownAtEnd;
+
 			if (this.flink == null) {
-				// we start a session just for us now
-				shutDownAtEnd = true;
 				
 				// configure the number of local slots equal to the parallelism of the local plan
 				if (this.taskManagerNumSlots == DEFAULT_TASK_MANAGER_NUM_SLOTS) {
@@ -161,28 +157,18 @@ public class LocalExecutor extends PlanExecutor {
 						this.taskManagerNumSlots = maxParallelism;
 					}
 				}
-				
+				// for user programs, the cluster will get garbage collected after program execution.
 				start();
-			} else {
-				// we use the existing session
-				shutDownAtEnd = false;
 			}
 
-			try {
-				Optimizer pc = new Optimizer(new DataStatistics(), this.flink.configuration());
-				OptimizedPlan op = pc.compile(plan);
-				
-				JobGraphGenerator jgg = new JobGraphGenerator();
-				JobGraph jobGraph = jgg.compileJobGraph(op);
-				
-				boolean sysoutPrint = isPrintingStatusDuringExecution();
-				return flink.submitJobAndWait(jobGraph, sysoutPrint);
-			}
-			finally {
-				if (shutDownAtEnd) {
-					stop();
-				}
-			}
+			Optimizer pc = new Optimizer(new DataStatistics(), this.flink.configuration());
+			OptimizedPlan op = pc.compile(plan);
+
+			JobGraphGenerator jgg = new JobGraphGenerator();
+			JobGraph jobGraph = jgg.compileJobGraph(op);
+
+			boolean sysoutPrint = isPrintingStatusDuringExecution();
+			return flink.submitJobAndWait(jobGraph, sysoutPrint);
 		}
 	}
 
