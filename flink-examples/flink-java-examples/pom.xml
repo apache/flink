@@ -328,7 +328,7 @@ under the License.
 				<artifactId>maven-antrun-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>all</id>
+						<id>rename</id>
 						<phase>package</phase>
 						<goals>
 							<goal>run</goal>
