@@ -53,6 +53,8 @@ public class NetUtils {
 	 * There is only a state transition if the current state failed to determine the address.
 	 */
 	private enum AddressDetectionState {
+		/** Connect from interface returned by InetAddress.getLocalHost() **/
+		LOCAL_HOST(50),
 		/** Detect own IP address based on the target IP address. Look for common prefix */
 		ADDRESS(50),
 		/** Try to connect on all Interfaces and all their addresses with a low timeout */
@@ -189,9 +191,17 @@ public class NetUtils {
 		long currentSleepTime = MIN_SLEEP_TIME;
 		long elapsedTime = 0;
 
+		// before trying with different strategies: test with getLocalHost():
+		InetAddress localhostName = InetAddress.getLocalHost();
+
+		if(tryToConnect(localhostName, targetAddress, AddressDetectionState.ADDRESS.getTimeout(), false)) {
+			LOG.debug("Using immediately InetAddress.getLocalHost() for the connecting address");
+			return localhostName;
+		}
+
 		// loop while there is time left
 		while (elapsedTime < maxWaitMillis) {
-			AddressDetectionState strategy = AddressDetectionState.ADDRESS;
+			AddressDetectionState strategy = AddressDetectionState.LOCAL_HOST;
 
 			boolean logging = elapsedTime >= startLoggingAfter;
 			if (logging) {
@@ -206,6 +216,9 @@ public class NetUtils {
 
 				// pick the next strategy
 				switch (strategy) {
+					case LOCAL_HOST:
+						strategy = AddressDetectionState.ADDRESS;
+						break;
 					case ADDRESS:
 						strategy = AddressDetectionState.FAST_CONNECT;
 						break;
@@ -276,6 +289,13 @@ public class NetUtils {
 				InetAddress interfaceAddress = ee.nextElement();
 
 				switch (strategy) {
+					case LOCAL_HOST:
+						InetAddress localhostName = InetAddress.getLocalHost();
+
+						if(tryToConnect(localhostName, targetAddress, strategy.getTimeout(), logging)) {
+							LOG.debug("Using immediately InetAddress.getLocalHost() for the connecting address");
+							return localhostName;
+						}
 					case ADDRESS:
 						if (hasCommonPrefix(targetAddressBytes, interfaceAddress.getAddress())) {
 							LOG.debug("Target address {} and local address {} share prefix - trying to connect.",
@@ -464,7 +484,7 @@ public class NetUtils {
 					}
 
 					if (targetAddress != null) {
-						AddressDetectionState strategy = AddressDetectionState.ADDRESS;
+						AddressDetectionState strategy = AddressDetectionState.LOCAL_HOST;
 
 						boolean logging = elapsedTime >= startLoggingAfter.toMillis();
 						if (logging) {
@@ -479,6 +499,9 @@ public class NetUtils {
 
 							// pick the next strategy
 							switch (strategy) {
+								case LOCAL_HOST:
+									strategy = AddressDetectionState.ADDRESS;
+									break;
 								case ADDRESS:
 									strategy = AddressDetectionState.FAST_CONNECT;
 									break;
