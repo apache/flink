@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * cannot be executed directly, but must be handed over to a {@link FlinkLocalCluster}, {@link FlinkSubmitter}, or
  * {@link FlinkClient}.
  */
-class FlinkTopology extends StreamExecutionEnvironment {
+public class FlinkTopology extends StreamExecutionEnvironment {
 
 	/** The corresponding {@link StormTopology} that is mimicked by this {@link FlinkTopology} */
 	private final StormTopology stormTopology;
