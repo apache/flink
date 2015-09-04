@@ -18,28 +18,19 @@
 
 package org.apache.flink.client;
 
-import org.apache.flink.client.cli.CommandLineOptions;
-import org.apache.flink.client.program.Client;
-import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.optimizer.CompilerException;
-import org.apache.flink.configuration.Configuration;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.net.InetAddress;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 
 import static org.junit.Assert.*;
 
 public class CliFrontendInfoTest {
 	
-	@BeforeClass
-	public static void init() {
-		CliFrontendTestUtils.pipeSystemOutToNull();
-		CliFrontendTestUtils.clearGlobalConfiguration();
-	}
-	
+	private static PrintStream stdOut;
+	private static PrintStream capture;
+	private static ByteArrayOutputStream buffer;
+
 	@Test
 	public void testErrorCases() {
 		try {
@@ -67,71 +58,49 @@ public class CliFrontendInfoTest {
 	
 	@Test
 	public void testShowExecutionPlan() {
+		replaceStdOut();
 		try {
+
 			String[] parameters = new String[] { CliFrontendTestUtils.getTestJarPath() };
-			InfoTestCliFrontend testFrontend = new InfoTestCliFrontend(-1);
+			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 			int retCode = testFrontend.info(parameters);
 			assertTrue(retCode == 0);
+			assertTrue(buffer.toString().contains("\"parallelism\": \"1\""));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail("Program caused an exception: " + e.getMessage());
+		} finally {
+			restoreStdOut();
 		}
 	}
 	
 	@Test
 	public void testShowExecutionPlanWithParallelism() {
+		replaceStdOut();
 		try {
 			String[] parameters = {"-p", "17", CliFrontendTestUtils.getTestJarPath()};
-			InfoTestCliFrontend testFrontend = new InfoTestCliFrontend(17);
+			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 			int retCode = testFrontend.info(parameters);
 			assertTrue(retCode == 0);
+			assertTrue(buffer.toString().contains("\"parallelism\": \"17\""));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail("Program caused an exception: " + e.getMessage());
+		} finally {
+			restoreStdOut();
 		}
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	private static final class InfoTestCliFrontend extends CliFrontend {
-		
-		private final int expectedDop;
-		
-		public InfoTestCliFrontend(int expectedDop) throws Exception {
-			super(CliFrontendTestUtils.getConfigDir());
-			this.expectedDop = expectedDop;
-		}
 
-		@Override
-		protected Client getClient(CommandLineOptions options, ClassLoader loader, String programName, int par)
-				throws Exception {
-			Configuration config = new Configuration();
-
-			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, InetAddress.getLocalHost().getHostName());
-			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 6176);
-
-			return new TestClient(config, expectedDop);
-		}
+	private static void replaceStdOut() {
+		stdOut = System.out;
+		buffer = new ByteArrayOutputStream();
+		capture = new PrintStream(buffer);
+		System.setOut(capture);
 	}
-	
-	private static final class TestClient extends Client {
-		
-		private final int expectedDop;
-		
-		private TestClient(Configuration config, int expectedDop) throws Exception {
-			super(config, CliFrontendInfoTest.class.getClassLoader(), -1);
-			
-			this.expectedDop = expectedDop;
-		}
-		
-		@Override
-		public String getOptimizedPlanAsJson(PackagedProgram prog, int parallelism)
-				throws CompilerException, ProgramInvocationException
-		{
-			assertEquals(this.expectedDop, parallelism);
-			return "";
-		}
+
+	private static void restoreStdOut() {
+		System.setOut(stdOut);
 	}
 }

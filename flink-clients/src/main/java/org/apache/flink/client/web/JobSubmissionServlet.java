@@ -1,4 +1,4 @@
-/*
+ /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,9 +54,6 @@ import org.slf4j.LoggerFactory;
 
 public class JobSubmissionServlet extends HttpServlet {
 
-	/**
-	 * Serial UID for serialization interoperability.
-	 */
 	private static final long serialVersionUID = 8447312301029847397L;
 
 	// ------------------------------------------------------------------------
@@ -96,7 +93,7 @@ public class JobSubmissionServlet extends HttpServlet {
 	private final Random rand;													// random number generator for UID
 
 	private final CliFrontend cli;
-
+	
 
 
 	public JobSubmissionServlet(CliFrontend cli, File jobDir, File planDir) {
@@ -296,10 +293,11 @@ public class JobSubmissionServlet extends HttpServlet {
 				return;
 			}
 
-			Long uid = null;
+			Long uid;
 			try {
 				uid = Long.parseLong(id);
-			} catch (NumberFormatException nfex) {
+			}
+			catch (NumberFormatException nfex) {
 				showErrorPage(resp, "An invalid id for the job was provided.");
 				return;
 			}
@@ -314,8 +312,8 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// submit the job
 			try {
-				Client client = new Client(GlobalConfiguration.getConfiguration(), job.f0.getUserCodeClassLoader());
-				client.run(client.getJobGraph(job.f0, job.f1), false);
+				Client client = new Client(GlobalConfiguration.getConfiguration());
+				client.runDetached(Client.getJobGraph(job.f0, job.f1), job.f0.getUserCodeClassLoader());
 			}
 			catch (Exception ex) {
 				LOG.error("Error submitting job to the job-manager.", ex);
@@ -329,7 +327,8 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// redirect to the start page
 			resp.sendRedirect(START_PAGE_URL);
-		} else if (action.equals(ACTION_BACK_VALUE)) {
+		}
+		else if (action.equals(ACTION_BACK_VALUE)) {
 			// remove the job from the map
 
 			String id = req.getParameter("id");
@@ -337,10 +336,11 @@ public class JobSubmissionServlet extends HttpServlet {
 				return;
 			}
 
-			Long uid = null;
+			Long uid;
 			try {
 				uid = Long.parseLong(id);
-			} catch (NumberFormatException nfex) {
+			}
+			catch (NumberFormatException nfex) {
 				showErrorPage(resp, "An invalid id for the job was provided.");
 				return;
 			}
@@ -350,9 +350,9 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// redirect to the start page
 			resp.sendRedirect(START_PAGE_URL);
-		} else {
+		}
+		else {
 			showErrorPage(resp, "Invalid action specified.");
-			return;
 		}
 	}
 
@@ -428,7 +428,7 @@ public class JobSubmissionServlet extends HttpServlet {
 	 *        The string to be split.
 	 * @return The array of split strings.
 	 */
-	private static final List<String> tokenizeArguments(String args) {
+	private static List<String> tokenizeArguments(String args) {
 		List<String> list = new ArrayList<String>();
 		StringBuilder curr = new StringBuilder();
 

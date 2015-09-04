@@ -75,7 +75,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 	@Override
 	public void postPass(OptimizedPlan plan) {
 
-		executionConfig = plan.getOriginalPactPlan().getExecutionConfig();
+		executionConfig = plan.getOriginalPlan().getExecutionConfig();
 
 		for (SinkPlanNode sink : plan.getDataSinks()) {
 			traverse(sink);

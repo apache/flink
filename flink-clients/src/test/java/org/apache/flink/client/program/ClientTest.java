@@ -22,20 +22,25 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.Status;
 
+
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.costs.CostEstimator;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.costs.DefaultCostEstimator;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -45,78 +50,56 @@ import org.apache.flink.runtime.util.SerializedThrowable;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
+
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-import scala.Some;
-import scala.Tuple2;
+import java.util.Collections;
+
 
 import java.util.UUID;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
 
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /**
  * Simple and maybe stupid test to check the {@link Client} class.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(Client.class)
 public class ClientTest {
 
 	private PackagedProgram program;
-	private Optimizer compilerMock;
-	private JobGraphGenerator generatorMock;
-
 
 	private Configuration config;
 
 	private ActorSystem jobManagerSystem;
 
-	private JobGraph jobGraph = new JobGraph("test graph");
 
 	@Before
 	public void setUp() throws Exception {
 
+		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+		env.generateSequence(1, 1000).output(new DiscardingOutputFormat<Long>());
+		
+		Plan plan = env.createProgramPlan();
+		JobWithJars jobWithJars = new JobWithJars(plan, Collections.<String>emptyList());
+
+		program = mock(PackagedProgram.class);
+		when(program.getPlanWithJars()).thenReturn(jobWithJars);
+		
 		final int freePort = NetUtils.getAvailablePort();
 		config = new Configuration();
 		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, freePort);
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
 
-		program = mock(PackagedProgram.class);
-		compilerMock = mock(Optimizer.class);
-		generatorMock = mock(JobGraphGenerator.class);
-
-		JobWithJars planWithJarsMock = mock(JobWithJars.class);
-		Plan planMock = mock(Plan.class);
-		OptimizedPlan optimizedPlanMock = mock(OptimizedPlan.class);
-
-		when(planMock.getJobName()).thenReturn("MockPlan");
-
-		when(program.getPlanWithJars()).thenReturn(planWithJarsMock);
-		when(planWithJarsMock.getPlan()).thenReturn(planMock);
-
-		whenNew(Optimizer.class).withArguments(any(DataStatistics.class), any(CostEstimator.class), any(Configuration.class)).thenReturn(this.compilerMock);
-		when(compilerMock.compile(planMock)).thenReturn(optimizedPlanMock);
-
-		whenNew(JobGraphGenerator.class).withAnyArguments().thenReturn(generatorMock);
-		when(generatorMock.compileJobGraph(optimizedPlanMock)).thenReturn(jobGraph);
-
 		try {
-			Tuple2<String, Object> address = new Tuple2<String, Object>("localhost", freePort);
-			jobManagerSystem = AkkaUtils.createActorSystem(config, new Some<Tuple2<String, Object>>(address));
+			scala.Tuple2<String, Object> address = new scala.Tuple2<String, Object>("localhost", freePort);
+			jobManagerSystem = AkkaUtils.createActorSystem(config, new scala.Some<scala.Tuple2<String, Object>>(address));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -145,15 +128,12 @@ public class ClientTest {
 		try {
 			jobManagerSystem.actorOf(Props.create(SuccessReturningActor.class), JobManager.JOB_MANAGER_NAME());
 
-			Client out = new Client(config, getClass().getClassLoader());
-			JobSubmissionResult result = out.run(program.getPlanWithJars(), -1, false);
+			Client out = new Client(config);
+			JobSubmissionResult result = out.runDetached(program.getPlanWithJars(), 1);
 
 			assertNotNull(result);
 
 			program.deleteExtractedLibraries();
-
-			verify(this.compilerMock, times(1)).compile(any(Plan.class));
-			verify(this.generatorMock, times(1)).compileJobGraph(any(OptimizedPlan.class));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -169,10 +149,10 @@ public class ClientTest {
 		try {
 			jobManagerSystem.actorOf(Props.create(FailureReturningActor.class), JobManager.JOB_MANAGER_NAME());
 
-			Client out = new Client(config, getClass().getClassLoader());
+			Client out = new Client(config);
 
 			try {
-				out.run(program.getPlanWithJars(), -1, false);
+				out.runDetached(program.getPlanWithJars(), 1);
 				fail("This should fail with an exception");
 			}
 			catch (ProgramInvocationException e) {
@@ -181,9 +161,6 @@ public class ClientTest {
 			catch (Exception e) {
 				fail("wrong exception " + e);
 			}
-
-			verify(this.compilerMock, times(1)).compile(any(Plan.class));
-			verify(this.generatorMock, times(1)).compileJobGraph(any(OptimizedPlan.class));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -198,10 +175,10 @@ public class ClientTest {
 	@Test
 	public void tryLocalExecution() {
 		try {
+			jobManagerSystem.actorOf(Props.create(SuccessReturningActor.class), JobManager.JOB_MANAGER_NAME());
+			
 			PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
-
 			when(packagedProgramMock.isUsingInteractiveMode()).thenReturn(true);
-
 			doAnswer(new Answer<Void>() {
 				@Override
 				public Void answer(InvocationOnMock invocation) throws Throwable {
@@ -211,12 +188,40 @@ public class ClientTest {
 			}).when(packagedProgramMock).invokeInteractiveModeForExecution();
 
 			try {
-				new Client(config, getClass().getClassLoader()).run(packagedProgramMock, 1, true);
+				new Client(config).runBlocking(packagedProgramMock, 1);
 				fail("Creating the local execution environment should not be possible");
 			}
 			catch (InvalidProgramException e) {
 				// that is what we want
 			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testGetExecutionPlan() {
+		try {
+			jobManagerSystem.actorOf(Props.create(FailureReturningActor.class), JobManager.JOB_MANAGER_NAME());
+			
+			PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
+			assertNotNull(prg.getPreviewPlan());
+			
+			Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
+			OptimizedPlan op = (OptimizedPlan) Client.getOptimizedPlan(optimizer, prg, 1);
+			assertNotNull(op);
+
+			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
+			assertNotNull(dumper.getOptimizerPlanAsJSON(op));
+
+			// test HTML escaping
+			PlanJSONDumpGenerator dumper2 = new PlanJSONDumpGenerator();
+			dumper2.setEncodeForHTML(true);
+			String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
+
+			assertEquals(-1, htmlEscaped.indexOf('\\'));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -271,6 +276,35 @@ public class ClientTest {
 		@Override
 		protected UUID getLeaderSessionID() {
 			return leaderSessionID;
+		}
+	}
+	
+	public static class TestOptimizerPlan implements ProgramDescription {
+
+		@SuppressWarnings("serial")
+		public static void main(String[] args) throws Exception {
+			if (args.length < 2) {
+				System.err.println("Usage: TestOptimizerPlan <input-file-path> <output-file-path>");
+				return;
+			}
+
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+			DataSet<Tuple2<Long, Long>> input = env.readCsvFile(args[0])
+					.fieldDelimiter("\t").types(Long.class, Long.class);
+
+			DataSet<Tuple2<Long, Long>> result = input.map(
+					new MapFunction<Tuple2<Long,Long>, Tuple2<Long,Long>>() {
+						public Tuple2<Long, Long> map(Tuple2<Long, Long> value){
+							return new Tuple2<Long, Long>(value.f0, value.f1+1);
+						}
+					});
+			result.writeAsCsv(args[1], "\n", "\t");
+			env.execute();
+		}
+		@Override
+		public String getDescription() {
+			return "TestOptimizerPlan <input-file-path> <output-file-path>";
 		}
 	}
 }

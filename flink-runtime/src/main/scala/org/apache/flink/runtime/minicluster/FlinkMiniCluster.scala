@@ -416,8 +416,8 @@ abstract class FlinkMiniCluster(
        jobManagerGateway,
        jobGraph,
        timeout,
-      printUpdates,
-      this.getClass().getClassLoader())
+       printUpdates,
+       this.getClass.getClassLoader())
     } finally {
        if(!useSingleActorSystem) {
          // we have to shutdown the just created actor system
@@ -440,7 +440,10 @@ abstract class FlinkMiniCluster(
         )
     }
 
-    JobClient.submitJobDetached(jobManagerGateway, jobGraph, timeout, getClass().getClassLoader())
+    JobClient.submitJobDetached(jobManagerGateway,
+      jobGraph,
+      timeout,
+      this.getClass.getClassLoader())
 
     new JobSubmissionResult(jobGraph.getJobID)
   }

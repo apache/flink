@@ -16,61 +16,65 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tez.client;
+package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.costs.DefaultCostEstimator;
-import org.apache.tez.dag.api.TezConfiguration;
-import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
+import org.apache.flink.optimizer.dag.DataSinkNode;
 
-public class LocalTezEnvironment extends ExecutionEnvironment {
+import java.util.List;
 
-	TezExecutor executor;
-	Optimizer compiler;
+/**
+ * Environment to extract the pre-optimized plan.
+ */
+public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
-	private LocalTezEnvironment() {
-		compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), new Configuration());
-		executor = new TezExecutor(compiler, this.getParallelism());
-	}
+	List<DataSinkNode> previewPlan;
 
-	public static LocalTezEnvironment create() {
-		return new LocalTezEnvironment();
-	}
+	String preview;
+
+	Plan plan;
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		TezConfiguration tezConf = new TezConfiguration();
-		tezConf.setBoolean(TezConfiguration.TEZ_LOCAL_MODE, true);
-		tezConf.set("fs.defaultFS", "file:///");
-		tezConf.setBoolean(TezRuntimeConfiguration.TEZ_RUNTIME_OPTIMIZE_LOCAL_FETCH, true);
-		executor.setConfiguration(tezConf);
-		return executor.executePlan(createProgramPlan(jobName));
+		this.plan = createProgramPlan(jobName);
+		this.previewPlan = Optimizer.createPreOptimizedPlan(plan);
+
+		// do not go on with anything now!
+		throw new OptimizerPlanEnvironment.ProgramAbortException();
 	}
 
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan p = createProgramPlan(null, false);
-		return executor.getOptimizerPlanAsJSON(p);
+		Plan plan = createProgramPlan("unused");
+		this.previewPlan = Optimizer.createPreOptimizedPlan(plan);
+
+		// do not go on with anything now!
+		throw new OptimizerPlanEnvironment.ProgramAbortException();
+	}
+
+	@Override
+	public void startNewSession() throws Exception {
 	}
 
 	public void setAsContext() {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
-				return LocalTezEnvironment.this;
+				return PreviewPlanEnvironment.this;
 			}
 		};
 		initializeContextEnvironment(factory);
 	}
 
-	@Override
-	public void startNewSession() throws Exception {
-		throw new UnsupportedOperationException("Session management is not implemented in Flink on Tez.");
+	public void setPreview(String preview) {
+		this.preview = preview;
+	}
+
+	public Plan getPlan() {
+		return plan;
 	}
 }

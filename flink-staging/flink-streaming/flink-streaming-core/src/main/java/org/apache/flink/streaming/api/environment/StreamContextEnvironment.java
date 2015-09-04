@@ -23,10 +23,12 @@ import java.util.List;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,17 +36,25 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamContextEnvironment.class);
 
-	protected List<File> jars;
-	protected Client client;
+	private final List<File> jars;
+	
+	private final Client client;
+
+	private final ClassLoader userCodeClassLoader;
+	
 	private final boolean wait;
 
 	protected StreamContextEnvironment(Client client, List<File> jars, int parallelism, boolean wait) {
 		this.client = client;
 		this.jars = jars;
 		this.wait = wait;
+		
+		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(jars, getClass().getClassLoader());
+		
 		if (parallelism > 0) {
 			setParallelism(parallelism);
-		} else {
+		}
+		else {
 			// first check for old parallelism config key
 			setParallelism(GlobalConfiguration.getInteger(
 					ConfigConstants.DEFAULT_PARALLELISM_KEY_OLD,
@@ -73,16 +83,18 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 		transformations.clear();
 
+		// attach all necessary jar files to the JobGraph
 		for (File file : jars) {
 			jobGraph.addJar(new Path(file.getAbsolutePath()));
 		}
 
-		JobSubmissionResult result = client.run(jobGraph, wait);
-		if(result instanceof JobExecutionResult) {
-			return (JobExecutionResult) result;
+		// execute the programs
+		if (wait) {
+			return client.runBlocking(jobGraph, userCodeClassLoader);
 		} else {
-			LOG.warn("The Client didn't return a JobExecutionResult");
-			return new JobExecutionResult(result.getJobID(), -1, null);
+			JobSubmissionResult result = client.runDetached(jobGraph, userCodeClassLoader);
+			LOG.warn("Job was executed in detached mode, the results will be available on completion.");
+			return JobExecutionResult.fromJobSubmissionResult(result);
 		}
 	}
 }

@@ -275,6 +275,12 @@ object JobManagerMessages {
   case class JobNotFound(jobID: JobID) extends JobResponse with JobStatusResponse
 
   /**
+   * Removes the job belonging to the job identifier from the job manager and archives it.
+   * @param jobID The job identifier
+   */
+  case class RemoveCachedJob(jobID: JobID)
+
+  /**
    * Requests the instances of all registered task managers.
    */
   case object RequestRegisteredTaskManagers

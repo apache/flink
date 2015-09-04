@@ -21,6 +21,7 @@ package org.apache.flink.optimizer.plantranslate;
 import com.fasterxml.jackson.core.JsonFactory;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
@@ -159,9 +160,21 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	 * {@link org.apache.flink.runtime.jobgraph.JobGraph}.
 	 * 
 	 * @param program Optimized plan that is translated into a JobGraph.
-	 * @return JobGraph generated frmo the plan.
+	 * @return JobGraph generated from the plan.
 	 */
 	public JobGraph compileJobGraph(OptimizedPlan program) {
+		return compileJobGraph(program, null);
+	}
+	
+	public JobGraph compileJobGraph(OptimizedPlan program, JobID jobId) {
+		if (program == null) {
+			throw new NullPointerException();
+		}
+		
+		if (jobId == null) {
+			jobId = JobID.generate();
+		}
+
 		this.vertices = new HashMap<PlanNode, JobVertex>();
 		this.chainedTasks = new HashMap<PlanNode, TaskInChain>();
 		this.chainedTasksInSequence = new ArrayList<TaskInChain>();
@@ -204,9 +217,10 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		// ----------- finalize the job graph -----------
 		
 		// create the job graph object
-		JobGraph graph = new JobGraph(program.getJobName());
-		graph.setNumberOfExecutionRetries(program.getOriginalPactPlan().getNumberOfExecutionRetries());
+		JobGraph graph = new JobGraph(jobId, program.getJobName());
+		graph.setNumberOfExecutionRetries(program.getOriginalPlan().getNumberOfExecutionRetries());
 		graph.setAllowQueuedScheduling(false);
+		graph.setSessionTimeout(program.getOriginalPlan().getSessionTimeout());
 
 		// add vertices to the graph
 		for (JobVertex vertex : this.vertices.values()) {
@@ -219,13 +233,13 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		}
 
 		// add registered cache file into job configuration
-		for (Entry<String, DistributedCacheEntry> e : program.getOriginalPactPlan().getCachedFiles()) {
+		for (Entry<String, DistributedCacheEntry> e : program.getOriginalPlan().getCachedFiles()) {
 			DistributedCache.writeFileInfoToConfig(e.getKey(), e.getValue(), graph.getJobConfiguration());
 		}
 
 		try {
 			InstantiationUtil.writeObjectToConfig(
-					program.getOriginalPactPlan().getExecutionConfig(),
+					program.getOriginalPlan().getExecutionConfig(),
 					graph.getJobConfiguration(),
 					ExecutionConfig.CONFIG_KEY);
 		} catch (IOException e) {

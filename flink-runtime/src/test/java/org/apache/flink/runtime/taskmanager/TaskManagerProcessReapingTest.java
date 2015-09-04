@@ -52,7 +52,7 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandP
 import static org.apache.flink.runtime.testutils.CommonTestUtils.isProcessAlive;
 
 /**
- * Tests that the JobManager process properly exits when the JobManager actor dies.
+ * Tests that the TaskManager process properly exits when the TaskManager actor dies.
  */
 public class TaskManagerProcessReapingTest {
 
