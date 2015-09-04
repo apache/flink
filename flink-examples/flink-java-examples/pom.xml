@@ -334,7 +334,7 @@ under the License.
 						<goals>
 							<goal>run</goal>
 						</goals>
-						<configuration>
+						<configuration> 
 							<target>
 								<move file="${project.basedir}/target/flink-java-examples-${project.version}-KMeans.jar" tofile="${project.basedir}/target/KMeans.jar" />
 								<move file="${project.basedir}/target/flink-java-examples-${project.version}-ConnectedComponents.jar" tofile="${project.basedir}/target/ConnectedComponents.jar" />
