@@ -335,15 +335,15 @@ under the License.
 						</goals>
 						<configuration>
 							<target>
-								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-KMeans.jar" dest="${project.basedir}/target/KMeans.jar" />
-								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-ConnectedComponents.jar" dest="${project.basedir}/target/ConnectedComponents.jar" />
-								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-EnumTrianglesBasic.jar" dest="${project.basedir}/target/EnumTrianglesBasic.jar" />
-								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-EnumTrianglesOpt.jar" dest="${project.basedir}/target/EnumTrianglesOpt.jar" />
-								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-PageRankBasic.jar" dest="${project.basedir}/target/PageRankBasic.jar" />
-								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-TransitiveClosure.jar" dest="${project.basedir}/target/TransitiveClosure.jar" />
-								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-WebLogAnalysis.jar" dest="${project.basedir}/target/WebLogAnalysis.jar" />
-								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-WordCount.jar" dest="${project.basedir}/target/WordCount.jar" />
-								<rename src="${project.basedir}/target/flink-java-examples-${project.version}-WordCountPOJO.jar" dest="${project.basedir}/target/WordCountPOJO.jar" />
+								<move file="${project.basedir}/target/flink-java-examples-${project.version}-KMeans.jar" tofile="${project.basedir}/target/KMeans.jar" />
+								<move file="${project.basedir}/target/flink-java-examples-${project.version}-ConnectedComponents.jar" tofile="${project.basedir}/target/ConnectedComponents.jar" />
+								<move file="${project.basedir}/target/flink-java-examples-${project.version}-EnumTrianglesBasic.jar" tofile="${project.basedir}/target/EnumTrianglesBasic.jar" />
+								<move file="${project.basedir}/target/flink-java-examples-${project.version}-EnumTrianglesOpt.jar" tofile="${project.basedir}/target/EnumTrianglesOpt.jar" />
+								<move file="${project.basedir}/target/flink-java-examples-${project.version}-PageRankBasic.jar" tofile="${project.basedir}/target/PageRankBasic.jar" />
+								<move file="${project.basedir}/target/flink-java-examples-${project.version}-TransitiveClosure.jar" tofile="${project.basedir}/target/TransitiveClosure.jar" />
+								<move file="${project.basedir}/target/flink-java-examples-${project.version}-WebLogAnalysis.jar" tofile="${project.basedir}/target/WebLogAnalysis.jar" />
+								<move file="${project.basedir}/target/flink-java-examples-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
+								<move file="${project.basedir}/target/flink-java-examples-${project.version}-WordCountPOJO.jar" tofile="${project.basedir}/target/WordCountPOJO.jar" />
 							</target>
 						</configuration>
 					</execution>
