@@ -507,7 +507,7 @@ public abstract class YarnTestBase extends TestLogger {
 				"expected string did not show up", expectedStringSeen);
 
 		// check for 0 return code
-		Assert.assertTrue("Expecting return value == "+returnCode, runner.getReturnValue() == returnCode);
+		Assert.assertEquals("Expected return value", returnCode, runner.getReturnValue());
 		LOG.info("Test was successful");
 	}
 

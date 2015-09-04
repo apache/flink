@@ -26,11 +26,11 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -94,7 +94,8 @@ import com.google.common.base.Preconditions;
  */
 public abstract class ExecutionEnvironment {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
+	/** The logger used by the environment and its subclasses */
+	protected static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 	
 	/** The environment of the context (local by default, cluster if invoked through command line) */
 	private static ExecutionEnvironmentFactory contextEnvironmentFactory;
@@ -106,34 +107,42 @@ public abstract class ExecutionEnvironment {
 	private static boolean allowLocalExecution = true;
 	
 	// --------------------------------------------------------------------------------------------
-	
-	private final UUID executionId;
-	
+
 	private final List<DataSink<?>> sinks = new ArrayList<DataSink<?>>();
 	
 	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<Tuple2<String, DistributedCacheEntry>>();
 
 	private final ExecutionConfig config = new ExecutionConfig();
 
-	/** Result from the latest execution, to be make it retrievable when using eager execution methods */
+	/** Result from the latest execution, to make it retrievable when using eager execution methods */
 	protected JobExecutionResult lastJobExecutionResult;
+
+	/** The ID of the session, defined by this execution environment. Sessions and Jobs are same in
+	 *  Flink, as Jobs can consist of multiple parts that are attached to the growing dataflow graph */
+	protected JobID jobID;
+	
+	/** The session timeout in seconds */
+	protected long sessionTimeout;
 	
 	/** Flag to indicate whether sinks have been cleared in previous executions */
 	private boolean wasExecuted = false;
-
-	// --------------------------------------------------------------------------------------------
-	//  Constructor and Properties
-	// --------------------------------------------------------------------------------------------
+	
 	
 	/**
 	 * Creates a new Execution Environment.
 	 */
 	protected ExecutionEnvironment() {
-		this.executionId = UUID.randomUUID();
+		jobID = JobID.generate();
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Properties
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Gets the config object.
+	 * Gets the config object that defines execution parameters.
+	 * 
+	 * @return The environment's execution configuration.
 	 */
 	public ExecutionConfig getConfig() {
 		return config;
@@ -228,17 +237,6 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	/**
-	 * Gets the UUID by which this environment is identified. The UUID sets the execution context
-	 * in the cluster or local environment.
-	 *
-	 * @return The UUID of this environment.
-	 * @see #getIdString()
-	 */
-	public UUID getId() {
-		return this.executionId;
-	}
-
-	/**
 	 * Returns the {@link org.apache.flink.api.common.JobExecutionResult} of the last executed job.
 	 * 
 	 * @return The execution result from the latest job execution.
@@ -247,21 +245,63 @@ public abstract class ExecutionEnvironment {
 		return this.lastJobExecutionResult;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Session Management
+	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Gets the UUID by which this environment is identified, as a string.
-	 * 
-	 * @return The UUID as a string.
+	 * Gets the JobID by which this environment is identified. The JobID sets the execution context
+	 * in the cluster or local environment.
+	 *
+	 * @return The JobID of this environment.
+	 * @see #getIdString()
+	 */
+	public JobID getId() {
+		return this.jobID;
+	}
+
+	/**
+	 * Gets the JobID by which this environment is identified, as a string.
+	 *
+	 * @return The JobID as a string.
 	 * @see #getId()
 	 */
 	public String getIdString() {
-		return this.executionId.toString();
+		return this.jobID.toString();
 	}
+
+	/**
+	 * Sets the session timeout to hold the intermediate results of a job. This only
+	 * applies the updated timeout in future executions.
+	 * 
+	 * @param timeout The timeout, in seconds.
+	 */
+	public void setSessionTimeout(long timeout) {
+		if (timeout < 0) {
+			throw new IllegalArgumentException("The session timeout must not be less than zero.");
+		}
+		this.sessionTimeout = timeout;
+	}
+
+	/**
+	 * Gets the session timeout for this environment. The session timeout defines for how long
+	 * after an execution, the job and its intermediate results will be kept for future
+	 * interactions.
+	 * 
+	 * @return The session timeout, in seconds.
+	 */
+	public long getSessionTimeout() {
+		return sessionTimeout;
+	}
+
+	/**
+	 * Starts a new session, discarding the previous data flow and all of its intermediate results.
+	 */
+	public abstract void startNewSession() throws Exception;
 
 	// --------------------------------------------------------------------------------------------
 	//  Registry for types and serializers
 	// --------------------------------------------------------------------------------------------
-
 
 	/**
 	 * Adds a new Kryo default serializer to the Runtime.
@@ -944,7 +984,7 @@ public abstract class ExecutionEnvironment {
 				}
 				if(typeInfo instanceof CompositeType) {
 					List<GenericTypeInfo<?>> genericTypesInComposite = new ArrayList<GenericTypeInfo<?>>();
-					Utils.getContainedGenericTypes((CompositeType)typeInfo, genericTypesInComposite);
+					Utils.getContainedGenericTypes((CompositeType<?>)typeInfo, genericTypesInComposite);
 					for(GenericTypeInfo<?> gt : genericTypesInComposite) {
 						Serializers.recursivelyRegisterType(gt.getTypeClass(), config);
 					}
@@ -1176,4 +1216,5 @@ public abstract class ExecutionEnvironment {
 	public static boolean localExecutionIsAllowed() {
 		return allowLocalExecution;
 	}
+
 }

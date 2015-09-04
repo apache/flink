@@ -21,6 +21,7 @@ package org.apache.flink.tez.client;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.configuration.Configuration;
@@ -112,6 +113,26 @@ public class TezExecutor extends PlanExecutor {
 		finally {
 			tezClient.stop();
 		}
+	}
+
+	@Override
+	public void start() throws Exception {
+		throw new IllegalStateException("Session management is not supported in the TezExecutor.");
+	}
+
+	@Override
+	public void stop() throws Exception {
+		throw new IllegalStateException("Session management is not supported in the TezExecutor.");
+	}
+
+	@Override
+	public void endSession(JobID jobID) throws Exception {
+		throw new IllegalStateException("Session management is not supported in the TezExecutor.");
+	}
+
+	@Override
+	public boolean isRunning() {
+		return false;
 	}
 
 	@Override

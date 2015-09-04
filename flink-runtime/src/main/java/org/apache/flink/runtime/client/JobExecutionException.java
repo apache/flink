@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 
 /**
  * This exception is the base exception for all exceptions that denote any failure during
- * teh execution of a job. The JobExecutionException and its subclasses are thrown by
+ * the execution of a job. The JobExecutionException and its subclasses are thrown by
  * the {@link JobClient}.
  */
 public class JobExecutionException extends Exception {

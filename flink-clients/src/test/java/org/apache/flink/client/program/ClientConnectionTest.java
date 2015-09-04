@@ -21,7 +21,6 @@ package org.apache.flink.client.program;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.net.NetUtils;
 import org.junit.Test;
@@ -80,7 +79,7 @@ public class ClientConnectionTest {
 		testFailureBehavior(unreachableEndpoint);
 	}
 
-	private void testFailureBehavior(InetSocketAddress unreachableEndpoint) {
+	private void testFailureBehavior(final InetSocketAddress unreachableEndpoint) {
 
 		final Configuration config = new Configuration();
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, (ASK_STARTUP_TIMEOUT/1000) + " s");
@@ -93,16 +92,13 @@ public class ClientConnectionTest {
 			JobVertex vertex = new JobVertex("Test Vertex");
 			vertex.setInvokableClass(TestInvokable.class);
 
-			final JobGraph jg = new JobGraph("Test Job", vertex);
-			final Client client = new Client(config, getClass().getClassLoader(), -1);
-
 			final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 
 			Thread invoker = new Thread("test invoker") {
 				@Override
 				public void run() {
 					try {
-						client.run(jg, true);
+						new Client(config);
 						fail("This should fail with an exception since the JobManager is unreachable.");
 					}
 					catch (Throwable t) {

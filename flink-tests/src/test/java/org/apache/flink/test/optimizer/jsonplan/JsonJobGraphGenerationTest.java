@@ -311,6 +311,10 @@ public class JsonJobGraphGenerationTest {
 		}
 
 		@Override
+		public void startNewSession() throws Exception {
+		}
+
+		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {
 			Plan plan = createProgramPlan(jobName);
 			

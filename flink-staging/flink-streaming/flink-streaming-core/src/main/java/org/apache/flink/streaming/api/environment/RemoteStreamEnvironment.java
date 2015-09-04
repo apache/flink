@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -31,10 +30,12 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
+	
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteStreamEnvironment.class);
 
 	private final String host;
@@ -117,17 +118,17 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
 
+		Client client;
 		try {
-			Client client = new Client(configuration, usercodeClassLoader, -1);
+			client = new Client(configuration);
 			client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
-			
-			JobSubmissionResult result = client.run(jobGraph, true);
-			if (result instanceof JobExecutionResult) {
-				return (JobExecutionResult) result;
-			} else {
-				LOG.warn("The Client didn't return a JobExecutionResult");
-				return new JobExecutionResult(result.getJobID(), -1, null);
-			}
+		}
+		catch (Exception e) {
+			throw new ProgramInvocationException("Cannot establish connection to JobManager: " + e.getMessage(), e);
+		}
+
+		try {
+			return client.runBlocking(jobGraph, usercodeClassLoader);
 		}
 		catch (ProgramInvocationException e) {
 			throw e;
@@ -135,6 +136,9 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		catch (Exception e) {
 			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
 			throw new ProgramInvocationException("The program execution failed" + term, e);
+		}
+		finally {
+			client.shutdown();
 		}
 	}
 

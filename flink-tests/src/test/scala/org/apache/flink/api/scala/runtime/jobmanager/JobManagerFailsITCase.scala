@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.scala.runtime.jobmanager
 
-import akka.actor.Status.Success
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 

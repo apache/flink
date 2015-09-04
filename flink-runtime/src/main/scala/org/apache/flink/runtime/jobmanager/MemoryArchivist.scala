@@ -80,10 +80,13 @@ class MemoryArchivist(private val max_entries: Int)
   override def handleMessage: Receive = {
     
     /* Receive Execution Graph to archive */
-    case ArchiveExecutionGraph(jobID, graph) => 
-      // wrap graph inside a soft reference
-      graphs.update(jobID, graph)
-
+    case ArchiveExecutionGraph(jobID, graph) =>
+      // Keep lru order in case we override a graph (from multiple job submission in one session).
+      // This deletes old ExecutionGraph with this JobID from the history but avoids to store
+      // redundant ExecutionGraphs.
+      // TODO Allow ExecutionGraphs with the same jobID to be stored and displayed in web interface
+      graphs.remove(jobID)
+      graphs.put(jobID, graph)
       // update job counters
       graph.getState match {
         case JobStatus.FINISHED => finishedCnt += 1

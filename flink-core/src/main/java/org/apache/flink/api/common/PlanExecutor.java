@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common;
 
 import org.apache.flink.configuration.Configuration;
@@ -26,14 +25,20 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A PlanExecutor runs a plan. The specific implementation (such as the org.apache.flink.client.LocalExecutor
- * and org.apache.flink.client.RemoteExecutor) determines where and how to run the plan.
+ * A PlanExecutor executes a Flink program's dataflow plan. All Flink programs are translated to
+ * dataflow plans prior to execution.
  * 
- * The concrete implementations are loaded dynamically, because they depend on the full set of
- * dependencies of all runtime classes.
+ * <p>The specific implementation (such as the org.apache.flink.client.LocalExecutor
+ * and org.apache.flink.client.RemoteExecutor) determines where and how to run the dataflow.
+ * The concrete implementations of the executors are loaded dynamically, because they depend on
+ * the full set of all runtime classes.</p>
+ * 
+ * <p>PlanExecutors can be started explicitly, in which case they keep running until stopped. If
+ * a program is submitted to a plan executor that is not running, it will start up for that
+ * program, and shut down afterwards.</p>
  */
 public abstract class PlanExecutor {
-	
+
 	private static final String LOCAL_EXECUTOR_CLASS = "org.apache.flink.client.LocalExecutor";
 	private static final String REMOTE_EXECUTOR_CLASS = "org.apache.flink.client.RemoteExecutor";
 
@@ -43,21 +48,68 @@ public abstract class PlanExecutor {
 	
 	/** If true, all execution progress updates are not only logged, but also printed to System.out */
 	private boolean printUpdatesToSysout = true;
-	
+
+	/**
+	 * Sets whether the executor should print progress results to "standard out" ({@link System#out}).
+	 * All progress messages are logged using the configured logging framework independent of the value
+	 * set here.
+	 * 
+	 * @param printStatus True, to print progress updates to standard out, false to not do that. 
+	 */
 	public void setPrintStatusDuringExecution(boolean printStatus) {
 		this.printUpdatesToSysout = printStatus;
 	}
-	
+
+	/**
+	 * Gets whether the executor prints progress results to "standard out" ({@link System#out}).
+	 * 
+	 * @return True, if the executor prints progress messages to standard out, false if not.
+	 */
 	public boolean isPrintingStatusDuringExecution() {
 		return this.printUpdatesToSysout;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Startup & Shutdown
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Starts the program executor. After the executor has been started, it will keep
+	 * running until {@link #stop()} is called. 
+	 * 
+	 * @throws Exception Thrown, if the executor startup failed.
+	 */
+	public abstract void start() throws Exception;
+
+	/**
+	 * Shuts down the plan executor and releases all local resources.
+	 *
+	 * <p>This method also ends all sessions created by this executor. Remote job executions
+	 * may complete, but the session is not kept alive after that.</p>
+	 *
+	 * @throws Exception Thrown, if the proper shutdown failed. 
+	 */
+	public abstract void stop() throws Exception;
+
+	/**
+	 * Checks if this executor is currently running.
+	 * 
+	 * @return True is the executor is running, false otherwise.
+	 */
+	public abstract boolean isRunning();
 	
 	// ------------------------------------------------------------------------
 	//  Program Execution
 	// ------------------------------------------------------------------------
 	
 	/**
-	 * Execute the given plan and return the runtime in milliseconds.
+	 * Execute the given program.
+	 * 
+	 * <p>If the executor has not been started before, then this method will start the
+	 * executor and stop it after the execution has completed. This implies that one needs
+	 * to explicitly start the executor for all programs where multiple dataflow parts
+	 * depend on each other. Otherwise, the previous parts will no longer
+	 * be available, because the executor immediately shut down after the execution.</p>
 	 * 
 	 * @param plan The plan of the program to execute.
 	 * @return The execution result, containing for example the net runtime of the program, and the accumulators.
@@ -65,7 +117,6 @@ public abstract class PlanExecutor {
 	 * @throws Exception Thrown, if job submission caused an exception.
 	 */
 	public abstract JobExecutionResult executePlan(Plan plan) throws Exception;
-	
 	
 	/**
 	 * Gets the programs execution plan in a JSON format.
@@ -77,7 +128,17 @@ public abstract class PlanExecutor {
 	 */
 	public abstract String getOptimizerPlanAsJSON(Plan plan) throws Exception;
 
-
+	/**
+	 * Ends the job session, identified by the given JobID. Jobs can be kept around as sessions,
+	 * if a session timeout is specified. Keeping Jobs as sessions allows users to incrementally
+	 * add new operations to their dataflow, that refer to previous intermediate results of the
+	 * dataflow.
+	 * 
+	 * @param jobID The JobID identifying the job session.
+	 * @throws Exception Thrown, if the message to finish the session cannot be delivered.
+	 */
+	public abstract void endSession(JobID jobID) throws Exception;
+	
 	// ------------------------------------------------------------------------
 	//  Executor Factories
 	// ------------------------------------------------------------------------
@@ -102,7 +163,7 @@ public abstract class PlanExecutor {
 	/**
 	 * Creates an executor that runs the plan on a remote environment. The remote executor is typically used
 	 * to send the program to a cluster for execution.
-	 * 
+	 *
 	 * @param hostname The address of the JobManager to send the program to.
 	 * @param port The port of the JobManager to send the program to.
 	 * @param clientConfiguration The configuration for the client (Akka, default.parallelism).

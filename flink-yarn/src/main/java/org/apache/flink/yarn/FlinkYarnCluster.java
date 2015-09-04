@@ -25,6 +25,7 @@ import static akka.pattern.Patterns.ask;
 import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.net.NetUtils;
@@ -231,6 +232,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 	 */
 	@Override
 	public void stopAfterJob(JobID jobID) {
+		Preconditions.checkNotNull("The job id must not be null", jobID);
 		Future<Object> messageReceived = ask(applicationClient, new Messages.StopAMAfterJob(jobID), akkaTimeout);
 		try {
 			Await.result(messageReceived, akkaDuration);

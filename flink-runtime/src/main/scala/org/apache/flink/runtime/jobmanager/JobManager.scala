@@ -74,6 +74,8 @@ import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.language.postfixOps
 import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 /**
  * The job manager is responsible for receiving Flink jobs, scheduling the tasks, gathering the
@@ -121,7 +123,7 @@ class JobManager(
 
   override val log = Logger(getClass)
 
-  /** List of current jobs running jobs */
+  /** Either running or not yet archived jobs (session hasn't been ended). */
   protected val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
 
   var leaderSessionID: Option[UUID] = None
@@ -426,7 +428,19 @@ class JobManager(
               }
             }
 
-            removeJob(jobID)
+
+            if (jobInfo.sessionAlive) {
+              jobInfo.setLastActive()
+              val lastActivity = jobInfo.lastActive
+              context.system.scheduler.scheduleOnce(jobInfo.sessionTimeout seconds) {
+                // remove only if no activity occurred in the meantime
+                if (lastActivity == jobInfo.lastActive) {
+                  removeJob(jobID)
+                }
+              }
+            } else {
+              removeJob(jobID)
+            }
 
           }
         case None =>
@@ -555,6 +569,18 @@ class JobManager(
     case RequestJobManagerStatus =>
       sender() ! decorateMessage(JobManagerStatusAlive)
 
+    case RemoveCachedJob(jobID) =>
+      currentJobs.get(jobID) match {
+        case Some((graph, info)) =>
+          if (graph.getState.isTerminalState) {
+            removeJob(graph.getJobID)
+          } else {
+            // triggers removal upon completion of job
+            info.sessionAlive = false
+          }
+        case None =>
+      }
+
     case Disconnect(msg) =>
       val taskManager = sender()
 
@@ -624,19 +650,26 @@ class JobManager(
         }
 
         // see if there already exists an ExecutionGraph for the corresponding job ID
-        executionGraph = currentJobs.getOrElseUpdate(
-          jobGraph.getJobID,
-          (new ExecutionGraph(
-            executionContext,
-            jobGraph.getJobID,
-            jobGraph.getName,
-            jobGraph.getJobConfiguration(),
-            timeout,
-            jobGraph.getUserJarBlobKeys(),
-            userCodeLoader),
-            JobInfo(client, System.currentTimeMillis())
-          )
-        )._1
+        executionGraph = currentJobs.get(jobGraph.getJobID) match {
+          case Some((graph, jobInfo)) =>
+            jobInfo.setLastActive()
+            graph
+          case None =>
+            val graph = new ExecutionGraph(
+              executionContext,
+              jobGraph.getJobID,
+              jobGraph.getName,
+              jobGraph.getJobConfiguration,
+              timeout,
+              jobGraph.getUserJarBlobKeys,
+              userCodeLoader)
+            val jobInfo = JobInfo(
+              client,
+              System.currentTimeMillis(),
+              jobGraph.getSessionTimeout)
+            currentJobs.put(jobGraph.getJobID, (graph, jobInfo))
+            graph
+        }
 
         // configure the execution graph
         val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries() >= 0) {
@@ -990,25 +1023,26 @@ class JobManager(
    * @param jobID ID of the job to remove and archive
    */
   private def removeJob(jobID: JobID): Unit = {
-    currentJobs.remove(jobID) match {
-      case Some((eg, _)) =>
-        try {
-          eg.prepareForArchiving()
+    currentJobs.synchronized {
+      currentJobs.remove(jobID) match {
+        case Some((eg, _)) =>
+          try {
+            eg.prepareForArchiving()
+            archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg))
+          } catch {
+            case t: Throwable => log.error(s"Could not prepare the execution graph $eg for " +
+              "archiving.", t)
+          }
 
-          archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg))
-        } catch {
-          case t: Throwable => log.error(s"Could not prepare the execution graph $eg for " +
-            "archiving.", t)
-        }
+        case None =>
+      }
 
-      case None =>
-    }
-
-    try {
-      libraryCacheManager.unregisterJob(jobID)
-    } catch {
-      case t: Throwable =>
-        log.error(s"Could not properly unregister job $jobID form the library cache.", t)
+      try {
+        libraryCacheManager.unregisterJob(jobID)
+      } catch {
+        case t: Throwable =>
+          log.error(s"Could not properly unregister job $jobID form the library cache.", t)
+      }
     }
   }
 
