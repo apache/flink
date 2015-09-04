@@ -183,6 +183,14 @@ public class NetUtils {
 		long currentSleepTime = MIN_SLEEP_TIME;
 		long elapsedTime = 0;
 
+		// before trying with different strategies: test with getLocalHost():
+		InetAddress localhostName = InetAddress.getLocalHost();
+
+		if(tryToConnect(localhostName, targetAddress, AddressDetectionState.ADDRESS.getTimeout(), false)) {
+			LOG.debug("Using immediately InetAddress.getLocalHost() for the connecting address");
+			return localhostName;
+		}
+
 		// loop while there is time left
 		while (elapsedTime < maxWaitMillis) {
 			AddressDetectionState strategy = AddressDetectionState.ADDRESS;
