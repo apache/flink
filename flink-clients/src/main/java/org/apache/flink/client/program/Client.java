@@ -307,7 +307,7 @@ public class Client {
 		if (optPlan instanceof StreamingPlan) {
 			job = ((StreamingPlan) optPlan).getJobGraph();
 		} else {
-			JobGraphGenerator gen = new JobGraphGenerator();
+			JobGraphGenerator gen = new JobGraphGenerator(this.configuration);
 			job = gen.compileJobGraph((OptimizedPlan) optPlan);
 		}
 
