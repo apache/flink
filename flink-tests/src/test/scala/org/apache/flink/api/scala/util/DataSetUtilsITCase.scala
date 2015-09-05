@@ -19,11 +19,11 @@
 package org.apache.flink.api.scala.util
 
 import org.apache.flink.api.scala._
-import org.apache.flink.test.util.{MultipleProgramsTestBase}
+import org.apache.flink.api.scala.utils._
+import org.apache.flink.test.util.MultipleProgramsTestBase
+import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit._
-import org.apache.flink.api.scala.DataSetUtils.utilsToDataSet
 
 @RunWith(classOf[Parameterized])
 class DataSetUtilsITCase (

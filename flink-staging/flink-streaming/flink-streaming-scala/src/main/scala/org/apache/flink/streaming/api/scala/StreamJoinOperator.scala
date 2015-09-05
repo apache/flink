@@ -20,17 +20,13 @@ package org.apache.flink.streaming.api.scala
 
 import java.util.concurrent.TimeUnit
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.JoinFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.operators.Keys
-import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.streaming.api.datastream.temporal.TemporalWindow
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, SingleOutputStreamOperator}
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
 import org.apache.flink.streaming.api.functions.co.JoinWindowFunction
-import org.apache.flink.streaming.api.operators.co.CoStreamWindow
 import org.apache.flink.streaming.util.keys.KeySelectorUtil
 
 import scala.Array.canBuildFrom
@@ -155,27 +151,7 @@ object StreamJoinOperator {
 
     private def createJoinOperator(): JavaStream[(I1, I2)] = {
 
-      val returnType = new CaseClassTypeInfo[(I1, I2)](
-        classOf[(I1, I2)],
-        Array(op.input1.getType, op.input2.getType),
-        Seq(op.input1.getType, op.input2.getType),
-        Array("_1", "_2")) {
-
-        override def createSerializer(
-            executionConfig: ExecutionConfig): TypeSerializer[(I1, I2)] = {
-          val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
-          for (i <- 0 until getArity) {
-            fieldSerializers(i) = types(i).createSerializer(executionConfig)
-          }
-
-          new CaseClassSerializer[(I1, I2)](classOf[(I1, I2)], fieldSerializers) {
-            override def createInstance(fields: Array[AnyRef]) = {
-              (fields(0).asInstanceOf[I1], fields(1).asInstanceOf[I2])
-            }
-          }
-        }
-      }
-
+      val returnType = createTuple2TypeInformation[I1, I2](op.input1.getType, op.input2.getType)
       op.input1.groupBy(keys1).connect(op.input2.groupBy(keys2))
         .addGeneralWindowCombine(getJoinWindowFunction(this, (_, _)),
           returnType, op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2)

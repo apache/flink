@@ -21,14 +21,14 @@ import java.util.{List => JavaList, Random}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.api.scala.utils._
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, After, Test}
+import org.junit.{After, Before, Test}
 
-import org.apache.flink.api.scala.DataSetUtils.utilsToDataSet
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
