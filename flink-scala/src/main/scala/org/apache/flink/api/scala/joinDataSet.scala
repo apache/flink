@@ -17,15 +17,12 @@
  */
 package org.apache.flink.api.scala
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction, Partitioner, RichFlatJoinFunction}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin.WrappingFlatJoinFunction
 import org.apache.flink.api.java.operators.JoinOperator.EquiJoin
 import org.apache.flink.api.java.operators._
-import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.util.Collector
 
 import scala.reflect.ClassTag
@@ -232,25 +229,7 @@ class UnfinishedJoinOperation[L, R](
         out.collect((left, right))
       }
     }
-    val returnType = new CaseClassTypeInfo[(L, R)](
-      classOf[(L, R)],
-      Array(leftSet.getType, rightSet.getType),
-      Seq(leftSet.getType, rightSet.getType),
-      Array("_1", "_2")) {
-
-      override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[(L, R)] = {
-        val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
-        for (i <- 0 until getArity) {
-          fieldSerializers(i) = types(i).createSerializer(executionConfig)
-        }
-
-        new CaseClassSerializer[(L, R)](classOf[(L, R)], fieldSerializers) {
-          override def createInstance(fields: Array[AnyRef]) = {
-            (fields(0).asInstanceOf[L], fields(1).asInstanceOf[R])
-          }
-        }
-      }
-    }
+    val returnType = createTuple2TypeInformation[L, R](leftInput.getType(), rightInput.getType())
     val joinOperator = new EquiJoin[L, R, (L, R)](
       leftSet.javaSet, rightSet.javaSet, leftKey, rightKey, joiner, returnType, joinHint,
         getCallLocationName())
