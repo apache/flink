@@ -60,7 +60,7 @@ public class SocketTextStreamWordCount {
 				.getExecutionEnvironment();
 
 		// get input data
-		DataStream<String> text = env.socketTextStream(hostName, port, '\n', 0);
+		DataStream<String> text = env.socketTextStream(hostName, port, "\n", 0);
 
 		DataStream<Tuple2<String, Integer>> counts =
 				// split up the lines in pairs (2-tuples) containing: (word,1)

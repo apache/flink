@@ -37,7 +37,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 
 	private String hostname;
 	private int port;
-	private char delimiter;
+	private String delimiter;
 	private long maxRetry;
 	private boolean retryForever;
 	private Socket socket;
@@ -46,7 +46,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 
 	private volatile boolean isRunning;
 
-	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxRetry) {
+	public SocketTextStreamFunction(String hostname, int port, String delimiter, long maxRetry) {
 		this.hostname = hostname;
 		this.port = port;
 		this.delimiter = delimiter;
@@ -116,11 +116,16 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 					continue;
 				}
 
-				if (data == delimiter) {
-					ctx.collect(buffer.toString());
+				if (data == '\r') { // ignore carriage return
+                    continue;
+                }
+				
+				buffer.append((char)data);
+
+				int delimiterIndex = buffer.indexOf(delimiter);
+				if (delimiterIndex != -1) {
+					ctx.collect(buffer.substring(0, delimiterIndex));
 					buffer = new StringBuffer();
-				} else if (data != '\r') { // ignore carriage return
-					buffer.append((char) data);
 				}
 			}
 
