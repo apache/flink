@@ -323,7 +323,7 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!--simplify the name of example JARs for build-target/examples-->
+			<!--simplify the name of example JARs for build-target/examples -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-antrun-plugin</artifactId>
