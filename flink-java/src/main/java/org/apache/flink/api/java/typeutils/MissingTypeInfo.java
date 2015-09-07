@@ -31,8 +31,8 @@ public class MissingTypeInfo extends TypeInformation<InvalidTypesException> {
 
 	private static final long serialVersionUID = -4212082837126702723L;
 	
-	private String functionName;
-	private InvalidTypesException typeException;
+	private final String functionName;
+	private final InvalidTypesException typeException;
 
 	
 	public MissingTypeInfo(String functionName) {
@@ -84,6 +84,34 @@ public class MissingTypeInfo extends TypeInformation<InvalidTypesException> {
 	@Override
 	public TypeSerializer<InvalidTypesException> createSerializer(ExecutionConfig executionConfig) {
 		throw new UnsupportedOperationException("The missing type information cannot be used as a type information.");
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName() + "<" + functionName + ", " + typeException.getMessage() + ">";
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof MissingTypeInfo) {
+			MissingTypeInfo missingTypeInfo = (MissingTypeInfo) obj;
+
+			return missingTypeInfo.canEqual(this) &&
+				functionName.equals(missingTypeInfo.functionName) &&
+				typeException.equals(missingTypeInfo.typeException);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * functionName.hashCode() + typeException.hashCode();
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof MissingTypeInfo;
 	}
 
 	@Override

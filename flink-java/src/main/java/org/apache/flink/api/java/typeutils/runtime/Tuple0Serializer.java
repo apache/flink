@@ -13,6 +13,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
+
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.core.memory.DataInputView;
@@ -94,12 +95,23 @@ public class Tuple0Serializer extends TupleSerializer<Tuple0> {
 
 	@Override
 	public int hashCode() {
-		return 1837461876;
+		return Tuple0Serializer.class.hashCode();
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj == this || obj instanceof Tuple0Serializer;
+		if (obj instanceof Tuple0Serializer) {
+			Tuple0Serializer other = (Tuple0Serializer) obj;
+
+			return other.canEqual(this);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof Tuple0Serializer;
 	}
 
 	@Override

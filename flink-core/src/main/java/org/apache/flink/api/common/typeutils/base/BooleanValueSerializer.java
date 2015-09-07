@@ -80,4 +80,9 @@ public final class BooleanValueSerializer extends TypeSerializerSingleton<Boolea
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.writeBoolean(source.readBoolean());
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof BooleanValueSerializer;
+	}
 }

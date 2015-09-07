@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 /**
  * TypeInformation for [[Enumeration]] values.
  */
-class EnumValueTypeInfo[E <: Enumeration](enum: E, clazz: Class[E#Value])
+class EnumValueTypeInfo[E <: Enumeration](val enum: E, val clazz: Class[E#Value])
   extends TypeInformation[E#Value] with AtomicType[E#Value] {
 
   type T = E#Value
@@ -49,4 +49,22 @@ class EnumValueTypeInfo[E <: Enumeration](enum: E, clazz: Class[E#Value])
   }
 
   override def toString = clazz.getCanonicalName
+
+  override def hashCode(): Int = {
+    31 * enum.hashCode() + clazz.hashCode()
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case enumValueTypeInfo: EnumValueTypeInfo[E] =>
+        enumValueTypeInfo.canEqual(this) &&
+          enum.equals(enumValueTypeInfo.enum) &&
+          clazz.equals(enumValueTypeInfo.clazz)
+      case _ => false
+    }
+  }
+
+  override def canEqual(obj: Any): Boolean = {
+    obj.isInstanceOf[EnumValueTypeInfo[E]]
+  }
 }

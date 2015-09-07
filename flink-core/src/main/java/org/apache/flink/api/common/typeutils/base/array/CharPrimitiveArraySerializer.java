@@ -100,4 +100,9 @@ public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<
 		target.writeInt(len);
 		target.write(source, len * 2);
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof CharPrimitiveArraySerializer;
+	}
 }

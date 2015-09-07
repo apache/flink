@@ -100,4 +100,9 @@ public class IntPrimitiveArraySerializer extends TypeSerializerSingleton<int[]>{
 		target.writeInt(len);
 		target.write(source, len * 4);
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof IntPrimitiveArraySerializer;
+	}
 }

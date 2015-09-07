@@ -97,4 +97,9 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.writeLong(source.readLong());
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof DateSerializer;
+	}
 }

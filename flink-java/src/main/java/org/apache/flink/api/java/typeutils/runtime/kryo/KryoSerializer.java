@@ -25,6 +25,7 @@ import com.esotericsoftware.kryo.factories.ReflectionSerializerFactory;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
+import com.google.common.base.Preconditions;
 import com.twitter.chill.ScalaKryoInstantiator;
 
 import org.apache.avro.generic.GenericData;
@@ -45,6 +46,7 @@ import java.lang.reflect.Modifier;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A type serializer that serializes its type using the Kryo serialization
@@ -84,10 +86,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	// ------------------------------------------------------------------------
 
 	public KryoSerializer(Class<T> type, ExecutionConfig executionConfig){
-		if(type == null){
-			throw new NullPointerException("Type class cannot be null.");
-		}
-		this.type = type;
+		this.type = Preconditions.checkNotNull(type);
 
 		this.defaultSerializers = executionConfig.getDefaultKryoSerializers();
 		this.defaultSerializerClasses = executionConfig.getDefaultKryoSerializerClasses();
@@ -241,19 +240,34 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	
 	@Override
 	public int hashCode() {
-		return type.hashCode();
+		return Objects.hash(
+			type,
+			registeredTypes,
+			registeredTypesWithSerializerClasses,
+			defaultSerializerClasses);
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof KryoSerializer) {
+		if (obj instanceof KryoSerializer) {
 			KryoSerializer<?> other = (KryoSerializer<?>) obj;
-			return other.type == this.type;
+
+			// we cannot include the Serializers here because they don't implement the equals method
+			return other.canEqual(this) &&
+				type == other.type &&
+				registeredTypes.equals(other.registeredTypes) &&
+				registeredTypesWithSerializerClasses.equals(other.registeredTypesWithSerializerClasses) &&
+				defaultSerializerClasses.equals(other.defaultSerializerClasses);
 		} else {
 			return false;
 		}
 	}
-	
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof KryoSerializer;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private void checkKryoInitialized() {

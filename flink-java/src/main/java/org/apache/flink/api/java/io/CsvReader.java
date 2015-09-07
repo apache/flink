@@ -300,7 +300,7 @@ public class CsvReader {
 			if(pos < 0) {
 				throw new IllegalArgumentException("Field \""+pojoFields[i]+"\" not part of POJO type "+pojoType.getCanonicalName());
 			}
-			classes[i] = typeInfo.getPojoFieldAt(pos).type.getTypeClass();
+			classes[i] = typeInfo.getPojoFieldAt(pos).getTypeInformation().getTypeClass();
 		}
 
 		configureInputFormat(inputFormat, classes);
