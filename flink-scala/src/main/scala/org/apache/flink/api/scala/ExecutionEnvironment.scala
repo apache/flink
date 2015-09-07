@@ -296,7 +296,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
                 "Field \"" + pojoFields(i) + "\" not part of POJO type " +
                   info.getTypeClass.getCanonicalName);
             }
-            classesBuf += info.getPojoFieldAt(pos).`type`.getTypeClass
+            classesBuf += info.getPojoFieldAt(pos).getTypeInformation().getTypeClass
           }
         }
       case _ => throw new IllegalArgumentException("Type information is not valid.")

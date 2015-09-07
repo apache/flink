@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -47,11 +48,7 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	public ValueSerializer(Class<T> type) {
-		if (type == null) {
-			throw new NullPointerException();
-		}
-		
-		this.type = type;
+		this.type = Preconditions.checkNotNull(type);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -126,16 +123,22 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	
 	@Override
 	public int hashCode() {
-		return this.type.hashCode() + 17;
+		return this.type.hashCode();
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj.getClass() == ValueSerializer.class) {
+		if (obj instanceof ValueSerializer) {
 			ValueSerializer<?> other = (ValueSerializer<?>) obj;
-			return this.type == other.type;
+
+			return other.canEqual(this) && type == other.type;
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof ValueSerializer;
 	}
 }

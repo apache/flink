@@ -100,4 +100,9 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 		target.writeInt(len);
 		target.write(source, len * 8);
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof LongPrimitiveArraySerializer;
+	}
 }

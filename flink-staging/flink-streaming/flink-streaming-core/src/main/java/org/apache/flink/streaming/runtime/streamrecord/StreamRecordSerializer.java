@@ -122,4 +122,25 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		typeSerializer.copy(source, target);
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof StreamRecordSerializer) {
+			StreamRecordSerializer<?> other = (StreamRecordSerializer<?>) obj;
+
+			return other.canEqual(this) && typeSerializer.equals(other.typeSerializer);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof StreamRecordSerializer;
+	}
+
+	@Override
+	public int hashCode() {
+		return typeSerializer.hashCode();
+	}
 }

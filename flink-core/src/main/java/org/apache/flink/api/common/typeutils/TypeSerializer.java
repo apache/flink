@@ -146,4 +146,16 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * @throws IOException Thrown if any of the two views raises an exception.
 	 */
 	public abstract void copy(DataInputView source, DataOutputView target) throws IOException;
+
+	public abstract boolean equals(Object obj);
+
+	/**
+	 * Returns true if the given object can be equaled with this object. If not, it returns false.
+	 *
+	 * @param obj Object which wants to take part in the equality relation
+	 * @return true if obj can be equaled with this, otherwise false
+	 */
+	public abstract boolean canEqual(Object obj);
+
+	public abstract int hashCode();
 }

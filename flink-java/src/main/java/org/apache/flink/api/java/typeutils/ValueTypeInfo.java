@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.AtomicType;
@@ -52,17 +53,13 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	private static final long serialVersionUID = 1L;
 	
 	private final Class<T> type;
-
 	
 	public ValueTypeInfo(Class<T> type) {
-		if (type == null) {
-			throw new NullPointerException();
-		}
-		if (!Value.class.isAssignableFrom(type) && !type.equals(Value.class)) {
-			throw new IllegalArgumentException("ValueTypeInfo can only be used for subclasses of " + Value.class.getName());
-		}
-		
-		this.type = type;
+		this.type = Preconditions.checkNotNull(type);
+
+		Preconditions.checkArgument(
+			Value.class.isAssignableFrom(type) || type.equals(Value.class),
+			"ValueTypeInfo can only be used for subclasses of " + Value.class.getName());
 	}
 	
 	@Override
@@ -136,16 +133,25 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	
 	@Override
 	public int hashCode() {
-		return this.type.hashCode() ^ 0xd3a2646c;
+		return this.type.hashCode();
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj.getClass() == ValueTypeInfo.class) {
-			return type == ((ValueTypeInfo<?>) obj).type;
+		if (obj instanceof ValueTypeInfo) {
+			@SuppressWarnings("unchecked")
+			ValueTypeInfo<T> valueTypeInfo = (ValueTypeInfo<T>) obj;
+
+			return valueTypeInfo.canEqual(this) &&
+				type == valueTypeInfo.type;
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof ValueTypeInfo;
 	}
 	
 	@Override
@@ -155,7 +161,7 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	
 	// --------------------------------------------------------------------------------------------
 	
-	static final <X extends Value> TypeInformation<X> getValueTypeInfo(Class<X> typeClass) {
+	static <X extends Value> TypeInformation<X> getValueTypeInfo(Class<X> typeClass) {
 		if (Value.class.isAssignableFrom(typeClass) && !typeClass.equals(Value.class)) {
 			return new ValueTypeInfo<X>(typeClass);
 		}

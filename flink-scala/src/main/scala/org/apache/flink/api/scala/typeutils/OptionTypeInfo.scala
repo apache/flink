@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 /**
  * TypeInformation for [[Option]].
  */
-class OptionTypeInfo[A, T <: Option[A]](elemTypeInfo: TypeInformation[A])
+class OptionTypeInfo[A, T <: Option[A]](private val elemTypeInfo: TypeInformation[A])
   extends TypeInformation[T] {
 
   override def isBasicType: Boolean = false
@@ -49,4 +49,20 @@ class OptionTypeInfo[A, T <: Option[A]](elemTypeInfo: TypeInformation[A])
   }
 
   override def toString = s"Option[$elemTypeInfo]"
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case optTpe: OptionTypeInfo[_, _] =>
+        optTpe.canEqual(this) && elemTypeInfo.equals(optTpe.elemTypeInfo)
+      case _ => false
+    }
+  }
+
+  def canEqual(obj: Any): Boolean = {
+    obj.isInstanceOf[OptionTypeInfo[_, _]]
+  }
+
+  override def hashCode: Int = {
+    elemTypeInfo.hashCode()
+  }
 }
