@@ -18,6 +18,8 @@
 
 package org.apache.flink.examples.java.distcp;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -33,8 +35,6 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.shaded.com.google.common.base.Preconditions;
-import org.apache.flink.shaded.com.google.common.base.Stopwatch;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,10 +76,10 @@ public class DistCp {
 		checkInputParams(env, sourcePath, targetPath, parallelism);
 		env.setParallelism(parallelism);
 
-		Stopwatch stopwatch = new Stopwatch().start();
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		LOGGER.info("Initializing copy tasks");
 		List<FileCopyTask> tasks = getCopyTasks(sourcePath);
-		LOGGER.info("Copy task initialization took " + stopwatch.elapsedTime(TimeUnit.MILLISECONDS) + "ms");
+		LOGGER.info("Copy task initialization took " + stopwatch.elapsed(TimeUnit.MILLISECONDS) + "ms");
 
 		DataSet<FileCopyTask> inputTasks = new DataSource<>(env,
 				new FileCopyTaskInputFormat(tasks),
