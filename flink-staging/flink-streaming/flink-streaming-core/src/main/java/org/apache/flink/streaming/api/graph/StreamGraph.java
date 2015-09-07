@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -204,6 +205,11 @@ public class StreamGraph extends StreamingPlan {
 		TypeSerializer<OUT> outSerializer = outTypeInfo != null && !(outTypeInfo instanceof MissingTypeInfo) ? outTypeInfo.createSerializer(executionConfig) : null;
 
 		setSerializers(vertexID, inSerializer, null, outSerializer);
+
+		if (operatorObject instanceof OutputTypeConfigurable) {
+			// sets the output type which must be know at StreamGraph creation time
+			((OutputTypeConfigurable) operatorObject).setOutputType(outTypeInfo, executionConfig);
+		}
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Vertex: {}", vertexID);

@@ -26,7 +26,7 @@ public class StreamReduce<IN> extends AbstractUdfStreamOperator<IN, ReduceFuncti
 
 	private static final long serialVersionUID = 1L;
 
-	private IN currentValue;
+	private transient IN currentValue;
 
 	public StreamReduce(ReduceFunction<IN> reducer) {
 		super(reducer);
@@ -42,7 +42,6 @@ public class StreamReduce<IN> extends AbstractUdfStreamOperator<IN, ReduceFuncti
 			currentValue = userFunction.reduce(currentValue, element.getValue());
 		} else {
 			currentValue = element.getValue();
-
 		}
 		output.collect(element.replace(currentValue));
 	}
