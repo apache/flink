@@ -6,8 +6,7 @@ import org.apache.flink.core.fs.Path;
 import java.io.Serializable;
 
 /**
- * Created by zholudev on 27/08/15.
- * Representing a unit of copying
+ * A Java POJO that represents a task for copying a single file
  */
 public class FileCopyTask implements Serializable {
     private Path path;

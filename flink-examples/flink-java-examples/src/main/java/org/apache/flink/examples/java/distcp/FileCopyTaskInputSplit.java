@@ -3,8 +3,7 @@ package org.apache.flink.examples.java.distcp;
 import org.apache.flink.core.io.InputSplit;
 
 /**
- * Created by zholudev on 27/08/15.
- * Input split for copying files
+ * Implementation of {@code InputSplit} for copying files
  */
 public class FileCopyTaskInputSplit implements InputSplit {
     private int splitNo = 0;

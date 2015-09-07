@@ -17,8 +17,8 @@ import java.util.List;
 import java.util.Queue;
 
 /**
- * Created by zholudev on 27/08/15.
- * input format for DistCp
+ * An implementation of an input format that dynamically assigns {@code FileCopyTask} to the mappers
+ * that have finished previously assigned tasks
  */
 public class FileCopyTaskInputFormat implements InputFormat<FileCopyTask, FileCopyTaskInputSplit> {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileCopyTaskInputFormat.class);
@@ -89,5 +89,6 @@ public class FileCopyTaskInputFormat implements InputFormat<FileCopyTask, FileCo
 
     @Override
     public void close() throws IOException {
+        //no op
     }
 }
