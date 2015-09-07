@@ -57,121 +57,121 @@ import java.util.concurrent.TimeUnit;
  * However, in a distributed environment HDFS paths must be provided both as input and output.
  */
 public class DistCp {
-    private static final Logger LOGGER = LoggerFactory.getLogger(DistCp.class);
-    public static final String BYTES_COPIED_CNT_NAME = "BYTES_COPIED";
-    public static final String FILES_COPIED_CNT_NAME = "FILES_COPIED";
+	private static final Logger LOGGER = LoggerFactory.getLogger(DistCp.class);
+	public static final String BYTES_COPIED_CNT_NAME = "BYTES_COPIED";
+	public static final String FILES_COPIED_CNT_NAME = "FILES_COPIED";
 
-    public static void main(String[] args) throws Exception {
-        if (args.length != 3) {
-            printHelp();
-            System.exit(1);
-        }
+	public static void main(String[] args) throws Exception {
+		if (args.length != 3) {
+			printHelp();
+			System.exit(1);
+		}
 
-        final Path sourcePath = new Path(args[0]);
-        final Path targetPath = new Path(args[1]);
-        int parallelism = Integer.valueOf(args[2], 10);
+		final Path sourcePath = new Path(args[0]);
+		final Path targetPath = new Path(args[1]);
+		int parallelism = Integer.valueOf(args[2], 10);
 
-        // set up the execution environment
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        checkInputParams(env, sourcePath, targetPath, parallelism);
-        env.setParallelism(parallelism);
+		// set up the execution environment
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		checkInputParams(env, sourcePath, targetPath, parallelism);
+		env.setParallelism(parallelism);
 
-        Stopwatch stopwatch = new Stopwatch().start();
-        LOGGER.info("Initializing copy tasks");
-        List<FileCopyTask> tasks = getCopyTasks(sourcePath);
-        LOGGER.info("Copy task initialization took " + stopwatch.elapsedTime(TimeUnit.MILLISECONDS) + "ms");
+		Stopwatch stopwatch = new Stopwatch().start();
+		LOGGER.info("Initializing copy tasks");
+		List<FileCopyTask> tasks = getCopyTasks(sourcePath);
+		LOGGER.info("Copy task initialization took " + stopwatch.elapsedTime(TimeUnit.MILLISECONDS) + "ms");
 
-        DataSet<FileCopyTask> inputTasks = new DataSource<>(env,
-                new FileCopyTaskInputFormat(tasks),
-                new GenericTypeInfo<>(FileCopyTask.class), "fileCopyTasks");
-
-
-        FlatMapOperator<FileCopyTask, Object> res = inputTasks.flatMap(new RichFlatMapFunction<FileCopyTask, Object>() {
-            public LongCounter fileCounter;
-            public LongCounter bytesCounter;
-
-            @Override
-            public void open(Configuration parameters) throws Exception {
-                bytesCounter = getRuntimeContext().getLongCounter(BYTES_COPIED_CNT_NAME);
-                fileCounter = getRuntimeContext().getLongCounter(FILES_COPIED_CNT_NAME);
-            }
-
-            @Override
-            public void flatMap(FileCopyTask task, Collector<Object> out) throws Exception {
-                LOGGER.info("Processing task: " + task);
-                Path outPath = new Path(targetPath, task.getRelativePath());
-
-                FileSystem targetFs = targetPath.getFileSystem();
-                // creating parent folders in case of a local FS
-                if (!targetFs.isDistributedFS()) {
-                    //dealing with cases like file:///tmp or just /tmp
-                    File outFile = outPath.toUri().isAbsolute() ? new File(outPath.toUri()) : new File(outPath.toString());
-                    File parentFile = outFile.getParentFile();
-                    if (!parentFile.mkdirs() && !parentFile.exists()) {
-                        throw new RuntimeException("Cannot create local file system directories: " + parentFile);
-                    }
-                }
-                FSDataOutputStream outputStream = null;
-                FSDataInputStream inputStream = null;
-                try {
-                    outputStream = targetFs.create(outPath, true);
-                    inputStream = task.getPath().getFileSystem().open(task.getPath());
-                    int bytes = IOUtils.copy(inputStream, outputStream);
-                    bytesCounter.add(bytes);
-                } finally {
-                    IOUtils.closeQuietly(inputStream);
-                    IOUtils.closeQuietly(outputStream);
-                }
-                fileCounter.add(1l);
-            }
-        });
-
-        // no data sinks are needed, therefore just printing an empty result
-        res.print();
-
-        Map<String, Object> accumulators = env.getLastJobExecutionResult().getAllAccumulatorResults();
-        LOGGER.info("== COUNTERS ==");
-        for (Map.Entry<String, Object> e : accumulators.entrySet()) {
-            LOGGER.info(e.getKey() + ": " + e.getValue());
-        }
-    }
+		DataSet<FileCopyTask> inputTasks = new DataSource<>(env,
+				new FileCopyTaskInputFormat(tasks),
+				new GenericTypeInfo<>(FileCopyTask.class), "fileCopyTasks");
 
 
-    // -----------------------------------------------------------------------------------------
-    // HELPER METHODS
-    // -----------------------------------------------------------------------------------------
+		FlatMapOperator<FileCopyTask, Object> res = inputTasks.flatMap(new RichFlatMapFunction<FileCopyTask, Object>() {
+			public LongCounter fileCounter;
+			public LongCounter bytesCounter;
 
-    private static void checkInputParams(ExecutionEnvironment env, Path sourcePath, Path targetPath, int parallelism) throws IOException {
-        Preconditions.checkArgument(parallelism > 0, "Parallelism should be greater than 0");
-        boolean isLocal = env instanceof LocalEnvironment;
-        Preconditions.checkArgument(isLocal ||
-                        (sourcePath.getFileSystem().isDistributedFS() && targetPath.getFileSystem().isDistributedFS()),
-                "In a distributed mode only HDFS input/output paths are supported");
-    }
+			@Override
+			public void open(Configuration parameters) throws Exception {
+				bytesCounter = getRuntimeContext().getLongCounter(BYTES_COPIED_CNT_NAME);
+				fileCounter = getRuntimeContext().getLongCounter(FILES_COPIED_CNT_NAME);
+			}
 
-    private static void printHelp() {
-        System.err.println("Usage: <input_path> <output_path> <level_of_parallelism>");
-    }
+			@Override
+			public void flatMap(FileCopyTask task, Collector<Object> out) throws Exception {
+				LOGGER.info("Processing task: " + task);
+				Path outPath = new Path(targetPath, task.getRelativePath());
 
-    private static List<FileCopyTask> getCopyTasks(Path sourcePath) throws IOException {
-        List<FileCopyTask> tasks = new ArrayList<>();
-        getCopyTasks(sourcePath, "", tasks);
-        return tasks;
-    }
+				FileSystem targetFs = targetPath.getFileSystem();
+				// creating parent folders in case of a local FS
+				if (!targetFs.isDistributedFS()) {
+					//dealing with cases like file:///tmp or just /tmp
+					File outFile = outPath.toUri().isAbsolute() ? new File(outPath.toUri()) : new File(outPath.toString());
+					File parentFile = outFile.getParentFile();
+					if (!parentFile.mkdirs() && !parentFile.exists()) {
+						throw new RuntimeException("Cannot create local file system directories: " + parentFile);
+					}
+				}
+				FSDataOutputStream outputStream = null;
+				FSDataInputStream inputStream = null;
+				try {
+					outputStream = targetFs.create(outPath, true);
+					inputStream = task.getPath().getFileSystem().open(task.getPath());
+					int bytes = IOUtils.copy(inputStream, outputStream);
+					bytesCounter.add(bytes);
+				} finally {
+					IOUtils.closeQuietly(inputStream);
+					IOUtils.closeQuietly(outputStream);
+				}
+				fileCounter.add(1l);
+			}
+		});
 
-    private static void getCopyTasks(Path p, String rel, List<FileCopyTask> tasks) throws IOException {
-        FileStatus[] res = p.getFileSystem().listStatus(p);
-        if (res == null) {
-            return;
-        }
-        for (FileStatus fs : res) {
-            if (fs.isDir()) {
-                getCopyTasks(fs.getPath(), rel + fs.getPath().getName() + "/", tasks);
-            } else {
-                Path cp = fs.getPath();
-                tasks.add(new FileCopyTask(cp, rel + cp.getName()));
-            }
-        }
-    }
+		// no data sinks are needed, therefore just printing an empty result
+		res.print();
+
+		Map<String, Object> accumulators = env.getLastJobExecutionResult().getAllAccumulatorResults();
+		LOGGER.info("== COUNTERS ==");
+		for (Map.Entry<String, Object> e : accumulators.entrySet()) {
+			LOGGER.info(e.getKey() + ": " + e.getValue());
+		}
+	}
+
+
+	// -----------------------------------------------------------------------------------------
+	// HELPER METHODS
+	// -----------------------------------------------------------------------------------------
+
+	private static void checkInputParams(ExecutionEnvironment env, Path sourcePath, Path targetPath, int parallelism) throws IOException {
+		Preconditions.checkArgument(parallelism > 0, "Parallelism should be greater than 0");
+		boolean isLocal = env instanceof LocalEnvironment;
+		Preconditions.checkArgument(isLocal ||
+						(sourcePath.getFileSystem().isDistributedFS() && targetPath.getFileSystem().isDistributedFS()),
+				"In a distributed mode only HDFS input/output paths are supported");
+	}
+
+	private static void printHelp() {
+		System.err.println("Usage: <input_path> <output_path> <level_of_parallelism>");
+	}
+
+	private static List<FileCopyTask> getCopyTasks(Path sourcePath) throws IOException {
+		List<FileCopyTask> tasks = new ArrayList<>();
+		getCopyTasks(sourcePath, "", tasks);
+		return tasks;
+	}
+
+	private static void getCopyTasks(Path p, String rel, List<FileCopyTask> tasks) throws IOException {
+		FileStatus[] res = p.getFileSystem().listStatus(p);
+		if (res == null) {
+			return;
+		}
+		for (FileStatus fs : res) {
+			if (fs.isDir()) {
+				getCopyTasks(fs.getPath(), rel + fs.getPath().getName() + "/", tasks);
+			} else {
+				Path cp = fs.getPath();
+				tasks.add(new FileCopyTask(cp, rel + cp.getName()));
+			}
+		}
+	}
 
 }
