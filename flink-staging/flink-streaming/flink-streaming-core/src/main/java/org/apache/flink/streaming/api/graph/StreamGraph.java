@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -190,8 +191,12 @@ public class StreamGraph extends StreamingPlan {
 		sinks.add(vertexID);
 	}
 
-	public <IN, OUT> void addOperator(Integer vertexID, StreamOperator<OUT> operatorObject,
-			TypeInformation<IN> inTypeInfo, TypeInformation<OUT> outTypeInfo, String operatorName) {
+	public <IN, OUT> void addOperator(
+			Integer vertexID,
+			StreamOperator<OUT> operatorObject,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
 
 		if (operatorObject instanceof StreamSource) {
 			addNode(vertexID, SourceStreamTask.class, operatorObject, operatorName);
@@ -205,21 +210,39 @@ public class StreamGraph extends StreamingPlan {
 
 		setSerializers(vertexID, inSerializer, null, outSerializer);
 
+		if (operatorObject instanceof OutputTypeConfigurable) {
+			@SuppressWarnings("unchecked")
+			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) operatorObject;
+			// sets the output type which must be know at StreamGraph creation time
+			outputTypeConfigurable.setOutputType(outTypeInfo, executionConfig);
+		}
+
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Vertex: {}", vertexID);
 		}
 	}
 
-	public <IN1, IN2, OUT> void addCoOperator(Integer vertexID,
-			TwoInputStreamOperator<IN1, IN2, OUT> taskoperatorObject, TypeInformation<IN1> in1TypeInfo,
-			TypeInformation<IN2> in2TypeInfo, TypeInformation<OUT> outTypeInfo, String operatorName) {
+	public <IN1, IN2, OUT> void addCoOperator(
+			Integer vertexID,
+			TwoInputStreamOperator<IN1, IN2, OUT> taskOperatorObject,
+			TypeInformation<IN1> in1TypeInfo,
+			TypeInformation<IN2> in2TypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
 
-		addNode(vertexID, TwoInputStreamTask.class, taskoperatorObject, operatorName);
+		addNode(vertexID, TwoInputStreamTask.class, taskOperatorObject, operatorName);
 
 		TypeSerializer<OUT> outSerializer = (outTypeInfo != null) && !(outTypeInfo instanceof MissingTypeInfo) ?
 				outTypeInfo.createSerializer(executionConfig) : null;
 
 		setSerializers(vertexID, in1TypeInfo.createSerializer(executionConfig), in2TypeInfo.createSerializer(executionConfig), outSerializer);
+
+		if (taskOperatorObject instanceof OutputTypeConfigurable) {
+			@SuppressWarnings("unchecked")
+			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) taskOperatorObject;
+			// sets the output type which must be know at StreamGraph creation time
+			outputTypeConfigurable.setOutputType(outTypeInfo, executionConfig);
+		}
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CO-TASK: {}", vertexID);

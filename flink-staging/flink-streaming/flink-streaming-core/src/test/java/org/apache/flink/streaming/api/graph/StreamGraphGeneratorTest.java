@@ -17,18 +17,29 @@
  */
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.datastream.ConnectedDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.apache.flink.streaming.util.EvenOddOutputSelector;
 import org.apache.flink.streaming.util.NoOpIntMap;
 import org.apache.flink.streaming.util.NoOpSink;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -174,6 +185,122 @@ public class StreamGraphGeneratorTest extends StreamingMultipleProgramsTestBase 
 		assertTrue(graph.getStreamNode(map3.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("foo"));
 		assertTrue(graph.getStreamNode(map3.getId()).getOutputSelectors().contains(selector));
 
+	}
+
+	/**
+	 * Test whether an {@link OutputTypeConfigurable} implementation gets called with the correct
+	 * output type. In this test case the output type must be BasicTypeInfo.INT_TYPE_INFO.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testOutputTypeConfigurationWithOneInputTransformation() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source = env.fromElements(1, 10);
+
+		OutputTypeConfigurableOperationWithOneInput outputTypeConfigurableOperation = new OutputTypeConfigurableOperationWithOneInput();
+
+		DataStream<Integer> result = source.transform(
+			"Single input and output type configurable operation",
+			BasicTypeInfo.INT_TYPE_INFO,
+			outputTypeConfigurableOperation);
+
+		result.addSink(new NoOpSink<Integer>());
+
+		StreamGraph graph = env.getStreamGraph();
+
+		assertEquals(BasicTypeInfo.INT_TYPE_INFO, outputTypeConfigurableOperation.getTypeInformation());
+	}
+
+	@Test
+	public void testOutputTypeConfigurationWithTwoInputTransformation() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source1 = env.fromElements(1, 10);
+		DataStream<Integer> source2 = env.fromElements(2, 11);
+
+		ConnectedDataStream<Integer, Integer> connectedSource = source1.connect(source2);
+
+		OutputTypeConfigurableOperationWithTwoInputs outputTypeConfigurableOperation = new OutputTypeConfigurableOperationWithTwoInputs();
+
+		DataStream<Integer> result = connectedSource.transform(
+				"Two input and output type configurable operation",
+				BasicTypeInfo.INT_TYPE_INFO,
+				outputTypeConfigurableOperation);
+
+		result.addSink(new NoOpSink<Integer>());
+
+		StreamGraph graph = env.getStreamGraph();
+
+		assertEquals(BasicTypeInfo.INT_TYPE_INFO, outputTypeConfigurableOperation.getTypeInformation());
+	}
+
+	private static class OutputTypeConfigurableOperationWithTwoInputs
+			extends AbstractStreamOperator<Integer>
+			implements TwoInputStreamOperator<Integer, Integer, Integer>, OutputTypeConfigurable<Integer> {
+
+		TypeInformation<Integer> tpeInformation;
+
+		public TypeInformation<Integer> getTypeInformation() {
+			return tpeInformation;
+		}
+
+		@Override
+		public void setOutputType(TypeInformation<Integer> outTypeInfo, ExecutionConfig executionConfig) {
+			tpeInformation = outTypeInfo;
+		}
+
+		@Override
+		public void processElement1(StreamRecord element) throws Exception {
+			output.collect(element);
+		}
+
+		@Override
+		public void processElement2(StreamRecord element) throws Exception {
+			output.collect(element);
+		}
+
+		@Override
+		public void processWatermark1(Watermark mark) throws Exception {
+
+		}
+
+		@Override
+		public void processWatermark2(Watermark mark) throws Exception {
+
+		}
+
+		@Override
+		public void setup(Output output, StreamingRuntimeContext runtimeContext) {
+
+		}
+	}
+
+	private static class OutputTypeConfigurableOperationWithOneInput
+			extends AbstractStreamOperator<Integer>
+			implements OneInputStreamOperator<Integer, Integer>, OutputTypeConfigurable<Integer> {
+
+		TypeInformation<Integer> tpeInformation;
+
+		public TypeInformation<Integer> getTypeInformation() {
+			return tpeInformation;
+		}
+
+		@Override
+		public void processElement(StreamRecord<Integer> element) throws Exception {
+			output.collect(element);
+		}
+
+		@Override
+		public void processWatermark(Watermark mark) throws Exception {
+
+		}
+
+		@Override
+		public void setOutputType(TypeInformation<Integer> outTypeInfo, ExecutionConfig executionConfig) {
+			tpeInformation = outTypeInfo;
+		}
 	}
 
 }
