@@ -38,19 +38,9 @@ public class AverageAccumulator implements SimpleAccumulator <Double> {
 		this.localValue += value;
 	}
 
-	public void add(Long value) {
-		this.count++;
-		this.localValue += (double)value;
-	}
-
 	public void add(long value) {
 		this.count++;
 		this.localValue += value;
-	}
-
-	public void add(Integer value) {
-		this.count++;
-		this.localValue += (double)value;
 	}
 
 	public void add(int value) {
