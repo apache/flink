@@ -95,7 +95,7 @@ public class ParameterServerIgniteImpl implements ParameterServer {
 				}
 
 			} catch (Exception e) {
-				e.printStackTrace();
+				throw new RuntimeException("An error occured on startup of the parameter server ", e.getCause());
 			}
 		}
 	}
@@ -104,7 +104,7 @@ public class ParameterServerIgniteImpl implements ParameterServer {
 		log.info("Stopping the parameter server");
 		Ignite ignite = Ignition.ignite(ParameterServerIgniteImpl.GRID_NAME);
 		IgniteCluster cluster = ignite.cluster();
-		cluster.forServers();
+//		cluster.forServers();
 		cluster.stopNodes();
 
 //		Ignition.stopAll(true);
