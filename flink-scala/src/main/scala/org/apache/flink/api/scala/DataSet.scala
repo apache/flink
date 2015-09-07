@@ -268,6 +268,17 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   // --------------------------------------------------------------------------------------------
 
   /**
+   * Persists this DataSet in memory and returns a PersistOperator which emits its output from
+   * memory if available. Otherwise, this DataSet is persisted in memory the first time it is
+   * executed.
+   *
+   * @return A PersistOperator which represents the Persisted DataSet
+   */
+  def persist: DataSet[T] = {
+    wrap(new PersistOperator[T](javaSet, javaSet.getType, getCallLocationName()))
+  }
+
+  /**
    * Creates a new DataSet by applying the given function to every element of this DataSet.
    */
   def map[R: TypeInformation: ClassTag](mapper: MapFunction[T, R]): DataSet[R] = {

@@ -18,6 +18,8 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.CollectionExecutor;
 import org.apache.flink.runtime.StreamingMode;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -74,6 +76,8 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	protected static boolean startWebServer = false;
 
 	protected static ForkableFlinkMiniCluster cluster = null;
+
+	protected static CollectionExecutor executor = null;
 	
 	// ------------------------------------------------------------------------
 	
@@ -89,7 +93,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 				clusterEnv.setAsContext();
 				break;
 			case COLLECTION:
-				CollectionTestEnvironment collectionEnv = new CollectionTestEnvironment();
+				CollectionTestEnvironment collectionEnv = new CollectionTestEnvironment(executor);
 				collectionEnv.setAsContext();
 				break;
 		}
@@ -108,11 +112,13 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 			startWebServer,
 			false,
 			true);
+		executor = new CollectionExecutor(new ExecutionConfig());
 	}
 
 	@AfterClass
 	public static void teardown() throws Exception {
 		stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
+		executor = null;
 	}
 	
 	// ------------------------------------------------------------------------

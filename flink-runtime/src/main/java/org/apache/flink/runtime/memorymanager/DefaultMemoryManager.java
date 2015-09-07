@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.memorymanager;
 
+import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableObjectIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,6 +33,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 
@@ -81,6 +84,9 @@ public class DefaultMemoryManager implements MemoryManager {
 	/** flag whether the close() has already been invoked */
 	private boolean isShutDown;
 
+	/** Persisted input data sets */
+	private HashMap<String, SpillingResettableMutableObjectIterator> persistedResults;
+
 	// ------------------------------------------------------------------------
 	// Constructors / Destructors
 	// ------------------------------------------------------------------------
@@ -120,6 +126,8 @@ public class DefaultMemoryManager implements MemoryManager {
 		this.memorySize = memorySize;
 
 		this.numberOfSlots = numberOfSlots;
+
+		this.persistedResults = new HashMap<>();
 		
 		// assign page size and bit utilities
 		this.pageSize = pageSize;
@@ -155,6 +163,15 @@ public class DefaultMemoryManager implements MemoryManager {
 
 	@Override
 	public void shutdown() {
+
+		try {
+			for (Map.Entry<String, SpillingResettableMutableObjectIterator> persist : persistedResults.entrySet()) {
+				persist.getValue().close();
+			}
+		} catch(IOException e) {
+			throw new RuntimeException(e);
+		}
+
 		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (this.lock)
 		{
@@ -197,6 +214,18 @@ public class DefaultMemoryManager implements MemoryManager {
 	// ------------------------------------------------------------------------
 	//                 MemoryManager interface implementation
 	// ------------------------------------------------------------------------
+
+	public SpillingResettableMutableObjectIterator getPersistedInput(String key) {
+		return this.persistedResults.get(key);
+	}
+
+	public void putPersistedInput(String key, SpillingResettableMutableObjectIterator iterator) {
+		if (this.persistedResults.containsKey(key)) {
+			throw new RuntimeException("Persisted results already exist in memory");
+		} else {
+			this.persistedResults.put(key, iterator);
+		}
+	}
 
 	@Override
 	public List<MemorySegment> allocatePages(AbstractInvokable owner, int numPages) throws MemoryAllocationException {
