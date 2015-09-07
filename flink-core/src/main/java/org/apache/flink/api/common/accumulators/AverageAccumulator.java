@@ -22,10 +22,12 @@ package org.apache.flink.api.common.accumulators;
  * An accumulator that get the average values.
  * Input can be {@code long}, {@code integer}, {@code double} as the result is {@code double}.
  */
-public class AverageAccumulator implements SimpleAccumulator <Double> {
+public class AverageAccumulator implements SimpleAccumulator<Double> {
 
-	private double localValue = 0;
-	private long count = 0;
+	private static final long serialVersionUID = 3672555084179165255L;
+	
+	private double localValue;
+	private long count;
 
 	@Override
 	public void add(Double value) {
@@ -69,7 +71,7 @@ public class AverageAccumulator implements SimpleAccumulator <Double> {
 			this.count += temp.count;
 			this.localValue += other.getLocalValue();
 		} else {
-			throw new RuntimeException("The merged accumulator must be AverageAccumulator.");
+			throw new IllegalArgumentException("The merged accumulator must be AverageAccumulator.");
 		}
 	}
 
