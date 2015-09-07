@@ -193,7 +193,9 @@ public abstract class KafkaTestBase extends TestLogger {
 		LOG.info("-------------------------------------------------------------------------");
 
 		flinkPort = -1;
-		flink.shutdown();
+		if (flink != null) {
+			flink.shutdown();
+		}
 		
 		for (KafkaServer broker : brokers) {
 			if (broker != null) {
@@ -253,7 +255,11 @@ public abstract class KafkaTestBase extends TestLogger {
 		kafkaProperties.put("log.dir", tmpFolder.toString());
 		kafkaProperties.put("zookeeper.connect", zookeeperConnectionString);
 		kafkaProperties.put("message.max.bytes", "" + (50 * 1024 * 1024));
-		kafkaProperties.put("replica.fetch.max.bytes", "" + (50 * 1024 * 1024));
+		kafkaProperties.put("replica.fetch.max.bytes", String.valueOf(50 * 1024 * 1024));
+		
+		// for CI stability, increase zookeeper session timeout
+		kafkaProperties.put("zookeeper.session.timeout.ms", "20000");
+		
 		KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
 
 		KafkaServer server = new KafkaServer(kafkaConfig, new KafkaLocalSystemTime());
