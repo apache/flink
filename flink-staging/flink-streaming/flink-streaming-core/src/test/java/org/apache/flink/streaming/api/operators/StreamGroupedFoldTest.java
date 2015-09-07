@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.RichFoldFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -69,7 +70,9 @@ public class StreamGroupedFoldTest {
 			public String getKey(Integer value) throws Exception {
 				return value.toString();
 			}
-		}, "100", outType);
+		}, "100");
+
+		operator.setOutputType(outType, new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<Integer, String>(operator);
 
@@ -104,7 +107,10 @@ public class StreamGroupedFoldTest {
 			public Integer getKey(Integer value) throws Exception {
 				return value;
 			}
-		}, "init", BasicTypeInfo.STRING_TYPE_INFO);
+		}, "init");
+
+		operator.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
+
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<Integer, String>(operator);
 
 		long initialTime = 0L;
