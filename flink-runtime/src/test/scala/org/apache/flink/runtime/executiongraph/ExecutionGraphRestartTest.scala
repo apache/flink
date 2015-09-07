@@ -26,8 +26,11 @@ import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.{Matchers, WordSpecLike}
 
+@RunWith(classOf[JUnitRunner])
 class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
 
   val NUM_TASKS = 31
@@ -118,7 +121,7 @@ class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
         }
 
         eg.getState should equal(JobStatus.FINISHED)
-      }catch{
+      } catch {
         case t: Throwable =>
           t.printStackTrace()
           fail(t.getMessage)

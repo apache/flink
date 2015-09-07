@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.misc
+package org.apache.flink.api.scala.manual
 
 import java.io.File
 import java.util.Random
@@ -36,6 +36,9 @@ import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory
 import org.junit.Assert._
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 
+/**
+ * This test is wrote as manual test.
+ */
 class MassiveCaseClassSortingITCase {
   
   val SEED : Long = 347569784659278346L
