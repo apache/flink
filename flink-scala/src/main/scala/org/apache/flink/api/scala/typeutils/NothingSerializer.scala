@@ -56,6 +56,17 @@ class NothingSerializer extends TypeSerializer[Any] {
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
   override def equals(obj: Any): Boolean = {
-    obj != null && obj.isInstanceOf[NothingSerializer]
+    obj match {
+      case nothingSerializer: NothingSerializer => nothingSerializer.canEqual(this)
+      case _ => false
+    }
+  }
+
+  override def canEqual(obj: scala.Any): Boolean = {
+    obj.isInstanceOf[NothingSerializer]
+  }
+
+  override def hashCode(): Int = {
+    classOf[NothingSerializer].hashCode()
   }
 }

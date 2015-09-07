@@ -27,9 +27,9 @@ import scala.collection.JavaConverters._
  * TypeInformation [[Either]].
  */
 class EitherTypeInfo[A, B, T <: Either[A, B]](
-    clazz: Class[T],
-    leftTypeInfo: TypeInformation[A],
-    rightTypeInfo: TypeInformation[B])
+    val clazz: Class[T],
+    val leftTypeInfo: TypeInformation[A],
+    val rightTypeInfo: TypeInformation[B])
   extends TypeInformation[T] {
 
   override def isBasicType: Boolean = false
@@ -53,6 +53,25 @@ class EitherTypeInfo[A, B, T <: Either[A, B]](
       new NothingSerializer
     }
     new EitherSerializer(leftSerializer, rightSerializer)
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case eitherTypeInfo: EitherTypeInfo[_, _, _] =>
+        eitherTypeInfo.canEqual(this) &&
+        clazz.equals(eitherTypeInfo.clazz) &&
+        leftTypeInfo.equals(eitherTypeInfo.leftTypeInfo) &&
+        rightTypeInfo.equals(eitherTypeInfo.rightTypeInfo)
+      case _ => false
+    }
+  }
+
+  override def canEqual(obj: Any): Boolean = {
+    obj.isInstanceOf[EitherTypeInfo[_, _, _]]
+  }
+
+  override def hashCode(): Int = {
+    31 * (31 * clazz.hashCode() + leftTypeInfo.hashCode()) + rightTypeInfo.hashCode()
   }
 
   override def toString = s"Either[$leftTypeInfo, $rightTypeInfo]"

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.commons.lang.SerializationUtils
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
@@ -29,19 +28,25 @@ import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 abstract class CaseClassSerializer[T <: Product](
     clazz: Class[T],
     scalaFieldSerializers: Array[TypeSerializer[_]])
-  extends TupleSerializerBase[T](clazz, scalaFieldSerializers) with Cloneable {
+  extends TupleSerializerBase[T](clazz, scalaFieldSerializers)
+  with Cloneable {
 
   @transient var fields : Array[AnyRef] = _
 
   @transient var instanceCreationFailed : Boolean = false
 
   override def duplicate = {
-    val result = this.clone().asInstanceOf[CaseClassSerializer[T]]
+    clone().asInstanceOf[CaseClassSerializer[T]]
+  }
 
-    // set transient fields to null and make copy of serializers
+  @throws[CloneNotSupportedException]
+  override protected def clone(): Object = {
+    val result = super.clone().asInstanceOf[CaseClassSerializer[T]]
+
+    // achieve a deep copy by duplicating the field serializers
+    result.fieldSerializers.transform(_.duplicate())
     result.fields = null
     result.instanceCreationFailed = false
-    result.fieldSerializers = fieldSerializers.map(_.duplicate())
 
     result
   }

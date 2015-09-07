@@ -103,4 +103,9 @@ public final class StringValueSerializer extends TypeSerializerSingleton<StringV
 			}
 		}
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof StringValueSerializer;
+	}
 }

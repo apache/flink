@@ -232,7 +232,7 @@ public class TypeInfoParserTest {
 		TypeInformation<?> ti = TypeInfoParser.parse("java.lang.Class[]");
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
-		Assert.assertEquals(Class.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentType());
+		Assert.assertEquals(Class.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentInfo().getTypeClass());
 		
 		TypeInformation<?> ti2 = TypeInfoParser.parse("Tuple2<Integer,Double>[]");
 
