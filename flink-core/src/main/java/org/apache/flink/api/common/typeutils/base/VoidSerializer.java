@@ -77,4 +77,9 @@ public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.write(source.readByte());
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof VoidSerializer;
+	}
 }

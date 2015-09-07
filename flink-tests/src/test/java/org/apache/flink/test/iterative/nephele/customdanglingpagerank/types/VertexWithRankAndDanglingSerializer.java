@@ -81,4 +81,9 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializerSin
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.write(source, 17);
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof VertexWithRankAndDanglingSerializer;
+	}
 }

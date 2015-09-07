@@ -121,16 +121,22 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	
 	@Override
 	public int hashCode() {
-		return this.typeClass.hashCode() + 177;
+		return this.typeClass.hashCode();
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj.getClass() == WritableSerializer.class) {
+		if (obj instanceof WritableSerializer) {
 			WritableSerializer<?> other = (WritableSerializer<?>) obj;
-			return this.typeClass == other.typeClass;
+
+			return other.canEqual(this) && typeClass == other.typeClass;
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof WritableSerializer;
 	}
 }

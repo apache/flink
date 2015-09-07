@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.windowing;
 
 import java.io.IOException;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -37,6 +38,8 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 	TypeSerializer<Boolean> boolSerializer = BooleanSerializer.INSTANCE;
 
 	public StreamWindowSerializer(TypeInformation<T> typeInfo, ExecutionConfig conf) {
+		Preconditions.checkNotNull(typeInfo);
+
 		this.typeSerializer = typeInfo.createSerializer(conf);
 	}
 
@@ -115,6 +118,27 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		serialize(deserialize(source), target);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof StreamWindowSerializer) {
+			StreamWindowSerializer<?> other = (StreamWindowSerializer<?>) obj;
+
+			return other.canEqual(this) && typeSerializer.equals(other.typeSerializer);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof StreamWindowSerializer;
+	}
+
+	@Override
+	public int hashCode() {
+		return typeSerializer.hashCode();
 	}
 
 	@Override

@@ -109,4 +109,9 @@ public final class VertexWithAdjacencyListSerializer extends TypeSerializerSingl
 		target.writeInt(numTargets);
 		target.write(source, numTargets * 8);
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof VertexWithAdjacencyListSerializer;
+	}
 }

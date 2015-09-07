@@ -23,16 +23,29 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.util.Objects;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 public class PojoField implements Serializable {
-	public transient Field field;
-	public TypeInformation<?> type;
+
+	private static final long serialVersionUID = 1975295846436559363L;
+
+	private transient Field field;
+	private final TypeInformation<?> type;
 
 	public PojoField(Field field, TypeInformation<?> type) {
-		this.field = field;
-		this.type = type;
+		this.field = Preconditions.checkNotNull(field);
+		this.type = Preconditions.checkNotNull(type);
+	}
+
+	public Field getField() {
+		return field;
+	}
+
+	public TypeInformation<?> getTypeInformation() {
+		return type;
 	}
 
 	private void writeObject(ObjectOutputStream out)
@@ -67,5 +80,26 @@ public class PojoField implements Serializable {
 	@Override
 	public String toString() {
 		return "PojoField " + field.getDeclaringClass() + "." + field.getName() + " (" + type + ")";
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof PojoField) {
+			PojoField other = (PojoField) obj;
+
+			return other.canEqual(this) && type.equals(other.type) &&
+				Objects.equals(field, other.field);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(field, type);
+	}
+
+	public boolean canEqual(Object obj) {
+		return obj instanceof PojoField;
 	}
 }

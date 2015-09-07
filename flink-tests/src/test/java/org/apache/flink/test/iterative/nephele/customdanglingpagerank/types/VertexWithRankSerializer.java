@@ -78,4 +78,9 @@ public final class VertexWithRankSerializer extends TypeSerializerSingleton<Vert
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.write(source, 16);
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof VertexWithRankSerializer;
+	}
 }

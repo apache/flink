@@ -18,8 +18,12 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 
+import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -52,10 +56,13 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 
 	public TupleTypeInfo(Class<T> tupleType, TypeInformation<?>... types) {
 		super(tupleType, types);
-		if (types == null || types.length > Tuple.MAX_ARITY) {
-			throw new IllegalArgumentException();
-		}
+
+		Preconditions.checkArgument(
+			types.length <= Tuple.MAX_ARITY,
+			"The tuple type exceeds the maximum supported arity.");
+
 		this.fieldNames = new String[types.length];
+
 		for (int i = 0; i < types.length; i++) {
 			fieldNames[i] = "f" + i;
 		}
@@ -78,7 +85,7 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public TupleSerializer<T> createSerializer(ExecutionConfig executionConfig) {
-		if (this.tupleType == Tuple0.class) {
+		if (getTypeClass() == Tuple0.class) {
 			return (TupleSerializer<T>) Tuple0Serializer.INSTANCE;
 		}
 
@@ -91,48 +98,65 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 		
 		return new TupleSerializer<T>(tupleClass, fieldSerializers);
 	}
-	
-	/**
-	 * Comparator creation
-	 */
-	private TypeComparator<?>[] fieldComparators;
-	private int[] logicalKeyFields;
-	private int comparatorHelperIndex = 0;
-	
-	@Override
-	protected void initializeNewComparator(int localKeyCount) {
-		fieldComparators = new TypeComparator<?>[localKeyCount];
-		logicalKeyFields = new int[localKeyCount];
-		comparatorHelperIndex = 0;
-	}
 
 	@Override
-	protected void addCompareField(int fieldId, TypeComparator<?> comparator) {
-		fieldComparators[comparatorHelperIndex] = comparator;
-		logicalKeyFields[comparatorHelperIndex] = fieldId;
-		comparatorHelperIndex++;
+	protected TypeComparatorBuilder<T> createTypeComparatorBuilder() {
+		return new TupleTypeComparatorBuilder();
 	}
 
-	@Override
-	protected TypeComparator<T> getNewComparator(ExecutionConfig executionConfig) {
-		@SuppressWarnings("rawtypes")
-		final TypeComparator[] finalFieldComparators = Arrays.copyOf(fieldComparators, comparatorHelperIndex);
-		final int[] finalLogicalKeyFields = Arrays.copyOf(logicalKeyFields, comparatorHelperIndex);
-		//final TypeSerializer[] finalFieldSerializers = Arrays.copyOf(fieldSerializers, comparatorHelperIndex);
-		// create the serializers for the prefix up to highest key position
-		int maxKey = 0;
-		for(int key : finalLogicalKeyFields) {
-			maxKey = Math.max(maxKey, key);
+	private class TupleTypeComparatorBuilder implements TypeComparatorBuilder<T> {
+
+		private final ArrayList<TypeComparator> fieldComparators = new ArrayList<TypeComparator>();
+		private final ArrayList<Integer> logicalKeyFields = new ArrayList<Integer>();
+
+		@Override
+		public void initializeTypeComparatorBuilder(int size) {
+			fieldComparators.ensureCapacity(size);
+			logicalKeyFields.ensureCapacity(size);
 		}
-		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[maxKey + 1];
-		for (int i = 0; i <= maxKey; i++) {
-			fieldSerializers[i] = types[i].createSerializer(executionConfig);
+
+		@Override
+		public void addComparatorField(int fieldId, TypeComparator<?> comparator) {
+			fieldComparators.add(comparator);
+			logicalKeyFields.add(fieldId);
 		}
-		if(finalFieldComparators.length == 0 || finalLogicalKeyFields.length == 0 || fieldSerializers.length == 0 
-				|| finalFieldComparators.length != finalLogicalKeyFields.length) {
-			throw new IllegalArgumentException("Tuple comparator creation has a bug");
+
+		@Override
+		public TypeComparator<T> createTypeComparator(ExecutionConfig config) {
+			Preconditions.checkState(
+				fieldComparators.size() > 0,
+				"No field comparators were defined for the TupleTypeComparatorBuilder."
+			);
+
+			Preconditions.checkState(
+				logicalKeyFields.size() > 0,
+				"No key fields were defined for the TupleTypeComparatorBuilder."
+			);
+
+			Preconditions.checkState(
+				fieldComparators.size() == logicalKeyFields.size(),
+				"The number of field comparators and key fields is not equal."
+			);
+
+			final int maxKey = Collections.max(logicalKeyFields);
+
+			Preconditions.checkState(
+				maxKey >= 0,
+				"The maximum key field must be greater or equal than 0."
+			);
+
+			TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[maxKey + 1];
+
+			for (int i = 0; i <= maxKey; i++) {
+				fieldSerializers[i] = types[i].createSerializer(config);
+			}
+
+			return new TupleComparator<T>(
+				Ints.toArray(logicalKeyFields),
+				fieldComparators.toArray(new TypeComparator[fieldComparators.size()]),
+				fieldSerializers
+			);
 		}
-		return new TupleComparator<T>(finalLogicalKeyFields, finalFieldComparators, fieldSerializers);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -142,17 +166,22 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 		if (obj instanceof TupleTypeInfo) {
 			@SuppressWarnings("unchecked")
 			TupleTypeInfo<T> other = (TupleTypeInfo<T>) obj;
-			return ((this.tupleType == null && other.tupleType == null) || this.tupleType.equals(other.tupleType)) &&
-					Arrays.deepEquals(this.types, other.types);
-			
+			return other.canEqual(this) &&
+				super.equals(other) &&
+				Arrays.equals(fieldNames, other.fieldNames);
 		} else {
 			return false;
 		}
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof TupleTypeInfo;
+	}
 	
 	@Override
 	public int hashCode() {
-		return this.types.hashCode() ^ Arrays.deepHashCode(this.types);
+		return 31 * super.hashCode() + Arrays.hashCode(fieldNames);
 	}
 	
 	@Override

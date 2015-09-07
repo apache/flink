@@ -75,7 +75,7 @@ public final class UdfAnalyzerUtils {
 			final PojoTypeInfo<?> pojoTypeInfo = (PojoTypeInfo<?>) typeInfo;
 			HashMap<String, TaggedValue> containerMapping = new HashMap<String, TaggedValue>();
 			for (int i = 0; i < pojoTypeInfo.getArity(); i++) {
-				final String fieldName = pojoTypeInfo.getPojoFieldAt(i).field.getName();
+				final String fieldName = pojoTypeInfo.getPojoFieldAt(i).getField().getName();
 				containerMapping.put(fieldName,
 						convertTypeInfoToTaggedValue(input,
 								pojoTypeInfo.getTypeAt(i),

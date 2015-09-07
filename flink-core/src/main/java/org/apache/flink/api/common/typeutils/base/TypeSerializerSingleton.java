@@ -33,11 +33,17 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 
 	@Override
 	public int hashCode() {
-		return super.hashCode();
+		return TypeSerializerSingleton.class.hashCode();
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
-		return obj != null && obj.getClass() == this.getClass();
+		if (obj instanceof TypeSerializerSingleton) {
+			TypeSerializerSingleton<?> other = (TypeSerializerSingleton<?>) obj;
+
+			return other.canEqual(this);
+		} else {
+			return false;
+		}
 	}
 }

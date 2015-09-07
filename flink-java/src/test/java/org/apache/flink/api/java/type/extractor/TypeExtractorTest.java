@@ -66,6 +66,8 @@ import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.xml.bind.TypeConstraintException;
+
 
 public class TypeExtractorTest {
 
@@ -1237,7 +1239,7 @@ public class TypeExtractorTest {
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.TypeExtractorTest$CustomArrayObject[]"));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
-		Assert.assertEquals(CustomArrayObject.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentType());
+		Assert.assertEquals(CustomArrayObject.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentInfo().getTypeClass());
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
