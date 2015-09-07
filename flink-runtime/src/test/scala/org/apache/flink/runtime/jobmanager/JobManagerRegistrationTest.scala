@@ -27,10 +27,11 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.instance.{HardwareDescription, InstanceConnectionInfo, InstanceID}
-import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
 import org.junit.Assert.{assertNotEquals, assertNotNull}
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.duration._
@@ -41,6 +42,7 @@ import scala.language.postfixOps
  * It also tests the JobManager's response to heartbeats from TaskManagers it does
  * not know.
  */
+@RunWith(classOf[JUnitRunner])
 class JobManagerRegistrationTest(_system: ActorSystem) extends TestKit(_system) with
 ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
