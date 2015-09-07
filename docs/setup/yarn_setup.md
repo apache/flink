@@ -48,7 +48,7 @@ Once the session has been started, you can submit jobs to the cluster using the 
 curl -O <flink_hadoop2_download_url>
 tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{ site.version }}/
-./bin/flink run -m yarn-cluster -yn 4 -yjm 1024 -ytm 4096 ./examples/flink-java-examples-{{ site.version }}-WordCount.jar
+./bin/flink run -m yarn-cluster -yn 4 -yjm 1024 -ytm 4096 ./examples/WordCount.jar
 ~~~
 
 ## Apache Flink on Hadoop YARN using a YARN Session
@@ -180,7 +180,7 @@ Use the *run* action to submit a job to YARN. The client is able to determine th
 ~~~bash
 wget -O LICENSE-2.0.txt http://www.apache.org/licenses/LICENSE-2.0.txt
 hadoop fs -copyFromLocal LICENSE-2.0.txt hdfs:/// ...
-./bin/flink run ./examples/flink-java-examples-{{site.version }}-WordCount.jar \
+./bin/flink run ./examples/WordCount.jar \
         hdfs:///..../LICENSE-2.0.txt hdfs:///.../wordcount-result.txt
 ~~~
 
@@ -206,7 +206,7 @@ Please note that the client then expects the `-yn` value to be set (number of Ta
 ***Example:***
 
 ~~~bash
-./bin/flink run -m yarn-cluster -yn 2 ./examples/flink-java-examples-{{site.version }}-WordCount.jar 
+./bin/flink run -m yarn-cluster -yn 2 ./examples/WordCount.jar 
 ~~~
 
 The command line options of the YARN session are also available with the `./bin/flink` tool. 
