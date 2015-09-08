@@ -52,6 +52,11 @@ under the License.
 			<artifactId>unfiltered-filter_${scala.binary.version}</artifactId>
 			<version>${unfiltererd.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.mesos</groupId>
