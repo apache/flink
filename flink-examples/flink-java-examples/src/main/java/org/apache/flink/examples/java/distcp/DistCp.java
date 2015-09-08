@@ -18,8 +18,6 @@
 
 package org.apache.flink.examples.java.distcp;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -44,7 +42,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A main class of the Flink distcp utility.
@@ -76,10 +73,10 @@ public class DistCp {
 		checkInputParams(env, sourcePath, targetPath, parallelism);
 		env.setParallelism(parallelism);
 
-		Stopwatch stopwatch = Stopwatch.createStarted();
+		long startTime = System.currentTimeMillis();
 		LOGGER.info("Initializing copy tasks");
 		List<FileCopyTask> tasks = getCopyTasks(sourcePath);
-		LOGGER.info("Copy task initialization took " + stopwatch.elapsed(TimeUnit.MILLISECONDS) + "ms");
+		LOGGER.info("Copy task initialization took " + (System.currentTimeMillis() - startTime) + "ms");
 
 		DataSet<FileCopyTask> inputTasks = new DataSource<>(env,
 				new FileCopyTaskInputFormat(tasks),
@@ -142,11 +139,15 @@ public class DistCp {
 	// -----------------------------------------------------------------------------------------
 
 	private static void checkInputParams(ExecutionEnvironment env, Path sourcePath, Path targetPath, int parallelism) throws IOException {
-		Preconditions.checkArgument(parallelism > 0, "Parallelism should be greater than 0");
+		if (parallelism <= 0) {
+			throw new IllegalArgumentException("Parallelism should be greater than 0");
+		}
+
 		boolean isLocal = env instanceof LocalEnvironment;
-		Preconditions.checkArgument(isLocal ||
-						(sourcePath.getFileSystem().isDistributedFS() && targetPath.getFileSystem().isDistributedFS()),
-				"In a distributed mode only HDFS input/output paths are supported");
+		if (!isLocal &&
+				!(sourcePath.getFileSystem().isDistributedFS() && targetPath.getFileSystem().isDistributedFS())) {
+			throw new IllegalArgumentException("In a distributed mode only HDFS input/output paths are supported");
+		}
 	}
 
 	private static void printHelp() {

@@ -19,8 +19,6 @@
 
 package org.apache.flink.examples.java.distcp;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Lists;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
@@ -73,13 +71,12 @@ public class FileCopyTaskInputFormat implements InputFormat<FileCopyTask, FileCo
 
 	@Override
 	public FileCopyTaskInputSplit[] createInputSplits(int minNumSplits) throws IOException {
-		List<FileCopyTaskInputSplit> splits = Lists.transform(tasks, new Function<FileCopyTask, FileCopyTaskInputSplit>() {
-			@Override
-			public FileCopyTaskInputSplit apply(FileCopyTask input) {
-				return new FileCopyTaskInputSplit(input);
-			}
-		});
-		return splits.toArray(new FileCopyTaskInputSplit[splits.size()]);
+		FileCopyTaskInputSplit[] splits = new FileCopyTaskInputSplit[tasks.size()];
+		int i = 0;
+		for (FileCopyTask t : tasks) {
+			splits[i++] = new FileCopyTaskInputSplit(t);
+		}
+		return splits;
 	}
 
 	@Override
