@@ -36,7 +36,7 @@ import static org.junit.Assert.assertEquals;
  */
 public class PrintSinkFunctionTest {
 
-	public PrintStream printStreamOriginal = System.out;
+	private PrintStream printStreamOriginal = System.out;
 	private String line = System.lineSeparator();
 
 	@Test
