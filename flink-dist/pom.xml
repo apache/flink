@@ -322,6 +322,9 @@ under the License.
 									<excludes>
 										<exclude>log4j.properties</exclude>
 										<exclude>log4j-test.properties</exclude>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
 									</excludes>
 								</filter>
 							</filters>
