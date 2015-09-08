@@ -41,7 +41,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuppressWarnings("serial")
-public class JoinOperatorBaseTest implements Serializable {
+public class InnerJoinOperatorBaseTest implements Serializable {
 
 	@Test
 	public void testJoinPlain(){
@@ -55,8 +55,8 @@ public class JoinOperatorBaseTest implements Serializable {
 		};
 
 		@SuppressWarnings({ "rawtypes", "unchecked" })
-		JoinOperatorBase<String, String, Integer,
-				FlatJoinFunction<String, String,Integer> > base = new JoinOperatorBase(joiner,
+		InnerJoinOperatorBase<String, String, Integer,
+						FlatJoinFunction<String, String,Integer> > base = new InnerJoinOperatorBase(joiner,
 				new BinaryOperatorInformation(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
 						BasicTypeInfo.INT_TYPE_INFO), new int[0], new int[0], "TestJoiner");
 
@@ -106,9 +106,9 @@ public class JoinOperatorBaseTest implements Serializable {
 			}
 		};
 
-		JoinOperatorBase<String, String, Integer,
-				RichFlatJoinFunction<String, String, Integer>> base = new JoinOperatorBase<String, String, Integer,
-				RichFlatJoinFunction<String, String, Integer>>(joiner, new BinaryOperatorInformation<String, String,
+		InnerJoinOperatorBase<String, String, Integer,
+						RichFlatJoinFunction<String, String, Integer>> base = new InnerJoinOperatorBase<String, String, Integer,
+										RichFlatJoinFunction<String, String, Integer>>(joiner, new BinaryOperatorInformation<String, String,
 				Integer>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO), new int[0], new int[0], taskName);
 

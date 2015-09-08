@@ -42,7 +42,7 @@ import java.util.Set;
 import java.util.concurrent.Future;
 
 @SuppressWarnings({ "unchecked", "serial" })
-public class JoinOperatorBaseTest implements Serializable {
+public class InnerJoinOperatorBaseTest implements Serializable {
 
 	
 	@Test
@@ -52,13 +52,11 @@ public class JoinOperatorBaseTest implements Serializable {
 		{
 			@Override
 			public void join(Tuple3<String, Double, Integer> first, Tuple2<Integer, String> second, Collector<Tuple2<Double, String>> out) {
-				Tuple3<String, Double, Integer> fst = (Tuple3<String, Double, Integer>)first;
-				Tuple2<Integer, String> snd = (Tuple2<Integer, String>)second;
 
-				assertEquals(fst.f0, snd.f1);
-				assertEquals(fst.f2, snd.f0);
+				assertEquals(first.f0, second.f1);
+				assertEquals(first.f2, second.f0);
 
-				out.collect(new Tuple2<Double, String>(fst.f1, snd.f0.toString()));
+				out.collect(new Tuple2<>(first.f1, second.f0.toString()));
 			}
 		};
 
@@ -78,30 +76,30 @@ public class JoinOperatorBaseTest implements Serializable {
 				String>> binaryOpInfo = new BinaryOperatorInformation<Tuple3<String, Double, Integer>, Tuple2<Integer,
 				String>, Tuple2<Double, String>>(leftTypeInfo, rightTypeInfo, outTypeInfo);
 
-		final JoinOperatorBase<Tuple3<String, Double, Integer>, Tuple2<Integer,
-				String>, Tuple2<Double, String>, FlatJoinFunction<Tuple3<String, Double, Integer>, Tuple2<Integer,
-				String>, Tuple2<Double, String>>> base = new JoinOperatorBase<Tuple3<String, Double, Integer>,
-				Tuple2<Integer, String>, Tuple2<Double, String>, FlatJoinFunction<Tuple3<String, Double, Integer>,
-				Tuple2<Integer, String>, Tuple2<Double, String>>>(joiner, binaryOpInfo, leftKeys, rightKeys, taskName);
+		final InnerJoinOperatorBase<Tuple3<String, Double, Integer>, Tuple2<Integer,
+						String>, Tuple2<Double, String>, FlatJoinFunction<Tuple3<String, Double, Integer>, Tuple2<Integer,
+						String>, Tuple2<Double, String>>> base = new InnerJoinOperatorBase<Tuple3<String, Double, Integer>,
+										Tuple2<Integer, String>, Tuple2<Double, String>, FlatJoinFunction<Tuple3<String, Double, Integer>,
+										Tuple2<Integer, String>, Tuple2<Double, String>>>(joiner, binaryOpInfo, leftKeys, rightKeys, taskName);
 
 		final List<Tuple3<String, Double, Integer> > inputData1 = new ArrayList<Tuple3<String, Double,
 				Integer>>(Arrays.asList(
-				new Tuple3<String, Double, Integer>("foo", 42.0, 1),
-				new Tuple3<String,Double, Integer>("bar", 1.0, 2),
-				new Tuple3<String, Double, Integer>("bar", 2.0, 3),
-				new Tuple3<String, Double, Integer>("foobar", 3.0, 4),
-				new Tuple3<String, Double, Integer>("bar", 3.0, 3)
+				new Tuple3<>("foo", 42.0, 1),
+				new Tuple3<>("bar", 1.0, 2),
+				new Tuple3<>("bar", 2.0, 3),
+				new Tuple3<>("foobar", 3.0, 4),
+				new Tuple3<>("bar", 3.0, 3)
 		));
 
 		final List<Tuple2<Integer, String>> inputData2 = new ArrayList<Tuple2<Integer, String>>(Arrays.asList(
-				new Tuple2<Integer, String>(3, "bar"),
-				new Tuple2<Integer, String>(4, "foobar"),
-				new Tuple2<Integer, String>(2, "foo")
+				new Tuple2<>(3, "bar"),
+				new Tuple2<>(4, "foobar"),
+				new Tuple2<>(2, "foo")
 		));
 		final Set<Tuple2<Double, String>> expected = new HashSet<Tuple2<Double, String>>(Arrays.asList(
-				new Tuple2<Double, String>(2.0, "3"),
-				new Tuple2<Double, String>(3.0, "3"),
-				new Tuple2<Double, String>(3.0, "4")
+				new Tuple2<>(2.0, "3"),
+				new Tuple2<>(3.0, "3"),
+				new Tuple2<>(3.0, "4")
 		));
 
 		try {
@@ -111,8 +109,8 @@ public class JoinOperatorBaseTest implements Serializable {
 			executionConfig.enableObjectReuse();
 			List<Tuple2<Double, String>> resultRegular = base.executeOnCollections(inputData1, inputData2, new RuntimeUDFContext("op", 1, 0, null, executionConfig, new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>()), executionConfig);
 
-			assertEquals(expected, new HashSet<Tuple2<Double, String>>(resultSafe));
-			assertEquals(expected, new HashSet<Tuple2<Double, String>>(resultRegular));
+			assertEquals(expected, new HashSet<>(resultSafe));
+			assertEquals(expected, new HashSet<>(resultRegular));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

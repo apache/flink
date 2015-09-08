@@ -196,6 +196,9 @@ public abstract class CostEstimator {
 			
 			break;
 		case INNER_MERGE:
+		case FULL_OUTER_MERGE:
+		case LEFT_OUTER_MERGE:
+		case RIGHT_OUTER_MERGE:
 			addLocalMergeCost(firstInput, secondInput, driverCosts, costWeight);
 			break;
 		case HYBRIDHASH_BUILD_FIRST:
