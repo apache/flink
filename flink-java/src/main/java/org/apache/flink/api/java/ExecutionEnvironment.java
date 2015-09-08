@@ -703,7 +703,8 @@ public abstract class ExecutionEnvironment {
 	 * @param data The elements to make up the data set.
 	 * @return A DataSet representing the given list of elements.
 	 */
-	public <X> DataSource<X> fromElements(X... data) {
+	@SafeVarargs
+	public final <X> DataSource<X> fromElements(X... data) {
 		if (data == null) {
 			throw new IllegalArgumentException("The data must not be null.");
 		}
