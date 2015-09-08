@@ -303,7 +303,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	}
 	
 	private boolean checkBroadcastMergeJoin(DualInputPlanNode join, SingleInputPlanNode reducer) {
-		if (DriverStrategy.MERGE == join.getDriverStrategy()) {
+		if (DriverStrategy.INNER_MERGE == join.getDriverStrategy()) {
 			// driver keys
 			Assert.assertEquals(set0, join.getKeysForInput1());
 			Assert.assertEquals(set0, join.getKeysForInput2());
@@ -327,7 +327,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	}
 	
 	private boolean checkRepartitionMergeJoin(DualInputPlanNode join, SingleInputPlanNode reducer) {
-		if (DriverStrategy.MERGE == join.getDriverStrategy()) {
+		if (DriverStrategy.INNER_MERGE == join.getDriverStrategy()) {
 			// driver keys
 			Assert.assertEquals(set0, join.getKeysForInput1());
 			Assert.assertEquals(set0, join.getKeysForInput2());

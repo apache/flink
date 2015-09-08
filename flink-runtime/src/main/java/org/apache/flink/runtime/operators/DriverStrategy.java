@@ -72,7 +72,13 @@ public enum DriverStrategy {
 	ALL_GROUP_COMBINE(AllGroupCombineDriver.class, null, PIPELINED, 0),
 
 	// both inputs are merged, but materialized to the side for block-nested-loop-join among values with equal key
-	MERGE(JoinDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
+	INNER_MERGE(JoinDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
+
+	LEFT_OUTER_MERGE(LeftOuterJoinDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
+
+	RIGHT_OUTER_MERGE(RightOuterJoinDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
+
+	FULL_OUTER_MERGE(FullOuterJoinDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
 
 	// co-grouping inputs
 	CO_GROUP(CoGroupDriver.class, null, PIPELINED, PIPELINED, 2),

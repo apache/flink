@@ -87,7 +87,7 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 		this.iterator2 = createKeyGroupedIterator(input2, serializer2, comparator2.duplicate());
 
 		final int numPagesForSpiller = numMemoryPages > 20 ? 2 : 1;
-		this.blockIt = new NonReusingBlockResettableIterator<T2>(this.memoryManager, this.serializer2,
+		this.blockIt = new NonReusingBlockResettableIterator<>(this.memoryManager, this.serializer2,
 				(numMemoryPages - numPagesForSpiller), parentTask);
 		this.memoryForSpillingIterator = memoryManager.allocatePages(parentTask, numPagesForSpiller);
 	}
@@ -267,8 +267,9 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 			if (spillingRequired) {
 				// more data than would fit into one block. we need to wrap the other side in a spilling iterator
 				// create spilling iterator on first input
-				spillIt = new SpillingResettableIterator<T1>(spillVals, this.serializer1,
-						this.memoryManager, this.ioManager, this.memoryForSpillingIterator);
+				spillIt = new SpillingResettableIterator<>(
+						spillVals, this.serializer1, this.memoryManager, this.ioManager, this.memoryForSpillingIterator
+				);
 				leftSideIter = spillIt;
 				spillIt.open();
 
