@@ -57,12 +57,13 @@ object TestingJobManagerMessages {
   case class NotifyWhenTaskManagerTerminated(taskManager: ActorRef)
   case class TaskManagerTerminated(taskManager: ActorRef)
 
-  /* Registers a listener to receive a message when accumulators changed.
+  /**
+   * Registers a listener to receive a message when accumulators changed.
    * The change must be explicitly triggered by the TestingTaskManager which can receive an
    * [[AccumulatorChanged]] message by a task that changed the accumulators. This message is then
    * forwarded to the JobManager which will send the accumulators in the [[UpdatedAccumulators]]
    * message when the next Heartbeat occurs.
-   * */
+   */
   case class NotifyWhenAccumulatorChange(jobID: JobID)
 
   /**
@@ -71,4 +72,11 @@ object TestingJobManagerMessages {
   case class UpdatedAccumulators(jobID: JobID,
     flinkAccumulators: Map[ExecutionAttemptID, Map[AccumulatorRegistry.Metric, Accumulator[_,_]]],
     userAccumulators: Map[String, Accumulator[_,_]])
+
+  /** Notifies the sender when the [[TestingJobManager]] has been elected as the leader
+    *
+    */
+  case object NotifyWhenLeader
+
+  def getNotifyWhenLeader: AnyRef = NotifyWhenLeader
 }

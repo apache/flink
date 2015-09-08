@@ -59,7 +59,7 @@ class JobManagerConnectionTest {
       mustReturnWithinTimeout(Duration(5*timeout, TimeUnit.MILLISECONDS)) {
         () => {
           try {
-            JobManager.getJobManagerRemoteReference(endpoint, actorSystem, config)
+            JobManager.getJobManagerActorRef(endpoint, actorSystem, config)
             fail("Should fail since the JobManager is not reachable")
           }
           catch {
@@ -95,7 +95,7 @@ class JobManagerConnectionTest {
       mustReturnWithinTimeout(Duration(5*timeout, TimeUnit.MILLISECONDS)) {
         () => {
           try {
-            JobManager.getJobManagerRemoteReference(endpoint, actorSystem, config)
+            JobManager.getJobManagerActorRef(endpoint, actorSystem, config)
             fail("Should fail since the JobManager is not reachable")
           }
           catch {

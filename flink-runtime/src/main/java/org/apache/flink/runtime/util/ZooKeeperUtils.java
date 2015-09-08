@@ -24,20 +24,27 @@ import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
+import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * ZooKeeper utilities.
- */
-public class ZooKeeperUtil {
+public class ZooKeeperUtils {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtil.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtils.class);
 
-	public static CuratorFramework createCuratorFramework(Configuration configuration) throws Exception {
-		String zkQuorum = ZooKeeperUtil.getZooKeeperEnsemble(configuration);
+	/**
+	 * Starts a {@link CuratorFramework} instance and connects it to the given ZooKeeper
+	 * quorum.
+	 *
+	 * @param configuration {@link Configuration} object containing the configuration values
+	 * @return {@link CuratorFramework} instance
+	 */
+	public static CuratorFramework startCuratorFramework(Configuration configuration) {
+		String zkQuorum = configuration.getString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, "");
 
-		if (zkQuorum == null || zkQuorum.equals("")) {
+		if(zkQuorum == null || zkQuorum.equals("")) {
 			throw new RuntimeException("No valid ZooKeeper quorum has been specified.");
 		}
 
@@ -49,7 +56,7 @@ public class ZooKeeperUtil {
 				ConfigConstants.ZOOKEEPER_CONNECTION_TIMEOUT,
 				ConfigConstants.DEFAULT_ZOOKEEPER_CONNECTION_TIMEOUT);
 
-		int retryWait = configuration.getInteger(
+		int retryWait = configuration.getInteger (
 				ConfigConstants.ZOOKEEPER_RETRY_WAIT,
 				ConfigConstants.DEFAULT_ZOOKEEPER_RETRY_WAIT);
 
@@ -58,7 +65,7 @@ public class ZooKeeperUtil {
 				ConfigConstants.DEFAULT_ZOOKEEPER_MAX_RETRY_ATTEMPTS);
 
 		String root = configuration.getString(ConfigConstants.ZOOKEEPER_DIR_KEY,
-				ConfigConstants.DEFAULT_ZOOKEEPER_ZNODE_ROOT);
+				ConfigConstants.DEFAULT_ZOOKEEPER_DIR_KEY);
 
 		LOG.info("Using '{}' as root namespace.", root);
 
@@ -72,12 +79,7 @@ public class ZooKeeperUtil {
 				.namespace(root.startsWith("/") ? root.substring(1) : root)
 				.build();
 
-		try {
-			cf.start();
-		}
-		catch (Exception e) {
-			throw new Exception("Could not start CuratorFramework.", e);
-		}
+		cf.start();
 
 		return cf;
 	}
@@ -85,8 +87,12 @@ public class ZooKeeperUtil {
 	/**
 	 * Returns whether high availability is enabled (<=> ZooKeeper quorum configured).
 	 */
-	public static boolean isJobManagerHighAvailabilityEnabled(Configuration flinkConf) {
-		return flinkConf.containsKey(ConfigConstants.ZOOKEEPER_QUORUM_KEY);
+	public static boolean isZooKeeperHighAvailabilityEnabled(Configuration flinkConf) {
+		String recoveryMode = flinkConf.getString(
+				ConfigConstants.RECOVERY_MODE,
+				ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
+
+		return recoveryMode.equals(RecoveryMode.ZOOKEEPER.name());
 	}
 
 	/**
@@ -96,7 +102,7 @@ public class ZooKeeperUtil {
 	public static String getZooKeeperEnsemble(Configuration flinkConf)
 			throws IllegalConfigurationException {
 
-		String zkQuorum = flinkConf.getString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, null);
+		String zkQuorum = flinkConf.getString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, "");
 
 		if (zkQuorum == null || zkQuorum.equals("")) {
 			throw new IllegalConfigurationException("No ZooKeeper quorum specified in config.");
@@ -106,5 +112,40 @@ public class ZooKeeperUtil {
 		zkQuorum = zkQuorum.replaceAll("\\s+", "");
 
 		return zkQuorum;
+	}
+
+	/**
+	 * Creates a {@link ZooKeeperLeaderRetrievalService} instance.
+	 *
+	 * @param configuration {@link Configuration} object containing the configuration values
+	 * @return {@link ZooKeeperLeaderRetrievalService} instance.
+	 * @throws Exception
+	 */
+	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
+			Configuration configuration) throws Exception{
+		CuratorFramework client = startCuratorFramework(configuration);
+		String leaderPath = configuration.getString(ConfigConstants.ZOOKEEPER_LEADER_PATH,
+				ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH);
+
+		return new ZooKeeperLeaderRetrievalService(client, leaderPath);
+	}
+
+	/**
+	 * Creates a {@link ZooKeeperLeaderElectionService} instance.
+	 *
+	 * @param configuration {@link Configuration} object containing the configuration values
+	 * @return {@link ZooKeeperLeaderElectionService} instance.
+	 * @throws Exception
+	 */
+	public static ZooKeeperLeaderElectionService createLeaderElectionService(
+			Configuration configuration) throws Exception {
+		CuratorFramework client = startCuratorFramework(configuration);
+
+		String latchPath = configuration.getString(ConfigConstants.ZOOKEEPER_LATCH_PATH,
+				ConfigConstants.DEFAULT_ZOOKEEPER_LATCH_PATH);
+		String leaderPath = configuration.getString(ConfigConstants.ZOOKEEPER_LEADER_PATH,
+				ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH);
+
+		return new ZooKeeperLeaderElectionService(client, latchPath, leaderPath);
 	}
 }

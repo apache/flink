@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import org.apache.flink.runtime.event.AbstractEvent;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.Test;
 
 /**

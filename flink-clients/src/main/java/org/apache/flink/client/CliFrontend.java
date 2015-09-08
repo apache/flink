@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 
 import org.apache.commons.cli.CommandLine;
@@ -64,14 +63,15 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
@@ -128,8 +128,6 @@ public class CliFrontend {
 	private final FiniteDuration askTimeout;
 
 	private final FiniteDuration lookupTimeout;
-
-	private InetSocketAddress jobManagerAddress;
 
 	private ActorSystem actorSystem;
 
@@ -202,9 +200,12 @@ public class CliFrontend {
 
 			// get the JobManager address from the YARN properties
 			String address = yarnProperties.getProperty(YARN_PROPERTIES_JOBMANAGER_KEY);
+			InetSocketAddress jobManagerAddress;
 			if (address != null) {
 				try {
-					jobManagerAddress = parseJobManagerAddress(address);
+					jobManagerAddress = parseHostPortAddress(address);
+					// store address in config from where it is retrieved by the retrieval service
+					writeJobManagerAddressToConfig(jobManagerAddress);
 				}
 				catch (Exception e) {
 					throw new Exception("YARN properties contain an invalid entry for JobManager address.", e);
@@ -223,6 +224,24 @@ public class CliFrontend {
 
 		this.askTimeout = AkkaUtils.getTimeout(config);
 		this.lookupTimeout = AkkaUtils.getLookupTimeout(config);
+	}
+
+
+	// --------------------------------------------------------------------------------------------
+	//  Getter & Setter
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Getter which returns a copy of the associated configuration
+	 *
+	 * @return Copy of the associated configuration
+	 */
+	public Configuration getConfiguration() {
+		Configuration copiedConfiguration = new Configuration();
+
+		copiedConfiguration.addAll(config);
+
+		return copiedConfiguration;
 	}
 
 
@@ -688,42 +707,26 @@ public class CliFrontend {
 				new PackagedProgram(jarFile, entryPointClass, programArgs);
 	}
 
-	protected InetSocketAddress getJobManagerAddress(CommandLineOptions options) throws Exception {
+	/**
+	 * Writes the given job manager address to the associated configuration object
+	 *
+	 * @param address Address to write to the configuration
+	 */
+	protected void writeJobManagerAddressToConfig(InetSocketAddress address) {
+		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.getHostName());
+		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.getPort());
+	}
 
-		// first, check if the address is specified as an option
-		if (options.getJobManagerAddress() != null) {
-			return parseJobManagerAddress(options.getJobManagerAddress());
+	/**
+	 * Updates the associated configuration with the given command line options
+	 *
+	 * @param options Command line options
+	 */
+	protected void updateConfig(CommandLineOptions options) {
+		if(options.getJobManagerAddress() != null){
+			InetSocketAddress jobManagerAddress = parseHostPortAddress(options.getJobManagerAddress());
+			writeJobManagerAddressToConfig(jobManagerAddress);
 		}
-
-		// second, check whether the address was already parsed, or configured through the YARN properties
-		if (jobManagerAddress == null) {
-			// config file must have the address
-			String jobManagerHost = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-
-			// verify that there is a jobmanager address and port in the configuration
-			if (jobManagerHost == null) {
-				throw new Exception("Found no configuration in the config directory '" + configDirectory
-						+ "' that specifies the JobManager address.");
-			}
-
-			int jobManagerPort;
-			try {
-				jobManagerPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
-			}
-			catch (NumberFormatException e) {
-				throw new Exception("Invalid value for the JobManager port (" +
-						ConfigConstants.JOB_MANAGER_IPC_PORT_KEY + ") in the configuration.");
-			}
-
-			if (jobManagerPort == -1) {
-				throw new Exception("Found no configuration in the config directory '" + configDirectory
-						+ "' that specifies the JobManager port.");
-			}
-
-			jobManagerAddress = new InetSocketAddress(jobManagerHost, jobManagerPort);
-		}
-
-		return jobManagerAddress;
 	}
 
 	/**
@@ -735,16 +738,16 @@ public class CliFrontend {
 	 * @throws Exception
 	 */
 	protected ActorGateway getJobManagerGateway(CommandLineOptions options) throws Exception {
-		//TODO: Get ActorRef from YarnCluster if we are in YARN mode.
-
-		InetSocketAddress address = getJobManagerAddress(options);
+		// overwrite config values with given command line options
+		updateConfig(options);
 
 		// start an actor system if needed
 		if (this.actorSystem == null) {
 			LOG.info("Starting actor system to communicate with JobManager");
 			try {
 				scala.Tuple2<String, Object> systemEndpoint = new scala.Tuple2<String, Object>("", 0);
-				this.actorSystem = AkkaUtils.createActorSystem(config,
+				this.actorSystem = AkkaUtils.createActorSystem(
+						config,
 						new Some<scala.Tuple2<String, Object>>(systemEndpoint));
 			}
 			catch (Exception e) {
@@ -754,20 +757,33 @@ public class CliFrontend {
 			LOG.info("Actor system successfully started");
 		}
 
-		LOG.info("Trying to lookup JobManager");
-		ActorRef jmActor = JobManager.getJobManagerRemoteReference(address, actorSystem, lookupTimeout);
-		LOG.info("JobManager is at " + jmActor.path());
+		LOG.info("Trying to lookup the JobManager gateway");
+		// Retrieve the ActorGateway from the LeaderRetrievalService
+		LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
 
-		// Retrieve the ActorGateway from the JobManager's ActorRef
-		return JobManager.getJobManagerGateway(jmActor, lookupTimeout);
+		return LeaderRetrievalUtils.retrieveLeaderGateway(lrs, actorSystem, lookupTimeout);
 	}
 
 	/**
-	 * @param userParallelism The parallelism requested by the user in the CLI frontend.
+	 * Retrieves a {@link Client} object from the given command line options and other parameters.
+	 *
+	 * @param options Command line options which contain JobManager address
+	 * @param classLoader Class loader to use by the Client
+	 * @param programName Program name
+	 * @param userParallelism Given user parallelism
+	 * @return
+	 * @throws Exception
 	 */
-	protected Client getClient(CommandLineOptions options, ClassLoader classLoader, String programName, int userParallelism) throws Exception {
-		InetSocketAddress jobManagerAddress;
+	protected Client getClient(
+			CommandLineOptions options,
+			ClassLoader classLoader,
+			String programName,
+			int userParallelism)
+		throws Exception {
+		InetSocketAddress jobManagerAddress = null;
+
 		int maxSlots = -1;
+
 		if (YARN_DEPLOY_JOBMANAGER.equals(options.getJobManagerAddress())) {
 			logAndSysout("YARN cluster mode detected. Switching Log4j output to console");
 
@@ -830,9 +846,16 @@ public class CliFrontend {
 			}
 		}
 		else {
-			jobManagerAddress = getJobManagerAddress(options);
+			if(options.getJobManagerAddress() != null) {
+				jobManagerAddress = parseHostPortAddress(options.getJobManagerAddress());
+			}
 		}
-		return new Client(jobManagerAddress, config, classLoader, maxSlots);
+
+		if(jobManagerAddress != null) {
+			writeJobManagerAddressToConfig(jobManagerAddress);
+		}
+
+		return new Client(config, classLoader, maxSlots);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -992,7 +1015,14 @@ public class CliFrontend {
 	//  Miscellaneous Utilities
 	// --------------------------------------------------------------------------------------------
 
-	private static InetSocketAddress parseJobManagerAddress(String hostAndPort) {
+	/**
+	 * Parses a given host port address of the format URL:PORT and returns an {@link InetSocketAddress}
+	 *
+	 * @param hostAndPort host port string to be parsed
+	 * @return InetSocketAddress object containing the parsed host port information
+	 */
+	private static InetSocketAddress parseHostPortAddress(String hostAndPort) {
+		// code taken from http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
 		URI uri;
 		try {
 			uri = new URI("my://" + hostAndPort);

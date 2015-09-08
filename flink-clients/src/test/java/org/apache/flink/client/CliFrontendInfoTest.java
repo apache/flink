@@ -22,13 +22,13 @@ import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.configuration.Configuration;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 
 import static org.junit.Assert.*;
 
@@ -106,9 +106,13 @@ public class CliFrontendInfoTest {
 
 		@Override
 		protected Client getClient(CommandLineOptions options, ClassLoader loader, String programName, int par)
-				throws Exception
-		{
-			return new TestClient(expectedDop);
+				throws Exception {
+			Configuration config = new Configuration();
+
+			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, InetAddress.getLocalHost().getHostName());
+			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 6176);
+
+			return new TestClient(config, expectedDop);
 		}
 	}
 	
@@ -116,9 +120,8 @@ public class CliFrontendInfoTest {
 		
 		private final int expectedDop;
 		
-		private TestClient(int expectedDop) throws Exception {
-			super(new InetSocketAddress(InetAddress.getLocalHost(), 6176),
-					new Configuration(), CliFrontendInfoTest.class.getClassLoader(), -1);
+		private TestClient(Configuration config, int expectedDop) throws Exception {
+			super(config, CliFrontendInfoTest.class.getClassLoader(), -1);
 			
 			this.expectedDop = expectedDop;
 		}

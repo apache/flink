@@ -49,7 +49,7 @@ public class NotSoMiniClusterIterations {
 
 		try {
 			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, PARALLELISM);
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, PARALLELISM);
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 8);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 1000);
@@ -60,7 +60,7 @@ public class NotSoMiniClusterIterations {
 
 			cluster = new LocalFlinkMiniCluster(config, false);
 
-			runConnectedComponents(cluster.getJobManagerRPCPort());
+			runConnectedComponents(cluster.getLeaderRPCPort());
 		}
 		catch (Exception e) {
 			e.printStackTrace();

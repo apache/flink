@@ -38,12 +38,14 @@ import org.apache.flink.streaming.connectors.kafka.internals.ZooKeeperStringSeri
 import org.apache.flink.streaming.connectors.kafka.testutils.SuccessException;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
+import org.apache.flink.util.TestLogger;
 import org.apache.kafka.common.PartitionInfo;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,6 +53,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -69,7 +72,7 @@ import static org.junit.Assert.fail;
  * as per commit <i>bc6b2b2d5f6424d5f377aa6c0871e82a956462ef</i></p>
  */
 @SuppressWarnings("serial")
-public abstract class KafkaTestBase {
+public abstract class KafkaTestBase extends TestLogger {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(KafkaTestBase.class);
 	
@@ -91,9 +94,13 @@ public abstract class KafkaTestBase {
 	protected static ForkableFlinkMiniCluster flink;
 
 	protected static int flinkPort;
-	
-	
-	
+
+	protected static FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
+
+	protected static List<File> tmpKafkaDirs;
+
+	protected static String kafkaHost = "localhost";
+
 	// ------------------------------------------------------------------------
 	//  Setup and teardown of the mini clusters
 	// ------------------------------------------------------------------------
@@ -114,14 +121,14 @@ public abstract class KafkaTestBase {
 		tmpKafkaParent = new File(tempDir, "kafkaITcase-kafka-dir*" + (UUID.randomUUID().toString()));
 		assertTrue("cannot create kafka temp dir", tmpKafkaParent.mkdirs());
 
-		List<File> tmpKafkaDirs = new ArrayList<>(NUMBER_OF_KAFKA_SERVERS);
+		tmpKafkaDirs = new ArrayList<>(NUMBER_OF_KAFKA_SERVERS);
 		for (int i = 0; i < NUMBER_OF_KAFKA_SERVERS; i++) {
 			File tmpDir = new File(tmpKafkaParent, "server-" + i);
 			assertTrue("cannot create kafka temp dir", tmpDir.mkdir());
 			tmpKafkaDirs.add(tmpDir);
 		}
 
-		String kafkaHost = "localhost";
+
 		int zkPort = NetUtils.getAvailablePort();
 		zookeeperConnectionString = "localhost:" + zkPort;
 
@@ -157,6 +164,7 @@ public abstract class KafkaTestBase {
 		standardProps.setProperty("group.id", "flink-tests");
 		standardProps.setProperty("auto.commit.enable", "false");
 		standardProps.setProperty("zookeeper.session.timeout.ms", "12000"); // 6 seconds is default. Seems to be too small for travis.
+		standardProps.setProperty("zookeeper.connection.timeout.ms", "20000");
 		standardProps.setProperty("auto.offset.reset", "earliest"); // read from the beginning.
 		standardProps.setProperty("fetch.message.max.bytes", "256"); // make a lot of fetches (MESSAGES MUST BE SMALLER!)
 		
@@ -168,13 +176,15 @@ public abstract class KafkaTestBase {
 		// start also a re-usable Flink mini cluster
 		
 		Configuration flinkConfig = new Configuration();
-		flinkConfig.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1);
+		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
 		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
 		flinkConfig.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 s");
 
 		flink = new ForkableFlinkMiniCluster(flinkConfig, false, StreamingMode.STREAMING);
-		flinkPort = flink.getJobManagerRPCPort();
+		flink.start();
+
+		flinkPort = flink.getLeaderRPCPort();
 	}
 
 	@AfterClass
@@ -185,7 +195,9 @@ public abstract class KafkaTestBase {
 		LOG.info("-------------------------------------------------------------------------");
 
 		flinkPort = -1;
-		flink.shutdown();
+		if (flink != null) {
+			flink.shutdown();
+		}
 		
 		for (KafkaServer broker : brokers) {
 			if (broker != null) {
@@ -231,7 +243,7 @@ public abstract class KafkaTestBase {
 	/**
 	 * Copied from com.github.sakserv.minicluster.KafkaLocalBrokerIntegrationTest (ASL licensed)
 	 */
-	private static KafkaServer getKafkaServer(int brokerId, File tmpFolder,
+	protected static KafkaServer getKafkaServer(int brokerId, File tmpFolder,
 												String kafkaHost,
 												String zookeeperConnectionString) throws Exception {
 		Properties kafkaProperties = new Properties();
@@ -245,7 +257,11 @@ public abstract class KafkaTestBase {
 		kafkaProperties.put("log.dir", tmpFolder.toString());
 		kafkaProperties.put("zookeeper.connect", zookeeperConnectionString);
 		kafkaProperties.put("message.max.bytes", "" + (50 * 1024 * 1024));
-		kafkaProperties.put("replica.fetch.max.bytes", "" + (50 * 1024 * 1024));
+		kafkaProperties.put("replica.fetch.max.bytes", String.valueOf(50 * 1024 * 1024));
+		
+		// for CI stability, increase zookeeper session timeout
+		kafkaProperties.put("zookeeper.session.timeout.ms", "20000");
+		
 		KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
 
 		KafkaServer server = new KafkaServer(kafkaConfig, new KafkaLocalSystemTime());

@@ -1476,6 +1476,65 @@ public class HashTableITCase {
 
 		this.memManager.release(join.getFreedMemory());
 	}
+
+	@Test
+	public void testBucketsNotFulfillSegment() throws Exception {
+		final int NUM_KEYS = 10000;
+		final int BUILD_VALS_PER_KEY = 3;
+		final int PROBE_VALS_PER_KEY = 10;
+
+		// create a build input that gives 30000 pairs with 3 values sharing the same key
+		MutableObjectIterator<IntPair> buildInput = new UniformIntPairGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+
+		// create a probe input that gives 100000 pairs with 10 values sharing a key
+		MutableObjectIterator<IntPair> probeInput = new UniformIntPairGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+
+		// allocate the memory for the HashTable
+		List<MemorySegment> memSegments;
+		try {
+			// 33 is minimum number of pages required to perform hash join this inputs
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 33);
+		}
+		catch (MemoryAllocationException maex) {
+			fail("Memory for the Join could not be provided.");
+			return;
+		}
+
+		// For FLINK-2545, the buckets data may not fulfill it's buffer, for example, the buffer may contains 256 buckets,
+		// while hash table only assign 250 bucket on it. The unused buffer bytes may contains arbitrary data, which may
+		// influence hash table if forget to skip it. To mock this, put the invalid bucket data(partition=1, inMemory=true, count=-1)
+		// at the end of buffer.
+		for (MemorySegment segment : memSegments) {
+			int newBucketOffset = segment.size() - 128;
+			// initialize the header fields
+			segment.put(newBucketOffset + 0, (byte)0);
+			segment.put(newBucketOffset + 1, (byte)0);
+			segment.putShort(newBucketOffset + 2, (short) -1);
+			segment.putLong(newBucketOffset + 4, ~0x0L);
+		}
+
+		// ----------------------------------------------------------------------------------------
+
+		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
+			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor,
+			this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
+			memSegments, ioManager);
+		join.open(buildInput, probeInput);
+
+		final IntPair recordReuse = new IntPair();
+		int numRecordsInJoinResult = 0;
+
+		while (join.nextRecord()) {
+			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			while (buildSide.next(recordReuse) != null) {
+				numRecordsInJoinResult++;
+			}
+		}
+		Assert.assertEquals("Wrong number of records in join result.", NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY, numRecordsInJoinResult);
+
+		join.close();
+		this.memManager.release(join.getFreedMemory());
+	}
 	
 	// ============================================================================================
 	

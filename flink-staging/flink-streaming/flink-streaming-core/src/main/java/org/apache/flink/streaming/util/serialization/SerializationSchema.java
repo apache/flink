@@ -36,5 +36,5 @@ public interface SerializationSchema<T, R> extends Serializable {
 	 *            The incoming element to be serialized
 	 * @return The serialized element.
 	 */
-	public R serialize(T element);
+	R serialize(T element);
 }

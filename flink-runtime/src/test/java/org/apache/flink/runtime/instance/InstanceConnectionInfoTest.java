@@ -25,7 +25,7 @@ import static org.junit.Assert.fail;
 
 import java.net.InetAddress;
 
-import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.Assert;
 import org.junit.Test;
 

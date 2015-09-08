@@ -49,11 +49,13 @@ public class SimpleRecoveryITCase {
 	@BeforeClass
 	public static void setupCluster() {
 		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
 		config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "100 ms");
 
 		cluster = new ForkableFlinkMiniCluster(config, false);
+
+		cluster.start();
 	}
 
 	@AfterClass
@@ -77,7 +79,7 @@ public class SimpleRecoveryITCase {
 			// attempt 1
 			{
 				ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-						"localhost", cluster.getJobManagerRPCPort());
+						"localhost", cluster.getLeaderRPCPort());
 
 				env.setParallelism(4);
 				env.setNumberOfExecutionRetries(0);
@@ -107,7 +109,7 @@ public class SimpleRecoveryITCase {
 			// attempt 2
 			{
 				ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-						"localhost", cluster.getJobManagerRPCPort());
+						"localhost", cluster.getLeaderRPCPort());
 
 				env.setParallelism(4);
 				env.setNumberOfExecutionRetries(0);
@@ -154,7 +156,7 @@ public class SimpleRecoveryITCase {
 			List<Long> resultCollection = new ArrayList<Long>();
 
 			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getJobManagerRPCPort());
+					"localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(4);
 			env.setNumberOfExecutionRetries(1);
@@ -199,7 +201,7 @@ public class SimpleRecoveryITCase {
 			List<Long> resultCollection = new ArrayList<Long>();
 
 			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getJobManagerRPCPort());
+					"localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(4);
 			env.setNumberOfExecutionRetries(5);

@@ -36,65 +36,65 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 	// ------------------------------------------------------------------------
 	
 	@Test
-	public void testCheckpointing() {
+	public void testCheckpointing() throws Exception {
 		runCheckpointingTest();
 	}
 
 	@Test
-	public void testOffsetInZookeeper() {
+	public void testOffsetInZookeeper() throws Exception {
 		runOffsetInZookeeperValidationTest();
 	}
 	
 	@Test
-	public void testConcurrentProducerConsumerTopology() {
+	public void testConcurrentProducerConsumerTopology() throws Exception {
 		runSimpleConcurrentProducerConsumerTopology();
 	}
 
 	// --- canceling / failures ---
 	
 	@Test
-	public void testCancelingEmptyTopic() {
+	public void testCancelingEmptyTopic() throws Exception {
 		runCancelingOnEmptyInputTest();
 	}
 
 	@Test
-	public void testCancelingFullTopic() {
+	public void testCancelingFullTopic() throws Exception {
 		runCancelingOnFullInputTest();
 	}
 
 	@Test
-	public void testFailOnDeploy() {
+	public void testFailOnDeploy() throws Exception {
 		runFailOnDeployTest();
 	}
 
 	// --- source to partition mappings and exactly once ---
 	
 	@Test
-	public void testOneToOneSources() {
+	public void testOneToOneSources() throws Exception {
 		runOneToOneExactlyOnceTest();
 	}
 
 	@Test
-	public void testOneSourceMultiplePartitions() {
+	public void testOneSourceMultiplePartitions() throws Exception {
 		runOneSourceMultiplePartitionsExactlyOnceTest();
 	}
 
 	@Test
-	public void testMultipleSourcesOnePartition() {
+	public void testMultipleSourcesOnePartition() throws Exception {
 		runMultipleSourcesOnePartitionExactlyOnceTest();
 	}
 
 	// --- broker failure ---
 
 	@Test
-	public void testBrokerFailure() {
+	public void testBrokerFailure() throws Exception {
 		runBrokerFailureTest();
 	}
 
 	// --- special executions ---
 	
 	@Test
-	public void testBigRecordJob() {
+	public void testBigRecordJob() throws Exception {
 		runBigRecordTestTopology();
 	}
 }

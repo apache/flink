@@ -19,8 +19,6 @@ package org.apache.flink.streaming.api.environment;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +27,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -115,8 +114,11 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		Configuration configuration = jobGraph.getJobConfiguration();
 		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, getClass().getClassLoader());
 
+		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
+		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
+
 		try {
-			Client client = new Client(new InetSocketAddress(host, port), configuration, usercodeClassLoader, -1);
+			Client client = new Client(configuration, usercodeClassLoader, -1);
 			client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 			
 			JobSubmissionResult result = client.run(jobGraph, true);
@@ -129,9 +131,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 		catch (ProgramInvocationException e) {
 			throw e;
-		}
-		catch (UnknownHostException e) {
-			throw new ProgramInvocationException(e.getMessage(), e);
 		}
 		catch (Exception e) {
 			String term = e.getMessage() == null ? "." : (": " + e.getMessage());

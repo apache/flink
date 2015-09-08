@@ -47,6 +47,7 @@ public class DegreesWithExceptionITCase {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
 			cluster = new ForkableFlinkMiniCluster(config, false);
+			cluster.start();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -72,7 +73,7 @@ public class DegreesWithExceptionITCase {
 	public void testOutDegreesInvalidEdgeSrcId() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getJobManagerRPCPort());
+				"localhost", cluster.getLeaderRPCPort());
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 		
@@ -96,7 +97,7 @@ public class DegreesWithExceptionITCase {
 	public void testInDegreesInvalidEdgeTrgId() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getJobManagerRPCPort());
+				"localhost", cluster.getLeaderRPCPort());
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
@@ -120,7 +121,7 @@ public class DegreesWithExceptionITCase {
 	public void testGetDegreesInvalidEdgeTrgId() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getJobManagerRPCPort());
+				"localhost", cluster.getLeaderRPCPort());
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
@@ -144,7 +145,7 @@ public class DegreesWithExceptionITCase {
 	public void testGetDegreesInvalidEdgeSrcId() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getJobManagerRPCPort());
+				"localhost", cluster.getLeaderRPCPort());
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
@@ -168,7 +169,7 @@ public class DegreesWithExceptionITCase {
 	public void testGetDegreesInvalidEdgeSrcTrgId() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getJobManagerRPCPort());
+				"localhost", cluster.getLeaderRPCPort());
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 

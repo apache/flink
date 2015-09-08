@@ -16,17 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime
+package org.apache.flink.runtime.messages;
 
-/** Base trait for message decorators
-  *
-  */
-trait MessageDecorator {
+/**
+ * Interface for message decorators
+ */
+public interface MessageDecorator {
 
-  /** Decorates a message
-    *
-    * @param message Message to decorate
-    * @return Decorated message
-    */
-  def decorate(message: Any): Any
+	/**
+	 * Decorates a message
+	 *
+	 * @param message Message to decorate
+	 * @return Decorated message
+	 */
+	Object decorate(Object message);
 }

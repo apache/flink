@@ -34,11 +34,19 @@ As an example, consider the following setup with three JobManager instances:
 
 ## Configuration
 
-To enable JobManager High Availability you have to configure a **ZooKeeper quorum** and set up a **masters file** with all JobManagers hosts.
+To enable JobManager High Availability you have to set the **recovery mode** to *zookeeper*, configure a **ZooKeeper quorum** and set up a **masters file** with all JobManagers hosts and their web ui ports.
 
 Flink leverages **[ZooKeeper](http://zookeeper.apache.org)** for  *distributed coordination* between all running JobManager instances. ZooKeeper is a separate service from Flink, which provides highly reliable distirbuted coordination via leader election and light-weight consistent state storage. Check out [ZooKeeper's Getting Started Guide](http://zookeeper.apache.org/doc/trunk/zookeeperStarted.html) for more information about ZooKeeper.
 
-Configuring a ZooKeeper quorum in `conf/flink-conf.yaml` *enables* high availability mode and all Flink components try to connect to a JobManager via coordination through ZooKeeper.
+Setting Flink's **recovery mode** to *zookeeper* in `conf/flink-conf.yaml` *enables* high availability mode.
+
+Additionally, you have to configure a **ZooKeeper quorum** in the same configuration file.
+
+In high availabliity mode, all Flink components try to connect to a JobManager via coordination through ZooKeeper.
+
+- **Recovery mode** (required): The *recovery mode* has to be set in `conf/flink-conf.yaml` to *zookeeper* in order to enable high availability mode. 
+  
+  <pre>recovery.mode: zookeeper</pre>
 
 - **ZooKeeper quorum** (required): A *ZooKeeper quorum* is a replicated group of ZooKeeper servers, which provide the distributed coordination service.
   
@@ -55,12 +63,12 @@ Configuring a ZooKeeper quorum in `conf/flink-conf.yaml` *enables* high availabi
 
 In order to start an HA-cluster configure the *masters* file in `conf/masters`:
 
-- **masters file**: The *masters file* contains all hosts, on which JobManagers are started.
+- **masters file**: The *masters file* contains all hosts, on which JobManagers are started, and the ports to which the web user interface binds.
 
   <pre>
-jobManagerAddress1
+jobManagerAddress1:webUIPort1
 [...]
-jobManagerAddressX
+jobManagerAddressX:webUIPortX
   </pre>
 
 After configuring the masters and the ZooKeeper quorum, you can use the provided cluster startup scripts as usual. They will start a HA-cluster. **Keep in mind that the ZooKeeper quorum has to be running when you call the scripts**.
@@ -81,15 +89,17 @@ The script `bin/start-zookeeper-quorum.sh` will start a ZooKeeper server on each
 
 ## Example: Start and stop a local HA-cluster with 2 JobManagers
 
-1. **Configure ZooKeeper quorum** in `conf/flink.yaml`:
+1. **Configure recovery mode and ZooKeeper quorum** in `conf/flink.yaml`:
    
-   <pre>ha.zookeeper.quorum: localhost</pre>
+   <pre>
+recovery.mode: zookeeper
+ha.zookeeper.quorum: localhost</pre>
 
 2. **Configure masters** in `conf/masters`:
 
    <pre>
-localhost
-localhost</pre>
+localhost:8081
+localhost:8082</pre>
 
 3. **Configure ZooKeeper server** in `conf/zoo.cfg` (currently it's only possible to run a single ZooKeeper server per machine):
 

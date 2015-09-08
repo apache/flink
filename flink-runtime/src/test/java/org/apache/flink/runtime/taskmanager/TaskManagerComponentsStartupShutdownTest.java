@@ -35,6 +35,8 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 
@@ -70,8 +72,10 @@ public class TaskManagerComponentsStartupShutdownTest {
 		try {
 			actorSystem = AkkaUtils.createLocalActorSystem(config);
 
-			final ActorRef jobManager = JobManager.startJobManagerActors(config, actorSystem, 
-																			StreamingMode.BATCH_ONLY)._1();
+			final ActorRef jobManager = JobManager.startJobManagerActors(
+				config,
+				actorSystem,
+				StreamingMode.BATCH_ONLY)._1();
 
 			// create the components for the TaskManager manually
 			final TaskManagerConfiguration tmConfig = new TaskManagerConfiguration(
@@ -96,10 +100,18 @@ public class TaskManagerComponentsStartupShutdownTest {
 				netConf);
 			final int numberOfSlots = 1;
 
+			LeaderRetrievalService leaderRetrievalService = new StandaloneLeaderRetrievalService(jobManager.path().toString());
+
 			// create the task manager
-			final Props tmProps = Props.create(TaskManager.class,
-					tmConfig, connectionInfo, jobManager.path().toString(),
-					memManager, ioManager, network, numberOfSlots);
+			final Props tmProps = Props.create(
+					TaskManager.class,
+					tmConfig,
+					connectionInfo,
+					memManager,
+					ioManager,
+					network,
+					numberOfSlots,
+					leaderRetrievalService);
 
 			final ActorRef taskManager = actorSystem.actorOf(tmProps);
 

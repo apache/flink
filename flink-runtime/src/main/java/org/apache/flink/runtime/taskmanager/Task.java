@@ -51,8 +51,8 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
-import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
+import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateUtils;
 import org.apache.flink.util.SerializedValue;
@@ -571,7 +571,7 @@ public class Task implements Runnable {
 			// notify everyone that we switched to running. especially the TaskManager needs
 			// to know this!
 			notifyObservers(ExecutionState.RUNNING, null);
-			taskManager.tell(new TaskMessages.UpdateTaskExecutionState(
+			taskManager.tell(new UpdateTaskExecutionState(
 					new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING)));
 
 			// make sure the user code classloader is accessible thread-locally
@@ -856,8 +856,7 @@ public class Task implements Runnable {
 		}
 
 		TaskExecutionState stateUpdate = new TaskExecutionState(jobId, executionId, newState, error);
-		TaskMessages.UpdateTaskExecutionState actorMessage = new
-				TaskMessages.UpdateTaskExecutionState(stateUpdate);
+		UpdateTaskExecutionState actorMessage = new UpdateTaskExecutionState(stateUpdate);
 
 		for (ActorGateway listener : executionListenerActors) {
 			listener.tell(actorMessage);

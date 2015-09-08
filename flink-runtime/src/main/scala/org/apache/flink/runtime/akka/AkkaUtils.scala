@@ -18,7 +18,8 @@
 
 package org.apache.flink.runtime.akka
 
-import java.net.InetAddress
+import java.io.IOException
+import java.net.{InetSocketAddress, InetAddress}
 import java.util.concurrent.{TimeUnit, Callable}
 
 import akka.actor._
@@ -27,7 +28,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.jboss.netty.logging.{Slf4JLoggerFactory, InternalLoggerFactory}
 import org.slf4j.LoggerFactory
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -324,16 +325,66 @@ object AkkaUtils {
     }
   }
 
-  def getChild(parent: ActorRef, child: String,
-               system: ActorSystem,
-               timeout: FiniteDuration): Future[ActorRef] = {
+  /** Returns a [[Future]] to the [[ActorRef]] of the child of a given actor. The child is specified
+    * by providing its actor name.
+    *
+    * @param parent [[ActorRef]] to the parent of the child to be retrieved
+    * @param child Name of the child actor
+    * @param system [[ActorSystem]] to be used
+    * @param timeout Maximum timeout for the future
+    * @return [[Future]] to the [[ActorRef]] of the child actor
+    */
+  def getChild(
+      parent: ActorRef,
+      child: String,
+      system: ActorSystem,
+      timeout: FiniteDuration)
+    : Future[ActorRef] = {
     system.actorSelection(parent.path / child).resolveOne()(timeout)
   }
 
-  def getReference(path: String, system:
-                   ActorSystem,
-                   timeout: FiniteDuration): Future[ActorRef] = {
+  /** Returns a [[Future]] to the [[ActorRef]] of an actor. The actor is specified by its path.
+    *
+    * @param path Path to the actor to be retrieved
+    * @param system [[ActorSystem]] to be used
+    * @param timeout Maximum timeout for the future
+    * @return [[Future]] to the [[ActorRef]] of the actor
+    */
+  def getActorRefFuture(
+      path: String,
+      system: ActorSystem,
+      timeout: FiniteDuration)
+    : Future[ActorRef] = {
     system.actorSelection(path).resolveOne()(timeout)
+  }
+
+  /** Returns an [[ActorRef]] for the actor specified by the path parameter.
+    *
+    * @param path Path to the actor to be retrieved
+    * @param system [[ActorSystem]] to be used
+    * @param timeout Maximum timeout for the future
+    * @throws java.io.IOException
+    * @return [[ActorRef]] of the requested [[Actor]]
+    */
+  @throws(classOf[IOException])
+  def getActorRef(
+      path: String,
+      system: ActorSystem,
+      timeout: FiniteDuration)
+    : ActorRef = {
+    try {
+      val future = AkkaUtils.getActorRefFuture(path, system, timeout)
+      Await.result(future, timeout)
+    }
+    catch {
+      case e @ (_ : ActorNotFound | _ : TimeoutException) =>
+        throw new IOException(
+          s"Actor at $path not reachable. " +
+            "Please make sure that the actor is running and its port is reachable.", e)
+
+      case e: IOException =>
+        throw new IOException(s"Could not connect to the actor at $path", e)
+    }
   }
 
 
@@ -420,5 +471,65 @@ object AkkaUtils {
   def getDefaultLookupTimeout: FiniteDuration = {
     val duration = Duration(ConfigConstants.DEFAULT_AKKA_LOOKUP_TIMEOUT)
     new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
+  }
+
+  /** Returns the address of the given [[ActorSystem]]. The [[Address]] object contains
+    * the port and the host under which the actor system is reachable
+    *
+    * @param system [[ActorSystem]] for which the [[Address]] shall be retrieved
+    * @return [[Address]] of the given [[ActorSystem]]
+    */
+  def getAddress(system: ActorSystem): Address = {
+    RemoteAddressExtension(system).address
+  }
+
+  /** Returns the given [[ActorRef]]'s path string representation with host and port of the
+    * [[ActorSystem]] in which the actor is running.
+    *
+    * @param system [[ActorSystem]] in which the given [[ActorRef]] is running
+    * @param actor [[ActorRef]] of the [[Actor]] for which the URL has to be generated
+    * @return String containing the [[ActorSystem]] independent URL of the [[Actor]]
+    */
+  def getAkkaURL(system: ActorSystem, actor: ActorRef): String = {
+    val address = getAddress(system)
+    actor.path.toStringWithAddress(address)
+  }
+
+  /** Returns the AkkaURL for a given [[ActorSystem]] and a path describing a running [[Actor]] in
+    * the actor system.
+    *
+    * @param system [[ActorSystem]] in which the given [[Actor]] is running
+    * @param path Path describing an [[Actor]] for which the URL has to be generated
+    * @return String containing the [[ActorSystem]] independent URL of an [[Actor]] specified by
+    *         path.
+    */
+  def getAkkaURL(system: ActorSystem, path: String): String = {
+    val address = getAddress(system)
+    address.toString + path
+  }
+
+  /** Extracts the hostname and the port of the remote actor system from the given Akka URL. The
+    * result is an [[InetSocketAddress]] instance containing the extracted hostname and port. If
+    * the Akka URL does not contain the hostname and port information, e.g. a local Akka URL is
+    * provided, then an [[Exception]] is thrown.
+    *
+    * @param akkaURL
+    * @throws java.lang.Exception
+    * @return
+    */
+  @throws(classOf[Exception])
+  def getInetSockeAddressFromAkkaURL(akkaURL: String): InetSocketAddress = {
+    // AkkaURLs have the form schema://systemName@host:port/.... if it's a remote Akka URL
+    val hostPortRegex = """@([^/:]*):(\d*)""".r
+
+    hostPortRegex.findFirstMatchIn(akkaURL) match {
+      case Some(m) =>
+        val host = m.group(1)
+        val port = m.group(2).toInt
+
+        new InetSocketAddress(host, port)
+      case None => throw new Exception("Could not retrieve InetSocketAddress from " +
+        s"Akka URL $akkaURL")
+    }
   }
 }

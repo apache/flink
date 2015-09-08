@@ -52,7 +52,6 @@ import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import scala.Option;
 import scala.Some;
 import scala.Tuple2;
 
@@ -112,7 +111,7 @@ public class ClientTest {
 		whenNew(Optimizer.class).withArguments(any(DataStatistics.class), any(CostEstimator.class), any(Configuration.class)).thenReturn(this.compilerMock);
 		when(compilerMock.compile(planMock)).thenReturn(optimizedPlanMock);
 
-		whenNew(JobGraphGenerator.class).withNoArguments().thenReturn(generatorMock);
+		whenNew(JobGraphGenerator.class).withAnyArguments().thenReturn(generatorMock);
 		when(generatorMock.compileJobGraph(optimizedPlanMock)).thenReturn(jobGraph);
 
 		try {
@@ -229,7 +228,7 @@ public class ClientTest {
 
 	public static class SuccessReturningActor extends FlinkUntypedActor {
 
-		private final Option<UUID> leaderSessionID = Option.apply(UUID.randomUUID());
+		private UUID leaderSessionID = null;
 
 		@Override
 		public void handleMessage(Object message) {
@@ -252,14 +251,14 @@ public class ClientTest {
 		}
 
 		@Override
-		protected Option<UUID> getLeaderSessionID() {
+		protected UUID getLeaderSessionID() {
 			return leaderSessionID;
 		}
 	}
 
 	public static class FailureReturningActor extends FlinkUntypedActor {
 
-		private Option<UUID> leaderSessionID = Option.apply(UUID.randomUUID());
+		private UUID leaderSessionID = null;
 
 		@Override
 		public void handleMessage(Object message) {
@@ -270,7 +269,7 @@ public class ClientTest {
 		}
 
 		@Override
-		protected Option<UUID> getLeaderSessionID() {
+		protected UUID getLeaderSessionID() {
 			return leaderSessionID;
 		}
 	}

@@ -20,11 +20,12 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-public class ZooKeeperUtilTest {
+public class ZooKeeperUtilTest extends TestLogger {
 
 	@Test
 	public void testZooKeeperEnsembleConnectStringConfiguration() throws Exception {
@@ -36,15 +37,15 @@ public class ZooKeeperUtilTest {
 			expected = "localhost:2891";
 
 			setQuorum(conf, expected);
-			actual = ZooKeeperUtil.getZooKeeperEnsemble(conf);
+			actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
 			assertEquals(expected, actual);
 
 			setQuorum(conf, " localhost:2891 "); // with leading and trailing whitespace
-			actual = ZooKeeperUtil.getZooKeeperEnsemble(conf);
+			actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
 			assertEquals(expected, actual);
 
 			setQuorum(conf, "localhost :2891"); // whitespace after port
-			actual = ZooKeeperUtil.getZooKeeperEnsemble(conf);
+			actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
 			assertEquals(expected, actual);
 		}
 
@@ -52,19 +53,19 @@ public class ZooKeeperUtilTest {
 			expected = "localhost:2891,localhost:2891";
 
 			setQuorum(conf, "localhost:2891,localhost:2891");
-			actual = ZooKeeperUtil.getZooKeeperEnsemble(conf);
+			actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
 			assertEquals(expected, actual);
 
 			setQuorum(conf, "localhost:2891, localhost:2891");
-			actual = ZooKeeperUtil.getZooKeeperEnsemble(conf);
+			actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
 			assertEquals(expected, actual);
 
 			setQuorum(conf, "localhost :2891, localhost:2891");
-			actual = ZooKeeperUtil.getZooKeeperEnsemble(conf);
+			actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
 			assertEquals(expected, actual);
 
 			setQuorum(conf, " localhost:2891, localhost:2891 ");
-			actual = ZooKeeperUtil.getZooKeeperEnsemble(conf);
+			actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
 			assertEquals(expected, actual);
 		}
 	}

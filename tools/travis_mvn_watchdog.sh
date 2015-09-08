@@ -156,6 +156,27 @@ watchdog () {
 	done
 }
 
+# Check the final fat jar for illegal artifacts
+check_shaded_artifacts() {
+	jar tf build-target/lib/flink-dist-*.jar > allClasses
+	ASM=`cat allClasses | grep '^org/objectweb/asm/' | wc -l`
+	if [ $ASM != "0" ]; then
+		echo "=============================================================================="
+		echo "Detected $ASM asm dependencies in fat jar"
+		echo "=============================================================================="
+		exit 1
+	fi
+	 
+	GUAVA=`cat allClasses | grep '^com/google/common' | wc -l`
+	if [ $GUAVA != "0" ]; then
+		echo "=============================================================================="
+		echo "Detected $GUAVA guava dependencies in fat jar"
+		echo "=============================================================================="
+		exit 1
+	fi
+
+}
+
 # =============================================================================
 # WATCHDOG
 # =============================================================================
@@ -188,6 +209,8 @@ echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 
 rm $MVN_PID
 rm $MVN_EXIT
+
+check_shaded_artifacts
 
 put_yarn_logs_to_artifacts
 

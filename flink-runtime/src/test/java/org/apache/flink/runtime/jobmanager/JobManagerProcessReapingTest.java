@@ -101,7 +101,7 @@ public class JobManagerProcessReapingTest {
 			Throwable lastError = null;
 			for (int i = 0; i < 40; i++) {
 				try {
-					jobManagerRef = JobManager.getJobManagerRemoteReference(
+					jobManagerRef = JobManager.getJobManagerActorRef(
 							new InetSocketAddress("localhost", jobManagerPort),
 							localSystem, new FiniteDuration(25, TimeUnit.SECONDS));
 					break;

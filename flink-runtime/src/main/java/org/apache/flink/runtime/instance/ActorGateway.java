@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.instance;
 
 import akka.actor.ActorRef;
-import scala.Option;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.Serializable;
 import java.util.UUID;
 
 /**
@@ -31,7 +31,7 @@ import java.util.UUID;
  *
  * It allows to avoid direct interaction with an ActorRef.
  */
-public interface ActorGateway {
+public interface ActorGateway extends Serializable {
 
 	/**
 	 * Sends a message asynchronously and returns its response. The response to the message is
@@ -99,9 +99,9 @@ public interface ActorGateway {
 	ActorRef actor();
 
 	/**
-	 * Returns the leaderSessionID associated with the remote actor or None.
+	 * Returns the leaderSessionID associated with the remote actor or null.
 	 *
-	 * @return Leader session ID if its associated with this gateway, otherwise None
+	 * @return Leader session ID if its associated with this gateway, otherwise null
 	 */
-	Option<UUID> leaderSessionID();
+	UUID leaderSessionID();
 }

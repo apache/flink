@@ -23,7 +23,6 @@ import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 
 import java.util.UUID;
 
@@ -82,28 +81,27 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	private void handleLeaderSessionID(Object message) throws Exception {
 		if(message instanceof LeaderSessionMessage) {
 			LeaderSessionMessage msg = (LeaderSessionMessage) message;
+			UUID expectedID = getLeaderSessionID();
+			UUID actualID = msg.leaderSessionID();
 
-			if(msg.leaderSessionID().isDefined() && getLeaderSessionID().isDefined()) {
-				if(getLeaderSessionID().equals(msg.leaderSessionID())) {
-					// finally call method to handle message
-					handleMessage(msg.message());
-				} else {
-					handleDiscardedMessage(msg);
-				}
+			if(expectedID == actualID || (expectedID != null && expectedID.equals(actualID))) {
+				handleMessage(msg.message());
 			} else {
-				handleDiscardedMessage(msg);
+				handleDiscardedMessage(expectedID, msg);
 			}
 		} else if (message instanceof RequiresLeaderSessionID) {
 			throw new Exception("Received a message " + message + " without a leader session " +
-					"ID, even though it requires to have one.");
+					"ID, even though the message requires a leader session ID.");
 		} else {
 			// call method to handle message
 			handleMessage(message);
 		}
 	}
 
-	private void handleDiscardedMessage(Object msg) {
-		LOG.debug("Discard message {} because the leader session ID was not correct.", msg);
+	private void handleDiscardedMessage(UUID expectedLeaderSessionID, LeaderSessionMessage msg) {
+		LOG.warn("Discard message {} because the expected leader session ID {} did not " +
+				"equal the received leader session ID {}.", msg, expectedLeaderSessionID,
+				msg.leaderSessionID());
 	}
 
 	/**
@@ -118,7 +116,7 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	 * Returns the current leader session ID associcated with this actor.
 	 * @return
 	 */
-	protected abstract Option<UUID> getLeaderSessionID();
+	abstract protected UUID getLeaderSessionID();
 
 	/**
 	 * This method should be called for every outgoing message. It wraps messages which require

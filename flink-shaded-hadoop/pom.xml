@@ -101,6 +101,10 @@ under the License.
 									<pattern>org.jboss.netty</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.jboss.netty</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>org.apache.curator</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.curator</shadedPattern>
+								</relocation>
 							</relocations>
 						</configuration>
 					</execution>

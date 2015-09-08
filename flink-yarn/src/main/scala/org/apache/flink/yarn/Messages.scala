@@ -37,9 +37,10 @@ object Messages {
 
   case object JobManagerStopped
 
-  case class StartYarnSession(configuration: Configuration,
-                              actorSystemPort: Int,
-                              webServerport: Int)
+  case class StartYarnSession(
+      configuration: Configuration,
+      actorSystemPort: Int,
+      webServerport: Int)
 
   case class JobManagerActorRef(jobManager: ActorRef)
 

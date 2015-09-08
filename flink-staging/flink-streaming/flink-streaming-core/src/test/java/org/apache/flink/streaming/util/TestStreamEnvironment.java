@@ -70,6 +70,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
 
 			executor = new ForkableFlinkMiniCluster(configuration);
+			executor.start();
 		}
 		try {
 			sync = true;

@@ -26,6 +26,7 @@ import com.typesafe.config.Config;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -49,16 +50,15 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.Execution
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.RequestExecutionGraph;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunningOrFinished;
 
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import scala.Option;
 import scala.Some;
 import scala.Tuple2;
 
 import java.net.InetAddress;
-import java.util.UUID;
 
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT;
@@ -121,13 +121,18 @@ public class JobManagerTest {
 				final JobGraph jobGraph = new JobGraph("Blocking test job", sender);
 				final JobID jid = jobGraph.getJobID();
 
-				final ActorGateway jobManagerGateway = cluster.getJobManagerGateway();
+				final ActorGateway jobManagerGateway = cluster.getLeaderGateway(
+						TestingUtils.TESTING_DURATION());
 
 				// we can set the leader session ID to None because we don't use this gateway to send messages
-				final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), Option.<UUID>empty());
+				final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
 
 				// Submit the job and wait for all vertices to be running
-				jobManagerGateway.tell(new SubmitJob(jobGraph, false), testActorGateway);
+				jobManagerGateway.tell(
+						new SubmitJob(
+								jobGraph,
+								ListeningBehaviour.EXECUTION_RESULT),
+						testActorGateway);
 				expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
 
 				jobManagerGateway.tell(

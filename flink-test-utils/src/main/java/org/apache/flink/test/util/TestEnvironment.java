@@ -35,6 +35,18 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 	private final ForkableFlinkMiniCluster executor;
 
+	private TestEnvironment lastEnv = null;
+
+	@Override
+	public JobExecutionResult getLastJobExecutionResult() {
+		if (lastEnv == null) {
+			return this.lastJobExecutionResult;
+		}
+		else {
+			return lastEnv.getLastJobExecutionResult();
+		}
+	}
+
 	public TestEnvironment(ForkableFlinkMiniCluster executor, int parallelism) {
 		this.executor = executor;
 		setParallelism(parallelism);
@@ -74,7 +86,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 	private OptimizedPlan compileProgram(String jobName) {
 		Plan p = createProgramPlan(jobName);
 
-		Optimizer pc = new Optimizer(new DataStatistics(), this.executor.getConfiguration());
+		Optimizer pc = new Optimizer(new DataStatistics(), this.executor.configuration());
 		return pc.compile(p);
 	}
 
@@ -82,7 +94,8 @@ public class TestEnvironment extends ExecutionEnvironment {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
-				return TestEnvironment.this;
+				lastEnv = new TestEnvironment(executor, getParallelism());
+				return lastEnv;
 			}
 		};
 
