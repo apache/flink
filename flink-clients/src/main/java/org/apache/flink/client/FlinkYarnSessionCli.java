@@ -109,12 +109,10 @@ public class FlinkYarnSessionCli {
 			return null;
 		}
 
-		if (!cmd.hasOption(CONTAINER.getOpt())) { // number of containers is required option!
-			LOG.error("Missing required argument " + CONTAINER.getOpt());
-			printUsage();
-			return null;
+		// TaskManager count
+		if (cmd.hasOption(CONTAINER.getOpt())) {
+			flinkYarnClient.setTaskManagerCount(Integer.valueOf(cmd.getOptionValue(CONTAINER.getOpt())));
 		}
-		flinkYarnClient.setTaskManagerCount(Integer.valueOf(cmd.getOptionValue(CONTAINER.getOpt())));
 
 		// Jar Path
 		Path localJarPath;

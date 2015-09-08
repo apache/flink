@@ -357,6 +357,8 @@ so that the Flink client is able to pick those details up. This configuration pa
 changing the default location of that file (for example for environments sharing a Flink 
 installation between users)
 
+- `yarn.numberOfTaskManagers` (Default: 1). Number of YARN container to allocate (=Number of Task Managers).
+
 ## High Availability Mode
 
 - `recovery.mode`: (Default 'standalone') Defines the recovery mode used for the cluster execution. Currently,
