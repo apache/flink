@@ -835,7 +835,7 @@ under the License.
 			</plugin>
 			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.18.1</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
 						<goals>
@@ -858,7 +858,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.18.1</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
 					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
