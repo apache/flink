@@ -35,7 +35,7 @@ import java.io.IOException;
 
 public class StreamFold<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, FoldFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT>, OutputTypeConfigurable {
+		implements OneInputStreamOperator<IN, OUT>, OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -79,8 +79,8 @@ public class StreamFold<IN, OUT>
 	}
 
 	@Override
-	public void setOutputType(TypeInformation<?> outTypeInfo, ExecutionConfig executionConfig) {
-		outTypeSerializer = (TypeSerializer<OUT>) outTypeInfo.createSerializer(executionConfig);
+	public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
+		outTypeSerializer = outTypeInfo.createSerializer(executionConfig);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		OutputViewDataOutputStreamWrapper out = new OutputViewDataOutputStreamWrapper(

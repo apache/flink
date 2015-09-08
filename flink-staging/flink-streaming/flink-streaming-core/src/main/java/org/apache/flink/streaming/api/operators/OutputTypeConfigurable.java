@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  * cases where the output type is specified by the returns method and, thus, after the stream
  * operator has been created.
  */
-public interface OutputTypeConfigurable {
+public interface OutputTypeConfigurable<OUT> {
 
 	/**
 	 * Is called by the {@link org.apache.flink.streaming.api.graph.StreamGraph#addOperator(Integer, StreamOperator, TypeInformation, TypeInformation, String)}
@@ -38,5 +38,5 @@ public interface OutputTypeConfigurable {
 	 * @param outTypeInfo Output type information of the {@link org.apache.flink.streaming.runtime.tasks.StreamTask}
 	 * @param executionConfig Execution configuration
 	 */
-	void setOutputType(TypeInformation<?> outTypeInfo, ExecutionConfig executionConfig);
+	void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig);
 }
