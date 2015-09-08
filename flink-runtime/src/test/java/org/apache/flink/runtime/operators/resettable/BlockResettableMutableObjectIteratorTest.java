@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.resettable;
 
 import java.util.ArrayList;
@@ -26,9 +25,7 @@ import org.junit.Assert;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.resettable.BlockResettableMutableObjectIterator;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MutableObjectIteratorWrapper;
 import org.apache.flink.types.IntValue;
@@ -38,8 +35,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class BlockResettableMutableObjectIteratorTest
-{
+public class BlockResettableMutableObjectIteratorTest {
+	
 	private static final int MEMORY_CAPACITY = 3 * 128 * 1024;
 	
 	private static final int NUM_VALUES = 20000;
@@ -57,7 +54,7 @@ public class BlockResettableMutableObjectIteratorTest
 	@Before
 	public void startup() {
 		// set up IO and memory manager
-		this.memman = new DefaultMemoryManager(MEMORY_CAPACITY, 1);
+		this.memman = new MemoryManager(MEMORY_CAPACITY, 1);
 		
 		// create test objects
 		this.objects = new ArrayList<Record>(20000);
@@ -83,8 +80,7 @@ public class BlockResettableMutableObjectIteratorTest
 	}
 
 	@Test
-	public void testSerialBlockResettableIterator() throws Exception
-	{
+	public void testSerialBlockResettableIterator() throws Exception {
 		try {
 			// create the resettable Iterator
 			final BlockResettableMutableObjectIterator<Record> iterator =
@@ -126,8 +122,7 @@ public class BlockResettableMutableObjectIteratorTest
 	}
 
 	@Test
-	public void testDoubleBufferedBlockResettableIterator() throws Exception
-	{
+	public void testDoubleBufferedBlockResettableIterator() throws Exception {
 		try {
 			// create the resettable Iterator
 			final BlockResettableMutableObjectIterator<Record> iterator =
@@ -170,8 +165,7 @@ public class BlockResettableMutableObjectIteratorTest
 	}
 
 	@Test
-	public void testTwelveFoldBufferedBlockResettableIterator() throws Exception
-	{
+	public void testTwelveFoldBufferedBlockResettableIterator() throws Exception {
 		try {
 			// create the resettable Iterator
 			final BlockResettableMutableObjectIterator<Record> iterator =
@@ -212,5 +206,4 @@ public class BlockResettableMutableObjectIteratorTest
 			Assert.fail("Test encountered an exception: " + ex.getMessage());
 		}
 	}
-
 }

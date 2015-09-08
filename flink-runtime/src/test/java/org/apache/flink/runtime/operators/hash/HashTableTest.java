@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.util.MutableObjectIterator;
@@ -153,7 +154,7 @@ public class HashTableTest {
 	private static List<MemorySegment> getMemory(int numSegments, int segmentSize) {
 		ArrayList<MemorySegment> list = new ArrayList<MemorySegment>(numSegments);
 		for (int i = 0; i < numSegments; i++) {
-			list.add(new MemorySegment(new byte[segmentSize]));
+			list.add(MemorySegmentFactory.allocateUnpooledSegment(segmentSize));
 		}
 		return list;
 	}

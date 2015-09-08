@@ -39,16 +39,18 @@ import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.FileChannelOutputView;
 import org.apache.flink.runtime.io.disk.SeekableFileChannelInputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.Test;
 
 public class LargeRecordHandlerITCase {
@@ -62,7 +64,7 @@ public class LargeRecordHandlerITCase {
 		final int NUM_RECORDS = 10;
 		
 		try {
-			final DefaultMemoryManager memMan = new DefaultMemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, true);
+			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 			final AbstractInvokable owner = new DummyInvokable();
 			
 			final List<MemorySegment> initialMemory = memMan.allocatePages(owner, 6);
@@ -143,9 +145,7 @@ public class LargeRecordHandlerITCase {
 			fail(e.getMessage());
 		}
 		finally {
-			if (ioMan != null) {
-				ioMan.shutdown();
-			}
+			ioMan.shutdown();
 		}
 	}
 	
@@ -154,8 +154,6 @@ public class LargeRecordHandlerITCase {
 		private static final long serialVersionUID = 1L;
 
 		private static final byte[] BUFFER = new byte[50000000];
-		
-//		private static final byte[] BUFFER = new byte[500000000];
 		
 		static {
 			for (int i = 0; i < BUFFER.length; i++) {
@@ -178,9 +176,9 @@ public class LargeRecordHandlerITCase {
 		@Override
 		public void read(DataInputView in) throws IOException {
 			val = in.readInt();
-			for (int i = 0; i < BUFFER.length; i++) {
+			for (byte bufferByte : BUFFER) {
 				byte b = in.readByte();
-				assertEquals(BUFFER[i], b);
+				assertEquals(bufferByte, b);
 			}
 		}
 		
@@ -192,7 +190,7 @@ public class LargeRecordHandlerITCase {
 	}
 	
 	
-//	@Test
+	@Test
 	public void fileTest() {
 		
 		final IOManager ioMan = new IOManagerAsync();
@@ -203,7 +201,7 @@ public class LargeRecordHandlerITCase {
 		FileIOChannel.ID channel = null;
 		
 		try {
-			final DefaultMemoryManager memMan = new DefaultMemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, true);
+			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 			final AbstractInvokable owner = new DummyInvokable();
 			
 			final List<MemorySegment> memory = memMan.allocatePages(owner, NUM_PAGES);
@@ -266,12 +264,10 @@ public class LargeRecordHandlerITCase {
 			if (channel != null) {
 				try {
 					ioMan.deleteChannel(channel);
-				} catch (IOException e) {}
+				} catch (IOException ignored) {}
 			}
-			
-			if (ioMan != null) {
-				ioMan.shutdown();
-			}
+
+			ioMan.shutdown();
 		}
 	}
 

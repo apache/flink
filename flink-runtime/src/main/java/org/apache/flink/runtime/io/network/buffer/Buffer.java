@@ -84,9 +84,8 @@ public class Buffer {
 	public ByteBuffer getNioBuffer() {
 		synchronized (recycleLock) {
 			ensureNotRecycled();
-
-			// we need to return a copy here to guarantee thread-safety
-			return memorySegment.wrap(0, currentSize).duplicate();
+			// the memory segment returns a distinct buffer every time
+			return memorySegment.wrap(0, currentSize);
 		}
 	}
 	

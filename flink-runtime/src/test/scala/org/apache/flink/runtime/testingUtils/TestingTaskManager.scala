@@ -25,7 +25,7 @@ import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
+import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.{ResponseLeaderSessionID,
 RequestLeaderSessionID}
 import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
@@ -53,7 +53,7 @@ import scala.language.postfixOps
 class TestingTaskManager(
     config: TaskManagerConfiguration,
     connectionInfo: InstanceConnectionInfo,
-    memoryManager: DefaultMemoryManager,
+    memoryManager: MemoryManager,
     ioManager: IOManager,
     network: NetworkEnvironment,
     numberOfSlots: Int,
