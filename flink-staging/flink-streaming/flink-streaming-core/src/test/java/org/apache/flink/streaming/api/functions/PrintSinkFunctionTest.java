@@ -37,6 +37,7 @@ import static org.junit.Assert.assertEquals;
 public class PrintSinkFunctionTest {
 
 	public PrintStream printStreamOriginal = System.out;
+	private String line = System.lineSeparator();
 
 	@Test
 	public void testPrintSinkStdOut(){
@@ -57,7 +58,7 @@ public class PrintSinkFunctionTest {
 		printSink.invoke("hello world!");
 
 		assertEquals("Print to System.out", printSink.toString());
-		assertEquals("hello world!\r\n", baos.toString());
+		assertEquals("hello world!" + line, baos.toString());
 
 		printSink.close();
 		stream.close();
@@ -82,7 +83,7 @@ public class PrintSinkFunctionTest {
 		printSink.invoke("hello world!");
 
 		assertEquals("Print to System.err", printSink.toString());
-		assertEquals("hello world!\r\n", baos.toString());
+		assertEquals("hello world!" + line, baos.toString());
 
 		printSink.close();
 		stream.close();
@@ -109,7 +110,7 @@ public class PrintSinkFunctionTest {
 		printSink.invoke("hello world!");
 
 		assertEquals("Print to System.err", printSink.toString());
-		assertEquals("2> hello world!\r\n", baos.toString());
+		assertEquals("2> hello world!" + line, baos.toString());
 
 		printSink.close();
 		stream.close();
