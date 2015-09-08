@@ -553,7 +553,8 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream representing the given array of elements
 	 */
-	public <OUT> DataStreamSource<OUT> fromElements(OUT... data) {
+	@SafeVarargs
+	public final <OUT> DataStreamSource<OUT> fromElements(OUT... data) {
 		if (data.length == 0) {
 			throw new IllegalArgumentException("fromElements needs at least one element as argument");
 		}
