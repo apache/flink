@@ -22,11 +22,13 @@ import java.io.DataOutputStream;
 import java.net.Socket;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 import static java.lang.Thread.sleep;
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.verify;
 
 import java.net.ServerSocket;
 import java.util.concurrent.atomic.AtomicReference;
@@ -38,40 +40,7 @@ public class SocketTextStreamFunctionTest{
 
 	final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 	private final String host = "127.0.0.1";
-
-	SourceFunction.SourceContext<String> ctx = new SourceFunction.SourceContext<String>() {
-		public String result;
-
-		@Override
-		public void collect(String element) {
-			result = element;
-		}
-
-		@Override
-		public String toString() {
-			return this.result;
-		}
-
-		@Override
-		public void collectWithTimestamp(String element, long timestamp) {
-
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-
-		}
-
-		@Override
-		public Object getCheckpointLock() {
-			return null;
-		}
-
-		@Override
-		public void close() {
-
-		}
-	};
+	private final SourceFunction.SourceContext<String> ctx = Mockito.mock(SourceFunction.SourceContext.class);
 
 	public SocketTextStreamFunctionTest() {
 	}
@@ -181,6 +150,8 @@ public class SocketTextStreamFunctionTest{
 
 	@Test
 	public void testSocketSourceRetryTenTimesWithFirstPass() throws Exception{
+		ArgumentCaptor<String> argument = ArgumentCaptor.forClass(String.class);
+
 		error.set(null);
 		ServerSocket serverSo = new ServerSocket(0);
 		SocketSource source = new SocketSource(serverSo, 10);
@@ -204,13 +175,15 @@ public class SocketTextStreamFunctionTest{
 		assertEquals(10, source.socketSource.retries);
 		source.cancel();
 
+		verify(ctx).collect(argument.capture());
+
 		if (error.get() != null) {
 			Throwable t = error.get();
 			t.printStackTrace();
 			fail("Error in spawned thread: " + t.getMessage());
 		}
 
-		assertEquals("testFirstSocketpass", ctx.toString());
+		assertEquals("testFirstSocketpass", argument.getValue());
 		assertEquals(10, source.socketSource.retries);
 	}
 }
