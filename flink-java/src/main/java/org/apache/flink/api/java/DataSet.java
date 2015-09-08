@@ -35,7 +35,7 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -801,7 +801,7 @@ public abstract class DataSet<T> {
 	public <R> JoinOperatorSets<T, R> joinWithHuge(DataSet<R> other) {
 		return new JoinOperatorSets<T, R>(this, other, JoinHint.BROADCAST_HASH_FIRST);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Co-Grouping
 	// --------------------------------------------------------------------------------------------

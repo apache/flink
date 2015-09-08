@@ -24,7 +24,7 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -55,7 +55,7 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 			DataSet<Tuple3<Long, Long, Long>> input2 = env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
 			
 			input1
-				.join(input2, JoinHint.REPARTITION_HASH_FIRST).where(1).equalTo(0).withPartitioner(partitioner)
+				.join(input2, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST).where(1).equalTo(0).withPartitioner(partitioner)
 				.output(new DiscardingOutputFormat<Tuple2<Tuple2<Long, Long>, Tuple3<Long, Long, Long>>>());
 			
 			Plan p = env.createProgramPlan();
@@ -87,7 +87,7 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 			
 			try {
 				input1
-					.join(input2, JoinHint.REPARTITION_HASH_FIRST).where(1).equalTo(0)
+					.join(input2, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST).where(1).equalTo(0)
 					.withPartitioner(partitioner);
 				
 				fail("should throw an exception");
@@ -113,7 +113,7 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 			DataSet<Pojo3> input2 = env.fromElements(new Pojo3());
 			
 			input1
-				.join(input2, JoinHint.REPARTITION_HASH_FIRST)
+				.join(input2, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where("b").equalTo("a").withPartitioner(partitioner)
 				.output(new DiscardingOutputFormat<Tuple2<Pojo2, Pojo3>>());
 			
@@ -146,7 +146,7 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 			
 			try {
 				input1
-					.join(input2, JoinHint.REPARTITION_HASH_FIRST)
+					.join(input2, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 					.where("a").equalTo("b")
 					.withPartitioner(partitioner);
 				
@@ -173,7 +173,7 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 			DataSet<Pojo3> input2 = env.fromElements(new Pojo3());
 			
 			input1
-				.join(input2, JoinHint.REPARTITION_HASH_FIRST)
+				.join(input2, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(new Pojo2KeySelector())
 				.equalTo(new Pojo3KeySelector())
 				.withPartitioner(partitioner)
@@ -208,7 +208,7 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 			
 			try {
 				input1
-					.join(input2, JoinHint.REPARTITION_HASH_FIRST)
+					.join(input2, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 					.where(new Pojo2KeySelector())
 					.equalTo(new Pojo3KeySelector())
 					.withPartitioner(partitioner);
@@ -247,7 +247,7 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 				.reduceGroup(new IdentityGroupReducerCombinable<Tuple3<Long,Long,Long>>()).withForwardedFields("0", "1");
 			
 			grouped
-				.join(partitioned, JoinHint.REPARTITION_HASH_FIRST).where(0).equalTo(0)
+				.join(partitioned, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST).where(0).equalTo(0)
 				.with(new DummyFlatJoinFunction<Tuple3<Long,Long,Long>>())
 				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 			

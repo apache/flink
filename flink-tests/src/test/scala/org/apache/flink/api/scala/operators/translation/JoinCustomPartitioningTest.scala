@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala.operators.translation
 
+import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase.JoinHint
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.optimizer.util.CompilerTestBase
 import org.junit.Assert._
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType
 import org.apache.flink.optimizer.plan.SingleInputPlanNode
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.optimizer.plan.DualInputPlanNode
 
 class JoinCustomPartitioningTest extends CompilerTestBase {

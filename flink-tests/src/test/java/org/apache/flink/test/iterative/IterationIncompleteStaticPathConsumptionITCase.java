@@ -19,7 +19,7 @@
 package org.apache.flink.test.iterative;
 
 import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
@@ -51,7 +51,7 @@ public class IterationIncompleteStaticPathConsumptionITCase extends JavaProgramT
 		IterativeDataSet<Path> currentPaths = edges.iterate(10);
 		
 		DataSet<Path> newPaths = currentPaths
-				.join(edges, JoinHint.REPARTITION_SORT_MERGE).where("to").equalTo("from")
+				.join(edges, AbstractJoinOperatorBase.JoinHint.REPARTITION_SORT_MERGE).where("to").equalTo("from")
 					.with(new PathConnector())
 				.union(currentPaths).distinct("from", "to");
 		

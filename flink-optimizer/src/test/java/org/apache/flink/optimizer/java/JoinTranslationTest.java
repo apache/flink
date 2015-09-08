@@ -23,7 +23,8 @@ import static org.junit.Assert.*;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase;
+import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -44,7 +45,7 @@ public class JoinTranslationTest extends CompilerTestBase {
 	@Test
 	public void testBroadcastHashFirstTest() {
 		try {
-			DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.BROADCAST_HASH_FIRST);
+			DualInputPlanNode node = createPlanAndGetJoinNode(AbstractJoinOperatorBase.JoinHint.BROADCAST_HASH_FIRST);
 			assertEquals(ShipStrategyType.BROADCAST, node.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, node.getInput2().getShipStrategy());
 			assertEquals(DriverStrategy.HYBRIDHASH_BUILD_FIRST, node.getDriverStrategy());
@@ -58,7 +59,7 @@ public class JoinTranslationTest extends CompilerTestBase {
 	@Test
 	public void testBroadcastHashSecondTest() {
 		try {
-			DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.BROADCAST_HASH_SECOND);
+			DualInputPlanNode node = createPlanAndGetJoinNode(AbstractJoinOperatorBase.JoinHint.BROADCAST_HASH_SECOND);
 			assertEquals(ShipStrategyType.FORWARD, node.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.BROADCAST, node.getInput2().getShipStrategy());
 			assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, node.getDriverStrategy());
@@ -72,7 +73,7 @@ public class JoinTranslationTest extends CompilerTestBase {
 	@Test
 	public void testPartitionHashFirstTest() {
 		try {
-			DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.REPARTITION_HASH_FIRST);
+			DualInputPlanNode node = createPlanAndGetJoinNode(AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST);
 			assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput2().getShipStrategy());
 			assertEquals(DriverStrategy.HYBRIDHASH_BUILD_FIRST, node.getDriverStrategy());
@@ -86,7 +87,7 @@ public class JoinTranslationTest extends CompilerTestBase {
 	@Test
 	public void testPartitionHashSecondTest() {
 		try {
-			DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.REPARTITION_HASH_SECOND);
+			DualInputPlanNode node = createPlanAndGetJoinNode(AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_SECOND);
 			assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput2().getShipStrategy());
 			assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, node.getDriverStrategy());
@@ -100,7 +101,7 @@ public class JoinTranslationTest extends CompilerTestBase {
 	@Test
 	public void testPartitionSortMergeTest() {
 		try {
-			DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.REPARTITION_SORT_MERGE);
+			DualInputPlanNode node = createPlanAndGetJoinNode(AbstractJoinOperatorBase.JoinHint.REPARTITION_SORT_MERGE);
 			assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput2().getShipStrategy());
 			assertEquals(DriverStrategy.INNER_MERGE, node.getDriverStrategy());
@@ -114,7 +115,7 @@ public class JoinTranslationTest extends CompilerTestBase {
 	@Test
 	public void testOptimizerChoosesTest() {
 		try {
-			DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.OPTIMIZER_CHOOSES);
+			DualInputPlanNode node = createPlanAndGetJoinNode(AbstractJoinOperatorBase.JoinHint.OPTIMIZER_CHOOSES);
 			assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput2().getShipStrategy());
 			assertTrue(DriverStrategy.HYBRIDHASH_BUILD_FIRST == node.getDriverStrategy() ||

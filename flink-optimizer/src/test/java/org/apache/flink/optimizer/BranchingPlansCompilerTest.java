@@ -25,6 +25,7 @@ import java.util.Set;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
@@ -44,7 +45,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
@@ -391,7 +391,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			DataSet<Long> map3 = map2.map(new IdentityMapper<Long>()).name("Map 3");
 
 			DataSet<Long> join2 = reduce1.union(reduce2).union(map2).union(map3)
-					.join(map2, JoinHint.REPARTITION_SORT_MERGE).where("*").equalTo("*")
+					.join(map2, AbstractJoinOperatorBase.JoinHint.REPARTITION_SORT_MERGE).where("*").equalTo("*")
 					.with(new IdentityJoiner<Long>()).name("Join 2");
 
 			join2.output(new DiscardingOutputFormat<Long>());
@@ -889,7 +889,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 						.withBroadcastSet(bc_input2, "bc2");
 			
 			DataSet<Tuple2<Long, Long>> joinResult = joinInput1
-				.join(joinInput2, JoinHint.REPARTITION_HASH_FIRST).where(0).equalTo(1)
+				.join(joinInput2, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST).where(0).equalTo(1)
 				.with(new DummyFlatJoinFunction<Tuple2<Long,Long>>());
 			
 			input

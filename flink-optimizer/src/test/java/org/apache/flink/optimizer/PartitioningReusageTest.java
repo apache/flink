@@ -21,7 +21,7 @@ package org.apache.flink.optimizer;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -50,7 +50,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 		DataSet<Tuple3<Integer, Integer, Integer>> set2 = env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
 
 		DataSet<Tuple3<Integer, Integer, Integer>> joined = set1
-				.join(set2, JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+				.join(set2, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 					.where(0,1).equalTo(0,1).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -71,7 +71,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 		DataSet<Tuple3<Integer, Integer, Integer>> set2 = env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
 
 		DataSet<Tuple3<Integer, Integer, Integer>> joined = set1
-				.join(set2, JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+				.join(set2, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,1).equalTo(2,1).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -94,7 +94,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 		DataSet<Tuple3<Integer, Integer, Integer>> joined = set1
 				.partitionByHash(0,1)
 				.map(new MockMapper()).withForwardedFields("0;1")
-				.join(set2, JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+				.join(set2, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,1).equalTo(0,1).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -117,7 +117,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 		DataSet<Tuple3<Integer, Integer, Integer>> joined = set1
 				.partitionByHash(0,1)
 				.map(new MockMapper()).withForwardedFields("0;1")
-				.join(set2, JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+				.join(set2, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,1).equalTo(2,1).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -140,7 +140,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 				.join(set2.partitionByHash(2, 1)
 							.map(new MockMapper())
 							.withForwardedFields("2;1"),
-						JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+						AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,1).equalTo(2,1).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -162,7 +162,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 		DataSet<Tuple3<Integer, Integer, Integer>> joined = set1
 				.partitionByHash(0)
 				.map(new MockMapper()).withForwardedFields("0")
-				.join(set2, JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+				.join(set2, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,1).equalTo(2,1).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -185,7 +185,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 				.join(set2.partitionByHash(2)
 							.map(new MockMapper())
 							.withForwardedFields("2"),
-						JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+						AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,1).equalTo(2,1).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -210,7 +210,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 				.join(set2.partitionByHash(0,1)
 							.map(new MockMapper())
 							.withForwardedFields("0;1"),
-						JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+						AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,1).equalTo(0,1).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -236,7 +236,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 				.join(set2.partitionByHash(1,2)
 								.map(new MockMapper())
 								.withForwardedFields("1;2"),
-						JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+						AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,1).equalTo(2,1).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -261,7 +261,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 				.join(set2.partitionByHash(2,1)
 								.map(new MockMapper())
 								.withForwardedFields("2;1"),
-						JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+						AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,1).equalTo(2,1).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -286,7 +286,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 				.join(set2.partitionByHash(1)
 								.map(new MockMapper())
 								.withForwardedFields("1"),
-						JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+						AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,2).equalTo(2,1).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -311,7 +311,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 				.join(set2.partitionByHash(1)
 								.map(new MockMapper())
 								.withForwardedFields("1"),
-						JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+						AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,2).equalTo(2,1).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -336,7 +336,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 				.join(set2.partitionByHash(1)
 								.map(new MockMapper())
 								.withForwardedFields("1"),
-						JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+						AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,2).equalTo(1,2).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
@@ -361,7 +361,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
 				.join(set2.partitionByHash(1)
 								.map(new MockMapper())
 								.withForwardedFields("1"),
-						JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+						AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0,2).equalTo(1,2).with(new MockJoin());
 
 		joined.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
