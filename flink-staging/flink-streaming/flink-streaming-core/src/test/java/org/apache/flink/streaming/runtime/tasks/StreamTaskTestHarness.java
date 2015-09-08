@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.Assert;
 
@@ -79,7 +80,7 @@ public class StreamTaskTestHarness<OUT> {
 	private AbstractInvokable task;
 
 	private TypeSerializer<OUT> outputSerializer;
-	private TypeSerializer<Object> outputStreamRecordSerializer;
+	private TypeSerializer<StreamElement> outputStreamRecordSerializer;
 
 	private ConcurrentLinkedQueue<Object> outputList;
 
@@ -119,8 +120,7 @@ public class StreamTaskTestHarness<OUT> {
 	/**
 	 * This must be overwritten for OneInputStreamTask or TwoInputStreamTask test harnesses.
 	 */
-	protected void initializeInputs() throws IOException, InterruptedException {
-	}
+	protected void initializeInputs() throws IOException, InterruptedException {}
 
 	@SuppressWarnings("unchecked")
 	private void initializeOutput() {

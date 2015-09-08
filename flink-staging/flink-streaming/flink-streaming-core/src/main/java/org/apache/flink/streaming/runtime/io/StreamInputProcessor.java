@@ -36,6 +36,7 @@ import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -53,9 +54,9 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
  */
 public class StreamInputProcessor<IN> extends AbstractReader implements StreamingReader {
 	
-	private final RecordDeserializer<DeserializationDelegate<Object>>[] recordDeserializers;
+	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;
 
-	private RecordDeserializer<DeserializationDelegate<Object>> currentRecordDeserializer;
+	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer;
 
 	// We need to keep track of the channel from which a buffer came, so that we can
 	// appropriately map the watermarks to input channels
@@ -68,9 +69,9 @@ public class StreamInputProcessor<IN> extends AbstractReader implements Streamin
 	private final long[] watermarks;
 	private long lastEmittedWatermark;
 
-	private final DeserializationDelegate<Object> deserializationDelegate;
+	private final DeserializationDelegate<StreamElement> deserializationDelegate;
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	public StreamInputProcessor(InputGate[] inputGates, TypeSerializer<IN> inputSerializer,
 								EventListener<CheckpointBarrier> checkpointListener,
 								CheckpointingMode checkpointMode,
@@ -95,10 +96,10 @@ public class StreamInputProcessor<IN> extends AbstractReader implements Streamin
 		
 		if (enableWatermarkMultiplexing) {
 			MultiplexingStreamRecordSerializer<IN> ser = new MultiplexingStreamRecordSerializer<IN>(inputSerializer);
-			this.deserializationDelegate = new NonReusingDeserializationDelegate<Object>(ser);
+			this.deserializationDelegate = new NonReusingDeserializationDelegate<StreamElement>(ser);
 		} else {
 			StreamRecordSerializer<IN> ser = new StreamRecordSerializer<IN>(inputSerializer);
-			this.deserializationDelegate = (NonReusingDeserializationDelegate<Object>)
+			this.deserializationDelegate = (NonReusingDeserializationDelegate<StreamElement>)
 					(NonReusingDeserializationDelegate<?>) new NonReusingDeserializationDelegate<StreamRecord<IN>>(ser);
 		}
 		
@@ -106,7 +107,7 @@ public class StreamInputProcessor<IN> extends AbstractReader implements Streamin
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
 		
 		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<Object>>();
+			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<StreamElement>>();
 		}
 
 		watermarks = new long[inputGate.getNumberOfInputChannels()];
@@ -132,18 +133,15 @@ public class StreamInputProcessor<IN> extends AbstractReader implements Streamin
 				}
 
 				if (result.isFullRecord()) {
-					Object recordOrWatermark = deserializationDelegate.getInstance();
+					StreamElement recordOrWatermark = deserializationDelegate.getInstance();
 
-					if (recordOrWatermark instanceof Watermark) {
-						Watermark mark = (Watermark) recordOrWatermark;
-						long watermarkMillis = mark.getTimestamp();
+					if (recordOrWatermark.isWatermark()) {
+						long watermarkMillis = recordOrWatermark.asWatermark().getTimestamp();
 						if (watermarkMillis > watermarks[currentChannel]) {
 							watermarks[currentChannel] = watermarkMillis;
 							long newMinWatermark = Long.MAX_VALUE;
 							for (long watermark : watermarks) {
-								if (watermark < newMinWatermark) {
-									newMinWatermark = watermark;
-								}
+								newMinWatermark = Math.min(watermark, newMinWatermark);
 							}
 							if (newMinWatermark > lastEmittedWatermark) {
 								lastEmittedWatermark = newMinWatermark;
@@ -154,8 +152,7 @@ public class StreamInputProcessor<IN> extends AbstractReader implements Streamin
 					}
 					else {
 						// now we can do the actual processing
-						@SuppressWarnings("unchecked")
-						StreamRecord<IN> record = (StreamRecord<IN>) deserializationDelegate.getInstance();
+						StreamRecord<IN> record = recordOrWatermark.asRecord();
 						StreamingRuntimeContext ctx = streamOperator.getRuntimeContext();
 						if (ctx != null) {
 							ctx.setNextInput(record);
