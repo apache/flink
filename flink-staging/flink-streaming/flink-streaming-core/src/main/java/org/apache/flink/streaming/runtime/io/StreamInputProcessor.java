@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
@@ -52,11 +52,13 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
  * 
  * @param <IN> The type of the record that can be read with this record reader.
  */
-public class StreamInputProcessor<IN> extends AbstractReader implements StreamingReader {
+public class StreamInputProcessor<IN> {
 	
 	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;
 
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer;
+
+	private final CheckpointBarrierHandler barrierHandler;
 
 	// We need to keep track of the channel from which a buffer came, so that we can
 	// appropriately map the watermarks to input channels
@@ -64,7 +66,7 @@ public class StreamInputProcessor<IN> extends AbstractReader implements Streamin
 
 	private boolean isFinished;
 
-	private final CheckpointBarrierHandler barrierHandler;
+	
 
 	private final long[] watermarks;
 	private long lastEmittedWatermark;
@@ -77,8 +79,8 @@ public class StreamInputProcessor<IN> extends AbstractReader implements Streamin
 								CheckpointingMode checkpointMode,
 								IOManager ioManager,
 								boolean enableWatermarkMultiplexing) throws IOException {
-		
-		super(InputGateUtil.createInputGate(inputGates));
+
+		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
 
 		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
 			this.barrierHandler = new BarrierBuffer(inputGate, ioManager);
@@ -173,7 +175,9 @@ public class StreamInputProcessor<IN> extends AbstractReader implements Streamin
 				else {
 					// Event received
 					final AbstractEvent event = bufferOrEvent.getEvent();
-					handleEvent(event);
+					if (event.getClass() != EndOfPartitionEvent.class) {
+						throw new IOException("Unexpected event: " + event);
+					}
 				}
 			}
 			else {
@@ -185,15 +189,13 @@ public class StreamInputProcessor<IN> extends AbstractReader implements Streamin
 			}
 		}
 	}
-
-	@Override
+	
 	public void setReporter(AccumulatorRegistry.Reporter reporter) {
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
 			deserializer.setReporter(reporter);
 		}
 	}
-
-	@Override
+	
 	public void cleanup() throws IOException {
 		// clear the buffers first. this part should not ever fail
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
