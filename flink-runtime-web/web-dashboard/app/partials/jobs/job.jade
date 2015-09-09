@@ -42,7 +42,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="job")
 nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional(ng-if="job")
   ul.nav.nav-tabs
     li(ui-sref-active='active')
-      a(ui-sref=".plan") Plan
+      a(ui-sref=".plan.overview") Plan
 
     li(ui-sref-active='active')
       a(ui-sref=".statistics") Job Accumulators / Statistics
@@ -53,6 +53,9 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional(ng-if="job")
 
     li(ui-sref-active='active')
       a(ui-sref=".exceptions") Exceptions
+
+    li(ui-sref-active='active')
+      a(ui-sref=".properties") Properties
 
     li(ui-sref-active='active')
       a(ui-sref=".config") Configuration

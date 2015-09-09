@@ -18,7 +18,6 @@
 table.table.table-body-hover.table-clickable.table-activable
   thead
     tr
-      th.tab-column
       th Start Time
       th End Time
       th Duration
@@ -30,19 +29,8 @@ table.table.table-body-hover.table-clickable.table-activable
       th Tasks
       th Status
 
-  //- tbody(ng-repeat="v in job.vertices" ng-class="{ active: job.currentNode && v.id == job.currentNode.id }" id="vertex-row-{{v.id}}" ui-sref="{nodeid: v.id}")
-  tbody(ng-repeat="v in job.vertices" ng-class="{ active: job.currentNode && v.id == job.currentNode.id }" ui-sref="{nodeid: v.id}")
+  tbody(ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="changeNode(v.id)")
     tr
-      td.tab-column
-        ul.nav.nav-tabs.tabs-vertical(ng-if="job.currentNode && v.id == job.currentNode.id")
-          li(ng-class="{ active: ('single-job.plan.node.generic' | isState) }")
-            a(ng-click="gotoGeneric(v.id)" title='Basic')
-              i.fa.fa-tasks
-
-          li(ng-class="{ active: ('single-job.plan.node.accumulators' | isState) }")
-            a(ng-click="gotoAccumulators(v.id)" title='Accumulators')
-              i.fa.fa-calculator
-
       td
         span(ng-if="v['start-time'] > -1") {{ v['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
       td
@@ -50,7 +38,7 @@ table.table.table-body-hover.table-clickable.table-activable
       td
         span(ng-if="v.duration > -1") {{ v.duration }} ms
 
-      td {{ v.name | humanizeTaskName }}
+      td.td-long {{ v.name | humanizeText }}
       td {{ v.metrics['read-bytes'] }}
       td {{ v.metrics['read-records'] }}
       td {{ v.metrics['write-bytes'] }}
@@ -61,12 +49,6 @@ table.table.table-body-hover.table-clickable.table-activable
 
       td 
         bs-label(status="{{v.status}}") {{v.status}}
-    tr(ng-if="job.currentNode && v.id == job.currentNode.id")
-      td.tab-column
+    tr(ng-if="nodeid && v.id == nodeid")
       td(colspan="10")
-        //- a(ng-click="gotoGeneric(nodeid)") Gen!
-        //- | 
-        //- a(ng-click="gotoAccumulators(nodeid)") Acc!
-
-        div(ng-if="'single-job.plan.node.generic' | isState" ng-include=" 'partials/jobs/job.plan.node.subtasks.html' ")
-        div(ng-if="'single-job.plan.node.accumulators' | isState" ng-include=" 'partials/jobs/job.plan.node.accumulators.html' ")
+        div(ng-include=" 'partials/jobs/job.plan.node.subtasks.html' ")

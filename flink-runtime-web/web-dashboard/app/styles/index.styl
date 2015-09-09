@@ -17,8 +17,10 @@
  */
 
 @import 'nib'
+@import './animate'
 
 sidebar-width = 250px
+sidebar-width-small = 160px
 
 #sidebar
   overflow: hidden
@@ -39,6 +41,14 @@ sidebar-width = 250px
   .logo
     width: auto
     height: 22px
+    img
+      display: inline-block
+
+  .navbar-static-top
+    overflow: hidden
+    height: 51px
+    .navbar-header
+      width: 100%
 
   .navbar-brand.navbar-brand-text
     font-size: 14px
@@ -118,6 +128,14 @@ sidebar-width = 250px
   th
     font-weight: normal
     color: #999999
+    
+  td.td-long
+    width: 20%
+    white-space: pre-wrap
+    white-space: -moz-pre-wrap
+    white-space: -pre-wrap
+    white-space: -o-pre-wrap
+    word-wrap: break-word
 
   &.table-clickable
     tr
@@ -301,11 +319,37 @@ pre.exception
           border-bottom: none
           border-left: 2px solid #000000
 
+.navbar-main, .navbar-secondary, .navbar-main-additional, .navbar-secondary-additional
+  .navbar-title
+    padding: 12px 20px 13px 20px
+
 @import './job'
 @import './graph'
 @import './timeline'
 
-@media (min-width: 768px)
+@media (min-width: 1024px) and (max-width: 1279px)
+  #sidebar
+    left: 0
+    width: sidebar-width-small
+    
+    .navbar-static-top
+      .navbar-brand-text
+        display: none
+
+  #content
+    margin-left: sidebar-width-small
+
+    #fold-button
+      display: none
+
+    .navbar-main, .navbar-main-additional
+      left: sidebar-width-small
+
+  .table
+    td.td-long
+      width: 20%
+
+@media (min-width: 1280px)
   #sidebar
     left: 0
 
@@ -318,6 +362,6 @@ pre.exception
     .navbar-main, .navbar-main-additional
       left: sidebar-width
 
-  .navbar-main, .navbar-secondary, .navbar-main-additional, .navbar-secondary-additional
-    .navbar-title
-      padding: 12px 20px 13px 20px
+  .table
+    td.td-long
+      width: 30%

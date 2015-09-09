@@ -17,4 +17,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 -->
-<h3>Accumulators</h3>
+<div ng-if="vertex">
+  <div ng-if="vertex.accumulators.length == 0">
+    <p><i>No accumulators</i></p>
+  </div>
+  <table ng-if="vertex.accumulators.length &gt; 0" class="table table-hover table-clickable table-activable table-inner">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="accumulator in vertex.accumulators">
+        <td>{{ accumulator.name }}</td>
+        <td>{{ accumulator.type }}</td>
+        <td>{{ accumulator.value }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

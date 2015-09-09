@@ -19,8 +19,6 @@
 angular.module('flinkApp')
 
 .service 'MainService', ($http, flinkConfig, $q) ->
-  jobObservers = []
-
   @loadConfig = ->
     deferred = $q.defer()
 
