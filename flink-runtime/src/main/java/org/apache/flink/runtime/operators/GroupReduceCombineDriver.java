@@ -184,7 +184,9 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 		}
 
 		// sort, combine, and send the final batch
-		sortAndCombine();
+		if (running) {
+			sortAndCombine();
+		}
 	}
 
 	private void sortAndCombine() throws Exception {
