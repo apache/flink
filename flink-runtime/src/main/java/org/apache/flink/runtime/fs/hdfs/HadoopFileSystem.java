@@ -23,18 +23,18 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.UnknownHostException;
 
-import org.apache.flink.core.fs.HadoopFileSystemWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.flink.core.fs.HadoopFileSystemWrapper;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.BlockLocation;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.InstantiationUtil;
+
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -264,6 +264,14 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 		return fs.getUri();
 	}
 
+	/**
+	 * Gets the underlying Hadoop FileSystem.
+	 * @return The underlying Hadoop FileSystem.
+	 */
+	public org.apache.hadoop.fs.FileSystem getHadoopFileSystem() {
+		return this.fs;
+	}
+	
 	@Override
 	public void initialize(URI path) throws IOException {
 		
@@ -367,21 +375,21 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 	}
 
 	@Override
-	public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
+	public HadoopDataInputStream open(final Path f, final int bufferSize) throws IOException {
 		final org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(f.toString());
 		final org.apache.hadoop.fs.FSDataInputStream fdis = this.fs.open(path, bufferSize);
 		return new HadoopDataInputStream(fdis);
 	}
 
 	@Override
-	public FSDataInputStream open(final Path f) throws IOException {
+	public HadoopDataInputStream open(final Path f) throws IOException {
 		final org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(f.toString());
 		final org.apache.hadoop.fs.FSDataInputStream fdis = fs.open(path);
 		return new HadoopDataInputStream(fdis);
 	}
 
 	@Override
-	public FSDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
+	public HadoopDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
 			final short replication, final long blockSize)
 	throws IOException
 	{
@@ -392,7 +400,7 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 
 
 	@Override
-	public FSDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
+	public HadoopDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
 		final org.apache.hadoop.fs.FSDataOutputStream fsDataOutputStream = this.fs
 			.create(new org.apache.hadoop.fs.Path(f.toString()), overwrite);
 		return new HadoopDataOutputStream(fsDataOutputStream);

@@ -22,8 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
-import org.apache.flink.runtime.io.network.api.reader.ReaderBase;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
@@ -35,15 +34,15 @@ import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 
 /**
@@ -56,14 +55,11 @@ import java.util.Collection;
  * @param <IN1> The type of the records that arrive on the first input
  * @param <IN2> The type of the records that arrive on the second input
  */
-public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements ReaderBase, StreamingReader {
+public class StreamTwoInputProcessor<IN1, IN2> {
 
-	@SuppressWarnings("unused")
-	private static final Logger LOG = LoggerFactory.getLogger(StreamTwoInputProcessor.class);
+	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;
 
-	private final RecordDeserializer<DeserializationDelegate<Object>>[] recordDeserializers;
-
-	private RecordDeserializer<DeserializationDelegate<Object>> currentRecordDeserializer;
+	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer;
 
 	// We need to keep track of the channel from which a buffer came, so that we can
 	// appropriately map the watermarks to input channels
@@ -81,8 +77,8 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 
 	private final int numInputChannels1;
 
-	private final DeserializationDelegate<Object> deserializationDelegate1;
-	private final DeserializationDelegate<Object> deserializationDelegate2;
+	private final DeserializationDelegate<StreamElement> deserializationDelegate1;
+	private final DeserializationDelegate<StreamElement> deserializationDelegate2;
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public StreamTwoInputProcessor(
@@ -95,7 +91,7 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 			IOManager ioManager,
 			boolean enableWatermarkMultiplexing) throws IOException {
 		
-		super(InputGateUtil.createInputGate(inputGates1, inputGates2));
+		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
 
 		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
 			this.barrierHandler = new BarrierBuffer(inputGate, ioManager);
@@ -113,21 +109,21 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 		
 		if (enableWatermarkMultiplexing) {
 			MultiplexingStreamRecordSerializer<IN1> ser = new MultiplexingStreamRecordSerializer<IN1>(inputSerializer1);
-			this.deserializationDelegate1 = new NonReusingDeserializationDelegate<Object>(ser);
+			this.deserializationDelegate1 = new NonReusingDeserializationDelegate<StreamElement>(ser);
 		}
 		else {
 			StreamRecordSerializer<IN1> ser = new StreamRecordSerializer<IN1>(inputSerializer1);
-			this.deserializationDelegate1 = (DeserializationDelegate<Object>)
+			this.deserializationDelegate1 = (DeserializationDelegate<StreamElement>)
 					(DeserializationDelegate<?>) new NonReusingDeserializationDelegate<StreamRecord<IN1>>(ser);
 		}
 		
 		if (enableWatermarkMultiplexing) {
 			MultiplexingStreamRecordSerializer<IN2> ser = new MultiplexingStreamRecordSerializer<IN2>(inputSerializer2);
-			this.deserializationDelegate2 = new NonReusingDeserializationDelegate<Object>(ser);
+			this.deserializationDelegate2 = new NonReusingDeserializationDelegate<StreamElement>(ser);
 		}
 		else {
 			StreamRecordSerializer<IN2> ser = new StreamRecordSerializer<IN2>(inputSerializer2);
-			this.deserializationDelegate2 = (DeserializationDelegate<Object>)
+			this.deserializationDelegate2 = (DeserializationDelegate<StreamElement>)
 					(DeserializationDelegate<?>) new NonReusingDeserializationDelegate<StreamRecord<IN2>>(ser);
 		}
 
@@ -135,7 +131,7 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
 		
 		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<Object>>();
+			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<StreamElement>>();
 		}
 
 		// determine which unioned channels belong to input 1 and which belong to input 2
@@ -148,19 +144,14 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 		int numInputChannels2 = inputGate.getNumberOfInputChannels() - numInputChannels1;
 
 		watermarks1 = new long[numInputChannels1];
-		for (int i = 0; i < numInputChannels1; i++) {
-			watermarks1[i] = Long.MIN_VALUE;
-		}
+		Arrays.fill(watermarks1, Long.MIN_VALUE);
 		lastEmittedWatermark1 = Long.MIN_VALUE;
 
 		watermarks2 = new long[numInputChannels2];
-		for (int i = 0; i < numInputChannels2; i++) {
-			watermarks2[i] = Long.MIN_VALUE;
-		}
+		Arrays.fill(watermarks2, Long.MIN_VALUE);
 		lastEmittedWatermark2 = Long.MIN_VALUE;
 	}
-
-	@SuppressWarnings("unchecked")
+	
 	public boolean processInput(TwoInputStreamOperator<IN1, IN2, ?> streamOperator) throws Exception {
 		if (isFinished) {
 			return false;
@@ -182,22 +173,25 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 
 				if (result.isFullRecord()) {
 					if (currentChannel < numInputChannels1) {
-						Object recordOrWatermark = deserializationDelegate1.getInstance();
-						if (recordOrWatermark instanceof Watermark) {
+						StreamElement recordOrWatermark = deserializationDelegate1.getInstance();
+						if (recordOrWatermark.isWatermark()) {
 							handleWatermark(streamOperator, (Watermark) recordOrWatermark, currentChannel);
 							continue;
-						} else {
-							streamOperator.processElement1((StreamRecord<IN1>) deserializationDelegate1.getInstance());
+						}
+						else {
+							streamOperator.processElement1(recordOrWatermark.<IN1>asRecord());
 							return true;
 
 						}
-					} else {
-						Object recordOrWatermark = deserializationDelegate2.getInstance();
-						if (recordOrWatermark instanceof Watermark) {
-							handleWatermark(streamOperator, (Watermark) recordOrWatermark, currentChannel);
+					}
+					else {
+						StreamElement recordOrWatermark = deserializationDelegate2.getInstance();
+						if (recordOrWatermark.isWatermark()) {
+							handleWatermark(streamOperator, recordOrWatermark.asWatermark(), currentChannel);
 							continue;
-						} else {
-							streamOperator.processElement2((StreamRecord<IN2>) deserializationDelegate2.getInstance());
+						}
+						else {
+							streamOperator.processElement2(recordOrWatermark.<IN2>asRecord());
 							return true;
 						}
 					}
@@ -215,7 +209,9 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 				} else {
 					// Event received
 					final AbstractEvent event = bufferOrEvent.getEvent();
-					handleEvent(event);
+					if (event.getClass() != EndOfPartitionEvent.class) {
+						throw new IOException("Unexpected event: " + event);
+					}
 				}
 			}
 			else {
@@ -234,10 +230,8 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 			if (watermarkMillis > watermarks1[channelIndex]) {
 				watermarks1[channelIndex] = watermarkMillis;
 				long newMinWatermark = Long.MAX_VALUE;
-				for (long aWatermarks1 : watermarks1) {
-					if (aWatermarks1 < newMinWatermark) {
-						newMinWatermark = aWatermarks1;
-					}
+				for (long wm : watermarks1) {
+					newMinWatermark = Math.min(wm, newMinWatermark);
 				}
 				if (newMinWatermark > lastEmittedWatermark1) {
 					lastEmittedWatermark1 = newMinWatermark;
@@ -250,10 +244,8 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 			if (watermarkMillis > watermarks2[channelIndex]) {
 				watermarks2[channelIndex] = watermarkMillis;
 				long newMinWatermark = Long.MAX_VALUE;
-				for (long aWatermarks2 : watermarks2) {
-					if (aWatermarks2 < newMinWatermark) {
-						newMinWatermark = aWatermarks2;
-					}
+				for (long wm : watermarks2) {
+					newMinWatermark = Math.min(wm, newMinWatermark);
 				}
 				if (newMinWatermark > lastEmittedWatermark2) {
 					lastEmittedWatermark2 = newMinWatermark;
@@ -262,15 +254,13 @@ public class StreamTwoInputProcessor<IN1, IN2> extends AbstractReader implements
 			}
 		}
 	}
-
-	@Override
+	
 	public void setReporter(AccumulatorRegistry.Reporter reporter) {
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
 			deserializer.setReporter(reporter);
 		}
 	}
-
-	@Override
+	
 	public void cleanup() throws IOException {
 		// clear the buffers first. this part should not ever fail
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {

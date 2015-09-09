@@ -462,7 +462,7 @@ public abstract class YarnTestBase extends TestLogger {
 					runner.join(30000);
 				}
 				catch (InterruptedException e) {
-					LOG.debug("Interrupted while stopping runner", e);
+					LOG.warn("Interrupted while stopping runner", e);
 				}
 				LOG.warn("RunWithArgs runner stopped.");
 			}
@@ -548,12 +548,10 @@ public abstract class YarnTestBase extends TestLogger {
 
 	@AfterClass
 	public static void tearDown() {
-		//shutdown YARN cluster
-		if (yarnCluster != null) {
-			LOG.info("Shutting down MiniYarn cluster");
-			yarnCluster.stop();
-			yarnCluster = null;
-		}
+		/*
+			We don't shut down the MiniCluster, as it is prone to blocking infinitely.
+		*/
+		
 		// When we are on travis, we copy the tmp files of JUnit (containing the MiniYARNCluster log files)
 		// to <flinkRoot>/target/flink-yarn-tests-*.
 		// The files from there are picked up by the ./tools/travis_watchdog.sh script

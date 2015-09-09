@@ -56,7 +56,7 @@ import static org.junit.Assert.*;
 public class ZooKeeperLeaderElectionTest extends TestLogger {
 	private TestingCluster testingCluster;
 	private static final String TEST_URL = "akka//user/jobmanager";
-	private static final FiniteDuration timeout = new FiniteDuration(20000, TimeUnit.MILLISECONDS);
+	private static final FiniteDuration timeout = new FiniteDuration(60000, TimeUnit.MILLISECONDS);
 
 	@Before
 	public void before() {

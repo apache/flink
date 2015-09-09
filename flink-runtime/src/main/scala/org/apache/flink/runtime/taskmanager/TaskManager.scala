@@ -37,9 +37,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 
 import org.apache.flink.configuration._
-
+import org.apache.flink.core.memory.{HybridMemorySegment, HeapMemorySegment, MemorySegmentFactory, MemoryType}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
+import org.apache.flink.runtime.memory.MemoryManager.HeapMemoryPool
 import org.apache.flink.runtime.messages.TaskMessages._
 import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages, StreamingMode}
@@ -50,14 +51,13 @@ import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, Ta
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
-import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription,
-InstanceConnectionInfo, InstanceID}
+import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription, InstanceConnectionInfo, InstanceID}
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.disk.iomanager.{IOManager, IOManagerAsync}
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
-import org.apache.flink.runtime.memorymanager.{MemoryManager, DefaultMemoryManager}
+import org.apache.flink.runtime.memory.MemoryManager 
 import org.apache.flink.runtime.messages.Messages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages._
@@ -136,7 +136,7 @@ class TaskManager(
   protected val askTimeout = new Timeout(config.timeout)
 
   /** The TaskManager's physical execution resources */
-  protected val resources = HardwareDescription.extractFromSystem(memoryManager.getMemorySize)
+  protected val resources = HardwareDescription.extractFromSystem(memoryManager.getMemorySize())
 
   /** Registry of all tasks currently executed by this TaskManager */
   protected val runningTasks = new java.util.HashMap[ExecutionAttemptID, Task]()
@@ -1548,7 +1548,8 @@ object TaskManager {
 
     val (taskManagerConfig : TaskManagerConfiguration,      
       netConfig: NetworkEnvironmentConfiguration,
-      connectionInfo: InstanceConnectionInfo
+      connectionInfo: InstanceConnectionInfo,
+      memType: MemoryType
     ) = parseTaskManagerConfiguration(
       configuration,
       taskManagerHostname,
@@ -1577,7 +1578,7 @@ object TaskManager {
       LOG.info(s"Using $configuredMemory MB for Flink managed memory.")
       configuredMemory << 20 // megabytes to bytes
     }
-    else {
+    else if (memType == MemoryType.HEAP) {
       val fraction = configuration.getFloat(
         ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
         ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
@@ -1589,7 +1590,24 @@ object TaskManager {
         fraction).toLong
 
       LOG.info(s"Using $fraction of the currently free heap space for Flink managed " +
-        s"memory (${relativeMemSize >> 20} MB).")
+        s" heap memory (${relativeMemSize >> 20} MB).")
+
+      relativeMemSize
+    }
+    else {
+      val ratio = configuration.getFloat(
+        ConfigConstants.TASK_MANAGER_MEMORY_OFF_HEAP_RATIO_KEY,
+        ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_OFF_HEAP_RATIO)
+      
+      checkConfigParameter(ratio > 0.0f,
+        ConfigConstants.TASK_MANAGER_MEMORY_OFF_HEAP_RATIO_KEY,
+        "MemoryManager ratio (off-heap memory / heap size) must be larger than zero")
+      
+      val maxHeapSize = EnvironmentInformation.getMaxJvmHeapMemory()
+      val relativeMemSize = (maxHeapSize * ratio).toLong
+
+      LOG.info(s"Using $ratio time the heap size (${maxHeapSize} bytes) for Flink " +
+        s"managed off-heap memory (${relativeMemSize >> 20} MB).")
 
       relativeMemSize
     }
@@ -1598,16 +1616,27 @@ object TaskManager {
 
     // now start the memory manager
     val memoryManager = try {
-      new DefaultMemoryManager(
+      new MemoryManager(
         memorySize,
         taskManagerConfig.numberOfSlots,
         netConfig.networkBufferSize,
+        memType,
         preAllocateMemory)
     }
     catch {
-      case e: OutOfMemoryError => throw new Exception(
-        "OutOfMemory error (" + e.getMessage + ") while allocating the TaskManager memory (" +
-          memorySize + " bytes).", e)
+      case e: OutOfMemoryError => 
+        memType match {
+          case MemoryType.HEAP =>
+            throw new Exception(s"OutOfMemory error (${e.getMessage()})" + 
+              s" while allocating the TaskManager heap memory (${memorySize} bytes).", e)
+            
+          case MemoryType.OFF_HEAP =>
+            throw new Exception(s"OutOfMemory error (${e.getMessage()})" +
+              s" while allocating the TaskManager off-heap memory (${memorySize} bytes). " +
+              s"Try increasing the maximum direct memory (-XX:MaxDirectMemorySize)", e)
+            
+          case _ => throw e
+        }
     }
 
     // start the I/O manager last, it will create some temp directories.
@@ -1692,7 +1721,8 @@ object TaskManager {
       localTaskManagerCommunication: Boolean)
     : (TaskManagerConfiguration,
      NetworkEnvironmentConfiguration,
-     InstanceConnectionInfo) = {
+     InstanceConnectionInfo,
+     MemoryType) = {
 
     // ------- read values from the config and check them ---------
     //                      (a lot of them)
@@ -1738,9 +1768,9 @@ object TaskManager {
     val pageSize: Int =
       if (pageSizeNew != -1) {
         // new page size has been configured
-        checkConfigParameter(pageSizeNew >= DefaultMemoryManager.MIN_PAGE_SIZE, pageSizeNew,
+        checkConfigParameter(pageSizeNew >= MemoryManager.MIN_PAGE_SIZE, pageSizeNew,
           ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
-          "Minimum memory segment size is " + DefaultMemoryManager.MIN_PAGE_SIZE)
+          "Minimum memory segment size is " + MemoryManager.MIN_PAGE_SIZE)
 
         checkConfigParameter(MathUtils.isPowerOf2(pageSizeNew), pageSizeNew,
           ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
@@ -1754,9 +1784,9 @@ object TaskManager {
       }
       else {
         // old page size has been configured
-        checkConfigParameter(pageSizeOld >= DefaultMemoryManager.MIN_PAGE_SIZE, pageSizeOld,
+        checkConfigParameter(pageSizeOld >= MemoryManager.MIN_PAGE_SIZE, pageSizeOld,
           ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
-          "Minimum buffer size is " + DefaultMemoryManager.MIN_PAGE_SIZE)
+          "Minimum buffer size is " + MemoryManager.MIN_PAGE_SIZE)
 
         checkConfigParameter(MathUtils.isPowerOf2(pageSizeOld), pageSizeOld,
           ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
@@ -1764,6 +1794,35 @@ object TaskManager {
 
         pageSizeOld
       }
+    
+    // check whether we use heap or off-heap memory
+    val memType: MemoryType = 
+      if (configuration.getBoolean(ConfigConstants.TASK_MANAGER_MEMORY_OFF_HEAP_KEY, false)) {
+        MemoryType.OFF_HEAP
+      } else {
+        MemoryType.HEAP
+      }
+    
+    // initialize the memory segment factory accordingly
+    memType match {
+      case MemoryType.HEAP =>
+        if (!MemorySegmentFactory.isInitialized()) {
+          MemorySegmentFactory.initializeFactory(HeapMemorySegment.FACTORY)
+        }
+        else if (MemorySegmentFactory.getFactory() != HeapMemorySegment.FACTORY) {
+          throw new Exception("Memory type is set to heap memory, but memory segment " +
+            "factory has been initialized for off-heap memory segments")
+        }
+
+      case MemoryType.OFF_HEAP =>
+        if (!MemorySegmentFactory.isInitialized()) {
+          MemorySegmentFactory.initializeFactory(HybridMemorySegment.FACTORY)
+        }
+        else if (MemorySegmentFactory.getFactory() != HybridMemorySegment.FACTORY) {
+          throw new Exception("Memory type is set to off-heap memory, but memory segment " +
+            "factory has been initialized for heap memory segments")
+        }
+    }
     
     val tmpDirs = configuration.getString(
       ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
@@ -1783,7 +1842,8 @@ object TaskManager {
     }
 
     // Default spill I/O mode for intermediate results
-    val syncOrAsync = configuration.getString(ConfigConstants.TASK_MANAGER_NETWORK_DEFAULT_IO_MODE,
+    val syncOrAsync = configuration.getString(
+      ConfigConstants.TASK_MANAGER_NETWORK_DEFAULT_IO_MODE,
       ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE)
 
     val ioMode : IOMode = if (syncOrAsync == "async") IOMode.ASYNC else IOMode.SYNC
@@ -1791,6 +1851,7 @@ object TaskManager {
     val networkConfig = NetworkEnvironmentConfiguration(
       numNetworkBuffers,
       pageSize,
+      memType,
       ioMode,
       nettyConfig)
 
@@ -1834,7 +1895,7 @@ object TaskManager {
       slots,
       configuration)
 
-    (taskManagerConfig, networkConfig, connectionInfo)
+    (taskManagerConfig, networkConfig, connectionInfo, memType)
   }
 
   /**

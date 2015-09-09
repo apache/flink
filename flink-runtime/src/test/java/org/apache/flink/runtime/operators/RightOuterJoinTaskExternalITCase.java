@@ -17,28 +17,25 @@
  */
 
 
-package org.apache.flink.runtime.memorymanager;
+package org.apache.flink.runtime.operators;
 
-/**
- * An exception to be thrown when a memory allocation operation is not successful.
- */
-public class MemoryAllocationException extends Exception {
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.tuple.Tuple2;
+
+public class RightOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExternalITCase {
 	
-	private static final long serialVersionUID = -403983866457947012L;
-
-	public MemoryAllocationException() {
-		super();
+	
+	public RightOuterJoinTaskExternalITCase(ExecutionConfig config) {
+		super(config, DriverStrategy.RIGHT_OUTER_MERGE);
 	}
-
-	public MemoryAllocationException(String message, Throwable cause) {
-		super(message, cause);
+	
+	@Override
+	protected int calculateExpectedCount(int keyCnt1, int valCnt1, int keyCnt2, int valCnt2) {
+		return valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2) + (keyCnt2 > keyCnt1 ? (keyCnt2 - keyCnt1) * valCnt2 : 0);
 	}
-
-	public MemoryAllocationException(String message) {
-		super(message);
-	}
-
-	public MemoryAllocationException(Throwable cause) {
-		super(cause);
+	
+	@Override
+	protected AbstractOuterJoinDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> getOuterJoinDriver() {
+		return new RightOuterJoinDriver<>();
 	}
 }
