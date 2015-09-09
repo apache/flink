@@ -67,9 +67,9 @@ angular.module('flinkApp')
       else 'default'
 
   @setEndTimes = (list) ->
-    angular.forEach list, (job, jobKey) ->
-      unless job['end-time'] > -1
-        job['end-time'] = job['start-time'] + job['duration']
+    angular.forEach list, (item, jobKey) ->
+      unless item['end-time'] > -1
+        item['end-time'] = item['start-time'] + item['duration']
 
   @listJobs = ->
     deferred = $q.defer()
@@ -112,18 +112,6 @@ angular.module('flinkApp')
 
     deferreds.job.promise
 
-  @loadPlan = (jobid) ->
-    currentPlan = null
-    deferreds.plan = $q.defer()
-
-    $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/plan"
-    .success (data) ->
-      currentPlan = data
-
-      deferreds.plan.resolve(data)
-
-    deferreds.plan.promise
-
   @getNode = (nodeid) ->
     seekNode = (nodeid, data) ->
       for node in data
@@ -136,7 +124,7 @@ angular.module('flinkApp')
 
     deferred = $q.defer()
 
-    $q.all([deferreds.job.promise]).then (data) =>
+    deferreds.job.promise.then (data) =>
       foundNode = seekNode(nodeid, currentJob.plan.nodes)
 
       foundNode.vertex = @seekVertex(nodeid)
@@ -154,13 +142,15 @@ angular.module('flinkApp')
   @getVertex = (vertexid) ->
     deferred = $q.defer()
 
-    $q.all([deferreds.job.promise]).then (data) =>
+    deferreds.job.promise.then (data) =>
       vertex = @seekVertex(vertexid)
 
       $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasktimes"
-      .success (data) ->
+      .success (data) =>
         # TODO: change to subtasktimes
         vertex.subtasks = data.subtasks
+        @setEndTimes(vertex.subtasks)
+        console.log vertex.subtasks
 
         deferred.resolve(vertex)
 
@@ -169,7 +159,7 @@ angular.module('flinkApp')
   @getSubtasks = (vertexid) ->
     deferred = $q.defer()
 
-    $q.all([deferreds.job.promise]).then (data) =>
+    deferreds.job.promise.then (data) =>
       vertex = @seekVertex(vertexid)
 
       $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid
@@ -183,7 +173,7 @@ angular.module('flinkApp')
   @getAccumulators = (vertexid) ->
     deferred = $q.defer()
 
-    $q.all([deferreds.job.promise]).then (data) =>
+    deferreds.job.promise.then (data) =>
       vertex = @seekVertex(vertexid)
 
       $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators"
@@ -198,7 +188,7 @@ angular.module('flinkApp')
   @loadExceptions = ->
     deferred = $q.defer()
 
-    $q.all([deferreds.job.promise]).then (data) =>
+    deferreds.job.promise.then (data) =>
 
       $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/exceptions"
       .success (exceptions) ->
