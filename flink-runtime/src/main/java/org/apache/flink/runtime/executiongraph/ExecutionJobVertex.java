@@ -482,7 +482,7 @@ public class ExecutionJobVertex implements Serializable {
 					stateMonitor.notifyAll();
 					
 					// tell the graph
-					graph.jobVertexInFinalState(this);
+					graph.jobVertexInFinalState();
 				} else {
 					numSubtasksInFinalState++;
 				}
