@@ -201,6 +201,8 @@ under the License.
 		<dependency>
 			<groupId>org.apache.curator</groupId>
 			<artifactId>curator-test</artifactId>
+			<version>${curator.version}</version>
+			<scope>test</scope>
 		</dependency>
 
 	</dependencies>
@@ -338,6 +340,11 @@ under the License.
 						<exclude>**/TestData.java</exclude>
 						<exclude>**/TestInstanceListener.java</exclude>
 					</excludes>
+					<classpathDependencyExcludes>
+						<classpathDependencyExclude>org.apache.curator:curator-recipes</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.curator:curator-framework</classpathDependencyExclude>
+					</classpathDependencyExcludes>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
@@ -350,6 +357,11 @@ under the License.
 					<excludes>
 						<exclude>**/TestData.java</exclude>
 					</excludes>
+					<classpathDependencyExcludes>
+						<classpathDependencyExclude>org.apache.curator:curator-recipes</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.curator:curator-framework</classpathDependencyExclude>
+					</classpathDependencyExcludes>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>

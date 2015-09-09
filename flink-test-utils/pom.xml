@@ -93,6 +93,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.curator</groupId>
 			<artifactId>curator-test</artifactId>
+			<version>${curator.version}</version>
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
