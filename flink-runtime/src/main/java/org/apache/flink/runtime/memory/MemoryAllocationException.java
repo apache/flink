@@ -17,32 +17,28 @@
  */
 
 
-package org.apache.flink.runtime.memorymanager;
-
-import java.util.List;
-
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentSource;
+package org.apache.flink.runtime.memory;
 
 /**
- * Simple memory segment source that draws segments from a list.
- * 
+ * An exception to be thrown when a memory allocation operation is not successful.
  */
-public class ListMemorySegmentSource implements MemorySegmentSource
-{
-	private final List<MemorySegment> segments;
+public class MemoryAllocationException extends Exception {
 	
-	public ListMemorySegmentSource(final List<MemorySegment> memorySegments) {
-		this.segments = memorySegments;
-	}
-	
+	private static final long serialVersionUID = -403983866457947012L;
 
-	@Override
-	public MemorySegment nextSegment() {
-		if (this.segments.size() > 0) {
-			return this.segments.remove(this.segments.size() - 1);
-		} else {
-			return null;
-		}
+	public MemoryAllocationException() {
+		super();
+	}
+
+	public MemoryAllocationException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public MemoryAllocationException(String message) {
+		super(message);
+	}
+
+	public MemoryAllocationException(Throwable cause) {
+		super(cause);
 	}
 }

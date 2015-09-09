@@ -111,7 +111,7 @@ public class ClientTest {
 		whenNew(Optimizer.class).withArguments(any(DataStatistics.class), any(CostEstimator.class), any(Configuration.class)).thenReturn(this.compilerMock);
 		when(compilerMock.compile(planMock)).thenReturn(optimizedPlanMock);
 
-		whenNew(JobGraphGenerator.class).withNoArguments().thenReturn(generatorMock);
+		whenNew(JobGraphGenerator.class).withAnyArguments().thenReturn(generatorMock);
 		when(generatorMock.compileJobGraph(optimizedPlanMock)).thenReturn(jobGraph);
 
 		try {

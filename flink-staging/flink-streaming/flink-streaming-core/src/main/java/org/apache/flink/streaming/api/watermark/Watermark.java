@@ -17,6 +17,8 @@
  */
 package org.apache.flink.streaming.api.watermark;
 
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+
 /**
  * A Watermark tells operators that receive it that no elements with a timestamp older or equal
  * to the watermark timestamp should arrive at the operator. Watermarks are emitted at the
@@ -31,11 +33,11 @@ package org.apache.flink.streaming.api.watermark;
  * In some cases a watermark is only a heuristic and operators should be able to deal with
  * late elements. They can either discard those or update the result and emit updates/retractions
  * to downstream operations.
- *
  */
-public class Watermark {
+public class Watermark extends StreamElement {
 
-	private long timestamp;
+	/** The timestamp of the watermark */
+	private final long timestamp;
 
 	/**
 	 * Creates a new watermark with the given timestamp.
@@ -53,16 +55,8 @@ public class Watermark {
 
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-
-		Watermark watermark = (Watermark) o;
-
-		return timestamp == watermark.timestamp;
+		return this == o ||
+				o != null && o.getClass() == Watermark.class && ((Watermark) o).timestamp == this.timestamp;
 	}
 
 	@Override
@@ -72,8 +66,6 @@ public class Watermark {
 
 	@Override
 	public String toString() {
-		return "Watermark{" +
-				"timestamp=" + timestamp +
-				'}';
+		return "Watermark @ " + timestamp;
 	}
 }

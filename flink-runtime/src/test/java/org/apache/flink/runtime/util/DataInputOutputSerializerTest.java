@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.junit.Assert;
 
 import org.apache.flink.core.memory.MemorySegment;
@@ -38,7 +38,7 @@ public class DataInputOutputSerializerTest {
 		SerializationTestType randomInt = Util.randomRecord(SerializationTestTypeFactory.INT);
 
 		DataOutputSerializer serializer = new DataOutputSerializer(randomInt.length());
-		MemorySegment segment = new MemorySegment(new byte[randomInt.length()]);
+		MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(randomInt.length());
 
 		try {
 			// empty buffer, read buffer should be empty

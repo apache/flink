@@ -125,9 +125,14 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_MEMORY_FRACTION_KEY = "taskmanager.memory.fraction";
 
 	/**
-	 * The key for the config parameter defining whether the memory manager allocates memory lazy.
+	 * The fraction of off-heap memory relative to the heap size.
 	 */
-	public static final String TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY = "taskmanager.memory.lazyalloc";
+	public static final String TASK_MANAGER_MEMORY_OFF_HEAP_RATIO_KEY = "taskmanager.memory.off-heap-ratio";
+	
+	/**
+	 * The config parameter defining the memory allocation method (JVM heap or off-heap).
+	*/
+	public static final String TASK_MANAGER_MEMORY_OFF_HEAP_KEY = "taskmanager.memory.off-heap";
 
 	/**
 	 * The config parameter defining the number of buffers used in the network stack. This defines the
@@ -542,6 +547,11 @@ public final class ConfigConstants {
 	 */
 	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION = 0.7f;
 
+	/**
+	 * The default ratio of heap to off-heap memory, when the TaskManager is started with off-heap memory.
+	 */
+	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_OFF_HEAP_RATIO = 3.0f;
+	
 	/**
 	 * Default number of buffers used in the network stack.
 	 */

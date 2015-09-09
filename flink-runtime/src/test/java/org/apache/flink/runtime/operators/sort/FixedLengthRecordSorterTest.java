@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.sort;
 
 import java.util.List;
@@ -25,9 +24,8 @@ import java.util.Random;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
-import org.apache.flink.runtime.operators.sort.QuickSort;
+import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.RandomIntPairGenerator;
 import org.apache.flink.runtime.operators.testutils.UniformIntPairGenerator;
@@ -43,15 +41,15 @@ import org.junit.Test;
 /**
  * 
  */
-public class FixedLengthRecordSorterTest
-{
+public class FixedLengthRecordSorterTest {
+	
 	private static final long SEED = 649180756312423613L;
 
 	private static final int MEMORY_SIZE = 1024 * 1024 * 64;
 	
 	private static final int MEMORY_PAGE_SIZE = 32 * 1024; 
 
-	private DefaultMemoryManager memoryManager;
+	private MemoryManager memoryManager;
 	
 	private TypeSerializer<IntPair> serializer;
 	
@@ -60,7 +58,7 @@ public class FixedLengthRecordSorterTest
 
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, MEMORY_PAGE_SIZE);
+		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE, MemoryType.HEAP, true);
 		this.serializer = new IntPairSerializer();
 		this.comparator = new IntPairComparator();
 	}

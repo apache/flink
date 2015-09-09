@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
@@ -33,7 +33,6 @@ import org.junit.runner.RunWith;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -95,7 +94,9 @@ public class StreamRecordWriterTest {
 		when(mockProvider.requestBufferBlocking()).thenAnswer(new Answer<Buffer>() {
 			@Override
 			public Buffer answer(InvocationOnMock invocation) {
-				return new Buffer(new MemorySegment(new byte[4096]), FreeingBufferRecycler.INSTANCE);
+				return new Buffer(
+						MemorySegmentFactory.allocateUnpooledSegment(4096),
+						FreeingBufferRecycler.INSTANCE);
 			}
 		});
 		

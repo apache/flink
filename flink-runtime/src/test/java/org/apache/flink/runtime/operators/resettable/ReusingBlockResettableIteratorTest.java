@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.resettable;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -36,9 +35,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-
-public class ReusingBlockResettableIteratorTest
-{
+public class ReusingBlockResettableIteratorTest {
+	
 	private static final int MEMORY_CAPACITY = 3 * 128 * 1024;
 	
 	private static final int NUM_VALUES = 20000;
@@ -54,7 +52,7 @@ public class ReusingBlockResettableIteratorTest
 	@Before
 	public void startup() {
 		// set up IO and memory manager
-		this.memman = new DefaultMemoryManager(MEMORY_CAPACITY, 1);
+		this.memman = new MemoryManager(MEMORY_CAPACITY, 1);
 		
 		// create test objects
 		this.objects = new ArrayList<Record>(20000);
@@ -197,5 +195,4 @@ public class ReusingBlockResettableIteratorTest
 		// close the iterator
 		iterator.close();
 	}
-
 }

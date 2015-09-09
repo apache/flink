@@ -69,6 +69,7 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 	private int partNumber = 1; // First valid upload part number is 1.
 
 	private int bytesWritten = 0;
+	
 
 	private final class InternalUploadInputStream extends InputStream {
 
@@ -83,12 +84,9 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 			this.length = length;
 		}
 
-		/**
-		 * {@inheritDoc}
-		 */
+
 		@Override
 		public int read() throws IOException {
-
 			if (this.length - this.bytesRead == 0) {
 				return -1;
 			}
@@ -96,21 +94,14 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 			return (int) this.srcBuf[this.bytesRead++];
 		}
 
-		/**
-		 * {@inheritDoc}
-		 */
+
 		@Override
 		public int read(final byte[] buf) throws IOException {
-
 			return read(buf, 0, buf.length);
 		}
 
-		/**
-		 * {@inheritDoc}
-		 */
 		@Override
 		public int read(final byte[] buf, final int off, final int len) throws IOException {
-
 			if (this.length - this.bytesRead == 0) {
 				return -1;
 			}
@@ -122,18 +113,12 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 			return bytesToCopy;
 		}
 
-		/**
-		 * {@inheritDoc}
-		 */
 		@Override
 		public int available() throws IOException {
 
 			return (this.length - bytesRead);
 		}
 
-		/**
-		 * {@inheritDoc}
-		 */
 		@Override
 		public long skip(final long n) throws IOException {
 
@@ -159,7 +144,6 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 
 	@Override
 	public void write(final int b) throws IOException {
-
 		// Upload buffer to S3
 		if (this.bytesWritten == this.buf.length) {
 			uploadPartAndFlushBuffer();
@@ -171,11 +155,9 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 
 	@Override
 	public void write(final byte[] b, final int off, final int len) throws IOException {
-
 		int nextPos = off;
 
 		while (nextPos < len) {
-
 			// Upload buffer to S3
 			if (this.bytesWritten == this.buf.length) {
 				uploadPartAndFlushBuffer();
@@ -191,14 +173,12 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 
 	@Override
 	public void write(final byte[] b) throws IOException {
-
 		write(b, 0, b.length);
 	}
 
 
 	@Override
 	public void close() throws IOException {
-
 		if (this.uploadId == null) {
 			// This is not a multipart upload
 
@@ -251,10 +231,13 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 		}
 	}
 
-
+	@Override
+	public void sync() throws IOException {
+		// can do nothing here
+	}
+	
 	@Override
 	public void flush() throws IOException {
-
 		// Flush does nothing in this implementation since we ways have to transfer at least 5 MB in a multipart upload
 	}
 
@@ -267,7 +250,6 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 		}
 
 		try {
-
 			if (this.partNumber >= MAX_PART_NUMBER) {
 				throw new IOException("Cannot upload any more data: maximum part number reached");
 			}
@@ -287,9 +269,11 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 			this.bytesWritten = 0;
 			operationSuccessful = true;
 
-		} catch (AmazonServiceException e) {
-			throw new IOException(StringUtils.stringifyException(e));
-		} finally {
+		}
+		catch (AmazonServiceException e) {
+			throw new IOException(e.getMessage(), e);
+		}
+		finally {
 			if (!operationSuccessful) {
 				abortUpload();
 			}
@@ -312,9 +296,11 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 			operationSuccessful = true;
 			return result.getUploadId();
 
-		} catch (AmazonServiceException e) {
-			throw new IOException(StringUtils.stringifyException(e));
-		} finally {
+		}
+		catch (AmazonServiceException e) {
+			throw new IOException(e.getMessage(), e);
+		}
+		finally {
 			if (!operationSuccessful) {
 				abortUpload();
 			}
@@ -322,7 +308,6 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 	}
 
 	private void abortUpload() {
-
 		if (this.uploadId == null) {
 			// This is not a multipart upload, nothing to do here
 			return;
@@ -332,7 +317,8 @@ public final class S3DataOutputStream extends FSDataOutputStream {
 			final AbortMultipartUploadRequest request = new AbortMultipartUploadRequest(this.bucket, this.object,
 				this.uploadId);
 			this.s3Client.abortMultipartUpload(request);
-		} catch (AmazonServiceException e) {
+		}
+		catch (AmazonServiceException e) {
 			// Ignore exception
 		}
 	}

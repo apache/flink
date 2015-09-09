@@ -28,9 +28,8 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryAllocationException;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.types.StringPair;
 import org.apache.flink.runtime.operators.testutils.types.StringPairComparator;
@@ -46,6 +45,7 @@ import org.junit.Test;
 import static org.junit.Assert.fail;
 
 public class MutableHashTablePerformanceBenchmark {
+	
 	private static final AbstractInvokable MEM_OWNER = new DummyInvokable();
 	
 	private MemoryManager memManager;
@@ -68,7 +68,7 @@ public class MutableHashTablePerformanceBenchmark {
 		this.pairProbeSideComparator = new StringPairComparator();
 		this.pairComparator = new StringPairPairComparator();
 		
-		this.memManager = new DefaultMemoryManager(64 * 1024 * 1024, 1);
+		this.memManager = new MemoryManager(64 * 1024 * 1024, 1);
 		this.ioManager = new IOManagerAsync();
 	}
 	

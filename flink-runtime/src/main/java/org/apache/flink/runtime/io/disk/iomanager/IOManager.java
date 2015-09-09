@@ -63,9 +63,6 @@ public abstract class IOManager {
 	/** The number of the next path to use. */
 	private volatile int nextPath;
 
-	/** Shutdown hook to make sure that the directories are removed on exit */
-	private final Thread shutdownHook;
-
 	// -------------------------------------------------------------------------
 	//               Constructors / Destructors
 	// -------------------------------------------------------------------------
@@ -96,21 +93,6 @@ public abstract class IOManager {
 			paths[i] = storageDir;
 			LOG.info("I/O manager uses directory {} for spill files.", storageDir.getAbsolutePath());
 		}
-
-		this.shutdownHook = new Thread("I/O manager shutdown hook") {
-			@Override
-			public void run() {
-				shutdown();
-			}
-		};
-		try {
-			Runtime.getRuntime().addShutdownHook(this.shutdownHook);
-		} catch (IllegalStateException e) {
-			// race, JVM is in shutdown already, we can safely ignore this
-			LOG.debug("Unable to add shutdown hook, shutdown already in progress", e);
-		} catch (Throwable t) {
-			LOG.warn("Error while adding shutdown hook for IOManager", t);
-		}
 	}
 
 	/**
@@ -129,20 +111,6 @@ public abstract class IOManager {
 				}
 			} catch (Throwable t) {
 				LOG.error("IOManager failed to properly clean up temp file directory: " + path, t);
-			}
-		}
-
-		// Remove shutdown hook to prevent resource leaks, unless this is invoked by the shutdown hook itself
-		if (shutdownHook != Thread.currentThread()) {
-			try {
-				Runtime.getRuntime().removeShutdownHook(shutdownHook);
-			}
-			catch (IllegalStateException e) {
-				// race, JVM is in shutdown already, we can safely ignore this
-				LOG.debug("Unable to remove shutdown hook, shutdown already in progress", e);
-			}
-			catch (Throwable t) {
-				LOG.warn("Exception while unregistering IOManager's shutdown hook.", t);
 			}
 		}
 	}

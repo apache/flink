@@ -23,8 +23,8 @@ import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryAllocationException;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.util.KeyGroupedIterator;
 import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.MutableObjectIterator;
@@ -53,7 +53,7 @@ public class ReusingMergeOuterJoinIterator<T1, T2, O> extends AbstractMergeOuter
 
 	@Override
 	protected <T> KeyGroupedIterator<T> createKeyGroupedIterator(MutableObjectIterator<T> input, TypeSerializer<T> serializer, TypeComparator<T> comparator) {
-		return new ReusingKeyGroupedIterator<T>(input, serializer, comparator);
+		return new ReusingKeyGroupedIterator<>(input, serializer, comparator);
 	}
 
 	@Override

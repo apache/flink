@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Provides the default data set used for the Simple Community Detection example program.
+ * Provides the default data set used for the Simple Community Detection test program.
  * If no parameters are given to the program, the default edge data set is used.
  */
 public class CommunityDetectionData {

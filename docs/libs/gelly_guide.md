@@ -800,6 +800,10 @@ Gelly has a growing collection of graph algorithms for easily analyzing large-sc
 * Label Propagation
 * Simple Community Detection
 * Connected Components
+* GSA PageRank
+* GSA Connected Components
+* GSA Single-Source Shortest Paths
+* GSA Triangle Count
 
 Gelly's library methods can be used by simply calling the `run()` method on the input graph:
 
