@@ -100,17 +100,7 @@ angular.module('flinkApp')
 
     $http.get flinkConfig.jobServer + "/jobs/" + jobid
     .success (data, status, headers, config) =>
-      # console.log data.vertices
       @setEndTimes(data.vertices)
-      # console.log data.vertices
-
-      # $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/vertices"
-      # .success (vertices) ->
-      #   data = angular.extend(data, vertices)
-
-        # $http.get flinkConfig.jobServer + "/jobsInfo?get=job&job=" + jobid
-        # .success (oldVertices) ->
-        #   data.oldV = oldVertices[0]
 
       $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/config"
       .success (jobConfig) ->
@@ -146,9 +136,7 @@ angular.module('flinkApp')
 
     deferred = $q.defer()
 
-    # $q.all([deferreds.plan.promise, deferreds.job.promise]).then (data) =>
     $q.all([deferreds.job.promise]).then (data) =>
-      # foundNode = seekNode(nodeid, currentPlan.nodes)
       foundNode = seekNode(nodeid, currentJob.plan.nodes)
 
       foundNode.vertex = @seekVertex(nodeid)
@@ -187,6 +175,20 @@ angular.module('flinkApp')
       $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid
       .success (data) ->
         vertex.st = data.subtasks
+
+        deferred.resolve(vertex)
+
+    deferred.promise
+
+  @getAccumulators = (vertexid) ->
+    deferred = $q.defer()
+
+    $q.all([deferreds.job.promise]).then (data) =>
+      vertex = @seekVertex(vertexid)
+
+      $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators"
+      .success (data) ->
+        vertex.accumulators = data['user-accumulators']
 
         deferred.resolve(vertex)
 

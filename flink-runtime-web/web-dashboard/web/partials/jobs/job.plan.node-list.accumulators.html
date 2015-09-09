@@ -17,14 +17,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 -->
-<div ng-if="vertex" class="panel panel-default panel-multi">
-  <div class="panel-heading clearfix">
-    <div class="panel-title">{{ vertex.groupvertex.groupvertexname | humanizeText }}</div>
-  </div>
-  <div class="panel-body">
-    <div class="canvas-wrapper">
-      <div vertex="vertex" data="vertex" class="timeline-canvas"></div>
-    </div>
-    <div id="timeline1"></div>
-  </div>
-</div>
+<table class="table table-body-hover table-clickable table-activable">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="changeNode(v.id)">
+    <tr>
+      <td>{{ v.name | humanizeText }}</td>
+      <td> 
+        <bs-label status="{{v.status}}">{{v.status}}</bs-label>
+      </td>
+    </tr>
+    <tr ng-if="nodeid &amp;&amp; v.id == nodeid">
+      <td colspan="10">
+        <div ng-include=" 'partials/jobs/job.plan.node.accumulators.html' "></div>
+      </td>
+    </tr>
+  </tbody>
+</table>

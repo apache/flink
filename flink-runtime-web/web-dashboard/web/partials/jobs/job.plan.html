@@ -18,6 +18,14 @@ limitations under the License.
 
 -->
 <div class="canvas-wrapper">
-  <div job-plan="job-plan" plan="plan" jobid="{{jobid}}" class="main-canvas"></div>
+  <div job-plan="job-plan" plan="plan" jobid="{{jobid}}" set-node="changeNode(nodeid)" class="main-canvas"></div>
 </div>
-<div ui-view="node-tabs"></div>
+<div ng-if="plan" class="panel panel-default panel-multi">
+  <nav class="navbar navbar-default navbar-secondary-additional">
+    <ul class="nav nav-tabs">
+      <li ui-sref-active="active"><a ui-sref=".overview({nodeid: nodeid})">Overview</a></li>
+      <li ui-sref-active="active"><a ui-sref=".accumulators({nodeid: nodeid})">Accumulators</a></li>
+    </ul>
+  </nav>
+  <div ui-view="node-details" class="panel-body clean"></div>
+</div>

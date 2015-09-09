@@ -86,43 +86,25 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
 
   .state "single-job.plan",
     url: ""
+    abstract: true
     views:
       details:
         templateUrl: "partials/jobs/job.plan.html"
         controller: 'JobPlanController'
 
-  .state "single-job.plan.node",
-    url: "/vertex/{nodeid}"
-    abstract: true
-    views:
-      'node-tabs':
-        templateUrl: "partials/jobs/job.plan.node-tabs.html"
-        controller: 'JobPlanNodeTabsController'
-
-  .state "single-job.plan.node.generic",
+  .state "single-job.plan.overview",
     url: ""
     views:
       'node-details':
-        controller: 'JobPlanNodeListController' 
-        templateUrl: "partials/jobs/job.plan.node-list.html"
+        templateUrl: "partials/jobs/job.plan.node-list.overview.html"
+        controller: 'JobPlanOverviewController' 
 
-  .state "single-job.plan.node.accumulators",
+  .state "single-job.plan.accumulators",
     url: "/accumulators"
     views:
       'node-details':
-        controller: 'JobPlanNodeListAccumulatorsController' 
-        templateUrl: "partials/jobs/job.plan.node-list.html"
-        # controller: 'JobPlanNodePropertiesController'
-        # templateUrl: "partials/jobs/job.plan.node.properties.html"
-
-  .state "single-job.plan.node.properties",
-    url: "/properties"
-    views:
-      'node-details':
-        controller: 'JobPlanNodePropertiesController'
-        templateUrl: "partials/jobs/job.plan.node.properties.html"
-
-
+        templateUrl: "partials/jobs/job.plan.node-list.accumulators.html"
+        controller: 'JobPlanAccumulatorsController' 
 
   .state "single-job.timeline",
     url: "/timeline"
@@ -149,6 +131,13 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
       details:
         templateUrl: "partials/jobs/job.exceptions.html"
         controller: 'JobExceptionsController'
+
+  .state "single-job.properties",
+    url: "/properties"
+    views:
+      details:
+        templateUrl: "partials/jobs/job.properties.html"
+        controller: 'JobPropertiesController'
 
   .state "single-job.config",
     url: "/config"

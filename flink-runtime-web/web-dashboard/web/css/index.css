@@ -39,6 +39,16 @@
   width: auto;
   height: 22px;
 }
+#sidebar .logo img {
+  display: inline-block;
+}
+#sidebar .navbar-static-top {
+  overflow: hidden;
+  height: 51px;
+}
+#sidebar .navbar-static-top .navbar-header {
+  width: 100%;
+}
 #sidebar .navbar-brand.navbar-brand-text {
   font-size: 14px;
   font-weight: bold;
@@ -131,6 +141,14 @@
 .table th {
   font-weight: normal;
   color: #999;
+}
+.table td.td-long {
+  width: 20%;
+  white-space: pre-wrap;
+  white-space: -moz-pre-wrap;
+  white-space: -pre-wrap;
+  white-space: -o-pre-wrap;
+  word-wrap: break-word;
 }
 .table.table-clickable tr {
   cursor: pointer;
@@ -355,6 +373,12 @@ pre.exception {
   border-bottom: none;
   border-left: 2px solid #000;
 }
+.navbar-main .navbar-title,
+.navbar-secondary .navbar-title,
+.navbar-main-additional .navbar-title,
+.navbar-secondary-additional .navbar-title {
+  padding: 12px 20px 13px 20px;
+}
 .canvas-wrapper {
   border: 1px solid #ddd;
   position: relative;
@@ -382,6 +406,10 @@ pre.exception {
 }
 .table.table-body-hover > tbody {
   border-top: none;
+  border-left: 2px solid transparent;
+}
+.table.table-body-hover > tbody.active {
+  border-left: 2px solid #000;
 }
 .table.table-body-hover > tbody:hover td:not(.tab-column),
 .table.table-body-hover > tbody.active td:not(.tab-column) {
@@ -424,6 +452,9 @@ svg.graph g.type-TK > rect {
 svg.graph text {
   font-weight: 300;
   font-size: 14px;
+}
+svg.graph .node {
+  cursor: pointer;
 }
 svg.graph .node > rect {
   stroke: #999;
@@ -498,7 +529,29 @@ svg.graph .node-label {
   font-size: 14px;
   line-height: 1.4;
 }
-@media (min-width: 768px) {
+@media (min-width: 1024px) and (max-width: 1279px) {
+  #sidebar {
+    left: 0;
+    width: 160px;
+  }
+  #sidebar .navbar-static-top .navbar-brand-text {
+    display: none;
+  }
+  #content {
+    margin-left: 160px;
+  }
+  #content #fold-button {
+    display: none;
+  }
+  #content .navbar-main,
+  #content .navbar-main-additional {
+    left: 160px;
+  }
+  .table td.td-long {
+    width: 20%;
+  }
+}
+@media (min-width: 1280px) {
   #sidebar {
     left: 0;
   }
@@ -512,10 +565,7 @@ svg.graph .node-label {
   #content .navbar-main-additional {
     left: 250px;
   }
-  .navbar-main .navbar-title,
-  .navbar-secondary .navbar-title,
-  .navbar-main-additional .navbar-title,
-  .navbar-secondary-additional .navbar-title {
-    padding: 12px 20px 13px 20px;
+  .table td.td-long {
+    width: 30%;
   }
 }

@@ -15,4 +15,24 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-h3 Accumulators
+//- center(ng-if="!vertex")
+//-   i.fa.fa-circle-o-notch.fa-spin.fa-3x
+
+div(ng-if="vertex")
+
+  div(ng-if="vertex.accumulators.length == 0")
+    p
+      i No accumulators
+  
+  table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="vertex.accumulators.length > 0")
+    thead
+      tr
+        th Name
+        th Type
+        th Value
+
+    tbody
+      tr(ng-repeat="accumulator in vertex.accumulators")
+        td {{ accumulator.name }}
+        td {{ accumulator.type }}
+        td {{ accumulator.value }}

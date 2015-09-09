@@ -43,6 +43,8 @@ angular.module('flinkApp')
 # --------------------------------------
 
 .controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, $rootScope) ->
+  console.log 'SingleJobController'
+
   $scope.jobid = $stateParams.jobid
   $rootScope.job = null
   $rootScope.plan = null
@@ -60,68 +62,43 @@ angular.module('flinkApp')
 .controller 'JobPlanController', ($scope, $state, $stateParams, JobsService) ->
   console.log 'JobPlanController'
 
+  $scope.nodeid = null
   $scope.stateList = JobsService.stateList()
 
-# --------------------------------------
+  $scope.changeNode = (nodeid) ->
+    if nodeid != $scope.nodeid
+      $scope.nodeid = nodeid
+      $scope.vertex = null
 
-.controller 'JobPlanNodeController', ($scope, $state, $stateParams, JobsService, $anchorScroll) ->
-  console.log 'JobPlanNodeController'
+      if $state.is('single-job.plan.overview')
+        JobsService.getSubtasks(nodeid).then (data) ->
+          $scope.vertex = data
 
-  $scope.nodeid = $stateParams.nodeid
+      else if $state.is('single-job.plan.accumulators')
+        JobsService.getAccumulators(nodeid).then (data) ->
+          $scope.vertex = data
 
-  $scope.stateList = JobsService.stateList()
-
-  JobsService.getNode($scope.nodeid).then (data) ->
-    $scope.node = data
-    $scope.job.currentNode = data
-
-    # anchor = "vertex-row-" + data.id
-    # console.log anchor
-    # $anchorScroll(anchor)
-
-# --------------------------------------
-
-.controller 'JobPlanNodeTabsController', ($scope, $stateParams, JobsService) ->
-  console.log 'JobPlanNodeTabsController'
-
-  $scope.nodeid = $stateParams.nodeid
-  $scope.stateList = JobsService.stateList()
-
-  JobsService.getNode($scope.nodeid).then (data) ->
-    $scope.node = data
-    $scope.job.currentNode = data
+    else
+      $scope.nodeid = null
+      $scope.vertex = null
 
 # --------------------------------------
 
-.controller 'JobPlanNodeListController', ($scope, $stateParams, JobsService, $state) ->
-  console.log 'JobPlanNodeListController'
+.controller 'JobPlanOverviewController', ($scope, JobsService) ->
+  console.log 'JobPlanOverviewController'
 
-  $scope.gotoAccumulators = (nodeid) ->
-    $state.go('^.accumulators', { nodeid: nodeid })
-
-  JobsService.getSubtasks($stateParams.nodeid).then (data) ->
-    $scope.vertex = data
+  if $scope.nodeid and !$scope.vertex.st
+    JobsService.getSubtasks($scope.nodeid).then (data) ->
+      $scope.vertex = data
 
 # --------------------------------------
 
-.controller 'JobPlanNodeListAccumulatorsController', ($scope, $stateParams, JobsService, $state) ->
-  console.log 'JobPlanNodeListAccumulatorsController'
+.controller 'JobPlanAccumulatorsController', ($scope, JobsService) ->
+  console.log 'JobPlanAccumulatorsController'
 
-  $scope.gotoGeneric = (nodeid) ->
-    $state.go('^.generic', { nodeid: nodeid })
-
-  # JobsService.getSubtasks($stateParams.nodeid).then (data) ->
-  #   $scope.vertex = data
-
-# --------------------------------------
-
-.controller 'JobPlanNodePropertiesController', ($scope, $state, $stateParams, JobsService) ->
-  console.log 'JobPlanNodePropertiesController'
-
-# --------------------------------------
-
-.controller 'JobPlanNodeAccumulatorsController', ($scope, $state, $stateParams, JobsService) ->
-  console.log 'JobPlanNodeAccumulatorsController'
+  if $scope.nodeid and !$scope.vertex.accumulators
+    JobsService.getAccumulators($scope.nodeid).then (data) ->
+      $scope.vertex = data
 
 # --------------------------------------
 
@@ -135,3 +112,18 @@ angular.module('flinkApp')
   JobsService.loadExceptions().then (data) ->
     $scope.exceptions = data
 
+# --------------------------------------
+
+.controller 'JobPropertiesController', ($scope, JobsService) ->
+  console.log 'JobPropertiesController'
+
+  $scope.changeNode = (nodeid) ->
+    if nodeid != $scope.nodeid
+      $scope.nodeid = nodeid
+
+      JobsService.getNode(nodeid).then (data) ->
+        $scope.node = data
+
+    else
+      $scope.nodeid = null
+      $scope.node = null

@@ -171,6 +171,7 @@ angular.module('flinkApp')
 
   scope:
     plan: '='
+    setNode: '&'
 
   link: (scope, elem, attrs) ->
     mainZoom = d3.behavior.zoom()
@@ -244,7 +245,8 @@ angular.module('flinkApp')
       
     # creates the label of a node, in info is stored, whether it is a special node (like a mirror in an iteration)
     createLabelNode = (el, info, maxW, maxH) ->
-      labelValue = "<a href='#/jobs/" + jobid + "/vertex/" + el.id + "' class='node-label " + getNodeType(el, info) + "'>"
+      # labelValue = "<a href='#/jobs/" + jobid + "/vertex/" + el.id + "' class='node-label " + getNodeType(el, info) + "'>"
+      labelValue = "<div href='#/jobs/" + jobid + "/vertex/" + el.id + "' class='node-label " + getNodeType(el, info) + "'>"
 
       # Nodename
       if info is "mirror"
@@ -270,7 +272,8 @@ angular.module('flinkApp')
         labelValue += "<h5>Parallelism: " + el.parallelism + "</h5>"  unless el.parallelism is ""
         labelValue += "<h5>Operation: " + shortenString(el.operator_strategy) + "</h5>"  unless el.operator is `undefined`
       
-      labelValue += "</a>"
+      # labelValue += "</a>"
+      labelValue += "</div>"
       labelValue
 
     # Extends the label of a node with an additional svg Element to present the iteration.
@@ -448,6 +451,9 @@ angular.module('flinkApp')
         d3mainSvgG.attr "transform", "translate(" + ev.translate + ") scale(" + ev.scale + ")"
       )
       mainZoom(d3mainSvg)
+
+      d3mainSvgG.selectAll('.node').on 'click', (d) ->
+        scope.setNode({ nodeid: d })
 
     scope.$watch attrs.plan, (newPlan) ->
       drawGraph(newPlan) if newPlan
