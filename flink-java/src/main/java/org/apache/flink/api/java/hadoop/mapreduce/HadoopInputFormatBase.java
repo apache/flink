@@ -59,6 +59,14 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormatBase.class);
 
+	// Mutexes to avoid concurrent operations on Hadoop InputFormats.
+	// Hadoop parallelizes tasks across JVMs which is why they might rely on this JVM isolation.
+	// In contrast, Flink parallelizes using Threads, so multiple Hadoop InputFormat instances
+	// might be used in the same JVM.
+	private static final Object OPEN_MUTEX = new Object();
+	private static final Object CONFIGURE_MUTEX = new Object();
+	private static final Object CLOSE_MUTEX = new Object();
+
 	// NOTE: this class is using a custom serialization logic, without a defaultWriteObject() method.
 	// Hence, all fields here are "transient".
 	private org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat;
@@ -89,8 +97,12 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 
 	@Override
 	public void configure(Configuration parameters) {
-		if (mapreduceInputFormat instanceof Configurable) {
-			((Configurable) mapreduceInputFormat).setConf(configuration);
+
+		// enforce sequential configuration() calls
+		synchronized (CONFIGURE_MUTEX) {
+			if (mapreduceInputFormat instanceof Configurable) {
+				((Configurable) mapreduceInputFormat).setConf(configuration);
+			}
 		}
 	}
 
@@ -169,21 +181,26 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 
 	@Override
 	public void open(HadoopInputSplit split) throws IOException {
-		TaskAttemptContext context;
-		try {
-			context = HadoopUtils.instantiateTaskAttemptContext(configuration, new TaskAttemptID());
-		} catch(Exception e) {
-			throw new RuntimeException(e);
-		}
 
-		try {
-			this.recordReader = this.mapreduceInputFormat
-					.createRecordReader(split.getHadoopInputSplit(), context);
-			this.recordReader.initialize(split.getHadoopInputSplit(), context);
-		} catch (InterruptedException e) {
-			throw new IOException("Could not create RecordReader.", e);
-		} finally {
-			this.fetched = false;
+		// enforce sequential open() calls
+		synchronized (OPEN_MUTEX) {
+
+			TaskAttemptContext context;
+			try {
+				context = HadoopUtils.instantiateTaskAttemptContext(configuration, new TaskAttemptID());
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+
+			try {
+				this.recordReader = this.mapreduceInputFormat
+						.createRecordReader(split.getHadoopInputSplit(), context);
+				this.recordReader.initialize(split.getHadoopInputSplit(), context);
+			} catch (InterruptedException e) {
+				throw new IOException("Could not create RecordReader.", e);
+			} finally {
+				this.fetched = false;
+			}
 		}
 	}
 
@@ -207,7 +224,11 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 
 	@Override
 	public void close() throws IOException {
-		this.recordReader.close();
+
+		// enforce sequential close() calls
+		synchronized (CLOSE_MUTEX) {
+			this.recordReader.close();
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
