@@ -181,8 +181,44 @@ public class OperatorStatistics implements Serializable {
 		OperatorStatistics clone = new OperatorStatistics(config);
 		clone.min = min;
 		clone.max = max;
-		clone.countDistinct = countDistinct;
-		clone.heavyHitter = heavyHitter;
+		clone.cardinality = cardinality;
+
+		try {
+			if (config.collectCountDistinct) {
+				ICardinality copy;
+				if (countDistinct instanceof LinearCounting) {
+					copy = new LinearCounting(config.getCountDbitmap());
+				} else if (countDistinct instanceof HyperLogLog) {
+					copy = new HyperLogLog(config.getCountDlog2m());
+				} else {
+					throw new IllegalStateException("Unsupported count distinct counter.");
+				}
+				clone.countDistinct = copy.merge(countDistinct);
+			}
+		} catch (CardinalityMergeException e) {
+			throw new RuntimeException("Faild to clone OperatorStatistics!");
+		}
+
+		try {
+			if (config.collectHeavyHitters) {
+				HeavyHitter copy;
+				if (heavyHitter instanceof LossyCounting) {
+					copy = new LossyCounting(config.getHeavyHitterFraction(), config.getHeavyHitterError());
+				} else if (heavyHitter instanceof CountMinHeavyHitter) {
+					copy = new CountMinHeavyHitter(config.getHeavyHitterFraction(),
+							config.getHeavyHitterError(),
+							config.getHeavyHitterConfidence(),
+							config.getHeavyHitterSeed());
+				} else {
+					throw new IllegalStateException("Unsupported heavy hitter counter.");
+				}
+				copy.merge(heavyHitter);
+				clone.heavyHitter = copy;
+			}
+		} catch (HeavyHitterMergeException e) {
+			throw new RuntimeException("Failed to clone OperatorStatistics!");
+		}
+
 		return clone;
 	}
 

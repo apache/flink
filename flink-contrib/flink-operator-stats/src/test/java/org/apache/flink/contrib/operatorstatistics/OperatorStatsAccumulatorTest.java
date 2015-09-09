@@ -46,8 +46,54 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 		super(new Configuration());
 	}
 
+	public static class StringToInt extends RichFlatMapFunction<String, Tuple1<Integer>> {
+
+		// Is instantiated later since the runtime context is not yet initialized
+		private Accumulator<Object, Serializable> globalAccumulator;
+		private Accumulator<Object,Serializable> localAccumulator;
+		OperatorStatisticsConfig accumulatorConfig;
+
+		public StringToInt(OperatorStatisticsConfig config){
+			accumulatorConfig = config;
+		}
+
+		@Override
+		public void open(Configuration parameters) {
+			// Add globalAccumulator using convenience function
+
+			globalAccumulator = getRuntimeContext().getAccumulator(ACCUMULATOR_NAME);
+			if (globalAccumulator==null){
+				getRuntimeContext().addAccumulator(ACCUMULATOR_NAME, new OperatorStatisticsAccumulator(accumulatorConfig));
+				globalAccumulator = getRuntimeContext().getAccumulator(ACCUMULATOR_NAME);
+			}
+
+			int subTaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+			localAccumulator = getRuntimeContext().getAccumulator(ACCUMULATOR_NAME+"-"+subTaskIndex);
+			if (localAccumulator==null){
+				getRuntimeContext().addAccumulator(ACCUMULATOR_NAME+"-"+subTaskIndex, new OperatorStatisticsAccumulator(accumulatorConfig));
+				localAccumulator = getRuntimeContext().getAccumulator(ACCUMULATOR_NAME+"-"+subTaskIndex);
+			}
+		}
+
+		@Override
+		public void flatMap(String value, Collector<Tuple1<Integer>> out) throws Exception {
+			int intValue;
+			try {
+				intValue = Integer.parseInt(value);
+				localAccumulator.add(intValue);
+				out.collect(new Tuple1(intValue));
+			} catch (NumberFormatException ex) {
+			}
+		}
+
+		@Override
+		public void close(){
+			globalAccumulator.merge(localAccumulator);
+		}
+	}
+
 	@Test
-	public void testAccumulator() throws Exception {
+	public void testAccumulatorAllStatistics() throws Exception {
 
 		String input = "";
 
@@ -65,8 +111,12 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
+		OperatorStatisticsConfig operatorStatisticsConfig =
+				new OperatorStatisticsConfig(OperatorStatisticsConfig.CountDistinctAlgorithm.HYPERLOGLOG,
+											OperatorStatisticsConfig.HeavyHitterAlgorithm.LOSSY_COUNTING);
+
 		env.readTextFile(inputFile).
-				flatMap(new StringToInt()).
+				flatMap(new StringToInt(operatorStatisticsConfig)).
 				output(new DiscardingOutputFormat<Tuple1<Integer>>());
 
 		JobExecutionResult result = env.execute();
@@ -109,47 +159,117 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 				"to the number of heavy hitters in the global accumulator",merged.getHeavyHitters().size(),globalStats.getHeavyHitters().size());
 	}
 
-	public static class StringToInt extends RichFlatMapFunction<String, Tuple1<Integer>> {
+	@Test
+	public void testAccumulatorMinMax() throws Exception {
 
-		// Is instantiated later since the runtime context is not yet initialized
-		private Accumulator<Object, Serializable> globalAccumulator;
-		private Accumulator<Object,Serializable> localAccumulator;
-		OperatorStatisticsConfig accumulatorConfig = new OperatorStatisticsConfig(
-				OperatorStatisticsConfig.CountDistinctAlgorithm.HYPERLOGLOG,
-				OperatorStatisticsConfig.HeavyHitterAlgorithm.COUNT_MIN_SKETCH);
+		String input = "";
 
-		@Override
-		public void open(Configuration parameters) {
-			// Add globalAccumulator using convenience function
+		Random rand = new Random();
 
-			globalAccumulator = getRuntimeContext().getAccumulator(ACCUMULATOR_NAME);
-			if (globalAccumulator==null){
-				getRuntimeContext().addAccumulator(ACCUMULATOR_NAME, new OperatorStatisticsAccumulator(accumulatorConfig));
-				globalAccumulator = getRuntimeContext().getAccumulator(ACCUMULATOR_NAME);
-			}
-
-			int subTaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-			localAccumulator = getRuntimeContext().getAccumulator(ACCUMULATOR_NAME+"-"+subTaskIndex);
-			if (localAccumulator==null){
-				getRuntimeContext().addAccumulator(ACCUMULATOR_NAME+"-"+subTaskIndex, new OperatorStatisticsAccumulator(accumulatorConfig));
-				localAccumulator = getRuntimeContext().getAccumulator(ACCUMULATOR_NAME+"-"+subTaskIndex);
+		for (int i = 1; i < 1000; i++) {
+			if (rand.nextDouble() < 0.2) {
+				input += String.valueOf(rand.nextInt(4)) + "\n";
+			} else {
+				input += String.valueOf(rand.nextInt(100)) + "\n";
 			}
 		}
 
-		@Override
-		public void flatMap(String value, Collector<Tuple1<Integer>> out) throws Exception {
-			int intValue;
-			try {
-				intValue = Integer.parseInt(value);
-				localAccumulator.add(intValue);
-				out.collect(new Tuple1(intValue));
-			} catch (NumberFormatException ex) {
-			}
-		}
+		String inputFile = createTempFile("datapoints.txt", input);
 
-		@Override
-		public void close(){
-			globalAccumulator.merge(localAccumulator);
-		}
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		OperatorStatisticsConfig operatorStatisticsConfig =
+				new OperatorStatisticsConfig(false);
+		operatorStatisticsConfig.collectMax = true;
+		operatorStatisticsConfig.collectMin = true;
+
+		env.readTextFile(inputFile).
+				flatMap(new StringToInt(operatorStatisticsConfig)).
+				output(new DiscardingOutputFormat<Tuple1<Integer>>());
+
+		JobExecutionResult result = env.execute();
+
+		OperatorStatistics globalStats = result.getAccumulatorResult(ACCUMULATOR_NAME);
+		System.out.println("Global Stats");
+		System.out.println(globalStats.toString());
+
+		Assert.assertTrue("Min value for accumulator should not be null",globalStats.getMin()!=null);
+		Assert.assertTrue("Max value for accumulator should not be null",globalStats.getMax()!=null);
 	}
+
+	@Test
+	public void testAccumulatorCountDistinctLinearCounting() throws Exception {
+
+		String input = "";
+
+		Random rand = new Random();
+
+		for (int i = 1; i < 1000; i++) {
+			if (rand.nextDouble() < 0.2) {
+				input += String.valueOf(rand.nextInt(4)) + "\n";
+			} else {
+				input += String.valueOf(rand.nextInt(100)) + "\n";
+			}
+		}
+
+		String inputFile = createTempFile("datapoints.txt", input);
+
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		OperatorStatisticsConfig operatorStatisticsConfig =
+				new OperatorStatisticsConfig(false);
+		operatorStatisticsConfig.collectCountDistinct = true;
+		operatorStatisticsConfig.countDistinctAlgorithm = OperatorStatisticsConfig.CountDistinctAlgorithm.LINEAR_COUNTING;
+		operatorStatisticsConfig.setCountDbitmap(10000);
+
+		env.readTextFile(inputFile).
+				flatMap(new StringToInt(operatorStatisticsConfig)).
+				output(new DiscardingOutputFormat<Tuple1<Integer>>());
+
+		JobExecutionResult result = env.execute();
+
+		OperatorStatistics globalStats = result.getAccumulatorResult(ACCUMULATOR_NAME);
+		System.out.println("Global Stats");
+		System.out.println(globalStats.toString());
+
+		Assert.assertTrue("Count Distinct for accumulator should not be null",globalStats.countDistinct!=null);
+	}
+
+	@Test
+	public void testAccumulatorHeavyHitterCountMinSketch() throws Exception {
+
+		String input = "";
+
+		Random rand = new Random();
+
+		for (int i = 1; i < 1000; i++) {
+			if (rand.nextDouble() < 0.2) {
+				input += String.valueOf(rand.nextInt(4)) + "\n";
+			} else {
+				input += String.valueOf(rand.nextInt(100)) + "\n";
+			}
+		}
+
+		String inputFile = createTempFile("datapoints.txt", input);
+
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		OperatorStatisticsConfig operatorStatisticsConfig =
+				new OperatorStatisticsConfig(false);
+		operatorStatisticsConfig.collectHeavyHitters = true;
+		operatorStatisticsConfig.heavyHitterAlgorithm = OperatorStatisticsConfig.HeavyHitterAlgorithm.COUNT_MIN_SKETCH;
+
+		env.readTextFile(inputFile).
+				flatMap(new StringToInt(operatorStatisticsConfig)).
+				output(new DiscardingOutputFormat<Tuple1<Integer>>());
+
+		JobExecutionResult result = env.execute();
+
+		OperatorStatistics globalStats = result.getAccumulatorResult(ACCUMULATOR_NAME);
+		System.out.println("Global Stats");
+		System.out.println(globalStats.toString());
+
+		Assert.assertTrue("Count Distinct for accumulator should not be null",globalStats.heavyHitter!=null);
+	}
+
 }
