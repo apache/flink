@@ -384,10 +384,14 @@ class JobManager(
               newJobStatus match {
                 case JobStatus.FINISHED =>
                   val accumulatorResults: java.util.Map[String, SerializedValue[AnyRef]] = try {
-                  executionGraph.getAccumulatorsSerialized()
+                    executionGraph.getAccumulatorsSerialized()
                   } catch {
                     case e: Exception =>
-                      log.error(s"Cannot fetch serialized accumulators for job $jobID", e)
+                      log.error(s"Cannot fetch final accumulators for job $jobID", e)
+                      val exception = new JobExecutionException(jobID,
+                        "Failed to retrieve accumulator results.", e)
+                      jobInfo.client ! decorateMessage(JobResultFailure(
+                        new SerializedThrowable(exception)))
                       Collections.emptyMap()
                   }
                 val result = new SerializedJobExecutionResult(
