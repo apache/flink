@@ -857,20 +857,25 @@ public class ExecutionGraph implements Serializable {
 					else if (current == JobStatus.FAILING) {
 						if (numberOfRetriesLeft > 0 && transitionState(current, JobStatus.RESTARTING)) {
 							numberOfRetriesLeft--;
-							future(new Callable<Object>() {
-								@Override
-								public Object call() throws Exception {
-									try {
-										LOG.info("Delaying retry of job execution for {} ms ...", delayBeforeRetrying);
-										Thread.sleep(delayBeforeRetrying);
+							
+							if (delayBeforeRetrying > 0) {
+								future(new Callable<Object>() {
+									@Override
+									public Object call() throws Exception {
+										try {
+											LOG.info("Delaying retry of job execution for {} ms ...", delayBeforeRetrying);
+											Thread.sleep(delayBeforeRetrying);
+										}
+										catch(InterruptedException e){
+											// should only happen on shutdown
+										}
+										restart();
+										return null;
 									}
-									catch(InterruptedException e){
-										// should only happen on shutdown
-									}
-									restart();
-									return null;
-								}
-							}, executionContext);
+								}, executionContext);
+							} else {
+								restart();
+							}
 							break;
 						}
 						else if (numberOfRetriesLeft <= 0 && transitionState(current, JobStatus.FAILED, failureCause)) {
