@@ -37,7 +37,8 @@ import org.apache.flink.api.java.typeutils.runtime.CopyableValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
+import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.StringValue;
@@ -81,7 +82,7 @@ public class MassiveStringValueSorting {
 			BufferedReader verifyReader = null;
 			
 			try {
-				MemoryManager mm = new MemoryManager(1024 * 1024, 1);
+				MemoryManager mm = new DefaultMemoryManager(1024 * 1024, 1);
 				IOManager ioMan = new IOManagerAsync();
 					
 				TypeSerializer<StringValue> serializer = new CopyableValueSerializer<StringValue>(StringValue.class);
@@ -128,11 +129,9 @@ public class MassiveStringValueSorting {
 		}
 		finally {
 			if (input != null) {
-				//noinspection ResultOfMethodCallIgnored
 				input.delete();
 			}
 			if (sorted != null) {
-				//noinspection ResultOfMethodCallIgnored
 				sorted.delete();
 			}
 		}
@@ -174,7 +173,7 @@ public class MassiveStringValueSorting {
 			BufferedReader verifyReader = null;
 			
 			try {
-				MemoryManager mm = new MemoryManager(1024 * 1024, 1);
+				MemoryManager mm = new DefaultMemoryManager(1024 * 1024, 1);
 				IOManager ioMan = new IOManagerAsync();
 					
 				TupleTypeInfo<Tuple2<StringValue, StringValue[]>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, StringValue[]>>)
@@ -252,11 +251,9 @@ public class MassiveStringValueSorting {
 		}
 		finally {
 			if (input != null) {
-				//noinspection ResultOfMethodCallIgnored
 				input.delete();
 			}
 			if (sorted != null) {
-				//noinspection ResultOfMethodCallIgnored
 				sorted.delete();
 			}
 		}
@@ -351,9 +348,7 @@ public class MassiveStringValueSorting {
 				wrt.newLine();
 			}
 		} finally {
-			if (wrt != null) {
-				wrt.close();
-			}
+			wrt.close();
 		}
 		
 		return f;
@@ -393,9 +388,7 @@ public class MassiveStringValueSorting {
 				wrt.newLine();
 			}
 		} finally {
-			if (wrt != null) {
-				wrt.close();
-			}
+			wrt.close();
 		}
 		
 		return f;

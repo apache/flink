@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.runtime.operators.drivers;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -24,10 +25,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
+import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.PactTaskContext;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -71,7 +72,7 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 	public TestTaskContext() {}
 	
 	public TestTaskContext(long memoryInBytes) {
-		this.memoryManager = new MemoryManager(memoryInBytes, 1, 32 * 1024, MemoryType.HEAP, true);
+		this.memoryManager = new DefaultMemoryManager(memoryInBytes,1 ,32 * 1024, true);
 		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
 	}
 	

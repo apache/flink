@@ -16,103 +16,158 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.memory.benchmarks;
+
+package org.apache.flink.runtime.memorymanager;
+
+import java.io.IOException;
+import java.io.UTFDataFormatException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.MemorySegment;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.UTFDataFormatException;
-import java.util.List;
 
-public final class PureHeapMemorySegmentOutView implements DataOutputView {
-
-	private PureHeapMemorySegment currentSegment;	// the current memory segment to write to
-
+/**
+ * The base class for all output views that are backed by multiple memory pages. This base class contains all
+ * encoding methods to write data to a page and detect page boundary crossing. The concrete sub classes must
+ * implement the methods to collect the current page and provide the next memory page once the boundary is crossed.
+ * <p>
+ * The paging assumes that all memory segments are of the same size.
+ */
+public abstract class AbstractPagedOutputView implements DataOutputView {
+	
+	private MemorySegment currentSegment;			// the current memory segment to write to
+	
+	protected final int segmentSize;				// the size of the memory segments
+	
+	protected final int headerLength;				// the number of bytes to skip at the beginning of each segment
+	
 	private int positionInSegment;					// the offset in the current segment
 	
-	private final int segmentSize;				// the size of the memory segments
-
-	private final  List<PureHeapMemorySegment> memorySource;
+	private byte[] utfBuffer;						// the reusable array for UTF encodings
 	
-	private final List<PureHeapMemorySegment> fullSegments;
 	
-
-	private byte[] utfBuffer;		// the reusable array for UTF encodings
-
-
-	public PureHeapMemorySegmentOutView(List<PureHeapMemorySegment> emptySegments,
-										List<PureHeapMemorySegment> fullSegmentTarget, int segmentSize) {
+	// --------------------------------------------------------------------------------------------
+	//                                    Constructors
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Creates a new output view that writes initially to the given initial segment. All segments in the
+	 * view have to be of the given {@code segmentSize}. A header of length {@code headerLength} is left
+	 * at the beginning of each segment.
+	 * 
+	 * @param initialSegment The segment that the view starts writing to.
+	 * @param segmentSize The size of the memory segments.
+	 * @param headerLength The number of bytes to skip at the beginning of each segment for the header.
+	 */
+	protected AbstractPagedOutputView(MemorySegment initialSegment, int segmentSize, int headerLength) {
+		if (initialSegment == null) {
+			throw new NullPointerException("Initial Segment may not be null");
+		}
 		this.segmentSize = segmentSize;
-		this.currentSegment = emptySegments.remove(emptySegments.size() - 1);
-
-		this.memorySource = emptySegments;
-		this.fullSegments = fullSegmentTarget;
-		this.fullSegments.add(getCurrentSegment());
-	}
-
-
-	public void reset() {
-		if (this.fullSegments.size() != 0) {
-			throw new IllegalStateException("The target list still contains memory segments.");
-		}
-
-		clear();
-		try {
-			advance();
-		}
-		catch (IOException ioex) {
-			throw new RuntimeException("Error getting first segment for record collector.", ioex);
-		}
+		this.headerLength = headerLength;
+		this.currentSegment = initialSegment;
+		this.positionInSegment = headerLength;
 	}
 	
+	/**
+	 * @param segmentSize The size of the memory segments.
+	 * @param headerLength The number of bytes to skip at the beginning of each segment for the header.
+	 */
+	protected AbstractPagedOutputView(int segmentSize, int headerLength)
+	{
+		this.segmentSize = segmentSize;
+		this.headerLength = headerLength;
+	}
+	
+
 	// --------------------------------------------------------------------------------------------
 	//                                  Page Management
 	// --------------------------------------------------------------------------------------------
-
-	public PureHeapMemorySegment nextSegment(PureHeapMemorySegment current, int positionInCurrent) throws EOFException {
-		int size = this.memorySource.size();
-		if (size > 0) {
-			final PureHeapMemorySegment next = this.memorySource.remove(size - 1);
-			this.fullSegments.add(next);
-			return next;
-		} else {
-			throw new EOFException();
-		}
-	}
 	
-	public PureHeapMemorySegment getCurrentSegment() {
+	/**
+	 * 
+	 * This method must return a segment. If no more segments are available, it must throw an
+	 * {@link java.io.EOFException}.
+	 * 
+	 * @param current The current memory segment
+	 * @param positionInCurrent The position in the segment, one after the last valid byte.
+	 * @return The next memory segment. 
+	 * 
+	 * @throws IOException
+	 */
+	protected abstract MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException;
+	
+	
+	/**
+	 * Gets the segment that the view currently writes to.
+	 * 
+	 * @return The segment the view currently writes to.
+	 */
+	public MemorySegment getCurrentSegment() {
 		return this.currentSegment;
 	}
-
+	
+	/**
+	 * Gets the current write position (the position where the next bytes will be written)
+	 * in the current memory segment.
+	 * 
+	 * @return The current write offset in the current memory segment.
+	 */
 	public int getCurrentPositionInSegment() {
 		return this.positionInSegment;
 	}
 	
+	/**
+	 * Gets the size of the segments used by this view.
+	 * 
+	 * @return The memory segment size.
+	 */
 	public int getSegmentSize() {
 		return this.segmentSize;
 	}
 	
+	/**
+	 * Moves the output view to the next page. This method invokes internally the
+	 * {@link #nextSegment(MemorySegment, int)} method to give the current memory segment to the concrete subclass' 
+	 * implementation and obtain the next segment to write to. Writing will continue inside the new segment
+	 * after the header.
+	 * 
+	 * @throws IOException Thrown, if the current segment could not be processed or a new segment could not
+	 *                     be obtained. 
+	 */
 	protected void advance() throws IOException {
 		this.currentSegment = nextSegment(this.currentSegment, this.positionInSegment);
-		this.positionInSegment = 0;
+		this.positionInSegment = this.headerLength;
 	}
 	
-	protected void seekOutput(PureHeapMemorySegment seg, int position) {
+	/**
+	 * Sets the internal state to the given memory segment and the given position within the segment. 
+	 * 
+	 * @param seg The memory segment to write the next bytes to.
+	 * @param position The position to start writing the next bytes to.
+	 */
+	protected void seekOutput(MemorySegment seg, int position) {
 		this.currentSegment = seg;
 		this.positionInSegment = position;
 	}
-
+	
+	/**
+	 * Clears the internal state. Any successive write calls will fail until either {@link #advance()} or
+	 * {@link #seekOutput(MemorySegment, int)} is called. 
+	 * 
+	 * @see #advance()
+	 * @see #seekOutput(MemorySegment, int)
+	 */
 	protected void clear() {
 		this.currentSegment = null;
-		this.positionInSegment = 0;
+		this.positionInSegment = this.headerLength;
 	}
-
+	
 	// --------------------------------------------------------------------------------------------
 	//                               Data Output Specific methods
 	// --------------------------------------------------------------------------------------------
-
+	
 	@Override
 	public void write(int b) throws IOException {
 		writeByte(b);
@@ -140,11 +195,11 @@ public final class PureHeapMemorySegmentOutView implements DataOutputView {
 				this.currentSegment.put(this.positionInSegment, b, off, toPut);
 				off += toPut;
 				len -= toPut;
-
+				
 				if (len > 0) {
 					this.positionInSegment = this.segmentSize;
 					advance();
-					remaining = this.segmentSize - this.positionInSegment;
+					remaining = this.segmentSize - this.positionInSegment;	
 				}
 				else {
 					this.positionInSegment += toPut;
@@ -173,7 +228,7 @@ public final class PureHeapMemorySegmentOutView implements DataOutputView {
 	@Override
 	public void writeShort(int v) throws IOException {
 		if (this.positionInSegment < this.segmentSize - 1) {
-			this.currentSegment.putShortBigEndian(this.positionInSegment, (short) v);
+			this.currentSegment.putShort(this.positionInSegment, (short) v);
 			this.positionInSegment += 2;
 		}
 		else if (this.positionInSegment == this.segmentSize) {
@@ -189,7 +244,7 @@ public final class PureHeapMemorySegmentOutView implements DataOutputView {
 	@Override
 	public void writeChar(int v) throws IOException {
 		if (this.positionInSegment < this.segmentSize - 1) {
-			this.currentSegment.putCharBigEndian(this.positionInSegment, (char) v);
+			this.currentSegment.putChar(this.positionInSegment, (char) v);
 			this.positionInSegment += 2;
 		}
 		else if (this.positionInSegment == this.segmentSize) {
@@ -294,7 +349,7 @@ public final class PureHeapMemorySegmentOutView implements DataOutputView {
 		final byte[] bytearr = this.utfBuffer;
 
 		bytearr[count++] = (byte) ((utflen >>> 8) & 0xFF);
-		bytearr[count++] = (byte) (utflen & 0xFF);
+		bytearr[count++] = (byte) ((utflen >>> 0) & 0xFF);
 
 		int i = 0;
 		for (i = 0; i < strlen; i++) {
@@ -313,10 +368,10 @@ public final class PureHeapMemorySegmentOutView implements DataOutputView {
 			} else if (c > 0x07FF) {
 				bytearr[count++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
 				bytearr[count++] = (byte) (0x80 | ((c >> 6) & 0x3F));
-				bytearr[count++] = (byte) (0x80 | (c & 0x3F));
+				bytearr[count++] = (byte) (0x80 | ((c >> 0) & 0x3F));
 			} else {
 				bytearr[count++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
-				bytearr[count++] = (byte) (0x80 | (c & 0x3F));
+				bytearr[count++] = (byte) (0x80 | ((c >> 0) & 0x3F));
 			}
 		}
 
@@ -335,6 +390,7 @@ public final class PureHeapMemorySegmentOutView implements DataOutputView {
 			advance();
 			numBytes -= remaining;
 		}
+		return;
 	}
 
 	@Override
@@ -346,14 +402,15 @@ public final class PureHeapMemorySegmentOutView implements DataOutputView {
 				this.positionInSegment += numBytes;
 				return;
 			}
-
+			
 			if (remaining > 0) {
 				this.currentSegment.put(source, this.positionInSegment, remaining);
 				this.positionInSegment = this.segmentSize;
 				numBytes -= remaining;
 			}
-
+			
 			advance();
 		}
+		return;
 	}
 }

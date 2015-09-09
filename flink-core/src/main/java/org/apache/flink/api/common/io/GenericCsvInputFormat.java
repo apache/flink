@@ -53,8 +53,6 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	private static final byte[] DEFAULT_FIELD_DELIMITER = new byte[] {','};
 
-	private static final byte BACKSLASH = 92;
-
 	// --------------------------------------------------------------------------------------------
 	//  Variables for internal operation.
 	//  They are all transient, because we do not want them so be serialized 
@@ -445,10 +443,9 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		if(quotedStringParsing == true && bytes[i] == quoteCharacter) {
 
 			// quoted string parsing enabled and field is quoted
-			// search for ending quote character, continue when it is escaped
+			// search for ending quote character
 			i++;
-
-			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)){
+			while(i < limit && bytes[i] != quoteCharacter) {
 				i++;
 			}
 			i++;

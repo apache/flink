@@ -27,22 +27,22 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import java.io.IOException;
 
 /**
- * Serializer for {@link StreamRecord} and {@link org.apache.flink.streaming.api.watermark.Watermark}. This does not behave like a normal
+ * Serializer for {@link StreamRecord} and {@link Watermark}. This does not behave like a normal
  * {@link TypeSerializer}, instead, this is only used at the
  * {@link org.apache.flink.streaming.runtime.tasks.StreamTask} level for transmitting
- * {@link StreamRecord StreamRecords} and {@link org.apache.flink.streaming.api.watermark.Watermark Watermarks}. This serializer
+ * {@link StreamRecord StreamRecords} and {@link Watermark Watermarks}. This serializer
  * can handle both of them, therefore it returns {@link Object} the result has
  * to be cast to the correct type.
  *
  * @param <T> The type of value in the {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord}
  */
-public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<StreamElement> {
+public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<Object> {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final long IS_WATERMARK = Long.MIN_VALUE;
 	
-	private final TypeSerializer<T> typeSerializer;
+	protected final TypeSerializer<T> typeSerializer;
 
 	
 	public MultiplexingStreamRecordSerializer(TypeSerializer<T> serializer) {
@@ -59,94 +59,87 @@ public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<
 	}
 
 	@Override
-	public TypeSerializer<StreamElement> duplicate() {
-		TypeSerializer<T> copy = typeSerializer.duplicate();
-		return (copy == typeSerializer) ? this : new MultiplexingStreamRecordSerializer<T>(copy);
+	public TypeSerializer<Object> duplicate() {
+		return this;
 	}
 
 	@Override
-	public StreamRecord<T> createInstance() {
+	public Object createInstance() {
 		return new StreamRecord<T>(typeSerializer.createInstance(), 0L);
 	}
 
 	@Override
-	public StreamElement copy(StreamElement from) {
+	@SuppressWarnings("unchecked")
+	public Object copy(Object from) {
 		// we can reuse the timestamp since Instant is immutable
-		if (from.isRecord()) {
-			StreamRecord<T> fromRecord = from.asRecord();
+		if (from instanceof StreamRecord) {
+			StreamRecord<T> fromRecord = (StreamRecord<T>) from;
 			return new StreamRecord<T>(typeSerializer.copy(fromRecord.getValue()), fromRecord.getTimestamp());
-		}
-		else if (from.isWatermark()) {
+		} else if (from instanceof Watermark) {
 			// is immutable
 			return from;
-		}
-		else {
+		} else {
 			throw new RuntimeException("Cannot copy " + from);
 		}
 	}
 
 	@Override
-	public StreamElement copy(StreamElement from, StreamElement reuse) {
-		if (from.isRecord() && reuse.isRecord()) {
-			StreamRecord<T> fromRecord = from.asRecord();
-			StreamRecord<T> reuseRecord = reuse.asRecord();
+	@SuppressWarnings("unchecked")
+	public Object copy(Object from, Object reuse) {
+		if (from instanceof StreamRecord && reuse instanceof StreamRecord) {
+			StreamRecord<T> fromRecord = (StreamRecord<T>) from;
+			StreamRecord<T> reuseRecord = (StreamRecord<T>) reuse;
 
-			T valueCopy = typeSerializer.copy(fromRecord.getValue(), reuseRecord.getValue());
-			reuseRecord.replace(valueCopy, fromRecord.getTimestamp());
+			reuseRecord.replace(typeSerializer.copy(fromRecord.getValue(), reuseRecord.getValue()), fromRecord.getTimestamp());
 			return reuse;
-		}
-		else if (from.isWatermark()) {
+		} else if (from instanceof Watermark) {
 			// is immutable
 			return from;
-		}
-		else {
-			throw new RuntimeException("Cannot copy " + from + " -> " + reuse);
+		} else {
+			throw new RuntimeException("Cannot copy " + from);
 		}
 	}
 
 	@Override
 	public int getLength() {
-		return -1;
+		return 0;
 	}
 
 	@Override
-	public void serialize(StreamElement value, DataOutputView target) throws IOException {
-		if (value.isRecord()) {
-			StreamRecord<T> record = value.asRecord();
+	@SuppressWarnings("unchecked")
+	public void serialize(Object value, DataOutputView target) throws IOException {
+		if (value instanceof StreamRecord) {
+			StreamRecord<T> record = (StreamRecord<T>) value;
 			target.writeLong(record.getTimestamp());
 			typeSerializer.serialize(record.getValue(), target);
-		}
-		else if (value.isWatermark()) {
+		} else if (value instanceof Watermark) {
 			target.writeLong(IS_WATERMARK);
-			target.writeLong(value.asWatermark().getTimestamp());
-		}
-		else {
-			throw new RuntimeException();
+			target.writeLong(((Watermark) value).getTimestamp());
 		}
 	}
 	
 	@Override
-	public StreamElement deserialize(DataInputView source) throws IOException {
+	public Object deserialize(DataInputView source) throws IOException {
 		long millis = source.readLong();
 
 		if (millis == IS_WATERMARK) {
 			return new Watermark(source.readLong());
-		}
-		else {
+		} else {
 			T element = typeSerializer.deserialize(source);
 			return new StreamRecord<T>(element, millis);
 		}
 	}
 
 	@Override
-	public StreamElement deserialize(StreamElement reuse, DataInputView source) throws IOException {
+	@SuppressWarnings("unchecked")
+	public Object deserialize(Object reuse, DataInputView source) throws IOException {
 		long millis = source.readLong();
 
 		if (millis == IS_WATERMARK) {
 			return new Watermark(source.readLong());
-		}
-		else {
-			StreamRecord<T> reuseRecord = reuse.asRecord();
+
+		} else {
+			StreamRecord<T> reuseRecord = (StreamRecord<T>) reuse;
 			T element = typeSerializer.deserialize(reuseRecord.getValue(), source);
 			reuseRecord.replace(element, millis);
 			return reuse;

@@ -24,7 +24,6 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -37,9 +36,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 
-	private StreamRecordWriter<SerializationDelegate<StreamElement>> recordWriter;
+	private StreamRecordWriter<SerializationDelegate<Object>> recordWriter;
 	
-	private SerializationDelegate<StreamElement> serializationDelegate;
+	private SerializationDelegate<Object> serializationDelegate;
 
 	
 	@SuppressWarnings("unchecked")
@@ -52,19 +51,19 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 		
 		// generic hack: cast the writer to generic Object type so we can use it 
 		// with multiplexed records and watermarks
-		this.recordWriter = (StreamRecordWriter<SerializationDelegate<StreamElement>>) 
+		this.recordWriter = (StreamRecordWriter<SerializationDelegate<Object>>) 
 				(StreamRecordWriter<?>) recordWriter;
 
-		TypeSerializer<StreamElement> outRecordSerializer;
+		TypeSerializer<Object> outRecordSerializer;
 		if (enableWatermarkMultiplexing) {
 			outRecordSerializer = new MultiplexingStreamRecordSerializer<OUT>(outSerializer);
 		} else {
-			outRecordSerializer = (TypeSerializer<StreamElement>)
+			outRecordSerializer = (TypeSerializer<Object>)
 					(TypeSerializer<?>) new StreamRecordSerializer<OUT>(outSerializer);
 		}
 
 		if (outSerializer != null) {
-			serializationDelegate = new SerializationDelegate<StreamElement>(outRecordSerializer);
+			serializationDelegate = new SerializationDelegate<Object>(outRecordSerializer);
 		}
 	}
 

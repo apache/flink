@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.runtime.memory;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -26,17 +27,15 @@ import static org.junit.Assert.fail;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
-import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-import org.apache.flink.core.memory.MemorySegment;
-
 import org.junit.Assert;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class MemorySegmentSimpleTest {
+public class MemorySegmentTest {
 	
 	public static final long RANDOM_SEED = 643196033469871L;
 
@@ -44,7 +43,7 @@ public class MemorySegmentSimpleTest {
 
 	public static final int PAGE_SIZE = 1024 * 512;
 
-	private MemoryManager manager;
+	private DefaultMemoryManager manager;
 
 	private MemorySegment segment;
 
@@ -53,7 +52,7 @@ public class MemorySegmentSimpleTest {
 	@Before
 	public void setUp() throws Exception{
 		try {
-			this.manager = new MemoryManager(MANAGED_MEMORY_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
+			this.manager = new DefaultMemoryManager(MANAGED_MEMORY_SIZE, 1, PAGE_SIZE, true);
 			this.segment = manager.allocatePages(new DummyInvokable(), 1).get(0);
 			this.random = new Random(RANDOM_SEED);
 		} catch (Exception e) {
@@ -551,7 +550,7 @@ public class MemorySegmentSimpleTest {
 	@Test
 	public void testByteBufferWrapping() {
 		try {
-			MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(1024);
+			MemorySegment seg = new MemorySegment(new byte[1024]);
 			
 			ByteBuffer buf1 = seg.wrap(13, 47);
 			assertEquals(13, buf1.position());

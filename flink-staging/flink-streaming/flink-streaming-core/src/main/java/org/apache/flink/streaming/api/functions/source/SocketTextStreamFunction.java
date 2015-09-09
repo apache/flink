@@ -42,8 +42,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	private boolean retryForever;
 	private Socket socket;
 	private static final int CONNECTION_TIMEOUT_TIME = 0;
-	static int CONNECTION_RETRY_SLEEP = 1000;
-	protected long retries;
+	private static final int CONNECTION_RETRY_SLEEP = 1000;
 
 	private volatile boolean isRunning;
 
@@ -68,9 +67,9 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 		streamFromSocket(ctx, socket);
 	}
 
-	private void streamFromSocket(SourceContext<String> ctx, Socket socket) throws Exception {
+	public void streamFromSocket(SourceContext<String> ctx, Socket socket) throws Exception {
 		try {
-			StringBuilder buffer = new StringBuilder();
+			StringBuffer buffer = new StringBuffer();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(
 					socket.getInputStream()));
 
@@ -88,11 +87,11 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 
 				if (data == -1) {
 					socket.close();
+					long retry = 0;
 					boolean success = false;
-					retries = 0;
-					while ((retries < maxRetry  || retryForever) && !success) {
+					while (retry < maxRetry && !success) {
 						if (!retryForever) {
-							retries++;
+							retry++;
 						}
 						LOG.warn("Lost connection to server socket. Retrying in "
 								+ (CONNECTION_RETRY_SLEEP / 1000) + " seconds...");
@@ -119,7 +118,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 
 				if (data == delimiter) {
 					ctx.collect(buffer.toString());
-					buffer = new StringBuilder();
+					buffer = new StringBuffer();
 				} else if (data != '\r') { // ignore carriage return
 					buffer.append((char) data);
 				}

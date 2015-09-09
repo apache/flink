@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -348,7 +347,7 @@ public class BufferSpillerTest {
 	}
 
 	private static BufferOrEvent generateRandomBuffer(int size, int channelIndex) {
-		MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(PAGE_SIZE);
+		MemorySegment seg = new MemorySegment(new byte[PAGE_SIZE]);
 		for (int i = 0; i < size; i++) {
 			seg.put(i, (byte) i);
 		}

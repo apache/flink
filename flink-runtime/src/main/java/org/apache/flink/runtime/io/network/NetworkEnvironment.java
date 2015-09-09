@@ -107,8 +107,7 @@ public class NetworkEnvironment {
 		// create the network buffers - this is the operation most likely to fail upon
 		// mis-configuration, so we do this first
 		try {
-			networkBufferPool = new NetworkBufferPool(config.numNetworkBuffers(),
-					config.networkBufferSize(), config.memoryType());
+			networkBufferPool = new NetworkBufferPool(config.numNetworkBuffers(), config.networkBufferSize());
 		}
 		catch (Throwable t) {
 			throw new IOException("Cannot allocate network buffer pool: " + t.getMessage(), t);

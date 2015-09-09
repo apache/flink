@@ -35,7 +35,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 
 /**
  * Integration test case for the I/O manager.
@@ -54,11 +54,11 @@ public class IOManagerITCase {
 
 	private IOManager ioManager;
 
-	private MemoryManager memoryManager;
+	private DefaultMemoryManager memoryManager;
 
 	@Before
 	public void beforeTest() {
-		memoryManager = new MemoryManager(MEMORY_SIZE, 1);
+		memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
 		ioManager = new IOManagerAsync();
 	}
 
@@ -209,7 +209,7 @@ public class IOManagerITCase {
 		}
 	}
 	
-	private static int skewedSample(Random rnd, int max) {
+	private static final int skewedSample(Random rnd, int max) {
 		double uniform = rnd.nextDouble();
 		double var = Math.pow(uniform, 8.0);
 		double pareto = 0.2 / var;

@@ -260,7 +260,7 @@ object SVM{
   }
 
   case object Seed extends Parameter[Long] {
-    val defaultValue = Some(Random.nextLong())
+    val defaultValue = Some(0L)
   }
 
   case object ThresholdValue extends Parameter[Double] {

@@ -22,12 +22,10 @@ package org.apache.flink.streaming.runtime.streamrecord;
  * 
  * @param <T> The type encapsulated with the stream record.
  */
-public class StreamRecord<T> extends StreamElement {
+public class StreamRecord<T> {
 	
-	/** The actual value held by this record */
 	private T value;
 	
-	/** The timestamp of the record */
 	private long timestamp;
 
 	/**

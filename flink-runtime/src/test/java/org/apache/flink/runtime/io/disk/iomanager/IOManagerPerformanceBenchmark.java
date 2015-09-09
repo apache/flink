@@ -42,7 +42,7 @@ import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 
 import org.junit.After;
 import org.junit.Before;
@@ -66,14 +66,14 @@ public class IOManagerPerformanceBenchmark {
 	
 	private static final AbstractInvokable memoryOwner = new DummyInvokable();
 	
-	private MemoryManager memManager;
+	private DefaultMemoryManager memManager;
 	
 	private IOManager ioManager;
 	
 	
 	@Before
 	public void startup() {
-		memManager = new MemoryManager(MEMORY_SIZE, 1);
+		memManager = new DefaultMemoryManager(MEMORY_SIZE,1);
 		ioManager = new IOManagerAsync();
 	}
 	

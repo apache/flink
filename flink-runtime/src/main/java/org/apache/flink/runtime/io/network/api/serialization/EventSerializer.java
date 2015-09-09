@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -146,9 +145,8 @@ public class EventSerializer {
 	public static Buffer toBuffer(AbstractEvent event) {
 		final ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(event);
 
-		MemorySegment data = MemorySegmentFactory.wrap(serializedEvent.array());
-		
-		final Buffer buffer = new Buffer(data, FreeingBufferRecycler.INSTANCE, false);
+		final Buffer buffer = new Buffer(new MemorySegment(serializedEvent.array()),
+				FreeingBufferRecycler.INSTANCE, false);
 		buffer.setSize(serializedEvent.remaining());
 
 		return buffer;

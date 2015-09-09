@@ -195,7 +195,7 @@ public abstract class CostEstimator {
 			// pipelined local union is for free
 			
 			break;
-		case INNER_MERGE:
+		case MERGE:
 			addLocalMergeCost(firstInput, secondInput, driverCosts, costWeight);
 			break;
 		case HYBRIDHASH_BUILD_FIRST:

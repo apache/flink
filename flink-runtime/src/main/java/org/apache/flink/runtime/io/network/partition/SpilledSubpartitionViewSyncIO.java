@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileReader;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.SynchronousBufferFileReader;
@@ -137,7 +136,7 @@ class SpilledSubpartitionViewSyncIO implements ResultSubpartitionView {
 
 			synchronized (buffers) {
 				for (int i = 0; i < numberOfBuffers; i++) {
-					buffers.add(new Buffer(MemorySegmentFactory.allocateUnpooledSegment(memorySegmentSize), this));
+					buffers.add(new Buffer(new MemorySegment(new byte[memorySegmentSize]), this));
 				}
 			}
 		}

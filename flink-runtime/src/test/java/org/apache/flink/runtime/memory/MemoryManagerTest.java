@@ -23,8 +23,9 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
+import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
 
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.junit.Assert;
@@ -47,14 +48,14 @@ public class MemoryManagerTest {
 	
 	private static final int NUM_PAGES = MEMORY_SIZE / PAGE_SIZE;
 
-	private MemoryManager memoryManager;
+	private DefaultMemoryManager memoryManager;
 
 	private Random random;
 
 	
 	@Before
 	public void setUp() {
-		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1, PAGE_SIZE, true);
 		this.random = new Random(RANDOM_SEED);
 	}
 

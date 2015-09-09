@@ -23,16 +23,15 @@ import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.sort.AbstractMergeOuterJoinIterator.OuterJoinType;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Test;
 
-public class NonReusingSortMergeOuterJoinIteratorITCase extends AbstractSortMergeOuterJoinIteratorITCase {
+public class NonReusingSortMergeOuterJoinIteratorITCase  extends AbstractSortMergeOuterJoinIteratorITCase {
 
 	@Override
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	protected <T1, T2, T3> AbstractMergeOuterJoinIterator createOuterJoinIterator(OuterJoinType outerJoinType, MutableObjectIterator<T1> input1,
+	protected <T1, T2> AbstractMergeOuterJoinIterator createOuterJoinIterator(OuterJoinType outerJoinType, MutableObjectIterator<T1> input1,
 																			  MutableObjectIterator<T2> input2, TypeSerializer<T1> serializer1,
 																			  TypeComparator<T1> comparator1, TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2,
 																			  TypePairComparator<T1, T2> pairComparator, MemoryManager memoryManager, IOManager ioManager,
