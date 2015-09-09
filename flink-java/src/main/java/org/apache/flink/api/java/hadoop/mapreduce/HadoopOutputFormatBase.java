@@ -49,6 +49,14 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 
 	private static final long serialVersionUID = 1L;
 
+	// Mutexes to avoid concurrent operations on Hadoop OutputFormats.
+	// Hadoop parallelizes tasks across JVMs which is why they might rely on this JVM isolation.
+	// In contrast, Flink parallelizes using Threads, so multiple Hadoop OutputFormat instances
+	// might be used in the same JVM.
+	private static final Object OPEN_MUTEX = new Object();
+	private static final Object CONFIGURE_MUTEX = new Object();
+	private static final Object CLOSE_MUTEX = new Object();
+
 	private org.apache.hadoop.conf.Configuration configuration;
 	private org.apache.hadoop.mapreduce.OutputFormat<K,V> mapreduceOutputFormat;
 	protected transient RecordWriter<K,V> recordWriter;
@@ -73,8 +81,12 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 
 	@Override
 	public void configure(Configuration parameters) {
-		if(this.mapreduceOutputFormat instanceof Configurable){
-			((Configurable)this.mapreduceOutputFormat).setConf(this.configuration);
+
+		// enforce sequential configure() calls
+		synchronized (CONFIGURE_MUTEX) {
+			if (this.mapreduceOutputFormat instanceof Configurable) {
+				((Configurable) this.mapreduceOutputFormat).setConf(this.configuration);
+			}
 		}
 	}
 
@@ -86,49 +98,53 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 	 */
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
-		if (Integer.toString(taskNumber + 1).length() > 6) {
-			throw new IOException("Task id too large.");
-		}
 
-		this.taskNumber = taskNumber+1;
+		// enforce sequential open() calls
+		synchronized (OPEN_MUTEX) {
+			if (Integer.toString(taskNumber + 1).length() > 6) {
+				throw new IOException("Task id too large.");
+			}
 
-		// for hadoop 2.2
-		this.configuration.set("mapreduce.output.basename", "tmp");
+			this.taskNumber = taskNumber + 1;
 
-		TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt__0000_r_"
-				+ String.format("%" + (6 - Integer.toString(taskNumber + 1).length()) + "s"," ").replace(" ", "0")
-				+ Integer.toString(taskNumber + 1)
-				+ "_0");
+			// for hadoop 2.2
+			this.configuration.set("mapreduce.output.basename", "tmp");
 
-		this.configuration.set("mapred.task.id", taskAttemptID.toString());
-		this.configuration.setInt("mapred.task.partition", taskNumber + 1);
-		// for hadoop 2.2
-		this.configuration.set("mapreduce.task.attempt.id", taskAttemptID.toString());
-		this.configuration.setInt("mapreduce.task.partition", taskNumber + 1);
+			TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt__0000_r_"
+					+ String.format("%" + (6 - Integer.toString(taskNumber + 1).length()) + "s", " ").replace(" ", "0")
+					+ Integer.toString(taskNumber + 1)
+					+ "_0");
 
-		try {
-			this.context = HadoopUtils.instantiateTaskAttemptContext(this.configuration, taskAttemptID);
-			this.outputCommitter = this.mapreduceOutputFormat.getOutputCommitter(this.context);
-			this.outputCommitter.setupJob(HadoopUtils.instantiateJobContext(this.configuration, new JobID()));
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+			this.configuration.set("mapred.task.id", taskAttemptID.toString());
+			this.configuration.setInt("mapred.task.partition", taskNumber + 1);
+			// for hadoop 2.2
+			this.configuration.set("mapreduce.task.attempt.id", taskAttemptID.toString());
+			this.configuration.setInt("mapreduce.task.partition", taskNumber + 1);
 
-		this.context.getCredentials().addAll(this.credentials);
-		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
-		if(currentUserCreds != null) {
-			this.context.getCredentials().addAll(currentUserCreds);
-		}
+			try {
+				this.context = HadoopUtils.instantiateTaskAttemptContext(this.configuration, taskAttemptID);
+				this.outputCommitter = this.mapreduceOutputFormat.getOutputCommitter(this.context);
+				this.outputCommitter.setupJob(HadoopUtils.instantiateJobContext(this.configuration, new JobID()));
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
 
-		// compatible for hadoop 2.2.0, the temporary output directory is different from hadoop 1.2.1
-		if(outputCommitter instanceof FileOutputCommitter) {
-			this.configuration.set("mapreduce.task.output.dir", ((FileOutputCommitter)this.outputCommitter).getWorkPath().toString());
-		}
+			this.context.getCredentials().addAll(this.credentials);
+			Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
+			if (currentUserCreds != null) {
+				this.context.getCredentials().addAll(currentUserCreds);
+			}
 
-		try {
-			this.recordWriter = this.mapreduceOutputFormat.getRecordWriter(this.context);
-		} catch (InterruptedException e) {
-			throw new IOException("Could not create RecordWriter.", e);
+			// compatible for hadoop 2.2.0, the temporary output directory is different from hadoop 1.2.1
+			if (outputCommitter instanceof FileOutputCommitter) {
+				this.configuration.set("mapreduce.task.output.dir", ((FileOutputCommitter) this.outputCommitter).getWorkPath().toString());
+			}
+
+			try {
+				this.recordWriter = this.mapreduceOutputFormat.getRecordWriter(this.context);
+			} catch (InterruptedException e) {
+				throw new IOException("Could not create RecordWriter.", e);
+			}
 		}
 	}
 
@@ -138,27 +154,31 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 	 */
 	@Override
 	public void close() throws IOException {
-		try {
-			this.recordWriter.close(this.context);
-		} catch (InterruptedException e) {
-			throw new IOException("Could not close RecordReader.", e);
-		}
-		
-		if (this.outputCommitter.needsTaskCommit(this.context)) {
-			this.outputCommitter.commitTask(this.context);
-		}
-		
-		Path outputPath = new Path(this.configuration.get("mapred.output.dir"));
-		
-		// rename tmp-file to final name
-		FileSystem fs = FileSystem.get(outputPath.toUri(), this.configuration);
-		
-		String taskNumberStr = Integer.toString(this.taskNumber);
-		String tmpFileTemplate = "tmp-r-00000";
-		String tmpFile = tmpFileTemplate.substring(0,11-taskNumberStr.length())+taskNumberStr;
-		
-		if(fs.exists(new Path(outputPath.toString()+"/"+tmpFile))) {
-			fs.rename(new Path(outputPath.toString()+"/"+tmpFile), new Path(outputPath.toString()+"/"+taskNumberStr));
+
+		// enforce sequential close() calls
+		synchronized (CLOSE_MUTEX) {
+			try {
+				this.recordWriter.close(this.context);
+			} catch (InterruptedException e) {
+				throw new IOException("Could not close RecordReader.", e);
+			}
+
+			if (this.outputCommitter.needsTaskCommit(this.context)) {
+				this.outputCommitter.commitTask(this.context);
+			}
+
+			Path outputPath = new Path(this.configuration.get("mapred.output.dir"));
+
+			// rename tmp-file to final name
+			FileSystem fs = FileSystem.get(outputPath.toUri(), this.configuration);
+
+			String taskNumberStr = Integer.toString(this.taskNumber);
+			String tmpFileTemplate = "tmp-r-00000";
+			String tmpFile = tmpFileTemplate.substring(0, 11 - taskNumberStr.length()) + taskNumberStr;
+
+			if (fs.exists(new Path(outputPath.toString() + "/" + tmpFile))) {
+				fs.rename(new Path(outputPath.toString() + "/" + tmpFile), new Path(outputPath.toString() + "/" + taskNumberStr));
+			}
 		}
 	}
 
