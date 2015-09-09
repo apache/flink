@@ -31,7 +31,7 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.operators.HashJoinBuildFirstProperties;
 import org.apache.flink.optimizer.operators.HashJoinBuildSecondProperties;
 import org.apache.flink.optimizer.operators.OperatorDescriptorDual;
-import org.apache.flink.optimizer.operators.SortMergeJoinDescriptor;
+import org.apache.flink.optimizer.operators.SortMergeInnerJoinDescriptor;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -120,7 +120,7 @@ public class MatchNode extends TwoInputNode {
 				Optimizer.HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE.equals(localStrategy) ||
 				Optimizer.HINT_LOCAL_STRATEGY_MERGE.equals(localStrategy) )
 			{
-				fixedDriverStrat = new SortMergeJoinDescriptor(this.keys1, this.keys2);
+				fixedDriverStrat = new SortMergeInnerJoinDescriptor(this.keys1, this.keys2);
 			} else if (Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST.equals(localStrategy)) {
 				fixedDriverStrat = new HashJoinBuildFirstProperties(this.keys1, this.keys2);
 			} else if (Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND.equals(localStrategy)) {
@@ -151,10 +151,10 @@ public class MatchNode extends TwoInputNode {
 					list.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2, false, false, true));
 					break;
 				case REPARTITION_SORT_MERGE:
-					list.add(new SortMergeJoinDescriptor(this.keys1, this.keys2, false, false, true));
+					list.add(new SortMergeInnerJoinDescriptor(this.keys1, this.keys2, false, false, true));
 					break;
 				case OPTIMIZER_CHOOSES:
-					list.add(new SortMergeJoinDescriptor(this.keys1, this.keys2));
+					list.add(new SortMergeInnerJoinDescriptor(this.keys1, this.keys2));
 					list.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2));
 					list.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2));
 					break;

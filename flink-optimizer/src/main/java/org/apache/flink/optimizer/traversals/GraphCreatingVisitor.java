@@ -26,6 +26,7 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Union;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
+import org.apache.flink.api.common.operators.base.CoGroupRawOperatorBase;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.base.FilterOperatorBase;
@@ -35,6 +36,7 @@ import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.MapPartitionOperatorBase;
+import org.apache.flink.api.common.operators.base.OuterJoinOperatorBase;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.SortPartitionOperatorBase;
@@ -44,6 +46,7 @@ import org.apache.flink.optimizer.dag.BinaryUnionNode;
 import org.apache.flink.optimizer.dag.BulkIterationNode;
 import org.apache.flink.optimizer.dag.BulkPartialSolutionNode;
 import org.apache.flink.optimizer.dag.CoGroupNode;
+import org.apache.flink.optimizer.dag.CoGroupRawNode;
 import org.apache.flink.optimizer.dag.CollectorMapNode;
 import org.apache.flink.optimizer.dag.CrossNode;
 import org.apache.flink.optimizer.dag.DagConnection;
@@ -57,6 +60,7 @@ import org.apache.flink.optimizer.dag.JoinNode;
 import org.apache.flink.optimizer.dag.MapNode;
 import org.apache.flink.optimizer.dag.MapPartitionNode;
 import org.apache.flink.optimizer.dag.OptimizerNode;
+import org.apache.flink.optimizer.dag.OuterJoinNode;
 import org.apache.flink.optimizer.dag.PartitionNode;
 import org.apache.flink.optimizer.dag.ReduceNode;
 import org.apache.flink.optimizer.dag.SolutionSetNode;
@@ -69,8 +73,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.flink.api.common.operators.base.CoGroupRawOperatorBase;
-import org.apache.flink.optimizer.dag.CoGroupRawNode;
 
 /**
  * This traversal creates the optimizer DAG from a program.
@@ -162,6 +164,9 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 		}
 		else if (c instanceof JoinOperatorBase) {
 			n = new JoinNode((JoinOperatorBase<?, ?, ?, ?>) c);
+		}
+		else if (c instanceof OuterJoinOperatorBase) {
+			n = new OuterJoinNode((OuterJoinOperatorBase<?, ?, ?, ?>) c);
 		}
 		else if (c instanceof CoGroupOperatorBase) {
 			n = new CoGroupNode((CoGroupOperatorBase<?, ?, ?, ?>) c);
