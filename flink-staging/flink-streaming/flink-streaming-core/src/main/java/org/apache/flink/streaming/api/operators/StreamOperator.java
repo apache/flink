@@ -27,40 +27,71 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
  * Basic interface for stream operators. Implementers would implement one of
  * {@link org.apache.flink.streaming.api.operators.OneInputStreamOperator} or
  * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator} to create operators
- * that process elements. You can use
- * {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator} as a base class for
- * custom operators.
+ * that process elements.
+ * 
+ * The class {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}
+ * offers default implementation for the lifecycle and properties methods.
  * 
  * @param <OUT> The output type of the operator
  */
 public interface StreamOperator<OUT> extends Serializable {
 
-	/**
-	 * Initializes the {@link StreamOperator} for input and output handling.
-	 */
-	public void setup(Output<StreamRecord<OUT>> output, StreamingRuntimeContext runtimeContext);
-
-	/**
-	 * This method is called before any elements are processed.
-	 */
-	public void open(Configuration config) throws Exception;
-
-	/**
-	 * This method is called after no more elements for can arrive for processing.
-	 */
-	public void close() throws Exception;
+	// ------------------------------------------------------------------------
+	//  Life Cycle
+	// ------------------------------------------------------------------------
 	
-	public StreamingRuntimeContext getRuntimeContext();
+	/**
+	 * Initializes the operator. Sets access to the context and the output.
+	 */
+	void setup(Output<StreamRecord<OUT>> output, StreamingRuntimeContext runtimeContext);
+
+	/**
+	 * This method is called immediately before any elements are processed, it should contain the
+	 * operator's initialization logic.
+	 * 
+	 * @throws java.lang.Exception An exception in this method causes the operator to fail.
+	 */
+	void open(Configuration config) throws Exception;
+
+	/**
+	 * This method is called after all records have been added to the operators via the methods
+	 * {@link org.apache.flink.streaming.api.operators.OneInputStreamOperator#processElement(StreamRecord)}, or
+	 * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator#processElement1(StreamRecord)} and
+	 * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator#processElement2(StreamRecord)}.
+	 * <p>
+	 * The method is expected to flush all remaining buffered data. Exceptions during this flushing
+	 * of buffered should be propagated, in order to cause the operation to be recognized asa failed,
+	 * because the last data items are not processed properly.
+	 * 
+	 * @throws java.lang.Exception An exception in this method causes the operator to fail.
+	 */
+	void close() throws Exception;
+
+	/**
+	 * This method is called at the very end of the operator's life, both in the case of a successful
+	 * completion of the operation, and in the case of a failure and canceling.
+	 * 
+	 * This method is expected to make a thorough effort to release all resources
+	 * that the operator has acquired.
+	 */
+	void dispose();
+	
+
+	// ------------------------------------------------------------------------
+	//  Context and chaining properties
+	// ------------------------------------------------------------------------
+	
+	StreamingRuntimeContext getRuntimeContext();
 
 	/**
 	 * An operator can return true here to disable copying of its input elements. This overrides
 	 * the object-reuse setting on the {@link org.apache.flink.api.common.ExecutionConfig}
 	 */
-	public boolean isInputCopyingDisabled();
+	boolean isInputCopyingDisabled();
 
-	public void setChainingStrategy(ChainingStrategy strategy);
+	void setChainingStrategy(ChainingStrategy strategy);
 
-	public ChainingStrategy getChainingStrategy();
+	ChainingStrategy getChainingStrategy();
 
 	/**
 	 * Defines the chaining scheme for the operator. By default <b>ALWAYS</b> is used,

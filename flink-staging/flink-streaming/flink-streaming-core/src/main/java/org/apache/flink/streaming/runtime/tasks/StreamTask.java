@@ -162,60 +162,56 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	public final void invoke() throws Exception {
 		LOG.debug("Invoking {}", getName());
 		
-		boolean operatorOpen = false;
+		boolean disposed = false;
 		try {
 			openAllOperators();
-			operatorOpen = true;
 
 			// let the task do its work
 			isRunning = true;
 			run();
+			isRunning = false;
 			
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Finished task {}", getName());
 			}
-
-			// make sure no further checkpoint and notification actions happen
-			// for that we set this task as not running and make sure no other thread is
-			// currently in the locked scope before we close the operators
-			this.isRunning = false;
+			
+			// make sure no further checkpoint and notification actions happen.
+			// we make sure that no other thread is currently in the locked scope before
+			// we close the operators by trying to acquire the checkpoint scope lock
 			synchronized (checkpointLock) {}
 			
 			// this is part of the main logic, so if this fails, the task is considered failed
 			closeAllOperators();
-			operatorOpen = false;
 			
-			// make sure all data if flushed
+			// make sure all data is flushed
 			outputHandler.flushOutputs();
+
+			// make an attempt to dispose the operators such that failures in the dispose call
+			// still let the computation fail
+			tryDisposeAllOperators();
+			disposed = true;
 		}
 		finally {
-			this.isRunning = false;
+			isRunning = false;
 			
+			// release the output resources. this method should never fail.
+			if (outputHandler != null) {
+				outputHandler.releaseOutputs();
+			}
+
+			// we must! perform this cleanup
+
 			try {
-				if (operatorOpen) {
-					// we came here in a failure
-					closeAllOperators();
-				}
+				cleanup();
 			}
 			catch (Throwable t) {
-				LOG.error("Error closing stream operators after an exception.", t);
-				
+				// catch and log the exception to not replace the original exception
+				LOG.error("Error during cleanup of stream task.");
 			}
-			finally {
-				// we must! perform this cleanup
-				
-				// release the output resources
-				if (outputHandler != null) {
-					outputHandler.releaseOutputs();
-				}
-
-				// release this operator's resources
-				try {
-					cleanup();
-				}
-				catch (Throwable t) {
-					LOG.error("Error during cleanup of stream task.");
-				}
+			
+			// if the operators were not disposed before, do a hard dispose
+			if (!disposed) {
+				disposeAllOperators();
 			}
 		}
 	}
@@ -237,10 +233,31 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	private void closeAllOperators() throws Exception {
 		// We need to close them first to last, since upstream operators in the chain might emit
 		// elements in their close methods.
-		for (int i = outputHandler.getChainedOperators().size()-1; i >= 0; i--) {
+		for (int i = outputHandler.getChainedOperators().size() - 1; i >= 0; i--) {
 			StreamOperator<?> operator = outputHandler.getChainedOperators().get(i);
 			if (operator != null) {
 				operator.close();
+			}
+		}
+	}
+
+	private void tryDisposeAllOperators() throws Exception {
+		for (StreamOperator<?> operator : outputHandler.getChainedOperators()) {
+			if (operator != null) {
+				operator.dispose();
+			}
+		}
+	}
+	
+	private void disposeAllOperators() {
+		for (StreamOperator<?> operator : outputHandler.getChainedOperators()) {
+			if (operator != null) {
+				try {
+					operator.dispose();
+				}
+				catch (Throwable t) {
+					LOG.error("Error during disposal of stream operator.", t);
+				}
 			}
 		}
 	}
