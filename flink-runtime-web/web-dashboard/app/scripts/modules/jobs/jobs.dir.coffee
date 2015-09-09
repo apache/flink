@@ -33,37 +33,45 @@ angular.module('flinkApp')
     angular.element(svgEl).attr('width', containerW)
 
     analyzeTime = (data) ->
+      d3.select(svgEl).selectAll("*").remove()
+
       testData = []
 
       angular.forEach data.subtasks, (subtask, i) ->
+        console.log data.subtasks
+
+        times = [
+          {
+            label: "Scheduled"
+            color: "#666"
+            borderColor: "#555"
+            starting_time: subtask.timestamps["SCHEDULED"]
+            ending_time: subtask.timestamps["DEPLOYING"]
+            type: 'regular'
+          }
+          {
+            label: "Deploying"
+            color: "#aaa"
+            borderColor: "#555"
+            starting_time: subtask.timestamps["DEPLOYING"]
+            ending_time: subtask.timestamps["RUNNING"]
+            type: 'regular'
+          }
+        ]
+
+        if subtask.timestamps["FINISHED"] > 0
+          times.push {
+            label: "Running"
+            color: "#ddd"
+            borderColor: "#555"
+            starting_time: subtask.timestamps["RUNNING"]
+            ending_time: subtask.timestamps["FINISHED"]
+            type: 'regular'
+          }
+
         testData.push {
           label: "#{subtask.host} (#{subtask.subtask})"
-          times: [
-            {
-              label: "Scheduled"
-              color: "#666"
-              borderColor: "#555"
-              starting_time: subtask.timestamps["SCHEDULED"]
-              ending_time: subtask.timestamps["DEPLOYING"]
-              type: 'regular'
-            }
-            {
-              label: "Deploying"
-              color: "#aaa"
-              borderColor: "#555"
-              starting_time: subtask.timestamps["DEPLOYING"]
-              ending_time: subtask.timestamps["RUNNING"]
-              type: 'regular'
-            }
-            {
-              label: "Running"
-              color: "#ddd"
-              borderColor: "#555"
-              starting_time: subtask.timestamps["RUNNING"]
-              ending_time: subtask.timestamps["FINISHED"]
-              type: 'regular'
-            }
-          ]
+          times: times
         }
 
       chart = d3.timeline().stack()
@@ -106,6 +114,8 @@ angular.module('flinkApp')
       label.replace("&gt;", ">")
 
     analyzeTime = (data) ->
+      d3.select(svgEl).selectAll("*").remove()
+
       testData = []
 
       testData.push 
@@ -117,7 +127,6 @@ angular.module('flinkApp')
           ending_time: data.timestamps["CREATED"] + 1
           type: 'scheduled'
         ]
-
 
       angular.forEach data.vertices, (vertex) ->
         if vertex['start-time'] > -1
@@ -187,6 +196,7 @@ angular.module('flinkApp')
     d3tmpSvg = d3.select(mainTmpElement)
 
     # angular.element(mainG).empty()
+    # d3mainSvgG.selectAll("*").remove()
 
     containerW = elem.width()
     angular.element(elem.children()[0]).width(containerW)
@@ -420,6 +430,8 @@ angular.module('flinkApp')
             return el.step_function[j]  if el.step_function[j].id is nodeID
 
     drawGraph = (data) ->
+      # console.log data
+
       g = new dagreD3.graphlib.Graph({ multigraph: true, compound: true }).setGraph({
         nodesep: 70
         edgesep: 0

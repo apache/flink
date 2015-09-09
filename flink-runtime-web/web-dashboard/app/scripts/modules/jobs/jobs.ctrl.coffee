@@ -42,7 +42,7 @@ angular.module('flinkApp')
 
 # --------------------------------------
 
-.controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, $rootScope) ->
+.controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, $rootScope, flinkConfig, $interval) ->
   console.log 'SingleJobController'
 
   $scope.jobid = $stateParams.jobid
@@ -53,9 +53,21 @@ angular.module('flinkApp')
     $rootScope.job = data
     $rootScope.plan = data.plan
 
+  refresher = $interval ->
+    JobsService.loadJob($stateParams.jobid).then (data) ->
+      $rootScope.job = data
+      # $rootScope.plan = data.plan
+
+      $scope.$broadcast 'reload'
+
+  , flinkConfig["refresh-interval"]
+
   $scope.$on '$destroy', ->
     $rootScope.job = null
     $rootScope.plan = null
+
+    $interval.cancel(refresher)
+
 
 # --------------------------------------
 
@@ -70,13 +82,7 @@ angular.module('flinkApp')
       $scope.nodeid = nodeid
       $scope.vertex = null
 
-      if $state.is('single-job.plan.overview')
-        JobsService.getSubtasks(nodeid).then (data) ->
-          $scope.vertex = data
-
-      else if $state.is('single-job.plan.accumulators')
-        JobsService.getAccumulators(nodeid).then (data) ->
-          $scope.vertex = data
+      $scope.$broadcast 'reload'
 
     else
       $scope.nodeid = null
@@ -87,24 +93,43 @@ angular.module('flinkApp')
 .controller 'JobPlanOverviewController', ($scope, JobsService) ->
   console.log 'JobPlanOverviewController'
 
-  if $scope.nodeid and !$scope.vertex.st
+  if $scope.nodeid and (!$scope.vertex or !$scope.vertex.st)
     JobsService.getSubtasks($scope.nodeid).then (data) ->
       $scope.vertex = data
+
+  $scope.$on 'reload', (event) ->
+    console.log 'JobPlanOverviewController'
+    if $scope.nodeid
+      JobsService.getSubtasks($scope.nodeid).then (data) ->
+        $scope.vertex = data
 
 # --------------------------------------
 
 .controller 'JobPlanAccumulatorsController', ($scope, JobsService) ->
   console.log 'JobPlanAccumulatorsController'
 
-  if $scope.nodeid and !$scope.vertex.accumulators
+  if $scope.nodeid and (!$scope.vertex or !$scope.vertex.accumulators)
     JobsService.getAccumulators($scope.nodeid).then (data) ->
       $scope.vertex = data
+
+  $scope.$on 'reload', (event) ->
+    console.log 'JobPlanAccumulatorsController'
+    if $scope.nodeid
+      JobsService.getAccumulators($scope.nodeid).then (data) ->
+        $scope.vertex = data
 
 # --------------------------------------
 
 .controller 'JobTimelineVertexController', ($scope, $state, $stateParams, JobsService) ->
+  console.log 'JobTimelineVertexController'
+
   JobsService.getVertex($stateParams.vertexId).then (data) ->
     $scope.vertex = data
+
+  $scope.$on 'reload', (event) ->
+    console.log 'JobTimelineVertexController'
+    JobsService.getVertex($stateParams.vertexId).then (data) ->
+      $scope.vertex = data
 
 # --------------------------------------
 
