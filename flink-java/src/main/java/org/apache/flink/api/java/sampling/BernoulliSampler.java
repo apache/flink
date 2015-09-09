@@ -35,7 +35,7 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 	private final double fraction;
 	private final Random random;
 	
-	//THRESHOLD	 is a tuning parameter for choosing sampling method according to the fraction
+	// THRESHOLD is a tuning parameter for choosing sampling method according to the fraction.
 	private final static double THRESHOLD = 0.33;
 	
 	/**
@@ -117,12 +117,16 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 							element = input.next();
 							elementCount++;
 						}
-						return element;
+						if (elementCount < gap) {
+							return null;
+						} else {
+							return element;
+						}
 					} else {
 						return null;
 					}
-				}else {
-					while (input.hasNext()){
+				} else {
+					while (input.hasNext()) {
 						T element = input.next();
 
 						if (random.nextDouble() <= fraction) {

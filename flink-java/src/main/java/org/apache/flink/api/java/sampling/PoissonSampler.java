@@ -35,9 +35,9 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 	
 	private PoissonDistribution poissonDistribution;
 	private final double fraction;
-	private final Random random = new Random();
+	private final Random random;
 	
-	//THRESHOLD	 is a tuning parameter for choosing sampling method according to the fraction
+	// THRESHOLD is a tuning parameter for choosing sampling method according to the fraction.
 	private final static double THRESHOLD = 0.4;
 	
 	/**
@@ -53,6 +53,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 			this.poissonDistribution = new PoissonDistribution(fraction);
 			this.poissonDistribution.reseedRandomGenerator(seed);
 		}
+		this.random = new Random(seed);
 	}
 	
 	/**
@@ -66,6 +67,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 		if (this.fraction > 0) {
 			this.poissonDistribution = new PoissonDistribution(fraction);
 		}
+		this.random = new Random();
 	}
 	
 	/**
@@ -99,13 +101,22 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 				}
 			}
 			
+			@Override
+			public T next() {
+				if (currentCount <= 0) {
+					samplingProcess();
+				}
+				currentCount--;
+				return currentElement;
+			}
+			
 			public int poisson_ge1(double p){
-				// sample 'k' from Poisson(p), conditioned to k >= 1
+				// sample 'k' from Poisson(p), conditioned to k >= 1.
 				double q = Math.pow(Math.E, -p);
-				// simulate a poisson trial such that k >= 1
-				double t = q + (1 - q)*random.nextDouble();
+				// simulate a poisson trial such that k >= 1.
+				double t = q + (1 - q) * random.nextDouble();
 				int k = 1;
-				// continue standard poisson generation trials
+				// continue standard poisson generation trials.
 				t = t * random.nextDouble();
 				while (t > q) {
 					k++;
@@ -114,8 +125,8 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 				return k;
 			}
 			
-			private void moveToNextElement(int num) {
-				// skip elements with replication factor zero
+			private void skipGapElements(int num) {
+				// skip the elements that occurrence number is zero.
 				int elementCount = 0;
 				while (input.hasNext() && elementCount < num){
 					currentElement = input.next();
@@ -127,13 +138,12 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 				if (fraction <= THRESHOLD) {
 					double u = Math.max(random.nextDouble(), EPSILON);
 					int gap = (int) (Math.log(u) / -fraction);
-					moveToNextElement(gap);
+					skipGapElements(gap);
 					if (input.hasNext()) {
 						currentElement = input.next();
 						currentCount = poisson_ge1(fraction);
 					}
-				}
-				else {
+				} else {
 					while (input.hasNext()){
 						currentElement = input.next();
 						currentCount = poissonDistribution.sample();
@@ -142,15 +152,6 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 						}
 					}
 				}
-			}
-			
-			@Override
-			public T next() {
-				if (currentCount <= 0) {
-					samplingProcess();
-				}
-				currentCount--;
-				return currentElement;
 			}
 		};
 	}
