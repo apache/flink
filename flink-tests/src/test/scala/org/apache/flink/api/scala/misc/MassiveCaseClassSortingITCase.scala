@@ -35,11 +35,13 @@ import org.apache.flink.runtime.operators.sort.UnilateralSortMerger
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory
 import org.junit.Assert._
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
+import org.junit.Test
 
 class MassiveCaseClassSortingITCase {
   
   val SEED : Long = 347569784659278346L
-  
+
+  @Test
   def testStringTuplesSorting() {
     
     val NUM_STRINGS = 3000000

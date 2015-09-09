@@ -26,8 +26,11 @@ import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.{Matchers, WordSpecLike}
 
+@RunWith(classOf[JUnitRunner])
 class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
 
   "A task manager loss" must {
@@ -64,7 +67,7 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
 
         instance1.markDead()
         eg.getState should equal(JobStatus.FAILING)
-      }catch{
+      } catch {
         case t:Throwable =>
           t.printStackTrace()
           fail(t.getMessage)
