@@ -20,7 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
-import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -30,64 +30,53 @@ import java.io.StringWriter;
 import java.util.Map;
 
 /**
- * Request handler that returns the state transition timestamps for all subtasks, plus their
- * location and duration.
+ * Request handler that returns the accumulators for all subtasks of job vertex.
  */
-public class SubtasksTimesHandler extends AbstractJobVertexRequestHandler implements RequestHandler.JsonResponse {
-
+public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHandler implements RequestHandler.JsonResponse {
 	
-	public SubtasksTimesHandler(ExecutionGraphHolder executionGraphHolder) {
+	public SubtasksAllAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
 	public String handleRequest(ExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
-		final long now = System.currentTimeMillis();
-
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
 
 		gen.writeStartObject();
-
 		gen.writeStringField("id", jobVertex.getJobVertexId().toString());
-		gen.writeStringField("name", jobVertex.getJobVertex().getName());
-		gen.writeNumberField("now", now);
-		
-		gen.writeArrayFieldStart("subtasks");
+		gen.writeNumberField("parallelism", jobVertex.getParallelism());
 
+		gen.writeArrayFieldStart("subtasks");
+		
 		int num = 0;
 		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
-			
-			long[] timestamps = vertex.getCurrentExecutionAttempt().getStateTimestamps();
-			ExecutionState status = vertex.getExecutionState();
-
-			long scheduledTime = timestamps[ExecutionState.SCHEDULED.ordinal()];
-			
-			long start = scheduledTime > 0 ? scheduledTime : -1;
-			long end = status.isTerminal() ? timestamps[status.ordinal()] : now;
-			long duration = start >= 0 ? end - start : -1L;
-			
-			gen.writeStartObject();
-			gen.writeNumberField("subtask", num++);
 
 			InstanceConnectionInfo location = vertex.getCurrentAssignedResourceLocation();
 			String locationString = location == null ? "(unassigned)" : location.getHostname();
+			
+			gen.writeStartObject();
+			
+			gen.writeNumberField("subtask", num++);
+			gen.writeNumberField("attempt", vertex.getCurrentExecutionAttempt().getAttemptNumber());
 			gen.writeStringField("host", locationString);
 
-			gen.writeNumberField("duration", duration);
-			
-			gen.writeObjectFieldStart("timestamps");
-			for (ExecutionState state : ExecutionState.values()) {
-				gen.writeNumberField(state.name(), timestamps[state.ordinal()]);
+			StringifiedAccumulatorResult[] accs = vertex.getCurrentExecutionAttempt().getUserAccumulatorsStringified();
+			gen.writeArrayFieldStart("user-accumulators");
+			for (StringifiedAccumulatorResult acc : accs) {
+				gen.writeStartObject();
+				gen.writeStringField("name", acc.getName());
+				gen.writeStringField("type", acc.getType());
+				gen.writeStringField("value", acc.getValue());
+				gen.writeEndObject();
 			}
-			gen.writeEndObject();
+			gen.writeEndArray();
 			
 			gen.writeEndObject();
 		}
-
 		gen.writeEndArray();
-		gen.writeEndObject();
 
+		gen.writeEndObject();
 		gen.close();
 		return writer.toString();
 	}

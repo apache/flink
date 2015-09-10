@@ -19,47 +19,31 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 import java.io.StringWriter;
 import java.util.Map;
 
-
-public class JobVertexDetailsHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
+/**
+ * A request handler that provides the details of a job vertex, including id, name, parallelism,
+ * and the runtime and metrics of all its subtasks.
+ */
+public class JobVertexDetailsHandler extends AbstractJobVertexRequestHandler implements RequestHandler.JsonResponse {
 	
 	public JobVertexDetailsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
-	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
-		String vidString = params.get("vertexid");
-		if (vidString == null) {
-			throw new IllegalArgumentException("vertexId parameter missing");
-		}
-
-		JobVertexID vid;
-		try {
-			vid = JobVertexID.fromHexString(vidString);
-		}
-		catch (Exception e) {
-			throw new IllegalArgumentException("Invalid JobVertexID string '" + vidString + "': " + e.getMessage());
-		}
-		
-		ExecutionJobVertex jobVertex = graph.getJobVertex(vid);
-		if (jobVertex == null) {
-			throw new IllegalArgumentException("No vertex with ID '" + vidString + "' exists.");
-		}
-
+	public String handleRequest(ExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
 		final long now = System.currentTimeMillis();
 		
 		StringWriter writer = new StringWriter();
@@ -123,6 +107,8 @@ public class JobVertexDetailsHandler extends AbstractExecutionGraphRequestHandle
 			gen.writeEndObject();
 			
 			gen.writeEndObject();
+			
+			num++;
 		}
 		gen.writeEndArray();
 		
