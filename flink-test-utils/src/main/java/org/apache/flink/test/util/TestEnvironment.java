@@ -29,7 +29,6 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.junit.Assert;
 
 public class TestEnvironment extends ExecutionEnvironment {
 
@@ -56,21 +55,13 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		try {
-			OptimizedPlan op = compileProgram(jobName);
+		OptimizedPlan op = compileProgram(jobName);
 
-			JobGraphGenerator jgg = new JobGraphGenerator();
-			JobGraph jobGraph = jgg.compileJobGraph(op);
-			
-			this.lastJobExecutionResult = executor.submitJobAndWait(jobGraph, false);
-			return this.lastJobExecutionResult;
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Job execution failed!");
-			return null;
-		}
+		JobGraphGenerator jgg = new JobGraphGenerator();
+		JobGraph jobGraph = jgg.compileJobGraph(op);
+
+		this.lastJobExecutionResult = executor.submitJobAndWait(jobGraph, false);
+		return this.lastJobExecutionResult;
 	}
 
 
