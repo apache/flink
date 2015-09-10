@@ -37,15 +37,16 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNo
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointNotificationOperator;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
+import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 
+import org.apache.flink.runtime.state.StateHandle;
 import org.junit.Before;
 import org.junit.Test;
 
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
@@ -168,8 +169,7 @@ public class TaskAsyncCallTest {
 				new TaskManagerRuntimeInfo("localhost", new Configuration()));
 	}
 	
-	public static class CheckpointsInOrderInvokable extends AbstractInvokable
-			implements CheckpointedOperator, CheckpointNotificationOperator {
+	public static class CheckpointsInOrderInvokable extends AbstractInvokable implements StatefulTask<StateHandle<Serializable>> {
 
 		private volatile long lastCheckpointId = 0;
 		
@@ -193,6 +193,11 @@ public class TaskAsyncCallTest {
 			if (error != null) {
 				throw error;
 			}
+		}
+
+		@Override
+		public void setInitialState(StateHandle<Serializable> stateHandle) throws Exception {
+
 		}
 
 		@Override
