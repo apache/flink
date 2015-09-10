@@ -229,6 +229,15 @@ public class ExecutionVertex implements Serializable {
 		return currentExecution.getAssignedResourceLocation();
 	}
 	
+	public Execution getPriorExecutionAttempt(int attemptNumber) {
+		if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
+			return priorExecutions.get(attemptNumber);
+		}
+		else {
+			throw new IllegalArgumentException("attempt does not exist");
+		}
+	}
+	
 	public ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();
 	}

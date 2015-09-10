@@ -18,19 +18,22 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-/**
- * A holder for the singleton Jackson JSON factory. Since the Jackson's JSON factory object
- * is a heavyweight object that is encouraged to be shared, we use a singleton instance across
- * all request handlers.
- */
-public class JsonFactory {
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
-	/** The singleton Jackson JSON factory. */
-	public static final com.fasterxml.jackson.core.JsonFactory jacksonFactory =
-			new com.fasterxml.jackson.core.JsonFactory();
+import java.util.Map;
+
+/**
+ * Request handler providing details about a single task execution attempt.
+ */
+public class SubtaskCurrentAttemptDetailsHandler extends SubtaskExecutionAttemptDetailsHandler {
 	
-	// --------------------------------------------------------------------------------------------
-	
-	/** Don't instantiate */
-	private JsonFactory() {}
+	public SubtaskCurrentAttemptDetailsHandler(ExecutionGraphHolder executionGraphHolder) {
+		super(executionGraphHolder);
+	}
+
+	@Override
+	public String handleRequest(ExecutionVertex vertex, Map<String, String> params) throws Exception {
+		return handleRequest(vertex.getCurrentExecutionAttempt(), params);
+	}
 }

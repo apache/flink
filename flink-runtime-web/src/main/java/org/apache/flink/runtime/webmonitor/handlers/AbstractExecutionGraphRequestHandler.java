@@ -40,7 +40,7 @@ public abstract class AbstractExecutionGraphRequestHandler implements RequestHan
 	
 	
 	@Override
-	public String handleRequest(Map<String, String> params) throws Exception {
+	public final String handleRequest(Map<String, String> params) throws Exception {
 		String jidString = params.get("jobid");
 		if (jidString == null) {
 			throw new RuntimeException("JobId parameter missing");
@@ -56,7 +56,7 @@ public abstract class AbstractExecutionGraphRequestHandler implements RequestHan
 		
 		ExecutionGraph eg = executionGraphHolder.getExecutionGraph(jid);
 		if (eg == null) {
-			throw new NotFoundException("Could not find execution graph for job " + jid);
+			throw new NotFoundException("Could not find job with id " + jid);
 		}
 		
 		return handleRequest(eg, params);
