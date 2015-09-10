@@ -23,7 +23,10 @@ import java.io.OutputStream;
 import java.net.Socket;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Socket client that acts as a streaming sink. The data is sent to a Socket as a byte array.
@@ -31,6 +34,8 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
  * @param <IN> data to be written into the Socket.
  */
 public class SocketClientSink<IN> extends RichSinkFunction<IN> {
+	protected static final Logger LOG = LoggerFactory.getLogger(SocketClientSink.class);
+
 	private static final long serialVersionUID = 1L;
 
 	private final String hostName;
@@ -38,6 +43,13 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	private final SerializationSchema<IN, byte[]> schema;
 	private transient Socket client;
 	private transient DataOutputStream dataOutputStream;
+	private long maxRetry;
+	private boolean retryForever;
+	private boolean isRunning;
+	protected long retries;
+	private final SerializableObject lock;
+
+	private static final int CONNECTION_RETRY_SLEEP = 1000;
 
 	/**
 	 * Default constructor.
@@ -46,10 +58,15 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	 * @param port Port of the Socket.
 	 * @param schema Schema of the data.
 	 */
-	public SocketClientSink(String hostName, int port, SerializationSchema<IN, byte[]> schema) {
+	public SocketClientSink(String hostName, int port, SerializationSchema<IN, byte[]> schema, long maxRetry) {
 		this.hostName = hostName;
 		this.port = port;
 		this.schema = schema;
+		this.maxRetry = maxRetry;
+		this.retryForever = maxRetry < 0;
+		this.isRunning = false;
+		this.retries = 0;
+		this.lock = new SerializableObject();
 	}
 
 	/**
@@ -60,6 +77,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 		try {
 			client = new Socket(hostName, port);
 			outputStream = client.getOutputStream();
+			isRunning = true;
 		} catch (IOException e) {
 			throw new RuntimeException("Cannot initialize connection to socket server at " + hostName + ":" + port, e);
 		}
@@ -73,13 +91,51 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	 *			The incoming data
 	 */
 	@Override
-	public void invoke(IN value) {
+	public void invoke(IN value) throws Exception {
 		byte[] msg = schema.serialize(value);
 		try {
 			dataOutputStream.write(msg);
 		} catch (IOException e) {
-			throw new RuntimeException("Cannot send message " + value.toString() +
-					" to socket server at " + hostName + ":" + port, e);
+			LOG.error("Cannot send message " + value +
+					" to socket server at " + hostName + ":" + port + ". Caused by " + e.getMessage() +
+					". Trying to reconnect.", e);
+			retries = 0;
+			boolean success = false;
+			while ((retries < maxRetry || retryForever) && !success && isRunning){
+				try {
+
+					if (dataOutputStream != null) {
+						dataOutputStream.close();
+					}
+
+					if (client != null && !client.isClosed()) {
+						client.close();
+					}
+
+					retries++;
+
+					client = new Socket(hostName, port);
+					dataOutputStream = new DataOutputStream(client.getOutputStream());
+					dataOutputStream.write(msg);
+					success = true;
+
+				} catch(IOException ee) {
+					LOG.error("Reconnect to socket server and send message failed. Caused by " +
+							ee.getMessage() + ". Retry time(s):" + retries);
+
+					try {
+						synchronized (lock) {
+							lock.wait(CONNECTION_RETRY_SLEEP);
+						}
+					} catch(InterruptedException eee) {
+						break;
+					}
+				}
+			}
+			if (!success) {
+				throw new RuntimeException("Cannot send message " + value +
+						" to socket server at " + hostName + ":" + port, e);
+			}
 		}
 	}
 
@@ -88,8 +144,21 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	 */
 	private void closeConnection(){
 		try {
-			dataOutputStream.close();
-			client.close();
+			isRunning = false;
+
+			if (dataOutputStream != null) {
+				dataOutputStream.close();
+			}
+
+			if (client != null && !client.isClosed()) {
+				client.close();
+			}
+
+			if (lock != null) {
+				synchronized (lock) {
+					lock.notifyAll();
+				}
+			}
 		} catch (IOException e) {
 			throw new RuntimeException("Error while closing connection with socket server at "
 					+ hostName + ":" + port, e);
