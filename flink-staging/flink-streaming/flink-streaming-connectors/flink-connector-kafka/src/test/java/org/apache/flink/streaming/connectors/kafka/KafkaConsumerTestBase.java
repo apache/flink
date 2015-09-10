@@ -380,11 +380,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		FailingIdentityMapper.failedBefore = false;
 		tryExecute(env, "One-to-one exactly once test");
 
-		// this cannot be reliably checked, as checkpoints come in time intervals, and
-		// failures after a number of elements
-//			assertTrue("Job did not do a checkpoint before the failure",
-//					FailingIdentityMapper.hasBeenCheckpointedBeforeFailure);
-
 		deleteTestTopic(topic);
 	}
 
@@ -431,11 +426,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		FailingIdentityMapper.failedBefore = false;
 		tryExecute(env, "One-source-multi-partitions exactly once test");
-
-		// this cannot be reliably checked, as checkpoints come in time intervals, and
-		// failures after a number of elements
-//			assertTrue("Job did not do a checkpoint before the failure",
-//					FailingIdentityMapper.hasBeenCheckpointedBeforeFailure);
 
 		deleteTestTopic(topic);
 	}
@@ -485,10 +475,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		FailingIdentityMapper.failedBefore = false;
 		tryExecute(env, "multi-source-one-partitions exactly once test");
 
-		// this cannot be reliably checked, as checkpoints come in time intervals, and
-		// failures after a number of elements
-//			assertTrue("Job did not do a checkpoint before the failure",
-//					FailingIdentityMapper.hasBeenCheckpointedBeforeFailure);
 
 		deleteTestTopic(topic);
 	}
@@ -659,6 +645,30 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			assertTrue("Wrong exception", foundResourceException);
 		}
+
+		deleteTestTopic(topic);
+	}
+
+	public void runInvalidOffsetTest() throws Exception {
+		final String topic = "invalidOffsetTopic";
+		final int parallelism = 1;
+
+		// create topic
+		createTestTopic(topic, parallelism, 1);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+
+		// write 20 messages into topic:
+		writeSequence(env, topic, 20, parallelism);
+
+		// set invalid offset:
+		ZkClient zkClient = createZookeeperClient();
+		ZookeeperOffsetHandler.setOffsetInZooKeeper(zkClient, standardCC.groupId(), topic, 0, 1234);
+
+		// read from topic
+		final int valuesCount = 20;
+		final int startFrom = 0;
+		readSequence(env, standardCC.props().props(), parallelism, topic, valuesCount, startFrom);
 
 		deleteTestTopic(topic);
 	}
