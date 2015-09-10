@@ -37,7 +37,7 @@ The following dependency must be added to your project when using the Table API:
 </dependency>
 {% endhighlight %}
 
-Note that the Table API is currently not part of the binary distribution. See linking with it for cluster execution [here](../apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+Note that the Table API is currently not part of the binary distribution. See linking with it for cluster execution [here]({{ site.baseurl }}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
 ## Scala Table API
  
@@ -60,7 +60,7 @@ val result = expr.groupBy('word).select('word, 'count.sum as 'count).toDataSet[W
 The expression DSL uses Scala symbols to refer to field names and we use code generation to
 transform expressions to efficient runtime code. Please note that the conversion to and from
 Tables only works when using Scala case classes or Flink POJOs. Please check out
-the [programming guide](programming_guide.html) to learn the requirements for a class to be 
+the [programming guide]({{ site.baseurl }}/apis/programming_guide.html) to learn the requirements for a class to be 
 considered a POJO.
  
 This is another example that shows how you
