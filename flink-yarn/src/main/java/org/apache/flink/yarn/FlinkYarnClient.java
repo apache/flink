@@ -123,7 +123,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 	private int taskManagerMemoryMb = 1024;
 
-	private int taskManagerCount = 1;
+	private int taskManagerCount = 0;
 
 	private String yarnQueue = null;
 
@@ -343,6 +343,10 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	 * deployed on YARN.
 	 */
 	protected AbstractFlinkYarnCluster deployInternal() throws Exception {
+		if (taskManagerCount == 0) {
+			setTaskManagerCount(flinkConfiguration.getInteger(ConfigConstants.YARN_NUM_CONTAINERS, 1));
+		}
+
 		isReadyForDepoyment();
 
 		LOG.info("Using values:");
