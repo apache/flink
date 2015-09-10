@@ -70,7 +70,6 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
@@ -137,7 +136,7 @@ public class CliFrontend {
 
 	private FlinkPlan optimizedPlan;
 
-	private JobGraph jobGraph;
+	private PackagedProgram packagedProgram;
 
 	/**
 	 *
@@ -401,7 +400,7 @@ public class CliFrontend {
 
 			if (webFrontend) {
 				this.optimizedPlan = flinkPlan;
-				this.jobGraph = client.getJobGraph(program, flinkPlan);
+				this.packagedProgram = program;
 			} else {
 				String jsonPlan = new PlanJSONDumpGenerator()
 						.getOptimizerPlanAsJSON((OptimizedPlan) flinkPlan);
@@ -980,8 +979,8 @@ public class CliFrontend {
 		return this.optimizedPlan;
 	}
 
-	public JobGraph getJobGraph() {
-		return this.jobGraph;
+	public PackagedProgram getPackagedProgram() {
+		return this.packagedProgram;
 	}
 
 	public void shutdown() {
