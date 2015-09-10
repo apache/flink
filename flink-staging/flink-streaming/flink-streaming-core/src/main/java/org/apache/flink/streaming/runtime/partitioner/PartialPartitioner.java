@@ -21,14 +21,11 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
-
 /**
- *Partial Key Grouping maps each message to two of the n possible channels
- *(round robin maps to n channels, field grouping maps to 1 channel). 
- *Among the two possible channels it forwards the key to least loaded 
- *(each source maintains the list of past messages) of two channels.
+ * Partial Key Grouping maps each message to two of the n possible channels
+ * (round robin maps to n channels, field grouping maps to 1 channel). Among the
+ * two possible channels it forwards the key to least loaded (each source
+ * maintains the list of past messages) of two channels.
  * 
  * @param <T>
  *            Type of the Tuple
@@ -36,10 +33,7 @@ import com.google.common.hash.Hashing;
 
 public class PartialPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
-
-	private long[] targetChannelStats; 
-	private HashFunction h1 = Hashing.murmur3_128(13);
-	private HashFunction h2 = Hashing.murmur3_128(17);
+	private long[] targetChannelStats;
 	KeySelector<T, ?> keySelector;
 	private int[] returnArray = new int[1];
 	private boolean initializedStats;
@@ -47,7 +41,8 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 	public PartialPartitioner(KeySelector<T, ?> keySelector) {
 		this.initializedStats = false;
 		this.keySelector = keySelector;
-	}	
+	}
+
 	@Override
 	public StreamPartitioner<T> copy() {
 		return this;
@@ -61,7 +56,7 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numChannels) {
-		if(!initializedStats) {
+		if (!initializedStats) {
 			this.targetChannelStats = new long[numChannels];
 			this.initializedStats = true;
 		}
@@ -69,25 +64,24 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		try {
 			key = keySelector.getKey(record.getInstance().getValue());
 		} catch (Exception e) {
-			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
+			throw new RuntimeException("Could not extract key from "
+					+ record.getInstance().getValue(), e);
 		}
-		
-		int firstChoice = Math.abs(key.hashCode()) 
-				% numChannels;
-		int secondChoice = ( firstChoice + 1 ) 
-				% numChannels; 
-				
-		int selected = targetChannelStats[firstChoice] > targetChannelStats[secondChoice] ? secondChoice : firstChoice;
+
+		int firstChoice = Math.abs(key.hashCode()) % numChannels;
+		int secondChoice = (firstChoice + 1) % numChannels;
+
+		int selected = targetChannelStats[firstChoice] > targetChannelStats[secondChoice] ? secondChoice
+				: firstChoice;
 		targetChannelStats[selected]++;
-		
+
 		returnArray[0] = selected;
 		return returnArray;
 	}
-	
+
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numChannels, int numWorkersPerKey) {
-		
-		if(!initializedStats) {
+		if (!initializedStats) {
 			this.targetChannelStats = new long[numChannels];
 			this.initializedStats = true;
 		}
@@ -95,36 +89,36 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		try {
 			key = keySelector.getKey(record.getInstance().getValue());
 		} catch (Exception e) {
-			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
+			throw new RuntimeException("Could not extract key from "
+					+ record.getInstance().getValue(), e);
 		}
-		
-		if(numWorkersPerKey < 2 || numWorkersPerKey >= numChannels) {
+
+		if (numWorkersPerKey < 2 || numWorkersPerKey >= numChannels) {
 			numWorkersPerKey = 2;
 		}
-		int choices[]  = new int[numWorkersPerKey];
+		int [] choices = new int [numWorkersPerKey];
 		int counter = 0;
-		choices[counter] = Math.abs(key.hashCode()) 
-				% numChannels;
+		choices[counter] = Math.abs(key.hashCode()) % numChannels;
 		counter++;
-		
+
 		while (counter <= numWorkersPerKey) {
-			choices[counter] = (choices[counter-1] + 1 ) 
-				% numChannels; 
-			counter++;		
+			choices[counter] = (choices[counter - 1] + 1) % numChannels;
+			counter++;
 		}
-		
-		int selected = selectMinWorker(targetChannelStats,choices);
+
+		int selected = selectMinWorker(targetChannelStats, choices);
 		targetChannelStats[selected]++;
-		
+
 		returnArray[0] = selected;
 		return returnArray;
 	}
-	
-	private int selectMinWorker(long loadVector[], int choice[]) {
+
+	private int selectMinWorker(long[] loadVector, int [] choice ) {
 		int index = choice[0];
-		for(int i = 0; i< choice.length; i++) {
-			if (loadVector[choice[i]]<loadVector[index])
+		for (int i = 0; i < choice.length; i++) {
+			if (loadVector[choice[i]] < loadVector[index]) {
 				index = choice[i];
+			}
 		}
 		return index;
 	}

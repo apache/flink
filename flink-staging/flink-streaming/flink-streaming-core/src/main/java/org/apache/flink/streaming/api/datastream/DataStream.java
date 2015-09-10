@@ -21,7 +21,6 @@ import java.util.Collection;
 import java.util.List;
 
 import com.google.common.collect.Lists;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -70,7 +69,6 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.PartialPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
@@ -376,16 +374,7 @@ public class DataStream<T> {
 	public DataStream<T> partitionByHash(KeySelector<T, ?> keySelector) {
 		return setConnectionType(new HashPartitioner<T>(clean(keySelector)));
 	}
-	
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned using the given {@link KeySelector}. This setting only
-	 * effects the how the outputs will be distributed between the parallel
-	 * instances of the next processing operator.
-	 *
-	 * @param keySelector The function that extracts the key from an element in the Stream
-	 * @return The partitioned DataStream
-	 */
+
 	//private helper method for partitioning
 	private DataStream<T> partitionByHash(Keys<T> keys) {
 		KeySelector<T, ?> keySelector = clean(KeySelectorUtil.getSelectorForKeys(
@@ -483,8 +472,6 @@ public class DataStream<T> {
 	public DataStream<T> shuffle() {
 		return setConnectionType(new ShufflePartitioner<T>());
 	}
-	
-	
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples

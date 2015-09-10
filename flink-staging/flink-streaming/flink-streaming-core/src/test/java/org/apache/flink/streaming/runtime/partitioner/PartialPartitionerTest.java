@@ -59,7 +59,5 @@ public class PartialPartitionerTest {
 		int firstAttempt = partialPartitioner.selectChannels(sd1, numOfOutChannels)[0];
 		int secondAttempt = partialPartitioner.selectChannels(sd1, numOfOutChannels)[0];	
 		assertNotEquals(firstAttempt,secondAttempt);
-
 	}
-	
 }
