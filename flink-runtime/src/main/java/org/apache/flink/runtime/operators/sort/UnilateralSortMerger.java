@@ -1513,11 +1513,11 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		}
 
 		/**
-		 * Merges the given sorted runs to a smaller number of sorted runs. 
-		 * 
+		 * Merges the given sorted runs to a smaller number of sorted runs.
+		 *
 		 * @param channelIDs The IDs of the sorted runs that need to be merged.
+		 * @param allReadBuffers
 		 * @param writeBuffers The buffers to be used by the writers.
-
 		 * @return A list of the IDs of the merged channels.
 		 * @throws IOException Thrown, if the readers or writers encountered an I/O problem.
 		 */
@@ -1525,34 +1525,41 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 					final List<MemorySegment> allReadBuffers, final List<MemorySegment> writeBuffers)
 		throws IOException
 		{
-			final double numMerges = Math.ceil(channelIDs.size() / ((double) this.maxFanIn));
-			final int channelsToMergePerStep = (int) Math.ceil(channelIDs.size() / numMerges);
-			
+			// A channel list with length maxFanIn<sup>i</sup> can be merged to maxFanIn files in i-1 rounds where every merge
+			// is a full merge with maxFanIn input channels. A partial round includes merges with fewer than maxFanIn
+			// inputs. It is most efficient to perform the partial round first.
+			final double scale = Math.ceil(Math.log(channelIDs.size()) / Math.log(this.maxFanIn)) - 1;
+
+			final int numStart = channelIDs.size();
+			final int numEnd = (int) Math.pow(this.maxFanIn, scale);
+
+			final int numMerges = (int) Math.ceil((numStart - numEnd) / (double) (this.maxFanIn - 1));
+
+			final int numNotMerged = numEnd - numMerges;
+			final int numToMerge = numStart - numNotMerged;
+
+			// unmerged channel IDs are copied directly to the result list
+			final List<ChannelWithBlockCount> mergedChannelIDs = new ArrayList<ChannelWithBlockCount>(numEnd);
+			mergedChannelIDs.addAll(channelIDs.subList(0, numNotMerged));
+
+			final int channelsToMergePerStep = (int) Math.ceil(numToMerge / (double) numMerges);
+
 			// allocate the memory for the merging step
 			final List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelsToMergePerStep);
 			getSegmentsForReaders(readBuffers, allReadBuffers, channelsToMergePerStep);
-			
-			// the list containing the IDs of the merged channels
-			final ArrayList<ChannelWithBlockCount> mergedChannelIDs = new ArrayList<ChannelWithBlockCount>((int) (numMerges + 1));
 
-			final ArrayList<ChannelWithBlockCount> channelsToMergeThisStep = new ArrayList<ChannelWithBlockCount>(channelsToMergePerStep);
-			int channelNum = 0;
+			final List<ChannelWithBlockCount> channelsToMergeThisStep = new ArrayList<ChannelWithBlockCount>(channelsToMergePerStep);
+			int channelNum = numNotMerged;
 			while (isRunning() && channelNum < channelIDs.size()) {
 				channelsToMergeThisStep.clear();
 
 				for (int i = 0; i < channelsToMergePerStep && channelNum < channelIDs.size(); i++, channelNum++) {
 					channelsToMergeThisStep.add(channelIDs.get(channelNum));
 				}
-				
-				// merge only, if there is more than one channel
-				if (channelsToMergeThisStep.size() < 2)  {
-					mergedChannelIDs.addAll(channelsToMergeThisStep);
-				}
-				else {
-					mergedChannelIDs.add(mergeChannels(channelsToMergeThisStep, readBuffers, writeBuffers));
-				}
+
+				mergedChannelIDs.add(mergeChannels(channelsToMergeThisStep, readBuffers, writeBuffers));
 			}
-			
+
 			return mergedChannelIDs;
 		}
 
