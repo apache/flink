@@ -87,6 +87,12 @@ public class FlinkYarnSessionCli {
 	private AbstractFlinkYarnCluster yarnCluster = null;
 	private boolean detachedMode = false;
 
+	public void setConfDirPath(String confDirPath) {
+		this.confDirPath = confDirPath;
+	}
+
+	private String confDirPath = null;
+
 	public FlinkYarnSessionCli(String shortPrefix, String longPrefix) {
 		QUERY = new Option(shortPrefix + "q", longPrefix + "query", false, "Display available YARN resources (memory, cores)");
 		QUEUE = new Option(shortPrefix + "qu", longPrefix + "queue", true, "Specify YARN queue.");
@@ -109,13 +115,6 @@ public class FlinkYarnSessionCli {
 			return null;
 		}
 
-		if (!cmd.hasOption(CONTAINER.getOpt())) { // number of containers is required option!
-			LOG.error("Missing required argument " + CONTAINER.getOpt());
-			printUsage();
-			return null;
-		}
-		flinkYarnClient.setTaskManagerCount(Integer.valueOf(cmd.getOptionValue(CONTAINER.getOpt())));
-
 		// Jar Path
 		Path localJarPath;
 		if (cmd.hasOption(FLINK_JAR.getOpt())) {
@@ -132,7 +131,9 @@ public class FlinkYarnSessionCli {
 		flinkYarnClient.setLocalJarPath(localJarPath);
 
 		// Conf Path
-		String confDirPath = CliFrontend.getConfigurationDirectoryFromEnv();
+		if (confDirPath == null) {
+			confDirPath = CliFrontend.getConfigurationDirectoryFromEnv();
+		}
 		GlobalConfiguration.loadConfiguration(confDirPath);
 		Configuration flinkConfiguration = GlobalConfiguration.getConfiguration();
 		flinkYarnClient.setFlinkConfigurationObject(flinkConfiguration);
@@ -145,6 +146,23 @@ public class FlinkYarnSessionCli {
 		Path confPath = new Path(confFile.getAbsolutePath());
 
 		flinkYarnClient.setConfigurationFilePath(confPath);
+
+		// TaskManager count
+		if (!cmd.hasOption(CONTAINER.getOpt())) {
+			int defaultTaskManagerCount = flinkConfiguration.getInteger(ConfigConstants.YARN_NUM_CONTAINERS, -1);
+
+			if (defaultTaskManagerCount < 1) {
+				LOG.error("Missing required argument " + CONTAINER.getOpt());
+				printUsage();
+				return null;
+			}
+			else {
+				flinkYarnClient.setTaskManagerCount(defaultTaskManagerCount);
+			}
+		}
+		else {
+			flinkYarnClient.setTaskManagerCount(Integer.valueOf(cmd.getOptionValue(CONTAINER.getOpt())));
+		}
 
 		List<File> shipFiles = new ArrayList<>();
 		// path to directory to ship
