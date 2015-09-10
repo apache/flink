@@ -37,7 +37,6 @@ import java.util.Properties;
 
 /**
  * This class provides simple utility methods for reading and parsing program arguments from different sources
- *
  */
 public class ParameterTool extends ExecutionConfig.GlobalJobParameters implements Serializable, Cloneable {
 	private static final long serialVersionUID = 1L;
@@ -51,7 +50,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	/**
 	 * Returns {@link ParameterTool} for the given arguments. The arguments are keys followed by values.
 	 * Keys have to start with '-' or '--'
-	 * <p/>
+	 * <p>
 	 * <strong>Example arguments:</strong>
 	 * --key1 value1 --key2 value2 -key3 value3
 	 *
@@ -138,13 +137,15 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return fromMap(map);
 	}
 
-    /**
-     * Returns {@link ParameterTool} for the given properties file
+	/**
+	 * Returns {@link ParameterTool} for the given {@link Properties} file
 	 *
-     * @param path Path to the properties file
-     * @return A {@link ParameterTool}
-     * @throws IOException If the file does not exist
-     */
+	 * @param path Path to the properties file
+	 * @return A {@link ParameterTool}
+	 * @throws IOException If the file does not exist
+	 *
+	 * @see Properties
+	 */
 	public static ParameterTool fromPropertiesFile(String path) throws IOException {
 		File propertiesFile = new File(path);
 		if(!propertiesFile.exists()) {
@@ -157,35 +158,36 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return fromMap((Map)props);
 	}
 
-    /**
-     * Returns {@link ParameterTool} for the given map
+	/**
+	 * Returns {@link ParameterTool} for the given map
 	 *
-     * @param map A map of arguments. Both Key and Value have to be Strings
-     * @return A {@link ParameterTool}
-     */
+	 * @param map A map of arguments. Both Key and Value have to be Strings
+	 * @return A {@link ParameterTool}
+	 */
 	public static ParameterTool fromMap(Map<String, String> map) {
 		Preconditions.checkNotNull(map, "Unable to initialize from empty map");
 		return new ParameterTool(map);
 	}
 
-    /**
-     * Returns {@link ParameterTool} from the system properties
+	/**
+	 * Returns {@link ParameterTool} from the system properties.
+	 * Example on how to pass system properties:
+	 * -Dkey1=value1 -Dkey2=value2
 	 *
-     * @return A {@link ParameterTool}
-     */
+	 * @return A {@link ParameterTool}
+	 */
 	public static ParameterTool fromSystemProperties() {
 		return fromMap((Map) System.getProperties());
 	}
 
-    /**
-     * Returns {@link ParameterTool} for the arguments parsed by {@link GenericOptionsParser}
+	/**
+	 * Returns {@link ParameterTool} for the arguments parsed by {@link GenericOptionsParser}
 	 *
-     * @param args Input array arguments. It should be parsable by {@link GenericOptionsParser}
-     * @return A {@link ParameterTool}
-     * @throws IOException If arguments cannot be parsed by {@link GenericOptionsParser}
-	 *
+	 * @param args Input array arguments. It should be parsable by {@link GenericOptionsParser}
+	 * @return A {@link ParameterTool}
+	 * @throws IOException If arguments cannot be parsed by {@link GenericOptionsParser}
 	 * @see GenericOptionsParser
-     */
+	 */
 	public static ParameterTool fromGenericOptionsParser(String[] args) throws IOException {
 		Option[] options = new GenericOptionsParser(args).getCommandLine().getOptions();
 		Map<String, String> map = new HashMap<String, String>();
@@ -260,6 +262,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	}
 
 	// -------------- Integer
+
 	/**
 	 * Returns the Integer value for the given key.
 	 * The method fails if the key does not exist or the value is not an Integer.
@@ -285,6 +288,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	}
 
 	// -------------- LONG
+
 	/**
 	 * Returns the Long value for the given key.
 	 * The method fails if the key does not exist.
@@ -297,7 +301,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	/**
 	 * Returns the Long value for the given key. If the key does not exists it will return the default value given.
-	 * The method fails if the value is not an Long.
+	 * The method fails if the value is not a Long.
 	 */
 	public long getLong(String key, long defaultValue) {
 		addToDefaults(key, Long.toString(defaultValue));
@@ -310,6 +314,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	}
 
 	// -------------- FLOAT
+
 	/**
 	 * Returns the Float value for the given key.
 	 * The method fails if the key does not exist.
@@ -322,7 +327,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	/**
 	 * Returns the Float value for the given key. If the key does not exists it will return the default value given.
-	 * The method fails if the value is not an Float.
+	 * The method fails if the value is not a Float.
 	 */
 	public float getFloat(String key, float defaultValue) {
 		addToDefaults(key, Float.toString(defaultValue));
@@ -335,6 +340,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	}
 
 	// -------------- DOUBLE
+
 	/**
 	 * Returns the Double value for the given key.
 	 * The method fails if the key does not exist.
@@ -347,7 +353,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	/**
 	 * Returns the Double value for the given key. If the key does not exists it will return the default value given.
-	 * The method fails if the value is not an Double.
+	 * The method fails if the value is not a Double.
 	 */
 	public double getDouble(String key, double defaultValue) {
 		addToDefaults(key, Double.toString(defaultValue));
