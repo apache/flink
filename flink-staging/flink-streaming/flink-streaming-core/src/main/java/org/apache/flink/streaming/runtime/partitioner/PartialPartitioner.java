@@ -61,7 +61,6 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numChannels) {
-		// TODO Auto-generated method stub
 		if(!initializedStats) {
 			this.targetChannelStats = new long[numChannels];
 			this.initializedStats = true;
@@ -87,7 +86,7 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 	
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numChannels, int numWorkersPerKey) {
-		// TODO Auto-generated method stub
+		
 		if(!initializedStats) {
 			this.targetChannelStats = new long[numChannels];
 			this.initializedStats = true;
@@ -98,7 +97,8 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		} catch (Exception e) {
 			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
 		}
-		if(numWorkersPerKey < 2 ) {
+		
+		if(numWorkersPerKey < 2 || numWorkersPerKey >= numChannels) {
 			numWorkersPerKey = 2;
 		}
 		int choices[]  = new int[numWorkersPerKey];
@@ -112,7 +112,7 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 				% numChannels; 
 			counter++;		
 		}
-				
+		
 		int selected = selectMinWorker(targetChannelStats,choices);
 		targetChannelStats[selected]++;
 		
