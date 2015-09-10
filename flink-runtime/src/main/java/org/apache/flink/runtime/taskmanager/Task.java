@@ -46,9 +46,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointNotificationOperator;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
-import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
+import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
@@ -534,10 +532,10 @@ public class Task implements Runnable {
 			SerializedValue<StateHandle<?>> operatorState = this.operatorState;
 
 			if (operatorState != null) {
-				if (invokable instanceof OperatorStateCarrier) {
+				if (invokable instanceof StatefulTask) {
 					try {
 						StateHandle<?> state = operatorState.deserializeValue(userCodeClassLoader);
-						OperatorStateCarrier<?> op = (OperatorStateCarrier<?>) invokable;
+						StatefulTask<?> op = (StatefulTask<?>) invokable;
 						StateUtils.setOperatorState(op, state);
 					}
 					catch (Exception e) {
@@ -869,7 +867,7 @@ public class Task implements Runnable {
 
 	/**
 	 * Calls the invokable to trigger a checkpoint, if the invokable implements the interface
-	 * {@link org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator}.
+	 * {@link org.apache.flink.runtime.jobgraph.tasks.StatefulTask}.
 	 * 
 	 * @param checkpointID The ID identifying the checkpoint.
 	 * @param checkpointTimestamp The timestamp associated with the checkpoint.   
@@ -878,10 +876,10 @@ public class Task implements Runnable {
 		AbstractInvokable invokable = this.invokable;
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
-			if (invokable instanceof CheckpointedOperator) {
+			if (invokable instanceof StatefulTask) {
 
 				// build a local closure 
-				final CheckpointedOperator checkpointer = (CheckpointedOperator) invokable;
+				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
 				final Logger logger = LOG;
 				final String taskName = taskNameWithSubtask;
 
@@ -889,7 +887,7 @@ public class Task implements Runnable {
 					@Override
 					public void run() {
 						try {
-							checkpointer.triggerCheckpoint(checkpointID, checkpointTimestamp);
+							statefulTask.triggerCheckpoint(checkpointID, checkpointTimestamp);
 						}
 						catch (Throwable t) {
 							failExternally(new RuntimeException("Error while triggering checkpoint for " + taskName, t));
@@ -912,10 +910,10 @@ public class Task implements Runnable {
 		AbstractInvokable invokable = this.invokable;
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
-			if (invokable instanceof CheckpointNotificationOperator) {
+			if (invokable instanceof StatefulTask) {
 
 				// build a local closure 
-				final CheckpointNotificationOperator checkpointer = (CheckpointNotificationOperator) invokable;
+				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
 				final Logger logger = LOG;
 				final String taskName = taskNameWithSubtask;
 
@@ -923,7 +921,7 @@ public class Task implements Runnable {
 					@Override
 					public void run() {
 						try {
-							checkpointer.notifyCheckpointComplete(checkpointID);
+							statefulTask.notifyCheckpointComplete(checkpointID);
 						}
 						catch (Throwable t) {
 							// fail task if checkpoint confirmation failed.

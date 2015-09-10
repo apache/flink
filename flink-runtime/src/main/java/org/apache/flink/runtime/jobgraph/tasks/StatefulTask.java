@@ -18,16 +18,38 @@
 
 package org.apache.flink.runtime.jobgraph.tasks;
 
+import org.apache.flink.runtime.state.StateHandle;
+
 /**
- * This interface needs to be implemented by runtime tasks that want to be able to receive
- * notifications about completed checkpoints.
+ * This interface must be implemented by any invokable that has recoverable state and participates
+ * in checkpointing.
  */
-public interface CheckpointNotificationOperator {
+public interface StatefulTask<T extends StateHandle<?>> {
+
+	/**
+	 * Sets the initial state of the operator, upon recovery. The initial state is typically
+	 * a snapshot of the state from a previous execution.
+	 * 
+	 * @param stateHandle The handle to the state.
+	 */
+	void setInitialState(T stateHandle) throws Exception;
+
+	/**
+	 * This method is either called directly and asynchronously by the checkpoint
+	 * coordinator (in the case of functions that are directly notified - usually
+	 * the data sources), or called synchronously when all incoming channels have
+	 * reported a checkpoint barrier.
+	 *
+	 * @param checkpointId The ID of the checkpoint, incrementing.
+	 * @param timestamp The timestamp when the checkpoint was triggered at the JobManager.
+	 */
+	void triggerCheckpoint(long checkpointId, long timestamp) throws Exception;
+
 
 	/**
 	 * Invoked when a checkpoint has been completed, i.e., when the checkpoint coordinator has received
 	 * the notification from all participating tasks.
-	 * 
+	 *
 	 * @param checkpointId The ID of the checkpoint that is complete..
 	 * @throws Exception The notification method may forward its exceptions.
 	 */
