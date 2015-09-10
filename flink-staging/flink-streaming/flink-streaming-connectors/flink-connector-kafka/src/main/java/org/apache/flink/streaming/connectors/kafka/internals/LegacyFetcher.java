@@ -33,6 +33,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
@@ -356,29 +357,24 @@ public class LegacyFetcher implements Fetcher {
 				// make sure that all partitions have some offsets to start with
 				// those partitions that do not have an offset from a checkpoint need to get
 				// their start offset from ZooKeeper
-				
-				List<FetchPartition> partitionsToGetOffsetsFor = new ArrayList<>();
+				{
+					List<FetchPartition> partitionsToGetOffsetsFor = new ArrayList<>();
 
-				for (FetchPartition fp : partitions) {
-					if (fp.nextOffsetToRead == FlinkKafkaConsumer.OFFSET_NOT_SET) {
-						// retrieve the offset from the consumer
-						partitionsToGetOffsetsFor.add(fp);
+					for (FetchPartition fp : partitions) {
+						if (fp.nextOffsetToRead == FlinkKafkaConsumer.OFFSET_NOT_SET) {
+							// retrieve the offset from the consumer
+							partitionsToGetOffsetsFor.add(fp);
+						}
 					}
-				}
-				if (partitionsToGetOffsetsFor.size() > 0) {
-					long timeType;
-					if (config.getProperty("auto.offset.reset", "latest").equals("latest")) {
-						timeType = OffsetRequest.LatestTime();
-					} else {
-						timeType = OffsetRequest.EarliestTime();
+					if (partitionsToGetOffsetsFor.size() > 0) {
+						getLastOffset(consumer, topic, partitionsToGetOffsetsFor, getInvalidOffsetBehavior(config));
+						LOG.info("No prior offsets found for some partitions in topic {}. Fetched the following start offsets {}",
+								topic, partitionsToGetOffsetsFor);
 					}
-					getLastOffset(consumer, topic, partitionsToGetOffsetsFor, timeType);
-					LOG.info("No prior offsets found for some partitions in topic {}. Fetched the following start offsets {}",
-							topic, partitionsToGetOffsetsFor);
 				}
 				
 				// Now, the actual work starts :-)
-				
+				int OffsetOutOfRangeCount = 0;
 				while (running) {
 					FetchRequestBuilder frb = new FetchRequestBuilder();
 					frb.clientId(clientId);
@@ -396,14 +392,34 @@ public class LegacyFetcher implements Fetcher {
 
 					if (fetchResponse.hasError()) {
 						String exception = "";
+						List<FetchPartition> partitionsToGetOffsetsFor = new ArrayList<>();
 						for (FetchPartition fp : partitions) {
-							short code;
-							if ((code = fetchResponse.errorCode(topic, fp.partition)) != ErrorMapping.NoError()) {
-								exception += "\nException for partition " + fp.partition + ": " + 
+							short code = fetchResponse.errorCode(topic, fp.partition);
+
+							if(code == ErrorMapping.OffsetOutOfRangeCode()) {
+								// we were asked to read from an out-of-range-offset (maybe set wrong in Zookeeper)
+								// Kafka's high level consumer is resetting the offset according to 'auto.offset.reset'
+								partitionsToGetOffsetsFor.add(fp);
+							} else if(code != ErrorMapping.NoError()) {
+								exception += "\nException for partition " + fp.partition + ": " +
 										StringUtils.stringifyException(ErrorMapping.exceptionFor(code));
 							}
 						}
-						throw new IOException("Error while fetching from broker: " + exception);
+						if (partitionsToGetOffsetsFor.size() > 0) {
+							// safeguard against an infinite loop.
+							if(OffsetOutOfRangeCount++ > 0) {
+								throw new RuntimeException("Found invalid offsets more than once in partitions "+partitionsToGetOffsetsFor.toString()+" " +
+										"Exceptions: "+exception);
+							}
+							// get valid offsets for these partitions and try again.
+							LOG.warn("The following partitions had an invalid offset: {}", partitionsToGetOffsetsFor);
+							getLastOffset(consumer, topic, partitionsToGetOffsetsFor, getInvalidOffsetBehavior(config));
+							LOG.warn("The new partition offsets are {}", partitionsToGetOffsetsFor);
+							continue; // jump back to create a new fetch request. The offset has not been touched.
+						} else {
+							// all partitions failed on an error
+							throw new IOException("Error while fetching from broker: " + exception);
+						}
 					}
 
 					int messagesInFetch = 0;
@@ -514,6 +530,16 @@ public class LegacyFetcher implements Fetcher {
 				// for not-yet-consumed partitions, it is 0.
 				fp.nextOffsetToRead = response.offsets(topic, fp.partition)[0];
 			}
+		}
+
+		private static long getInvalidOffsetBehavior(Properties config) {
+			long timeType;
+			if (config.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest").equals("latest")) {
+				timeType = OffsetRequest.LatestTime();
+			} else {
+				timeType = OffsetRequest.EarliestTime();
+			}
+			return timeType;
 		}
 	}
 	
