@@ -36,9 +36,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.plan.FlinkPlan;
@@ -46,7 +48,6 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,13 +87,13 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	// ------------------------------------------------------------------------
 
-	private final File jobStoreDirectory;				// the directory containing the uploaded jobs
+	private final File jobStoreDirectory;										// the directory containing the uploaded jobs
 
-	private final File planDumpDirectory;				// the directory to dump the optimizer plans to
+	private final File planDumpDirectory;										// the directory to dump the optimizer plans to
 
-	private final Map<Long, JobGraph> submittedJobs;	// map from UIDs to the running jobs
+	private final Map<Long, Tuple2<PackagedProgram, FlinkPlan>> submittedJobs;	// map from UIDs to the submitted jobs
 
-	private final Random rand;							// random number generator for UID
+	private final Random rand;													// random number generator for UID
 
 	private final CliFrontend cli;
 
@@ -103,7 +104,7 @@ public class JobSubmissionServlet extends HttpServlet {
 		this.jobStoreDirectory = jobDir;
 		this.planDumpDirectory = planDir;
 
-		this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, JobGraph>());
+		this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, Tuple2<PackagedProgram, FlinkPlan>>());
 
 		this.rand = new Random(System.currentTimeMillis());
 	}
@@ -263,7 +264,7 @@ public class JobSubmissionServlet extends HttpServlet {
 					}
 				}
 				else {
-					this.submittedJobs.put(uid, this.cli.getJobGraph());
+					this.submittedJobs.put(uid, new Tuple2<PackagedProgram, FlinkPlan>(this.cli.getPackagedProgram(), optPlan));
 				}
 
 				// redirect to the plan display page
@@ -304,7 +305,7 @@ public class JobSubmissionServlet extends HttpServlet {
 			}
 
 			// get the retained job
-			JobGraph job = submittedJobs.remove(uid);
+			Tuple2<PackagedProgram, FlinkPlan> job = submittedJobs.remove(uid);
 			if (job == null) {
 				resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
 					"No job with the given uid was retained for later submission.");
@@ -313,8 +314,8 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// submit the job
 			try {
-				Client client = new Client(GlobalConfiguration.getConfiguration(), getClass().getClassLoader());
-				client.run(job, false);
+				Client client = new Client(GlobalConfiguration.getConfiguration(), job.f0.getUserCodeClassLoader());
+				client.run(client.getJobGraph(job.f0, job.f1), false);
 			}
 			catch (Exception ex) {
 				LOG.error("Error submitting job to the job-manager.", ex);
