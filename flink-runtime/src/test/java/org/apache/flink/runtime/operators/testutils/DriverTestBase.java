@@ -142,7 +142,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Pa
 	public void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp) throws Exception {
 		UnilateralSortMerger<Record> sorter = new UnilateralSortMerger<Record>(
 				this.memManager, this.ioManager, input, this.owner, RecordSerializerFactory.get(), comp,
-				this.perSortFractionMem, 32, 0.8f);
+				this.perSortFractionMem, 32, 0.8f, true);
 		this.sorters.add(sorter);
 		this.inputs.add(null);
 	}

@@ -119,7 +119,7 @@ public class ExternalSortITCase {
 			
 			Sorter<Record> merger = new UnilateralSortMerger<Record>(this.memoryManager, this.ioManager, 
 				source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)64/78, 2, 0.9f);
+					(double)64/78, 2, 0.9f, true);
 	
 			// emit data
 			LOG.debug("Reading and sorting data...");
@@ -172,7 +172,7 @@ public class ExternalSortITCase {
 			
 			Sorter<Record> merger = new UnilateralSortMerger<Record>(this.memoryManager, this.ioManager, 
 					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)64/78, 10, 2, 0.9f);
+					(double)64/78, 10, 2, 0.9f, false);
 	
 			// emit data
 			LOG.debug("Reading and sorting data...");
@@ -225,7 +225,7 @@ public class ExternalSortITCase {
 			
 			Sorter<Record> merger = new UnilateralSortMerger<Record>(this.memoryManager, this.ioManager, 
 					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)16/78, 64, 0.7f);
+					(double)16/78, 64, 0.7f, true);
 	
 			// emit data
 			LOG.debug("Reading and sorting data...");
@@ -281,7 +281,7 @@ public class ExternalSortITCase {
 			
 			Sorter<Record> merger = new UnilateralSortMerger<Record>(this.memoryManager, this.ioManager, 
 					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)64/78, 16, 0.7f);
+					(double)64/78, 16, 0.7f, false);
 			
 			// emit data
 			LOG.debug("Emitting data...");
@@ -341,7 +341,7 @@ public class ExternalSortITCase {
 			LOG.debug("Initializing sortmerger...");
 			
 			Sorter<IntPair> merger = new UnilateralSortMerger<IntPair>(this.memoryManager, this.ioManager, 
-					generator, this.parentTask, serializerFactory, comparator, (double)64/78, 4, 0.7f);
+					generator, this.parentTask, serializerFactory, comparator, (double)64/78, 4, 0.7f, true);
 	
 			// emit data
 			LOG.debug("Emitting data...");
