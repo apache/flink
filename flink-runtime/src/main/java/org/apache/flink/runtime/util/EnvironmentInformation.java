@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.RuntimeMXBean;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Properties;
 
