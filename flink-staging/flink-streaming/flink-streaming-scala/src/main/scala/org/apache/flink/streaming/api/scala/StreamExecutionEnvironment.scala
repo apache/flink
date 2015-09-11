@@ -509,6 +509,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def getStreamGraph = javaEnv.getStreamGraph
 
   /**
+   * Getter of the wrapped [[org.apache.flink.streaming.api.environment.StreamExecutionEnvironment]]
+   * @return The encased ExecutionEnvironment
+   */
+  def getWrappedStreamExecutionEnvironment = javaEnv
+
+  /**
    * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
    * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]]
    */
