@@ -30,7 +30,7 @@ table.table.table-body-hover.table-clickable.table-activable
       th Status
 
   tbody(ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="changeNode(v.id)")
-    tr
+    tr(ng-if="v.type == 'regular'")
       td
         span(ng-if="v['start-time'] > -1") {{ v['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
       td

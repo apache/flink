@@ -18,7 +18,7 @@ limitations under the License.
 
 
 -->
-<table ng-if="vertex" class="table table-hover table-clickable table-activable table-inner">
+<table ng-if="subtasks" class="table table-hover table-clickable table-activable table-inner">
   <thead>
     <tr>
       <th>Start Time</th>
@@ -34,7 +34,7 @@ limitations under the License.
     </tr>
   </thead>
   <tbody>
-    <tr ng-repeat="subtask in vertex.st">
+    <tr ng-repeat="subtask in subtasks">
       <td><span ng-if="subtask['start-time'] &gt; -1">{{ subtask['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask['end-time'] &gt; -1">{{ subtask['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask.duration &gt; -1">{{ subtask.duration }} ms</span></td>

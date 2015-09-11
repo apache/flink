@@ -21,8 +21,8 @@ table.table.table-body-hover.table-clickable.table-activable
       th Name
       th Status
 
-  tbody(ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="changeNode(v.id)")
-    tr
+  tbody(ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="v.id == nodeid || changeNode(v.id)")
+    tr(ng-if="v.type == 'regular'")
       td {{ v.name | humanizeText }}
       td 
         bs-label(status="{{v.status}}") {{v.status}}

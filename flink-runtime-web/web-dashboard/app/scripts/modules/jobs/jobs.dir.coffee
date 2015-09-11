@@ -38,8 +38,6 @@ angular.module('flinkApp')
       testData = []
 
       angular.forEach data.subtasks, (subtask, i) ->
-        console.log data.subtasks
-
         times = [
           {
             label: "Scheduled"
@@ -70,7 +68,7 @@ angular.module('flinkApp')
           }
 
         testData.push {
-          label: "#{subtask.host} (#{subtask.subtask})"
+          label: "(#{subtask.subtask}) #{subtask.host}"
           times: times
         }
 
@@ -102,7 +100,8 @@ angular.module('flinkApp')
   template: "<svg class='timeline' width='0' height='0'></svg>"
 
   scope:
-    job: "="
+    vertices: "="
+    jobid: "="
 
   link: (scope, elem, attrs) ->
     svgEl = elem.children()[0]
@@ -118,32 +117,33 @@ angular.module('flinkApp')
 
       testData = []
 
-      testData.push 
-        times: [
-          label: "Scheduled"
-          color: "#cccccc"
-          borderColor: "#555"
-          starting_time: data.timestamps["CREATED"]
-          ending_time: data.timestamps["CREATED"] + 1
-          type: 'scheduled'
-        ]
-
-      angular.forEach data.vertices, (vertex) ->
+      angular.forEach data, (vertex) ->
         if vertex['start-time'] > -1
-          testData.push 
-            times: [
-              label: translateLabel(vertex.name)
-              color: "#d9f1f7"
-              borderColor: "#62cdea"
-              starting_time: vertex['start-time']
-              ending_time: vertex['end-time']
-              link: vertex.id
-              type: 'regular'
-            ]
+          if vertex.type is 'scheduled'
+            testData.push 
+              times: [
+                label: translateLabel(vertex.name)
+                color: "#cccccc"
+                borderColor: "#555555"
+                starting_time: vertex['start-time']
+                ending_time: vertex['end-time']
+                type: vertex.type
+              ]
+          else
+            testData.push 
+              times: [
+                label: translateLabel(vertex.name)
+                color: "#d9f1f7"
+                borderColor: "#62cdea"
+                starting_time: vertex['start-time']
+                ending_time: vertex['end-time']
+                link: vertex.id
+                type: vertex.type
+              ]
 
       chart = d3.timeline().stack().click((d, i, datum) ->
         if d.link
-          $state.go "single-job.timeline.vertex", { jobid: data.jid, vertexId: d.link }
+          $state.go "single-job.timeline.vertex", { jobid: scope.jobid, vertexId: d.link }
 
       )
       .tickFormat({
@@ -162,7 +162,7 @@ angular.module('flinkApp')
       .datum(testData)
       .call(chart)
 
-    scope.$watch attrs.job, (data) ->
+    scope.$watch attrs.vertices, (data) ->
       analyzeTime(data) if data
 
     return
@@ -183,6 +183,7 @@ angular.module('flinkApp')
     setNode: '&'
 
   link: (scope, elem, attrs) ->
+    g = null
     mainZoom = d3.behavior.zoom()
     subgraphs = []
     jobid = attrs.jobid

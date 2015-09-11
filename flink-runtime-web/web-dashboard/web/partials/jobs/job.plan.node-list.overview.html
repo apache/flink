@@ -33,7 +33,7 @@ limitations under the License.
     </tr>
   </thead>
   <tbody ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="changeNode(v.id)">
-    <tr>
+    <tr ng-if="v.type == 'regular'">
       <td><span ng-if="v['start-time'] &gt; -1">{{ v['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="v['end-time'] &gt; -1">{{ v['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="v.duration &gt; -1">{{ v.duration }} ms</span></td>

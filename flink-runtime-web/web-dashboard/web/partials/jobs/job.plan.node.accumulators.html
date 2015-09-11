@@ -17,11 +17,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 -->
-<div ng-if="vertex">
-  <div ng-if="vertex.accumulators.length == 0">
-    <p><i>No accumulators</i></p>
-  </div>
-  <table ng-if="vertex.accumulators.length &gt; 0" class="table table-hover table-clickable table-activable table-inner">
+<div ng-if="accumulators.length == 0">
+  <p><i>No accumulators</i></p>
+</div>
+<div ng-if="accumulators &amp;&amp; accumulators.length &gt; 0">
+  <table class="table table-hover table-clickable table-activable table-inner">
     <thead>
       <tr>
         <th>Name</th>
@@ -30,11 +30,39 @@ limitations under the License.
       </tr>
     </thead>
     <tbody>
-      <tr ng-repeat="accumulator in vertex.accumulators">
-        <td>{{ accumulator.name }}</td>
-        <td>{{ accumulator.type }}</td>
-        <td>{{ accumulator.value }}</td>
+      <tr ng-repeat="accumulator in accumulators">
+        <td width="30%">{{ accumulator.name }}</td>
+        <td width="30%">{{ accumulator.type }}</td>
+        <td width="30%">{{ accumulator.value }}</td>
       </tr>
     </tbody>
   </table>
+  <div ng-if="!nodeUnfolded"><a ng-click="toggleFold()" class="btn btn-default">
+      Show subtasks
+       <i class="fa fa-chevron-down"></i></a><a ng-click="deactivateNode(); $event.stopPropagation()" title="Fold" class="btn btn-default pull-right"><i class="fa fa-chevron-up"></i></a></div>
+  <div ng-if="nodeUnfolded &amp;&amp; subtaskAccumulators &amp;&amp; subtaskAccumulators.length &gt; 0"><a ng-click="toggleFold()" class="btn btn-default">
+      Hide subtasks
+       <i class="fa fa-chevron-up"></i></a>
+    <table class="table table-hover table-clickable table-activable table-inner">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody ng-if="subtask['user-accumulators'] &amp;&amp; subtask['user-accumulators'].length &gt; 0" ng-repeat="subtask in subtaskAccumulators">
+        <tr>
+          <td colwidth="3">
+            <div class="small-label">({{ subtask.subtask }}) {{ subtask.host }}, attempt: {{ subtask.attempt + 1 }}</div>
+          </td>
+        </tr>
+        <tr ng-repeat="accumulator in subtask['user-accumulators']">
+          <td width="30%">{{ accumulator.name }}</td>
+          <td width="30%">{{ accumulator.type }}</td>
+          <td width="30%">{{ accumulator.value }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>

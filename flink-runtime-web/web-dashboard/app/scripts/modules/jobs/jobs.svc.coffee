@@ -21,6 +21,7 @@ angular.module('flinkApp')
 .service 'JobsService', ($http, flinkConfig, $log, amMoment, $q, $timeout) ->
   currentJob = null
   currentPlan = null
+
   deferreds = {}
   jobs = {
     running: []
@@ -71,6 +72,17 @@ angular.module('flinkApp')
       unless item['end-time'] > -1
         item['end-time'] = item['start-time'] + item['duration']
 
+  @processVertices = (data) ->
+    angular.forEach data.vertices, (vertex, i) ->
+      vertex.type = 'regular'
+
+    data.vertices.unshift({
+      name: 'Scheduled'
+      'start-time': data.timestamps['CREATED']
+      'end-time': data.timestamps['CREATED'] + 1
+      type: 'scheduled'
+    })
+
   @listJobs = ->
     deferred = $q.defer()
 
@@ -101,6 +113,7 @@ angular.module('flinkApp')
     $http.get flinkConfig.jobServer + "/jobs/" + jobid
     .success (data, status, headers, config) =>
       @setEndTimes(data.vertices)
+      @processVertices(data)
 
       $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/config"
       .success (jobConfig) ->
@@ -108,7 +121,7 @@ angular.module('flinkApp')
 
         currentJob = data
 
-        deferreds.job.resolve(data)
+        deferreds.job.resolve(currentJob)
 
     deferreds.job.promise
 
@@ -120,7 +133,6 @@ angular.module('flinkApp')
         return sub if sub
 
       null
-
 
     deferred = $q.defer()
 
@@ -149,8 +161,6 @@ angular.module('flinkApp')
       .success (data) =>
         # TODO: change to subtasktimes
         vertex.subtasks = data.subtasks
-        @setEndTimes(vertex.subtasks)
-        console.log vertex.subtasks
 
         deferred.resolve(vertex)
 
@@ -160,13 +170,13 @@ angular.module('flinkApp')
     deferred = $q.defer()
 
     deferreds.job.promise.then (data) =>
-      vertex = @seekVertex(vertexid)
+      # vertex = @seekVertex(vertexid)
 
       $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid
       .success (data) ->
-        vertex.st = data.subtasks
+        subtasks = data.subtasks
 
-        deferred.resolve(vertex)
+        deferred.resolve(subtasks)
 
     deferred.promise
 
@@ -174,16 +184,19 @@ angular.module('flinkApp')
     deferred = $q.defer()
 
     deferreds.job.promise.then (data) =>
-      vertex = @seekVertex(vertexid)
+      # vertex = @seekVertex(vertexid)
 
       $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators"
       .success (data) ->
-        vertex.accumulators = data['user-accumulators']
+        accumulators = data['user-accumulators']
 
-        deferred.resolve(vertex)
+        $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasks/accumulators"
+        .success (data) ->
+          subtaskAccumulators = data.subtasks
+
+          deferred.resolve({ main: accumulators, subtasks: subtaskAccumulators })
 
     deferred.promise
-
 
   @loadExceptions = ->
     deferred = $q.defer()
