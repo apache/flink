@@ -46,25 +46,27 @@ angular.module('flinkApp')
   console.log 'SingleJobController'
 
   $scope.jobid = $stateParams.jobid
-  $rootScope.job = null
-  $rootScope.plan = null
+  $scope.job = null
+  $scope.plan = null
+  $scope.vertices = null
 
   JobsService.loadJob($stateParams.jobid).then (data) ->
-    $rootScope.job = data
-    $rootScope.plan = data.plan
+    $scope.job = data
+    $scope.plan = data.plan
+    $scope.vertices = data.vertices
 
   refresher = $interval ->
     JobsService.loadJob($stateParams.jobid).then (data) ->
-      $rootScope.job = data
-      # $rootScope.plan = data.plan
+      $scope.job = data
 
       $scope.$broadcast 'reload'
 
   , flinkConfig["refresh-interval"]
 
   $scope.$on '$destroy', ->
-    $rootScope.job = null
-    $rootScope.plan = null
+    $scope.job = null
+    $scope.plan = null
+    $scope.vertices = null
 
     $interval.cancel(refresher)
 
@@ -75,18 +77,34 @@ angular.module('flinkApp')
   console.log 'JobPlanController'
 
   $scope.nodeid = null
+  $scope.nodeUnfolded = false
   $scope.stateList = JobsService.stateList()
 
   $scope.changeNode = (nodeid) ->
     if nodeid != $scope.nodeid
       $scope.nodeid = nodeid
       $scope.vertex = null
+      $scope.subtasks = null
+      $scope.accumulators = null
 
       $scope.$broadcast 'reload'
 
     else
       $scope.nodeid = null
+      $scope.nodeUnfolded = false
       $scope.vertex = null
+      $scope.subtasks = null
+      $scope.accumulators = null
+
+  $scope.deactivateNode = ->
+    $scope.nodeid = null
+    $scope.nodeUnfolded = false
+    $scope.vertex = null
+    $scope.subtasks = null
+    $scope.accumulators = null
+
+  $scope.toggleFold = ->
+    $scope.nodeUnfolded = !$scope.nodeUnfolded
 
 # --------------------------------------
 
@@ -95,13 +113,13 @@ angular.module('flinkApp')
 
   if $scope.nodeid and (!$scope.vertex or !$scope.vertex.st)
     JobsService.getSubtasks($scope.nodeid).then (data) ->
-      $scope.vertex = data
+      $scope.subtasks = data
 
   $scope.$on 'reload', (event) ->
     console.log 'JobPlanOverviewController'
     if $scope.nodeid
       JobsService.getSubtasks($scope.nodeid).then (data) ->
-        $scope.vertex = data
+        $scope.subtasks = data
 
 # --------------------------------------
 
@@ -110,13 +128,15 @@ angular.module('flinkApp')
 
   if $scope.nodeid and (!$scope.vertex or !$scope.vertex.accumulators)
     JobsService.getAccumulators($scope.nodeid).then (data) ->
-      $scope.vertex = data
+      $scope.accumulators = data.main
+      $scope.subtaskAccumulators = data.subtasks
 
   $scope.$on 'reload', (event) ->
     console.log 'JobPlanAccumulatorsController'
     if $scope.nodeid
       JobsService.getAccumulators($scope.nodeid).then (data) ->
-        $scope.vertex = data
+        $scope.accumulators = data.main
+        $scope.subtaskAccumulators = data.subtasks
 
 # --------------------------------------
 

@@ -19,7 +19,7 @@
 //- center(ng-if="!vertex")
 //-   i.fa.fa-circle-o-notch.fa-spin.fa-3x
 
-table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="vertex")
+table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="subtasks")
   thead
     tr
       th Start Time
@@ -34,7 +34,7 @@ table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="verte
       th Status
 
   tbody
-    tr(ng-repeat="subtask in vertex.st")
+    tr(ng-repeat="subtask in subtasks")
       td
         span(ng-if="subtask['start-time'] > -1") {{ subtask['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
       td

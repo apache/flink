@@ -430,6 +430,11 @@ pre.exception {
 .table.table-activable td {
   position: relative;
 }
+.table .small-label {
+  text-transform: uppercase;
+  font-size: 13px;
+  color: #999;
+}
 .label-group .label {
   display: inline-block;
   width: 2em;
