@@ -113,38 +113,36 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dirs";
 
 	/**
+	 * The config parameter defining the maximum amount of memory (MB) to use for memory allocation.
+	 * Parts of the memory may be allocated off-heap depending on whether TASK_MANAGER_MEMORY_OFF_HEAP_KEY
+	 * is set.
+	 */
+	public static final String TASK_MANAGER_MEMORY_SIZE_KEY = "taskmanager.memory.size";
+
+	/**
 	 * The config parameter defining the amount of memory to be allocated by the task manager's
 	 * memory manager (in megabytes). If not set, a relative fraction will be allocated, as defined
 	 * by {@link #TASK_MANAGER_MEMORY_FRACTION_KEY}.
 	 */
-	public static final String TASK_MANAGER_MEMORY_SIZE_KEY = "taskmanager.memory.size";
+	public static final String TASK_MANAGER_MANAGED_MEMORY_SIZE_KEY = "taskmanager.memory.managed.size";
 	
 	/**
-	 * The config parameter defining the fraction of free memory allocated by the memory manager.
+	 * The config parameter defining the fraction of the maximum memory allocated by the memory manager.
+	 * The maximum memory is defined by TASK_MANAGER_MEMORY_SIZE_KEY.
 	 */
-	public static final String TASK_MANAGER_MEMORY_FRACTION_KEY = "taskmanager.memory.fraction";
+	public static final String TASK_MANAGER_MEMORY_FRACTION_KEY = "taskmanager.memory.managed.fraction";
 
-	/**
-	 * The fraction of off-heap memory relative to the heap size.
-	 */
-	public static final String TASK_MANAGER_MEMORY_OFF_HEAP_RATIO_KEY = "taskmanager.memory.off-heap-ratio";
-	
 	/**
 	 * The config parameter defining the memory allocation method (JVM heap or off-heap).
 	*/
 	public static final String TASK_MANAGER_MEMORY_OFF_HEAP_KEY = "taskmanager.memory.off-heap";
 
 	/**
-	 * The config parameter defining the number of buffers used in the network stack. This defines the
-	 * number of possible tasks and shuffles.
+	 * The config parameter defining the amount of memory used in the network stack. The memory is split
+	 * up into buffers. This defines the number of possible tasks and shuffles.
+	 * Note that this a user input; size comes as MB.
 	 */
-	public static final String TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY = "taskmanager.network.numberOfBuffers";
-
-	/**
-	 * Deprecated config parameter defining the size of the buffers used in the network stack.
-	 */
-	@Deprecated
-	public static final String TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY = "taskmanager.network.bufferSizeInBytes";
+	public static final String TASK_MANAGER_NETWORK_MEMORY_SIZE_KEY = "taskmanager.memory.network.size";
 
 	/**
 	 * Config parameter defining the size of memory buffers used by the network stack and the memory manager.
@@ -548,25 +546,14 @@ public final class ConfigConstants {
 	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION = 0.7f;
 
 	/**
-	 * The default ratio of heap to off-heap memory, when the TaskManager is started with off-heap memory.
-	 */
-	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_OFF_HEAP_RATIO = 3.0f;
-	
-	/**
-	 * Default number of buffers used in the network stack.
-	 */
-	public static final int DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS = 2048;
-
-	/**
-	 * Default size of network stack buffers.
-	 */
-	@Deprecated
-	public static final int DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE = 32768;
-
-	/**
 	 * Default size of memory segments in the network stack and the memory manager.
 	 */
 	public static final int DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE = 32768;
+
+	/**
+	 * Default size (MB) used for the network stack.
+	 */
+	public static final int DEFAULT_TASK_MANAGER_NETWORK_MEMORY_SIZE = (2048 * DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE) >> 20;
 
 	/**
 	 * The implementation to use for spillable/spilled intermediate results, which have both

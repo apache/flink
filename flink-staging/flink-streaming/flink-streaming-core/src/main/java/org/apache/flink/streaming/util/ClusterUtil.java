@@ -52,7 +52,7 @@ public class ClusterUtil {
 
 		LocalFlinkMiniCluster exec = null;
 
-		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
+		configuration.setLong(ConfigConstants.TASK_MANAGER_MANAGED_MEMORY_SIZE_KEY, memorySize);
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
 		if(customConf != null) {
 			configuration.addAll(customConf);
