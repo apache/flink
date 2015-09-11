@@ -21,6 +21,8 @@ package org.apache.flink.api.common.state;
 import java.io.IOException;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * Base interface for all streaming operator states. It can represent both
@@ -30,9 +32,9 @@ import org.apache.flink.api.common.functions.MapFunction;
  * State can be accessed and manipulated using the {@link #value()} and
  * {@link #update(T)} methods. These calls are only safe in the
  * transformation call the operator represents, for instance inside
- * {@link MapFunction#map()} and can lead tp unexpected behavior in the
- * {@link #open(org.apache.flink.configuration.Configuration)} or
- * {@link #close()} methods.
+ * {@link MapFunction#map(Object)} and can lead tp unexpected behavior in the
+ * {@link AbstractRichFunction#open(Configuration)} or
+ * {@link AbstractRichFunction#close()} methods.
  * 
  * @param <T>
  *            Type of the operator state
@@ -59,7 +61,7 @@ public interface OperatorState<T> {
 	 * partitioned state is updated with null, the state for the current key 
 	 * will be removed and the default value is returned on the next access.
 	 * 
-	 * @param state
+	 * @param value
 	 *            The new value for the state.
 	 *            
 	 * @throws IOException Thrown if the system cannot access the state.

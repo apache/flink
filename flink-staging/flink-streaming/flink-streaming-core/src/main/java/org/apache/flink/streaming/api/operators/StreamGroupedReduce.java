@@ -22,9 +22,11 @@ import java.util.Map;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-public class StreamGroupedReduce<IN> extends StreamReduce<IN> {
+public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, ReduceFunction<IN>>
+		implements OneInputStreamOperator<IN, IN>{
 
 	private static final long serialVersionUID = 1L;
 
@@ -41,7 +43,7 @@ public class StreamGroupedReduce<IN> extends StreamReduce<IN> {
 		Object key = keySelector.getKey(element.getValue());
 
 		if (values == null) {
-			values = new HashMap<Object, IN>();
+			values = new HashMap<>();
 		}
 
 		IN currentValue = values.get(key);
@@ -54,6 +56,11 @@ public class StreamGroupedReduce<IN> extends StreamReduce<IN> {
 			values.put(key, element.getValue());
 			output.collect(element.replace(element.getValue()));
 		}
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
 	}
 
 }

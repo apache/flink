@@ -23,18 +23,19 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
-import org.apache.flink.streaming.api.operators.StreamReduce;
 import org.apache.flink.streaming.util.MockContext;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.junit.Test;
@@ -44,32 +45,16 @@ public class AggregationFunctionTest {
 	@Test
 	public void groupSumIntegerTest() {
 
-		List<Tuple2<Integer, Integer>> expectedSumList = new ArrayList<Tuple2<Integer, Integer>>();
-		List<Tuple2<Integer, Integer>> expectedMinList = new ArrayList<Tuple2<Integer, Integer>>();
-		List<Tuple2<Integer, Integer>> expectedMaxList = new ArrayList<Tuple2<Integer, Integer>>();
-		List<Integer> expectedSumList0 = new ArrayList<Integer>();
-		List<Integer> expectedMinList0 = new ArrayList<Integer>();
-		List<Integer> expectedMaxList0 = new ArrayList<Integer>();
-		List<Tuple2<Integer, Integer>> expectedGroupSumList = new ArrayList<Tuple2<Integer, Integer>>();
-		List<Tuple2<Integer, Integer>> expectedGroupMinList = new ArrayList<Tuple2<Integer, Integer>>();
-		List<Tuple2<Integer, Integer>> expectedGroupMaxList = new ArrayList<Tuple2<Integer, Integer>>();
-
-		List<Integer> simpleInput = new ArrayList<Integer>();
+		// preparing expected outputs
+		List<Tuple2<Integer, Integer>> expectedGroupSumList = new ArrayList<>();
+		List<Tuple2<Integer, Integer>> expectedGroupMinList = new ArrayList<>();
+		List<Tuple2<Integer, Integer>> expectedGroupMaxList = new ArrayList<>();
 
 		int groupedSum0 = 0;
 		int groupedSum1 = 0;
 		int groupedSum2 = 0;
 
 		for (int i = 0; i < 9; i++) {
-			simpleInput.add(i);
-			expectedSumList.add(new Tuple2<Integer, Integer>(i % 3, (i + 1) * i / 2));
-			expectedMinList.add(new Tuple2<Integer, Integer>(i % 3, 0));
-			expectedMaxList.add(new Tuple2<Integer, Integer>(i % 3, i));
-
-			expectedSumList0.add((i + 1) * i / 2);
-			expectedMaxList0.add(i);
-			expectedMinList0.add(0);
-
 			int groupedSum;
 			switch (i % 3) {
 				case 0:
@@ -83,99 +68,59 @@ public class AggregationFunctionTest {
 					break;
 			}
 
-			expectedGroupSumList.add(new Tuple2<Integer, Integer>(i % 3, groupedSum));
-			expectedGroupMinList.add(new Tuple2<Integer, Integer>(i % 3, i % 3));
-			expectedGroupMaxList.add(new Tuple2<Integer, Integer>(i % 3, i));
+			expectedGroupSumList.add(new Tuple2<>(i % 3, groupedSum));
+			expectedGroupMinList.add(new Tuple2<>(i % 3, i % 3));
+			expectedGroupMaxList.add(new Tuple2<>(i % 3, i));
 		}
 
-		TypeInformation<Tuple2<Integer, Integer>> type1 = TypeExtractor
-				.getForObject(new Tuple2<Integer, Integer>(0, 0));
-		TypeInformation<Integer> type2 = TypeExtractor.getForObject(2);
+		// some necessary boiler plate
+		TypeInformation<Tuple2<Integer, Integer>> typeInfo = TypeExtractor
+				.getForObject(new Tuple2<>(0, 0));
 
 		ExecutionConfig config = new ExecutionConfig();
 
-		ReduceFunction<Tuple2<Integer, Integer>> sumFunction =
-				new SumAggregator<Tuple2<Integer, Integer>>(1, type1, config);
-		ReduceFunction<Integer> sumFunction0 = new SumAggregator<Integer>(0, type2, config);
-		ReduceFunction<Tuple2<Integer, Integer>> minFunction = new ComparableAggregator<Tuple2<Integer, Integer>>(
-				1, type1, AggregationType.MIN, config);
-		ReduceFunction<Integer> minFunction0 = new ComparableAggregator<Integer>(0, type2,
-				AggregationType.MIN, config);
-		ReduceFunction<Tuple2<Integer, Integer>> maxFunction = new ComparableAggregator<Tuple2<Integer, Integer>>(
-				1, type1, AggregationType.MAX, config);
-		ReduceFunction<Integer> maxFunction0 = new ComparableAggregator<Integer>(0, type2,
-				AggregationType.MAX, config);
-		List<Tuple2<Integer, Integer>> sumList = MockContext.createAndExecute(
-				new StreamReduce<Tuple2<Integer, Integer>>(sumFunction), getInputList());
-
-		List<Tuple2<Integer, Integer>> minList = MockContext.createAndExecute(
-				new StreamReduce<Tuple2<Integer, Integer>>(minFunction), getInputList());
-
-		List<Tuple2<Integer, Integer>> maxList = MockContext.createAndExecute(
-				new StreamReduce<Tuple2<Integer, Integer>>(maxFunction), getInputList());
-
-		TypeInformation<Tuple2<Integer, Integer>> typeInfo = TypeExtractor
-				.getForObject(new Tuple2<Integer, Integer>(1, 1));
-
 		KeySelector<Tuple2<Integer, Integer>, ?> keySelector = KeySelectorUtil.getSelectorForKeys(
-				new Keys.ExpressionKeys<Tuple2<Integer, Integer>>(new int[]{0}, typeInfo),
-				typeInfo, new ExecutionConfig());
+				new Keys.ExpressionKeys<>(new int[]{0}, typeInfo),
+				typeInfo, config);
+
+		// aggregations tested
+		ReduceFunction<Tuple2<Integer, Integer>> sumFunction =
+				new SumAggregator<>(1, typeInfo, config);
+		ReduceFunction<Tuple2<Integer, Integer>> minFunction = new ComparableAggregator<>(
+				1, typeInfo, AggregationType.MIN, config);
+		ReduceFunction<Tuple2<Integer, Integer>> maxFunction = new ComparableAggregator<>(
+				1, typeInfo, AggregationType.MAX, config);
 
 		List<Tuple2<Integer, Integer>> groupedSumList = MockContext.createAndExecute(
-				new StreamGroupedReduce<Tuple2<Integer, Integer>>(sumFunction, keySelector),
+				new StreamGroupedReduce<>(sumFunction, keySelector),
 				getInputList());
 
 		List<Tuple2<Integer, Integer>> groupedMinList = MockContext.createAndExecute(
-				new StreamGroupedReduce<Tuple2<Integer, Integer>>(minFunction, keySelector),
+				new StreamGroupedReduce<>(minFunction, keySelector),
 				getInputList());
 
 		List<Tuple2<Integer, Integer>> groupedMaxList = MockContext.createAndExecute(
-				new StreamGroupedReduce<Tuple2<Integer, Integer>>(maxFunction, keySelector),
+				new StreamGroupedReduce<>(maxFunction, keySelector),
 				getInputList());
 
-		assertEquals(expectedSumList, sumList);
-		assertEquals(expectedMinList, minList);
-		assertEquals(expectedMaxList, maxList);
 		assertEquals(expectedGroupSumList, groupedSumList);
 		assertEquals(expectedGroupMinList, groupedMinList);
 		assertEquals(expectedGroupMaxList, groupedMaxList);
-		assertEquals(expectedSumList0, MockContext.createAndExecute(
-				new StreamReduce<Integer>(sumFunction0), simpleInput));
-		assertEquals(expectedMinList0, MockContext.createAndExecute(
-				new StreamReduce<Integer>(minFunction0), simpleInput));
-		assertEquals(expectedMaxList0, MockContext.createAndExecute(
-				new StreamReduce<Integer>(maxFunction0), simpleInput));
-		
 	}
 
 	@Test
 	public void pojoGroupSumIntegerTest() {
-		List<MyPojo> expectedSumList = new ArrayList<MyPojo>();
-		List<MyPojo> expectedMinList = new ArrayList<MyPojo>();
-		List<MyPojo> expectedMaxList = new ArrayList<MyPojo>();
-		List<Integer> expectedSumList0 = new ArrayList<Integer>();
-		List<Integer> expectedMinList0 = new ArrayList<Integer>();
-		List<Integer> expectedMaxList0 = new ArrayList<Integer>();
-		List<MyPojo> expectedGroupSumList = new ArrayList<MyPojo>();
-		List<MyPojo> expectedGroupMinList = new ArrayList<MyPojo>();
-		List<MyPojo> expectedGroupMaxList = new ArrayList<MyPojo>();
 
-		List<Integer> simpleInput = new ArrayList<Integer>();
+		// preparing expected outputs
+		List<MyPojo> expectedGroupSumList = new ArrayList<>();
+		List<MyPojo> expectedGroupMinList = new ArrayList<>();
+		List<MyPojo> expectedGroupMaxList = new ArrayList<>();
 
 		int groupedSum0 = 0;
 		int groupedSum1 = 0;
 		int groupedSum2 = 0;
 
 		for (int i = 0; i < 9; i++) {
-			simpleInput.add(i);
-			expectedSumList.add(new MyPojo(i % 3, (i + 1) * i / 2));
-			expectedMinList.add(new MyPojo(i % 3, 0));
-			expectedMaxList.add(new MyPojo(i % 3, i));
-
-			expectedSumList0.add((i + 1) * i / 2);
-			expectedMaxList0.add(i);
-			expectedMinList0.add(0);
-
 			int groupedSum;
 			switch (i % 3) {
 				case 0:
@@ -194,222 +139,188 @@ public class AggregationFunctionTest {
 			expectedGroupMaxList.add(new MyPojo(i % 3, i));
 		}
 
-		TypeInformation<MyPojo> type1 = TypeExtractor.getForObject(new MyPojo(0, 0));
-		TypeInformation<Integer> type2 = TypeExtractor.getForObject(0);
+		// some necessary boiler plate
+		TypeInformation<MyPojo> typeInfo = TypeExtractor.getForObject(new MyPojo(0, 0));
+
 		ExecutionConfig config = new ExecutionConfig();
 
-		ReduceFunction<MyPojo> sumFunction = new SumAggregator<MyPojo>("f1", type1, config);
-		ReduceFunction<Integer> sumFunction0 = new SumAggregator<Integer>(0, type2, config);
-		ReduceFunction<MyPojo> minFunction = new ComparableAggregator<MyPojo>("f1", type1, AggregationType.MIN,
-				false, config);
-		ReduceFunction<Integer> minFunction0 = new ComparableAggregator<Integer>(0, type2, AggregationType.MIN,
-				config);
-		ReduceFunction<MyPojo> maxFunction = new ComparableAggregator<MyPojo>("f1", type1, AggregationType.MAX,
-				false, config);
-		ReduceFunction<Integer> maxFunction0 = new ComparableAggregator<Integer>(0, type2, AggregationType.MAX,
-				config);
-
-		List<MyPojo> sumList = MockContext.createAndExecute(
-				new StreamReduce<MyPojo>(sumFunction), getInputPojoList());
-		List<MyPojo> minList = MockContext.createAndExecute(
-				new StreamReduce<MyPojo>(minFunction), getInputPojoList());
-		List<MyPojo> maxList = MockContext.createAndExecute(
-				new StreamReduce<MyPojo>(maxFunction), getInputPojoList());
-
-		TypeInformation<MyPojo> typeInfo = TypeExtractor.getForObject(new MyPojo(1, 1));
 		KeySelector<MyPojo, ?> keySelector = KeySelectorUtil.getSelectorForKeys(
-				new Keys.ExpressionKeys<MyPojo>(new String[]{"f0"}, typeInfo),
+				new Keys.ExpressionKeys<>(new String[]{"f0"}, typeInfo),
 				typeInfo, config);
 
+		// aggregations tested
+		ReduceFunction<MyPojo> sumFunction = new SumAggregator<>("f1", typeInfo, config);
+		ReduceFunction<MyPojo> minFunction = new ComparableAggregator<>("f1", typeInfo, AggregationType.MIN,
+				false, config);
+		ReduceFunction<MyPojo> maxFunction = new ComparableAggregator<>("f1", typeInfo, AggregationType.MAX,
+				false, config);
+
 		List<MyPojo> groupedSumList = MockContext.createAndExecute(
-				new StreamGroupedReduce<MyPojo>(sumFunction, keySelector),
+				new StreamGroupedReduce<>(sumFunction, keySelector),
 				getInputPojoList());
 		List<MyPojo> groupedMinList = MockContext.createAndExecute(
-				new StreamGroupedReduce<MyPojo>(minFunction, keySelector),
+				new StreamGroupedReduce<>(minFunction, keySelector),
 				getInputPojoList());
 		List<MyPojo> groupedMaxList = MockContext.createAndExecute(
-				new StreamGroupedReduce<MyPojo>(maxFunction, keySelector),
+				new StreamGroupedReduce<>(maxFunction, keySelector),
 				getInputPojoList());
 
-		assertEquals(expectedSumList, sumList);
-		assertEquals(expectedMinList, minList);
-		assertEquals(expectedMaxList, maxList);
 		assertEquals(expectedGroupSumList, groupedSumList);
 		assertEquals(expectedGroupMinList, groupedMinList);
 		assertEquals(expectedGroupMaxList, groupedMaxList);
-		assertEquals(expectedSumList0, MockContext.createAndExecute(
-				new StreamReduce<Integer>(sumFunction0), simpleInput));
-		assertEquals(expectedMinList0, MockContext.createAndExecute(
-				new StreamReduce<Integer>(minFunction0), simpleInput));
-		assertEquals(expectedMaxList0, MockContext.createAndExecute(
-				new StreamReduce<Integer>(maxFunction0), simpleInput));
 	}
-
+	
 	@Test
 	public void minMaxByTest() {
-		TypeInformation<Tuple2<Integer, Integer>> type1 = TypeExtractor
-				.getForObject(new Tuple2<Integer, Integer>(0, 0));
+		// Tuples are grouped on field 0, aggregated on field 1
+		
+		// preparing expected outputs
+		List<Tuple3<Integer, Integer, Integer>> maxByFirstExpected = ImmutableList.of(
+				Tuple3.of(0,0,0), Tuple3.of(0,1,1), Tuple3.of(0,2,2),
+				Tuple3.of(0,2,2), Tuple3.of(0,2,2), Tuple3.of(0,2,2),
+				Tuple3.of(0,2,2), Tuple3.of(0,2,2), Tuple3.of(0,2,2));
+
+		List<Tuple3<Integer, Integer, Integer>> maxByLastExpected = ImmutableList.of(
+				Tuple3.of(0, 0, 0), Tuple3.of(0, 1, 1), Tuple3.of(0, 2, 2),
+				Tuple3.of(0, 2, 2), Tuple3.of(0, 2, 2), Tuple3.of(0, 2, 5),
+				Tuple3.of(0, 2, 5), Tuple3.of(0, 2, 5), Tuple3.of(0, 2, 8));
+
+		List<Tuple3<Integer, Integer, Integer>> minByFirstExpected = ImmutableList.of(
+				Tuple3.of(0,0,0), Tuple3.of(0,0,0), Tuple3.of(0,0,0),
+				Tuple3.of(0,0,0), Tuple3.of(0,0,0), Tuple3.of(0,0,0),
+				Tuple3.of(0,0,0), Tuple3.of(0,0,0), Tuple3.of(0,0,0));
+
+		List<Tuple3<Integer, Integer, Integer>> minByLastExpected = ImmutableList.of(
+				Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0),
+				Tuple3.of(0, 0, 3), Tuple3.of(0, 0, 3), Tuple3.of(0, 0, 3),
+				Tuple3.of(0, 0, 6), Tuple3.of(0, 0, 6), Tuple3.of(0, 0, 6));
+
+		// some necessary boiler plate
+		TypeInformation<Tuple3<Integer, Integer, Integer>> typeInfo = TypeExtractor
+				.getForObject(Tuple3.of(0,0,0));
 
 		ExecutionConfig config = new ExecutionConfig();
 
-		ReduceFunction<Tuple2<Integer, Integer>> maxByFunctionFirst =
-				new ComparableAggregator<Tuple2<Integer, Integer>>(0, type1, AggregationType.MAXBY, true, config);
-		ReduceFunction<Tuple2<Integer, Integer>> maxByFunctionLast =
-				new ComparableAggregator<Tuple2<Integer, Integer>>(0, type1, AggregationType.MAXBY, false, config);
-
-		ReduceFunction<Tuple2<Integer, Integer>> minByFunctionFirst =
-				new ComparableAggregator<Tuple2<Integer, Integer>>(0, type1, AggregationType.MINBY, true, config);
-		ReduceFunction<Tuple2<Integer, Integer>> minByFunctionLast =
-				new ComparableAggregator<Tuple2<Integer, Integer>>(0, type1, AggregationType.MINBY, false, config);
-
-		List<Tuple2<Integer, Integer>> maxByFirstExpected = new ArrayList<Tuple2<Integer, Integer>>();
-		maxByFirstExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		maxByFirstExpected.add(new Tuple2<Integer, Integer>(1, 1));
-		maxByFirstExpected.add(new Tuple2<Integer, Integer>(2, 2));
-		maxByFirstExpected.add(new Tuple2<Integer, Integer>(2, 2));
-		maxByFirstExpected.add(new Tuple2<Integer, Integer>(2, 2));
-		maxByFirstExpected.add(new Tuple2<Integer, Integer>(2, 2));
-		maxByFirstExpected.add(new Tuple2<Integer, Integer>(2, 2));
-		maxByFirstExpected.add(new Tuple2<Integer, Integer>(2, 2));
-		maxByFirstExpected.add(new Tuple2<Integer, Integer>(2, 2));
-
-		List<Tuple2<Integer, Integer>> maxByLastExpected = new ArrayList<Tuple2<Integer, Integer>>();
-		maxByLastExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		maxByLastExpected.add(new Tuple2<Integer, Integer>(1, 1));
-		maxByLastExpected.add(new Tuple2<Integer, Integer>(2, 2));
-		maxByLastExpected.add(new Tuple2<Integer, Integer>(2, 2));
-		maxByLastExpected.add(new Tuple2<Integer, Integer>(2, 2));
-		maxByLastExpected.add(new Tuple2<Integer, Integer>(2, 5));
-		maxByLastExpected.add(new Tuple2<Integer, Integer>(2, 5));
-		maxByLastExpected.add(new Tuple2<Integer, Integer>(2, 5));
-		maxByLastExpected.add(new Tuple2<Integer, Integer>(2, 8));
-
-		List<Tuple2<Integer, Integer>> minByFirstExpected = new ArrayList<Tuple2<Integer, Integer>>();
-		minByFirstExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		minByFirstExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		minByFirstExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		minByFirstExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		minByFirstExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		minByFirstExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		minByFirstExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		minByFirstExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		minByFirstExpected.add(new Tuple2<Integer, Integer>(0, 0));
-
-		List<Tuple2<Integer, Integer>> minByLastExpected = new ArrayList<Tuple2<Integer, Integer>>();
-		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 0));
-		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 3));
-		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 3));
-		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 3));
-		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 6));
-		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 6));
-		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 6));
+		KeySelector<Tuple3<Integer, Integer, Integer>, ?> keySelector = KeySelectorUtil.getSelectorForKeys(
+				new Keys.ExpressionKeys<>(new int[]{0}, typeInfo),
+				typeInfo, config);
+		
+		// aggregations tested
+		ReduceFunction<Tuple3<Integer, Integer, Integer>> maxByFunctionFirst =
+				new ComparableAggregator<>(1, typeInfo, AggregationType.MAXBY, true, config);
+		ReduceFunction<Tuple3<Integer, Integer, Integer>> maxByFunctionLast =
+				new ComparableAggregator<>(1, typeInfo, AggregationType.MAXBY, false, config);
+		ReduceFunction<Tuple3<Integer, Integer, Integer>> minByFunctionFirst =
+				new ComparableAggregator<>(1, typeInfo, AggregationType.MINBY, true, config);
+		ReduceFunction<Tuple3<Integer, Integer, Integer>> minByFunctionLast =
+				new ComparableAggregator<>(1, typeInfo, AggregationType.MINBY, false, config);
 
 		assertEquals(maxByFirstExpected, MockContext.createAndExecute(
-				new StreamReduce<Tuple2<Integer, Integer>>(maxByFunctionFirst),
-				getInputList()));
+				new StreamGroupedReduce<>(maxByFunctionFirst, keySelector),
+				getInputByList()));
 		assertEquals(maxByLastExpected, MockContext.createAndExecute(
-				new StreamReduce<Tuple2<Integer, Integer>>(maxByFunctionLast),
-				getInputList()));
+				new StreamGroupedReduce<>(maxByFunctionLast, keySelector),
+				getInputByList()));
 		assertEquals(minByLastExpected, MockContext.createAndExecute(
-				new StreamReduce<Tuple2<Integer, Integer>>(minByFunctionLast),
-				getInputList()));
+				new StreamGroupedReduce<>(minByFunctionLast, keySelector),
+				getInputByList()));
 		assertEquals(minByFirstExpected, MockContext.createAndExecute(
-				new StreamReduce<Tuple2<Integer, Integer>>(minByFunctionFirst),
-				getInputList()));
+				new StreamGroupedReduce<>(minByFunctionFirst, keySelector),
+				getInputByList()));
 	}
 
 	@Test
 	public void pojoMinMaxByTest() {
+		// Pojos are grouped on field 0, aggregated on field 1
+
+		// preparing expected outputs
+		List<MyPojo3> maxByFirstExpected = ImmutableList.of(
+				new MyPojo3(0, 0), new MyPojo3(1, 1), new MyPojo3(2, 2),
+				new MyPojo3(2, 2), new MyPojo3(2, 2), new MyPojo3(2, 2),
+				new MyPojo3(2, 2), new MyPojo3(2, 2), new MyPojo3(2, 2));
+
+		List<MyPojo3> maxByLastExpected = ImmutableList.of(
+				new MyPojo3(0, 0), new MyPojo3(1, 1), new MyPojo3(2, 2),
+				new MyPojo3(2, 2), new MyPojo3(2, 2), new MyPojo3(2, 5),
+				new MyPojo3(2, 5), new MyPojo3(2, 5), new MyPojo3(2, 8));
+
+		List<MyPojo3> minByFirstExpected = ImmutableList.of(
+				new MyPojo3(0, 0), new MyPojo3(0, 0), new MyPojo3(0, 0),
+				new MyPojo3(0, 0), new MyPojo3(0, 0), new MyPojo3(0, 0),
+				new MyPojo3(0, 0), new MyPojo3(0, 0), new MyPojo3(0, 0));
+
+		List<MyPojo3> minByLastExpected = ImmutableList.of(
+				new MyPojo3(0, 0), new MyPojo3(0, 0), new MyPojo3(0, 0),
+				new MyPojo3(0, 3), new MyPojo3(0, 3), new MyPojo3(0, 3),
+				new MyPojo3(0, 6), new MyPojo3(0, 6), new MyPojo3(0, 6));
+
+		// some necessary boiler plate
+		TypeInformation<MyPojo3> typeInfo = TypeExtractor.getForObject(new MyPojo3(0, 0));
+
 		ExecutionConfig config = new ExecutionConfig();
-		TypeInformation<MyPojo> type1 = TypeExtractor
-				.getForObject(new MyPojo(0, 0));
 
-		ReduceFunction<MyPojo> maxByFunctionFirst =
-				new ComparableAggregator<MyPojo>("f0", type1, AggregationType.MAXBY, true, config);
-		ReduceFunction<MyPojo> maxByFunctionLast =
-				new ComparableAggregator<MyPojo>("f0", type1, AggregationType.MAXBY, false, config);
+		KeySelector<MyPojo3, ?> keySelector = KeySelectorUtil.getSelectorForKeys(
+				new Keys.ExpressionKeys<>(new String[]{"f0"}, typeInfo),
+				typeInfo, config);
 
-		ReduceFunction<MyPojo> minByFunctionFirst =
-				new ComparableAggregator<MyPojo>("f0", type1, AggregationType.MINBY, true, config);
-		ReduceFunction<MyPojo> minByFunctionLast =
-				new ComparableAggregator<MyPojo>("f0", type1, AggregationType.MINBY, false, config);
-
-		List<MyPojo> maxByFirstExpected = new ArrayList<MyPojo>();
-		maxByFirstExpected.add(new MyPojo(0, 0));
-		maxByFirstExpected.add(new MyPojo(1, 1));
-		maxByFirstExpected.add(new MyPojo(2, 2));
-		maxByFirstExpected.add(new MyPojo(2, 2));
-		maxByFirstExpected.add(new MyPojo(2, 2));
-		maxByFirstExpected.add(new MyPojo(2, 2));
-		maxByFirstExpected.add(new MyPojo(2, 2));
-		maxByFirstExpected.add(new MyPojo(2, 2));
-		maxByFirstExpected.add(new MyPojo(2, 2));
-
-		List<MyPojo> maxByLastExpected = new ArrayList<MyPojo>();
-		maxByLastExpected.add(new MyPojo(0, 0));
-		maxByLastExpected.add(new MyPojo(1, 1));
-		maxByLastExpected.add(new MyPojo(2, 2));
-		maxByLastExpected.add(new MyPojo(2, 2));
-		maxByLastExpected.add(new MyPojo(2, 2));
-		maxByLastExpected.add(new MyPojo(2, 5));
-		maxByLastExpected.add(new MyPojo(2, 5));
-		maxByLastExpected.add(new MyPojo(2, 5));
-		maxByLastExpected.add(new MyPojo(2, 8));
-
-		List<MyPojo> minByFirstExpected = new ArrayList<MyPojo>();
-		minByFirstExpected.add(new MyPojo(0, 0));
-		minByFirstExpected.add(new MyPojo(0, 0));
-		minByFirstExpected.add(new MyPojo(0, 0));
-		minByFirstExpected.add(new MyPojo(0, 0));
-		minByFirstExpected.add(new MyPojo(0, 0));
-		minByFirstExpected.add(new MyPojo(0, 0));
-		minByFirstExpected.add(new MyPojo(0, 0));
-		minByFirstExpected.add(new MyPojo(0, 0));
-		minByFirstExpected.add(new MyPojo(0, 0));
-
-		List<MyPojo> minByLastExpected = new ArrayList<MyPojo>();
-		minByLastExpected.add(new MyPojo(0, 0));
-		minByLastExpected.add(new MyPojo(0, 0));
-		minByLastExpected.add(new MyPojo(0, 0));
-		minByLastExpected.add(new MyPojo(0, 3));
-		minByLastExpected.add(new MyPojo(0, 3));
-		minByLastExpected.add(new MyPojo(0, 3));
-		minByLastExpected.add(new MyPojo(0, 6));
-		minByLastExpected.add(new MyPojo(0, 6));
-		minByLastExpected.add(new MyPojo(0, 6));
+		// aggregations tested
+		ReduceFunction<MyPojo3> maxByFunctionFirst =
+				new ComparableAggregator<>("f1", typeInfo, AggregationType.MAXBY, true, config);
+		ReduceFunction<MyPojo3> maxByFunctionLast =
+				new ComparableAggregator<>("f1", typeInfo, AggregationType.MAXBY, false, config);
+		ReduceFunction<MyPojo3> minByFunctionFirst =
+				new ComparableAggregator<>("f1", typeInfo, AggregationType.MINBY, true, config);
+		ReduceFunction<MyPojo3> minByFunctionLast =
+				new ComparableAggregator<>("f1", typeInfo, AggregationType.MINBY, false, config);
 
 		assertEquals(maxByFirstExpected, MockContext.createAndExecute(
-				new StreamReduce<MyPojo>(maxByFunctionFirst),
-				getInputPojoList()));
+				new StreamGroupedReduce<>(maxByFunctionFirst, keySelector),
+				getInputByPojoList()));
 		assertEquals(maxByLastExpected, MockContext.createAndExecute(
-				new StreamReduce<MyPojo>(maxByFunctionLast),
-				getInputPojoList()));
+				new StreamGroupedReduce<>(maxByFunctionLast, keySelector),
+				getInputByPojoList()));
 		assertEquals(minByLastExpected, MockContext.createAndExecute(
-				new StreamReduce<MyPojo>(minByFunctionLast),
-				getInputPojoList()));
+				new StreamGroupedReduce<>(minByFunctionLast, keySelector),
+				getInputByPojoList()));
 		assertEquals(minByFirstExpected, MockContext.createAndExecute(
-				new StreamReduce<MyPojo>(minByFunctionFirst),
-				getInputPojoList()));
+				new StreamGroupedReduce<>(minByFunctionFirst, keySelector),
+				getInputByPojoList()));
 	}
 
+	// *************************************************************************
+	//     UTILS
+	// *************************************************************************
+
 	private List<Tuple2<Integer, Integer>> getInputList() {
-		ArrayList<Tuple2<Integer, Integer>> inputList = new ArrayList<Tuple2<Integer, Integer>>();
+		ArrayList<Tuple2<Integer, Integer>> inputList = new ArrayList<>();
 		for (int i = 0; i < 9; i++) {
-			inputList.add(new Tuple2<Integer, Integer>(i % 3, i));
+			inputList.add(Tuple2.of(i % 3, i));
 		}
 		return inputList;
-
 	}
 
 	private List<MyPojo> getInputPojoList() {
-		ArrayList<MyPojo> inputList = new ArrayList<MyPojo>();
+		ArrayList<MyPojo> inputList = new ArrayList<>();
 		for (int i = 0; i < 9; i++) {
 			inputList.add(new MyPojo(i % 3, i));
 		}
 		return inputList;
+	}
 
+	private List<Tuple3<Integer, Integer, Integer>> getInputByList() {
+		ArrayList<Tuple3<Integer, Integer, Integer>> inputList = new ArrayList<>();
+		for (int i = 0; i < 9; i++) {
+			inputList.add(Tuple3.of(0, i % 3, i));
+		}
+		return inputList;
+	}
+
+	private List<MyPojo3> getInputByPojoList() {
+		ArrayList<MyPojo3> inputList = new ArrayList<>();
+		for (int i = 0; i < 9; i++) {
+			inputList.add(new MyPojo3(i % 3, i));
+		}
+		return inputList;
 	}
 
 	public static class MyPojo implements Serializable {
@@ -435,6 +346,39 @@ public class AggregationFunctionTest {
 		public boolean equals(Object other) {
 			if (other instanceof MyPojo) {
 				return this.f0 == ((MyPojo) other).f0 && this.f1 == ((MyPojo) other).f1;
+			} else {
+				return false;
+			}
+		}
+	}
+
+	public static class MyPojo3 implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+		public int f0;
+		public int f1;
+		public int f2;
+
+		// Field 0 is always initialized to 0
+		public MyPojo3(int f1, int f2) {
+			this.f1 = f1;
+			this.f2 = f2;
+		}
+
+		public MyPojo3() {
+		}
+
+		@Override
+		public String toString() {
+			return "POJO3(" + f0 + "," + f1 + "," + f2 + ")";
+		}
+
+		@Override
+		public boolean equals(Object other) {
+			if (other instanceof MyPojo3) {
+				return this.f0 == ((MyPojo3) other).f0
+						&& this.f1 == ((MyPojo3) other).f1
+						&& this.f2 == ((MyPojo3) other).f2;
 			} else {
 				return false;
 			}
