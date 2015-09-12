@@ -149,7 +149,7 @@ under the License.
 		<!-- copy jar files of java examples -->
 		<fileSet>
 			<directory>../flink-examples/flink-java-examples/target</directory>
-			<outputDirectory>examples</outputDirectory>
+			<outputDirectory>examples/java</outputDirectory>
 			<fileMode>0644</fileMode>
 			<includes>
 				<include>*.jar</include>
@@ -161,6 +161,24 @@ under the License.
 				<exclude>flink-java-examples-${project.version}-tests.jar</exclude>
 				<exclude>flink-java-examples-${project.version}-javadoc.jar</exclude>
 				<exclude>flink-java-examples-${project.version}-*.jar</exclude>
+			</excludes>
+		</fileSet>
+
+		<!-- copy jar files of scala examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-scala-examples/target</directory>
+			<outputDirectory>examples/scala</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>flink-scala-examples-${project.version}.jar</exclude>
+				<exclude>original-flink-scala-examples-${project.version}.jar</exclude>
+				<exclude>flink-scala-examples-${project.version}-sources.jar</exclude>
+				<exclude>flink-scala-examples-${project.version}-tests.jar</exclude>
+				<exclude>flink-scala-examples-${project.version}-javadoc.jar</exclude>
+				<exclude>flink-scala-examples-${project.version}-*.jar</exclude>
 			</excludes>
 		</fileSet>
 
