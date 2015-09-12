@@ -20,9 +20,16 @@ package org.apache.flink.graph.test.example;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.JaccardSimilarityMeasure;
+import org.apache.flink.graph.example.NodeSplittingJaccardSimilarityMeasure;
 import org.apache.flink.graph.example.utils.JaccardSimilarityMeasureData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.types.NullValue;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -32,6 +39,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.HashSet;
+import java.util.TreeSet;
 
 @RunWith(Parameterized.class)
 public class JaccardSimilarityMeasureITCase extends MultipleProgramsTestBase {
@@ -62,6 +71,46 @@ public class JaccardSimilarityMeasureITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testJaccardSimilarityMeasureExample() throws Exception {
 		JaccardSimilarityMeasure.main(new String[]{edgesPath, resultPath});
+		expected = JaccardSimilarityMeasureData.JACCARD_EDGES;
+	}
+
+	@Test
+	public void testNodeSplittingJaccardSimilarityMeasureExampleStepOne() throws Exception {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<String, Tuple2<String, HashSet<String>>, NullValue> graphBeforeFirstStep =
+				Graph.fromDataSet(JaccardSimilarityMeasureData.getVerticesBeforeStepOne(env),
+						JaccardSimilarityMeasureData.getEdgesBeforeBothSteps(env), env);
+
+		NodeSplittingJaccardSimilarityMeasure.gatherNeighborIds(graphBeforeFirstStep)
+				.map(new MapFunction<Vertex<String,Tuple2<String,HashSet<String>>>, Vertex<String,Tuple2<String, TreeSet<String>>>>() {
+					@Override
+					public Vertex<String, Tuple2<String, TreeSet<String>>> map(Vertex<String, Tuple2<String, HashSet<String>>> value) throws Exception {
+						return new Vertex<String, Tuple2<String, TreeSet<String>>>(value.getId(),
+								new Tuple2<String, TreeSet<String>>(value.getValue().f0,
+										new TreeSet<String>(value.getValue().f1)));
+					}
+				})
+				.writeAsCsv(resultPath, "\n", ",");
+		env.execute();
+
+		expected = JaccardSimilarityMeasureData.RESULT_AFTER_STEP_ONE;
+	}
+
+	@Test
+	public void testNodeSplittingJaccardSimilarityMeasureExampleStepTwo() throws Exception {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<String, Tuple2<String, HashSet<String>>, NullValue> graphBeforeSecondStep =
+				Graph.fromDataSet(JaccardSimilarityMeasureData.getVerticesBeforeStepTwo(env),
+						JaccardSimilarityMeasureData.getEdgesBeforeBothSteps(env), env);
+
+		NodeSplittingJaccardSimilarityMeasure.compareNeighborSets(graphBeforeSecondStep)
+				.writeAsCsv(resultPath, "\n", ",");
+		env.execute();
+
 		expected = JaccardSimilarityMeasureData.JACCARD_EDGES;
 	}
 
