@@ -17,50 +17,106 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-public class StreamGroupedFold<IN, OUT> extends StreamFold<IN, OUT> {
+public class StreamGroupedFold<IN, OUT> extends AbstractUdfStreamOperator<OUT, FoldFunction<IN, OUT>>
+		implements OneInputStreamOperator<IN, OUT>, OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
 
+	// Grouped values
 	private KeySelector<IN, ?> keySelector;
-	private transient Map<Object, OUT> values;
+	private transient OperatorState<HashMap<Object, OUT>> values;
+
+	// Initial value serialization
+	private byte[] serializedInitialValue;
+	private TypeSerializer<OUT> outTypeSerializer;
+	private transient OUT initialValue;
 
 	public StreamGroupedFold(
 			FoldFunction<IN, OUT> folder,
 			KeySelector<IN, ?> keySelector,
 			OUT initialValue) {
-		super(folder, initialValue);
+		super(folder);
 		this.keySelector = keySelector;
+		this.initialValue = initialValue;
 	}
 
 	@Override
 	public void open(Configuration configuration) throws Exception {
 		super.open(configuration);
 
-		values = new HashMap<Object, OUT>();
+		if (serializedInitialValue == null) {
+			throw new RuntimeException("No initial value was serialized for the fold " +
+					"operator. Probably the setOutputType method was not called.");
+		}
+
+		ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
+		InputViewDataInputStreamWrapper in = new InputViewDataInputStreamWrapper(
+				new DataInputStream(bais)
+		);
+		initialValue = outTypeSerializer.deserialize(in);
+
+		values = runtimeContext.getOperatorState("flink_internal_fold_values",
+				new HashMap<Object, OUT>(), false);
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		Object key = keySelector.getKey(element.getValue());
-		OUT value = values.get(key);
+		OUT value = values.value().get(key);
 
 		if (value != null) {
 			OUT folded = userFunction.fold(outTypeSerializer.copy(value), element.getValue());
-			values.put(key, folded);
+			values.value().put(key, folded);
 			output.collect(element.replace(folded));
 		} else {
-			OUT first = userFunction.fold(outTypeSerializer.copy(accumulator), element.getValue());
-			values.put(key, first);
+			OUT first = userFunction.fold(outTypeSerializer.copy(initialValue), element.getValue());
+			values.value().put(key, first);
 			output.collect(element.replace(first));
 		}
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
+	}
+
+	@Override
+	public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
+		outTypeSerializer = outTypeInfo.createSerializer(executionConfig);
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		OutputViewDataOutputStreamWrapper out = new OutputViewDataOutputStreamWrapper(
+				new DataOutputStream(baos)
+		);
+
+		try {
+			outTypeSerializer.serialize(initialValue, out);
+		} catch (IOException ioe) {
+			throw new RuntimeException("Unable to serialize initial value of type " +
+					initialValue.getClass().getSimpleName() + " of fold operator.", ioe);
+		}
+
+		serializedInitialValue = baos.toByteArray();
 	}
 
 }
