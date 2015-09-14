@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.api.state;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -101,25 +103,28 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 		assertEquals((Integer) 7, ((StatefulMapper) restoredMap.getUserFunction()).checkpointedCounter);
 
 	}
-	
+
 	@Test
 	public void apiTest() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(3);
 
 		KeyedDataStream<Integer> keyedStream = env.fromCollection(Arrays.asList(0, 1, 2, 3, 4, 5, 6)).keyBy(new ModKey(4));
-		
+
 		keyedStream.map(new StatefulMapper()).addSink(new SinkFunction<String>() {
 			private static final long serialVersionUID = 1L;
+
 			public void invoke(String value) throws Exception {
 			}
 		});
-		
+
 		keyedStream.map(new StatefulMapper2()).setParallelism(1).addSink(new SinkFunction<String>() {
 			private static final long serialVersionUID = 1L;
-			public void invoke(String value) throws Exception {}
+
+			public void invoke(String value) throws Exception {
+			}
 		});
-		
+
 		try {
 			keyedStream.shuffle();
 			fail();
@@ -127,6 +132,21 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 
 		}
 		
+		env.fromElements(0, 1, 2, 2, 2, 3, 4, 3, 4).keyBy(new KeySelector<Integer, Integer>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Integer getKey(Integer value) throws Exception {
+				return value;
+			}
+
+		}).map(new PStateKeyRemovalTestMapper()).setParallelism(1).addSink(new SinkFunction<String>() {
+			private static final long serialVersionUID = 1L;
+
+			public void invoke(String value) throws Exception {
+			}
+		});
+
 		env.execute();
 	}
 
@@ -143,7 +163,7 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 		final List<String> outputList = output;
 
 		StreamingRuntimeContext context = new StreamingRuntimeContext(
-				new MockEnvironment("MockTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024), 
+				new MockEnvironment("MockTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
 				new ExecutionConfig(),
 				partitioner,
 				new LocalStateHandleProvider<Serializable>(),
@@ -181,11 +201,11 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 
 	public static class StatefulMapper extends RichMapFunction<Integer, String> implements
 			Checkpointed<Integer> {
-	private static final long serialVersionUID = -9007873655253339356L;
+		private static final long serialVersionUID = -9007873655253339356L;
 		OperatorState<Integer> counter;
 		OperatorState<MutableInt> groupCounter;
 		OperatorState<String> concat;
-		
+
 		Integer checkpointedCounter = 0;
 
 		@Override
@@ -199,7 +219,7 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 			try {
 				counter.update(null);
 				fail();
-			} catch (RuntimeException e){
+			} catch (RuntimeException e) {
 			}
 			return value.toString();
 		}
@@ -212,15 +232,15 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 			try {
 				getRuntimeContext().getOperatorState("test", null, true);
 				fail();
-			} catch (RuntimeException e){
+			} catch (RuntimeException e) {
 			}
 			try {
 				getRuntimeContext().getOperatorState("test", null, true, null);
 				fail();
-			} catch (RuntimeException e){
+			} catch (RuntimeException e) {
 			}
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		@Override
 		public void close() throws Exception {
@@ -229,14 +249,13 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 			for (Entry<Serializable, Integer> count : groupCounter.getPartitionedState().entrySet()) {
 				Integer key = (Integer) count.getKey();
 				Integer expected = key < 3 ? 2 : 1;
-				
+
 				assertEquals(new MutableInt(expected), count.getValue());
 			}
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp)
-				throws Exception {
+		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
 			return checkpointedCounter;
 		}
 
@@ -245,23 +264,23 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 			this.checkpointedCounter = (Integer) state;
 		}
 	}
-	
+
 	public static class StatefulMapper2 extends RichMapFunction<Integer, String> {
 		private static final long serialVersionUID = 1L;
 		OperatorState<Integer> groupCounter;
-		
+
 		@Override
 		public String map(Integer value) throws Exception {
 			groupCounter.update(groupCounter.value() + 1);
-			
+
 			return value.toString();
 		}
 
 		@Override
-		public void open(Configuration conf) throws IOException {		
+		public void open(Configuration conf) throws IOException {
 			groupCounter = getRuntimeContext().getOperatorState("groupCounter", 0, true);
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		@Override
 		public void close() throws Exception {
@@ -274,9 +293,48 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 				assertEquals(expected, count.getValue());
 			}
 		}
-		
+
 	}
-	
+
+	public static class PStateKeyRemovalTestMapper extends RichMapFunction<Integer, String> {
+
+		private static final long serialVersionUID = 1L;
+		OperatorState<Boolean> seen;
+
+		@Override
+		public String map(Integer value) throws Exception {
+			if (value == 0) {
+				seen.update(null);
+			}else{
+				Boolean s = seen.value();
+				if (s) {
+					seen.update(null);
+				} else {
+					seen.update(true);
+				}
+			}
+
+			return value.toString();
+		}
+
+		public void open(Configuration c) throws IOException {
+			seen = getRuntimeContext().getOperatorState("seen", false, true);
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public void close() throws Exception {
+			Map<String, StreamOperatorState<?, ?>> states = ((StreamingRuntimeContext) getRuntimeContext()).getOperatorStates();
+			PartitionedStreamOperatorState<Integer, Boolean, Boolean> seen = (PartitionedStreamOperatorState<Integer, Boolean, Boolean>) states.get("seen");
+			assertFalse(seen.getPartitionedState().containsKey(0));
+			assertEquals(2,seen.getPartitionedState().size());
+			for (Entry<Serializable, Boolean> s : seen.getPartitionedState().entrySet()) {
+					assertTrue(s.getValue());
+			}
+		}
+
+	}
+
 	public static class ModKey implements KeySelector<Integer, Serializable> {
 
 		private static final long serialVersionUID = 4193026742083046736L;
