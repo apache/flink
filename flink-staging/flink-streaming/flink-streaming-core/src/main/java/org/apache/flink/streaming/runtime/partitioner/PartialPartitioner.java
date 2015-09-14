@@ -81,9 +81,10 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		if (!initializedStats) {
 			this.targetChannelStats = new long[numChannels];
 			this.initializedStats = true;
+			h = new HashFunction[2];
 			for (int i =0 ; i <this.workersPerKey;i++) {
 				currentPrime = getNextPrime(currentPrime);
-				h[i] = Hashing.murmur3_128(getNextPrime(currentPrime));
+				h[i] = Hashing.murmur3_128(currentPrime);
 			}
 		}
 		Object key;
@@ -115,20 +116,23 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		if (!initializedStats) {
 			this.targetChannelStats = new long[numChannels];
 			this.initializedStats = true;
+			
 			if (numWorkersPerKey < 2 || numWorkersPerKey >= numChannels) {
 				numWorkersPerKey = 2;
 			}
+			h = new HashFunction[numWorkersPerKey];
 			for (int i =0 ; i <numWorkersPerKey;i++) {
 				currentPrime = getNextPrime(currentPrime);
-				h[i] = Hashing.murmur3_128(getNextPrime(currentPrime));
+				h[i] = Hashing.murmur3_128(currentPrime);
 			}
 		}
-		int [] choices = new int [numWorkersPerKey];
-		int counter = 0;
+		int [] choices ;
+		
 		Object key;
 		try {
 			key = keySelector.getKey(record.getInstance().getValue());
-
+			int counter = 0;
+			choices = new int [numWorkersPerKey];
 			while (counter < numWorkersPerKey) {
 				choices[counter] = (int) (Math.abs(h[counter].hashBytes(serialize(key)).asLong()) % 
 						numChannels);
