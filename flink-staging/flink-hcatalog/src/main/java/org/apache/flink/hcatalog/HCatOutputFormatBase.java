@@ -37,6 +37,8 @@ import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hive.hcatalog.common.HCatUtil;
 import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.data.schema.HCatFieldSchema;
@@ -49,31 +51,39 @@ import java.io.ObjectOutputStream;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.api.java.hadoop.common.
+		HadoopInputFormatCommonBase.getCredentialsFromUGI;
+
 public abstract class HCatOutputFormatBase<T> implements OutputFormat<T>, FinalizeOnMaster {
 	private static final long serialVersionUID = 1L;
-
 	private Configuration configuration;
-	//a Job is used to create OutputJobInfo
 	private Job job;
-
 	private org.apache.hive.hcatalog.mapreduce.HCatOutputFormat hCatOutputFormat;
 	private RecordWriter<WritableComparable<?>, HCatRecord> recordWriter;
-
-	//required data type by the table
+	protected transient Credentials credentials;
+	/*required data type by the table*/
 	protected TypeInformation<T> reqType;
-
 	protected String[] fieldNames = new String[0];
 	protected HCatSchema outputSchema;
 	private transient TaskAttemptContext context;
-
+	// Mutexes to avoid concurrent operations on Hadoop InputFormats.
+	// Hadoop parallelizes tasks across JVMs which is why they might rely on this JVM isolation.
+	// In contrast, Flink parallelizes using Threads, so multiple Hadoop InputFormat instances
+	// might be used in the same JVM.
+	private static final Object OPEN_MUTEX = new Object();
+	private static final Object CONFIGURE_MUTEX = new Object();
+	private static final Object CLOSE_MUTEX = new Object();
 
 	@Override
 	public void configure(org.apache.flink.configuration.Configuration parameters) {
-		// configure MR OutputFormat if necessary
-		if (this.hCatOutputFormat instanceof Configurable) {
-			((Configurable) this.hCatOutputFormat).setConf(configuration);
-		} else if (this.hCatOutputFormat instanceof JobConfigurable) {
-			((JobConfigurable) this.hCatOutputFormat).configure(new JobConf(configuration));
+		// enforce sequential configuration() calls
+		synchronized (CONFIGURE_MUTEX) {
+			// configure MR InputFormat if necessary
+			if (this.hCatOutputFormat instanceof Configurable) {
+				((Configurable) this.hCatOutputFormat).setConf(this.configuration);
+			} else if (this.hCatOutputFormat instanceof JobConfigurable) {
+				((JobConfigurable) this.hCatOutputFormat).configure(new JobConf(configuration));
+			}
 		}
 	}
 
@@ -93,7 +103,12 @@ public abstract class HCatOutputFormatBase<T> implements OutputFormat<T>, Finali
 		this(database, table, partitionValues, new Configuration());
 	}
 
-	protected abstract HCatRecord TupleToHCatRecord(T record) throws IOException;
+	/**
+	 * non-arg constructor for de-serialization
+	 */
+	public HCatOutputFormatBase() { }
+
+	protected abstract HCatRecord convertTupleToHCat(T record) throws IOException;
 
 	protected abstract int getMaxFlinkTupleSize();
 
@@ -115,16 +130,14 @@ public abstract class HCatOutputFormatBase<T> implements OutputFormat<T>, Finali
 		this.configuration = config;
 		HadoopUtils.mergeHadoopConf(this.configuration);
 		this.job = Job.getInstance(this.configuration);
-
-
+		this.credentials = job.getCredentials();
 		OutputJobInfo jobInfo = OutputJobInfo.create(database, table, partitionValues);
-
 		org.apache.hive.hcatalog.mapreduce.HCatOutputFormat.setOutput(job, jobInfo);
-
 		this.hCatOutputFormat = new org.apache.hive.hcatalog.mapreduce.HCatOutputFormat();
-
 		this.configuration.set("mapreduce.lib.hcatoutput.info", HCatUtil.serialize(jobInfo));
 		this.outputSchema = jobInfo.getOutputSchema();
+		this.configuration.set("mapreduce.lib.hcat.output.schema",
+				HCatUtil.serialize(outputSchema));
 		org.apache.hive.hcatalog.mapreduce.HCatOutputFormat.
 				setSchema(this.configuration, this.outputSchema);
 		int numFields = outputSchema.getFields().size();
@@ -136,17 +149,13 @@ public abstract class HCatOutputFormatBase<T> implements OutputFormat<T>, Finali
 		fieldNames = new String[numFields];
 		for (String fieldName : outputSchema.getFieldNames()) {
 			HCatFieldSchema field = outputSchema.get(fieldName);
-
 			int fieldPos = outputSchema.getPosition(fieldName);
 			TypeInformation fieldType = getFieldType(field);
-
 			fieldTypes[fieldPos] = fieldType;
 			fieldNames[fieldPos] = fieldName;
-
 		}
 		this.reqType = new TupleTypeInfo(fieldTypes);
 	}
-
 
 	private TypeInformation getFieldType(HCatFieldSchema fieldSchema) {
 
@@ -183,55 +192,57 @@ public abstract class HCatOutputFormatBase<T> implements OutputFormat<T>, Finali
 
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
-
 		/*code adapted from
 		 *{@link org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormatBase}
 		 */
-		if (Integer.toString(taskNumber + 1).length() > 6) {
-			throw new IOException("Task id too large.");
-		}
-
-		TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt__0000_r_"
-				+ String.format("%" + (6 - Integer.toString(taskNumber + 1).length()) + "s", " ")
-				.replace(" ", "0")
-				+ Integer.toString(taskNumber + 1)
-				+ "_0");
-
-		try {
-			this.context = HadoopUtils.instantiateTaskAttemptContext(this.configuration,
-					taskAttemptID);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-
-		// for mapred api
-		this.context.getConfiguration().set("mapred.task.id", taskAttemptID.toString());
-		this.context.getConfiguration().setInt("mapred.task.partition", taskNumber + 1);
-		// for mapreduce api
-		this.context.getConfiguration().set("mapreduce.task.attempt.id", taskAttemptID.toString());
-		this.context.getConfiguration().setInt("mapreduce.task.partition", taskNumber + 1);
-
-
-		//set output explicitly, needed for hadoop1
-		try {
-			OutputCommitter committer = this.hCatOutputFormat.getOutputCommitter(this.context);
-			committer.setupJob(this.context);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-
-		try {
-			this.recordWriter = this.hCatOutputFormat.getRecordWriter(this.context);
-		} catch (InterruptedException e) {
-			throw new IOException("Could not create RecordReader.", e);
+		// enforce sequential open() calls
+		synchronized (OPEN_MUTEX) {
+			if (Integer.toString(taskNumber + 1).length() > 6) {
+				throw new IOException("Task id too large.");
+			}
+			TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt__0000_r_"
+					+ String.format("%" + (6 - Integer.toString(taskNumber + 1).length()) + "s",
+					" ").replace(" ", "0")
+					+ Integer.toString(taskNumber + 1)
+					+ "_0");
+			try {
+				this.context = HadoopUtils.instantiateTaskAttemptContext(this.configuration,
+						taskAttemptID);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+			// for mapred api
+			this.context.getConfiguration().set("mapred.task.id", taskAttemptID.toString());
+			this.context.getConfiguration().setInt("mapred.task.partition", taskNumber + 1);
+			// for mapreduce api
+			this.context.getConfiguration().set("mapreduce.task.attempt.id",
+					taskAttemptID.toString());
+			this.context.getConfiguration().setInt("mapreduce.task.partition", taskNumber + 1);
+			this.context.getCredentials().addAll(this.credentials);
+			Credentials currentUserCreds = getCredentialsFromUGI(
+					UserGroupInformation.getCurrentUser());
+			if(currentUserCreds != null) {
+				this.context.getCredentials().addAll(currentUserCreds);
+			}
+			//set output explicitly, needed for hadoop1
+			try {
+				OutputCommitter committer = this.hCatOutputFormat.getOutputCommitter(this.context);
+				committer.setupJob(this.context);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+			try {
+				this.recordWriter = this.hCatOutputFormat.getRecordWriter(this.context);
+			} catch (InterruptedException e) {
+				throw new IOException("Could not create RecordReader.", e);
+			}
 		}
 	}
-
 
 	@Override
 	public void writeRecord(T record) throws IOException {
 		try {
-			this.recordWriter.write(NullWritable.get(), TupleToHCatRecord(record));
+			this.recordWriter.write(NullWritable.get(), convertTupleToHCat(record));
 		} catch (InterruptedException e) {
 			throw new IOException("Could not write Record.", e);
 		}
@@ -239,26 +250,44 @@ public abstract class HCatOutputFormatBase<T> implements OutputFormat<T>, Finali
 
 	@Override
 	public void close() throws IOException {
-		try {
-			this.recordWriter.close(this.context);
-		} catch (InterruptedException e) {
-			throw new IOException("Could not close RecordReader.", e);
-		}
-		try {
-			OutputCommitter committer = this.hCatOutputFormat.getOutputCommitter(this.context);
-			if (committer.needsTaskCommit(this.context)) {
-				committer.commitTask(this.context);
+		// enforce sequential close() calls
+		synchronized (CLOSE_MUTEX) {
+			try {
+				this.recordWriter.close(this.context);
+			} catch (InterruptedException e) {
+				throw new IOException("Could not close RecordReader.", e);
 			}
-		} catch (InterruptedException e) {
-			throw new IOException("Could not commit task " + this.context.getTaskAttemptID(), e);
+			try {
+				OutputCommitter committer = this.hCatOutputFormat.getOutputCommitter(this.context);
+				if (committer.needsTaskCommit(this.context)) {
+					committer.commitTask(this.context);
+				}
+			} catch (InterruptedException e) {
+				throw new IOException("Could not commit task " +
+						this.context.getTaskAttemptID(), e);
+			}
 		}
-
 	}
-
 
 	@Override
 	public void finalizeGlobal(int parallelism) throws IOException {
 		// finalize the job
+		try {
+			TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt__0000_r_"
+					+ String.format("%" + (6 - Integer.toString(1).length()) + "s"," ").
+					replace(" ", "0")
+					+ Integer.toString(1)
+					+ "_0");
+			this.context = HadoopUtils.instantiateTaskAttemptContext(this.configuration,
+					taskAttemptID);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		this.context.getCredentials().addAll(this.credentials);
+		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
+		if(currentUserCreds != null) {
+			this.context.getCredentials().addAll(currentUserCreds);
+		}
 		try {
 			OutputCommitter committer = this.hCatOutputFormat.getOutputCommitter(this.context);
 			committer.commitJob(context);
@@ -276,6 +305,8 @@ public abstract class HCatOutputFormatBase<T> implements OutputFormat<T>, Finali
 			out.writeUTF(fieldName);
 		}
 		this.configuration.write(out);
+		this.credentials.write(out);
+		out.writeObject(this.reqType);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -284,14 +315,14 @@ public abstract class HCatOutputFormatBase<T> implements OutputFormat<T>, Finali
 		for (int i = 0; i < this.fieldNames.length; i++) {
 			this.fieldNames[i] = in.readUTF();
 		}
-
 		Configuration config = new Configuration();
 		config.readFields(in);
-
 		if (this.configuration == null) {
 			this.configuration = config;
 		}
-
+		this.credentials = new Credentials();
+		this.credentials.readFields(in);
+		this.reqType = (TypeInformation<T>) in.readObject();
 		this.hCatOutputFormat = new org.apache.hive.hcatalog.mapreduce.HCatOutputFormat();
 		this.outputSchema = (HCatSchema) HCatUtil.deserialize(
 				this.configuration.get("mapreduce.lib.hcat.output.schema"));

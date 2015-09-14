@@ -22,7 +22,7 @@ import java.io.IOException
 import java.util
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.api.java.typeutils.{WritableTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.hcatalog.HCatOutputFormatBase
@@ -58,26 +58,25 @@ class HCatOutputFormat[T: TypeInformation](
                                             config: Configuration
                                             ) extends
 HCatOutputFormatBase[T](database, table, mapAsJavaMap(partitionValues), config) {
-
-  //get the TypeInformation
   val ti: TypeInformation[T] = createTypeInformation[T]
-
-
   //check the types of columns if the input is tuple(case class) type
-  if (ti.isInstanceOf[CaseClassTypeInfo[_]]) {
-    //check the number of columns
-    if (ti.asInstanceOf[CaseClassTypeInfo[_]].getArity != this.reqType.getArity) {
-      throw new IOException("tuple has different arity from the table's column numbers")
-    }
-
-    for (i <- 0 until this.reqType.getArity) {
-      val it = ti.asInstanceOf[CaseClassTypeInfo[_]].getTypeAt(i)
-      val ot = reqType.asInstanceOf[TupleTypeInfo[_]].getTypeAt(i)
-
-      if (!isCompatibleType(it, ot)) {
-        throw new IOException("field has different type from required")
+  ti match {
+    case value: CaseClassTypeInfo[_] => {
+      //check the number of columns
+      if (value.getArity != this.reqType.getArity) {
+        throw new IOException("tuple has different arity from the table's column numbers")
+      }
+      for (i <- 0 until this.reqType.getArity) {
+        val it = value.getTypeAt(i)
+        val ot = reqType.asInstanceOf[TupleTypeInfo[_]].getTypeAt(i)
+        if (!isCompatibleType(it, ot)) {
+          throw new IOException("field "+ i + " has different type from required")
+        }
       }
     }
+    case value: WritableTypeInfo[HCatRecord] => //HCatRecord is ok
+    case _ => throw new IOException("HCatOutputFormat only supports tuple-derived type " +
+      "and HCatRecord")
   }
 
   /**
@@ -91,19 +90,12 @@ HCatOutputFormatBase[T](database, table, mapAsJavaMap(partitionValues), config) 
   }
 
   //convert the type T to HCatRecord, if T is already HCatRecord, do nothing
-  override protected def TupleToHCatRecord(record: T): HCatRecord = {
-    if (ti.isInstanceOf[CaseClassTypeInfo[_]]) {
-
-      val fieldList: util.List[AnyRef] = new util.ArrayList[AnyRef]
-      //we've checked the type of the scala tuple matches the table, so fill the list now
-      fillList(fieldList, record.asInstanceOf[AnyRef])
-      new DefaultHCatRecord(fieldList)
-    }
-    else if (record.isInstanceOf[HCatRecord]) {
-      record.asInstanceOf[HCatRecord]
-    }
-    else {
-      throw new IOException("the record should be either scala Tuple or HCatRecord")
+  override protected def convertTupleToHCat(record: T): HCatRecord = {
+    ti match {
+      case value: CaseClassTypeInfo[_] => new DefaultHCatRecord(toJavaList(record))
+      case value: WritableTypeInfo[HCatRecord] => record.asInstanceOf[HCatRecord]
+      case _ => throw new IOException("HCatOutputFormat only supports tuple-derived type " +
+        "and HCatRecord")
     }
   }
 
@@ -111,12 +103,16 @@ HCatOutputFormatBase[T](database, table, mapAsJavaMap(partitionValues), config) 
   override protected def getMaxFlinkTupleSize: Int = 22
 
   //THe HCatalog expects Java types for complex types
-  private def toJava(i: AnyRef): Object = {
-    if (i.isInstanceOf[Map[_, _]]) i.asInstanceOf[Map[_, _]].asJava
-    else if (i.isInstanceOf[List[_]]) i.asInstanceOf[List[_]].asJava
-    else i
+  private def toJava(input: AnyRef): Object = {
+    input match {
+      case value: Map[_, _] => value.asJava
+      case value: List[_] => value.asJava
+      case _ => input
+    }
   }
 
+  //for complex types, we map scala List to java List and scala map to java map.
+  //for primitive maps, we require equivalence between their typeinfo
   private def isCompatibleType(scalaT: TypeInformation[_], javaT: TypeInformation[_]): Boolean = {
     if (scalaT.equals(javaT)) true
     else if (scalaT.getTypeClass == classOf[List[_]]) {
@@ -128,322 +124,131 @@ HCatOutputFormatBase[T](database, table, mapAsJavaMap(partitionValues), config) 
     else false
   }
 
+  val l = Seq(1,2,3,4,5,6,7,8,9)
   //fill an empty java list with the content of a scala tuple, with conversion for complex types
-  private def fillList(list: util.List[AnyRef], o: AnyRef) = {
-    o match {
-      case Tuple1(i1: AnyRef) => list.add(toJava(i1))
+  private def toJavaList(record: T): util.List[AnyRef] = {
+    record match {
+      case Tuple1(i1: AnyRef) => Seq(toJava(i1)).asJava
       case Tuple2(i1: AnyRef, i2: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
+        Seq(toJava(i1),toJava(i2)).asJava
       }
       case Tuple3(i1: AnyRef, i2: AnyRef, i3: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
+        Seq(toJava(i1),toJava(i2), toJava(i3)).asJava
       }
       case Tuple4(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4)).asJava
       }
       case Tuple5(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5)).asJava
       }
       case Tuple6(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6)).asJava
       }
       case Tuple7(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7))
+          .asJava
       }
       case Tuple8(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+        toJava(i8)).asJava
       }
       case Tuple9(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9)).asJava
       }
       case Tuple10(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10)).asJava
       }
       case Tuple11(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef, i11: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
-        list.add(toJava(i11))
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10), toJava(i11)).asJava
       }
       case Tuple12(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef, i11: AnyRef, i12: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
-        list.add(toJava(i11))
-        list.add(toJava(i12))
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10), toJava(i11), toJava(i12)).asJava
       }
       case Tuple13(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef, i11: AnyRef, i12: AnyRef, i13: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
-        list.add(toJava(i11))
-        list.add(toJava(i12))
-        list.add(toJava(i13))
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10), toJava(i11), toJava(i12), toJava(i13)).asJava
       }
       case Tuple14(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef, i11: AnyRef, i12: AnyRef, i13: AnyRef,
       i14: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
-        list.add(toJava(i11))
-        list.add(toJava(i12))
-        list.add(toJava(i13))
-        list.add(toJava(i14))
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10), toJava(i11), toJava(i12), toJava(i13), toJava(i14))
+          .asJava
       }
       case Tuple15(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef, i11: AnyRef, i12: AnyRef, i13: AnyRef,
       i14: AnyRef, i15: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
-        list.add(toJava(i11))
-        list.add(toJava(i12))
-        list.add(toJava(i13))
-        list.add(toJava(i14))
-        list.add(toJava(i15))
-      };
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10), toJava(i11), toJava(i12), toJava(i13), toJava(i14),
+        toJava(i15)).asJava
+      }
       case Tuple16(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef, i11: AnyRef, i12: AnyRef, i13: AnyRef,
       i14: AnyRef, i15: AnyRef, i16: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
-        list.add(toJava(i11))
-        list.add(toJava(i12))
-        list.add(toJava(i13))
-        list.add(toJava(i14))
-        list.add(toJava(i15))
-        list.add(toJava(i16))
-      };
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10), toJava(i11), toJava(i12), toJava(i13), toJava(i14),
+          toJava(i15), toJava(i16)).asJava
+      }
       case Tuple17(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef, i11: AnyRef, i12: AnyRef, i13: AnyRef,
       i14: AnyRef, i15: AnyRef, i16: AnyRef, i17: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
-        list.add(toJava(i11))
-        list.add(toJava(i12))
-        list.add(toJava(i13))
-        list.add(toJava(i14))
-        list.add(toJava(i15))
-        list.add(toJava(i16))
-        list.add(toJava(i17))
-      };
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10), toJava(i11), toJava(i12), toJava(i13), toJava(i14),
+          toJava(i15), toJava(i16), toJava(i17)).asJava
+      }
       case Tuple18(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef, i11: AnyRef, i12: AnyRef, i13: AnyRef,
       i14: AnyRef, i15: AnyRef, i16: AnyRef, i17: AnyRef, i18: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
-        list.add(toJava(i11))
-        list.add(toJava(i12))
-        list.add(toJava(i13))
-        list.add(toJava(i14))
-        list.add(toJava(i15))
-        list.add(toJava(i16))
-        list.add(toJava(i17))
-        list.add(toJava(i18))
-      };
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10), toJava(i11), toJava(i12), toJava(i13), toJava(i14),
+          toJava(i15), toJava(i16), toJava(i17), toJava(i18)).asJava
+      }
       case Tuple19(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef, i11: AnyRef, i12: AnyRef, i13: AnyRef,
       i14: AnyRef, i15: AnyRef, i16: AnyRef, i17: AnyRef, i18: AnyRef, i19: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
-        list.add(toJava(i11))
-        list.add(toJava(i12))
-        list.add(toJava(i13))
-        list.add(toJava(i14))
-        list.add(toJava(i15))
-        list.add(toJava(i16))
-        list.add(toJava(i17))
-        list.add(toJava(i18))
-        list.add(toJava(i19))
-      };
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10), toJava(i11), toJava(i12), toJava(i13), toJava(i14),
+          toJava(i15), toJava(i16), toJava(i17), toJava(i18), toJava(i19)).asJava
+      }
       case Tuple20(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef, i11: AnyRef, i12: AnyRef, i13: AnyRef,
       i14: AnyRef, i15: AnyRef, i16: AnyRef, i17: AnyRef, i18: AnyRef, i19: AnyRef, i20: AnyRef)
       => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
-        list.add(toJava(i11))
-        list.add(toJava(i12))
-        list.add(toJava(i13))
-        list.add(toJava(i14))
-        list.add(toJava(i15))
-        list.add(toJava(i16))
-        list.add(toJava(i17))
-        list.add(toJava(i18))
-        list.add(toJava(i19))
-        list.add(toJava(i20))
-      };
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10), toJava(i11), toJava(i12), toJava(i13), toJava(i14),
+          toJava(i15), toJava(i16), toJava(i17), toJava(i18), toJava(i19), toJava(i20)).asJava
+      }
       case Tuple21(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef, i11: AnyRef, i12: AnyRef, i13: AnyRef,
       i14: AnyRef, i15: AnyRef, i16: AnyRef, i17: AnyRef, i18: AnyRef, i19: AnyRef, i20: AnyRef,
       i21: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
-        list.add(toJava(i11))
-        list.add(toJava(i12))
-        list.add(toJava(i13))
-        list.add(toJava(i14))
-        list.add(toJava(i15))
-        list.add(toJava(i16))
-        list.add(toJava(i17))
-        list.add(toJava(i18))
-        list.add(toJava(i19))
-        list.add(toJava(i20))
-        list.add(toJava(i21))
-      };
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10), toJava(i11), toJava(i12), toJava(i13), toJava(i14),
+          toJava(i15), toJava(i16), toJava(i17), toJava(i18), toJava(i19), toJava(i20), toJava(i21))
+          .asJava
+      }
       case Tuple22(i1: AnyRef, i2: AnyRef, i3: AnyRef, i4: AnyRef, i5: AnyRef, i6: AnyRef,
       i7: AnyRef, i8: AnyRef, i9: AnyRef, i10: AnyRef, i11: AnyRef, i12: AnyRef, i13: AnyRef,
       i14: AnyRef, i15: AnyRef, i16: AnyRef, i17: AnyRef, i18: AnyRef, i19: AnyRef, i20: AnyRef,
       i21: AnyRef, i22: AnyRef) => {
-        list.add(toJava(i1))
-        list.add(toJava(i2))
-        list.add(toJava(i3))
-        list.add(toJava(i4))
-        list.add(toJava(i5))
-        list.add(toJava(i6))
-        list.add(toJava(i7))
-        list.add(toJava(i8))
-        list.add(toJava(i9))
-        list.add(toJava(i11))
-        list.add(toJava(i12))
-        list.add(toJava(i13))
-        list.add(toJava(i14))
-        list.add(toJava(i15))
-        list.add(toJava(i16))
-        list.add(toJava(i17))
-        list.add(toJava(i18))
-        list.add(toJava(i19))
-        list.add(toJava(i20))
-        list.add(toJava(i21))
-        list.add(toJava(i22))
-      };
+        Seq(toJava(i1),toJava(i2), toJava(i3), toJava(i4), toJava(i5), toJava(i6), toJava(i7),
+          toJava(i8), toJava(i9), toJava(i10), toJava(i11), toJava(i12), toJava(i13), toJava(i14),
+          toJava(i15), toJava(i16), toJava(i17), toJava(i18), toJava(i19), toJava(i20), toJava(i21),
+        toJava(i22)).asJava
+      }
       case _ =>
         throw new IOException("Only scala tuple is allowed")
-
     }
   }
 }

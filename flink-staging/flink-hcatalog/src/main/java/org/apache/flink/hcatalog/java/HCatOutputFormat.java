@@ -41,8 +41,6 @@ import java.util.Map;
  * The constructor provides type checking if the user also pass a typeinfo object for the tuple type
  */
 public class HCatOutputFormat<T> extends HCatOutputFormatBase<T> {
-
-
 	/**
 	 * Create HCatOutputFormat with default conf
 	 * @param database The database schema for the hcatalog table
@@ -55,6 +53,11 @@ public class HCatOutputFormat<T> extends HCatOutputFormatBase<T> {
 	{
 		super(database, table, partitionValues);
 	}
+
+	/**
+	 * non-arg constructor for de-serialization
+	 */
+	public HCatOutputFormat() {}
 
 	/**
 	 * Create HCatOutputFormat with given conf
@@ -83,7 +86,7 @@ public class HCatOutputFormat<T> extends HCatOutputFormatBase<T> {
 							Configuration conf, TypeInformation<T> typeInfo) throws IOException
 	{
 		super(database, table, partitionValues, conf);
-		if(!typeInfo.equals(this.reqType))
+		if (!typeInfo.equals(this.reqType))
 		{
 			throw new IOException("tuple has different types from the table's columns");
 		}
@@ -91,8 +94,8 @@ public class HCatOutputFormat<T> extends HCatOutputFormatBase<T> {
 	}
 
 	@Override
-	protected HCatRecord TupleToHCatRecord(T record) throws IOException{
-		if(record instanceof  Tuple) {
+	protected HCatRecord convertTupleToHCat(T record) throws IOException {
+		if (record instanceof Tuple) {
 			Tuple tuple = (Tuple) record;
 			if (tuple.getArity() != this.reqType.getArity()) {
 				throw new IOException("tuple has different arity from the table's column numbers");
@@ -100,19 +103,17 @@ public class HCatOutputFormat<T> extends HCatOutputFormatBase<T> {
 			List<Object> fieldList = new ArrayList<>();
 			for (int i = 0; i < this.reqType.getArity(); i++) {
 				Object o = tuple.getField(i);
-
 				if (((TupleTypeInfo<Tuple>) reqType).getTypeAt(i).getTypeClass().isInstance(o)) {
 					fieldList.add(tuple.getField(i));
 				} else {
 					throw new IOException("field has different type from required");
 				}
-
 			}
 			return new DefaultHCatRecord(fieldList);
 		}
-		else if(record instanceof HCatRecord){
+		else if (record instanceof HCatRecord) {
 			//assume the user has done the conversion in previous map step
-			return (HCatRecord)record;
+			return (HCatRecord) record;
 		}
 		else {
 			throw new IOException("the record should be either Tuple or HCatRecord");
