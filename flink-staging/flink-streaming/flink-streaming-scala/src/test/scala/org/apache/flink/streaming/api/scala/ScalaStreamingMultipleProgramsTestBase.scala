@@ -39,7 +39,6 @@ trait ScalaStreamingMultipleProgramsTestBase
         parallelism,
         StreamingMode.STREAMING,
         false,
-        false,
         true
       )
     )
