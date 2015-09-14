@@ -23,7 +23,6 @@ import org.apache.flink.hcatalog.HCatInputFormatBase
 import org.apache.hadoop.conf.Configuration
 import org.apache.hive.hcatalog.data.HCatRecord
 import org.apache.hive.hcatalog.data.schema.HCatFieldSchema
-import scala.collection.JavaConverters._
 
 /**
  * A InputFormat to read from HCatalog tables.
@@ -126,21 +125,21 @@ class HCatInputFormat[T](
               throw new RuntimeException("Cannot handle partition keys of type ARRAY.")
             }
             else {
-              vals(i) = o.asInstanceOf[java.util.List[_]].asScala
+              vals(i) = o.asInstanceOf[List[Object]]
             }
           case HCatFieldSchema.Type.MAP =>
             if (o.isInstanceOf[String]) {
               throw new RuntimeException("Cannot handle partition keys of type MAP.")
             }
             else {
-              vals(i) = o.asInstanceOf[java.util.Map[_,_]].asScala
+              vals(i) = o.asInstanceOf[Map[Object, Object]]
             }
           case HCatFieldSchema.Type.STRUCT =>
             if (o.isInstanceOf[String]) {
               throw new RuntimeException("Cannot handle partition keys of type STRUCT.")
             }
             else {
-              vals(i) = o.asInstanceOf[java.util.List[_]].asScala
+              vals(i) = o.asInstanceOf[List[Object]]
             }
           case _ =>
             throw new RuntimeException("Invalid type " + this.outputSchema.get(i).getType +
