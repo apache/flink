@@ -935,5 +935,85 @@ The computation **terminates** after a specified *maximum number of supersteps* 
 
 [Back to top](#top)
 
+Mitigating Skew in Gelly - The Node Splitting Technique
+-----------
 
+Highly skewed graphs raise challenges to current computation models (e.g. vertex - centric, gather - sum - apply) which uniformly process vertices, regardless of their degree distribution. This limitation leads to notable communication overhead or to large execution time stalls. 
 
+Graph processing should be differentiated between low and high degree vertices. To this end, the following guide introduces a set of splitting and merging operators meant to modify the graph's structure at a high level in order to make the degree distribution more uniform. 
+
+### Inspecting the Input Data
+
+This technique is suitable for skewed graphs, the more the maximum degree differs from the average degree, the more we recommend that you split the problematic vertices. 
+
+To make sure that your graph fits into the type of input these methods tackle, we recommend that you plot the degree distribution using the  [konnect_plot_deg_distrib](http://konect.uni-koblenz.de/toolbox) Matlab function.
+
+The image below is a plot of the degree distribution in log-log scale for a [subset of the Twitter follower graph](http://twitter.mpi-sws.org/data-icwsm2010.html).
+
+<p class="text-center">
+    <img alt="Twitter's Degree Distribution" width="55%" src="fig/gelly-deg-twitter.png" />
+</p>
+
+As we can see from the upper left corner of the image, there are at least 10 million vertices which have more than one neighbor. If we then move out attention to the bottom right corner of the figure, we will see that only a small subset of the vertices, roughly 3%, have degree grater than 1000.
+In the remainder of this guide, we will consider that particular set of nodes as being highly skewed. The efficiency of the node splitting technique depends on choosing a correct threshold. A higher value will result in unnecessary splitting and unnecessary overhead, while a low threshold value will result in a partial mitigation of the skew problem. 
+
+### Determining skewed nodes
+
+Once we have correctly identified the tail of our degree distribution and the threshold value, we can proceed to telling the high - degree nodes apart from the ones with low degree.
+We will, therefore, call the `determineSkewedNodes` function.
+ 
+{% highlight java %}
+DataSet<Vertex<String, NullValue>> skewedVertices = SplitVertex.determineSkewedVertices(threshold, verticesWithDegrees);
+{% endhighlight %}
+
+### Splitting skewed nodes
+
+The skewed nodes are determined; we now need to create a new graph with more vertices than the initial network, but with a more balanced degree distribution. 
+For that, we wil simply call the `treeDeAggregate` method which splits a high - degree vertex into subvertices, recursively, in an aggregation tree fashion, each time checking whether the leafs are still skewed or not. If, at a certain point in time, the subnodes no longer act as stragglers, we will not continue splitting even though the maximum level was not reached. 
+
+{% highlight java %}
+Graph<String, Tuple2<String, HashSet<String>>, NullValue> graphWithSplitVertices = SplitVertex
+				.treeDeAggregate(skewedVertices, graph, alpha, level, threshold);
+{% endhighlight %}
+
+The method presented above takes the following parameters: a data set of skewed vertices, the initial graph, the number of subnodes in which a node should be split, the maximum level of the aggregation tree and the threshold value meant to differentiate low and high degree vertices. 
+Notice that the vertices hold an extra value, representing the tag (the ID of the initial vertex). This is useful when collecting the final result in the merge phase. Instead of having a subervex ID and a result we will have each vertex output its partial result and the tag. 
+ 
+After splitting, the algorithm is run on the newly - formed graphWithSplitVertices.
+ 
+### Merging - Bringing the Graph Back to its Initial State
+
+{% highlight java %}
+DataSet<Vertex<String, HashSet<String>>> aggregatedVertices =
+				SplitVertex.treeAggregate(resultedSubvertices, level, new Aggregate());
+{% endhighlight %}
+
+The code snippet above takes a data set of resulted vertices and the maximum level followed by a user - defined combine function (internally a `GroupReduceFunction`) and recreates the initial data set, this time with the aggregated result as a value. The merging steps are defined in the `Aggregate` class. 
+
+### Propagating values to Split Vertices
+
+Often, algorithms need to perform more than one step in order to compute the correct result. For instance, the Jaccard Similarity algorithm operates in two major phases: gathering the neighbors and computing a coefficient equal to the number of common neighbors divided by the total number of neighbors. 
+
+Because phase one does not add/remove vertices or edges, we can reuse the split graph from this step in phase two. This way, we avoid adding extra overhead. The utility function used after a `treeDeAggregate` to synchronize the subnodes with the main node is `propagateValuesToSplitVertices`.
+
+{% highlight java %}
+DataSet<Vertex<String, Tuple2<String, HashSet<String>>>> updatedSplitVertices =
+				SplitVertex.propagateValuesToSplitVertices(graphWithSplitVertices.getVertices(),
+						aggregatedVertices);
+{% endhighlight %}
+
+This method takes the data set of split vertices and the set of vertices computed at a previous step as parameters and returns a data set of split vertices containing the same value stored in the main vertex, before splitting it.  
+
+### Evaluation
+
+Even though we add overhead with the splitting and merging phases, we still manage to obtain lower execution times. This is due to the fact that we give work to machines that were otherwise standing idle waiting for a skewed node to finish.
+
+To better illustrate the benefits of node splitting, the chart below plots teh execution times for a vertex - centric [Pregel - like] version of the previously introduced Jaccard Similarity algorithm. 
+
+<p class="text-center">
+    <img alt="Jaccard Similarity - Split versus regular" width="75%" src="fig/gelly-JS.png" />
+</p>
+
+For the [Orkut social network](https://snap.stanford.edu/data/com-Orkut.html), we speed up the execution time by a factor of two. A similar behavior was registered for the other two generated graphs, Orkut_5 and Orkut_10, for which the degree distribution follows a power - law curve with alpha equal to 2.86 and 2.68, respectively.
+
+[Back to top](#top)
