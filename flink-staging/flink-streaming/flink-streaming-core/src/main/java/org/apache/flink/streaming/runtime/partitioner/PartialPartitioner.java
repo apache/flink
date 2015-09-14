@@ -24,9 +24,6 @@ import java.io.ObjectOutputStream;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
-import scala.util.Random;
-
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 
@@ -61,9 +58,21 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		return this;
 	}
 
-	@Override
-	public String toString() {
-		return "HASH";
+	private int getNextPrime(int x) {
+		int num = x+1;
+		while(!isPrime(num)) {
+			num++;
+		}
+		return num;
+	}
+
+	private boolean isPrime(int num) {
+		for(int i= 2; i<num;i++) {
+			if (num%i == 0) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	@Override
@@ -72,8 +81,6 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		if (!initializedStats) {
 			this.targetChannelStats = new long[numChannels];
 			this.initializedStats = true;
-			Random rnd = new Random();
-			rnd.setSeed(System.currentTimeMillis());
 			for (int i =0 ; i <this.workersPerKey;i++) {
 				currentPrime = getNextPrime(currentPrime);
 				h[i] = Hashing.murmur3_128(getNextPrime(currentPrime));
@@ -137,7 +144,6 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		returnArray[0] = selected;
 		return returnArray;
 	}
-
 	private int selectMinWorker(long[] loadVector, int[] choice ) {
 		int index = choice[0];
 		for (int i = 0; i < choice.length; i++) {
@@ -153,20 +159,9 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		os.writeObject(obj);
 		return out.toByteArray();
 	}
-	private int getNextPrime(int x) {
-		int num = x+1;
-		while(!isPrime(num)) {
-			num++;
-		}
-		return num;
-	}
 	
-	private boolean isPrime(int num) {
-		for(int i= 2; i<num;i++) {
-			if (num%i == 0) {
-				return false;
-			}
-		}
-		return true;
+	@Override
+	public String toString() {
+		return "PARTIAL";
 	}
 }
