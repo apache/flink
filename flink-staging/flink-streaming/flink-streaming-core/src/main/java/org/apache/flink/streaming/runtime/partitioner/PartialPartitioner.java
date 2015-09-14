@@ -17,9 +17,18 @@
 
 package org.apache.flink.streaming.runtime.partitioner;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
+import scala.util.Random;
+
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 
 /**
  * Partial Key Grouping maps each message to two of the n possible channels
@@ -37,7 +46,11 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 	KeySelector<T, ?> keySelector;
 	private int[] returnArray = new int[1];
 	private boolean initializedStats;
+	private HashFunction[] h ;
+	private int workersPerKey = 2;
+	private int currentPrime = 2;
 
+	
 	public PartialPartitioner(KeySelector<T, ?> keySelector) {
 		this.initializedStats = false;
 		this.keySelector = keySelector;
@@ -59,18 +72,28 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		if (!initializedStats) {
 			this.targetChannelStats = new long[numChannels];
 			this.initializedStats = true;
+			Random rnd = new Random();
+			rnd.setSeed(System.currentTimeMillis());
+			for (int i =0 ; i <this.workersPerKey;i++) {
+				currentPrime = getNextPrime(currentPrime);
+				h[i] = Hashing.murmur3_128(getNextPrime(currentPrime));
+			}
 		}
 		Object key;
+		int firstChoice;
+		int secondChoice;
 		try {
 			key = keySelector.getKey(record.getInstance().getValue());
+			
+			firstChoice = (int) (Math.abs(h[0].hashBytes(serialize(key)).asLong()) % 
+				numChannels);
+			secondChoice = (int) (Math.abs(h[1].hashBytes(serialize(key)).asLong()) % 
+					numChannels);
+
 		} catch (Exception e) {
 			throw new RuntimeException("Could not extract key from "
 					+ record.getInstance().getValue(), e);
 		}
-
-		int firstChoice = Math.abs(key.hashCode()) % numChannels;
-		int secondChoice = (firstChoice + 1) % numChannels;
-
 		int selected = targetChannelStats[firstChoice] > targetChannelStats[secondChoice] ? secondChoice
 				: firstChoice;
 		targetChannelStats[selected]++;
@@ -81,31 +104,33 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numChannels, int numWorkersPerKey) {
+		
 		if (!initializedStats) {
 			this.targetChannelStats = new long[numChannels];
 			this.initializedStats = true;
+			if (numWorkersPerKey < 2 || numWorkersPerKey >= numChannels) {
+				numWorkersPerKey = 2;
+			}
+			for (int i =0 ; i <numWorkersPerKey;i++) {
+				currentPrime = getNextPrime(currentPrime);
+				h[i] = Hashing.murmur3_128(getNextPrime(currentPrime));
+			}
 		}
+		int [] choices = new int [numWorkersPerKey];
+		int counter = 0;
 		Object key;
 		try {
 			key = keySelector.getKey(record.getInstance().getValue());
+
+			while (counter < numWorkersPerKey) {
+				choices[counter] = (int) (Math.abs(h[counter].hashBytes(serialize(key)).asLong()) % 
+						numChannels);
+				counter++;
+			}
 		} catch (Exception e) {
 			throw new RuntimeException("Could not extract key from "
 					+ record.getInstance().getValue(), e);
 		}
-
-		if (numWorkersPerKey < 2 || numWorkersPerKey >= numChannels) {
-			numWorkersPerKey = 2;
-		}
-		int [] choices = new int [numWorkersPerKey];
-		int counter = 0;
-		choices[counter] = Math.abs(key.hashCode()) % numChannels;
-		counter++;
-
-		while (counter <= numWorkersPerKey) {
-			choices[counter] = (choices[counter - 1] + 1) % numChannels;
-			counter++;
-		}
-
 		int selected = selectMinWorker(targetChannelStats, choices);
 		targetChannelStats[selected]++;
 
@@ -113,7 +138,7 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		return returnArray;
 	}
 
-	private int selectMinWorker(long[] loadVector, int [] choice ) {
+	private int selectMinWorker(long[] loadVector, int[] choice ) {
 		int index = choice[0];
 		for (int i = 0; i < choice.length; i++) {
 			if (loadVector[choice[i]] < loadVector[index]) {
@@ -121,5 +146,27 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 			}
 		}
 		return index;
+	}
+	private byte[] serialize(Object obj) throws IOException {
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		ObjectOutputStream os = new ObjectOutputStream(out);
+		os.writeObject(obj);
+		return out.toByteArray();
+	}
+	private int getNextPrime(int x) {
+		int num = x+1;
+		while(!isPrime(num)) {
+			num++;
+		}
+		return num;
+	}
+	
+	private boolean isPrime(int num) {
+		for(int i= 2; i<num;i++) {
+			if (num%i == 0) {
+				return false;
+			}
+		}
+		return true;
 	}
 }
