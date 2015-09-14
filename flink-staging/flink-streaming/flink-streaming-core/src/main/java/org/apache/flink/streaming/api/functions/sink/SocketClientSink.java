@@ -97,7 +97,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 			dataOutputStream.write(msg);
 		} catch (IOException e) {
 			LOG.error("Cannot send message " + value +
-					" to socket server at " + hostName + ":" + port + ". Caused by " + e +
+					" to socket server at " + hostName + ":" + port + ". Caused by " + e.getMessage() +
 					". Trying to reconnect.", e);
 			retries = 0;
 			boolean success = false;
@@ -121,7 +121,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 
 				} catch(IOException ee) {
 					LOG.error("Reconnect to socket server and send message failed. Caused by " +
-							ee + ". Retry time(s):" + retries);
+							ee.getMessage() + ". Retry time(s):" + retries);
 
 					try {
 						synchronized (lock) {
