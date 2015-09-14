@@ -50,9 +50,9 @@ public class NotSoMiniClusterIterations {
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, PARALLELISM);
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 8);
+			config.setInteger(ConfigConstants.TASK_MANAGER_MANAGED_MEMORY_SIZE_KEY, 8);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 1000);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_MEMORY_SIZE_KEY, (8 * 1024 * 1000) >> 20);
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, 8 * 1024);
 			
 			config.setInteger("taskmanager.net.server.numThreads", 1);

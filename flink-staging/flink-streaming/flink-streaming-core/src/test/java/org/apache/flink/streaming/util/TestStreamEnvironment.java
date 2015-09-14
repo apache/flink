@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
@@ -67,7 +66,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
 			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
 					getParallelism());
-			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
+			configuration.setLong(ConfigConstants.TASK_MANAGER_MANAGED_MEMORY_SIZE_KEY, memorySize);
 
 			executor = new ForkableFlinkMiniCluster(configuration);
 			executor.start();
@@ -104,7 +103,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
 			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
 					getParallelism());
-			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
+			configuration.setLong(ConfigConstants.TASK_MANAGER_MANAGED_MEMORY_SIZE_KEY, memorySize);
 
 			cluster = new ForkableFlinkMiniCluster(configuration);
 		} else {

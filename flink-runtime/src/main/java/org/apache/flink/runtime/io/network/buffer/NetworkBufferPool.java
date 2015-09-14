@@ -193,13 +193,15 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			// Ensure that the number of required buffers can be satisfied.
 			// With dynamic memory management this should become obsolete.
 			if (numTotalRequiredBuffers + numRequiredBuffers > totalNumberOfMemorySegments) {
-				throw new IOException(String.format("Insufficient number of network buffers: " +
-								"required %d, but only %d available. The total number of network " +
-								"buffers is currently set to %d. You can increase this " +
-								"number by setting the configuration key '" +
-								ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY +  "'.",
-						numRequiredBuffers, totalNumberOfMemorySegments - numTotalRequiredBuffers,
-						totalNumberOfMemorySegments));
+				throw new IOException(String.format("Insufficient network memory available: " +
+								"required %d bytes, but only %d bytes available. The network memory" +
+								"size is currently set to %d bytes (%d MB). You can increase this " +
+								"number by setting the configuration key '%s'.",
+						numRequiredBuffers * memorySegmentSize,
+						(totalNumberOfMemorySegments - numTotalRequiredBuffers) * memorySegmentSize,
+						(totalNumberOfMemorySegments * memorySegmentSize),
+						(totalNumberOfMemorySegments * memorySegmentSize) >> 20,
+						ConfigConstants.TASK_MANAGER_NETWORK_MEMORY_SIZE_KEY));
 			}
 
 			this.numTotalRequiredBuffers += numRequiredBuffers;

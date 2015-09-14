@@ -48,9 +48,9 @@ public class SuccessAfterNetworkBuffersFailureITCase {
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 80);
+			config.setInteger(ConfigConstants.TASK_MANAGER_MANAGED_MEMORY_SIZE_KEY, 80);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 840);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_MEMORY_SIZE_KEY, (840 * ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE) >> 20);
 			
 			cluster = new ForkableFlinkMiniCluster(config, false);
 
@@ -69,7 +69,7 @@ public class SuccessAfterNetworkBuffersFailureITCase {
 				fail("This program execution should have failed.");
 			}
 			catch (ProgramInvocationException e) {
-				assertTrue(e.getCause().getCause().getMessage().contains("Insufficient number of network buffers"));
+				assertTrue(e.getCause().getCause().getMessage().contains("Insufficient network memory available"));
 			}
 	
 			try {

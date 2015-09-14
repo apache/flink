@@ -98,7 +98,7 @@ public class TaskManagerStartupTest {
 		try {
 			Configuration cfg = new Configuration();
 			cfg.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, nonWritable.getAbsolutePath());
-			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_MANAGED_MEMORY_SIZE_KEY, 4);
 			cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 			cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 21656);
 
@@ -138,7 +138,7 @@ public class TaskManagerStartupTest {
 			cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 21656);
 
 			// something invalid
-			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -42);
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_MANAGED_MEMORY_SIZE_KEY, -42);
 			try {
 				TaskManager.runTaskManager("localhost", 0, cfg, StreamingMode.BATCH_ONLY);
 				fail("Should fail synchronously with an exception");
@@ -149,8 +149,8 @@ public class TaskManagerStartupTest {
 
 			// something ridiculously high
 			final long memSize = (((long) Integer.MAX_VALUE - 1) *
-									ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE) >> 20;
-			cfg.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memSize);
+									ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE) >> 20;
+			cfg.setLong(ConfigConstants.TASK_MANAGER_MANAGED_MEMORY_SIZE_KEY, memSize);
 			try {
 				TaskManager.runTaskManager("localhost", 0, cfg, StreamingMode.BATCH_ONLY);
 				fail("Should fail synchronously with an exception");

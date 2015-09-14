@@ -33,14 +33,14 @@ jobmanager.rpc.address: localhost
 jobmanager.rpc.port: 6123
 
 
-# The heap size for the JobManager JVM
+# The maximum amount of memory (MB) a job manager will allocate for heap or off-heap memory.
 
-jobmanager.heap.mb: 256
+jobmanager.memory.size: 256
 
 
-# The heap size for the TaskManager JVM
+# The maximum amount of memory (MB) a task manager will allocate for heap or off-heap memory.
 
-taskmanager.heap.mb: 512
+taskmanager.memory.size: 512
 
 
 # The number of task slots that each TaskManager offers. Each slot runs one parallel pipeline.
@@ -95,9 +95,8 @@ state.backend: jobmanager
 # Advanced
 #==============================================================================
 
-# The number of buffers for the network stack.
-#
-# taskmanager.network.numberOfBuffers: 2048
+# The maximum amount of memory (MB) for network buffers.
+taskmanager.memory.network.size: 64
 
 
 # Directories for temporary files.

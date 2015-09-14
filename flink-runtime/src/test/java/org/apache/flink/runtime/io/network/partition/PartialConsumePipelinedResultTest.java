@@ -43,7 +43,7 @@ public class PartialConsumePipelinedResultTest {
 	private final static int NUMBER_OF_SLOTS_PER_TM = 1;
 	private final static int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
 
-	private final static int NUMBER_OF_NETWORK_BUFFERS = 128;
+	private final static int NETWORK_MEMORY = (128 * ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE) >> 20;
 
 	private static TestingCluster flink;
 	private static ActorSystem jobClient;
@@ -54,7 +54,7 @@ public class PartialConsumePipelinedResultTest {
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUMBER_OF_TMS);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUMBER_OF_SLOTS_PER_TM);
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
-		config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, NUMBER_OF_NETWORK_BUFFERS);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_MEMORY_SIZE_KEY, NETWORK_MEMORY);
 
 		flink = new TestingCluster(config, true);
 

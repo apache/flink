@@ -43,22 +43,22 @@ if [[ $STARTSTOP == "start" ]]; then
         STREAMINGMODE="batch"
     fi
 
-    if [[ ! ${FLINK_JM_HEAP} =~ $IS_NUMBER ]]; then
-        echo "[ERROR] Configured JobManager JVM heap size is not a number. Please set '$KEY_JOBM_HEAP_MB' in $FLINK_CONF_FILE."
+    if [[ ! ${FLINK_JM_MEM_SIZE} =~ $IS_NUMBER ]] || [[ "${FLINK_JM_MEM_SIZE}" -le "0" ]]; then
+        echo "[ERROR] Configured JobManager memory size is not a valid value. Please set '${KEY_JOBM_MEM_SIZE}' in ${FLINK_CONF_FILE}."
         exit 1
     fi
 
     if [ "$EXECUTIONMODE" = "local" ]; then
-        if [[ ! ${FLINK_TM_HEAP} =~ $IS_NUMBER ]]; then
-            echo "[ERROR] Configured JobManager JVM heap size is not a number. Please set '$KEY_TASKM_HEAP_MB' in $FLINK_CONF_FILE."
+        if [[ ! ${FLINK_TM_MEM_SIZE} =~ $IS_NUMBER ]] || [[ "${FLINK_TM_MEM_SIZE}" -le "0" ]]; then
+            echo "[ERROR] Configured TaskManager memory size is not a valid value. Please set ${KEY_TASKM_MEM_SIZE} in ${FLINK_CONF_FILE}."
             exit 1
         fi
 
-        FLINK_JM_HEAP=`expr $FLINK_JM_HEAP + $FLINK_TM_HEAP`
+        FLINK_JM_MEM_SIZE=`expr $FLINK_JM_MEM_SIZE + $FLINK_TM_MEM_SIZE`
     fi
 
-    if [ "$FLINK_JM_HEAP" -gt 0 ]; then
-        export JVM_ARGS="$JVM_ARGS -Xms"$FLINK_JM_HEAP"m -Xmx"$FLINK_JM_HEAP"m"
+    if [ "$FLINK_JM_MEM_SIZE" -gt 0 ]; then
+        export JVM_ARGS="$JVM_ARGS -Xms"$FLINK_JM_MEM_SIZE"m -Xmx"$FLINK_JM_MEM_SIZE"m"
     fi
 
     # Startup parameters
