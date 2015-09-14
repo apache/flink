@@ -196,10 +196,11 @@ public class NetworkBufferPool implements BufferPoolFactory {
 				throw new IOException(String.format("Insufficient number of network buffers: " +
 								"required %d, but only %d available. The total number of network " +
 								"buffers is currently set to %d. You can increase this " +
-								"number by setting the configuration key '" +
-								ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY +  "'.",
-						numRequiredBuffers, totalNumberOfMemorySegments - numTotalRequiredBuffers,
-						totalNumberOfMemorySegments));
+								"number by setting the configuration key '%s'.",
+						numRequiredBuffers,
+						totalNumberOfMemorySegments - numTotalRequiredBuffers,
+						totalNumberOfMemorySegments,
+						ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY));
 			}
 
 			this.numTotalRequiredBuffers += numRequiredBuffers;

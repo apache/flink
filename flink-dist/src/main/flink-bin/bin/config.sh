@@ -87,8 +87,17 @@ DEFAULT_ENV_SSH_OPTS=""                             # Optional SSH parameters ru
 # CONFIG KEYS: The default values can be overwritten by the following keys in conf/flink-conf.yaml
 ########################################################################################################################
 
-KEY_JOBM_HEAP_MB="jobmanager.heap.mb"
-KEY_TASKM_HEAP_MB="taskmanager.heap.mb"
+KEY_JOBM_MEM_SIZE="jobmanager.heap.mb"
+KEY_TASKM_MEM_SIZE="taskmanager.heap.mb"
+KEY_TASKM_MEM_MANAGED_SIZE="taskmanager.memory.size"
+KEY_TASKM_MEM_MANAGED_FRACTION="taskmanager.memory.fraction"
+KEY_TASKM_MEM_NETWORK_BUFFERS="taskmanager.network.numberOfBuffers"
+# BEGIN:deprecated
+KEY_TASKM_MEM_NETWORK_BUFFER_SIZE="taskmanager.network.bufferSizeInBytes"
+# END:deprecated
+KEY_TASKM_MEM_SEGMENT_SIZE="taskmanager.memory.segment-size"
+KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
+
 KEY_ENV_PID_DIR="env.pid.dir"
 KEY_ENV_LOG_MAX="env.log.max"
 KEY_ENV_JAVA_HOME="env.java.home"
@@ -132,7 +141,8 @@ FLINK_ROOT_DIR_MANGLED=`manglePath "$FLINK_ROOT_DIR"`
 if [ -z "$FLINK_CONF_DIR" ]; then FLINK_CONF_DIR=$FLINK_ROOT_DIR_MANGLED/conf; fi
 FLINK_BIN_DIR=$FLINK_ROOT_DIR_MANGLED/bin
 FLINK_LOG_DIR=$FLINK_ROOT_DIR_MANGLED/log
-YAML_CONF=${FLINK_CONF_DIR}/flink-conf.yaml
+FLINK_CONF_FILE="flink-conf.yaml"
+YAML_CONF=${FLINK_CONF_DIR}/${FLINK_CONF_FILE}
 
 ########################################################################################################################
 # ENVIRONMENT VARIABLES
@@ -173,12 +183,37 @@ IS_NUMBER="^[0-9]+$"
 
 # Define FLINK_JM_HEAP if it is not already set
 if [ -z "${FLINK_JM_HEAP}" ]; then
-    FLINK_JM_HEAP=$(readFromConfig ${KEY_JOBM_HEAP_MB} 0 "${YAML_CONF}")
+    FLINK_JM_HEAP=$(readFromConfig ${KEY_JOBM_MEM_SIZE} 0 "${YAML_CONF}")
 fi
 
 # Define FLINK_TM_HEAP if it is not already set
 if [ -z "${FLINK_TM_HEAP}" ]; then
-    FLINK_TM_HEAP=$(readFromConfig ${KEY_TASKM_HEAP_MB} 0 "${YAML_CONF}")
+    FLINK_TM_HEAP=$(readFromConfig ${KEY_TASKM_MEM_SIZE} 0 "${YAML_CONF}")
+fi
+
+# Define FLINK_TM_MEM_MANAGED_SIZE if it is not already set
+if [ -z "${FLINK_TM_MEM_MANAGED_SIZE}" ]; then
+    FLINK_TM_MEM_MANAGED_SIZE=$(readFromConfig ${KEY_TASKM_MEM_MANAGED_SIZE} 0 "${YAML_CONF}")
+fi
+
+# Define FLINK_TM_MEM_MANAGED_FRACTION if it is not already set
+if [ -z "${FLINK_TM_MEM_MANAGED_FRACTION}" ]; then
+    FLINK_TM_MEM_MANAGED_FRACTION=$(readFromConfig ${KEY_TASKM_MEM_MANAGED_FRACTION} 0 "${YAML_CONF}")
+fi
+
+# Define FLINK_TM_MEM_NETWORK_SIZE if it is not already set
+if [ -z "${FLINK_TM_MEM_NETWORK_SIZE}" ]; then
+    BUFFER_SIZE=$(readFromConfig ${KEY_TASKM_MEM_SEGMENT_SIZE} "0" "${YAML_CONF}")
+    if [ "${BUFFER_SIZE}" -eq "0" ]; then
+        BUFFER_SIZE=$(readFromConfig ${KEY_TASKM_MEM_NETWORK_BUFFER_SIZE} "$((32 * 1024))" "${YAML_CONF}")
+    fi
+    NUM_BUFFERS=$(readFromConfig ${KEY_TASKM_MEM_NETWORK_BUFFERS} "2048" "${YAML_CONF}")
+    FLINK_TM_MEM_NETWORK_SIZE=$((((NUM_BUFFERS * BUFFER_SIZE) >> 20) + 1))
+fi
+
+# Define FLINK_TM_OFFHEAP if it is not already set
+if [ -z "${FLINK_TM_OFFHEAP}" ]; then
+    FLINK_TM_OFFHEAP=$(readFromConfig ${KEY_TASKM_OFFHEAP} 0 "${YAML_CONF}")
 fi
 
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
@@ -211,7 +246,7 @@ fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.
 # DO NOT USE FOR MEMORY SETTINGS! Use conf/flink-conf.yaml with keys
-# KEY_JOBM_HEAP_MB and KEY_TASKM_HEAP_MB for that!
+# KEY_JOBM_MEM_SIZE and KEY_TASKM_MEM_SIZE for that!
 if [ -z "${JVM_ARGS}" ]; then
     JVM_ARGS=""
 fi
@@ -307,4 +342,8 @@ readSlaves() {
             SLAVES+=(${HOST})
         fi
     done < "$SLAVES_FILE"
+}
+
+useOffHeapMemory() {
+    [[ "`echo ${FLINK_TM_OFFHEAP} | tr '[:upper:]' '[:lower:]'`" == "true" ]]
 }

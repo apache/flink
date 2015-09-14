@@ -1578,7 +1578,7 @@ object TaskManager {
       LOG.info(s"Using $configuredMemory MB for Flink managed memory.")
       configuredMemory << 20 // megabytes to bytes
     }
-    else if (memType == MemoryType.HEAP) {
+    else {
       val fraction = configuration.getFloat(
         ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
         ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
@@ -1586,32 +1586,53 @@ object TaskManager {
                            ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
                            "MemoryManager fraction of the free memory must be between 0.0 and 1.0")
 
-      val relativeMemSize = (EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag() *
-        fraction).toLong
+      if (memType == MemoryType.HEAP) {
+        val relativeMemSize = (EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag() *
+          fraction).toLong
 
-      LOG.info(s"Using $fraction of the currently free heap space for Flink managed " +
-        s" heap memory (${relativeMemSize >> 20} MB).")
+        LOG.info(s"Using $fraction of the currently free heap space for Flink managed " +
+          s" heap memory (${relativeMemSize >> 20} MB).")
 
-      relativeMemSize
+        relativeMemSize
+      }
+      else if (memType == MemoryType.OFF_HEAP) {
+
+        val networkBufferSizeNew = configuration.getLong(
+          ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
+          ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE)
+
+        val networkBufferSizeOld = configuration.getLong(
+          ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY, -1)
+        val networkBufferSize =
+          if (networkBufferSizeNew != -1) {
+            networkBufferSizeNew
+          } else if (networkBufferSizeOld == -1) {
+            ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE
+          } else {
+            networkBufferSizeOld
+          }
+
+        val numNetworkBuffers = configuration.getLong(
+          ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
+          ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS)
+
+        // direct memory for Netty's off-heap buffers
+        val networkMemory = (numNetworkBuffers * networkBufferSize) + (1 << 20)
+
+        // The maximum heap memory has been adjusted according to the fraction
+        val maxMemory = EnvironmentInformation.getMaxJvmHeapMemory() + networkMemory
+        val directMemorySize = (maxMemory / (1.0 - fraction) * fraction).toLong
+
+        LOG.info(s"Using $fraction of the maximum memory size for " +
+          s"Flink managed off-heap memory (${directMemorySize >> 20} MB).")
+
+        directMemorySize
+      }
+      else {
+        throw new RuntimeException("No supported memory type detected.")
+      }
     }
-    else {
-      val ratio = configuration.getFloat(
-        ConfigConstants.TASK_MANAGER_MEMORY_OFF_HEAP_RATIO_KEY,
-        ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_OFF_HEAP_RATIO)
-      
-      checkConfigParameter(ratio > 0.0f,
-        ConfigConstants.TASK_MANAGER_MEMORY_OFF_HEAP_RATIO_KEY,
-        "MemoryManager ratio (off-heap memory / heap size) must be larger than zero")
-      
-      val maxHeapSize = EnvironmentInformation.getMaxJvmHeapMemory()
-      val relativeMemSize = (maxHeapSize * ratio).toLong
 
-      LOG.info(s"Using $ratio time the heap size (${maxHeapSize} bytes) for Flink " +
-        s"managed off-heap memory (${relativeMemSize >> 20} MB).")
-
-      relativeMemSize
-    }
-    
     val preAllocateMemory: Boolean = streamingMode == StreamingMode.BATCH_ONLY
 
     // now start the memory manager
