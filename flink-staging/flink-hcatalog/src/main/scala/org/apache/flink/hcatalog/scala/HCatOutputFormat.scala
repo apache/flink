@@ -70,7 +70,7 @@ HCatOutputFormatBase[T](database, table, mapAsJavaMap(partitionValues), config) 
         val it = value.getTypeAt(i)
         val ot = reqType.asInstanceOf[TupleTypeInfo[_]].getTypeAt(i)
         if (!isCompatibleType(it, ot)) {
-          throw new IOException("field "+ i + " has different type from required")
+          throw new IOException("field " + i + " has different type from required")
         }
       }
     }
