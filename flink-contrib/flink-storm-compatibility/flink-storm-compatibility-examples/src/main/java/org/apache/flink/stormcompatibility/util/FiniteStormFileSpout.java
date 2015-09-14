@@ -35,6 +35,8 @@ public class FiniteStormFileSpout extends StormFileSpout implements FiniteStormS
 	private String line;
 	private boolean newLineRead;
 
+	public FiniteStormFileSpout() {}
+
 	public FiniteStormFileSpout(String path) {
 		super(path);
 	}

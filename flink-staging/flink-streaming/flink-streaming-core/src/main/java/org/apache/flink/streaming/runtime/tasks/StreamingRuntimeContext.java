@@ -91,7 +91,16 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	public Configuration getTaskStubParameters() {
 		return new TaskConfig(env.getTaskConfiguration()).getStubParameters();
 	}
-	
+
+	/**
+	 * Returns the job configuration.
+	 *
+	 * @return The job configuration.
+	 */
+	public Configuration getJobConfiguration() {
+		return new Configuration(env.getJobConfiguration());
+	}
+
 	public StateHandleProvider<Serializable> getStateHandleProvider() {
 		return provider;
 	}

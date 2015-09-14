@@ -17,17 +17,17 @@
 
 package org.apache.flink.stormcompatibility.wrappers;
 
-import java.util.Collection;
-import java.util.HashMap;
-
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.topology.IRichSpout;
-
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A {@link AbstractStormSpoutWrapper} wraps an {@link IRichSpout} in order to execute the Storm bolt within a Flink
@@ -99,7 +99,15 @@ public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceF
 	@Override
 	public final void run(final SourceContext<OUT> ctx) throws Exception {
 		this.collector = new StormSpoutCollector<OUT>(this.numberOfAttributes, ctx);
-		this.spout.open(null,
+
+		/* parameters is task configuration, we can get storm configuration only from job configuration */
+		Map config = new HashMap();
+		Map stormConf = StormWrapperSetupHelper.getStormConfFromContext(super.getRuntimeContext());
+		if (stormConf != null) {
+			config.putAll(stormConf);
+		}
+
+		this.spout.open(config,
 				StormWrapperSetupHelper
 				.convertToTopologyContext((StreamingRuntimeContext) super.getRuntimeContext(), true),
 				new SpoutOutputCollector(this.collector));

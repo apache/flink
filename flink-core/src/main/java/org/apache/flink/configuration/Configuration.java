@@ -418,6 +418,17 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		}
 	}
 
+	/**
+	 * Returns the clone of confData.
+	 *
+	 * @return the clone of confData
+	 */
+	public HashMap<String, Object> getConfDataClone() {
+		synchronized (this.confData) {
+			return new HashMap<String, Object>(this.confData);
+		}
+	}
+
 	public void addAll(Configuration other) {
 		synchronized (this.confData) {
 			synchronized (other.confData) {

@@ -31,10 +31,22 @@ import java.util.Map;
 public class ExclamationBolt implements IRichBolt {
 	OutputCollector _collector;
 
+	private String exclamation;
+
 	@SuppressWarnings("rawtypes")
 	@Override
 	public void prepare(Map conf, TopologyContext context, OutputCollector collector) {
 		_collector = collector;
+		exclamation = "!!!";
+
+		if (conf.containsKey("exclamationNum")) {
+			int exclamationNum = (Integer)conf.get("exclamationNum");
+			StringBuilder builder = new StringBuilder();
+			for (int index = 0; index < exclamationNum; ++index) {
+				builder.append('!');
+			}
+			exclamation = builder.toString();
+		}
 	}
 
 	@Override

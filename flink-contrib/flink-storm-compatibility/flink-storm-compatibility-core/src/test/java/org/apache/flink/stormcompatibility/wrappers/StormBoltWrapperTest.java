@@ -25,25 +25,47 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.runtime.taskmanager.RuntimeEnvironment;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.stormcompatibility.util.AbstractTest;
 import org.apache.flink.stormcompatibility.util.SplitStreamType;
+import org.apache.flink.stormcompatibility.util.StormConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-
+import org.apache.flink.util.InstantiationUtil;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.*;
 
 @RunWith(PowerMockRunner.class)
@@ -216,6 +238,64 @@ public class StormBoltWrapperTest extends AbstractTest {
 		wrapper.open(mock(Configuration.class));
 
 		verify(bolt).prepare(any(Map.class), any(TopologyContext.class), isNull(OutputCollector.class));
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testOpenWithStormConf() throws Exception {
+		final IRichBolt bolt = mock(IRichBolt.class);
+		final StormBoltWrapper<Object, Object> wrapper = new StormBoltWrapper<Object, Object>(bolt);
+
+		Map stormConf = new HashMap();
+		stormConf.put("path", "/home/user/file.txt");
+		stormConf.put(1, 1024);
+		byte[] bytes = InstantiationUtil.serializeObject(stormConf);
+		Configuration jobConfiguration = new Configuration();
+		jobConfiguration.setBytes(StormConfig.STORM_DEFAULT_CONFIG, bytes);
+		jobConfiguration.setInteger("port", 5566);
+		Environment env = new RuntimeEnvironment(new JobID(), new JobVertexID(), new ExecutionAttemptID(),
+				new String(), new String(), 1, 2, jobConfiguration, mock(Configuration.class), mock(ClassLoader.class),
+				mock(MemoryManager.class), mock(IOManager.class), mock(BroadcastVariableManager.class),
+				mock(AccumulatorRegistry.class), mock(InputSplitProvider.class), mock(Map.class),
+				new ResultPartitionWriter[1], new InputGate[1], mock(ActorGateway.class),
+				mock(TaskManagerRuntimeInfo.class));
+		StreamingRuntimeContext ctx = new StreamingRuntimeContext(env, new ExecutionConfig(),
+				mock(KeySelector.class),
+				mock(StateHandleProvider.class), mock(Map.class));
+
+		wrapper.setup(mock(Output.class), ctx);
+		wrapper.open(mock(Configuration.class));
+
+		verify(bolt).prepare(eq(stormConf), any(TopologyContext.class), any(OutputCollector.class));
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testOpenWithJobConf() throws Exception {
+		final IRichBolt bolt = mock(IRichBolt.class);
+		final StormBoltWrapper<Object, Object> wrapper = new StormBoltWrapper<Object, Object>(bolt);
+
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		Configuration jobParameters = new Configuration();
+		jobParameters.setString("path", "/home/user/file.txt");
+		executionConfig.setGlobalJobParameters(jobParameters);
+		byte[] bytes = InstantiationUtil.serializeObject(executionConfig);
+		Configuration jobConfiguration = new Configuration();
+		jobConfiguration.setBytes(ExecutionConfig.CONFIG_KEY, bytes);
+		Environment env = new RuntimeEnvironment(new JobID(), new JobVertexID(), new ExecutionAttemptID(),
+				new String(), new String(), 1, 2, jobConfiguration, mock(Configuration.class), mock(ClassLoader.class),
+				mock(MemoryManager.class), mock(IOManager.class), mock(BroadcastVariableManager.class),
+				mock(AccumulatorRegistry.class), mock(InputSplitProvider.class), mock(Map.class),
+				new ResultPartitionWriter[1], new InputGate[1], mock(ActorGateway.class),
+				mock(TaskManagerRuntimeInfo.class));
+		StreamingRuntimeContext ctx = new StreamingRuntimeContext(env, new ExecutionConfig(),
+				mock(KeySelector.class),
+				mock(StateHandleProvider.class), mock(Map.class));
+
+		wrapper.setup(mock(Output.class), ctx);
+		wrapper.open(mock(Configuration.class));
+
+		verify(bolt).prepare(eq(jobParameters.toMap()), any(TopologyContext.class), any(OutputCollector.class));
 	}
 
 	@SuppressWarnings("unchecked")

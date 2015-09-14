@@ -18,6 +18,7 @@
 package org.apache.flink.stormcompatibility.wrappers;
 
 import java.util.HashMap;
+import java.util.Map;
 
 import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichBolt;
@@ -25,7 +26,28 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.runtime.taskmanager.RuntimeEnvironment;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.stormcompatibility.util.AbstractTest;
+import org.apache.flink.stormcompatibility.util.StormConfig;
+import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.util.InstantiationUtil;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -132,4 +154,47 @@ public class StormWrapperSetupHelperTest extends AbstractTest {
 						.newHashSet(new String[] { Utils.DEFAULT_STREAM_ID }) : null));
 	}
 
+	@Test
+	public void testGetConfTopologiesMode() throws Exception {
+		Map stormConf = new HashMap();
+		stormConf.put("path", "/home/user/file.txt");
+		stormConf.put(1, 1024);
+		byte[] bytes = InstantiationUtil.serializeObject(stormConf);
+		Configuration jobConfiguration = new Configuration();
+		jobConfiguration.setBytes(StormConfig.STORM_DEFAULT_CONFIG, bytes);
+		jobConfiguration.setInteger("port", 5566);
+		Environment env = new RuntimeEnvironment(new JobID(), new JobVertexID(), new ExecutionAttemptID(),
+				new String(), new String(), 1, 2, jobConfiguration, mock(Configuration.class), mock(ClassLoader.class),
+				mock(MemoryManager.class), mock(IOManager.class), mock(BroadcastVariableManager.class),
+				mock(AccumulatorRegistry.class), mock(InputSplitProvider.class), mock(Map.class),
+				new ResultPartitionWriter[1], new InputGate[1], mock(ActorGateway.class),
+				mock(TaskManagerRuntimeInfo.class));
+		StreamingRuntimeContext ctx = new StreamingRuntimeContext(env, new ExecutionConfig(),
+				mock(KeySelector.class),
+				mock(StateHandleProvider.class), mock(Map.class));
+
+		Assert.assertEquals(stormConf, StormWrapperSetupHelper.getStormConfFromContext(ctx));
+	}
+
+	@Test
+	public void testGetConfEmbeddedMode() throws Exception {
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		Configuration jobParameters = new Configuration();
+		jobParameters.setString("path", "/home/user/file.txt");
+		executionConfig.setGlobalJobParameters(jobParameters);
+		byte[] bytes = InstantiationUtil.serializeObject(executionConfig);
+		Configuration jobConfiguration = new Configuration();
+		jobConfiguration.setBytes(ExecutionConfig.CONFIG_KEY, bytes);
+		Environment env = new RuntimeEnvironment(new JobID(), new JobVertexID(), new ExecutionAttemptID(),
+				new String(), new String(), 1, 2, jobConfiguration, mock(Configuration.class), mock(ClassLoader.class),
+				mock(MemoryManager.class), mock(IOManager.class), mock(BroadcastVariableManager.class),
+				mock(AccumulatorRegistry.class), mock(InputSplitProvider.class), mock(Map.class),
+				new ResultPartitionWriter[1], new InputGate[1], mock(ActorGateway.class),
+				mock(TaskManagerRuntimeInfo.class));
+		StreamingRuntimeContext ctx = new StreamingRuntimeContext(env, new ExecutionConfig(),
+				mock(KeySelector.class),
+				mock(StateHandleProvider.class), mock(Map.class));
+
+		Assert.assertEquals(jobParameters.toMap(), StormWrapperSetupHelper.getStormConfFromContext(ctx));
+	}
 }
