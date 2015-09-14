@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.state;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 
@@ -35,13 +36,15 @@ import org.apache.flink.runtime.state.StateHandle;
  */
 public interface PartitionedStateStore<S, C extends Serializable> {
 
-	S getStateForKey(Serializable key) throws Exception;
+	S getStateForKey(Serializable key) throws IOException;
 
 	void setStateForKey(Serializable key, S state);
+	
+	void removeStateForKey(Serializable key);
 
-	Map<Serializable, S> getPartitionedState() throws Exception;
+	Map<Serializable, S> getPartitionedState() throws IOException;
 
-	StateHandle<Serializable> snapshotStates(long checkpointId, long checkpointTimestamp) throws Exception;
+	StateHandle<Serializable> snapshotStates(long checkpointId, long checkpointTimestamp) throws IOException;
 
 	void restoreStates(StateHandle<Serializable> snapshot, ClassLoader userCodeClassLoader) throws Exception;
 

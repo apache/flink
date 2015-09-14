@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.state;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,7 +30,7 @@ import org.apache.flink.runtime.state.StateHandleProvider;
 
 public class EagerStateStore<S, C extends Serializable> implements PartitionedStateStore<S, C> {
 
-	private StateCheckpointer<S,C> checkpointer;
+	private StateCheckpointer<S, C> checkpointer;
 	private final StateHandleProvider<Serializable> provider;
 
 	private Map<Serializable, S> fetchedState;
@@ -43,7 +44,7 @@ public class EagerStateStore<S, C extends Serializable> implements PartitionedSt
 	}
 
 	@Override
-	public S getStateForKey(Serializable key) throws Exception {
+	public S getStateForKey(Serializable key) throws IOException {
 		return fetchedState.get(key);
 	}
 
@@ -53,7 +54,12 @@ public class EagerStateStore<S, C extends Serializable> implements PartitionedSt
 	}
 
 	@Override
-	public Map<Serializable, S> getPartitionedState() throws Exception {
+	public void removeStateForKey(Serializable key) {
+		fetchedState.remove(key);
+	}
+
+	@Override
+	public Map<Serializable, S> getPartitionedState() throws IOException {
 		return fetchedState;
 	}
 
@@ -69,11 +75,12 @@ public class EagerStateStore<S, C extends Serializable> implements PartitionedSt
 	}
 
 	@Override
-	public void restoreStates(StateHandle<Serializable> snapshot, ClassLoader userCodeClassLoader) throws Exception {
-		
+	public void restoreStates(StateHandle<Serializable> snapshot, ClassLoader userCodeClassLoader)
+			throws Exception {
+
 		@SuppressWarnings("unchecked")
 		Map<Serializable, C> checkpoints = (Map<Serializable, C>) snapshot.getState(userCodeClassLoader);
-		
+
 		// we map the values back to the state from the checkpoints
 		for (Entry<Serializable, C> snapshotEntry : checkpoints.entrySet()) {
 			fetchedState.put(snapshotEntry.getKey(), (S) checkpointer.restoreState(snapshotEntry.getValue()));
@@ -89,10 +96,9 @@ public class EagerStateStore<S, C extends Serializable> implements PartitionedSt
 	public void setCheckPointer(StateCheckpointer<S, C> checkpointer) {
 		this.checkpointer = checkpointer;
 	}
-	
+
 	@Override
 	public String toString() {
 		return fetchedState.toString();
 	}
-
 }

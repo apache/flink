@@ -55,7 +55,9 @@ public interface OperatorState<T> {
 	/**
 	 * Updates the operator state accessible by {@link #value()} to the given
 	 * value. The next time {@link #value()} is called (for the same state
-	 * partition) the returned state will represent the updated value.
+	 * partition) the returned state will represent the updated value. When a
+	 * partitioned state is updated with null, the state for the current key 
+	 * will be removed and the default value is returned on the next access.
 	 * 
 	 * @param state
 	 *            The new value for the state.
