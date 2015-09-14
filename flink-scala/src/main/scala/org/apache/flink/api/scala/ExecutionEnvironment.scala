@@ -153,7 +153,10 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
    * because it may be distributed to the worker nodes by java serialization.
    */
-  def registerTypeWithKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
+  def registerTypeWithKryoSerializer[T <: Serializer[_] with Serializable](
+      clazz: Class[_],
+      serializer: T)
+    : Unit = {
     javaEnv.registerTypeWithKryoSerializer(clazz, serializer)
   }
 
@@ -178,7 +181,10 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
    * because it may be distributed to the worker nodes by java serialization.
    */
-  def addDefaultKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
+  def addDefaultKryoSerializer[T <: Serializer[_] with Serializable](
+      clazz: Class[_],
+      serializer: T)
+    : Unit = {
     javaEnv.addDefaultKryoSerializer(clazz, serializer)
   }
 

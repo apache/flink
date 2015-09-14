@@ -242,7 +242,9 @@ public class AvroRecordInputFormatTest {
 
 		TypeSerializer<GenericData.Record> tser = te.createSerializer(ec);
 		Assert.assertEquals(1, ec.getDefaultKryoSerializerClasses().size());
-		Assert.assertEquals(new ExecutionConfig.Entry<Class<?>, Class<? extends Serializer<?>>>(Schema.class, Serializers.AvroSchemaSerializer.class), ec.getDefaultKryoSerializerClasses().get(0));
+		Assert.assertTrue(
+			ec.getDefaultKryoSerializerClasses().containsKey(Schema.class) &&
+			ec.getDefaultKryoSerializerClasses().get(Schema.class).equals(Serializers.AvroSchemaSerializer.class));
 		ComparatorTestBase.TestOutputView target = new ComparatorTestBase.TestOutputView();
 		tser.serialize(rec, target);
 
