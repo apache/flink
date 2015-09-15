@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.ExpressionException
+import org.apache.flink.api.table.{Row, ExpressionException}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -54,6 +54,7 @@ class SelectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable.select('_1, '_2, '_3)
+      .toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -70,6 +71,7 @@ class SelectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c).select('a, 'b, 'c)
+      .toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -87,7 +89,7 @@ class SelectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable
       .select('_1 as 'a, '_2 as 'b)
-      .select('a, 'b)
+      .select('a, 'b).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -100,7 +102,7 @@ class SelectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
   def testAsWithToFewFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b)
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -111,7 +113,7 @@ class SelectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
   def testAsWithToManyFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c, 'd)
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c, 'd).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -122,7 +124,7 @@ class SelectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
   def testAsWithAmbiguousFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'b)
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'b).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -134,7 +136,7 @@ class SelectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
   def testOnlyFieldRefInAs(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b as 'c, 'd)
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b as 'c, 'd).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
