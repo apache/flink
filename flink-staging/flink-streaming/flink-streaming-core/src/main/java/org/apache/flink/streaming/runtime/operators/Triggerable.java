@@ -16,35 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
-
-import java.util.concurrent.ThreadFactory;
+package org.apache.flink.streaming.runtime.operators;
 
 /**
- * Thread factory that creates threads with a given name, associates them with a given
- * thread group, and set them to daemon mode.
+ * This interface must be implemented by objects that are triggered by a
+ * {@link TriggerTimer}.
  */
-public class DispatherThreadFactory implements ThreadFactory {
-	
-	private final ThreadGroup group;
-	
-	private final String threadName;
-	
-	/**
-	 * Creates a new thread factory.
-	 * 
-	 * @param group The group that the threads will be associated with.
-	 * @param threadName The name for the threads.
-	 */
-	public DispatherThreadFactory(ThreadGroup group, String threadName) {
-		this.group = group;
-		this.threadName = threadName;
-	}
+public interface Triggerable {
 
-	@Override
-	public Thread newThread(Runnable r) {
-		Thread t = new Thread(group, r, threadName);
-		t.setDaemon(true);
-		return t;
-	}
+	/**
+	 * This method is invoked by the {@link TriggerTimer}
+	 * and given the timestamp for which the trigger was scheduled.
+	 * <p>
+	 * If the triggering is delayed for whatever reason (trigger timer was blocked, JVM stalled due
+	 * to a garbage collection), the timestamp supplied to this function will still be the original
+	 * timestamp for which the trigger was scheduled.
+	 * 
+	 * @param timestamp The timestamp for which the trigger event was scheduled.
+	 */
+	void trigger(long timestamp);
 }
