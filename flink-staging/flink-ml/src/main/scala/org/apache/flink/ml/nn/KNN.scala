@@ -171,10 +171,12 @@ object KNN {
                   val queue = mutable.PriorityQueue[(Vector, Vector, Long, Double)]()(
                     Ordering.by(_._4))
 
+                  // MAKE CHANGES HERE FOR SIMPLE DIVIDE AND CONQUER
                   for (a <- testing.values; b <- training.values) {
+//                  for (a <- testing.values; b <- training.values) {
                     // (training vector, input vector, input key, distance)
                     queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))
-
+                    //println("hello!!!")
                     if (queue.size > k) {
                       queue.dequeue()
                     }
