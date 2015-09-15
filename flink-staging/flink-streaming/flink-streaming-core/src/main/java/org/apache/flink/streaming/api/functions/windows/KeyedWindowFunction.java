@@ -16,13 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.functions;
+package org.apache.flink.streaming.api.functions.windows;
+
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
 
 /**
- * The base interface for all user-defined functions.
+ * Base interface for functions that are evaluated over keyed (grouped) windows.
  * 
- * <p>This interface is empty in order to allow extending interfaces to
- * be SAM (single abstract method) interfaces that can be implemented via Java 8 lambdas.</p>
+ * @param <KEY> The type of the key.
+ * @param <IN> The type of the input value.
+ * @param <OUT> The type of the output value.
  */
-public interface Function extends java.io.Serializable {
+public interface KeyedWindowFunction<KEY, IN, OUT> extends Function, Serializable {
+
+	/**
+	 * 
+	 * @param key
+	 * @param values
+	 * @param out
+	 * 
+	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery. 
+	 */
+	void evaluate(KEY key, Iterable<IN> values, Collector<OUT> out) throws Exception;
 }
