@@ -246,7 +246,6 @@ under the License.
 				</configuration>
 			</plugin>
 
-
 			<plugin>
 				<!--The testing hive metastore is not thread safe, throttle the parallelisim for testing-->
 				<groupId>org.apache.maven.plugins</groupId>
@@ -255,9 +254,7 @@ under the License.
 				<configuration combine.self="override">
 					<forkCount>1</forkCount>
 					<reuseForks>false</reuseForks>
-					<systemPropertyVariables>
-						<forkNumber>0</forkNumber>
-					</systemPropertyVariables>
+					<threadCount>1</threadCount>
 					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -XX:-UseGCOverheadLimit</argLine>
 				</configuration>
 			</plugin>
