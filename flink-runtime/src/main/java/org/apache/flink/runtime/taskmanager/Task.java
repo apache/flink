@@ -1000,7 +1000,7 @@ public class Task implements Runnable {
 			if (executor == null) {
 				// first time use, initialize
 				executor = Executors.newSingleThreadExecutor(
-						new DispatherThreadFactory(TASK_THREADS_GROUP, "Async calls on " + taskNameWithSubtask));
+						new DispatcherThreadFactory(TASK_THREADS_GROUP, "Async calls on " + taskNameWithSubtask));
 				this.asyncCallDispatcher = executor;
 				
 				// double-check for execution state, and make sure we clean up after ourselves
