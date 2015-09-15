@@ -546,12 +546,15 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			});
 			Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
 			content = FileUtils.readFileToString(jobmanagerLog);
-			// expecting 512 mb, because TM was started with 1024, we cut off 50% (NOT THE DEFAULT VALUE).
-			Assert.assertTrue("Expected string 'Starting TM with command=$JAVA_HOME/bin/java -Xms424m -Xmx424m' not found in JobManager log: '"+jobmanagerLog+"'",
-					content.contains("Starting TM with command=$JAVA_HOME/bin/java -Xms424m -Xmx424m"));
-			Assert.assertTrue("Expected string ' (2/2) (attempt #0) to ' not found in JobManager log." +
+			// TM was started with 1024 but we cut off 50% (NOT THE DEFAULT VALUE) and then divide
+			// between heap and off-heap memory (see {@link ApplicationMasterActor}).
+			String expected = "Starting TM with command=$JAVA_HOME/bin/java -Xms359m -Xmx359m -XX:MaxDirectMemorySize=65m";
+			Assert.assertTrue("Expected string '" + expected + "' not found in JobManager log: '"+jobmanagerLog+"'",
+					content.contains(expected));
+			expected = " (2/2) (attempt #0) to ";
+			Assert.assertTrue("Expected string '" + expected + "' not found in JobManager log." +
 							"This string checks that the job has been started with a parallelism of 2. Log contents: '"+jobmanagerLog+"'",
-					content.contains(" (2/2) (attempt #0) to "));
+					content.contains(expected));
 
 			// make sure the detached app is really finished.
 			LOG.info("Checking again that app has finished");
