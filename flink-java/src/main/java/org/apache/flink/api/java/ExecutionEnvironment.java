@@ -277,10 +277,13 @@ public abstract class ExecutionEnvironment {
 	 * @param timeout The timeout, in seconds.
 	 */
 	public void setSessionTimeout(long timeout) {
-		if (timeout < 0) {
-			throw new IllegalArgumentException("The session timeout must not be less than zero.");
-		}
-		this.sessionTimeout = timeout;
+		throw new IllegalStateException("Support for sessions is currently disabled. " +
+				"It will be enabled in future Flink versions.");
+		// Session management is disabled, revert this commit to enable
+		//if (timeout < 0) {
+		//	throw new IllegalArgumentException("The session timeout must not be less than zero.");
+		//}
+		//this.sessionTimeout = timeout;
 	}
 
 	/**

@@ -78,8 +78,10 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		}
 
 		Plan p = createProgramPlan(jobName);
-		p.setJobId(jobID);
-		p.setSessionTimeout(sessionTimeout);
+
+		// Session management is disabled, revert this commit to enable
+		//p.setJobId(jobID);
+		//p.setSessionTimeout(sessionTimeout);
 
 		JobExecutionResult result = executor.executePlan(p);
 
