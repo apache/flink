@@ -120,10 +120,12 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 			if (numWorkersPerKey < 2 || numWorkersPerKey >= numChannels) {
 				numWorkersPerKey = 2;
 			}
-			h = new HashFunction[numWorkersPerKey];
-			for (int i =0 ; i <numWorkersPerKey;i++) {
-				currentPrime = getNextPrime(currentPrime);
-				h[i] = Hashing.murmur3_128(currentPrime);
+			if ( numWorkersPerKey != numChannels ) {
+				h = new HashFunction[numWorkersPerKey];
+				for (int i =0 ; i <numWorkersPerKey;i++) {
+					currentPrime = getNextPrime(currentPrime);
+					h[i] = Hashing.murmur3_128(currentPrime);
+				}
 			}
 		}
 		int [] choices ;
@@ -133,10 +135,17 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 			key = keySelector.getKey(record.getInstance().getValue());
 			int counter = 0;
 			choices = new int [numWorkersPerKey];
-			while (counter < numWorkersPerKey) {
-				choices[counter] = (int) (Math.abs(h[counter].hashBytes(serialize(key)).asLong()) % 
-						numChannels);
-				counter++;
+			if (numWorkersPerKey == numChannels) {
+				while (counter < numWorkersPerKey) {
+					choices[counter] = counter;
+					counter++;
+				}
+			}else {
+				while (counter < numWorkersPerKey) {
+					choices[counter] = (int) (Math.abs(h[counter].hashBytes(serialize(key)).asLong()) % 
+							numChannels);
+					counter++;
+				}
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Could not extract key from "
