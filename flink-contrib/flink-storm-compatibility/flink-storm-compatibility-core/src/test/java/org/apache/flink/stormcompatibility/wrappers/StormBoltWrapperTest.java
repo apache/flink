@@ -61,9 +61,9 @@ public class StormBoltWrapperTest extends AbstractTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrapperRawType() throws Exception {
-		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
+		final SetupOutputFieldsDeclarer declarer = new SetupOutputFieldsDeclarer();
 		declarer.declare(new Fields("dummy1", "dummy2"));
-		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
+		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
 		new StormBoltWrapper<Object, Object>(mock(IRichBolt.class),
 				new String[] { Utils.DEFAULT_STREAM_ID });
@@ -71,26 +71,26 @@ public class StormBoltWrapperTest extends AbstractTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrapperToManyAttributes1() throws Exception {
-		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
+		final SetupOutputFieldsDeclarer declarer = new SetupOutputFieldsDeclarer();
 		final String[] schema = new String[26];
 		for (int i = 0; i < schema.length; ++i) {
 			schema[i] = "a" + i;
 		}
 		declarer.declare(new Fields(schema));
-		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
+		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
 		new StormBoltWrapper<Object, Object>(mock(IRichBolt.class));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrapperToManyAttributes2() throws Exception {
-		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
+		final SetupOutputFieldsDeclarer declarer = new SetupOutputFieldsDeclarer();
 		final String[] schema = new String[26];
 		for (int i = 0; i < schema.length; ++i) {
 			schema[i] = "a" + i;
 		}
 		declarer.declare(new Fields(schema));
-		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
+		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
 		new StormBoltWrapper<Object, Object>(mock(IRichBolt.class), new String[] {});
 	}
@@ -133,12 +133,14 @@ public class StormBoltWrapperTest extends AbstractTest {
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(mock(ExecutionConfig.class));
+		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
+		when(taskContext.getTaskName()).thenReturn("name");
 
 		final IRichBolt bolt = mock(IRichBolt.class);
 
-		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
+		final SetupOutputFieldsDeclarer declarer = new SetupOutputFieldsDeclarer();
 		declarer.declare(new Fields(schema));
-		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
+		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
 		final StormBoltWrapper wrapper = new StormBoltWrapper(bolt, (Fields) null);
 		wrapper.setup(mock(Output.class), taskContext);
@@ -163,6 +165,8 @@ public class StormBoltWrapperTest extends AbstractTest {
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(mock(ExecutionConfig.class));
+		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
+		when(taskContext.getTaskName()).thenReturn("name");
 
 		final Output output = mock(Output.class);
 
@@ -209,14 +213,17 @@ public class StormBoltWrapperTest extends AbstractTest {
 
 		final ExecutionConfig taskConfig = mock(ExecutionConfig.class);
 		when(taskConfig.getGlobalJobParameters()).thenReturn(null).thenReturn(stormConfig)
-		.thenReturn(flinkConfig);
+				.thenReturn(flinkConfig);
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(taskConfig);
+		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
+		when(taskContext.getTaskName()).thenReturn("name");
 
-		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
+		final SetupOutputFieldsDeclarer declarer = new SetupOutputFieldsDeclarer();
 		declarer.declare(new Fields("dummy"));
-		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
+		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
+
 
 		final IRichBolt bolt = mock(IRichBolt.class);
 		final StormBoltWrapper<Object, Object> wrapper = new StormBoltWrapper<Object, Object>(bolt);
@@ -249,8 +256,11 @@ public class StormBoltWrapperTest extends AbstractTest {
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(taskConfig);
+		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
+		when(taskContext.getTaskName()).thenReturn("name");
 
 		final IRichBolt bolt = mock(IRichBolt.class);
+
 		final StormBoltWrapper<Object, Object> wrapper = new StormBoltWrapper<Object, Object>(bolt);
 		wrapper.setup(mock(Output.class), taskContext);
 
@@ -275,9 +285,9 @@ public class StormBoltWrapperTest extends AbstractTest {
 	public void testClose() throws Exception {
 		final IRichBolt bolt = mock(IRichBolt.class);
 
-		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
+		final SetupOutputFieldsDeclarer declarer = new SetupOutputFieldsDeclarer();
 		declarer.declare(new Fields("dummy"));
-		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
+		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
 		final StormBoltWrapper<Object, Object> wrapper = new StormBoltWrapper<Object, Object>(bolt);
 

@@ -16,6 +16,8 @@
  */
 package org.apache.flink.stormcompatibility.util;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import backtype.storm.task.OutputCollector;
@@ -27,12 +29,22 @@ import backtype.storm.tuple.Tuple;
 public class TestSink implements IRichBolt {
 	private static final long serialVersionUID = 4314871456719370877L;
 
+	public final static List<TopologyContext> result = new LinkedList<TopologyContext>();
+
 	@SuppressWarnings("rawtypes")
 	@Override
-	public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {}
+	public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
+		result.add(context);
+	}
 
 	@Override
-	public void execute(Tuple input) {}
+	public void execute(Tuple input) {
+		if (input.size() == 1) {
+			result.add((TopologyContext) input.getValue(0));
+		} else {
+			result.add((TopologyContext) input.getValue(1));
+		}
+	}
 
 	@Override
 	public void cleanup() {}

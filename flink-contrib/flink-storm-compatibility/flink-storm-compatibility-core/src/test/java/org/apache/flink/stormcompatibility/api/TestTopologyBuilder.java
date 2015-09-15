@@ -15,26 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.stormcompatibility.api;
 
-package org.apache.flink.stormcompatibility.util;
+import backtype.storm.generated.StormTopology;
 
-import org.apache.flink.stormcompatibility.util.FiniteStormSpout;
-
-/**
- * Implements a Storm Spout that reads String[] data stored in the memory. The spout stops
- * automatically when it emitted all of the data.
- */
-public class FiniteStormInMemorySpout extends StormInMemorySpout<String> implements
-		FiniteStormSpout {
-	private static final long serialVersionUID = -4008858647468647019L;
-
-	public FiniteStormInMemorySpout(String[] source) {
-		super(source);
-	}
-
+public class TestTopologyBuilder extends FlinkTopologyBuilder {
 	@Override
-	public boolean reachedEnd() {
-		return counter >= source.length;
+	public StormTopology getStormTopology() {
+		return super.getStormTopology();
 	}
-
 }

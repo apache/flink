@@ -15,7 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.stormcompatibility.wrappers;
+package org.apache.flink.stormcompatibility.util;
+
+import org.apache.flink.stormcompatibility.wrappers.FiniteStormSpoutWrapper;
 
 import backtype.storm.topology.IRichSpout;
 

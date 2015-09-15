@@ -24,6 +24,7 @@ import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
+import backtype.storm.tuple.Values;
 
 public class TestDummyBolt implements IRichBolt {
 	private static final long serialVersionUID = 6893611247443121322L;
@@ -31,12 +32,27 @@ public class TestDummyBolt implements IRichBolt {
 	public final static String shuffleStreamId = "shuffleStream";
 	public final static String groupingStreamId = "groupingStream";
 
+	private boolean emit = true;
+	private TopologyContext context;
+	private OutputCollector collector;
+
 	@SuppressWarnings("rawtypes")
 	@Override
-	public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {}
+	public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
+		this.context = context;
+		this.collector = collector;
+	}
 
 	@Override
-	public void execute(Tuple input) {}
+	public void execute(Tuple input) {
+		if (this.context.getThisTaskIndex() == 0) {
+			this.collector.emit(shuffleStreamId, input.getValues());
+		}
+		if (this.emit) {
+			this.collector.emit(groupingStreamId, new Values("bolt", this.context));
+			this.emit = false;
+		}
+	}
 
 	@Override
 	public void cleanup() {}

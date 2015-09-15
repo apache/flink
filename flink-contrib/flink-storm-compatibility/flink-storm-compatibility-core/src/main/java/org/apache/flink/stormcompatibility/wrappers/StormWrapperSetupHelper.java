@@ -14,31 +14,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.stormcompatibility.wrappers;
 
+import backtype.storm.Config;
 import backtype.storm.generated.Bolt;
 import backtype.storm.generated.ComponentCommon;
 import backtype.storm.generated.SpoutSpec;
+import backtype.storm.generated.StateSpoutSpec;
 import backtype.storm.generated.StormTopology;
+import backtype.storm.generated.StreamInfo;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.IRichSpout;
+import backtype.storm.tuple.Fields;
 
-import org.apache.flink.stormcompatibility.api.FlinkTopologyContext;
+import org.apache.flink.stormcompatibility.util.FlinkOutputFieldsDeclarer;
+import org.apache.flink.stormcompatibility.util.FlinkTopologyContext;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
+import clojure.lang.Atom;
+
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * {@link StormWrapperSetupHelper} is an helper class used by {@link AbstractStormSpoutWrapper} or
+ * {@link StormWrapperSetupHelper} is an helper class used by {@link AbstractStormSpoutWrapper} and
  * {@link StormBoltWrapper}.
  */
 class StormWrapperSetupHelper {
+
+	/** The configuration key for the topology name. */
+	final static String TOPOLOGY_NAME = "storm.topology.name";
 
 	/**
 	 * Computes the number of output attributes used by a {@link AbstractStormSpoutWrapper} or {@link StormBoltWrapper}
@@ -60,7 +71,7 @@ class StormWrapperSetupHelper {
 	public static HashMap<String, Integer> getNumberOfAttributes(final IComponent spoutOrBolt,
 			final Collection<String> rawOutputs)
 					throws IllegalArgumentException {
-		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
+		final SetupOutputFieldsDeclarer declarer = new SetupOutputFieldsDeclarer();
 		spoutOrBolt.declareOutputFields(declarer);
 
 		for (Entry<String, Integer> schema : declarer.outputSchemas.entrySet()) {
@@ -84,27 +95,174 @@ class StormWrapperSetupHelper {
 		return declarer.outputSchemas;
 	}
 
-	// TODO
-	public static TopologyContext convertToTopologyContext(final StreamingRuntimeContext context,
-			final boolean spoutOrBolt) {
-		final Integer taskId = new Integer(1 + context.getIndexOfThisSubtask());
+	/** Used to computed unique task IDs for a Storm topology. */
+	private static int tid;
+
+	/**
+	 * Creates a {@link TopologyContext} for a Spout or Bolt instance (ie, Flink task / Storm executor).
+	 * 
+	 * @param context
+	 *            The Flink runtime context.
+	 * @param spoutOrBolt
+	 *            The Spout or Bolt this context is created for.
+	 * @param stormTopology
+	 *            The original Storm topology.
+	 * @param stormConfig
+	 *            The user provided configuration.
+	 * @return The created {@link TopologyContext}.
+	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public static synchronized TopologyContext createTopologyContext(
+			final StreamingRuntimeContext context, final IComponent spoutOrBolt,
+			StormTopology stormTopology, Map stormConfig) {
+		String operatorName = context.getTaskName();
+		if (operatorName.startsWith("Source: ")) {
+			// prefix "Source: " is inserted by Flink sources by default -- need to get rid of it here
+			operatorName = operatorName.substring(8);
+		}
+		final int dop = context.getNumberOfParallelSubtasks();
 
 		final Map<Integer, String> taskToComponents = new HashMap<Integer, String>();
-		taskToComponents.put(taskId, context.getTaskName());
+		final Map<String, List<Integer>> componentToSortedTasks = new HashMap<String, List<Integer>>();
+		final Map<String, Map<String, Fields>> componentToStreamToFields = new HashMap<String, Map<String, Fields>>();
+		String stormId = (String) stormConfig.get(TOPOLOGY_NAME);
+		String codeDir = null; // not supported
+		String pidDir = null; // not supported
+		Integer taskId = null;
+		Integer workerPort = null; // not supported
+		List<Integer> workerTasks = new ArrayList<Integer>();
+		final Map<String, Object> defaultResources = new HashMap<String, Object>();
+		final Map<String, Object> userResources = new HashMap<String, Object>();
+		final Map<String, Object> executorData = new HashMap<String, Object>();
+		final Map registeredMetrics = new HashMap();
+		Atom openOrPrepareWasCalled = null;
 
-		final ComponentCommon common = new ComponentCommon();
-		common.set_parallelism_hint(context.getNumberOfParallelSubtasks());
+		if (stormTopology == null) {
+			// embedded mode
+			ComponentCommon common = new ComponentCommon();
+			common.set_parallelism_hint(dop);
 
-		final Map<String, Bolt> bolts = new HashMap<String, Bolt>();
-		final Map<String, SpoutSpec> spoutSpecs = new HashMap<String, SpoutSpec>();
+			HashMap<String, SpoutSpec> spouts = new HashMap<String, SpoutSpec>();
+			HashMap<String, Bolt> bolts = new HashMap<String, Bolt>();
+			if (spoutOrBolt instanceof IRichSpout) {
+				spouts.put(operatorName, new SpoutSpec(null, common));
+			} else {
+				assert (spoutOrBolt instanceof IRichBolt);
+				bolts.put(operatorName, new Bolt(null, common));
+			}
+			stormTopology = new StormTopology(spouts, bolts, new HashMap<String, StateSpoutSpec>());
 
-		if (spoutOrBolt) {
-			spoutSpecs.put(context.getTaskName(), new SpoutSpec(null, common));
+			taskId = context.getIndexOfThisSubtask();
+
+			List<Integer> sortedTasks = new ArrayList<Integer>(dop);
+			for (int i = 1; i <= dop; ++i) {
+				taskToComponents.put(i, operatorName);
+				sortedTasks.add(i);
+			}
+			componentToSortedTasks.put(operatorName, sortedTasks);
+
+			FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
+			spoutOrBolt.declareOutputFields(declarer);
+			componentToStreamToFields.put(operatorName, declarer.outputStreams);
 		} else {
-			bolts.put(context.getTaskName(), new Bolt(null, common));
+			// whole topology is built (ie, FlinkTopologyBuilder is used)
+			Map<String, SpoutSpec> spouts = stormTopology.get_spouts();
+			Map<String, Bolt> bolts = stormTopology.get_bolts();
+			Map<String, StateSpoutSpec> stateSpouts = stormTopology.get_state_spouts();
+
+			tid = 1;
+
+			for (Entry<String, SpoutSpec> spout : spouts.entrySet()) {
+				Integer rc = processSingleOperator(spout.getKey(), spout.getValue().get_common(),
+						operatorName, context.getIndexOfThisSubtask(), dop, taskToComponents,
+						componentToSortedTasks, componentToStreamToFields);
+				if (rc != null) {
+					taskId = rc;
+				}
+			}
+			for (Entry<String, Bolt> bolt : bolts.entrySet()) {
+				Integer rc = processSingleOperator(bolt.getKey(), bolt.getValue().get_common(),
+						operatorName, context.getIndexOfThisSubtask(), dop, taskToComponents,
+						componentToSortedTasks, componentToStreamToFields);
+				if (rc != null) {
+					taskId = rc;
+				}
+			}
+			for (Entry<String, StateSpoutSpec> stateSpout : stateSpouts.entrySet()) {
+				Integer rc = taskId = processSingleOperator(stateSpout.getKey(), stateSpout
+						.getValue().get_common(), operatorName, context.getIndexOfThisSubtask(),
+						dop, taskToComponents, componentToSortedTasks, componentToStreamToFields);
+				if (rc != null) {
+					taskId = rc;
+				}
+			}
+			assert (taskId != null);
 		}
 
-		return new FlinkTopologyContext(new StormTopology(spoutSpecs, bolts, null), taskToComponents, taskId);
+		if (!stormConfig.containsKey(Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS)) {
+			stormConfig.put(Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS, 30); // Storm default value
+		}
+
+		return new FlinkTopologyContext(stormTopology, stormConfig, taskToComponents,
+				componentToSortedTasks, componentToStreamToFields, stormId, codeDir, pidDir,
+				taskId, workerPort, workerTasks, defaultResources, userResources, executorData,
+				registeredMetrics, openOrPrepareWasCalled);
+	}
+
+	/**
+	 * Sets up {@code taskToComponents}, {@code componentToSortedTasks}, and {@code componentToStreamToFields} for a
+	 * single instance of a Spout or Bolt (ie, task or executor). Furthermore, is computes the unique task-id.
+	 * 
+	 * @param componentId
+	 *            The ID of the Spout/Bolt in the topology.
+	 * @param common
+	 *            The common operator object (that is all Spouts and Bolts have).
+	 * @param operatorName
+	 *            The Flink operator name.
+	 * @param index
+	 *            The index of the currently processed tasks with its operator.
+	 * @param dop
+	 *            The parallelism of the operator.
+	 * @param taskToComponents
+	 *            OUTPUT: A map from all task IDs of the topology to their component IDs.
+	 * @param componentToSortedTasks
+	 *            OUTPUT: A map from all component IDs to their sorted list of corresponding task IDs.
+	 * @param componentToStreamToFields
+	 *            OUTPUT: A map from all component IDs to there output streams and output fields.
+	 * 
+	 * @return A unique task ID if the currently processed Spout or Bolt ({@code componentId}) is equal to the current
+	 *         Flink operator ({@link operatorName}) -- {@code null} otherwise.
+	 */
+	private static Integer processSingleOperator(final String componentId,
+			final ComponentCommon common, final String operatorName, final int index,
+			final int dop, final Map<Integer, String> taskToComponents,
+			final Map<String, List<Integer>> componentToSortedTasks,
+			final Map<String, Map<String, Fields>> componentToStreamToFields) {
+		final int parallelism_hint = common.get_parallelism_hint();
+		Integer taskId = null;
+
+		if (componentId.equals(operatorName)) {
+			taskId = tid + index;
+		}
+
+		List<Integer> sortedTasks = new ArrayList<Integer>(dop);
+		for (int i = 0; i < parallelism_hint; ++i) {
+			taskToComponents.put(tid, componentId);
+			sortedTasks.add(tid);
+			++tid;
+		}
+		componentToSortedTasks.put(componentId, sortedTasks);
+
+		if (componentId.equals(operatorName)) {
+		}
+
+		Map<String, Fields> outputStreams = new HashMap<String, Fields>();
+		for(Entry<String, StreamInfo> outStream : common.get_streams().entrySet()) {
+			outputStreams.put(outStream.getKey(), new Fields(outStream.getValue().get_output_fields()));
+		}
+		componentToStreamToFields.put(componentId, outputStreams);
+
+		return taskId;
 	}
 
 }

@@ -23,6 +23,7 @@ import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
+import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
 
 public class TestDummySpout implements IRichSpout {
@@ -30,9 +31,16 @@ public class TestDummySpout implements IRichSpout {
 
 	public final static String spoutStreamId = "spout-stream";
 
+	private boolean emit = true;
+	private TopologyContext context;
+	private SpoutOutputCollector collector;
+
 	@SuppressWarnings("rawtypes")
 	@Override
-	public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {}
+	public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+		this.context = context;
+		this.collector = collector;
+	}
 
 	@Override
 	public void close() {}
@@ -44,7 +52,12 @@ public class TestDummySpout implements IRichSpout {
 	public void deactivate() {}
 
 	@Override
-	public void nextTuple() {}
+	public void nextTuple() {
+		if (this.emit) {
+			this.collector.emit(new Values(this.context));
+			this.emit = false;
+		}
+	}
 
 	@Override
 	public void ack(Object msgId) {}

@@ -22,7 +22,9 @@ import backtype.storm.tuple.Fields;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.stormcompatibility.util.AbstractTest;
+import org.apache.flink.stormcompatibility.util.FiniteTestSpout;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.junit.Assert;
@@ -46,12 +48,14 @@ public class StormFiniteSpoutWrapperTest extends AbstractTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testRunExecuteFixedNumber() throws Exception {
-		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
+		final SetupOutputFieldsDeclarer declarer = new SetupOutputFieldsDeclarer();
 		declarer.declare(new Fields("dummy"));
-		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
+		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(new ExecutionConfig());
+		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
+		when(taskContext.getTaskName()).thenReturn("name");
 
 		final IRichSpout spout = mock(IRichSpout.class);
 		final int numberOfCalls = this.r.nextInt(50);
@@ -73,6 +77,8 @@ public class StormFiniteSpoutWrapperTest extends AbstractTest {
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(new ExecutionConfig());
+		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
+		when(taskContext.getTaskName()).thenReturn("name");
 
 		final IRichSpout spout = new FiniteTestSpout(numberOfCalls);
 		final StormFiniteSpoutWrapper<Tuple1<Integer>> spoutWrapper = new StormFiniteSpoutWrapper<Tuple1<Integer>>(
@@ -94,11 +100,12 @@ public class StormFiniteSpoutWrapperTest extends AbstractTest {
 
 		StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(new ExecutionConfig());
+		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
+		when(taskContext.getTaskName()).thenReturn("name");
 
 		final IRichSpout spout = new FiniteTestSpout(numberOfCalls);
 		final StormFiniteSpoutWrapper<Tuple1<Integer>> spoutWrapper = new StormFiniteSpoutWrapper<Tuple1<Integer>>(
 				spout);
-		spoutWrapper.setRuntimeContext(taskContext);
 
 		spoutWrapper.cancel();
 		final TestContext collector = new TestContext();

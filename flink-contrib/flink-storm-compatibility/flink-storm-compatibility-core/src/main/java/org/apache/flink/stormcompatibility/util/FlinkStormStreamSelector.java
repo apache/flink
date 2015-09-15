@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 /**
  * Used by {@link FlinkTopologyBuilder} to split multiple declared output streams within Flink.
  */
-final public class FlinkStormStreamSelector<T> implements OutputSelector<SplitStreamType<T>> {
+public final class FlinkStormStreamSelector<T> implements OutputSelector<SplitStreamType<T>> {
 	private static final long serialVersionUID = 2553423379715401023L;
 
 	/** internal cache to avoid short living ArrayList objects. */

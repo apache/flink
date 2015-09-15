@@ -28,17 +28,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * cannot be executed directly, but must be handed over to a {@link FlinkLocalCluster}, {@link FlinkSubmitter}, or
  * {@link FlinkClient}.
  */
-class FlinkTopology extends StreamExecutionEnvironment {
+public class FlinkTopology extends StreamExecutionEnvironment {
 
-	/** The corresponding {@link StormTopology} that is mimicked by this {@link FlinkTopology} */
-	private final StormTopology stormTopology;
 	/** The number of declared tasks for the whole program (ie, sum over all dops) */
 	private int numberOfTasks = 0;
 
-	public FlinkTopology(final StormTopology stormTopology) {
+	public FlinkTopology() {
 		// Set default parallelism to 1, to mirror Storm default behavior
 		super.setParallelism(1);
-		this.stormTopology = stormTopology;
 	}
 
 	/**
@@ -52,7 +49,7 @@ class FlinkTopology extends StreamExecutionEnvironment {
 	public JobExecutionResult execute() throws Exception {
 		throw new UnsupportedOperationException(
 				"A FlinkTopology cannot be executed directly. Use FlinkLocalCluster, FlinkSubmitter, or FlinkClient " +
-						"instead.");
+				"instead.");
 	}
 
 	/**
@@ -66,12 +63,7 @@ class FlinkTopology extends StreamExecutionEnvironment {
 	public JobExecutionResult execute(final String jobName) throws Exception {
 		throw new UnsupportedOperationException(
 				"A FlinkTopology cannot be executed directly. Use FlinkLocalCluster, FlinkSubmitter, or FlinkClient " +
-						"instead.");
-	}
-
-	//TODO
-	public String getStormTopologyAsString() {
-		return this.stormTopology.toString();
+				"instead.");
 	}
 
 	/**

@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.stormcompatibility.api;
+package org.apache.flink.stormcompatibility.util;
 
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.stormcompatibility.util.AbstractTest;
+import org.apache.flink.stormcompatibility.util.FlinkOutputFieldsDeclarer;
 import org.junit.Assert;
 import org.junit.Test;
 

@@ -19,6 +19,7 @@ package org.apache.flink.stormcompatibility.wrappers;
 import java.util.Collection;
 import java.util.HashMap;
 
+import backtype.storm.generated.StormTopology;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
@@ -59,6 +60,8 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 	private final HashMap<String, Integer> numberOfAttributes;
 	/** The schema (ie, ordered field names) of the input stream. */
 	private final Fields inputSchema;
+	/** The original Storm topology. */
+	protected StormTopology stormTopology;
 
 	/**
 	 *  We have to use this because Operators must output
@@ -193,12 +196,22 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 		this.numberOfAttributes = StormWrapperSetupHelper.getNumberOfAttributes(bolt, rawOutputs);
 	}
 
+	/**
+	 * Sets the original Storm topology.
+	 * 
+	 * @param stormTopology
+	 *            The original Storm topology.
+	 */
+	public void setStormTopology(StormTopology stormTopology) {
+		this.stormTopology = stormTopology;
+	}
+
 	@Override
 	public void open(final Configuration parameters) throws Exception {
 		super.open(parameters);
 
-		final TopologyContext topologyContext = StormWrapperSetupHelper.convertToTopologyContext(
-				super.runtimeContext, false);
+		final TopologyContext topologyContext = StormWrapperSetupHelper.createTopologyContext(
+				super.runtimeContext, this.bolt, this.stormTopology, null);
 		flinkCollector = new TimestampedCollector<OUT>(output);
 		OutputCollector stormCollector = null;
 
