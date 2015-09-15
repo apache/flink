@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.AtomicType;
@@ -41,13 +42,11 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	private final Class<T> typeClass;
 	
 	public WritableTypeInfo(Class<T> typeClass) {
-		if (typeClass == null) {
-			throw new NullPointerException();
-		}
-		if (!Writable.class.isAssignableFrom(typeClass) || typeClass == Writable.class) {
-			throw new IllegalArgumentException("WritableTypeInfo can only be used for subclasses of " + Writable.class.getName());
-		}
-		this.typeClass = typeClass;
+		this.typeClass = Preconditions.checkNotNull(typeClass);
+
+		Preconditions.checkArgument(
+			Writable.class.isAssignableFrom(typeClass) && !typeClass.equals(Writable.class),
+			"WritableTypeInfo can only be used for subclasses of " + Writable.class.getName());
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -104,12 +103,26 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	
 	@Override
 	public int hashCode() {
-		return typeClass.hashCode() ^ 0xd3a2646c;
+		return typeClass.hashCode();
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
-		return obj.getClass() == WritableTypeInfo.class && typeClass == ((WritableTypeInfo<?>) obj).typeClass;
+		if (obj instanceof WritableTypeInfo) {
+			@SuppressWarnings("unchecked")
+			WritableTypeInfo<T> writableTypeInfo = (WritableTypeInfo<T>) obj;
+
+			return writableTypeInfo.canEqual(this) &&
+				typeClass == writableTypeInfo.typeClass;
+
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof WritableTypeInfo;
 	}
 	
 	// --------------------------------------------------------------------------------------------

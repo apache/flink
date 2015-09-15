@@ -164,4 +164,25 @@ public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<
 			typeSerializer.copy(source, target);
 		}
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof MultiplexingStreamRecordSerializer) {
+			MultiplexingStreamRecordSerializer<?> other = (MultiplexingStreamRecordSerializer<?>) obj;
+
+			return other.canEqual(this) && typeSerializer.equals(other.typeSerializer);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof MultiplexingStreamRecordSerializer;
+	}
+
+	@Override
+	public int hashCode() {
+		return typeSerializer.hashCode();
+	}
 }

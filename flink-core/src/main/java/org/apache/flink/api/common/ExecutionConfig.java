@@ -19,12 +19,14 @@
 package org.apache.flink.api.common;
 
 import com.esotericsoftware.kryo.Serializer;
+import com.google.common.base.Preconditions;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A config to define the behavior of the program execution. It allows to define (among other
@@ -630,6 +632,61 @@ public class ExecutionConfig implements Serializable {
 		this.autoTypeRegistrationEnabled = false;
 	}
 
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof ExecutionConfig) {
+			ExecutionConfig other = (ExecutionConfig) obj;
+
+			return other.canEqual(this) &&
+				Objects.equals(executionMode, other.executionMode) &&
+				useClosureCleaner == other.useClosureCleaner &&
+				parallelism == other.parallelism &&
+				numberOfExecutionRetries == other.numberOfExecutionRetries &&
+				forceKryo == other.forceKryo &&
+				objectReuse == other.objectReuse &&
+				autoTypeRegistrationEnabled == other.autoTypeRegistrationEnabled &&
+				forceAvro == other.forceAvro &&
+				Objects.equals(codeAnalysisMode, other.codeAnalysisMode) &&
+				printProgressDuringExecution == other.printProgressDuringExecution &&
+				Objects.equals(globalJobParameters, other.globalJobParameters) &&
+				autoWatermarkInterval == other.autoWatermarkInterval &&
+				timestampsEnabled == other.timestampsEnabled &&
+				registeredTypesWithKryoSerializerClasses.equals(other.registeredTypesWithKryoSerializerClasses) &&
+				defaultKryoSerializerClasses.equals(other.defaultKryoSerializerClasses) &&
+				registeredKryoTypes.equals(other.registeredKryoTypes) &&
+				registeredPojoTypes.equals(other.registeredPojoTypes);
+
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(
+			executionMode,
+			useClosureCleaner,
+			parallelism,
+			numberOfExecutionRetries,
+			forceKryo,
+			objectReuse,
+			autoTypeRegistrationEnabled,
+			forceAvro,
+			codeAnalysisMode,
+			printProgressDuringExecution,
+			globalJobParameters,
+			autoWatermarkInterval,
+			timestampsEnabled,
+			registeredTypesWithKryoSerializerClasses,
+			defaultKryoSerializerClasses,
+			registeredKryoTypes,
+			registeredPojoTypes);
+	}
+
+	public boolean canEqual(Object obj) {
+		return obj instanceof ExecutionConfig;
+	}
+
 
 	// ------------------------------ Utilities  ----------------------------------
 
@@ -641,8 +698,8 @@ public class ExecutionConfig implements Serializable {
 		private final V v;
 
 		public Entry(K k, V v) {
-			this.k = k;
-			this.v = v;
+			this.k = Preconditions.checkNotNull(k);
+			this.v = Preconditions.checkNotNull(v);
 		}
 
 		public K getKey() {
@@ -654,31 +711,26 @@ public class ExecutionConfig implements Serializable {
 		}
 
 		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
+		public boolean equals(Object obj) {
+			if (obj instanceof Entry) {
+				Entry<?, ?> other = (Entry<?, ?>) obj;
+
+				return other.canEqual(this) &&
+					k.equals(other.k) &&
+					v.equals(other.v);
+
+			} else {
 				return false;
 			}
+		}
 
-			Entry entry = (Entry) o;
-
-			if (k != null ? !k.equals(entry.k) : entry.k != null) {
-				return false;
-			}
-			if (v != null ? !v.equals(entry.v) : entry.v != null) {
-				return false;
-			}
-
-			return true;
+		public boolean canEqual(Object obj) {
+			return obj instanceof Entry;
 		}
 
 		@Override
 		public int hashCode() {
-			int result = k != null ? k.hashCode() : 0;
-			result = 31 * result + (v != null ? v.hashCode() : 0);
-			return result;
+			return Objects.hash(k, v);
 		}
 
 		@Override

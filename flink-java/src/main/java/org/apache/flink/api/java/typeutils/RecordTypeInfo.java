@@ -70,12 +70,22 @@ public class RecordTypeInfo extends TypeInformation<Record> {
 	
 	@Override
 	public int hashCode() {
-		return Record.class.hashCode() ^ 0x165667b1;
+		return Record.class.hashCode();
 	}
-	
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof RecordTypeInfo;
+	}
+
 	@Override
 	public boolean equals(Object obj) {
-		return obj.getClass() == RecordTypeInfo.class;
+		if (obj instanceof RecordTypeInfo) {
+			RecordTypeInfo recordTypeInfo = (RecordTypeInfo) obj;
+			return recordTypeInfo.canEqual(this);
+		} else {
+			return false;
+		}
 	}
 	
 	@Override

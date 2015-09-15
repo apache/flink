@@ -93,4 +93,9 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 		target.writeInt(len);
 		target.write(source, len);
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof BytePrimitiveArraySerializer;
+	}
 }

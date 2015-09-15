@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -38,7 +39,7 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 	
 	
 	public CopyableValueSerializer(Class<T> valueClass) {
-		this.valueClass = valueClass;
+		this.valueClass = Preconditions.checkNotNull(valueClass);
 	}
 
 	@Override
@@ -105,16 +106,24 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 	
 	@Override
 	public int hashCode() {
-		return this.valueClass.hashCode() + 9231;
+		return this.valueClass.hashCode();
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj.getClass() == CopyableValueSerializer.class) {
-			CopyableValueSerializer<?> other = (CopyableValueSerializer<?>) obj;
-			return this.valueClass == other.valueClass;
+		if (obj instanceof CopyableValueSerializer) {
+			@SuppressWarnings("unchecked")
+			CopyableValueSerializer<T> copyableValueSerializer = (CopyableValueSerializer<T>) obj;
+
+			return copyableValueSerializer.canEqual(this) &&
+				valueClass == copyableValueSerializer.valueClass;
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof CopyableValueSerializer;
 	}
 }

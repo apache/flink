@@ -20,7 +20,9 @@ package org.apache.flink.api.common.typeinfo;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -69,23 +71,22 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
 	private final TypeSerializer<T> serializer;
 
 	/** The class of the comparator for the array */
-	private Class<? extends PrimitiveArrayComparator<T, ?>> comparatorClass;
+	private final Class<? extends PrimitiveArrayComparator<T, ?>> comparatorClass;
 
 	/**
 	 * Creates a new type info for a 
 	 * @param arrayClass The class of the array (such as int[].class)
 	 * @param serializer The serializer for the array.
+	 * @param comparatorClass The class of the array comparator
 	 */
 	private PrimitiveArrayTypeInfo(Class<T> arrayClass, TypeSerializer<T> serializer, Class<? extends PrimitiveArrayComparator<T, ?>> comparatorClass) {
-		if (arrayClass == null || serializer == null) {
-			throw new NullPointerException();
-		}
-		if (!(arrayClass.isArray() && arrayClass.getComponentType().isPrimitive())) {
-			throw new IllegalArgumentException("Class must represent an array of primitives.");
-		}
-		this.arrayClass = arrayClass;
-		this.serializer = serializer;
-		this.comparatorClass = comparatorClass;
+		this.arrayClass = Preconditions.checkNotNull(arrayClass);
+		this.serializer = Preconditions.checkNotNull(serializer);
+		this.comparatorClass = Preconditions.checkNotNull(comparatorClass);
+
+		Preconditions.checkArgument(
+			arrayClass.isArray() && arrayClass.getComponentType().isPrimitive(),
+			"Class must represent an array of primitives");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -133,12 +134,28 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
 	@Override
 	public boolean equals(Object other) {
 		if (other instanceof PrimitiveArrayTypeInfo) {
-			PrimitiveArrayTypeInfo otherArray = (PrimitiveArrayTypeInfo) other;
-			return otherArray.arrayClass == arrayClass;
+			@SuppressWarnings("unchecked")
+			PrimitiveArrayTypeInfo<T> otherArray = (PrimitiveArrayTypeInfo<T>) other;
+
+			return otherArray.canEqual(this) &&
+				arrayClass == otherArray.arrayClass &&
+				serializer.equals(otherArray.serializer) &&
+				comparatorClass == otherArray.comparatorClass;
+		} else {
+			return false;
 		}
-		return false;
 	}
-	
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(arrayClass, serializer, comparatorClass);
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof PrimitiveArrayTypeInfo;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/**

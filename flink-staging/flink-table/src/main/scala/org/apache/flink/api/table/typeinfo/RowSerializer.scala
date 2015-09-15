@@ -28,7 +28,7 @@ import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 /**
  * Serializer for [[Row]].
  */
-class RowSerializer(fieldSerializers: Array[TypeSerializer[Any]])
+class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
   extends TypeSerializer[Row] {
 
   private def getFieldSerializers = fieldSerializers
@@ -150,9 +150,17 @@ class RowSerializer(fieldSerializers: Array[TypeSerializer[Any]])
   override def equals(any: scala.Any): Boolean = {
     any match {
       case otherRS: RowSerializer =>
-        val otherFieldSerializers = otherRS.getFieldSerializers.asInstanceOf[Array[AnyRef]]
-        util.Arrays.deepEquals(fieldSerializers.asInstanceOf[Array[AnyRef]], otherFieldSerializers)
+        otherRS.canEqual(this) &&
+        fieldSerializers.sameElements(otherRS.fieldSerializers)
       case _ => false
     }
+  }
+
+  override def canEqual(obj: scala.Any): Boolean = {
+    obj.isInstanceOf[RowSerializer]
+  }
+
+  override def hashCode(): Int = {
+    util.Arrays.hashCode(fieldSerializers.asInstanceOf[Array[AnyRef]])
   }
 }

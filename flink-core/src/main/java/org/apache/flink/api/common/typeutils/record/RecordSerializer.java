@@ -40,7 +40,7 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 	
 	// --------------------------------------------------------------------------------------------
 
-	public static final RecordSerializer get() {
+	public static RecordSerializer get() {
 		return INSTANCE;
 	}
 	
@@ -120,5 +120,25 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 		}
 		
 		target.write(source, val);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof RecordSerializer) {
+			RecordSerializer other = (RecordSerializer) obj;
+			return other.canEqual(this);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof RecordSerializer;
+	}
+
+	@Override
+	public int hashCode() {
+		return RecordSerializer.class.hashCode();
 	}
 }

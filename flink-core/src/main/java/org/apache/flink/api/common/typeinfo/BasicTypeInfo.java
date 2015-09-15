@@ -19,10 +19,13 @@
 package org.apache.flink.api.common.typeinfo;
 
 import java.lang.reflect.Constructor;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -55,6 +58,8 @@ import org.apache.flink.api.common.typeutils.base.VoidSerializer;
  */
 public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
+	private static final long serialVersionUID = -430955220409131770L;
+
 	public static final BasicTypeInfo<String> STRING_TYPE_INFO = new BasicTypeInfo<String>(String.class, new Class<?>[]{}, StringSerializer.INSTANCE, StringComparator.class);
 	public static final BasicTypeInfo<Boolean> BOOLEAN_TYPE_INFO = new BasicTypeInfo<Boolean>(Boolean.class, new Class<?>[]{}, BooleanSerializer.INSTANCE, BooleanComparator.class);
 	public static final BasicTypeInfo<Byte> BYTE_TYPE_INFO = new IntegerTypeInfo<Byte>(Byte.class, new Class<?>[]{Short.class, Integer.class, Long.class, Float.class, Double.class, Character.class}, ByteSerializer.INSTANCE, ByteComparator.class);
@@ -66,7 +71,7 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	public static final BasicTypeInfo<Character> CHAR_TYPE_INFO = new BasicTypeInfo<Character>(Character.class, new Class<?>[]{}, CharSerializer.INSTANCE, CharComparator.class);
 	public static final BasicTypeInfo<Date> DATE_TYPE_INFO = new BasicTypeInfo<Date>(Date.class, new Class<?>[]{}, DateSerializer.INSTANCE, DateComparator.class);
 	public static final BasicTypeInfo<Void> VOID_TYPE_INFO = new BasicTypeInfo<Void>(Void.class, new Class<?>[]{}, VoidSerializer.INSTANCE, null);
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	private final Class<T> clazz;
@@ -79,9 +84,10 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	
 	
 	protected BasicTypeInfo(Class<T> clazz, Class<?>[] possibleCastTargetTypes, TypeSerializer<T> serializer, Class<? extends TypeComparator<T>> comparatorClass) {
-		this.clazz = clazz;
-		this.possibleCastTargetTypes = possibleCastTargetTypes;
-		this.serializer = serializer;
+		this.clazz = Preconditions.checkNotNull(clazz);
+		this.possibleCastTargetTypes = Preconditions.checkNotNull(possibleCastTargetTypes);
+		this.serializer = Preconditions.checkNotNull(serializer);
+		// comparator can be null as in VOID_TYPE_INFO
 		this.comparatorClass = comparatorClass;
 	}
 	
@@ -148,15 +154,24 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	
 	@Override
 	public int hashCode() {
-		return this.clazz.hashCode();
+		return (31 * Objects.hash(clazz, serializer, comparatorClass)) + Arrays.hashCode(possibleCastTargetTypes);
 	}
-	
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof BasicTypeInfo;
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof BasicTypeInfo) {
 			@SuppressWarnings("unchecked")
 			BasicTypeInfo<T> other = (BasicTypeInfo<T>) obj;
-			return this.clazz.equals(other.clazz);
+
+			return other.canEqual(this) &&
+				this.clazz == other.clazz &&
+				serializer.equals(other.serializer) &&
+				this.comparatorClass == other.comparatorClass;
 		} else {
 			return false;
 		}

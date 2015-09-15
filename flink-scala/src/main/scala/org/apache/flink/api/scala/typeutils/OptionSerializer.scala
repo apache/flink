@@ -20,6 +20,8 @@ package org.apache.flink.api.scala.typeutils
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 
+import scala.xml.dtd.ContentModel._labelT
+
 /**
  * Serializer for [[Option]].
  */
@@ -71,11 +73,18 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   override def deserialize(reuse: Option[A], source: DataInputView): Option[A] = deserialize(source)
 
   override def equals(obj: Any): Boolean = {
-    if (obj != null && obj.isInstanceOf[OptionSerializer[_]]) {
-      val other = obj.asInstanceOf[OptionSerializer[_]]
-      other.elemSerializer.equals(elemSerializer)
-    } else {
-      false
+    obj match {
+      case optionSerializer: OptionSerializer[_] =>
+        optionSerializer.canEqual(this) && elemSerializer.equals(optionSerializer.elemSerializer)
+      case _ => false
     }
+  }
+
+  override def canEqual(obj: scala.Any): Boolean = {
+    obj.isInstanceOf[OptionSerializer[_]]
+  }
+
+  override def hashCode(): Int = {
+    elemSerializer.hashCode()
   }
 }

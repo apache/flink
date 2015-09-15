@@ -106,4 +106,25 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 			target.writeInt(source.readInt());
 		}
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof IntListSerializer) {
+			IntListSerializer other = (IntListSerializer) obj;
+
+			return other.canEqual(this);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof IntListSerializer;
+	}
+
+	@Override
+	public int hashCode() {
+		return IntListSerializer.class.hashCode();
+	}
 }

@@ -526,12 +526,33 @@ public class TypeExtractor {
 				} catch (ClassNotFoundException e) {
 					throw new InvalidTypesException("Could not convert GenericArrayType to Class.");
 				}
+
 				return getForClass(classArray);
+			} else {
+				TypeInformation<?> componentInfo = createTypeInfoWithTypeHierarchy(
+					typeHierarchy,
+					genericArray.getGenericComponentType(),
+					in1Type,
+					in2Type);
+
+				Class<OUT> classArray;
+
+				try {
+					String componentClassName = componentInfo.getTypeClass().getName();
+					String resultingClassName;
+
+					if (componentClassName.startsWith("[")) {
+						resultingClassName = "[" + componentClassName;
+					} else {
+						resultingClassName = "[L" + componentClassName + ";";
+					}
+					classArray = (Class<OUT>) Class.forName(resultingClassName);
+				} catch (ClassNotFoundException e) {
+					throw new InvalidTypesException("Could not convert GenericArrayType to Class.");
+				}
+
+				return ObjectArrayTypeInfo.getInfoFor(classArray, componentInfo);
 			}
-			
-			TypeInformation<?> componentInfo = createTypeInfoWithTypeHierarchy(typeHierarchy, genericArray.getGenericComponentType(),
-					in1Type, in2Type);
-			return ObjectArrayTypeInfo.getInfoFor(t, componentInfo);
 		}
 		// objects with generics are treated as Class first
 		else if (t instanceof ParameterizedType) {
@@ -1188,7 +1209,13 @@ public class TypeExtractor {
 			
 			// object arrays
 			else {
-				return ObjectArrayTypeInfo.getInfoFor(clazz);
+				TypeInformation<?> componentTypeInfo = createTypeInfoWithTypeHierarchy(
+					typeHierarchy,
+					clazz.getComponentType(),
+					in1Type,
+					in2Type);
+
+				return ObjectArrayTypeInfo.getInfoFor(clazz, componentTypeInfo);
 			}
 		}
 		
