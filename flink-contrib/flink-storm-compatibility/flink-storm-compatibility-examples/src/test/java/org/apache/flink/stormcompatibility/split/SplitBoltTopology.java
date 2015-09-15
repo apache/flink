@@ -49,10 +49,10 @@ public class SplitBoltTopology {
 			final String[] tokens = outputPath.split(":");
 			final String outputFile = tokens[tokens.length - 1];
 			builder.setBolt(sinkId, new StormBoltFileSink(outputFile, formatter))
-			.shuffleGrouping(evenVerifierId).shuffleGrouping(oddVerifierId);
+					.shuffleGrouping(evenVerifierId).shuffleGrouping(oddVerifierId);
 		} else {
 			builder.setBolt(sinkId, new StormBoltPrintSink(formatter), 4)
-			.shuffleGrouping(evenVerifierId).shuffleGrouping(oddVerifierId);
+					.shuffleGrouping(evenVerifierId).shuffleGrouping(oddVerifierId);
 		}
 
 		return builder;

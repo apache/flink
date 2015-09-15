@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.stormcompatibility.wrappers;
+package org.apache.flink.stormcompatibility.util;
 
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
@@ -26,7 +26,7 @@ import backtype.storm.tuple.Values;
 
 import java.util.Map;
 
-class FiniteTestSpout implements IRichSpout {
+public class FiniteTestSpout implements IRichSpout {
 	private static final long serialVersionUID = 7992419478267824279L;
 
 	private int numberOfOutputTuples;

@@ -24,23 +24,23 @@ public class FlinkTopologyTest {
 
 	@Test
 	public void testDefaultParallelism() {
-		final FlinkTopology topology = new FlinkTopology(null);
+		final FlinkTopology topology = new FlinkTopology();
 		Assert.assertEquals(1, topology.getParallelism());
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testExecute() throws Exception {
-		new FlinkTopology(null).execute();
+		new FlinkTopology().execute();
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testExecuteWithName() throws Exception {
-		new FlinkTopology(null).execute(null);
+		new FlinkTopology().execute(null);
 	}
 
 	@Test
 	public void testNumberOfTasks() {
-		final FlinkTopology topology = new FlinkTopology(null);
+		final FlinkTopology topology = new FlinkTopology();
 
 		Assert.assertEquals(0, topology.getNumberOfTasks());
 
@@ -56,7 +56,7 @@ public class FlinkTopologyTest {
 
 	@Test(expected = AssertionError.class)
 	public void testAssert() {
-		new FlinkTopology(null).increaseNumberOfTasks(0);
+		new FlinkTopology().increaseNumberOfTasks(0);
 	}
 
 }

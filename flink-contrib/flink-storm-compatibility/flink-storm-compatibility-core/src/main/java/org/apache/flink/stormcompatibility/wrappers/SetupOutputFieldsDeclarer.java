@@ -24,11 +24,11 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 
 /**
- * {@link StormOutputFieldsDeclarer} is used by {@link StormWrapperSetupHelper} to determine the output streams and
+ * {@link SetupOutputFieldsDeclarer} is used by {@link StormWrapperSetupHelper} to determine the output streams and
  * number of attributes declared by the wrapped spout's or bolt's {@code declare(...)}/{@code declareStream(...)}
  * method.
  */
-class StormOutputFieldsDeclarer implements OutputFieldsDeclarer {
+class SetupOutputFieldsDeclarer implements OutputFieldsDeclarer {
 
 	/** The number of attributes for each declared stream by the wrapped operator. */
 	HashMap<String, Integer> outputSchemas = new HashMap<String, Integer>();

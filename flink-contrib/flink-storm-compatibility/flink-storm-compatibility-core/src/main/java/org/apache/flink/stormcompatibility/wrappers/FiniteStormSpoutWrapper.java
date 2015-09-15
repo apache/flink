@@ -22,6 +22,7 @@ import java.util.Collection;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
+import org.apache.flink.stormcompatibility.util.FiniteStormSpout;
 
 import com.google.common.collect.Sets;
 

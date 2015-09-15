@@ -16,7 +16,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.stormcompatibility.api;
 
 import backtype.storm.generated.ComponentCommon;
@@ -35,10 +34,12 @@ import backtype.storm.tuple.Fields;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.stormcompatibility.util.FiniteStormSpout;
+import org.apache.flink.stormcompatibility.util.FlinkOutputFieldsDeclarer;
 import org.apache.flink.stormcompatibility.util.FlinkStormStreamSelector;
 import org.apache.flink.stormcompatibility.util.SplitStreamType;
+import org.apache.flink.stormcompatibility.util.SplitStreamTypeKeySelector;
 import org.apache.flink.stormcompatibility.wrappers.AbstractStormSpoutWrapper;
-import org.apache.flink.stormcompatibility.wrappers.FiniteStormSpout;
 import org.apache.flink.stormcompatibility.wrappers.FiniteStormSpoutWrapper;
 import org.apache.flink.stormcompatibility.wrappers.StormBoltWrapper;
 import org.apache.flink.stormcompatibility.wrappers.StormSpoutWrapper;
@@ -73,14 +74,18 @@ public class FlinkTopologyBuilder {
 	private final HashMap<String, HashMap<String, Fields>> outputStreams = new HashMap<String, HashMap<String, Fields>>();
 	/** All spouts&bolts declarers by their ID */
 	private final HashMap<String, FlinkOutputFieldsDeclarer> declarers = new HashMap<String, FlinkOutputFieldsDeclarer>();
+	// needs to be a class member for internal testing purpose
+	private StormTopology stormTopology;
+
 
 	/**
 	 * Creates a Flink program that uses the specified spouts and bolts.
 	 */
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	public FlinkTopology createTopology() {
-		final StormTopology stormTopology = this.stormBuilder.createTopology();
-		final FlinkTopology env = new FlinkTopology(stormTopology);
+		this.stormTopology = this.stormBuilder.createTopology();
+
+		final FlinkTopology env = new FlinkTopology();
 		env.setParallelism(1);
 
 		final HashMap<String, HashMap<String, DataStream>> availableInputs = new HashMap<String, HashMap<String, DataStream>>();
@@ -102,6 +107,7 @@ public class FlinkTopologyBuilder {
 			} else {
 				spoutWrapper = new StormSpoutWrapper(userSpout);
 			}
+			spoutWrapper.setStormTopology(stormTopology);
 
 			DataStreamSource source;
 			HashMap<String, DataStream> outputStreams = new HashMap<String, DataStream>();
@@ -126,6 +132,8 @@ public class FlinkTopologyBuilder {
 			if (common.is_set_parallelism_hint()) {
 				dop = common.get_parallelism_hint();
 				source.setParallelism(dop);
+			} else {
+				common.set_parallelism_hint(1);
 			}
 			env.increaseNumberOfTasks(dop);
 		}
@@ -217,6 +225,7 @@ public class FlinkTopologyBuilder {
 							}
 
 							SingleOutputStreamOperator outputStream;
+							StormBoltWrapper boltWrapper;
 							if (boltOutputStreams.size() < 2) { // single output stream or sink
 								String outputStreamId = null;
 								if (boltOutputStreams.size() == 1) {
@@ -225,11 +234,9 @@ public class FlinkTopologyBuilder {
 								final TypeInformation<?> outType = declarer
 										.getOutputType(outputStreamId);
 
-								outputStream = inputStream.transform(
-										boltId,
-										outType,
-										new StormBoltWrapper(userBolt, this.outputStreams.get(
-												producerId).get(inputStreamId)));
+								boltWrapper = new StormBoltWrapper(userBolt, this.outputStreams
+										.get(producerId).get(inputStreamId));
+								outputStream = inputStream.transform(boltId, outType, boltWrapper);
 
 								if (outType != null) {
 									// only for non-sink nodes
@@ -241,11 +248,8 @@ public class FlinkTopologyBuilder {
 								final TypeInformation<?> outType = TypeExtractor
 										.getForClass(SplitStreamType.class);
 
-								outputStream = inputStream.transform(
-										boltId,
-										outType,
-										new StormBoltWrapper(userBolt, this.outputStreams.get(
-												producerId).get(inputStreamId)));
+								boltWrapper = new StormBoltWrapper(userBolt, this.outputStreams.get(producerId).get(inputStreamId));
+								outputStream = inputStream.transform(boltId, outType, boltWrapper);
 
 								SplitStream splitStreams = outputStream
 										.split(new FlinkStormStreamSelector());
@@ -256,11 +260,14 @@ public class FlinkTopologyBuilder {
 								}
 								availableInputs.put(boltId, op);
 							}
+							boltWrapper.setStormTopology(stormTopology);
 
 							int dop = 1;
 							if (common.is_set_parallelism_hint()) {
 								dop = common.get_parallelism_hint();
 								outputStream.setParallelism(dop);
+							} else {
+								common.set_parallelism_hint(1);
 							}
 							env.increaseNumberOfTasks(dop);
 
@@ -393,4 +400,8 @@ public class FlinkTopologyBuilder {
 	 * }
 	 */
 
+	// for internal testing purpose only
+	StormTopology getStormTopology() {
+		return this.stormTopology;
+	}
 }

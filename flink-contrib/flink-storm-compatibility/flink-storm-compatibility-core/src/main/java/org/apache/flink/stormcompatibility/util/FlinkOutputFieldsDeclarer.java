@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.stormcompatibility.api;
+package org.apache.flink.stormcompatibility.util;
 
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
@@ -30,16 +30,14 @@ import java.util.List;
 
 /**
  * {@link FlinkOutputFieldsDeclarer} is used to get the declared output schema of a
- * {@link backtype.storm.topology.IRichSpout spout} or {@link backtype.storm.topology.IRichBolt
- * bolt}.<br />
+ * {@link backtype.storm.topology.IRichSpout spout} or {@link backtype.storm.topology.IRichBolt bolt}.<br />
  * <br />
- * <strong>CAUTION: Currently, Flink does only support the default output stream. Furthermore,
- * direct emit is not supported.</strong>
+ * <strong>CAUTION: Flink does not support direct emit.</strong>
  */
-final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
+public final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 
-	/** the declared output streams and schemas */
-	final HashMap<String, Fields> outputStreams = new HashMap<String, Fields>();
+	/** The declared output streams and schemas. */
+	public final HashMap<String, Fields> outputStreams = new HashMap<String, Fields>();
 
 	@Override
 	public void declare(final Fields fields) {

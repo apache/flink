@@ -26,11 +26,11 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 
-public class StormOutputFieldsDeclarerTest extends AbstractTest {
+public class SetupOutputFieldsDeclarerTest extends AbstractTest {
 
 	@Test
 	public void testDeclare() {
-		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
+		final SetupOutputFieldsDeclarer declarer = new SetupOutputFieldsDeclarer();
 
 		int numberOfAttributes = this.r.nextInt(26);
 		declarer.declare(createSchema(numberOfAttributes));
@@ -55,37 +55,37 @@ public class StormOutputFieldsDeclarerTest extends AbstractTest {
 
 	@Test
 	public void testDeclareDirect() {
-		new StormOutputFieldsDeclarer().declare(false, new Fields());
+		new SetupOutputFieldsDeclarer().declare(false, new Fields());
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testDeclareDirectFail() {
-		new StormOutputFieldsDeclarer().declare(true, new Fields());
+		new SetupOutputFieldsDeclarer().declare(true, new Fields());
 	}
 
 	@Test
 	public void testDeclareStream() {
-		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, new Fields());
+		new SetupOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, new Fields());
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testDeclareStreamFail() {
-		new StormOutputFieldsDeclarer().declareStream(null, new Fields());
+		new SetupOutputFieldsDeclarer().declareStream(null, new Fields());
 	}
 
 	@Test
 	public void testDeclareFullStream() {
-		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, false, new Fields());
+		new SetupOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, false, new Fields());
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testDeclareFullStreamFailNonDefaultStream() {
-		new StormOutputFieldsDeclarer().declareStream(null, false, new Fields());
+		new SetupOutputFieldsDeclarer().declareStream(null, false, new Fields());
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testDeclareFullStreamFailDirect() {
-		new StormOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, true, new Fields());
+		new SetupOutputFieldsDeclarer().declareStream(Utils.DEFAULT_STREAM_ID, true, new Fields());
 	}
 
 }

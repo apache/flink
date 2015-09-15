@@ -20,6 +20,7 @@ package org.apache.flink.stormcompatibility.wrappers;
 import java.util.Collection;
 import java.util.HashMap;
 
+import backtype.storm.generated.StormTopology;
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.topology.IRichSpout;
 
@@ -43,22 +44,16 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 	private static final long serialVersionUID = 4993283609095408765L;
 
-	/**
-	 * Number of attributes of the bolt's output tuples per stream.
-	 */
+	/** Number of attributes of the bolt's output tuples per stream. */
 	private final HashMap<String, Integer> numberOfAttributes;
-	/**
-	 * The wrapped Storm {@link IRichSpout spout}.
-	 */
+	/** The wrapped Storm {@link IRichSpout spout}. */
 	protected final IRichSpout spout;
-	/**
-	 * The wrapper of the given Flink collector.
-	 */
+	/** The wrapper of the given Flink collector. */
 	protected StormSpoutCollector<OUT> collector;
-	/**
-	 * Indicates, if the source is still running or was canceled.
-	 */
+	/** Indicates, if the source is still running or was canceled. */
 	protected volatile boolean isRunning = true;
+	/** The original Storm topology. */
+	protected StormTopology stormTopology;
 
 	/**
 	 * Instantiates a new {@link AbstractStormSpoutWrapper} that wraps the given Storm {@link IRichSpout spout} such
@@ -98,6 +93,16 @@ public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceF
 		this.numberOfAttributes = StormWrapperSetupHelper.getNumberOfAttributes(spout, rawOutputs);
 	}
 
+	/**
+	 * Sets the original Storm topology.
+	 * 
+	 * @param stormTopology
+	 *            The original Storm topology.
+	 */
+	public void setStormTopology(StormTopology stormTopology) {
+		this.stormTopology = stormTopology;
+	}
+
 	@Override
 	public final void run(final SourceContext<OUT> ctx) throws Exception {
 		this.collector = new StormSpoutCollector<OUT>(this.numberOfAttributes, ctx);
@@ -114,8 +119,11 @@ public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceF
 		}
 
 		this.spout.open(stormConfig,
-				StormWrapperSetupHelper
-				.convertToTopologyContext((StreamingRuntimeContext) super.getRuntimeContext(), true),
+				StormWrapperSetupHelper.createTopologyContext(
+					(StreamingRuntimeContext) super.getRuntimeContext(),
+					this.spout,
+					this.stormTopology,
+					null),
 				new SpoutOutputCollector(this.collector));
 		this.spout.activate();
 		this.execute();
