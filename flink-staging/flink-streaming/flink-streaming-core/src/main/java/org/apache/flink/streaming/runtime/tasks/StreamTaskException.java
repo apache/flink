@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 /**
- * An exception that is thrown by the stream verices when encountering an
+ * An exception that is thrown by the stream vertices when encountering an
  * illegal condition.
  */
 public class StreamTaskException extends RuntimeException {

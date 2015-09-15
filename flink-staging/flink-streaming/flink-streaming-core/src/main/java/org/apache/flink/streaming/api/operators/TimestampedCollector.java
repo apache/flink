@@ -30,9 +30,13 @@ import org.joda.time.Instant;
  * @param <T> The type of the elments that can be emitted.
  */
 public class TimestampedCollector<T> implements Collector<T> {
+	
 	private final Output<StreamRecord<T>> output;
+
+	private final StreamRecord<T> reuse;
+	
 	private long timestamp;
-	private StreamRecord<T> reuse;
+	
 
 	/**
 	 * Creates a new {@link TimestampedCollector} that wraps the given {@link Output}.
