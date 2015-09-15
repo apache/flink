@@ -52,6 +52,12 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		this.initializedStats = false;
 		this.keySelector = keySelector;
 	}
+	
+	public PartialPartitioner(KeySelector<T, ?> keySelector, int numWorkersPerKey) {
+		this.initializedStats = false;
+		this.keySelector = keySelector;
+		this.workersPerKey = numWorkersPerKey;
+	}
 
 	@Override
 	public StreamPartitioner<T> copy() {
@@ -81,67 +87,25 @@ public class PartialPartitioner<T> extends StreamPartitioner<T> {
 		if (!initializedStats) {
 			this.targetChannelStats = new long[numChannels];
 			this.initializedStats = true;
-			h = new HashFunction[2];
+			h = new HashFunction[this.workersPerKey];
 			for (int i =0 ; i <this.workersPerKey;i++) {
 				currentPrime = getNextPrime(currentPrime);
 				h[i] = Hashing.murmur3_128(currentPrime);
 			}
 		}
-		Object key;
-		int firstChoice;
-		int secondChoice;
-		try {
-			key = keySelector.getKey(record.getInstance().getValue());
-			
-			firstChoice = (int) (Math.abs(h[0].hashBytes(serialize(key)).asLong()) % 
-				numChannels);
-			secondChoice = (int) (Math.abs(h[1].hashBytes(serialize(key)).asLong()) % 
-					numChannels);
-
-		} catch (Exception e) {
-			throw new RuntimeException("Could not extract key from "
-					+ record.getInstance().getValue(), e);
-		}
-		int selected = targetChannelStats[firstChoice] > targetChannelStats[secondChoice] ? secondChoice
-				: firstChoice;
-		targetChannelStats[selected]++;
-
-		returnArray[0] = selected;
-		return returnArray;
-	}
-
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
-			int numChannels, int numWorkersPerKey) {
-		
-		if (!initializedStats) {
-			this.targetChannelStats = new long[numChannels];
-			this.initializedStats = true;
-			
-			if (numWorkersPerKey < 2 || numWorkersPerKey >= numChannels) {
-				numWorkersPerKey = 2;
-			}
-			if ( numWorkersPerKey != numChannels ) {
-				h = new HashFunction[numWorkersPerKey];
-				for (int i =0 ; i <numWorkersPerKey;i++) {
-					currentPrime = getNextPrime(currentPrime);
-					h[i] = Hashing.murmur3_128(currentPrime);
-				}
-			}
-		}
-		int [] choices ;
-		
+		int [] choices;
 		Object key;
 		try {
 			key = keySelector.getKey(record.getInstance().getValue());
 			int counter = 0;
-			choices = new int [numWorkersPerKey];
-			if (numWorkersPerKey == numChannels) {
-				while (counter < numWorkersPerKey) {
+			choices = new int [this.workersPerKey];
+			if (this.workersPerKey == numChannels) {
+				while (counter < this.workersPerKey) {
 					choices[counter] = counter;
 					counter++;
 				}
 			}else {
-				while (counter < numWorkersPerKey) {
+				while (counter < this.workersPerKey) {
 					choices[counter] = (int) (Math.abs(h[counter].hashBytes(serialize(key)).asLong()) % 
 							numChannels);
 					counter++;
