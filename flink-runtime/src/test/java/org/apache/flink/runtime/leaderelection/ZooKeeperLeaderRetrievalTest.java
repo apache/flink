@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.curator.test.TestingCluster;
+import org.apache.curator.test.TestingServer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -45,13 +45,12 @@ import static org.junit.Assert.*;
 
 public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
-	private TestingCluster testingCluster;
+	private TestingServer testingServer;
 
 	@Before
 	public void before() {
-		testingCluster = new TestingCluster(3);
 		try {
-			testingCluster.start();
+			testingServer = new TestingServer();
 		} catch (Exception e) {
 			throw new RuntimeException("Could not start ZooKeeper testing cluster.", e);
 		}
@@ -59,13 +58,13 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 	@After
 	public void after() {
-		if(testingCluster != null) {
+		if(testingServer != null) {
 			try {
-				testingCluster.stop();
+				testingServer.stop();
 			} catch (IOException e) {
 				throw new RuntimeException("Could not stop ZooKeeper testing cluster.", e);
 			}
-			testingCluster = null;
+			testingServer = null;
 		}
 	}
 
@@ -83,7 +82,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 		long sleepingTime = 1000;
 
 		config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
-		config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingCluster.getConnectString());
+		config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 
 		LeaderElectionService leaderElectionService = null;
 		LeaderElectionService faultyLeaderElectionService;
@@ -168,7 +167,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 	public void testTimeoutOfFindConnectingAddress() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
-		config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingCluster.getConnectString());
+		config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 
 		FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 

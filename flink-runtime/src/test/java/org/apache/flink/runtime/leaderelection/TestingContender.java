@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
@@ -26,6 +29,7 @@ import java.util.concurrent.TimeoutException;
  * purposes.
  */
 public class TestingContender implements LeaderContender {
+	private static final Logger LOG = LoggerFactory.getLogger(TestingContender.class);
 
 	private final String address;
 	private final LeaderElectionService leaderElectionService;
@@ -110,6 +114,8 @@ public class TestingContender implements LeaderContender {
 	@Override
 	public void grantLeadership(UUID leaderSessionID) {
 		synchronized (lock) {
+			LOG.debug("Was granted leadership with session ID {}.", leaderSessionID);
+
 			this.leaderSessionID = leaderSessionID;
 
 			leaderElectionService.confirmLeaderSessionID(leaderSessionID);
@@ -123,6 +129,8 @@ public class TestingContender implements LeaderContender {
 	@Override
 	public void revokeLeadership() {
 		synchronized (lock) {
+			LOG.debug("Was revoked leadership. Old session ID {}.", leaderSessionID);
+
 			leader = false;
 			leaderSessionID = null;
 

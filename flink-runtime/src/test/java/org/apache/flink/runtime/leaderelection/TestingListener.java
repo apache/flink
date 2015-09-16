@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
@@ -28,6 +30,7 @@ import java.util.concurrent.TimeoutException;
  * testing purposes.
  */
 public class TestingListener implements LeaderRetrievalListener {
+	private static Logger LOG = LoggerFactory.getLogger(TestingListener.class);
 
 	private String address;
 	private String oldAddress;
@@ -101,6 +104,8 @@ public class TestingListener implements LeaderRetrievalListener {
 	@Override
 	public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
 		synchronized (lock) {
+			LOG.debug("Notified about new leader address {} with session ID {}.", leaderAddress, leaderSessionID);
+
 			this.address = leaderAddress;
 			this.leaderSessionID = leaderSessionID;
 
