@@ -25,6 +25,7 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 
+import org.apache.flink.runtime.webmonitor.JobManagerArchiveRetriever;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -36,8 +37,8 @@ import java.util.Map;
  * Request handler that returns a summary of the job status.
  */
 public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandler.JsonResponse {
-	
-	private final ActorGateway jobManager;
+
+	private final JobManagerArchiveRetriever retriever;
 	
 	private final FiniteDuration timeout;
 	
@@ -45,9 +46,12 @@ public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandle
 	private final boolean includeFinishedJobs;
 
 	
-	public CurrentJobsOverviewHandler(ActorGateway jobManager, FiniteDuration timeout,
+	public CurrentJobsOverviewHandler(JobManagerArchiveRetriever retriever, FiniteDuration timeout,
 										boolean includeRunningJobs, boolean includeFinishedJobs) {
-		this.jobManager = jobManager;
+		if (retriever == null || timeout == null) {
+			throw new NullPointerException();
+		}
+		this.retriever = retriever;
 		this.timeout = timeout;
 		this.includeRunningJobs = includeRunningJobs;
 		this.includeFinishedJobs = includeFinishedJobs;
@@ -56,42 +60,50 @@ public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandle
 	@Override
 	public String handleRequest(Map<String, String> params) throws Exception {
 		try {
-			Future<Object> future = jobManager.ask(
-					new RequestJobDetails(includeRunningJobs, includeFinishedJobs), timeout);
-			
-			MultipleJobsDetails result = (MultipleJobsDetails) Await.result(future, timeout);
+			ActorGateway jobManager = retriever.getJobManagerGateway();
 
-			final long now = System.currentTimeMillis();
-
-			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
-			gen.writeStartObject();
-			
-			
-			if (includeRunningJobs && includeFinishedJobs) {
-				gen.writeArrayFieldStart("running");
-				for (JobDetails detail : result.getRunningJobs()) {
-					generateSingleJobDetails(detail, gen, now);
+			if (jobManager != null) {
+				
+				Future<Object> future = jobManager.ask(
+						new RequestJobDetails(includeRunningJobs, includeFinishedJobs), timeout);
+				
+				MultipleJobsDetails result = (MultipleJobsDetails) Await.result(future, timeout);
+	
+				final long now = System.currentTimeMillis();
+	
+				StringWriter writer = new StringWriter();
+				JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+				gen.writeStartObject();
+				
+				
+				if (includeRunningJobs && includeFinishedJobs) {
+					gen.writeArrayFieldStart("running");
+					for (JobDetails detail : result.getRunningJobs()) {
+						generateSingleJobDetails(detail, gen, now);
+					}
+					gen.writeEndArray();
+	
+					gen.writeArrayFieldStart("finished");
+					for (JobDetails detail : result.getFinishedJobs()) {
+						generateSingleJobDetails(detail, gen, now);
+					}
+					gen.writeEndArray();
 				}
-				gen.writeEndArray();
-
-				gen.writeArrayFieldStart("finished");
-				for (JobDetails detail : result.getFinishedJobs()) {
-					generateSingleJobDetails(detail, gen, now);
+				else {
+					gen.writeArrayFieldStart("jobs");
+					for (JobDetails detail : includeRunningJobs ? result.getRunningJobs() : result.getFinishedJobs()) {
+						generateSingleJobDetails(detail, gen, now);
+					}
+					gen.writeEndArray();
 				}
-				gen.writeEndArray();
+	
+				gen.writeEndObject();
+				gen.close();
+				return writer.toString();
 			}
 			else {
-				gen.writeArrayFieldStart("jobs");
-				for (JobDetails detail : includeRunningJobs ? result.getRunningJobs() : result.getFinishedJobs()) {
-					generateSingleJobDetails(detail, gen, now);
-				}
-				gen.writeEndArray();
+				throw new Exception("No connection to the leading JobManager.");
 			}
-
-			gen.writeEndObject();
-			gen.close();
-			return writer.toString();
 		}
 		catch (Exception e) {
 			throw new Exception("Failed to fetch the status overview: " + e.getMessage(), e);

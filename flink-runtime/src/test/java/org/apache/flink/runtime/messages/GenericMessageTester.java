@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.messages;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
 
 import java.io.Serializable;
 import java.lang.reflect.Constructor;

@@ -107,8 +107,14 @@ public class JsonMapper {
 			case NESTEDLOOP_STREAMED_OUTER_SECOND:
 				return "Nested Loops (Streamed Outer: " + secondInputName + ")";
 
-			case MERGE:
+			case INNER_MERGE:
 				return "Merge";
+			case FULL_OUTER_MERGE:
+				return "Full Outer Merge";
+			case LEFT_OUTER_MERGE:
+				return "Left Outer Merge";
+			case RIGHT_OUTER_MERGE:
+				return "Right Outer Merge";
 
 			case CO_GROUP:
 				return "Co-Group";
