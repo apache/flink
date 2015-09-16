@@ -29,7 +29,7 @@ import org.apache.flink.api.common.operators.base.PartitionOperatorBase.Partitio
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
-import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
+import org.apache.flink.api.java.functions.{TopKReducer, TopKMapPartition, FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{DiscardingOutputFormat, PrintingOutputFormat, TextOutputFormat}
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
@@ -705,6 +705,24 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     }
     // Normally reduceGroup expects implicit parameters, supply them manually here.
     reduceGroup(new FirstReducer[T](n))(javaSet.getType, implicitly[ClassTag[T]])
+  }
+
+  /**
+   * Returns a new set containing the top k element in this {@link DataSet}.<br/>
+   *
+   * @param k     Expected return element number.
+   * @param order True, poll largest elements. False, poll smallest elements.
+   * @return A { @link GroupReduceOperator} which represents the top K elements DataSet.
+   */
+  def topK(k: Int, order: Boolean = true): DataSet[T] = {
+    if (k < 1) {
+      throw new InvalidProgramException("Parameter n of first(n) must be at least 1.")
+    }
+    val partitionMapper = new TopKMapPartition[T](javaSet.getType, k, order)
+    val reducer = new TopKReducer[T](javaSet.getType, k, order)
+    // No group operation, so there would be only 1 reduce task.
+    mapPartition(partitionMapper)(javaSet.getType, implicitly[ClassTag[T]]).
+      reduceGroup(reducer)(javaSet.getType, implicitly[ClassTag[T]])
   }
 
   // --------------------------------------------------------------------------------------------

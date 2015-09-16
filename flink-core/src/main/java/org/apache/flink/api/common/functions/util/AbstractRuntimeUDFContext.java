@@ -36,6 +36,10 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.StateCheckpointer;
+import org.apache.flink.api.common.typeinfo.AtomicType;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.fs.Path;
 
 /**
@@ -175,5 +179,27 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	public <S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
 			boolean partitioned) throws IOException{
 	throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
+	}
+
+	protected  <T> TypeComparator<T> createComparator(TypeInformation<T> typeInfo, boolean sortOrder, ExecutionConfig executionConfig) {
+
+		TypeComparator<T> comparator;
+		if (typeInfo instanceof CompositeType) {
+			int totalFields = typeInfo.getTotalFields();
+			int[] keys = new int[totalFields];
+			boolean[] sortOrders = new boolean[totalFields];
+			for (int i = 0; i < totalFields; i++) {
+				keys[i] = i;
+				sortOrders[i] = sortOrder;
+			}
+			comparator = ((CompositeType<T>) typeInfo).createComparator(keys, sortOrders, 0, executionConfig);
+		} else if (typeInfo instanceof AtomicType) {
+			// handle grouping of atomic types
+			comparator = ((AtomicType<T>) typeInfo).createComparator(sortOrder, executionConfig);
+		} else {
+			throw new RuntimeException("Unrecognized type: " + typeInfo);
+		}
+
+		return comparator;
 	}
 }

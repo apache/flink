@@ -45,6 +45,8 @@ import org.apache.flink.api.java.functions.FormattingMapper;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
+import org.apache.flink.api.java.functions.TopKMapPartition;
+import org.apache.flink.api.java.functions.TopKReducer;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
@@ -569,6 +571,33 @@ public abstract class DataSet<T> {
 		}
 		
 		return reduceGroup(new FirstReducer<T>(n));
+	}
+
+	/**
+	 * Returns a new set containing the top k element in this {@link DataSet}.<br/>
+	 *
+	 * @param k Expected return element number.
+	 * @return A {@link GroupReduceOperator} which represents the top K elements DataSet.
+	 */
+	public GroupReduceOperator<T, T> topK(int k) {
+		return topK(k, true);
+	}
+
+	/**
+	 * Returns a new set containing the top k element in this {@link DataSet}.<br/>
+	 *
+	 * @param k     Expected return element number.
+	 * @param order True, poll largest elements. False, poll smallest elements.
+	 * @return A {@link GroupReduceOperator} which represents the top K elements DataSet.
+	 */
+	public GroupReduceOperator<T, T> topK(int k, boolean order) {
+		if (k < 1) {
+			throw new InvalidProgramException("Parameter k of topK(k) must be at least 1.");
+		}
+
+		// No group operation, so there would be only 1 reduce task.
+		return mapPartition(new TopKMapPartition<T>(getType(), k, order)).
+			reduceGroup(new TopKReducer<T>(getType(), k, order));
 	}
 	
 	// --------------------------------------------------------------------------------------------

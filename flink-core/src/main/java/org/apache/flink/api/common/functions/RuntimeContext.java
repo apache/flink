@@ -32,6 +32,8 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.StateCheckpointer;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.util.PriorityQueue;
 
 /**
  * A RuntimeContext contains information about the context in which functions are executed. Each parallel instance
@@ -230,4 +232,16 @@ public interface RuntimeContext {
 	 */
 	<S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
 			boolean partitioned) throws IOException;
+
+	/**
+	 * Return customized {@link PriorityQueue} with the given element type information and compare order.
+	 *
+	 * @param typeInformation Element type information.
+	 * @param k               Expect poll elements number.
+	 * @param order           Compare order.
+	 * @param <T>             Element type.
+	 * @return A Flink PriorityQueue implementation.
+	 * @throws Exception
+	 */
+	<T> PriorityQueue<T> getPriorityQueue(TypeInformation<T> typeInformation, int k, boolean order) throws Exception;
 }

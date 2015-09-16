@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.functions.util;
 
+import java.io.IOException;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +29,10 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.PriorityQueue;
 
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
@@ -90,6 +95,51 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
 				throw new IllegalArgumentException("The broadcast variable with name '" + name + "' has not been set.");
 			}
 		}
+	}
+
+	/**
+	 *
+	 * Wrap a java.util.PriorityQueue for standalone RuntimeContext.
+	 */
+	@Override
+	public <T> PriorityQueue<T> getPriorityQueue(final TypeInformation<T> typeInformation, final int k, final boolean order) throws Exception {
+		return new PriorityQueue<T>() {
+
+			private java.util.PriorityQueue<T> javaHeap = new java.util.PriorityQueue<T>(k, new Comparator<T>() {
+
+				TypeComparator<T> typeComparator = createComparator(typeInformation, order, null);
+
+				@Override
+				public int compare(T first, T second) {
+					return typeComparator.compare(first, second);
+				}
+			});
+
+			@Override
+			public void insert(T element) throws IOException {
+				this.javaHeap.add(element);
+			}
+
+			@Override
+			public T next() throws IOException {
+				return this.javaHeap.poll();
+			}
+
+			@Override
+			public T next(T reuse) throws IOException {
+				return this.javaHeap.poll();
+			}
+
+			@Override
+			public int size() {
+				return this.javaHeap.size();
+			}
+
+			@Override
+			public void close() throws IOException {
+				this.javaHeap.clear();
+			}
+		};
 	}
 	
 	// --------------------------------------------------------------------------------------------

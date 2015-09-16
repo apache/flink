@@ -29,6 +29,8 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.StateCheckpointer;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.util.PriorityQueue;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -126,6 +128,11 @@ public class MockRuntimeContext implements RuntimeContext {
 
 	@Override
 	public <S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState, boolean partitioned) throws IOException {
+		return null;
+	}
+
+	@Override
+	public <T> PriorityQueue<T> getPriorityQueue(TypeInformation<T> typeInformation, int k, boolean order) throws IOException {
 		return null;
 	}
 }

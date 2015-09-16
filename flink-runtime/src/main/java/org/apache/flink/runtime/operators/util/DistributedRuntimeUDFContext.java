@@ -23,16 +23,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.AbstractRuntimeUDFContext;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.broadcast.InitializationTypeConflictException;
-
-import com.google.common.base.Preconditions;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.PactTaskContext;
+import org.apache.flink.runtime.operators.sort.QuickHeapPriorityQueue;
+import org.apache.flink.util.PriorityQueue;
 
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
@@ -40,12 +47,20 @@ import com.google.common.base.Preconditions;
 public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 
 	private final HashMap<String, BroadcastVariableMaterialization<?, ?>> broadcastVars = new HashMap<String, BroadcastVariableMaterialization<?, ?>>();
+
+	private PactTaskContext taskContext;
 	
 	public DistributedRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators) {
+										ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators,
+										PactTaskContext taskContext) {
+		super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, accumulators, cpTasks);
+		this.taskContext = taskContext;
+	}
+
+	public DistributedRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
+		ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators) {
 		super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, accumulators, cpTasks);
 	}
-	
 
 	@Override
 	public <T> List<T> getBroadcastVariable(String name) {
@@ -99,5 +114,22 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 	
 	public void clearAllBroadcastVariables() {
 		this.broadcastVars.clear();
+	}
+
+	@Override
+	public <T> PriorityQueue<T> getPriorityQueue(TypeInformation<T> typeInformation, int k, boolean order) throws Exception {
+		MemoryManager memManager = taskContext.getMemoryManager();
+		TypeSerializer<T> serializer = typeInformation.createSerializer(taskContext.getExecutionConfig());
+		// Calculate the proper number of memory pages for heap.
+		int recordSize = serializer.getLength() == 0 ? serializer.getLength() : 24;
+		long allocateSize = (long) k * recordSize * 10;
+		allocateSize = allocateSize < memManager.getMemorySize() / 2 ? allocateSize : memManager.getMemorySize() / 2;
+		int numMemoryPages = (int) Math.floor((double) allocateSize / memManager.getPageSize());
+		numMemoryPages = numMemoryPages < 9 ? 9 : numMemoryPages;
+
+		final List<MemorySegment> memory = memManager.allocatePages(taskContext.getOwningNepheleTask(),
+			numMemoryPages);
+		TypeComparator<T> comparator = createComparator(typeInformation, order, taskContext.getExecutionConfig());
+		return new QuickHeapPriorityQueue<>(memory, serializer, comparator, memManager, taskContext.getIOManager());
 	}
 }
