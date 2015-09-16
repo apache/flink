@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.java.operators;
 
-import java.security.InvalidParameterException;
 import java.util.Arrays;
 
 import com.google.common.base.Preconditions;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -37,6 +37,7 @@ import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
+import org.apache.flink.api.common.operators.base.OuterJoinOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
@@ -48,12 +49,14 @@ import org.apache.flink.api.java.operators.DeltaIteration.SolutionSetPlaceHolder
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
-import org.apache.flink.api.java.operators.translation.PlanBothUnwrappingJoinOperator;
-import org.apache.flink.api.java.operators.translation.PlanLeftUnwrappingJoinOperator;
-import org.apache.flink.api.java.operators.translation.PlanRightUnwrappingJoinOperator;
+import org.apache.flink.api.java.operators.translation.TupleRightUnwrappingJoiner;
+import org.apache.flink.api.java.operators.translation.TupleLeftUnwrappingJoiner;
+import org.apache.flink.api.java.operators.translation.TupleUnwrappingJoiner;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
@@ -70,18 +73,28 @@ import org.apache.flink.api.java.tuple.*;
  * @see DataSet
  */
 public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT, JoinOperator<I1, I2, OUT>> {
-	
+
+	public static enum JoinType {
+
+		INNER, LEFT_OUTER, RIGHT_OUTER, FULL_OUTER;
+
+		public boolean isOuter() {
+			return this == LEFT_OUTER || this == RIGHT_OUTER || this == FULL_OUTER;
+		}
+	}
+
 	protected final Keys<I1> keys1;
 	protected final Keys<I2> keys2;
 	
 	private final JoinHint joinHint;
-	
+	protected final JoinType joinType;
+
 	private Partitioner<?> customPartitioner;
 	
 	
-	protected JoinOperator(DataSet<I1> input1, DataSet<I2> input2, 
+	protected JoinOperator(DataSet<I1> input1, DataSet<I2> input2,
 			Keys<I1> keys1, Keys<I2> keys2,
-			TypeInformation<OUT> returnType, JoinHint hint)
+			TypeInformation<OUT> returnType, JoinHint hint, JoinType type)
 	{
 		super(input1, input2, returnType);
 		
@@ -117,7 +130,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 		this.keys1 = keys1;
 		this.keys2 = keys2;
-		this.joinHint = hint == null ? JoinHint.OPTIMIZER_CHOOSES : hint;
+		this.joinHint = hint == null ? JoinOperatorBase.JoinHint.OPTIMIZER_CHOOSES : hint;
+		this.joinType = type;
 	}
 	
 	protected Keys<I1> getKeys1() {
@@ -135,6 +149,15 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	 */
 	public JoinHint getJoinHint() {
 		return this.joinHint;
+	}
+
+	/**
+	 * Gets the JoinType that describes this join operation (e.g. inner, outer)
+	 *
+	 * @return The JoinType
+	 */
+	public JoinType getJoinType() {
+		return this.joinType;
 	}
 	
 	/**
@@ -190,12 +213,23 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		private boolean preserve2;
 		
 		private final String joinLocationName;
-		
+
 		public EquiJoin(DataSet<I1> input1, DataSet<I2> input2,
 				Keys<I1> keys1, Keys<I2> keys2, FlatJoinFunction<I1, I2, OUT> function,
-				TypeInformation<OUT> returnType, JoinHint hint, String joinLocationName)
-		{
-			super(input1, input2, keys1, keys2, returnType, hint);
+				TypeInformation<OUT> returnType, JoinHint hint, String joinLocationName) {
+			this(input1, input2, keys1, keys2, function, returnType, hint, joinLocationName, JoinType.INNER);
+		}
+
+		public EquiJoin(DataSet<I1> input1, DataSet<I2> input2,
+				Keys<I1> keys1, Keys<I2> keys2, FlatJoinFunction<I1, I2, OUT> generatedFunction, JoinFunction<I1, I2, OUT> function,
+				TypeInformation<OUT> returnType, JoinHint hint, String joinLocationName) {
+			this(input1, input2, keys1, keys2, generatedFunction, function, returnType, hint, joinLocationName, JoinType.INNER);
+		}
+
+		public EquiJoin(DataSet<I1> input1, DataSet<I2> input2,
+				Keys<I1> keys1, Keys<I2> keys2, FlatJoinFunction<I1, I2, OUT> function,
+				TypeInformation<OUT> returnType, JoinHint hint, String joinLocationName, JoinType type) {
+			super(input1, input2, keys1, keys2, returnType, hint, type);
 			
 			if (function == null) {
 				throw new NullPointerException();
@@ -209,9 +243,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 		public EquiJoin(DataSet<I1> input1, DataSet<I2> input2,
 				Keys<I1> keys1, Keys<I2> keys2, FlatJoinFunction<I1, I2, OUT> generatedFunction, JoinFunction<I1, I2, OUT> function,
-				TypeInformation<OUT> returnType, JoinHint hint, String joinLocationName)
-		{
-			super(input1, input2, keys1, keys2, returnType, hint);
+				TypeInformation<OUT> returnType, JoinHint hint, String joinLocationName, JoinType type) {
+			super(input1, input2, keys1, keys2, returnType, hint, type);
 			
 			this.joinLocationName = joinLocationName;
 
@@ -282,233 +315,225 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 
 		@Override
-		protected JoinOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
+		protected AbstractJoinOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
+			String name = getName() != null ? getName() : "Join at " + joinLocationName;
 
-			String name = getName() != null ? getName() : "Join at "+joinLocationName;
+			JoinOperatorBaseBuilder<OUT> builder = new JoinOperatorBaseBuilder<OUT>(name, joinType)
+					.withParallelism(getParallelism())
+					.withPartitioner(getPartitioner())
+					.withJoinHint(getJoinHint())
+					.withResultType(getResultType());
 
-			final JoinOperatorBase<?, ?, OUT, ?> translated;
-			
-			if (keys1 instanceof Keys.SelectorFunctionKeys && keys2 instanceof Keys.SelectorFunctionKeys) {
-				// Both join sides have a key selector function, so we need to do the
-				// tuple wrapping/unwrapping on both sides.
+			final boolean requiresTupleUnwrapping = keys1 instanceof Keys.SelectorFunctionKeys || keys2 instanceof Keys.SelectorFunctionKeys;
+			if (requiresTupleUnwrapping) {
+				if (keys1 instanceof Keys.SelectorFunctionKeys && keys2 instanceof Keys.SelectorFunctionKeys) {
+					// Both join sides have a key selector function, so we need to do the
+					// tuple wrapping/unwrapping on both sides.
 
-				@SuppressWarnings("unchecked")
-				Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
-				@SuppressWarnings("unchecked")
-				Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
-				
-				PlanBothUnwrappingJoinOperator<I1, I2, OUT, ?> po =
-						translateSelectorFunctionJoin(selectorKeys1, selectorKeys2, function, 
-						getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
-				
-				// set parallelism
-				po.setParallelism(this.getParallelism());
-				
-				translated = po;
-			}
-			else if (keys2 instanceof Keys.SelectorFunctionKeys) {
-				// The right side of the join needs the tuple wrapping/unwrapping
+					@SuppressWarnings("unchecked")
+					Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
+					@SuppressWarnings("unchecked")
+					Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
 
-				int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
+					builder = builder
+							.withUdf(new TupleUnwrappingJoiner<>(function))
+							.withUnwrappingLeftInput(input1, selectorKeys1, getInput1Type())
+							.withUnwrappingRightInput(input2, selectorKeys2, getInput2Type());
+				} else if (keys2 instanceof Keys.SelectorFunctionKeys) {
+					// The right side of the join needs the tuple wrapping/unwrapping
 
-				@SuppressWarnings("unchecked")
-				Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 =
-						(Keys.SelectorFunctionKeys<I2, ?>) keys2;
+					@SuppressWarnings("unchecked")
+					Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
 
-				PlanRightUnwrappingJoinOperator<I1, I2, OUT, ?> po =
-						translateSelectorFunctionJoinRight(logicalKeyPositions1, selectorKeys2,
-								function, getInput1Type(), getInput2Type(), getResultType(), name,
-								input1, input2);
+					builder = builder
+							.withUdf(new TupleRightUnwrappingJoiner<>(function))
+							.withInput1(input1, getInput1Type(), keys1)
+							.withUnwrappingRightInput(input2, selectorKeys2, getInput2Type());
+				} else {
+					// The left side of the join needs the tuple wrapping/unwrapping
 
-				// set parallelism
-				po.setParallelism(this.getParallelism());
+					@SuppressWarnings("unchecked")
+					Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
 
-				translated = po;
-			}
-			else if (keys1 instanceof Keys.SelectorFunctionKeys) {
-				// The left side of the join needs the tuple wrapping/unwrapping
-
-
-				@SuppressWarnings("unchecked")
-				Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 =
-						(Keys.SelectorFunctionKeys<I1, ?>) keys1;
-
-				int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
-
-				PlanLeftUnwrappingJoinOperator<I1, I2, OUT, ?> po =
-						translateSelectorFunctionJoinLeft(selectorKeys1, logicalKeyPositions2, function,
-								getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
-
-				// set parallelism
-				po.setParallelism(this.getParallelism());
-
-				translated = po;
-			}
-			else if (super.keys1 instanceof Keys.ExpressionKeys && super.keys2 instanceof Keys.ExpressionKeys)
-			{
+					builder = builder
+							.withUdf(new TupleLeftUnwrappingJoiner<>(function))
+							.withUnwrappingLeftInput(input1, selectorKeys1, getInput1Type())
+							.withInput2(input2, getInput2Type(), keys2);
+				}
+			} else if (keys1 instanceof Keys.ExpressionKeys && keys2 instanceof Keys.ExpressionKeys) {
 				// Neither side needs the tuple wrapping/unwrapping
 
-				int[] logicalKeyPositions1 = super.keys1.computeLogicalKeyPositions();
-				int[] logicalKeyPositions2 = super.keys2.computeLogicalKeyPositions();
-				
-				JoinOperatorBase<I1, I2, OUT, FlatJoinFunction<I1, I2, OUT>> po =
-						new JoinOperatorBase<I1, I2, OUT, FlatJoinFunction<I1, I2, OUT>>(function,
-								new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(), getResultType()),
-								logicalKeyPositions1, logicalKeyPositions2,
-								name);
-				
-				// set inputs
-				po.setFirstInput(input1);
-				po.setSecondInput(input2);
-				// set parallelism
-				po.setParallelism(this.getParallelism());
-				
-				translated = po;
-			}
-			else {
+				builder = builder
+						.withUdf(function)
+						.withInput1(input1, getInput1Type(), keys1)
+						.withInput2(input2, getInput2Type(), keys2);
+			} else {
 				throw new UnsupportedOperationException("Unrecognized or incompatible key types.");
 			}
-			
-			translated.setJoinHint(getJoinHint());
-			translated.setCustomPartitioner(getPartitioner());
-			
-			return translated;
-		}
-		
-		private static <I1, I2, K, OUT> PlanBothUnwrappingJoinOperator<I1, I2, OUT, K> translateSelectorFunctionJoin(
-				Keys.SelectorFunctionKeys<I1, ?> rawKeys1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2, 
-				FlatJoinFunction<I1, I2, OUT> function,
-				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
-				Operator<I1> input1, Operator<I2> input2)
-		{
-			@SuppressWarnings("unchecked")
-			final Keys.SelectorFunctionKeys<I1, K> keys1 = (Keys.SelectorFunctionKeys<I1, K>) rawKeys1;
-			@SuppressWarnings("unchecked")
-			final Keys.SelectorFunctionKeys<I2, K> keys2 = (Keys.SelectorFunctionKeys<I2, K>) rawKeys2;
-			
-			final TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 = new TupleTypeInfo<Tuple2<K, I1>>(keys1.getKeyType(), inputType1);
-			final TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 = new TupleTypeInfo<Tuple2<K, I2>>(keys2.getKeyType(), inputType2);
-			
-			final KeyExtractingMapper<I1, K> extractor1 = new KeyExtractingMapper<I1, K>(keys1.getKeyExtractor());
-			final KeyExtractingMapper<I2, K> extractor2 = new KeyExtractingMapper<I2, K>(keys2.getKeyExtractor());
 
-			final MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>> keyMapper1 =
-					new MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
-			final MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>> keyMapper2 =
-					new MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
-			final PlanBothUnwrappingJoinOperator<I1, I2, OUT, K> join = new PlanBothUnwrappingJoinOperator<I1, I2, OUT, K>(function, keys1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
-			
-			join.setFirstInput(keyMapper1);
-			join.setSecondInput(keyMapper2);
-			
-			keyMapper1.setInput(input1);
-			keyMapper2.setInput(input2);
-			// set parallelism
-			keyMapper1.setParallelism(input1.getParallelism());
-			keyMapper2.setParallelism(input2.getParallelism());
-			
-			return join;
+			return builder.build();
 		}
-		
-		private static <I1, I2, K, OUT> PlanRightUnwrappingJoinOperator<I1, I2, OUT, K> translateSelectorFunctionJoinRight(
-				int[] logicalKeyPositions1,
-				Keys.SelectorFunctionKeys<I2, ?> rawKeys2,
-				FlatJoinFunction<I1, I2, OUT> function,
-				TypeInformation<I1> inputType1,
-				TypeInformation<I2> inputType2,
-				TypeInformation<OUT> outputType,
-				String name,
-				Operator<I1> input1,
-				Operator<I2> input2) {
 
-			if(!inputType1.isTupleType()) {
-				throw new InvalidParameterException("Should not happen.");
+
+		private static final class JoinOperatorBaseBuilder<OUT> {
+
+			private final String name;
+			private final JoinType joinType;
+
+			private int parallelism;
+			private FlatJoinFunction udf;
+			private TypeInformation<OUT> resultType;
+
+			private Operator input1;
+			private TypeInformation input1Type;
+			private Keys<?> keys1;
+
+			private Operator input2;
+			private TypeInformation input2Type;
+			private Keys<?> keys2;
+
+			private Partitioner<?> partitioner;
+			private JoinHint joinHint;
+
+			public JoinOperatorBaseBuilder(String name, JoinType joinType) {
+				this.name = name;
+				this.joinType = joinType;
 			}
-			
-			@SuppressWarnings("unchecked")
-			final Keys.SelectorFunctionKeys<I2, K> keys2 =
-					(Keys.SelectorFunctionKeys<I2, K>) rawKeys2;
-			
-			final TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 =
-					new TupleTypeInfo<Tuple2<K, I2>>(keys2.getKeyType(), inputType2);
-			
-			final KeyExtractingMapper<I2, K> extractor2 =
-					new KeyExtractingMapper<I2, K>(keys2.getKeyExtractor());
 
-			final MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>> keyMapper2 =
-					new MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>>(
-							extractor2,
-							new UnaryOperatorInformation<I2,Tuple2<K, I2>>(inputType2, typeInfoWithKey2),
-							"Key Extractor 2");
-			
-			final PlanRightUnwrappingJoinOperator<I1, I2, OUT, K> join =
-					new PlanRightUnwrappingJoinOperator<I1, I2, OUT, K>(
-							function,
-							logicalKeyPositions1,
-							keys2,
-							name,
-							outputType,
-							inputType1,
-							typeInfoWithKey2);
-			
-			join.setFirstInput(input1);
-			join.setSecondInput(keyMapper2);
-			
-			keyMapper2.setInput(input2);
-			// set parallelism
-			keyMapper2.setParallelism(input2.getParallelism());
-			
-			return join;
-		}
-		
-		private static <I1, I2, K, OUT> PlanLeftUnwrappingJoinOperator<I1, I2, OUT, K> translateSelectorFunctionJoinLeft(
-				Keys.SelectorFunctionKeys<I1, ?> rawKeys1,
-				int[] logicalKeyPositions2,
-				FlatJoinFunction<I1, I2, OUT> function,
-				TypeInformation<I1> inputType1,
-				TypeInformation<I2> inputType2,
-				TypeInformation<OUT> outputType,
-				String name,
-				Operator<I1> input1,
-				Operator<I2> input2) {
-
-			if(!inputType2.isTupleType()) {
-				throw new InvalidParameterException("Should not happen.");
+			public JoinOperatorBaseBuilder<OUT> with() {
+				return this;
 			}
-			
+
+			public <I1, K> JoinOperatorBaseBuilder<OUT> withUnwrappingLeftInput(
+					Operator<I1> input1,
+					Keys.SelectorFunctionKeys<I1, ?> rawKeys1,
+					TypeInformation<I1> inputType1) {
+				TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 = new TupleTypeInfo<>(rawKeys1.getKeyType(), inputType1);
+
+				MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>> keyMapper1 =
+						createKeyMapper(rawKeys1, inputType1, input1, "Key Extractor 1");
+
+				return this.withInput1(keyMapper1, typeInfoWithKey1, rawKeys1);
+			}
+
+			public <I2, K> JoinOperatorBaseBuilder<OUT> withUnwrappingRightInput(
+					Operator<I2> input2,
+					Keys.SelectorFunctionKeys<I2, ?> rawKeys2,
+					TypeInformation<I2> inputType2) {
+				TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 = new TupleTypeInfo<>(rawKeys2.getKeyType(), inputType2);
+
+				MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>> keyMapper2 =
+						createKeyMapper(rawKeys2, inputType2, input2, "Key Extractor 2");
+
+				return withInput2(keyMapper2, typeInfoWithKey2, rawKeys2);
+			}
+
+			public <I1> JoinOperatorBaseBuilder<OUT> withInput1(
+					Operator<I1> input1,
+					TypeInformation<I1> input1Type,
+					Keys<?> keys1) {
+				this.input1 = input1;
+				this.input1Type = input1Type;
+				this.keys1 = keys1;
+				return this;
+			}
+
+			public <I2> JoinOperatorBaseBuilder<OUT> withInput2(
+					Operator<I2> input2,
+					TypeInformation<I2> input2Type,
+					Keys<?> keys2) {
+				this.input2 = input2;
+				this.input2Type = input2Type;
+				this.keys2 = keys2;
+				return this;
+			}
+
+			public JoinOperatorBaseBuilder<OUT> withParallelism(int parallelism) {
+				this.parallelism = parallelism;
+				return this;
+			}
+
+			public JoinOperatorBaseBuilder<OUT> withPartitioner(Partitioner<?> partitioner) {
+				this.partitioner = partitioner;
+				return this;
+			}
+
+			public JoinOperatorBaseBuilder<OUT> withJoinHint(JoinHint joinHint) {
+				this.joinHint = joinHint;
+				return this;
+			}
+
+			public JoinOperatorBaseBuilder<OUT> withUdf(FlatJoinFunction<?, ?, OUT> udf) {
+				this.udf = udf;
+				return this;
+			}
+
+			public JoinOperatorBaseBuilder<OUT> withResultType(TypeInformation<OUT> resultType) {
+				this.resultType = resultType;
+				return this;
+			}
+
 			@SuppressWarnings("unchecked")
-			final Keys.SelectorFunctionKeys<I1, K> keys1 = (Keys.SelectorFunctionKeys<I1, K>) rawKeys1;
-			
-			final TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 =
-					new TupleTypeInfo<Tuple2<K, I1>>(keys1.getKeyType(), inputType1);
+			public AbstractJoinOperatorBase<?, ?, OUT, ?> build() {
+				AbstractJoinOperatorBase<?, ?, OUT, ?> operator;
+				if (joinType.isOuter()) {
+					operator = new OuterJoinOperatorBase(
+							udf,
+							new BinaryOperatorInformation(input1Type, input2Type, resultType),
+							this.keys1.computeLogicalKeyPositions(),
+							this.keys2.computeLogicalKeyPositions(),
+							this.name,
+							getOuterJoinType());
+				} else {
+					operator = new JoinOperatorBase<>(
+							udf,
+							new BinaryOperatorInformation(input1Type, input2Type, resultType),
+							this.keys1.computeLogicalKeyPositions(),
+							this.keys2.computeLogicalKeyPositions(),
+							this.name);
+				}
 
-			final KeyExtractingMapper<I1, K> extractor1 =
-					new KeyExtractingMapper<I1, K>(keys1.getKeyExtractor());
+				operator.setFirstInput(input1);
+				operator.setSecondInput(input2);
+				operator.setParallelism(parallelism);
+				operator.setCustomPartitioner(partitioner);
+				operator.setJoinHint(joinHint);
+				return operator;
+			}
 
-			final MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>> keyMapper1 =
-					new MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>>(
-							extractor1,
-							new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1),
-							"Key Extractor 1");
+			private OuterJoinOperatorBase.OuterJoinType getOuterJoinType() {
+				switch (joinType) {
+					case LEFT_OUTER:
+						return OuterJoinOperatorBase.OuterJoinType.LEFT;
+					case RIGHT_OUTER:
+						return OuterJoinOperatorBase.OuterJoinType.RIGHT;
+					case FULL_OUTER:
+						return OuterJoinOperatorBase.OuterJoinType.FULL;
+					default:
+						throw new UnsupportedOperationException();
+				}
+			}
 
-			final PlanLeftUnwrappingJoinOperator<I1, I2, OUT, K> join =
-					new PlanLeftUnwrappingJoinOperator<I1, I2, OUT, K>(
-							function,
-							keys1,
-							logicalKeyPositions2,
-							name,
-							outputType,
-							typeInfoWithKey1,
-							inputType2);
-			
-			join.setFirstInput(keyMapper1);
-			join.setSecondInput(input2);
-			
-			keyMapper1.setInput(input1);
-			// set parallelism
-			keyMapper1.setParallelism(input1.getParallelism());
+			private static <I, K> MapOperatorBase<I, Tuple2<K, I>, MapFunction<I, Tuple2<K, I>>> createKeyMapper(
+					Keys.SelectorFunctionKeys<I, ?> rawKeys,
+					TypeInformation<I> inputType,
+					Operator<I> input,
+					String mapperName) {
 
-			return join;
+				@SuppressWarnings("unchecked")
+				final Keys.SelectorFunctionKeys<I, K> keys = (Keys.SelectorFunctionKeys<I, K>) rawKeys;
+				final TypeInformation<Tuple2<K, I>> typeInfoWithKey = new TupleTypeInfo<>(keys.getKeyType(), inputType);
+				final KeyExtractingMapper<I, K> extractor = new KeyExtractingMapper<>(keys.getKeyExtractor());
+
+				final MapOperatorBase<I, Tuple2<K, I>, MapFunction<I, Tuple2<K, I>>> keyMapper =
+						new MapOperatorBase<I, Tuple2<K, I>, MapFunction<I, Tuple2<K, I>>>(
+								extractor,
+								new UnaryOperatorInformation<>(inputType, typeInfoWithKey),
+								mapperName);
+				keyMapper.setInput(input);
+				keyMapper.setParallelism(input.getParallelism());
+				return keyMapper;
+			}
 		}
 	}
 	
@@ -525,13 +550,13 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	public static final class DefaultJoin<I1, I2> extends EquiJoin<I1, I2, Tuple2<I1, I2>> {
 
 		protected DefaultJoin(DataSet<I1> input1, DataSet<I2> input2, 
-				Keys<I1> keys1, Keys<I2> keys2, JoinHint hint, String joinLocationName)
+				Keys<I1> keys1, Keys<I2> keys2, JoinHint hint, String joinLocationName, JoinType type)
 		{
-			super(input1, input2, keys1, keys2, 
-				(RichFlatJoinFunction<I1, I2, Tuple2<I1, I2>>) new DefaultFlatJoinFunction<I1, I2>(),
-				new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()), hint, joinLocationName);
+			super(input1, input2, keys1, keys2,
+				new DefaultFlatJoinFunction<I1, I2>(),
+				new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()), hint, joinLocationName, type);
 		}
-		
+
 		/**
 		 * Finalizes a Join transformation by applying a {@link org.apache.flink.api.common.functions.RichFlatJoinFunction} to each pair of joined elements.<br/>
 		 * Each JoinFunction call returns exactly one element. 
@@ -548,16 +573,16 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				throw new NullPointerException("Join function must not be null.");
 			}
 			TypeInformation<R> returnType = TypeExtractor.getFlatJoinReturnTypes(function, getInput1Type(), getInput2Type());
-			return new EquiJoin<I1, I2, R>(getInput1(), getInput2(), getKeys1(), getKeys2(), clean(function), returnType, getJoinHint(), Utils.getCallLocationName());
+			return new EquiJoin<>(getInput1(), getInput2(), getKeys1(), getKeys2(), clean(function), returnType, getJoinHint(), Utils.getCallLocationName(), joinType);
 		}
 
 		public <R> EquiJoin<I1, I2, R> with (JoinFunction<I1, I2, R> function) {
 			if (function == null) {
 				throw new NullPointerException("Join function must not be null.");
 			}
-			FlatJoinFunction<I1, I2, R> generatedFunction = new WrappingFlatJoinFunction<I1, I2, R>(clean(function));
+			FlatJoinFunction<I1, I2, R> generatedFunction = new WrappingFlatJoinFunction<>(clean(function));
 			TypeInformation<R> returnType = TypeExtractor.getJoinReturnTypes(function, getInput1Type(), getInput2Type());
-			return new EquiJoin<I1, I2, R>(getInput1(), getInput2(), getKeys1(), getKeys2(), generatedFunction, function, returnType, getJoinHint(), Utils.getCallLocationName());
+			return new EquiJoin<>(getInput1(), getInput2(), getKeys1(), getKeys2(), generatedFunction, function, returnType, getJoinHint(), Utils.getCallLocationName(), joinType);
 		}
 
 		public static class WrappingFlatJoinFunction<IN1, IN2, OUT> extends WrappingFunction<JoinFunction<IN1,IN2,OUT>> implements FlatJoinFunction<IN1, IN2, OUT> {
@@ -583,7 +608,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectFirst(int...)} and
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectSecond(int...)}.
 		 *
-		 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
+		 * <b>Note: With the current implementation, the Project transformation loses type information.</b>
 		 *
 		 * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
@@ -595,8 +620,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see org.apache.flink.api.java.operators.JoinOperator.ProjectJoin
 		 */
 		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectFirst(int... firstFieldIndexes) {
-			JoinProjection<I1, I2> joinProjection = new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), firstFieldIndexes, null);
-			
+			JoinProjection<I1, I2> joinProjection = new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), firstFieldIndexes, null, joinType);
+
 			return joinProjection.projectTupleX();
 		}
 		
@@ -609,7 +634,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectFirst(int...)} and
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectSecond(int...)}.
 		 *
-		 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
+		 * <b>Note: With the current implementation, the Project transformation loses type information.</b>
 		 *
 		 * @param secondFieldIndexes If the second input is a Tuple DataSet, the indexes of the selected fields. 
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
@@ -621,11 +646,19 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see org.apache.flink.api.java.operators.JoinOperator.ProjectJoin
 		 */
 		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectSecond(int... secondFieldIndexes) {
-			JoinProjection<I1, I2> joinProjection = new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), null, secondFieldIndexes);
+			JoinProjection<I1, I2> joinProjection = new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), null, secondFieldIndexes, joinType);
 			
 			return joinProjection.projectTupleX();
 		}
-		
+
+		@Override
+		protected AbstractJoinOperatorBase<?, ?, Tuple2<I1, I2>, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
+			if (joinType.isOuter()) {
+				throw new InvalidProgramException("Must specify a custom join function for outer join");
+			}
+			return super.translateToDataFlow(input1, input2);
+		}
+
 //		public JoinOperator<I1, I2, I1> leftSemiJoin() {
 //			return new LeftSemiJoin<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint());
 //		}
@@ -661,21 +694,20 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		
 		protected ProjectJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint, int[] fields, boolean[] isFromFirst, TupleTypeInfo<OUT> returnType) {
 			super(input1, input2, keys1, keys2, 
-					new ProjectFlatJoinFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer(input1.getExecutionEnvironment().getConfig()).createInstance()),
-					returnType, hint, Utils.getCallLocationName(4)); // We need to use the 4th element in the stack because the call comes through .types().
+					new ProjectFlatJoinFunction<I1, I2, OUT>(fields, isFromFirst, returnType),
+					returnType, hint, Utils.getCallLocationName(4), JoinType.INNER); // We need to use the 4th element in the stack because the call comes through .types().
 
-			
 			joinProj = null;
 		}
 		
 		protected ProjectJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint, int[] fields, boolean[] isFromFirst, TupleTypeInfo<OUT> returnType, JoinProjection<I1, I2> joinProj) {
 			super(input1, input2, keys1, keys2, 
-					new ProjectFlatJoinFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer(input1.getExecutionEnvironment().getConfig()).createInstance()),
-					returnType, hint, Utils.getCallLocationName(4));
+					new ProjectFlatJoinFunction<I1, I2, OUT>(fields, isFromFirst, demoteToObject(returnType, joinProj.joinType)),
+					demoteToObject(returnType, joinProj.joinType), hint, Utils.getCallLocationName(4), joinProj.joinType);
 			
 			this.joinProj = joinProj;
 		}
-		
+
 		@Override
 		protected ProjectFlatJoinFunction<I1, I2, OUT> getFunction() {
 			return (ProjectFlatJoinFunction<I1, I2, OUT>) super.getFunction();
@@ -690,7 +722,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectFirst(int...)} and
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectSecond(int...)}.
 		 *
-		 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
+		 * <b>Note: With the current implementation, the Project transformation loses type information.</b>
 		 *
 		 * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
@@ -717,7 +749,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectFirst(int...)} and
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectSecond(int...)}.
 		 *
-		 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
+		 * <b>Note: With the current implementation, the Project transformation loses type information.</b>
 		 *
 		 * @param secondFieldIndexes If the second input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
@@ -774,6 +806,15 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 					getInput1Type(), getInput2Type());
 		}
 
+		private static <OUT extends Tuple> TupleTypeInfo<OUT> demoteToObject(TupleTypeInfo<OUT> returnType, JoinType type) {
+			if (type == JoinType.INNER) {
+				return returnType;
+			} else {
+				TypeInformation<?>[] objectTypes = new TypeInformation[returnType.getArity()];
+				Arrays.fill(objectTypes, new GenericTypeInfo<>(Object.class));
+				return new TupleTypeInfo<>(objectTypes);
+			}
+		}
 	}
 	
 //	@SuppressWarnings("unused")
@@ -853,12 +894,17 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		private final DataSet<I2> input2;
 		
 		private final JoinHint joinHint;
-		
+		private final JoinType joinType;
+
 		public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2) {
-			this(input1, input2, JoinHint.OPTIMIZER_CHOOSES);
+			this(input1, input2, JoinOperatorBase.JoinHint.OPTIMIZER_CHOOSES);
 		}
 		
 		public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2, JoinHint hint) {
+			this(input1, input2, hint, JoinType.INNER);
+		}
+
+		public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2, JoinHint hint, JoinType type) {
 			if (input1 == null || input2 == null) {
 				throw new NullPointerException();
 			}
@@ -866,6 +912,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			this.input1 = input1;
 			this.input2 = input2;
 			this.joinHint = hint;
+			this.joinType = type;
 		}
 		
 		/**
@@ -1011,7 +1058,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 					throw new InvalidProgramException("The pair of join keys are not compatible with each other.",e);
 				}
 
-				return new DefaultJoin<I1, I2>(input1, input2, keys1, keys2, joinHint, Utils.getCallLocationName(4));
+				return new DefaultJoin<>(input1, input2, keys1, keys2, joinHint, Utils.getCallLocationName(4), joinType);
 			}
 		}
 	}
@@ -1034,14 +1081,16 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			out.collect(outTuple);
 		}
 	}
-	
+
 	public static final class ProjectFlatJoinFunction<T1, T2, R extends Tuple> extends RichFlatJoinFunction<T1, T2, R> {
 		
 		private static final long serialVersionUID = 1L;
 		
 		private final int[] fields;
 		private final boolean[] isFromFirst;
-		private final R outTuple;
+		private final TupleTypeInfo<R> outTupleInfo;
+
+		private transient R outTuple;
 	
 		/**
 		 * Instantiates and configures a ProjectJoinFunction.
@@ -1050,16 +1099,22 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @param fields List of indexes fields that should be copied to the output tuple. 
 		 * 					If the full input object should be copied (for example in case of a non-tuple input) the index should be -1. 
 		 * @param isFromFirst List of flags indicating whether the field should be copied from the first (true) or the second (false) input.
-		 * @param outTupleInstance An instance of an output tuple.
+		 * @param outTupleInfo Type information for the output tuple.
 		 */
-		private ProjectFlatJoinFunction(int[] fields, boolean[] isFromFirst, R outTupleInstance) {
-			
+		private ProjectFlatJoinFunction(int[] fields, boolean[] isFromFirst, TupleTypeInfo<R> outTupleInfo) {
 			if(fields.length != isFromFirst.length) {
 				throw new IllegalArgumentException("Fields and isFromFirst arrays must have same length!"); 
 			}
+
 			this.fields = fields;
 			this.isFromFirst = isFromFirst;
-			this.outTuple = outTupleInstance;
+			this.outTupleInfo = outTupleInfo;
+		}
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			ExecutionConfig config = this.getRuntimeContext().getExecutionConfig();
+			this.outTuple = this.outTupleInfo.createSerializer(config).createInstance();
 		}
 
 		protected int[] getFields() {
@@ -1071,16 +1126,16 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 
 		public void join(T1 in1, T2 in2, Collector<R> out) {
-			for(int i=0; i<fields.length; i++) {
-				if(isFromFirst[i]) {
-					if(fields[i] >= 0 && in1 != null) {
-						outTuple.setField(((Tuple)in1).getField(fields[i]), i);
+			for (int i = 0; i < fields.length; i++) {
+				if (isFromFirst[i]) {
+					if (fields[i] >= 0 && in1 != null) {
+						outTuple.setField(((Tuple) in1).getField(fields[i]), i);
 					} else {
 						outTuple.setField(in1, i);
 					}
 				} else {
-					if(fields[i] >= 0 && in2 != null) {
-						outTuple.setField(((Tuple)in2).getField(fields[i]), i);
+					if (fields[i] >= 0 && in2 != null) {
+						outTuple.setField(((Tuple) in2).getField(fields[i]), i);
 					} else {
 						outTuple.setField(in2, i);
 					}
@@ -1098,21 +1153,23 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		private final Keys<I1> keys1;
 		private final Keys<I2> keys2;
 		private final JoinHint hint;
-		
+		private final JoinType joinType;
+
 		private int[] fieldIndexes;
 		private boolean[] isFieldInFirst;
 		
 		private final int numFieldsDs1;
 		private final int numFieldsDs2;
 		
-		public JoinProjection(DataSet<I1> ds1, DataSet<I2> ds2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint, int[] firstFieldIndexes, int[] secondFieldIndexes) {
-			
+		public JoinProjection(DataSet<I1> ds1, DataSet<I2> ds2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint,
+				int[] firstFieldIndexes, int[] secondFieldIndexes, JoinType joinType) {
 			this.ds1 = ds1;
 			this.ds2 = ds2;
 			this.keys1 = keys1;
 			this.keys2 = keys2;
 			this.hint = hint;
-			
+			this.joinType = joinType;
+
 			boolean isFirstTuple;
 			boolean isSecondTuple;
 			
