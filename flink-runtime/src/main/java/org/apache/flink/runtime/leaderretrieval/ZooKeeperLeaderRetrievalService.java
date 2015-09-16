@@ -89,6 +89,8 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 	@Override
 	public void nodeChanged() throws Exception {
 		try {
+			LOG.debug("Leader node has changed.");
+
 			ChildData childData = cache.getCurrentData();
 
 			String leaderAddress;
@@ -114,6 +116,11 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 
 			if(!(Objects.equals(leaderAddress, lastLeaderAddress) &&
 					Objects.equals(leaderSessionID, lastLeaderSessionID))) {
+				LOG.debug(
+					"New leader information: Leader={}, session ID={}.",
+					leaderAddress,
+					leaderSessionID);
+
 				lastLeaderAddress = leaderAddress;
 				lastLeaderSessionID = leaderSessionID;
 				leaderListener.notifyLeaderAddress(leaderAddress, leaderSessionID);
