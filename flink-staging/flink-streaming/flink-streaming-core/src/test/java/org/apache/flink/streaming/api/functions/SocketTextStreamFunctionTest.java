@@ -221,7 +221,6 @@ public class SocketTextStreamFunctionTest {
         assertEquals(2, actualList.size());
         assertTrue(actualList.get(0).indexOf('\r') == -1);
         assertTrue(actualList.get(0).indexOf('\n') != -1);
-
     }
 
 }
