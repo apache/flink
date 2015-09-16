@@ -33,10 +33,10 @@ class InsertAutoCasts extends Rule[Expression] {
       case plus@Plus(o1, o2) =>
         // Plus is special case since we can cast anything to String for String concat
         if (o1.typeInfo != o2.typeInfo && o1.typeInfo.isBasicType && o2.typeInfo.isBasicType) {
-          if (o1.typeInfo.asInstanceOf[BasicTypeInfo[_]].canCastTo(
+          if (o1.typeInfo.asInstanceOf[BasicTypeInfo[_]].shouldAutocastTo(
             o2.typeInfo.asInstanceOf[BasicTypeInfo[_]])) {
             Plus(Cast(o1, o2.typeInfo), o2)
-          } else if (o2.typeInfo.asInstanceOf[BasicTypeInfo[_]].canCastTo(
+          } else if (o2.typeInfo.asInstanceOf[BasicTypeInfo[_]].shouldAutocastTo(
             o1.typeInfo.asInstanceOf[BasicTypeInfo[_]])) {
             Plus(o1, Cast(o2, o1.typeInfo))
           } else if (o1.typeInfo == BasicTypeInfo.STRING_TYPE_INFO) {
@@ -55,10 +55,10 @@ class InsertAutoCasts extends Rule[Expression] {
         val o1 = ba.left
         val o2 = ba.right
         if (o1.typeInfo != o2.typeInfo && o1.typeInfo.isBasicType && o2.typeInfo.isBasicType) {
-          if (o1.typeInfo.asInstanceOf[BasicTypeInfo[_]].canCastTo(
+          if (o1.typeInfo.asInstanceOf[BasicTypeInfo[_]].shouldAutocastTo(
             o2.typeInfo.asInstanceOf[BasicTypeInfo[_]])) {
             ba.makeCopy(Seq(Cast(o1, o2.typeInfo), o2))
-          } else if (o2.typeInfo.asInstanceOf[BasicTypeInfo[_]].canCastTo(
+          } else if (o2.typeInfo.asInstanceOf[BasicTypeInfo[_]].shouldAutocastTo(
             o1.typeInfo.asInstanceOf[BasicTypeInfo[_]])) {
             ba.makeCopy(Seq(o1, Cast(o2, o1.typeInfo)))
           } else {
@@ -73,10 +73,10 @@ class InsertAutoCasts extends Rule[Expression] {
         val o2 = ba.right
         if (o1.typeInfo != o2.typeInfo && o1.typeInfo.isInstanceOf[IntegerTypeInfo[_]] &&
           o2.typeInfo.isInstanceOf[IntegerTypeInfo[_]]) {
-          if (o1.typeInfo.asInstanceOf[BasicTypeInfo[_]].canCastTo(
+          if (o1.typeInfo.asInstanceOf[BasicTypeInfo[_]].shouldAutocastTo(
             o2.typeInfo.asInstanceOf[BasicTypeInfo[_]])) {
             ba.makeCopy(Seq(Cast(o1, o2.typeInfo), o2))
-          } else if (o2.typeInfo.asInstanceOf[BasicTypeInfo[_]].canCastTo(
+          } else if (o2.typeInfo.asInstanceOf[BasicTypeInfo[_]].shouldAutocastTo(
             o1.typeInfo.asInstanceOf[BasicTypeInfo[_]])) {
             ba.makeCopy(Seq(o1, Cast(o2, o1.typeInfo)))
           } else {

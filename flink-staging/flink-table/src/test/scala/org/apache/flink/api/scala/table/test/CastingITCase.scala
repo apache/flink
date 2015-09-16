@@ -18,15 +18,17 @@
 
 package org.apache.flink.api.scala.table.test
 
+import org.junit._
+import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.junit._
-import org.junit.rules.TemporaryFolder
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 @RunWith(classOf[Parameterized])
 class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -87,6 +89,25 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = "2,2,2,2,2.0,2.0"
+  }
+
+  @Test
+  def testCastFromString: Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements(("1", "true", "2.0")).toTable
+      .select(
+        '_1.cast(BasicTypeInfo.BYTE_TYPE_INFO),
+        '_1.cast(BasicTypeInfo.SHORT_TYPE_INFO),
+        '_1.cast(BasicTypeInfo.INT_TYPE_INFO),
+        '_1.cast(BasicTypeInfo.LONG_TYPE_INFO),
+        '_3.cast(BasicTypeInfo.DOUBLE_TYPE_INFO),
+        '_3.cast(BasicTypeInfo.FLOAT_TYPE_INFO),
+        '_2.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO))
+
+    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "1,1,1,1,2.0,2.0,true\n"
   }
 
 }
