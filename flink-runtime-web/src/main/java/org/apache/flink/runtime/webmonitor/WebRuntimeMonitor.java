@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import akka.actor.ActorSystem;
+
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -33,7 +35,8 @@ import io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobAccumulatorsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobPlanHandler;
@@ -63,6 +66,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * The root component of the web runtime monitor. This class starts the web server and creates
  * all request handlers for the REST API.
@@ -84,7 +89,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 	
 	// ------------------------------------------------------------------------
 	
+	/** Guarding concurrent modifications to the server channel pipeline during startup and shutdown */
 	private final Object startupShutdownLock = new Object();
+
+	private final LeaderRetrievalService leaderRetrievalService;
+
+	/** LeaderRetrievalListener which stores the currently leading JobManager and its archive */
+	private final JobManagerArchiveRetriever retriever;
 	
 	private final Router router;
 
@@ -95,7 +106,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 	private Channel serverChannel;
 
 	
-	public WebRuntimeMonitor(Configuration config, ActorGateway jobManager, ActorGateway archive) throws IOException {
+	public WebRuntimeMonitor(
+				Configuration config,
+				LeaderRetrievalService leaderRetrievalService,
+				ActorSystem actorSystem) throws IOException
+	{
+		this.leaderRetrievalService = checkNotNull(leaderRetrievalService);
 		
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
 		
@@ -127,22 +143,27 @@ public class WebRuntimeMonitor implements WebMonitor {
 		if (this.configuredPort < 0) {
 			throw new IllegalArgumentException("Web frontend port is invalid: " + this.configuredPort);
 		}
+
+		FiniteDuration timeout = AkkaUtils.getTimeout(config);
+		FiniteDuration lookupTimeout = AkkaUtils.getTimeout(config);
+
+		retriever = new JobManagerArchiveRetriever(this, actorSystem, lookupTimeout, timeout);
 		
-		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder(jobManager);
-		
+		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder(retriever);
+
 		router = new Router()
 			// config how to interact with this web server
 			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval())))
 
 			// the overview - how many task managers, slots, free slots, ...
-			.GET("/overview", handler(new ClusterOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT)))
+			.GET("/overview", handler(new ClusterOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
 
 			// overview over jobs
-			.GET("/joboverview", handler(new CurrentJobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, true, true)))
-			.GET("/joboverview/running", handler(new CurrentJobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, true, false)))
-			.GET("/joboverview/completed", handler(new CurrentJobsOverviewHandler(jobManager, DEFAULT_REQUEST_TIMEOUT, false, true)))
+			.GET("/joboverview", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, true)))
+			.GET("/joboverview/running", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, false)))
+			.GET("/joboverview/completed", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, false, true)))
 
-			.GET("/jobs", handler(new CurrentJobIdsHandler(jobManager, DEFAULT_REQUEST_TIMEOUT)))
+			.GET("/jobs", handler(new CurrentJobIdsHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
 
 			.GET("/jobs/:jobid", handler(new JobDetailsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices", handler(new JobDetailsHandler(currentGraphs)))
@@ -203,12 +224,16 @@ public class WebRuntimeMonitor implements WebMonitor {
 			int port = bindAddress.getPort();
 			
 			LOG.info("Web frontend listening at " + address + ':' + port);
+
+			leaderRetrievalService.start(retriever);
 		}
 	}
 	
 	@Override
 	public void stop() throws Exception {
 		synchronized (startupShutdownLock) {
+			leaderRetrievalService.stop();
+			
 			if (this.serverChannel != null) {
 				this.serverChannel.close().awaitUninterruptibly();
 				this.serverChannel = null;
