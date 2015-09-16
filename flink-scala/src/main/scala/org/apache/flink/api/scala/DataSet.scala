@@ -31,6 +31,7 @@ import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{DiscardingOutputFormat, PrintingOutputFormat, TextOutputFormat}
+import org.apache.flink.api.java.operators.JoinOperator.JoinType
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet, Utils}
@@ -840,11 +841,11 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
   /**
    * Creates a new DataSet by joining `this` DataSet with the `other` DataSet. To specify the join
-   * keys the `where` and `isEqualTo` methods must be used. For example:
+   * keys the `where` and `equalTo` methods must be used. For example:
    * {{{
    *   val left: DataSet[(String, Int, Int)] = ...
    *   val right: DataSet[(Int, String, Int)] = ...
-   *   val joined = left.join(right).where(0).isEqualTo(1)
+   *   val joined = left.join(right).where(0).equalTo(1)
    * }}}
    *
    * The default join result is a DataSet with 2-Tuples of the joined values. In the above example
@@ -854,7 +855,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * {{{
    *   val left: DataSet[(String, Int, Int)] = ...
    *   val right: DataSet[(Int, String, Int)] = ...
-   *   val joined = left.join(right).where(0).isEqualTo(1) { (l, r) =>
+   *   val joined = left.join(right).where(0).equalTo(1) { (l, r) =>
    *     (l._1, r._2)
    *   }
    * }}}
@@ -864,7 +865,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * {{{
    *   val left: DataSet[(String, Int, Int)] = ...
    *   val right: DataSet[(Int, String, Int)] = ...
-   *   val joined = left.join(right).where(0).isEqualTo(1) {
+   *   val joined = left.join(right).where(0).equalTo(1) {
    *     (l, r, out: Collector[(String, Int)]) =>
    *       if (l._2 > 4) {
    *         out.collect((l._1, r._3))
@@ -898,6 +899,96 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def joinWithHuge[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
     new UnfinishedJoinOperation(this, other, JoinHint.BROADCAST_HASH_FIRST)
+
+  /**
+   * Creates a new DataSet by performing a full outer join of `this` DataSet
+   * with the `other` DataSet, by combining two elements of two DataSets on
+   * key equality.
+   * Elements of both DataSets that do not have a matching element on the
+   * opposing side are joined with `null` and emitted to the resulting DataSet.
+   *
+   * To specify the join keys the `where` and `equalTo` methods must be used. For example:
+   * {{{
+   *   val left: DataSet[(String, Int, Int)] = ...
+   *   val right: DataSet[(Int, String, Int)] = ...
+   *   val joined = left.fullOuterJoin(right).where(0).equalTo(1)
+   * }}}
+   *
+   * When using an outer join you are required to specify a join function. For example:
+   * {{{
+   *   val joined = left.fullOuterJoin(right).where(0).equalTo(1) {
+   *     (left, right) =>
+   *       val a = if (left == null) null else left._1
+   *       val b = if (right == null) null else right._3
+   *       (a, b)
+   *  }
+   * }}}
+   */
+  def fullOuterJoin[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
+    new UnfinishedJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.FULL_OUTER)
+
+  /**
+   * Special [[fullOuterJoin]] operation for explicitly telling the system what join strategy to
+   * use. If null is given as the join strategy, then the optimizer will pick the strategy.
+   */
+  def fullOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedJoinOperation[T, O] =
+    new UnfinishedJoinOperation(this, other, strategy, JoinType.FULL_OUTER)
+
+  /**
+   * An outer join on the left side.
+   *
+   * Elements of the left side (i.e. `this`) that do not have a matching element on the other
+   * side are joined with `null` and emitted to the resulting DataSet.
+   *
+   * @param other The other DataSet with which this DataSet is joined.
+   * @return An UnfinishedJoinOperation to continue with the definition of the join transformation
+   * @see #fullOuterJoin
+   */
+  def leftOuterJoin[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
+    new UnfinishedJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.LEFT_OUTER)
+
+  /**
+   * An outer join on the left side.
+   *
+   * Elements of the left side (i.e. `this`) that do not have a matching element on the other
+   * side are joined with `null` and emitted to the resulting DataSet.
+   *
+   * @param other The other DataSet with which this DataSet is joined.
+   * @param strategy The strategy that should be used execute the join. If { @code null} is given,
+   *                 then the optimizer will pick the join strategy.
+   * @return An UnfinishedJoinOperation to continue with the definition of the join transformation
+   * @see #fullOuterJoin
+   */
+  def leftOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedJoinOperation[T, O] =
+    new UnfinishedJoinOperation(this, other, strategy, JoinType.LEFT_OUTER)
+
+  /**
+   * An outer join on the right side.
+   *
+   * Elements of the right side (i.e. `other`) that do not have a matching element on `this`
+   * side are joined with `null` and emitted to the resulting DataSet.
+   *
+   * @param other The other DataSet with which this DataSet is joined.
+   * @return An UnfinishedJoinOperation to continue with the definition of the join transformation
+   * @see #fullOuterJoin
+   */
+  def rightOuterJoin[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
+    new UnfinishedJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.RIGHT_OUTER)
+
+  /**
+   * An outer join on the right side.
+   *
+   * Elements of the right side (i.e. `other`) that do not have a matching element on `this`
+   * side are joined with `null` and emitted to the resulting DataSet.
+   *
+   * @param other The other DataSet with which this DataSet is joined.
+   * @param strategy The strategy that should be used execute the join. If { @code null} is given,
+   *                 then the optimizer will pick the join strategy.
+   * @return An UnfinishedJoinOperation to continue with the definition of the join transformation
+   * @see #fullOuterJoin
+   */
+  def rightOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedJoinOperation[T, O] =
+    new UnfinishedJoinOperation(this, other, strategy, JoinType.RIGHT_OUTER)
 
   // --------------------------------------------------------------------------------------------
   //  Co-Group

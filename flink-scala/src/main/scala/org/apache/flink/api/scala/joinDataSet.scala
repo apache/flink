@@ -17,11 +17,14 @@
  */
 package org.apache.flink.api.scala
 
+import org.apache.flink.api.common.operators.Operator
+import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase
+import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction, Partitioner, RichFlatJoinFunction}
 import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin.WrappingFlatJoinFunction
-import org.apache.flink.api.java.operators.JoinOperator.EquiJoin
+import org.apache.flink.api.java.operators.JoinOperator.{JoinType, EquiJoin}
 import org.apache.flink.api.java.operators._
 import org.apache.flink.util.Collector
 
@@ -84,7 +87,8 @@ class JoinDataSet[L, R](
       joiner,
       implicitly[TypeInformation[O]],
       defaultJoin.getJoinHint,
-      getCallLocationName())
+      getCallLocationName(),
+      defaultJoin.getJoinType)
     
     if (customPartitioner != null) {
       wrap(joinOperator.withPartitioner(customPartitioner))
@@ -114,7 +118,8 @@ class JoinDataSet[L, R](
       joiner,
       implicitly[TypeInformation[O]],
       defaultJoin.getJoinHint,
-      getCallLocationName())
+      getCallLocationName(),
+      defaultJoin.getJoinType)
 
     if (customPartitioner != null) {
       wrap(joinOperator.withPartitioner(customPartitioner))
@@ -142,7 +147,8 @@ class JoinDataSet[L, R](
       joiner,
       implicitly[TypeInformation[O]],
       defaultJoin.getJoinHint,
-      getCallLocationName())
+      getCallLocationName(),
+      defaultJoin.getJoinType)
 
     if (customPartitioner != null) {
       wrap(joinOperator.withPartitioner(customPartitioner))
@@ -171,7 +177,8 @@ class JoinDataSet[L, R](
       generatedFunction, fun,
       implicitly[TypeInformation[O]],
       defaultJoin.getJoinHint,
-      getCallLocationName())
+      getCallLocationName(),
+      defaultJoin.getJoinType)
 
     if (customPartitioner != null) {
       wrap(joinOperator.withPartitioner(customPartitioner))
@@ -220,8 +227,12 @@ class JoinDataSet[L, R](
 class UnfinishedJoinOperation[L, R](
     leftSet: DataSet[L],
     rightSet: DataSet[R],
-    val joinHint: JoinHint)
+    val joinHint: JoinHint,
+    val joinType: JoinType)
   extends UnfinishedKeyPairOperation[L, R, JoinDataSet[L, R]](leftSet, rightSet) {
+
+  def this(leftSet: DataSet[L], rightSet: DataSet[R], joinHint: JoinHint) =
+    this(leftSet, rightSet, joinHint, JoinType.INNER)
 
   private[flink] def finish(leftKey: Keys[L], rightKey: Keys[R]) = {
     val joiner = new FlatJoinFunction[L, R, (L, R)] {
@@ -232,7 +243,16 @@ class UnfinishedJoinOperation[L, R](
     val returnType = createTuple2TypeInformation[L, R](leftInput.getType(), rightInput.getType())
     val joinOperator = new EquiJoin[L, R, (L, R)](
       leftSet.javaSet, rightSet.javaSet, leftKey, rightKey, joiner, returnType, joinHint,
-        getCallLocationName())
+      getCallLocationName(), joinType) {
+
+      override protected def translateToDataFlow(input1: Operator[L], input2: Operator[R]):
+          AbstractJoinOperatorBase[_, _, (L, R), _] = {
+        if (joinType.isOuter) {
+          throw new InvalidProgramException("Must specify a custom join function for outer join")
+        }
+        super.translateToDataFlow(input1, input2)
+      }
+    }
 
     new JoinDataSet(joinOperator, leftSet, rightSet, leftKey, rightKey)
   }
