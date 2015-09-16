@@ -168,8 +168,8 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 				IT2 buildSideRecord = this.solutionSideRecord;
 
 				while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
-					buildSideRecord = prober.getMatchFor(probeSideRecord, buildSideRecord);
-					joinFunction.join(probeSideRecord, buildSideRecord, collector);
+					IT2 matchedRecord = prober.getMatchFor(probeSideRecord, buildSideRecord);
+					joinFunction.join(probeSideRecord, matchedRecord, collector);
 				}
 			} else if (objectMap != null) {
 				final JoinHashMap<IT2> hashTable = this.objectMap;

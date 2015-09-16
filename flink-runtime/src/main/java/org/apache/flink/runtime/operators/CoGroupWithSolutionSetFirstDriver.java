@@ -175,9 +175,9 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 				while (this.running && probeSideInput.nextKey()) {
 					IT2 current = probeSideInput.getCurrent();
 
-					buildSideRecord = prober.getMatchFor(current, buildSideRecord);
-					if (buildSideRecord != null) {
-						siIter.set(buildSideRecord);
+					IT1 matchedRecord = prober.getMatchFor(current, buildSideRecord);
+					if (matchedRecord != null) {
+						siIter.set(matchedRecord);
 						coGroupStub.coGroup(siIter, probeSideInput.getValues(), collector);
 					} else {
 						coGroupStub.coGroup(emptySolutionSide, probeSideInput.getValues(), collector);
