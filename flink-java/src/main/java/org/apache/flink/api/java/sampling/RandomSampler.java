@@ -26,6 +26,8 @@ import java.util.Iterator;
  * @param <T> The type of sampler data.
  */
 public abstract class RandomSampler<T> {
+
+	protected final static double EPSILON = 1e-5;
 	
 	protected final Iterator<T> EMPTY_ITERABLE = new SampledIterator<T>() {
 		@Override

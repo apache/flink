@@ -47,7 +47,7 @@ import java.util.Map;
  *
  * <p>
  * This traverses the tree of {@code StreamTransformations} starting from the sinks. At each
- * we transformation recursively transform the inputs, then create a node in the {@code StreamGraph}
+ * transformation we recursively transform the inputs, then create a node in the {@code StreamGraph}
  * and add edges from the input Nodes to our newly created node. The transformation methods
  * return the IDs of the nodes in the StreamGraph that represent the input transformation. Several
  * IDs can be returned to be able to deal with feedback transformations and unions.

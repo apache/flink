@@ -1120,9 +1120,14 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	final protected void buildBloomFilterForBucketsInPartition(int partNum, HashPartition<BT, PT> partition) {
 		// Find all the buckets which belongs to this partition, and build bloom filter for each bucket(include its overflow buckets).
 		final int bucketsPerSegment = this.bucketsPerSegmentMask + 1;
-		for (MemorySegment segment : this.buckets) {
-			for (int i = 0; i < bucketsPerSegment; i++) {
-				final int bucketInSegmentOffset = i * HASH_BUCKET_SIZE;
+
+		int numSegs = this.buckets.length;
+		// go over all segments that are part of the table
+		for (int i = 0, bucket = 0; i < numSegs && bucket < numBuckets; i++) {
+			final MemorySegment segment = this.buckets[i];
+			// go over all buckets in the segment
+			for (int k = 0; k < bucketsPerSegment && bucket < numBuckets; k++, bucket++) {
+				final int bucketInSegmentOffset = k * HASH_BUCKET_SIZE;
 				byte partitionNumber = segment.get(bucketInSegmentOffset + HEADER_PARTITION_OFFSET);
 				if (partitionNumber == partNum) {
 					byte status = segment.get(bucketInSegmentOffset + HEADER_STATUS_OFFSET);
@@ -1140,6 +1145,10 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 */
 	final void buildBloomFilterForBucket(int bucketInSegmentPos, MemorySegment bucket, HashPartition<BT, PT> p) {
 		final int count = bucket.getShort(bucketInSegmentPos + HEADER_COUNT_OFFSET);
+		if (count <= 0) {
+			return;
+		}
+
 		int[] hashCodes = new int[count];
 		// As the hashcode and bloom filter occupy same bytes, so we read all hashcode out at first and then write back to bloom filter.
 		for (int i = 0; i < count; i++) {

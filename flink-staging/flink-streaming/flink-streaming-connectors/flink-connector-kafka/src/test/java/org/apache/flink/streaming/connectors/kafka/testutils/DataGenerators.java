@@ -26,8 +26,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.connectors.kafka.KafkaSink;
-import org.apache.flink.streaming.connectors.kafka.SerializableKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 
@@ -69,8 +69,9 @@ public class DataGenerators {
 					}
 				});
 
-		stream.addSink(new KafkaSink<Tuple2<Integer, Integer>>(brokerConnection, topic,
-				new TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(resultType, env.getConfig()),
+		stream.addSink(new FlinkKafkaProducer<>(topic,
+				new TypeInformationSerializationSchema<>(resultType, env.getConfig()),
+				FlinkKafkaProducer.getPropertiesFromBrokerList(brokerConnection),
 				new Tuple2Partitioner(numPartitions)
 		));
 
@@ -131,9 +132,10 @@ public class DataGenerators {
 
 		stream
 				.rebalance()
-				.addSink(new KafkaSink<>(brokerConnection, topic,
+				.addSink(new FlinkKafkaProducer<>(topic,
 						new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, env.getConfig()),
-						new SerializableKafkaPartitioner() {
+						FlinkKafkaProducer.getPropertiesFromBrokerList(brokerConnection),
+						new KafkaPartitioner() {
 							@Override
 							public int partition(Object key, int numPartitions) {
 								return ((Integer) key) % numPartitions;
@@ -164,9 +166,10 @@ public class DataGenerators {
 		@Override
 		public void run() {
 			// we manually feed data into the Kafka sink
-			KafkaSink<String> producer = null;
+			FlinkKafkaProducer<String> producer = null;
 			try {
-				producer = new KafkaSink<>(kafkaConnectionString, topic, new JavaDefaultStringSchema());
+				producer = new FlinkKafkaProducer<>(kafkaConnectionString, topic, new JavaDefaultStringSchema());
+				producer.setRuntimeContext(new MockRuntimeContext(1,0));
 				producer.open(new Configuration());
 				
 				final StringBuilder bld = new StringBuilder();

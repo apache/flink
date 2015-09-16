@@ -49,7 +49,7 @@ public class SortMergeJoinDescriptor extends AbstractJoinDescriptor {
 
 	@Override
 	public DriverStrategy getStrategy() {
-		return DriverStrategy.MERGE;
+		return DriverStrategy.INNER_MERGE;
 	}
 
 	@Override
@@ -99,7 +99,7 @@ public class SortMergeJoinDescriptor extends AbstractJoinDescriptor {
 			inputOrders = tmp;
 		}
 		
-		return new DualInputPlanNode(node, "Join("+node.getOperator().getName()+")", in1, in2, DriverStrategy.MERGE, this.keys1, this.keys2, inputOrders);
+		return new DualInputPlanNode(node, "Join(" + node.getOperator().getName() + ")", in1, in2, DriverStrategy.INNER_MERGE, this.keys1, this.keys2, inputOrders);
 	}
 
 	@Override

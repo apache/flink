@@ -44,7 +44,7 @@ import org.apache.flink.runtime.io.disk.SeekableFileChannelInputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;

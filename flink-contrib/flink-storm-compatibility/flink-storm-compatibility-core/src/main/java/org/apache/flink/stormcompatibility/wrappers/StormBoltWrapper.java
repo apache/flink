@@ -209,8 +209,7 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 	}
 
 	@Override
-	public void close() throws Exception {
-		super.close();
+	public void dispose() {
 		this.bolt.cleanup();
 	}
 

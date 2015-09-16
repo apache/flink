@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.disk;
 
 import static org.junit.Assert.*;
 
+import org.apache.flink.core.memory.MemoryType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -29,8 +30,7 @@ import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.PairGenerator;
 import org.apache.flink.runtime.operators.testutils.PairGenerator.KeyMode;
@@ -66,7 +66,8 @@ public class FileChannelStreamsITCase {
 
 	@Before
 	public void beforeTest() {
-		memManager = new DefaultMemoryManager(NUM_MEMORY_SEGMENTS * MEMORY_PAGE_SIZE, 1, MEMORY_PAGE_SIZE, true);
+		memManager = new MemoryManager(NUM_MEMORY_SEGMENTS * MEMORY_PAGE_SIZE, 1,
+				MEMORY_PAGE_SIZE, MemoryType.HEAP, true);
 		ioManager = new IOManagerAsync();
 	}
 

@@ -160,6 +160,7 @@ under the License.
 				<exclude>flink-java-examples-${project.version}-sources.jar</exclude>
 				<exclude>flink-java-examples-${project.version}-tests.jar</exclude>
 				<exclude>flink-java-examples-${project.version}-javadoc.jar</exclude>
+				<exclude>flink-java-examples-${project.version}-*.jar</exclude>
 			</excludes>
 		</fileSet>
 

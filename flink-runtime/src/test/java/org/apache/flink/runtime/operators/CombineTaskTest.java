@@ -53,9 +53,11 @@ public class CombineTaskTest
 	
 	private final ArrayList<Tuple2<Integer, Integer>> outList = new ArrayList<Tuple2<Integer, Integer>>();
 
+	@SuppressWarnings("unchecked")
 	private final TypeSerializer<Tuple2<Integer, Integer>> serializer = new TupleSerializer<Tuple2<Integer, Integer>>(
 			(Class<Tuple2<Integer, Integer>>) (Class<?>) Tuple2.class,
 			new TypeSerializer<?>[] { IntSerializer.INSTANCE, IntSerializer.INSTANCE });
+	
 	
 	private final TypeComparator<Tuple2<Integer, Integer>> comparator = new TupleComparator<Tuple2<Integer, Integer>>(
 			new int[]{0},
@@ -179,9 +181,14 @@ public class CombineTaskTest
 			testTask.cancel();
 			
 			// make sure it reacts to the canceling in some time
-			taskRunner.join(5000);
+			long deadline = System.currentTimeMillis() + 10000;
+			do {
+				taskRunner.interrupt();
+				taskRunner.join(5000);
+			}
+			while (taskRunner.isAlive() && System.currentTimeMillis() < deadline);
 			
-			assertFalse("Task did not cancel properly within in 5 seconds.", taskRunner.isAlive());
+			assertFalse("Task did not cancel properly within in 10 seconds.", taskRunner.isAlive());
 		}
 		catch (Exception e) {
 			e.printStackTrace();

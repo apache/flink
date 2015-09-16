@@ -169,10 +169,12 @@ public class LocalExecutor extends PlanExecutor {
 			}
 
 			try {
-				Optimizer pc = new Optimizer(new DataStatistics(), this.flink.configuration());
+				Configuration configuration = this.flink.configuration();
+
+				Optimizer pc = new Optimizer(new DataStatistics(), configuration);
 				OptimizedPlan op = pc.compile(plan);
 				
-				JobGraphGenerator jgg = new JobGraphGenerator();
+				JobGraphGenerator jgg = new JobGraphGenerator(configuration);
 				JobGraph jobGraph = jgg.compileJobGraph(op);
 				
 				boolean sysoutPrint = isPrintingStatusDuringExecution();

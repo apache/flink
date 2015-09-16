@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -32,7 +33,7 @@ public class BufferTest {
 
 	@Test
 	public void testSetGetSize() {
-		final MemorySegment segment = new MemorySegment(new byte[1024]);
+		final MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
 		final BufferRecycler recycler = Mockito.mock(BufferRecycler.class);
 
 		Buffer buffer = new Buffer(segment, recycler);
@@ -58,7 +59,7 @@ public class BufferTest {
 
 	@Test
 	public void testgetNioBufferThreadSafe() {
-		final MemorySegment segment = new MemorySegment(new byte[1024]);
+		final MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
 		final BufferRecycler recycler = Mockito.mock(BufferRecycler.class);
 
 		Buffer buffer = new Buffer(segment, recycler);

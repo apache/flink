@@ -27,6 +27,10 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.NullValue;
 
+/**
+ * Provides the default data set used for the Label Propagation test program.
+ * If no parameters are given to the program, the default edge data set is used.
+ */
 public class LabelPropagationData {
 	
 	public static final String LABELS_AFTER_1_ITERATION = "1,10\n" +

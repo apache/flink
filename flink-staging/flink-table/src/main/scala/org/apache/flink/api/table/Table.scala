@@ -41,6 +41,10 @@ import org.apache.flink.api.table.plan._
  *   val table2 = ...
  *   val set = table2.toDataSet[MyType]
  * }}}
+ *
+ * Operations such as [[join]], [[select]], [[where]] and [[groupBy]] either take arguments
+ * in a Scala DSL or as an expression String. Please refer to the documentation for the expression
+ * syntax.
  */
 case class Table(private[flink] val operation: PlanNode) {
 

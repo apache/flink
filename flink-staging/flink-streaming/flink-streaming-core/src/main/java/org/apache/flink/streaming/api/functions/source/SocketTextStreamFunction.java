@@ -42,12 +42,13 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	private boolean retryForever;
 	private Socket socket;
 	private static final int CONNECTION_TIMEOUT_TIME = 0;
-	private static final int CONNECTION_RETRY_SLEEP = 1000;
+	static int CONNECTION_RETRY_SLEEP = 1000;
+	protected long retries;
 
 	private volatile boolean isRunning;
 
 	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxRetry) {
-		this(hostname,port,String.valueOf(delimiter),maxRetry);
+		this(hostname, port, String.valueOf(delimiter), maxRetry);
 	}
 
 	public SocketTextStreamFunction(String hostname, int port, String delimiter, long maxRetry) {
@@ -71,10 +72,10 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 		streamFromSocket(ctx, socket);
 	}
 
-	public void streamFromSocket(SourceContext<String> ctx, Socket socket) throws Exception {
+	private void streamFromSocket(SourceContext<String> ctx, Socket socket) throws Exception {
 		try {
 			StringBuffer buffer = new StringBuffer();
-            char[] charBuffer = new char[Math.max(8192, 2*delimiter.length())];
+			char[] charBuffer = new char[Math.max(8192, 2 * delimiter.length())];
 			BufferedReader reader = new BufferedReader(new InputStreamReader(
 					socket.getInputStream()));
 
@@ -92,11 +93,11 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 
 				if (readCount == -1) {
 					socket.close();
-					long retry = 0;
 					boolean success = false;
-					while (retry < maxRetry && !success) {
+					retries = 0;
+					while ((retries < maxRetry || retryForever) && !success) {
 						if (!retryForever) {
-							retry++;
+							retries++;
 						}
 						LOG.warn("Lost connection to server socket. Retrying in "
 								+ (CONNECTION_RETRY_SLEEP / 1000) + " seconds...");
@@ -121,13 +122,13 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 					continue;
 				}
 
-                buffer.append(charBuffer,0,readCount);
-                String[] splits = buffer.toString().split(delimiter);
-                int sc = 0;
-                for (; sc < splits.length-1; sc++) {
-                    ctx.collect(splits[sc].replace("\r", ""));
-                }
-                buffer = new StringBuffer(splits[sc].replace("\r", ""));
+				buffer.append(charBuffer, 0, readCount);
+				String[] splits = buffer.toString().split(delimiter);
+				int sc = 0;
+				for (; sc < splits.length - 1; sc++) {
+					ctx.collect(splits[sc].replace("\r", ""));
+				}
+				buffer = new StringBuffer(splits[sc].replace("\r", ""));
 			}
 
 			if (buffer.length() > 0) {

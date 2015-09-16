@@ -36,6 +36,8 @@ import org.apache.flink.streaming.api.state.PartitionedStreamOperatorState;
 import org.apache.flink.streaming.api.state.StreamOperatorState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is used as the base class for operators that have a user-defined
@@ -46,11 +48,17 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
  * @param <F>
  *            The type of the user function
  */
-public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serializable> extends AbstractStreamOperator<OUT> implements StatefulStreamOperator<OUT> {
+public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serializable> 
+		extends AbstractStreamOperator<OUT> implements StatefulStreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
+	
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractUdfStreamOperator.class);
+	
 
 	protected final F userFunction;
+	
+	private boolean functionsClosed = false;
 
 	public AbstractUdfStreamOperator(F userFunction) {
 		this.userFunction = userFunction;
@@ -72,7 +80,21 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 	@Override
 	public void close() throws Exception {
 		super.close();
+		functionsClosed = true;
 		FunctionUtils.closeFunction(userFunction);
+	}
+
+	@Override
+	public void dispose() {
+		if (!functionsClosed) {
+			functionsClosed = true;
+			try {
+				FunctionUtils.closeFunction(userFunction);
+			}
+			catch (Throwable t) {
+				LOG.error("Exception while closing user function while failing or canceling task", t);
+			}
+		}
 	}
 
 	@Override

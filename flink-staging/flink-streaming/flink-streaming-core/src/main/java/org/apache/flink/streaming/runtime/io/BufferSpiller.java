@@ -27,6 +27,7 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
@@ -336,7 +337,7 @@ public class BufferSpiller {
 							"Spilled buffer (%d bytes) is larger than page size of (%d bytes)", length, pageSize));
 				}
 
-				MemorySegment seg = new MemorySegment(new byte[pageSize]);
+				MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(pageSize);
 				
 				int segPos = 0;
 				int bytesRemaining = length;

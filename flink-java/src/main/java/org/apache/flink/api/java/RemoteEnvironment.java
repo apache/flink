@@ -21,6 +21,7 @@ package org.apache.flink.api.java;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * An {@link ExecutionEnvironment} that sends programs 
@@ -35,6 +36,8 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	protected final int port;
 	
 	private final String[] jarFiles;
+
+	private Configuration clientConfiguration;
 	
 	/**
 	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
@@ -65,7 +68,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 		
-		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles);
+		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, clientConfiguration, jarFiles);
 		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
 
 		this.lastJobExecutionResult = executor.executePlan(p);
@@ -78,7 +81,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		p.setDefaultParallelism(getParallelism());
 		registerCachedFilesWithPlan(p);
 		
-		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles);
+		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, clientConfiguration, jarFiles);
 		return executor.getOptimizerPlanAsJSON(p);
 	}
 
@@ -86,5 +89,9 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	public String toString() {
 		return "Remote Environment (" + this.host + ":" + this.port + " - parallelism = " +
 				(getParallelism() == -1 ? "default" : getParallelism()) + ") : " + getIdString();
+	}
+
+	public void setClientConfiguration(Configuration clientConfiguration) {
+		this.clientConfiguration = clientConfiguration;
 	}
 }

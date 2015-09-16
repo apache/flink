@@ -88,7 +88,7 @@ public class GroupedDataStream<OUT> extends KeyedDataStream<OUT> {
 				Utils.getCallLocationName(), true);
 
 		return transform("Grouped Fold", outType, new StreamGroupedFold<OUT, R>(clean(folder),
-				keySelector, initialValue, outType));
+				keySelector, initialValue));
 	}
 
 	/**

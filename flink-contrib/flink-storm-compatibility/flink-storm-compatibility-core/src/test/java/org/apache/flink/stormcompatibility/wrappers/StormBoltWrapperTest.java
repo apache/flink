@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
@@ -43,9 +44,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.util.HashSet;
 import java.util.Map;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.*;
 
 @RunWith(PowerMockRunner.class)
@@ -236,6 +234,8 @@ public class StormBoltWrapperTest extends AbstractTest {
 		wrapper.setup(mock(Output.class), taskContext);
 
 		wrapper.close();
+		wrapper.dispose();
+		
 		verify(bolt).cleanup();
 	}
 

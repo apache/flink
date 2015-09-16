@@ -80,9 +80,7 @@ public class ExecutionEnvironmentITCase extends MultipleProgramsTestBase {
 						out.collect(getRuntimeContext().getIndexOfThisSubtask());
 					}
 				});
-		List<Integer> resultCollection = new ArrayList<Integer>();
-		result.output(new LocalCollectionOutputFormat<Integer>(resultCollection));
-		env.execute();
+		List<Integer> resultCollection = result.collect();
 		assertEquals(PARALLELISM, resultCollection.size());
 	}
 

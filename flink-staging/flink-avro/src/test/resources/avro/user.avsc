@@ -1,4 +1,15 @@
-
+[
+{"namespace": "org.apache.flink.api.io.avro.generated",
+ "type": "record",
+ "name": "Address",
+ "fields": [
+     {"name": "num", "type": "int"},
+     {"name": "street", "type": "string"},
+     {"name": "city", "type": "string"},
+     {"name": "state", "type": "string"},
+     {"name": "zip", "type": "string"}
+  ]
+},
 {"namespace": "org.apache.flink.api.io.avro.generated",
  "type": "record",
  "name": "User",
@@ -18,6 +29,7 @@
      {"name": "type_fixed",
                  "size": 16,
                  "type": ["null", {"name": "Fixed16", "size": 16, "type": "fixed"}] },
-     {"name": "type_union", "type": ["null", "boolean", "long", "double"]}
+     {"name": "type_union", "type": ["null", "boolean", "long", "double"]},
+     {"name": "type_nested", "type": ["null", "Address"]}
  ]
-}
+}]

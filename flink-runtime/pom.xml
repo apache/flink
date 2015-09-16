@@ -193,8 +193,9 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.curator</groupId>
-			<artifactId>curator-recipes</artifactId>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-curator</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 		
 		<dependency>

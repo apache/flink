@@ -26,8 +26,14 @@ import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.testingUtils.TestingUtils
+
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.{Matchers, WordSpecLike}
 
+import scala.collection.JavaConverters._
+
+@RunWith(classOf[JUnitRunner])
 class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
 
   val NUM_TASKS = 31
@@ -36,7 +42,8 @@ class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
     "be manually restartable" in {
       try {
         val instance = ExecutionGraphTestUtils.getInstance(
-          new SimpleActorGateway(TestingUtils.directExecutionContext))
+          new SimpleActorGateway(TestingUtils.directExecutionContext),
+            NUM_TASKS)
 
         val scheduler = new Scheduler(TestingUtils.defaultExecutionContext)
         scheduler.newInstanceAvailable(instance)
@@ -62,14 +69,18 @@ class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
         eg.getState should equal(JobStatus.RUNNING)
 
         eg.getAllExecutionVertices.iterator().next().fail(new Exception("Test Exception"))
+        
+        for (vertex <- eg.getAllExecutionVertices().asScala) {
+          vertex.getCurrentExecutionAttempt().cancelingComplete()
+        }
+        
         eg.getState should equal(JobStatus.FAILED)
 
         eg.restart()
         eg.getState should equal(JobStatus.RUNNING)
-
-        import collection.JavaConverters._
+        
         for (vertex <- eg.getAllExecutionVertices.asScala) {
-          vertex.executionFinished()
+          vertex.getCurrentExecutionAttempt().markFinished()
         }
 
         eg.getState should equal(JobStatus.FINISHED)
@@ -83,7 +94,8 @@ class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
     "restart itself automatically" in {
       try {
         val instance = ExecutionGraphTestUtils.getInstance(
-          new SimpleActorGateway(TestingUtils.directExecutionContext))
+          new SimpleActorGateway(TestingUtils.directExecutionContext),
+          NUM_TASKS)
 
         val scheduler = new Scheduler(TestingUtils.defaultExecutionContext)
         scheduler.newInstanceAvailable(instance)
@@ -109,21 +121,24 @@ class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
         eg.getState should equal(JobStatus.RUNNING)
 
         eg.getAllExecutionVertices.iterator().next().fail(new Exception("Test Exception"))
-
-        eg.getState should equal(JobStatus.RUNNING)
-
-        import collection.JavaConverters._
+        eg.getState should equal(JobStatus.FAILING)
+        
         for (vertex <- eg.getAllExecutionVertices.asScala) {
-          vertex.executionFinished()
+          vertex.getCurrentExecutionAttempt().cancelingComplete()
+        }
+        
+        eg.getState should equal(JobStatus.RUNNING)
+        
+        for (vertex <- eg.getAllExecutionVertices.asScala) {
+          vertex.getCurrentExecutionAttempt().markFinished()
         }
 
-        eg.getState should equal(JobStatus.FINISHED)
-      }catch{
+        eg.getState() should equal(JobStatus.FINISHED)
+      } catch {
         case t: Throwable =>
           t.printStackTrace()
           fail(t.getMessage)
       }
     }
   }
-
 }

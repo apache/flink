@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.testutils.DiscardingRecycler;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -194,7 +196,7 @@ public class BufferFileWriterReaderTest {
 	}
 
 	private Buffer createBuffer() {
-		return new Buffer(new MemorySegment(new byte[BUFFER_SIZE]), BUFFER_RECYCLER);
+		return new Buffer(MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE), BUFFER_RECYCLER);
 	}
 
 	public static int fillBufferWithAscendingNumbers(Buffer buffer, int currentNumber) {

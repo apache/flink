@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.hash.NonReusingBuildFirstHashMatchIterator;
 import org.apache.flink.runtime.operators.hash.NonReusingBuildSecondHashMatchIterator;
 import org.apache.flink.runtime.operators.hash.ReusingBuildFirstHashMatchIterator;
@@ -125,7 +125,7 @@ public class JoinDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1
 		// create and return joining iterator according to provided local strategy.
 		if (objectReuseEnabled) {
 			switch (ls) {
-				case MERGE:
+				case INNER_MERGE:
 					this.joinIterator = new ReusingMergeInnerJoinIterator<>(in1, in2, 
 							serializer1, comparator1,
 							serializer2, comparator2,
@@ -157,7 +157,7 @@ public class JoinDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1
 			}
 		} else {
 			switch (ls) {
-				case MERGE:
+				case INNER_MERGE:
 					this.joinIterator = new NonReusingMergeInnerJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,

@@ -185,6 +185,13 @@ public class StreamDiscretizer<IN>
 		emitWindow();
 	}
 
+	@Override
+	public void dispose() {
+		if (activePolicyThread != null) {
+			activePolicyThread.interrupt();
+		}
+	}
+
 	/**
 	 * This class allows the active trigger thread to call back and push fake
 	 * elements at any time.

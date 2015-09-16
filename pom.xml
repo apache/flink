@@ -51,6 +51,7 @@ under the License.
 
 	<modules>
 		<module>flink-shaded-hadoop</module>
+		<module>flink-shaded-curator</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
 		<module>flink-scala</module>
@@ -83,6 +84,9 @@ under the License.
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3.7</akka.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
+		<!-- Default scala versions, may be overwritten by build profiles -->
+		<scala.version>2.10.4</scala.version>
+		<scala.binary.version>2.10</scala.binary.version>
 		<chill.version>0.5.2</chill.version>
 		<asm.version>5.0.4</asm.version>
 		<tez.version>0.6.1</tez.version>
@@ -354,19 +358,6 @@ under the License.
 
 	<profiles>
 		<profile>
-			<id>scala-2.10</id>
-			<activation>
-				<property>
-					<!-- this is the default scala profile -->
-					<name>!scala-2.11</name>
-				</property>
-			</activation>
-			<properties>
-				<scala.version>2.10.4</scala.version>
-				<scala.binary.version>2.10</scala.binary.version>
-			</properties>
-		</profile>
-		<profile>
 			<id>scala-2.11</id>
 			<activation>
 				<property>
@@ -446,20 +437,18 @@ under the License.
 				</repository>
 				<!-- Hortonworks -->
 				<repository>
-					<releases>
-						<enabled>true</enabled>
-						<updatePolicy>always</updatePolicy>
-						<checksumPolicy>warn</checksumPolicy>
-					</releases>
-					<snapshots>
-						<enabled>false</enabled>
-						<updatePolicy>never</updatePolicy>
-						<checksumPolicy>fail</checksumPolicy>
-					</snapshots>
 					<id>HDPReleases</id>
 					<name>HDP Releases</name>
 					<url>http://repo.hortonworks.com/content/repositories/releases/</url>
-					<layout>default</layout>
+					<snapshots><enabled>false</enabled></snapshots>
+					<releases><enabled>true</enabled></releases>
+				</repository>
+				<repository>
+					<id>HortonworksJettyHadoop</id>
+					<name>HDP Jetty</name>
+					<url>http://repo.hortonworks.com/content/repositories/jetty-hadoop</url>
+					<snapshots><enabled>false</enabled></snapshots>
+					<releases><enabled>true</enabled></releases>
 				</repository>
 				<!-- MapR -->
 				<repository>
@@ -802,7 +791,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.12.1</version>
+				<version>2.16</version>
 				<executions>
 					<execution>
 						<id>validate</id>
@@ -834,7 +823,7 @@ under the License.
 			</plugin>
 			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.18.1</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
 						<goals>
@@ -857,7 +846,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.18.1</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
 					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>

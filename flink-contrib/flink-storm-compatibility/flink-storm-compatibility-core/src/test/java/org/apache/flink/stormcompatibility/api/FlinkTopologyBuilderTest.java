@@ -16,7 +16,12 @@
  */
 package org.apache.flink.stormcompatibility.api;
 
+import org.apache.flink.stormcompatibility.util.TestDummyBolt;
+import org.apache.flink.stormcompatibility.util.TestDummySpout;
+import org.apache.flink.stormcompatibility.util.TestSink;
 import org.junit.Test;
+
+import backtype.storm.tuple.Fields;
 
 public class FlinkTopologyBuilderTest {
 
@@ -43,6 +48,29 @@ public class FlinkTopologyBuilderTest {
 		builder.setSpout("spout", new TestSpout());
 		builder.setBolt("bolt", new TestBolt()).shuffleGrouping("spout");
 		builder.createTopology();
+	}
+
+	@Test
+	public void testFieldsGroupingOnMultipleSpoutOutputStreams() {
+		FlinkTopologyBuilder flinkBuilder = new FlinkTopologyBuilder();
+
+		flinkBuilder.setSpout("spout", new TestDummySpout());
+		flinkBuilder.setBolt("sink", new TestSink()).fieldsGrouping("spout",
+				TestDummySpout.spoutStreamId, new Fields("id"));
+
+		flinkBuilder.createTopology();
+	}
+
+	@Test
+	public void testFieldsGroupingOnMultipleBoltOutputStreams() {
+		FlinkTopologyBuilder flinkBuilder = new FlinkTopologyBuilder();
+
+		flinkBuilder.setSpout("spout", new TestDummySpout());
+		flinkBuilder.setBolt("bolt", new TestDummyBolt()).shuffleGrouping("spout");
+		flinkBuilder.setBolt("sink", new TestSink()).fieldsGrouping("bolt",
+				TestDummyBolt.groupingStreamId, new Fields("id"));
+
+		flinkBuilder.createTopology();
 	}
 
 }

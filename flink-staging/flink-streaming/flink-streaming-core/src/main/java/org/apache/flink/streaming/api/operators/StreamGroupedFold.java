@@ -21,8 +21,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.api.common.functions.FoldFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public class StreamGroupedFold<IN, OUT> extends StreamFold<IN, OUT> {
@@ -30,28 +30,34 @@ public class StreamGroupedFold<IN, OUT> extends StreamFold<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private KeySelector<IN, ?> keySelector;
-	private Map<Object, OUT> values;
-	private OUT initialValue;
+	private transient Map<Object, OUT> values;
 
-	public StreamGroupedFold(FoldFunction<IN, OUT> folder, KeySelector<IN, ?> keySelector,
-			OUT initialValue, TypeInformation<OUT> outTypeInformation) {
-		super(folder, initialValue, outTypeInformation);
+	public StreamGroupedFold(
+			FoldFunction<IN, OUT> folder,
+			KeySelector<IN, ?> keySelector,
+			OUT initialValue) {
+		super(folder, initialValue);
 		this.keySelector = keySelector;
-		this.initialValue = initialValue;
+	}
+
+	@Override
+	public void open(Configuration configuration) throws Exception {
+		super.open(configuration);
+
 		values = new HashMap<Object, OUT>();
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		Object key = keySelector.getKey(element.getValue());
-		OUT accumulator = values.get(key);
+		OUT value = values.get(key);
 
-		if (accumulator != null) {
-			OUT folded = userFunction.fold(outTypeSerializer.copy(accumulator), element.getValue());
+		if (value != null) {
+			OUT folded = userFunction.fold(outTypeSerializer.copy(value), element.getValue());
 			values.put(key, folded);
 			output.collect(element.replace(folded));
 		} else {
-			OUT first = userFunction.fold(outTypeSerializer.copy(initialValue), element.getValue());
+			OUT first = userFunction.fold(outTypeSerializer.copy(accumulator), element.getValue());
 			values.put(key, first);
 			output.collect(element.replace(first));
 		}

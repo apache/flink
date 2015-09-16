@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.operators.util;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
+
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -37,7 +40,7 @@ public class BloomFilterTest {
 		int bitsSize = BloomFilter.optimalNumOfBits(INPUT_SIZE, FALSE_POSITIVE_PROBABILITY);
 		bitsSize = bitsSize + (Long.SIZE - (bitsSize % Long.SIZE));
 		int byteSize = bitsSize >>> 3;
-		MemorySegment memorySegment = new MemorySegment(new byte[byteSize]);
+		MemorySegment memorySegment = MemorySegmentFactory.allocateUnpooledSegment(byteSize);
 		bloomFilter = new BloomFilter(INPUT_SIZE, byteSize);
 		bloomFilter.setBitsLocation(memorySegment, 0);
 	}

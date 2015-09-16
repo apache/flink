@@ -25,7 +25,6 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -149,7 +148,7 @@ public class VertexCentricIteration<K, VV, Message, EV>
 
 		// create a graph
 		Graph<K, VV, EV> graph =
-				Graph.fromDataSet(initialVertices, edgesWithValue, ExecutionEnvironment.getExecutionEnvironment());
+				Graph.fromDataSet(initialVertices, edgesWithValue, initialVertices.getExecutionEnvironment());
 
 		// check whether the numVertices option is set and, if so, compute the total number of vertices
 		// and set it within the messaging and update functions

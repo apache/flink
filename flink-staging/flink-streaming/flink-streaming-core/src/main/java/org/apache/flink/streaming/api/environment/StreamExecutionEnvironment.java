@@ -70,6 +70,7 @@ import org.apache.flink.util.SplittableIterator;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -443,7 +444,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @param serializer
 	 * 		The serializer to use.
 	 */
-	public void addDefaultKryoSerializer(Class<?> type, Serializer<?> serializer) {
+	public <T extends Serializer<?> & Serializable>void addDefaultKryoSerializer(Class<?> type, T serializer) {
 		config.addDefaultKryoSerializer(type, serializer);
 	}
 
@@ -472,7 +473,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @param serializer
 	 * 		The serializer to use.
 	 */
-	public void registerTypeWithKryoSerializer(Class<?> type, Serializer<?> serializer) {
+	public <T extends Serializer<?> & Serializable>void registerTypeWithKryoSerializer(Class<?> type, T serializer) {
 		config.registerTypeWithKryoSerializer(type, serializer);
 	}
 
@@ -553,7 +554,8 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream representing the given array of elements
 	 */
-	public <OUT> DataStreamSource<OUT> fromElements(OUT... data) {
+	@SafeVarargs
+	public final <OUT> DataStreamSource<OUT> fromElements(OUT... data) {
 		if (data.length == 0) {
 			throw new IllegalArgumentException("fromElements needs at least one element as argument");
 		}

@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-
 import kafka.admin.AdminUtils;
 import kafka.api.PartitionMetadata;
 import kafka.consumer.Consumer;
@@ -67,6 +66,7 @@ import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.util.Collector;
 
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.junit.Assert;
 
 import scala.collection.Seq;
@@ -290,7 +290,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, sinkSchema));
+		stream.addSink(new FlinkKafkaProducer<>(brokerConnectionStrings, topic, sinkSchema));
 
 		// ----------- add consumer dataflow ----------
 
@@ -380,11 +380,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		FailingIdentityMapper.failedBefore = false;
 		tryExecute(env, "One-to-one exactly once test");
 
-		// this cannot be reliably checked, as checkpoints come in time intervals, and
-		// failures after a number of elements
-//			assertTrue("Job did not do a checkpoint before the failure",
-//					FailingIdentityMapper.hasBeenCheckpointedBeforeFailure);
-
 		deleteTestTopic(topic);
 	}
 
@@ -431,11 +426,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		FailingIdentityMapper.failedBefore = false;
 		tryExecute(env, "One-source-multi-partitions exactly once test");
-
-		// this cannot be reliably checked, as checkpoints come in time intervals, and
-		// failures after a number of elements
-//			assertTrue("Job did not do a checkpoint before the failure",
-//					FailingIdentityMapper.hasBeenCheckpointedBeforeFailure);
 
 		deleteTestTopic(topic);
 	}
@@ -485,10 +475,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		FailingIdentityMapper.failedBefore = false;
 		tryExecute(env, "multi-source-one-partitions exactly once test");
 
-		// this cannot be reliably checked, as checkpoints come in time intervals, and
-		// failures after a number of elements
-//			assertTrue("Job did not do a checkpoint before the failure",
-//					FailingIdentityMapper.hasBeenCheckpointedBeforeFailure);
 
 		deleteTestTopic(topic);
 	}
@@ -663,6 +649,30 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		deleteTestTopic(topic);
 	}
 
+	public void runInvalidOffsetTest() throws Exception {
+		final String topic = "invalidOffsetTopic";
+		final int parallelism = 1;
+
+		// create topic
+		createTestTopic(topic, parallelism, 1);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+
+		// write 20 messages into topic:
+		writeSequence(env, topic, 20, parallelism);
+
+		// set invalid offset:
+		ZkClient zkClient = createZookeeperClient();
+		ZookeeperOffsetHandler.setOffsetInZooKeeper(zkClient, standardCC.groupId(), topic, 0, 1234);
+
+		// read from topic
+		final int valuesCount = 20;
+		final int startFrom = 0;
+		readSequence(env, standardCC.props().props(), parallelism, topic, valuesCount, startFrom);
+
+		deleteTestTopic(topic);
+	}
+
 	/**
 	 * Test Flink's Kafka integration also with very big records (30MB)
 	 * see http://stackoverflow.com/questions/21020347/kafka-sending-a-15mb-message
@@ -722,7 +732,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// add producing topology
 		Properties producerProps = new Properties();
-		producerProps.setProperty("max.message.size", Integer.toString(1024 * 1024 * 30));
+		producerProps.setProperty("max.request.size", Integer.toString(1024 * 1024 * 30));
+		producerProps.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerConnectionStrings);
 
 		DataStream<Tuple2<Long, byte[]>> stream = env.addSource(new RichSourceFunction<Tuple2<Long, byte[]>>() {
 
@@ -760,8 +771,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			}
 		});
 
-		stream.addSink(new KafkaSink<Tuple2<Long, byte[]>>(brokerConnectionStrings, topic,
-				producerProps, deserSchema));
+		stream.addSink(new FlinkKafkaProducer<>(topic, deserSchema, producerProps));
 
 		tryExecute(env, "big topology test");
 
@@ -806,6 +816,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		zkClient.close();
 
 		final String leaderToShutDown = firstPart.leader().get().connectionString();
+		final int leaderIdToShutDown = firstPart.leader().get().id();
 		LOG.info("Leader to shutdown {}", leaderToShutDown);
 
 
@@ -832,10 +843,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		BrokerKillingMapper.killedLeaderBefore = false;
 		tryExecute(env, "One-to-one exactly once test");
 
-		// this cannot be reliably checked, as checkpoints come in time intervals, and
-		// failures after a number of elements
-//			assertTrue("Job did not do a checkpoint before the failure",
-//					BrokerKillingMapper.hasBeenCheckpointedBeforeFailure);
+		// start a new broker:
+		brokers.set(leaderIdToShutDown, getKafkaServer(leaderIdToShutDown, tmpKafkaDirs.get(leaderIdToShutDown), kafkaHost, zookeeperConnectionString));
 
 		LOG.info("finished runBrokerFailureTest()");
 	}
@@ -920,9 +929,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			}
 		}).setParallelism(parallelism);
 		
-		stream.addSink(new KafkaSink<Tuple2<Integer, Integer>>(brokerConnectionStrings,
-				topicName,
-				new TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(resultType, env.getConfig()),
+		stream.addSink(new FlinkKafkaProducer<>(topicName,
+				new TypeInformationSerializationSchema<>(resultType, env.getConfig()),
+				FlinkKafkaProducer.getPropertiesFromBrokerList(brokerConnectionStrings),
 				new Tuple2Partitioner(parallelism)
 		)).setParallelism(parallelism);
 
