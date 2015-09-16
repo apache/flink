@@ -171,19 +171,36 @@ object KNN {
                   val queue = mutable.PriorityQueue[(Vector, Vector, Long, Double)]()(
                     Ordering.by(_._4))
 
-                  // MAKE CHANGES HERE FOR SIMPLE DIVIDE AND CONQUER
-                  for (a <- testing.values; b <- training.values) {
-//                  for (a <- testing.values; b <- training.values) {
-                    // (training vector, input vector, input key, distance)
-                    queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))
-                    //println("hello!!!")
-                    if (queue.size > k) {
-                      queue.dequeue()
-                    }
-                  }
+                  // MAKE CHANGES HERE FOR SIMPLE PARTITION OF DOMAIN INTO BOXES
+                  val min = 0.0
+                  val max = 1.0
+                  val nPartRoot = 4
+                  println("training =        !")
+                  ///training = Block(?, Vector(DenseVector))
+                  /// training.values = Vector(DenseVector))
+                  print(training.values(0))
 
-                  for (v <- queue) {
-                    out.collect(v)
+                  val bPart = training.values.map{ v=> LabeledVector(Math.floor(v(0))*nPartRoot + Math.floor(v(1)), v) }
+
+                  //// PARTITION DOMAIN TO n UNIFORM BOXES
+
+                  for (a <- testing.values) {
+
+                    //// GET BOX ID FOR a
+
+                    /////THIS LOOP WILL THEN ONLY BE OVER TRAINING VALUES IN THAT BOX
+                    //for (b <- training.values) {
+                     for (b <- bPart.vector)
+                      // (training vector, input vector, input key, distance)
+                      queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))
+                      if (queue.size > k) {
+                        queue.dequeue()
+                      }1
+                    }
+
+                    for (v <- queue) {
+                      out.collect(v)
+                    }
                   }
                 }
               }

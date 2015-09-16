@@ -61,7 +61,7 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     //// Generate alternate trainingSet
     val r = scala.util.Random
-    val rSeq = Seq.fill(1000000)(DenseVector(r.nextFloat, r.nextFloat))
+    val rSeq = Seq.fill(10000)(DenseVector(r.nextFloat, r.nextFloat))
     /// GENERATE RANDOM SET OF POINTS IN [0,1]x[0,1]
    // val trainingSet= env.fromCollection(Seq.fill(100)(DenseVector(r.nextFloat, r.nextFloat)))
      val trainingSet= env.fromCollection(rSeq)
@@ -78,6 +78,7 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
       v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
     }.sortBy(_._2).take(3).map(_._1).toArray
    */
+
     val answer = rSeq.map {
       v => (v, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v))
     }.sortBy(_._2).take(3).map(_._1).toArray
