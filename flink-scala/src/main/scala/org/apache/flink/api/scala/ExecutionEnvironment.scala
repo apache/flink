@@ -20,9 +20,11 @@ package org.apache.flink.api.scala
 import java.util.UUID
 
 import com.esotericsoftware.kryo.Serializer
+import com.google.common.base.Preconditions
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.{JobID, ExecutionConfig, JobExecutionResult}
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -53,11 +55,11 @@ import scala.reflect.ClassTag
  *
  * To get an execution environment use the methods on the companion object:
  *
- *  - [[ExecutionEnvironment.getExecutionEnvironment]]
- *  - [[ExecutionEnvironment.createLocalEnvironment]]
- *  - [[ExecutionEnvironment.createRemoteEnvironment]]
+ *  - [[ExecutionEnvironment#getExecutionEnvironment]]
+ *  - [[ExecutionEnvironment#createLocalEnvironment]]
+ *  - [[ExecutionEnvironment#createRemoteEnvironment]]
  *
- *  Use [[ExecutionEnvironment.getExecutionEnvironment]] to get the correct environment depending
+ *  Use [[ExecutionEnvironment#getExecutionEnvironment]] to get the correct environment depending
  *  on where the program is executed. If it is run inside an IDE a loca environment will be
  *  created. If the program is submitted to a cluster a remote execution environment will
  *  be created.
@@ -294,7 +296,14 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
 
     val typeInfo = implicitly[TypeInformation[T]]
 
-    val inputFormat = new ScalaCsvInputFormat[T](new Path(filePath), typeInfo)
+    Preconditions.checkArgument(
+      typeInfo.isInstanceOf[CompositeType[T]],
+      s"The type $typeInfo has to be a tuple or pojo type.",
+      null)
+
+    val inputFormat = new ScalaCsvInputFormat[T](
+      new Path(filePath),
+      typeInfo.asInstanceOf[CompositeType[T]])
     inputFormat.setDelimiter(lineDelimiter)
     inputFormat.setFieldDelimiter(fieldDelimiter)
     inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
@@ -334,7 +343,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
         " included fields must match.")
       inputFormat.setFields(includedFields, classesBuf.toArray)
     } else {
-      inputFormat.setFieldTypes(classesBuf.toArray)
+      inputFormat.setFieldTypes(classesBuf: _*)
     }
 
     if (pojoFields != null) {
