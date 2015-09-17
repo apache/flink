@@ -14,6 +14,8 @@ package org.apache.flink.languagebinding.api.java.common;
 
 import java.io.IOException;
 import java.util.HashMap;
+
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvInputFormat;
@@ -256,7 +258,14 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 	protected abstract INFO createOperationInfo(AbstractOperation operationIdentifier) throws IOException;
 
 	private void createCsvSource(OperationInfo info) throws IOException {
-		sets.put(info.setID, env.createInput(new CsvInputFormat(new Path(info.path), info.lineDelimiter, info.fieldDelimiter, info.types), info.types).name("CsvSource"));
+		if (!(info.types instanceof CompositeType)) {
+			throw new RuntimeException("The output type of a csv source has to be a tuple or a " +
+				"pojo type. The derived type is " + info);
+		}
+
+		sets.put(info.setID, env.createInput(new CsvInputFormat(new Path(info.path),
+			info.lineDelimiter, info.fieldDelimiter, (CompositeType)info.types), info.types)
+			.name("CsvSource"));
 	}
 
 	private void createTextSource(OperationInfo info) throws IOException {

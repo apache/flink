@@ -19,9 +19,9 @@ package org.apache.flink.stormcompatibility.wordcount;
 
 import backtype.storm.topology.IRichBolt;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
@@ -121,7 +121,7 @@ public class BoltTokenizerWordCountPojo {
 	private static DataStream<Sentence> getTextDataStream(final StreamExecutionEnvironment env) {
 		if (fileOutput) {
 			// read the text file from given input path
-			TypeInformation<Sentence> sourceType = TypeExtractor
+			PojoTypeInfo<Sentence> sourceType = (PojoTypeInfo)TypeExtractor
 					.getForObject(new Sentence(""));
 			return env.createInput(new CsvInputFormat<Sentence>(new Path(
 					textPath), CsvInputFormat.DEFAULT_LINE_DELIMITER,

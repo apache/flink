@@ -40,7 +40,6 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
 
-
 public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(GenericCsvInputFormat.class);
