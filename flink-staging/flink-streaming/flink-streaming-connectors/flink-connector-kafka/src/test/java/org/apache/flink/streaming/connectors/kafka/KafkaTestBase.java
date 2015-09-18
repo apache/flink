@@ -131,18 +131,15 @@ public abstract class KafkaTestBase extends TestLogger {
 			assertTrue("cannot create kafka temp dir", tmpDir.mkdir());
 			tmpKafkaDirs.add(tmpDir);
 		}
-
-
-		int zkPort = NetUtils.getAvailablePort();
-		zookeeperConnectionString = "localhost:" + zkPort;
-
+		
 		zookeeper = null;
 		brokers = null;
 
 		try {
 			LOG.info("Starting Zookeeper");
-			zookeeper = new TestingServer(zkPort, tmpZkDir);
-			
+			zookeeper = new TestingServer(-1, tmpZkDir);
+			zookeeperConnectionString = zookeeper.getConnectString();
+
 			LOG.info("Starting KafkaServer");
 			brokers = new ArrayList<>(NUMBER_OF_KAFKA_SERVERS);
 			
