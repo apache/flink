@@ -104,8 +104,8 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 			throw new RuntimeException("Cannot set default state to null.");
 		}
 		StreamOperatorState<S, C> state = (StreamOperatorState<S, C>) getState(name, partitioned);
-		state.setDefaultState(defaultState);
 		state.setCheckpointer(checkpointer);
+		state.setDefaultState(defaultState);
 
 		return (OperatorState<S>) state;
 	}
