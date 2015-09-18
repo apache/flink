@@ -76,7 +76,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Returns the parallelism of this operation.
    */
   def getParallelism = javaStream.getParallelism
-  
+
   /**
    * Returns the execution config.
    */
@@ -105,13 +105,13 @@ class DataStream[T](javaStream: JavaStream[T]) {
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
   }
-  
+
   /**
    * Turns off chaining for this operator so thread co-location will not be
    * used as an optimization. </p> Chaining can be turned off for the whole
    * job by [[StreamExecutionEnvironment.disableOperatorChaining()]]
    * however it is not advised for performance considerations.
-   * 
+   *
    */
   def disableChaining(): DataStream[T] = {
     javaStream match {
@@ -121,12 +121,12 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
     this
   }
-  
+
   /**
    * Starts a new task chain beginning at this operator. This operator will
    * not be chained (thread co-located for increased performance) to any
    * previous tasks even if possible.
-   * 
+   *
    */
   def startNewChain(): DataStream[T] = {
     javaStream match {
@@ -136,13 +136,13 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
     this
   }
-  
+
   /**
    * Isolates the operator in its own resource group. This will cause the
    * operator to grab as many task slots as its degree of parallelism. If
    * there are no free resources available, the job will fail to start.
    * All subsequent operators are assigned to the default resource group.
-   * 
+   *
    */
   def isolateResources(): DataStream[T] = {
     javaStream match {
@@ -152,7 +152,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
     this
   }
-  
+
   /**
    * By default all operators in a streaming job share the same resource
    * group. Each resource group takes as many task manager slots as the
@@ -374,19 +374,19 @@ class DataStream[T](javaStream: JavaStream[T]) {
     iterativeStream.closeWith(feedback.getJavaStream)
     output
   }
-  
+
   /**
    * Initiates an iterative part of the program that creates a loop by feeding
    * back data streams. To create a streaming iteration the user needs to define
    * a transformation that creates two DataStreams. The first one is the output
    * that will be fed back to the start of the iteration and the second is the output
    * stream of the iterative part.
-   * 
+   *
    * The input stream of the iterate operator and the feedback stream will be treated
    * as a ConnectedStreams where the the input is connected with the feedback stream.
-   * 
+   *
    * This allows the user to distinguish standard input from feedback inputs.
-   * 
+   *
    * <p>
    * stepfunction: initialStream => (feedback, output)
    * <p>
@@ -404,7 +404,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
     val (feedback, output) = stepFunction(connectedIterativeStream)
     connectedIterativeStream.closeWith(feedback.getJavaStream)
     output
-  }  
+  }
 
   /**
    * Creates a new DataStream by applying the given function to every element of this DataStream.
@@ -417,7 +417,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
     val mapper = new MapFunction[T, R] {
       def map(in: T): R = cleanFun(in)
     }
-    
+
     map(mapper)
   }
 
@@ -441,7 +441,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (flatMapper == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
-    
+
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
     javaStream.flatMap(flatMapper).returns(outType).asInstanceOf[JavaStream[R]]
   }
@@ -671,7 +671,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
 
   /**
    * Writes a DataStream to the standard output stream (stderr).
-   * 
+   *
    * For each element of the DataStream the result of
    * [[AnyRef.toString()]] is written.
    *
@@ -680,28 +680,154 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def printToErr() = javaStream.printToErr()
 
   /**
-   * Writes a DataStream to the file specified by path in text format. The
-   * writing is performed periodically, in every millis milliseconds. For
-   * every element of the DataStream the result of .toString
-   * is written.
-   *
-   */
-  def writeAsText(path: String, millis: Long = 0): DataStreamSink[T] =
-    javaStream.writeAsText(path, millis)
+    * Writes a DataStream to the file specified by path in text format. For
+    * every element of the DataStream the result of .toString is written.
+    *
+    * @param path The path pointing to the location the text file is written to
+    * @return The closed DataStream
+    */
+  def writeAsText(path: String): DataStreamSink[T] =
+    javaStream.writeAsText(path, 0L)
 
   /**
    * Writes a DataStream to the file specified by path in text format. The
-   * writing is performed periodically, in every millis milliseconds. For
+   * writing is performed periodically, every millis milliseconds. For
    * every element of the DataStream the result of .toString
    * is written.
    *
+   * @param path The path pointing to the location the text file is written to
+   * @param millis The file update frequency
+   * @return The closed DataStream
    */
+  def writeAsText(path: String, millis: Long): DataStreamSink[T] =
+    javaStream.writeAsText(path, millis)
+
+  /**
+    * Writes a DataStream to the file specified by path in text format. For
+    * every element of the DataStream the result of .toString is written.
+    *
+    * @param path The path pointing to the location the text file is written to
+    * @param writeMode Controls the behavior for existing files. Options are NO_OVERWRITE and
+    *                  OVERWRITE.
+    * @return The closed DataStream
+    */
+  def writeAsText(path: String, writeMode: FileSystem.WriteMode): DataStreamSink[T] = {
+    if (writeMode != null) {
+      javaStream.writeAsText(path, writeMode)
+    } else {
+      javaStream.writeAsText(path)
+    }
+  }
+
+  /**
+    * Writes a DataStream to the file specified by path in text format. The writing is performed
+    * periodically every millis milliseconds. For every element of the DataStream the result of
+    * .toString is written.
+    *
+    * @param path The path pointing to the location the text file is written to
+    * @param writeMode Controls the behavior for existing files. Options are NO_OVERWRITE and
+    *                  OVERWRITE.
+    * @param millis The file update frequency
+    * @return The closed DataStream
+    */
+  def writeAsText(
+      path: String,
+      writeMode: FileSystem.WriteMode,
+      millis: Long)
+    : DataStreamSink[T] = {
+    if (writeMode != null) {
+      javaStream.writeAsText(path, writeMode, millis)
+    } else {
+      javaStream.writeAsText(path, millis)
+    }
+  }
+
+  /**
+    * Writes the DataStream in CSV format to the file specified by the path parameter. The writing
+    * is performed periodically every millis milliseconds.
+    *
+    * @param path Path to the location of the CSV file
+    * @return The closed DataStream
+    */
+  def writeAsCsv(path: String): DataStreamSink[T] = {
+    writeAsCsv(
+      path,
+      null,
+      0L,
+      ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
+      ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER)
+  }
+
+  /**
+    * Writes the DataStream in CSV format to the file specified by the path parameter. The writing
+    * is performed periodically every millis milliseconds.
+    *
+    * @param path Path to the location of the CSV file
+    * @param millis File update frequency
+    * @return The closed DataStream
+    */
+  def writeAsCsv(path: String, millis: Long): DataStreamSink[T] = {
+    writeAsCsv(
+      path,
+      null,
+      millis,
+      ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
+      ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER)
+  }
+
+  /**
+    * Writes the DataStream in CSV format to the file specified by the path parameter. The writing
+    * is performed periodically every millis milliseconds.
+    *
+    * @param path Path to the location of the CSV file
+    * @param writeMode Controls whether an existing file is overwritten or not
+    * @return The closed DataStream
+    */
+  def writeAsCsv(path: String, writeMode: FileSystem.WriteMode): DataStreamSink[T] = {
+    writeAsCsv(
+      path,
+      writeMode,
+      0L,
+      ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
+      ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER)
+  }
+
+  /**
+    * Writes the DataStream in CSV format to the file specified by the path parameter. The writing
+    * is performed periodically every millis milliseconds.
+    *
+    * @param path Path to the location of the CSV file
+    * @param writeMode Controls whether an existing file is overwritten or not
+    * @param millis File update frequency
+    * @return The closed DataStream
+    */
+  def writeAsCsv(path: String, writeMode: FileSystem.WriteMode, millis: Long): DataStreamSink[T] = {
+    writeAsCsv(
+      path,
+      writeMode,
+      millis,
+      ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
+      ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER)
+  }
+
+  /**
+    * Writes the DataStream in CSV format to the file specified by the path parameter. The writing
+    * is performed periodically every millis milliseconds.
+    *
+    * @param path Path to the location of the CSV file
+    * @param writeMode Controls whether an existing file is overwritten or not
+    * @param millis File update frequency
+    * @param rowDelimiter Delimiter for consecutive rows
+    * @param fieldDelimiter Delimiter for consecutive fields
+    * @return The closed DataStream
+    */
   def writeAsCsv(
       path: String,
-      millis: Long = 0,
-      rowDelimiter: String = ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
-      fieldDelimiter: String = ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER,
-      writeMode: FileSystem.WriteMode = null): DataStreamSink[T] = {
+      writeMode: FileSystem.WriteMode,
+      millis: Long,
+      rowDelimiter: String,
+      fieldDelimiter: String)
+    : DataStreamSink[T] = {
     require(javaStream.getType.isTupleType, "CSV output can only be used with Tuple DataSets.")
     val of = new ScalaCsvOutputFormat[Product](new Path(path), rowDelimiter, fieldDelimiter)
     if (writeMode != null) {
