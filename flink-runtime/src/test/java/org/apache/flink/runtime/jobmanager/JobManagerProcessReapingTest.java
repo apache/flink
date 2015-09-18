@@ -29,7 +29,6 @@ import akka.actor.PoisonPill;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.junit.Test;
 
@@ -44,6 +43,8 @@ import java.io.InputStream;
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Tests that the JobManager process properly exits when the JobManager actor dies.
@@ -72,8 +73,6 @@ public class JobManagerProcessReapingTest {
 			tempLogFile.deleteOnExit();
 			CommonTestUtils.printLog4jDebugConfig(tempLogFile);
 
-			int jobManagerPort = NetUtils.getAvailablePort();
-
 			// start a JobManger process
 			String[] command = new String[] {
 					javaCommand,
@@ -81,8 +80,7 @@ public class JobManagerProcessReapingTest {
 					"-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath(),
 					"-Xms256m", "-Xmx256m",
 					"-classpath", getCurrentClasspath(),
-					JobManagerTestEntryPoint.class.getName(),
-					String.valueOf(jobManagerPort)
+					JobManagerTestEntryPoint.class.getName()
 			};
 
 			// spawn the process and collect its output
@@ -99,18 +97,33 @@ public class JobManagerProcessReapingTest {
 			// is started and the JobManager is up
 			ActorRef jobManagerRef = null;
 			Throwable lastError = null;
+
+			String pattern = "Starting JobManager at [^:]*://flink@[^:]*:(\\d*)/";
+			Pattern r = Pattern.compile(pattern);
+			int jobManagerPort = -1;
+
 			for (int i = 0; i < 40; i++) {
-				try {
-					jobManagerRef = JobManager.getJobManagerActorRef(
-							new InetSocketAddress("localhost", jobManagerPort),
-							localSystem, new FiniteDuration(25, TimeUnit.SECONDS));
+				Matcher m = r.matcher(processOutput.toString());
+
+				if (m.find()) {
+					jobManagerPort = Integer.parseInt(m.group(1));
 					break;
 				}
-				catch (Throwable t) {
+
+				Thread.sleep(500);
+			}
+
+			if (jobManagerPort != -1) {
+				try {
+					jobManagerRef = JobManager.getJobManagerActorRef(
+						new InetSocketAddress("localhost", jobManagerPort),
+						localSystem, new FiniteDuration(25, TimeUnit.SECONDS));
+				} catch (Throwable t) {
 					// job manager probably not ready yet
 					lastError = t;
 				}
-				Thread.sleep(500);
+			} else {
+				fail("Could not determine port of started JobManager.");
 			}
 
 			assertTrue("JobManager process died", isProcessAlive(jmProcess));
@@ -179,12 +192,10 @@ public class JobManagerProcessReapingTest {
 
 		public static void main(String[] args) {
 			try {
-				int port = Integer.parseInt(args[0]);
-
 				Configuration config = new Configuration();
 				config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1);
 
-				JobManager.runJobManager(config, JobManagerMode.CLUSTER, StreamingMode.BATCH_ONLY, "localhost", port);
+				JobManager.runJobManager(config, JobManagerMode.CLUSTER, StreamingMode.BATCH_ONLY, "localhost", 0);
 				System.exit(0);
 			}
 			catch (Throwable t) {
