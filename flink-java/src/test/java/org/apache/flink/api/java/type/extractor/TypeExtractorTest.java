@@ -854,7 +854,7 @@ public class TypeExtractorTest {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public String map(Object value) throws Exception {
+			public Object map(Object value) throws Exception {
 				return null;
 			}
 		};
