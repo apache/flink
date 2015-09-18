@@ -21,12 +21,11 @@
 #Please ask @rmetzger (on GitHub) before changing anything here. It contains some magic.
 
 # Build Responsibilities
-# 1. Deploy snapshot (hadoop1)
-# 2. Deploy to s3  (hadoop1)
-# 3. Nothing (hadoop200alpha)
-# 4. deploy snapshot and s3 (hadoop2 - 2.2.0)
-# 5. Nothing (hadoop2 - 2.5.1)
-
+# 1. Deploy snapshot & S3 (hadoop1)
+# 2. Deploy snapshot & S3 (hadoop2)
+# 3. Nothing
+# 4. Nothing
+# 5. Nothing
 
 
 echo "install lifecylce mapping fake plugin"
@@ -77,44 +76,20 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 		mvn -B -f pom.hadoop1.xml -Pdocs-and-source -DskipTests -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
 	fi
 
-	if [[ $TRAVIS_JOB_NUMBER == *4 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
+	if [[ $TRAVIS_JOB_NUMBER == *2 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
 		# deploy hadoop v2 (yarn)
 		echo "deploy standard version (hadoop2)"
 		mvn -B -DskipTests -Pdocs-and-source -Drat.ignoreErrors=true clean deploy --settings deploysettings.xml;
 	fi
 
-	# The block below took care of deploying javadoc to github.io. We now host the javadocs on the website.
-	# if [[ $TRAVIS_JOB_NUMBER == *5 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
-	# 	cd flink-java
-	# 	mvn javadoc:javadoc
-	# 	cd target
-	# 	cd apidocs
-	# 	git init
-	# 	git config --global user.email "metzgerr@web.de"
-	# 	git config --global user.name "Travis-CI"
-	# 	git add *
-	# 	git commit -am "Javadocs from '$(date)'"
-	# 	git config credential.helper "store --file=.git/credentials"
-	# 	echo "https://$JAVADOCS_DEPLOY:@github.com" > .git/credentials
-	# 	git push -f https://github.com/stratosphere-javadocs/stratosphere-javadocs.github.io.git master:master
-	# 	rm .git/credentials
-	# 	cd ..
-	# 	cd ..
-	# 	cd ..
-	# fi
-
-	if [[ $TRAVIS_JOB_NUMBER == *2 ]] || [[ $TRAVIS_JOB_NUMBER == *4 ]] ; then
+	if [[ $TRAVIS_JOB_NUMBER == *1 ]] || [[ $TRAVIS_JOB_NUMBER == *2 ]] ; then
 		echo "Uploading build to amazon s3. Job Number: $TRAVIS_JOB_NUMBER"
+		
 		HD="hadoop1"
-		# job nr 4 is YARN
-		if [[ $TRAVIS_JOB_NUMBER == *4 ]] ; then
-			# move to current dir
-			mkdir flink-$CURRENT_FLINK_VERSION
-			cp -r flink-dist/target/flink-*-bin/flink-yarn*/* flink-$CURRENT_FLINK_VERSION/
-			tar -czf flink-$CURRENT_FLINK_VERSION-bin-hadoop2-yarn.tgz flink-$CURRENT_FLINK_VERSION
-			travis-artifacts upload --path flink-$CURRENT_FLINK_VERSION-bin-hadoop2-yarn.tgz --target-path / 
+		
+		# job nr 2 is hadoop 2
+		if [[ $TRAVIS_JOB_NUMBER == *2 ]] ; then
 			HD="hadoop2"
-			rm -r flink-$CURRENT_FLINK_VERSION
 		fi
 
 		mkdir flink-$CURRENT_FLINK_VERSION

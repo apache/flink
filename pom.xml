@@ -73,7 +73,7 @@ under the License.
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<shading-artifact.name>error</shading-artifact.name>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
-		<hadoop-two.version>2.2.0</hadoop-two.version>
+		<hadoop-two.version>2.3.0</hadoop-two.version>
 		<!-- Need to use a user property here because the surefire/failsafe
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
@@ -344,6 +344,8 @@ under the License.
 	</dependencyManagement>
 
 	<profiles>
+		
+		<!-- Profile to switch to Scala Version 2.11 -->
 		<profile>
 			<id>scala-2.11</id>
 			<activation>
@@ -357,6 +359,7 @@ under the License.
 			</properties>
 		</profile>
 
+		<!-- Profile to switch to Hadoop 1 -->
 		<profile>
 			<id>hadoop-1</id>
 			<activation>
@@ -370,6 +373,8 @@ under the License.
 				<shading-artifact.name>flink-shaded-hadoop1</shading-artifact.name>
 			</properties>
 		</profile>
+
+		<!-- Default profile, which builds for Hadoop 2 -->
 		<profile>
 			<id>hadoop-2</id>
 			<activation>
@@ -382,31 +387,33 @@ under the License.
 				<hadoop.version>${hadoop-two.version}</hadoop.version>
 				<shading-artifact.name>flink-shaded-hadoop2</shading-artifact.name>
 			</properties>
+			<modules>
+				<module>flink-yarn</module>
+			</modules>
 		</profile>
 
+		<!-- Profile to deactivate the YARN tests -->
+		<profile>
+			<id>include-yarn-tests</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>!hadoop.profile</name>
+				</property>
+			</activation>
+			<modules>
+				<module>flink-yarn-tests</module>
+			</modules>
+		</profile>
+
+		<!-- Profile to set the Hadoop 2 version properly for TEZ -->
 		<profile>
 			<id>include-tez</id>
 			<properties>
 				<hadoop.version>2.6.0</hadoop.version>
 			</properties>
 		</profile>
-		<profile>
-			<id>include-yarn</id>
-			<activation>
-				<property>
-				<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-				<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
-			<properties>
-				<shading-artifact.name>flink-shaded-include-yarn</shading-artifact.name>
-			</properties>
-			<modules>
-				<module>flink-yarn</module>
-				<module>flink-yarn-tests</module>
-			</modules>
-		</profile>
-
+		
 		<profile>
 			<id>vendor-repos</id>
 			<!-- Add vendor maven repositories -->
