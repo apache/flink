@@ -197,56 +197,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
-					<!-- These queries are currently not self-contained -->
 
-					<!-- TPC-H Query 10 -->
-
-					<!--
-					<execution>
-						<id>TPCHQuery10</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>TPCHQuery10</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.examples.java.relational.TPCHQuery10</program-class>
-								</manifestEntries>
-							</archive>
-							<includes>
-								<include>**/java/relational/TPCHQuery10.class</include>
-								<include>**/java/relational/TPCHQuery10$*.class</include>
-							</includes>
-						</configuration>
-					</execution> -->
-				
-					<!-- TPC-H Query 3 -->
-					<!--
-					<execution>
-						<id>TPCHQuery3</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>TPCHQuery3</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.examples.java.relational.TPCHQuery3</program-class>
-								</manifestEntries>
-							</archive>
-							<includes>
-								<include>**/java/relational/TPCHQuery3.class</include>
-								<include>**/java/relational/TPCHQuery3$*.class</include>
-							</includes>
-						</configuration>
-					</execution> -->
-		
 					<!-- WebLogAnalysis -->
 					<execution>
 						<id>WebLogAnalysis</id>
@@ -319,7 +270,28 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
+					<!-- Distributed Copy -->
+					<execution>
+						<id>DistCp</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>DistCp</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.examples.java.distcp.DistCp</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/java/distcp/*</include>
+							</includes>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 
@@ -346,6 +318,7 @@ under the License.
 								<copy file="${project.basedir}/target/flink-java-examples-${project.version}-WebLogAnalysis.jar" tofile="${project.basedir}/target/WebLogAnalysis.jar" />
 								<copy file="${project.basedir}/target/flink-java-examples-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
 								<copy file="${project.basedir}/target/flink-java-examples-${project.version}-WordCountPOJO.jar" tofile="${project.basedir}/target/WordCountPOJO.jar" />
+								<copy file="${project.basedir}/target/flink-java-examples-${project.version}-DistCp.jar" tofile="${project.basedir}/target/DistCp.jar" />
 							</target>
 						</configuration>
 					</execution>

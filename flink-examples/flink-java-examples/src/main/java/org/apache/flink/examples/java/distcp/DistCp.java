@@ -19,6 +19,7 @@
 package org.apache.flink.examples.java.distcp;
 
 import org.apache.commons.io.IOUtils;
+
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -34,6 +35,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Collector;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +56,7 @@ import java.util.Map;
  * However, in a distributed environment HDFS paths must be provided both as input and output.
  */
 public class DistCp {
+	
 	private static final Logger LOGGER = LoggerFactory.getLogger(DistCp.class);
 	public static final String BYTES_COPIED_CNT_NAME = "BYTES_COPIED";
 	public static final String FILES_COPIED_CNT_NAME = "FILES_COPIED";
@@ -61,7 +64,7 @@ public class DistCp {
 	public static void main(String[] args) throws Exception {
 		if (args.length != 3) {
 			printHelp();
-			System.exit(1);
+			return;
 		}
 
 		final Path sourcePath = new Path(args[0]);
@@ -84,8 +87,9 @@ public class DistCp {
 
 
 		FlatMapOperator<FileCopyTask, Object> res = inputTasks.flatMap(new RichFlatMapFunction<FileCopyTask, Object>() {
-			public LongCounter fileCounter;
-			public LongCounter bytesCounter;
+			
+			private LongCounter fileCounter;
+			private LongCounter bytesCounter;
 
 			@Override
 			public void open(Configuration parameters) throws Exception {

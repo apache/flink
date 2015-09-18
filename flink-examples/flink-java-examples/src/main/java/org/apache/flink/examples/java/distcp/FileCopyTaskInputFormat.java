@@ -38,7 +38,12 @@ import java.util.Queue;
  * that have finished previously assigned tasks
  */
 public class FileCopyTaskInputFormat implements InputFormat<FileCopyTask, FileCopyTaskInputSplit> {
+
+	private static final long serialVersionUID = -644394866425221151L;
+	
 	private static final Logger LOGGER = LoggerFactory.getLogger(FileCopyTaskInputFormat.class);
+	
+
 	private final List<FileCopyTask> tasks;
 
 	public FileCopyTaskInputFormat(List<FileCopyTask> tasks) {
@@ -74,7 +79,8 @@ public class FileCopyTaskInputFormat implements InputFormat<FileCopyTask, FileCo
 		FileCopyTaskInputSplit[] splits = new FileCopyTaskInputSplit[tasks.size()];
 		int i = 0;
 		for (FileCopyTask t : tasks) {
-			splits[i++] = new FileCopyTaskInputSplit(t);
+			splits[i] = new FileCopyTaskInputSplit(t, i);
+			i++;
 		}
 		return splits;
 	}
