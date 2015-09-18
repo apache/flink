@@ -34,9 +34,8 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages
 .NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingTaskManager,
 TestingJobManager, TestingMemoryArchivist}
-import org.apache.flink.runtime.webmonitor.WebMonitor
 
-import scala.concurrent.{Future, Promise, Await}
+import scala.concurrent.{Future, Await}
 
 /**
  * A forkable mini cluster is a special case of the mini cluster, used for parallel test execution

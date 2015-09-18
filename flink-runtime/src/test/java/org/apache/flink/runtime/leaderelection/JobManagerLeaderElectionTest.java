@@ -25,7 +25,7 @@ import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
-import org.apache.curator.test.TestingCluster;
+import org.apache.curator.test.TestingServer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
@@ -51,7 +51,7 @@ import java.util.concurrent.TimeUnit;
 public class JobManagerLeaderElectionTest extends TestLogger {
 
 	private static ActorSystem actorSystem;
-	private static TestingCluster testingCluster;
+	private static TestingServer testingServer;
 	private static Timeout timeout = new Timeout(TestingUtils.TESTING_DURATION());
 	private static FiniteDuration duration = new FiniteDuration(5, TimeUnit.MINUTES);
 
@@ -59,8 +59,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 	public static void setup() throws Exception {
 		actorSystem = ActorSystem.create("TestingActorSystem");
 
-		testingCluster = new TestingCluster(3);
-		testingCluster.start();
+		testingServer = new TestingServer();
 	}
 
 	@AfterClass
@@ -69,8 +68,8 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 			JavaTestKit.shutdownActorSystem(actorSystem);
 		}
 
-		if(testingCluster != null) {
-			testingCluster.stop();
+		if(testingServer != null) {
+			testingServer.stop();
 		}
 	}
 
@@ -83,8 +82,8 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 
 		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 		configuration.setString(
-				ConfigConstants.ZOOKEEPER_QUORUM_KEY,
-				testingCluster.getConnectString());
+			ConfigConstants.ZOOKEEPER_QUORUM_KEY,
+			testingServer.getConnectString());
 
 		ActorRef jm = null;
 
@@ -114,8 +113,8 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 
 		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 		configuration.setString(
-				ConfigConstants.ZOOKEEPER_QUORUM_KEY,
-				testingCluster.getConnectString());
+			ConfigConstants.ZOOKEEPER_QUORUM_KEY,
+			testingServer.getConnectString());
 
 		ActorRef jm;
 		ActorRef jm2 = null;

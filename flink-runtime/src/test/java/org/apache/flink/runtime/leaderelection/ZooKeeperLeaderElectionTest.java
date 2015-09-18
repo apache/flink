@@ -24,7 +24,7 @@ import org.apache.curator.framework.api.ProtectACLCreateModePathAndBytesable;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.NodeCache;
 import org.apache.curator.framework.recipes.cache.NodeCacheListener;
-import org.apache.curator.test.TestingCluster;
+import org.apache.curator.test.TestingServer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
@@ -54,16 +54,14 @@ import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
 
 public class ZooKeeperLeaderElectionTest extends TestLogger {
-	private TestingCluster testingCluster;
+	private TestingServer testingServer;
 	private static final String TEST_URL = "akka//user/jobmanager";
-	private static final FiniteDuration timeout = new FiniteDuration(60000, TimeUnit.MILLISECONDS);
+	private static final FiniteDuration timeout = new FiniteDuration(200, TimeUnit.SECONDS);
 
 	@Before
 	public void before() {
-		testingCluster = new TestingCluster(3);
-
 		try {
-			testingCluster.start();
+			testingServer = new TestingServer();
 		} catch (Exception e) {
 			throw new RuntimeException("Could not start ZooKeeper testing cluster.", e);
 		}
@@ -72,12 +70,12 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	@After
 	public void after() {
 		try {
-			testingCluster.stop();
+			testingServer.stop();
 		} catch (Exception e) {
 			throw new RuntimeException("Could not stop ZooKeeper testing cluster.", e);
 		}
 
-		testingCluster = null;
+		testingServer = null;
 	}
 
 	/**
@@ -86,7 +84,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	@Test
 	public void testZooKeeperLeaderElectionRetrieval() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingCluster.getConnectString());
+		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 
 		ZooKeeperLeaderElectionService leaderElectionService = null;
@@ -131,10 +129,10 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	@Test
 	public void testZooKeeperReelection() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingCluster.getConnectString());
+		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 
-		int num = 100;
+		int num = 50;
 
 		ZooKeeperLeaderElectionService[] leaderElectionService = new ZooKeeperLeaderElectionService[num];
 		TestingContender[] contenders = new TestingContender[num];
@@ -200,7 +198,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	@Test
 	public void testZooKeeperReelectionWithReplacement() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingCluster.getConnectString());
+		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 
 		int num = 3;
@@ -281,7 +279,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 		final String leaderPath = "/leader";
 
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingCluster.getConnectString());
+		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 		configuration.setString(ConfigConstants.ZOOKEEPER_LEADER_PATH, leaderPath);
 
@@ -359,7 +357,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	@Test
 	public void testExceptionForwarding() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingCluster.getConnectString());
+		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 
 		ZooKeeperLeaderElectionService leaderElectionService = null;
@@ -428,7 +426,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	@Test
 	public void testEphemeralZooKeeperNodes() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingCluster.getConnectString());
+		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 
 		ZooKeeperLeaderElectionService leaderElectionService;
