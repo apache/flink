@@ -64,7 +64,7 @@ public abstract class FileSystem {
 		/** Creates write path if it does not exist. Does not overwrite existing files and directories. */
 		NO_OVERWRITE,
 		
-		/** creates write path if it does not exist. Overwrites existing files and directories. */
+		/** Creates write path if it does not exist. Overwrites existing files and directories. */
 		OVERWRITE 
 	}
 	
