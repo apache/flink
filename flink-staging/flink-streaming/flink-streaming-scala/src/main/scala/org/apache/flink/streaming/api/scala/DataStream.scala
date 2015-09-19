@@ -718,10 +718,10 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * is written.
    *
    * @param path
-	 * the path pointing to the location the text file is written to
+   * the path pointing to the location the text file is written to
    *
    * @param millis
-	 * the file update frequency
+   * the file update frequency
    *
    * @return the closed DataStream
    */
@@ -734,10 +734,10 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * is written.
    *
    * @param path
-	 * the path pointing to the location the text file is written to
+   * the path pointing to the location the text file is written to
    *
    * @param writeMode
-	 * Controls the behavior for existing files. Options are
+   * Controls the behavior for existing files. Options are
    * NO_OVERWRITE and OVERWRITE.
    *
    * @return the closed DataStream
@@ -760,14 +760,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * is written.
    *
    * @param path
-	 * the path pointing to the location the text file is written to
+   * the path pointing to the location the text file is written to
    *
    * @param writeMode
-	 * Controls the behavior for existing files. Options are
+   * Controls the behavior for existing files. Options are
    * NO_OVERWRITE and OVERWRITE.
    *
    * @param millis
-	 * the file update frequency
+   * the file update frequency
    *
    * @return the closed DataStream
    *
@@ -790,10 +790,10 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * is written.
    *
    * @param path
-	 * the path pointing to the location the text file is written to
+   * the path pointing to the location the text file is written to
    *
    * @param millis
-	 * the file update frequency
+   * the file update frequency
    *
    * @return the closed DataStream
    */
@@ -814,10 +814,10 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * is written.
    *
    * @param path
-	 * the path pointing to the location the text file is written to
+   * the path pointing to the location the text file is written to
    *
    * @param writeMode
-	 * Controls the behavior for existing files. Options are
+   * Controls the behavior for existing files. Options are
    * NO_OVERWRITE and OVERWRITE.
    *
    * @return the closed DataStream
@@ -843,14 +843,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * is written.
    *
    * @param path
-	 * the path pointing to the location the text file is written to
+   * the path pointing to the location the text file is written to
    *
    * @param writeMode
-	 * Controls the behavior for existing files. Options are
+   * Controls the behavior for existing files. Options are
    * NO_OVERWRITE and OVERWRITE.
    *
    * @param millis
-	 * the file update frequency
+   * the file update frequency
    *
    * @return the closed DataStream
    */
@@ -876,14 +876,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * is written.
    *
    * @param path
-	 * the path pointing to the location the text file is written to
+   * the path pointing to the location the text file is written to
    *
    * @param writeMode
-	 * Controls the behavior for existing files. Options are
+   * Controls the behavior for existing files. Options are
    * NO_OVERWRITE and OVERWRITE.
    *
    * @param millis
-	 * the file update frequency
+   * the file update frequency
    *
    * @param rowDelimiter
    * the delimiter for two rows
