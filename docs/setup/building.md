@@ -109,19 +109,11 @@ By default, Flink is built with Scala *2.10*. To build Flink with Scala *2.11*, 
 =======
 ## Build Flink for Scala 2.11
 
-Maven uses Scala 2.10 to build Flink in default. But you can build Flink with Scala 2.11 because all Flink modules except `flink-scala-shell` are compatible with Scala 2.11 in source code level. To build Flink with Scala 2.11, use with the following command.
->>>>>>> [FLINK-2200] [docs] Add documentation for Flink with Scala 2.11
-
-~~~bash
-mvn clean install -DskipTests -Dscala-2.11
-~~~
-
-<<<<<<< HEAD
 
 To build against custom Scala versions, you need to supply the *language version* and the *binary version* as properties to the build:
 
 ~~~bash
-mvn clean install -DskipTests -Dscala.version=2.11.4 -Dscala.binary.version=2.11
+mvn clean install -DskipTests -Dscala-2.11 -Dscala.version=2.11.4 -Dscala.binary.version=2.11
 ~~~
 
 Flink is developed against Scala *2.10*, and tested additionally against Scala *2.11*. These two versions are known to be compatible. Earlier versions (like Scala *2.9*) are *not* compatible.
