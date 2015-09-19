@@ -38,6 +38,7 @@ import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobmanager.RecoveryMode;
 
 /**
  * The RemoteExecutor is a {@link org.apache.flink.api.common.PlanExecutor} that takes the program
@@ -209,7 +210,15 @@ public class RemoteExecutor extends PlanExecutor {
 			}
 
 			try {
-				return client.runBlocking(program, defaultParallelism);
+				// Submit detached if recovery enabled
+				if (RecoveryMode.fromConfig(clientConfiguration) == RecoveryMode.STANDALONE) {
+					return client.runBlocking(program, defaultParallelism);
+				}
+				else {
+					client.runDetached(program, defaultParallelism);
+					return new JobExecutionResult(program.getPlan().getJobId(), -1,
+							Collections.EMPTY_MAP);
+				}
 			}
 			finally {
 				if (shutDownAtEnd) {
