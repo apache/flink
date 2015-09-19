@@ -24,12 +24,12 @@ under the License.
 
     <parent>
         <groupId>org.apache.flink</groupId>
-        <artifactId>flink-staging${scala.suffix}</artifactId>
+        <artifactId>flink-staging</artifactId>
         <version>0.10-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
-    <artifactId>flink-tez${scala.suffix}</artifactId>
+    <artifactId>flink-tez</artifactId>
     <name>flink-tez</name>
 
     <packaging>jar</packaging>
@@ -37,7 +37,7 @@ under the License.
     <dependencies>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-java${scala.suffix}</artifactId>
+            <artifactId>flink-java</artifactId>
             <version>${project.version}</version>
             <exclusions>
                 <exclusion>
@@ -49,7 +49,7 @@ under the License.
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-core${scala.suffix}</artifactId>
+            <artifactId>flink-core</artifactId>
             <version>${project.version}</version>
             <exclusions>
                 <exclusion>
@@ -61,7 +61,7 @@ under the License.
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-runtime${scala.suffix}</artifactId>
+            <artifactId>flink-runtime</artifactId>
             <version>${project.version}</version>
             <exclusions>
                 <exclusion>
@@ -73,7 +73,7 @@ under the License.
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-optimizer${scala.suffix}</artifactId>
+            <artifactId>flink-optimizer</artifactId>
             <version>${project.version}</version>
             <exclusions>
                 <exclusion>
@@ -85,7 +85,7 @@ under the License.
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-java-examples${scala.suffix}</artifactId>
+            <artifactId>flink-java-examples</artifactId>
             <version>${project.version}</version>
             <exclusions>
                 <exclusion>
@@ -97,7 +97,7 @@ under the License.
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-test-utils${scala.suffix}</artifactId>
+            <artifactId>flink-test-utils</artifactId>
             <version>${project.version}</version>
             <exclusions>
                 <exclusion>
@@ -109,7 +109,7 @@ under the License.
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-tests${scala.suffix}</artifactId>
+            <artifactId>flink-tests</artifactId>
             <version>${project.version}</version>
             <exclusions>
                 <exclusion>

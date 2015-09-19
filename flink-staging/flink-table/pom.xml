@@ -22,12 +22,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-staging${scala.suffix}</artifactId>
+		<artifactId>flink-staging</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table${scala.suffix}</artifactId>
+	<artifactId>flink-table</artifactId>
 	<name>flink-table</name>
 
 	<packaging>jar</packaging>
@@ -42,19 +42,19 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala${scala.suffix}</artifactId>
+			<artifactId>flink-scala</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala${scala.suffix}</artifactId>
+			<artifactId>flink-streaming-scala</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala-examples${scala.suffix}</artifactId>
+			<artifactId>flink-scala-examples</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -75,7 +75,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils${scala.suffix}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -88,7 +88,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests${scala.suffix}</artifactId>
+			<artifactId>flink-tests</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -96,7 +96,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core${scala.suffix}</artifactId>
+			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>

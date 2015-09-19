@@ -23,31 +23,31 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-parent${scala.suffix}</artifactId>
+		<artifactId>flink-parent</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-scala${scala.suffix}</artifactId>
+	<artifactId>flink-scala</artifactId>
 	<name>flink-scala</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core${scala.suffix}</artifactId>
+			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java${scala.suffix}</artifactId>
+			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-optimizer${scala.suffix}</artifactId>
+			<artifactId>flink-optimizer</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -80,14 +80,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils${scala.suffix}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core${scala.suffix}</artifactId>
+			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>

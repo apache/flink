@@ -25,12 +25,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-parent${scala.suffix}</artifactId>
+		<artifactId>flink-parent</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-java8${scala.suffix}</artifactId>
+	<artifactId>flink-java8</artifactId>
 	<name>flink-java8</name>
 
 	<packaging>jar</packaging>
@@ -42,31 +42,31 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core${scala.suffix}</artifactId>
+			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils${scala.suffix}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java${scala.suffix}</artifactId>
+			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-core${scala.suffix}</artifactId>
+			<artifactId>flink-streaming-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java-examples${scala.suffix}</artifactId>
+			<artifactId>flink-java-examples</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -117,7 +117,7 @@ under the License.
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-java-examples${scala.suffix}</artifactId>
+									<artifactId>flink-java-examples</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>

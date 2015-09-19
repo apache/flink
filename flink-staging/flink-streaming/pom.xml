@@ -24,12 +24,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-staging${scala.suffix}</artifactId>
+		<artifactId>flink-staging</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-streaming-parent${scala.suffix}</artifactId>
+	<artifactId>flink-streaming-parent</artifactId>
 	<name>flink-streaming</name>
 	<packaging>pom</packaging>
 

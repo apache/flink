@@ -24,12 +24,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-parent${scala.suffix}</artifactId>
+		<artifactId>flink-parent</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-core${scala.suffix}</artifactId>
+	<artifactId>flink-core</artifactId>
 	<name>flink-core</name>
 
 	<packaging>jar</packaging>

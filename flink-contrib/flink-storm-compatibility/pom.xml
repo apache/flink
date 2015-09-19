@@ -24,12 +24,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-contrib-parent${scala.suffix}</artifactId>
+		<artifactId>flink-contrib-parent</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-storm-compatibility-parent${scala.suffix}</artifactId>
+	<artifactId>flink-storm-compatibility-parent</artifactId>
 	<name>flink-storm-compatibility</name>
 	<packaging>pom</packaging>
 

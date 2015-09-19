@@ -21,40 +21,40 @@ under the License.
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <artifactId>flink-language-binding-parent${scala.suffix}</artifactId>
+        <artifactId>flink-language-binding-parent</artifactId>
         <groupId>org.apache.flink</groupId>
         <version>0.10-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 	
-    <artifactId>flink-language-binding-generic${scala.suffix}</artifactId>
+    <artifactId>flink-language-binding-generic</artifactId>
     <name>flink-language-binding-generic</name>
     <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-core${scala.suffix}</artifactId>
+            <artifactId>flink-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-java${scala.suffix}</artifactId>
+            <artifactId>flink-java</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-optimizer${scala.suffix}</artifactId>
+            <artifactId>flink-optimizer</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-runtime${scala.suffix}</artifactId>
+            <artifactId>flink-runtime</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-clients${scala.suffix}</artifactId>
+            <artifactId>flink-clients</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

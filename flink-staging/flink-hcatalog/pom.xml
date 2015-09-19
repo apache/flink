@@ -24,12 +24,12 @@ under the License.
 	
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-staging${scala.suffix}</artifactId>
+		<artifactId>flink-staging</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-hcatalog${scala.suffix}</artifactId>
+	<artifactId>flink-hcatalog</artifactId>
 	<name>flink-hcatalog</name>
 
 	<packaging>jar</packaging>
@@ -37,7 +37,7 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java${scala.suffix}</artifactId>
+			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 

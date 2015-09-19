@@ -23,25 +23,25 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-examples${scala.suffix}</artifactId>
+		<artifactId>flink-examples</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-scala-examples${scala.suffix}</artifactId>
+	<artifactId>flink-scala-examples</artifactId>
 	<name>flink-scala-examples</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala${scala.suffix}</artifactId>
+			<artifactId>flink-scala</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java-examples${scala.suffix}</artifactId>
+			<artifactId>flink-java-examples</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -186,7 +186,7 @@ under the License.
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-java-examples${scala.suffix}</artifactId>
+									<artifactId>flink-java-examples</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>

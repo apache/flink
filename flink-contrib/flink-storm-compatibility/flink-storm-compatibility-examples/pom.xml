@@ -24,12 +24,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-storm-compatibility-parent${scala.suffix}</artifactId>
+		<artifactId>flink-storm-compatibility-parent</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-storm-compatibility-example${scala.suffix}</artifactId>
+	<artifactId>flink-storm-compatibility-examples</artifactId>
 	<name>flink-storm-compatibility-examples</name>
 
 	<packaging>jar</packaging>
@@ -37,19 +37,19 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-storm-compatibility-core${scala.suffix}</artifactId>
+			<artifactId>flink-storm-compatibility-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java-examples${scala.suffix}</artifactId>
+			<artifactId>flink-java-examples</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-core${scala.suffix}</artifactId>
+			<artifactId>flink-streaming-core</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -57,7 +57,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils${scala.suffix}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -81,7 +81,7 @@ under the License.
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-java-examples${scala.suffix}</artifactId>
+									<artifactId>flink-java-examples</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>
@@ -90,7 +90,7 @@ under the License.
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-storm-compatibility-core${scala.suffix}</artifactId>
+									<artifactId>flink-storm-compatibility-core</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>

@@ -24,12 +24,12 @@ under the License.
 	
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-staging${scala.suffix}</artifactId>
+		<artifactId>flink-staging</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-hadoop-compatibility${scala.suffix}</artifactId>
+	<artifactId>flink-hadoop-compatibility</artifactId>
 	<name>flink-hadoop-compatibility</name>
 
 	<packaging>jar</packaging>
@@ -37,13 +37,13 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java${scala.suffix}</artifactId>
+			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients${scala.suffix}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		
@@ -55,13 +55,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests${scala.suffix}</artifactId>
+			<artifactId>flink-tests</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils${scala.suffix}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>

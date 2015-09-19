@@ -24,12 +24,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-parent${scala.suffix}</artifactId>
+		<artifactId>flink-parent</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-java${scala.suffix}</artifactId>
+	<artifactId>flink-java</artifactId>
 	<name>flink-java</name>
 
 	<packaging>jar</packaging>
@@ -37,7 +37,7 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core${scala.suffix}</artifactId>
+			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
@@ -100,7 +100,7 @@ under the License.
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core${scala.suffix}</artifactId>
+			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>

@@ -26,7 +26,7 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-parent${scala.suffix}</artifactId>
+		<artifactId>flink-parent</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
@@ -38,7 +38,7 @@ under the License.
 		<module>flink-operator-stats</module>
 	</modules>
 
-	<artifactId>flink-contrib-parent${scala.suffix}</artifactId>
+	<artifactId>flink-contrib-parent</artifactId>
 	<name>flink-contrib</name>
 
 	<packaging>pom</packaging>
