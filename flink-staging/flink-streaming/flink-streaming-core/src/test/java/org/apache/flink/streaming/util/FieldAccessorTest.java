@@ -72,4 +72,6 @@ public class FieldAccessorTest {
 			// Nothing to do here
 		}
 	}
+
+	// Note: Other parts of FieldAccessor are tested by AggregationFunctionTest and TopSpeedWindowingExampleITCase.
 }

@@ -38,7 +38,7 @@ public abstract class WindowBuffer<T> implements Serializable, Cloneable {
 
 	public abstract void store(T element) throws Exception;
 
-	public abstract void evict(int n);
+	public abstract void evict(int n) throws Exception;
 
 	public abstract void emitWindow(Collector<StreamRecord<StreamWindow<T>>> collector);
 

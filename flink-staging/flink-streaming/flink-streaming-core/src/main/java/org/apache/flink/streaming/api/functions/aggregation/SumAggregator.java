@@ -20,8 +20,9 @@ package org.apache.flink.streaming.api.functions.aggregation;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.util.FieldAccessor;
+import org.apache.flink.api.common.functions.ReduceFunctionWithInverse;
 
-public class SumAggregator<T> extends AggregationFunction<T> {
+public class SumAggregator<T> extends AggregationFunction<T> implements ReduceFunctionWithInverse<T> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -40,9 +41,13 @@ public class SumAggregator<T> extends AggregationFunction<T> {
 		adder = SumFunction.getForClass(fieldAccessor.getFieldType().getTypeClass());
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public T reduce(T value1, T value2) throws Exception {
 		return fieldAccessor.set(value2, adder.add(fieldAccessor.get(value1), fieldAccessor.get(value2)));
+	}
+
+	@Override
+	public T invReduce(T value1, T value2) throws Exception {
+		return fieldAccessor.set(value1, adder.subtract(fieldAccessor.get(value1), fieldAccessor.get(value2)));
 	}
 }

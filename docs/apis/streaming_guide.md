@@ -940,6 +940,9 @@ Sometimes it is sufficient to create local discretisations, which allows the dis
 
 For example, `dataStream.window(Count.of(100)).maxBy(field)` would create global windows of 100 elements (Count discretises with parallelism of 1) and return the record with the max value by the selected field; alternatively the `dataStream.window(Count.of(100)).local().maxBy(field)` would create several count discretisers (as defined by the environment parallelism) and compute the max values accordingly.
 
+#### Computing statistics (median, etc.)
+A library for computing statistics of windows is available in the Maven module `flink-contrib/flink-streaming-contrib`. Calling `org.apache.flink.contrib.streaming.DataStreamUtils.statistics` on a `WindowedDataStream` returns a `WindowedDataStreamStatistics`, which is a descendant of `WindowedDataStream`, and contains additional methods for computing median, etc.
+
 
 ### Temporal database style operators
 

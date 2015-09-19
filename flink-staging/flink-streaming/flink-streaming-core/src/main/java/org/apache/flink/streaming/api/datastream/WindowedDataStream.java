@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunctionWithInverse;
 import org.apache.flink.api.common.functions.RichFoldFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
@@ -59,6 +60,8 @@ import org.apache.flink.streaming.api.windowing.policy.KeepAllEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBuffer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.GenericGroupedPreReducer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.InversePreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.JumpingCountGroupedPreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.JumpingCountPreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.JumpingTimeGroupedPreReducer;
@@ -261,26 +264,31 @@ public class WindowedDataStream<OUT> {
 
 	/**
 	 * Applies a reduce transformation on the windowed data stream by reducing
-	 * the current window at every trigger.The user can also extend the
+	 * the current window at every trigger. The user can also extend the
 	 * {@link RichReduceFunction} to gain access to other features provided by
 	 * the {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * 
+	 *
+	 * A {@link ReduceFunctionWithInverse} may also be supplied, which can make
+	 * the computation faster: the system will keep track of the reduced value
+	 * as the window changes, and update it in O(1) time on evictions, by
+	 * "subtracting" the evicted element from the reduced value.
+	 *
 	 * @param reduceFunction
 	 *            The reduce function that will be applied to the windows.
 	 * @return The transformed DataStream
 	 */
 	public DiscretizedStream<OUT> reduceWindow(ReduceFunction<OUT> reduceFunction) {
 
+		WindowTransformation transformation = WindowTransformation.REDUCEWINDOW
+				.with(clean(reduceFunction));
+
 		// We check whether we should apply parallel time discretization, which
 		// is a more complex exploiting the monotonic properties of time
 		// policies
 		if (WindowUtils.isTimeOnly(getTrigger(), getEviction()) && discretizerKey == null
 				&& dataStream.getParallelism() > 1) {
-			return timeReduce(reduceFunction);
+			return timeReduce(transformation);
 		} else {
-			WindowTransformation transformation = WindowTransformation.REDUCEWINDOW
-					.with(clean(reduceFunction));
-
 			WindowBuffer<OUT> windowBuffer = getWindowBuffer(transformation);
 
 			DiscretizedStream<OUT> discretized = discretize(transformation, windowBuffer);
@@ -376,12 +384,12 @@ public class WindowedDataStream<OUT> {
 	public <R> DiscretizedStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction,
 			TypeInformation<R> outType) {
 
-		return discretize(WindowTransformation.MAPWINDOW.with(windowMapFunction),
+		return discretize(WindowTransformation.MAPWINDOW.with(clean(windowMapFunction)),
 				getWindowBuffer(WindowTransformation.MAPWINDOW)).mapWindow(windowMapFunction,
 				outType);
 	}
 
-	private DiscretizedStream<OUT> discretize(WindowTransformation transformation,
+	protected DiscretizedStream<OUT> discretize(WindowTransformation transformation,
 			WindowBuffer<OUT> windowBuffer) {
 
 		OneInputStreamOperator<OUT, WindowEvent<OUT>> discretizer = getDiscretizer();
@@ -425,15 +433,13 @@ public class WindowedDataStream<OUT> {
 	/**
 	 * Dedicated method for applying parallel time reduce transformations on
 	 * windows
-	 * 
-	 * @param reduceFunction
-	 *            Reduce function to apply
+	 *
+	 * @param transformation
+	 *            Specifies the details of the transformation
 	 * @return The transformed stream
 	 */
-	protected DiscretizedStream<OUT> timeReduce(ReduceFunction<OUT> reduceFunction) {
-
-		WindowTransformation transformation = WindowTransformation.REDUCEWINDOW
-				.with(clean(reduceFunction));
+	@SuppressWarnings("unchecked")
+	protected DiscretizedStream<OUT> timeReduce(WindowTransformation transformation) {
 
 		// We get the windowbuffer and set it to emit empty windows with
 		// sequential IDs. This logic is necessary to merge windows created in
@@ -457,8 +463,7 @@ public class WindowedDataStream<OUT> {
 					"Error in preaggregator logic, parallel time reduce should always be preaggregated");
 		}
 
-		return discretized.timeReduce(reduceFunction);
-
+		return discretized.timeReduce((ReduceFunction<OUT>)transformation.getUDF());
 	}
 
 	/**
@@ -501,6 +506,7 @@ public class WindowedDataStream<OUT> {
 		EvictionPolicy<OUT> eviction = getEviction();
 
 		if (transformation == WindowTransformation.REDUCEWINDOW) {
+
 			if (WindowUtils.isTumblingPolicy(trigger, eviction)) {
 				if (eviction instanceof KeepAllEvictionPolicy) {
 					if (groupByKey == null) {
@@ -522,35 +528,6 @@ public class WindowedDataStream<OUT> {
 								(ReduceFunction<OUT>) transformation.getUDF(), groupByKey,
 								getType().createSerializer(getExecutionConfig()));
 					}
-				}
-			} else if (WindowUtils.isSlidingCountPolicy(trigger, eviction)) {
-				if (groupByKey == null) {
-					return new SlidingCountPreReducer<OUT>(
-							clean((ReduceFunction<OUT>) transformation.getUDF()), dataStream
-									.getType().createSerializer(getExecutionConfig()),
-							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
-							((CountTriggerPolicy<?>) trigger).getStart());
-				} else {
-					return new SlidingCountGroupedPreReducer<OUT>(
-							clean((ReduceFunction<OUT>) transformation.getUDF()), dataStream
-									.getType().createSerializer(getExecutionConfig()), groupByKey,
-							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
-							((CountTriggerPolicy<?>) trigger).getStart());
-				}
-
-			} else if (WindowUtils.isSlidingTimePolicy(trigger, eviction)) {
-				if (groupByKey == null) {
-					return new SlidingTimePreReducer<OUT>(
-							(ReduceFunction<OUT>) transformation.getUDF(), dataStream.getType()
-									.createSerializer(getExecutionConfig()),
-							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
-							WindowUtils.getTimeStampWrapper(trigger));
-				} else {
-					return new SlidingTimeGroupedPreReducer<OUT>(
-							(ReduceFunction<OUT>) transformation.getUDF(), dataStream.getType()
-									.createSerializer(getExecutionConfig()), groupByKey,
-							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
-							WindowUtils.getTimeStampWrapper(trigger));
 				}
 
 			} else if (WindowUtils.isJumpingCountPolicy(trigger, eviction)) {
@@ -577,6 +554,45 @@ public class WindowedDataStream<OUT> {
 							(ReduceFunction<OUT>) transformation.getUDF(), groupByKey, getType()
 									.createSerializer(getExecutionConfig()),
 							WindowUtils.getSlideSize(trigger), WindowUtils.getWindowSize(eviction),
+							WindowUtils.getTimeStampWrapper(trigger));
+				}
+
+			} else if (transformation.getUDF() instanceof ReduceFunctionWithInverse) {
+				InversePreReducer<OUT> invPreReducer =
+						new InversePreReducer<OUT>(
+								(ReduceFunctionWithInverse<OUT>) transformation.getUDF(),
+								getType().createSerializer(getExecutionConfig()));
+				if(groupByKey == null) {
+					return invPreReducer;
+				} else {
+					return new GenericGroupedPreReducer<OUT, InversePreReducer<OUT>>(invPreReducer, groupByKey);
+				}
+			} else if (WindowUtils.isSlidingCountPolicy(trigger, eviction)) {
+				if (groupByKey == null) {
+					return new SlidingCountPreReducer<OUT>(
+							(ReduceFunction<OUT>) transformation.getUDF(), dataStream
+									.getType().createSerializer(getExecutionConfig()),
+							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
+							((CountTriggerPolicy<?>) trigger).getStart());
+				} else {
+					return new SlidingCountGroupedPreReducer<OUT>(
+							(ReduceFunction<OUT>) transformation.getUDF(), dataStream
+									.getType().createSerializer(getExecutionConfig()), groupByKey,
+							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
+							((CountTriggerPolicy<?>) trigger).getStart());
+				}
+			} else if (WindowUtils.isSlidingTimePolicy(trigger, eviction)) {
+				if (groupByKey == null) {
+					return new SlidingTimePreReducer<OUT>(
+							(ReduceFunction<OUT>) transformation.getUDF(), dataStream.getType()
+									.createSerializer(getExecutionConfig()),
+							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
+							WindowUtils.getTimeStampWrapper(trigger));
+				} else {
+					return new SlidingTimeGroupedPreReducer<OUT>(
+							(ReduceFunction<OUT>) transformation.getUDF(), dataStream.getType()
+									.createSerializer(getExecutionConfig()), groupByKey,
+							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
 							WindowUtils.getTimeStampWrapper(trigger));
 				}
 			}

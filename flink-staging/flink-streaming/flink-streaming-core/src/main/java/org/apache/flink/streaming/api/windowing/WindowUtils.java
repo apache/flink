@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 public class WindowUtils {
 
 	public enum WindowTransformation {
-		REDUCEWINDOW, MAPWINDOW, FOLDWINDOW, NONE;
+		REDUCEWINDOW, MAPWINDOW, FOLDWINDOW, OTHER, NONE;
 		private Function UDF;
 
 		public WindowTransformation with(Function UDF) {
@@ -88,7 +88,7 @@ public class WindowUtils {
 	}
 
 	public static <X> TimestampWrapper<X> getTimeStampWrapper(EvictionPolicy<X> eviction) {
-		if (eviction instanceof EvictionPolicy) {
+		if (eviction instanceof TimeEvictionPolicy) {
 			return ((TimeEvictionPolicy<X>) eviction).getTimeStampWrapper();
 		} else {
 			throw new IllegalArgumentException(
