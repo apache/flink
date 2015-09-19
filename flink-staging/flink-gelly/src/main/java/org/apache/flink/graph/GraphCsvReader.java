@@ -29,11 +29,11 @@ import org.apache.flink.types.NullValue;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
- * A class to build a Graph using path(s) provided to CSV file(s) with edge (vertices) data
- * The class also configures the CSV readers used to read edges(vertices) data such as the field types,
- * the delimiters (row and field),  the fields that should be included or skipped, and other flags
+ * A class to build a Graph using path(s) provided to CSV file(s) with optional vertex and edge data.
+ * The class also configures the CSV readers used to read edge and vertex data such as the field types,
+ * the delimiters (row and field), the fields that should be included or skipped, and other flags,
  * such as whether to skip the initial line as the header.
- * The configuration is done using the functions provided in The {@link org.apache.flink.api.java.io.CsvReader} class.
+ * The configuration is done using the functions provided in the {@link org.apache.flink.api.java.io.CsvReader} class.
  */
 
 public class GraphCsvReader {
@@ -92,10 +92,9 @@ public class GraphCsvReader {
 	}
 
 	/**
-	 * Creates a Graph from CSV input(s) with vertex values and edge values.
+	 * Creates a Graph from CSV input with vertex values and edge values.
 	 * The vertex values are specified through a vertices input file or a user-defined map function.
-	 * If no vertices input file is provided, the vertex IDs are automatically created from the edges
-	 * input file.
+	 * 
 	 * @param vertexKey the type of the vertex IDs
 	 * @param vertexValue the type of the vertex values
 	 * @param edgeValue the type of the edge values
@@ -162,7 +161,7 @@ public class GraphCsvReader {
 					public Tuple3<K, K, NullValue> map(Tuple2<K, K> edge) {
 						return new Tuple3<K, K, NullValue>(edge.f0, edge.f1, NullValue.getInstance());
 					}
-				});
+				}).withForwardedFields("f0;f1");;
 
 		return Graph.fromTupleDataSet(edges, executionContext);
 	}

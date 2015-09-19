@@ -52,6 +52,7 @@ import java.util.TreeMap;
 public class GSATriangleCount implements
 		GraphAlgorithm<Long, NullValue, NullValue, DataSet<Tuple1<Integer>>> {
 
+	@SuppressWarnings("serial")
 	@Override
 	public DataSet<Tuple1<Integer>> run(Graph<Long, NullValue, NullValue> input) throws Exception {
 
