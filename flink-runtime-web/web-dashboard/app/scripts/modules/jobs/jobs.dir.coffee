@@ -351,7 +351,7 @@ angular.module('flinkApp')
           labelType: 'html'
           class: getNodeType(el, "")
 
-    createEdge = (g, data, el, existingNodes, pred) ->
+    createEdge = (g, data, el, existingNodes, pred, missingNodes) ->
       unless existingNodes.indexOf(pred.id) is -1
         g.setEdge pred.id, el.id,
           label: createLabelEdge(pred)
@@ -360,8 +360,9 @@ angular.module('flinkApp')
 
       else
         missingNode = searchForNode(data, pred.id)
-        unless !missingNode or missingNode.alreadyAdded is true
-          missingNode.alreadyAdded = true
+
+        unless !missingNode or missingNodes.indexOf(missingNode.id) > -1
+          missingNodes.push(missingNode.id)
           g.setNode missingNode.id,
             label: createLabelNode(missingNode, "mirror")
             labelType: 'html'
@@ -373,6 +374,7 @@ angular.module('flinkApp')
 
     loadJsonToDagre = (g, data) ->
       existingNodes = []
+      missingNodes = []
 
       if data.nodes?
         # This is the normal json data
@@ -415,7 +417,7 @@ angular.module('flinkApp')
         # create edges from inputs to current node
         if el.inputs?
           for pred in el.inputs
-            createEdge(g, data, el, existingNodes, pred)
+            createEdge(g, data, el, existingNodes, pred, missingNodes)
 
       g
 
@@ -431,8 +433,6 @@ angular.module('flinkApp')
             return el.step_function[j]  if el.step_function[j].id is nodeID
 
     drawGraph = (data) ->
-      # console.log data
-
       g = new dagreD3.graphlib.Graph({ multigraph: true, compound: true }).setGraph({
         nodesep: 70
         edgesep: 0
