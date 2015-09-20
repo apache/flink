@@ -96,8 +96,6 @@ So if you are building Flink for Hadoop `2.0.0-alpha`, use the following command
 -P!include-yarn -Dhadoop.version=2.0.0-alpha
 ~~~
 
-<<<<<<< HEAD
-
 ## Build Flink for a specific Scala Version
 
 **Note:** Users that purely use the Java APIs and libraries can ignore this section.
@@ -106,9 +104,10 @@ Flink has APIs, libraries, and runtime modules written in [Scala](http://scala-l
 of their projects (because Scala is not strictly backwards compatible).
 
 By default, Flink is built with Scala *2.10*. To build Flink with Scala *2.11*, append the `-Dscala-2.11` option to your build command:
-=======
-## Build Flink for Scala 2.11
 
+~~~bash
+mvn clean install -DskipTests -Dscala-2.11
+~~~
 
 To build against custom Scala versions, you need to supply the *language version* and the *binary version* as properties to the build:
 
