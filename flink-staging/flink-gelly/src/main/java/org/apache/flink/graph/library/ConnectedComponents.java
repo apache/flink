@@ -25,6 +25,7 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
+import org.apache.flink.graph.utils.NullValueEdgeMapper;
 import org.apache.flink.types.NullValue;
 
 /**
@@ -42,7 +43,7 @@ import org.apache.flink.types.NullValue;
  * @see {@link org.apache.flink.graph.library.GSAConnectedComponents}
  */
 @SuppressWarnings("serial")
-public class ConnectedComponents<K> implements GraphAlgorithm<K, Long, NullValue, DataSet<Vertex<K, Long>>> {
+public class ConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV, DataSet<Vertex<K, Long>>> {
 
 	private Integer maxIterations;
 
@@ -51,9 +52,10 @@ public class ConnectedComponents<K> implements GraphAlgorithm<K, Long, NullValue
 	}
 
 	@Override
-	public DataSet<Vertex<K, Long>> run(Graph<K, Long, NullValue> graph) throws Exception {
+	public DataSet<Vertex<K, Long>> run(Graph<K, Long, EV> graph) throws Exception {
 
-		Graph<K, Long, NullValue> undirectedGraph = graph.getUndirected();
+		Graph<K, Long, NullValue> undirectedGraph = graph.mapEdges(new NullValueEdgeMapper<K, EV>())
+				.getUndirected();
 
 		// initialize vertex values and run the Vertex Centric Iteration
 		return undirectedGraph.runVertexCentricIteration(

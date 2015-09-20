@@ -48,7 +48,7 @@ public class TriangleCountITCase extends MultipleProgramsTestBase {
 		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(TriangleCountData.getDefaultEdgeDataSet(env),
 				env).getUndirected();
 
-		List<Integer> numberOfTriangles = graph.run(new GSATriangleCount<Long>()).collect();
+		List<Integer> numberOfTriangles = graph.run(new GSATriangleCount<Long, NullValue, NullValue>()).collect();
 		expectedResult = TriangleCountData.RESULTED_NUMBER_OF_TRIANGLES;
 
 		Assert.assertEquals(numberOfTriangles.get(0).intValue(), Integer.parseInt(expectedResult));

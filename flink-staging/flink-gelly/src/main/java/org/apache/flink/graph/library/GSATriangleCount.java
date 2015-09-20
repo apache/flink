@@ -48,17 +48,17 @@ import java.util.TreeMap;
  * The algorithm takes an undirected, unweighted graph as input and outputs a DataSet
  * which contains a single integer representing the number of triangles.
  */
-public class GSATriangleCount<K extends Comparable<K>> implements
-		GraphAlgorithm<K, NullValue, NullValue, DataSet<Integer>> {
+public class GSATriangleCount<K extends Comparable<K>, VV, EV> implements
+		GraphAlgorithm<K, VV, EV, DataSet<Integer>> {
 
 	@SuppressWarnings("serial")
 	@Override
-	public DataSet<Integer> run(Graph<K, NullValue, NullValue> input) throws Exception {
+	public DataSet<Integer> run(Graph<K, VV, EV> input) throws Exception {
 
 		ExecutionEnvironment env = input.getContext();
 
 		// order the edges so that src is always higher than trg
-		DataSet<Edge<K, NullValue>> edges = input.getEdges().map(new OrderEdges<K>()).distinct();
+		DataSet<Edge<K, NullValue>> edges = input.getEdges().map(new OrderEdges<K, EV>()).distinct();
 
 		Graph<K, TreeMap<K, Integer>, NullValue> graph = Graph.fromDataSet(edges,
 				new VertexInitializer<K>(), env);
@@ -107,15 +107,15 @@ public class GSATriangleCount<K extends Comparable<K>> implements
 	}
 
 	@SuppressWarnings("serial")
-	private static final class OrderEdges<K extends Comparable<K>> implements
-		MapFunction<Edge<K, NullValue>, Edge<K, NullValue>> {
+	private static final class OrderEdges<K extends Comparable<K>, EV> implements
+		MapFunction<Edge<K, EV>, Edge<K, NullValue>> {
 
 		@Override
-		public Edge<K, NullValue> map(Edge<K, NullValue> edge) throws Exception {
+		public Edge<K, NullValue> map(Edge<K, EV> edge) throws Exception {
 			if (edge.getSource().compareTo(edge.getTarget()) < 0) {
 				return new Edge<K, NullValue>(edge.getTarget(), edge.getSource(), NullValue.getInstance());
 			} else {
-				return edge;
+				return new Edge<K, NullValue>(edge.getSource(), edge.getTarget(), NullValue.getInstance());
 			}
 		}
 	}
