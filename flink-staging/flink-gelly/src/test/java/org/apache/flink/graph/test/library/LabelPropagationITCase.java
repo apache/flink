@@ -52,7 +52,7 @@ public class LabelPropagationITCase extends MultipleProgramsTestBase {
 				LabelPropagationData.getDefaultEdgeDataSet(env), env);
 
         List<Vertex<Long, Long>> result = inputGraph.run(new LabelPropagation<Long>(1))
-        		.getVertices().collect();
+        		.collect();
 
 		expectedResult = LabelPropagationData.LABELS_AFTER_1_ITERATION;
 		compareResultAsTuples(result, expectedResult);
@@ -70,7 +70,7 @@ public class LabelPropagationITCase extends MultipleProgramsTestBase {
 				LabelPropagationData.getTieEdgeDataSet(env), env);
 
         List<Vertex<Long, Long>> result = inputGraph.run(new LabelPropagation<Long>(1))
-        		.getVertices().collect();
+        		.collect();
 
 		expectedResult = LabelPropagationData.LABELS_WITH_TIE;
 		compareResultAsTuples(result, expectedResult);

@@ -37,8 +37,7 @@ import org.apache.flink.graph.spargel.VertexUpdateFunction;
  * 
  * The implementation assumes that each page has at least one incoming and one outgoing link.
  */
-public class PageRank<K> implements
-	GraphAlgorithm<K, Double, Double, Graph<K, Double, Double>> {
+public class PageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Vertex<K, Double>>> {
 
 	private double beta;
 	private int maxIterations;
@@ -66,7 +65,7 @@ public class PageRank<K> implements
 	}
 
 	@Override
-	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) throws Exception {
+	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> network) throws Exception {
 
 		if (numberOfVertices == 0) {
 			numberOfVertices = network.numberOfVertices();
@@ -78,7 +77,8 @@ public class PageRank<K> implements
 				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeightsMapper());
 
 		return networkWithWeights.runVertexCentricIteration(new VertexRankUpdater<K>(beta, numberOfVertices),
-				new RankMessenger<K>(numberOfVertices), maxIterations);
+				new RankMessenger<K>(numberOfVertices), maxIterations)
+				.getVertices();
 	}
 
 	/**
