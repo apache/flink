@@ -71,7 +71,6 @@ public class GSATranslationTest {
 			// ------------ construct the test program ------------------
 			{
 
-				@SuppressWarnings("unchecked")
 				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple3<Long, Long, NullValue>(
 						1L, 2L, NullValue.getInstance())).map(new Tuple3ToEdgeMap<Long, NullValue>());
 

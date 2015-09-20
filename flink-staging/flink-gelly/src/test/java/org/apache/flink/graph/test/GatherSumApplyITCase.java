@@ -55,8 +55,8 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 				ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
 				new InitMapperCC(), env);
 
-        List<Vertex<Long, Long>> result = inputGraph.run(new GSAConnectedComponents(16))
-        		.getVertices().collect();
+        List<Vertex<Long, Long>> result = inputGraph.run(
+        		new GSAConnectedComponents<Long, NullValue>(16)).collect();
 
 		expectedResult = "1,1\n" +
 				"2,1\n" +
@@ -78,8 +78,8 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 				SingleSourceShortestPathsData.getDefaultEdgeDataSet(env),
 				new InitMapperSSSP(), env);
 
-        List<Vertex<Long, Double>> result = inputGraph.run(new GSASingleSourceShortestPaths<Long>(1l, 16))
-        		.getVertices().collect();
+        List<Vertex<Long, Double>> result = inputGraph.run(
+        		new GSASingleSourceShortestPaths<Long>(1l, 16)).collect();
 
 		expectedResult = "1,0.0\n" +
 				"2,12.0\n" +

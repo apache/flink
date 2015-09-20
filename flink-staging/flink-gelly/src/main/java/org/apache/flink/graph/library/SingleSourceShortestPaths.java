@@ -19,6 +19,7 @@
 package org.apache.flink.graph.library;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
@@ -31,8 +32,7 @@ import org.apache.flink.graph.spargel.VertexUpdateFunction;
  * This is an implementation of the Single-Source-Shortest Paths algorithm, using a vertex-centric iteration.
  */
 @SuppressWarnings("serial")
-public class SingleSourceShortestPaths<K> implements
-	GraphAlgorithm<K, Double, Double, Graph<K, Double, Double>> {
+public class SingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, Double, DataSet<Vertex<K, Double>>> {
 
 	private final K srcVertexId;
 	private final Integer maxIterations;
@@ -43,11 +43,11 @@ public class SingleSourceShortestPaths<K> implements
 	}
 
 	@Override
-	public Graph<K, Double, Double> run(Graph<K, Double, Double> input) {
+	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> input) {
 
 		return input.mapVertices(new InitVerticesMapper<K>(srcVertexId))
 				.runVertexCentricIteration(new VertexDistanceUpdater<K>(), new MinDistanceMessenger<K>(),
-				maxIterations);
+				maxIterations).getVertices();
 	}
 
 	public static final class InitVerticesMapper<K>	implements MapFunction<Vertex<K, Double>, Double> {

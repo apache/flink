@@ -18,19 +18,25 @@
 
 package org.apache.flink.graph.library;
 
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.SumFunction;
 import org.apache.flink.graph.gsa.Neighbor;
+import org.apache.flink.graph.utils.NullValueEdgeMapper;
 import org.apache.flink.types.NullValue;
 
 /**
  * This is an implementation of the Connected Components algorithm, using a gather-sum-apply iteration.
+ * This implementation assumes that the vertices of the input Graph are initialized with unique, Long component IDs.
+ * The result is a DataSet of vertices, where the vertex value corresponds to the assigned component ID.
+ * 
+ * @see {@link org.apache.flink.graph.library.ConnectedComponents}
  */
-public class GSAConnectedComponents implements
-	GraphAlgorithm<Long, Long, NullValue, Graph<Long, Long, NullValue>> {
+public class GSAConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV, DataSet<Vertex<K, Long>>> {
 
 	private Integer maxIterations;
 
@@ -39,13 +45,15 @@ public class GSAConnectedComponents implements
 	}
 
 	@Override
-	public Graph<Long, Long, NullValue> run(Graph<Long, Long, NullValue> graph) throws Exception {
+	public DataSet<Vertex<K, Long>> run(Graph<K, Long, EV> graph) throws Exception {
 
-		Graph<Long, Long, NullValue> undirectedGraph = graph.getUndirected();
+		Graph<K, Long, NullValue> undirectedGraph = graph.mapEdges(new NullValueEdgeMapper<K, EV>())
+				.getUndirected();
 
 		// initialize vertex values and run the Vertex Centric Iteration
-		return undirectedGraph.runGatherSumApplyIteration(new GatherNeighborIds(), new SelectMinId(), new UpdateComponentId(),
-				maxIterations);
+		return undirectedGraph.runGatherSumApplyIteration(
+				new GatherNeighborIds(), new SelectMinId(), new UpdateComponentId<K>(),
+				maxIterations).getVertices();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -69,7 +77,7 @@ public class GSAConnectedComponents implements
 	};
 
 	@SuppressWarnings("serial")
-	private static final class UpdateComponentId extends ApplyFunction<Long, Long, Long> {
+	private static final class UpdateComponentId<K> extends ApplyFunction<K, Long, Long> {
 
 		public void apply(Long summedValue, Long origValue) {
 			if (summedValue < origValue) {

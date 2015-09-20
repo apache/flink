@@ -23,6 +23,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.Neighbor;
@@ -36,7 +37,7 @@ import org.apache.flink.graph.gsa.SumFunction;
  * 
  * The implementation assumes that each page has at least one incoming and one outgoing link.
  */
-public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, Graph<K, Double, Double>> {
+public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Vertex<K, Double>>> {
 
 	private double beta;
 	private int maxIterations;
@@ -58,7 +59,7 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, Graph<K
 	}
 
 	@Override
-	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) throws Exception {
+	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> network) throws Exception {
 
 		if (numberOfVertices == 0) {
 			numberOfVertices = network.numberOfVertices();
@@ -70,7 +71,8 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, Graph<K
 				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeightsMapper());
 
 		return networkWithWeights.runGatherSumApplyIteration(new GatherRanks(numberOfVertices), new SumRanks(),
-				new UpdateRanks<K>(beta, numberOfVertices), maxIterations);
+				new UpdateRanks<K>(beta, numberOfVertices), maxIterations)
+				.getVertices();
 	}
 
 	// --------------------------------------------------------------------------------------------

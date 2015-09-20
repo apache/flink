@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.ReduceNeighborsFunction;
@@ -46,62 +45,61 @@ import java.util.TreeMap;
  *
  * This implementation is non - iterative.
  *
- * The algorithm takes an undirected, unweighted graph as input and outputs a DataSet of
- * Tuple1 which contains a single integer representing the number of triangles.
+ * The algorithm takes an undirected, unweighted graph as input and outputs a DataSet
+ * which contains a single integer representing the number of triangles.
  */
-public class GSATriangleCount implements
-		GraphAlgorithm<Long, NullValue, NullValue, DataSet<Tuple1<Integer>>> {
+public class GSATriangleCount<K extends Comparable<K>, VV, EV> implements
+		GraphAlgorithm<K, VV, EV, DataSet<Integer>> {
 
 	@SuppressWarnings("serial")
 	@Override
-	public DataSet<Tuple1<Integer>> run(Graph<Long, NullValue, NullValue> input) throws Exception {
+	public DataSet<Integer> run(Graph<K, VV, EV> input) throws Exception {
 
 		ExecutionEnvironment env = input.getContext();
 
 		// order the edges so that src is always higher than trg
-		DataSet<Edge<Long, NullValue>> edges = input.getEdges()
-				.map(new OrderEdges()).distinct();
+		DataSet<Edge<K, NullValue>> edges = input.getEdges().map(new OrderEdges<K, EV>()).distinct();
 
-		Graph<Long, TreeMap<Long, Integer>, NullValue> graph = Graph.fromDataSet(edges,
-				new VertexInitializer(), env);
+		Graph<K, TreeMap<K, Integer>, NullValue> graph = Graph.fromDataSet(edges,
+				new VertexInitializer<K>(), env);
 
 		// select neighbors with ids higher than the current vertex id
 		// Gather: a no-op in this case
 		// Sum: create the set of neighbors
-		DataSet<Tuple2<Long, TreeMap<Long, Integer>>> higherIdNeighbors =
-				graph.reduceOnNeighbors(new GatherHigherIdNeighbors(), EdgeDirection.IN);
+		DataSet<Tuple2<K, TreeMap<K, Integer>>> higherIdNeighbors =
+				graph.reduceOnNeighbors(new GatherHigherIdNeighbors<K>(), EdgeDirection.IN);
 
-		Graph<Long, TreeMap<Long, Integer>, NullValue> graphWithReinitializedVertexValues =
-				graph.mapVertices(new VertexInitializerEmptyTreeMap());
+		Graph<K, TreeMap<K, Integer>, NullValue> graphWithReinitializedVertexValues =
+				graph.mapVertices(new VertexInitializerEmptyTreeMap<K>());
 
 		// Apply: attach the computed values to the vertices
 		// joinWithVertices to update the node values
-		DataSet<Vertex<Long, TreeMap<Long, Integer>>> verticesWithHigherIdNeighbors =
-				graphWithReinitializedVertexValues.joinWithVertices(higherIdNeighbors, new AttachValues()).getVertices();
+		DataSet<Vertex<K, TreeMap<K, Integer>>> verticesWithHigherIdNeighbors =
+				graphWithReinitializedVertexValues.joinWithVertices(higherIdNeighbors, new AttachValues<K>()).getVertices();
 
-		Graph<Long, TreeMap<Long,Integer>, NullValue> graphWithNeighbors = Graph.fromDataSet(verticesWithHigherIdNeighbors,
+		Graph<K, TreeMap<K,Integer>, NullValue> graphWithNeighbors = Graph.fromDataSet(verticesWithHigherIdNeighbors,
 				edges, env);
 
 		// propagate each received value to neighbors with higher id
 		// Gather: a no-op in this case
 		// Sum: propagate values
-		DataSet<Tuple2<Long, TreeMap<Long, Integer>>> propagatedValues = graphWithNeighbors
-				.reduceOnNeighbors(new GatherHigherIdNeighbors(), EdgeDirection.IN);
+		DataSet<Tuple2<K, TreeMap<K, Integer>>> propagatedValues = graphWithNeighbors
+				.reduceOnNeighbors(new GatherHigherIdNeighbors<K>(), EdgeDirection.IN);
 
 		// Apply: attach propagated values to vertices
-		DataSet<Vertex<Long, TreeMap<Long, Integer>>> verticesWithPropagatedValues =
-				graphWithReinitializedVertexValues.joinWithVertices(propagatedValues, new AttachValues()).getVertices();
+		DataSet<Vertex<K, TreeMap<K, Integer>>> verticesWithPropagatedValues =
+				graphWithReinitializedVertexValues.joinWithVertices(propagatedValues, new AttachValues<K>()).getVertices();
 
-		Graph<Long, TreeMap<Long, Integer>, NullValue> graphWithPropagatedNeighbors =
+		Graph<K, TreeMap<K, Integer>, NullValue> graphWithPropagatedNeighbors =
 				Graph.fromDataSet(verticesWithPropagatedValues, graphWithNeighbors.getEdges(), env);
 
 		// Scatter: compute the number of triangles
-		DataSet<Tuple1<Integer>> numberOfTriangles = graphWithPropagatedNeighbors.getTriplets()
-				.map(new ComputeTriangles()).reduce(new ReduceFunction<Tuple1<Integer>>() {
+		DataSet<Integer> numberOfTriangles = graphWithPropagatedNeighbors.getTriplets()
+				.map(new ComputeTriangles<K>()).reduce(new ReduceFunction<Integer>() {
 
 					@Override
-					public Tuple1<Integer> reduce(Tuple1<Integer> firstTuple, Tuple1<Integer> secondTuple) throws Exception {
-						return new Tuple1<Integer>(firstTuple.f0 + secondTuple.f0);
+					public Integer reduce(Integer first, Integer second) throws Exception {
+						return first + second;
 					}
 				});
 
@@ -109,24 +107,25 @@ public class GSATriangleCount implements
 	}
 
 	@SuppressWarnings("serial")
-	private static final class OrderEdges implements MapFunction<Edge<Long, NullValue>, Edge<Long, NullValue>> {
+	private static final class OrderEdges<K extends Comparable<K>, EV> implements
+		MapFunction<Edge<K, EV>, Edge<K, NullValue>> {
 
 		@Override
-		public Edge<Long, NullValue> map(Edge<Long, NullValue> edge) throws Exception {
-			if (edge.getSource() < edge.getTarget()) {
-				return new Edge<Long, NullValue>(edge.getTarget(), edge.getSource(), NullValue.getInstance());
+		public Edge<K, NullValue> map(Edge<K, EV> edge) throws Exception {
+			if (edge.getSource().compareTo(edge.getTarget()) < 0) {
+				return new Edge<K, NullValue>(edge.getTarget(), edge.getSource(), NullValue.getInstance());
 			} else {
-				return edge;
+				return new Edge<K, NullValue>(edge.getSource(), edge.getTarget(), NullValue.getInstance());
 			}
 		}
 	}
 
 	@SuppressWarnings("serial")
-	private static final class VertexInitializer implements MapFunction<Long, TreeMap<Long, Integer>> {
+	private static final class VertexInitializer<K> implements MapFunction<K, TreeMap<K, Integer>> {
 
 		@Override
-		public TreeMap<Long, Integer> map(Long value) throws Exception {
-			TreeMap<Long, Integer> neighbors = new TreeMap<Long, Integer>();
+		public TreeMap<K, Integer> map(K value) throws Exception {
+			TreeMap<K, Integer> neighbors = new TreeMap<K, Integer>();
 			neighbors.put(value, 1);
 
 			return neighbors;
@@ -134,31 +133,32 @@ public class GSATriangleCount implements
 	}
 
 	@SuppressWarnings("serial")
-	private static final class VertexInitializerEmptyTreeMap implements
-			MapFunction<Vertex<Long, TreeMap<Long, Integer>>, TreeMap<Long, Integer>> {
+	private static final class VertexInitializerEmptyTreeMap<K> implements
+			MapFunction<Vertex<K, TreeMap<K, Integer>>, TreeMap<K, Integer>> {
 
 		@Override
-		public TreeMap<Long, Integer> map(Vertex<Long, TreeMap<Long, Integer>> vertex) throws Exception {
-			return new TreeMap<Long, Integer>();
+		public TreeMap<K, Integer> map(Vertex<K, TreeMap<K, Integer>> vertex) throws Exception {
+			return new TreeMap<K, Integer>();
 		}
 	}
 
 	@SuppressWarnings("serial")
-	private static final class AttachValues implements MapFunction<Tuple2<TreeMap<Long, Integer>,
-			TreeMap<Long, Integer>>, TreeMap<Long, Integer>> {
+	private static final class AttachValues<K> implements MapFunction<Tuple2<TreeMap<K, Integer>,
+			TreeMap<K, Integer>>, TreeMap<K, Integer>> {
 
 		@Override
-		public TreeMap<Long, Integer> map(Tuple2<TreeMap<Long, Integer>, TreeMap<Long, Integer>> tuple2) throws Exception {
+		public TreeMap<K, Integer> map(Tuple2<TreeMap<K, Integer>, TreeMap<K, Integer>> tuple2) throws Exception {
 			return tuple2.f1;
 		}
 	}
 
 	@SuppressWarnings("serial")
-	private static final class GatherHigherIdNeighbors implements ReduceNeighborsFunction<TreeMap<Long,Integer>> {
+	private static final class GatherHigherIdNeighbors<K> implements
+		ReduceNeighborsFunction<TreeMap<K,Integer>> {
 
 		@Override
-		public TreeMap<Long,Integer> reduceNeighbors(TreeMap<Long,Integer> first, TreeMap<Long,Integer> second) {
-			for (Long key : second.keySet()) {
+		public TreeMap<K, Integer> reduceNeighbors(TreeMap<K,Integer> first, TreeMap<K,Integer> second) {
+			for (K key : second.keySet()) {
 				Integer value = first.get(key);
 				if (value != null) {
 					first.put(key, value + second.get(key));
@@ -171,20 +171,20 @@ public class GSATriangleCount implements
 	}
 
 	@SuppressWarnings("serial")
-	private static final class ComputeTriangles implements MapFunction<Triplet<Long, TreeMap<Long, Integer>, NullValue>,
-			Tuple1<Integer>> {
+	private static final class ComputeTriangles<K> implements MapFunction<Triplet<K, TreeMap<K, Integer>, NullValue>,
+			Integer> {
 
 		@Override
-		public Tuple1<Integer> map(Triplet<Long, TreeMap<Long, Integer>, NullValue> triplet) throws Exception {
+		public Integer map(Triplet<K, TreeMap<K, Integer>, NullValue> triplet) throws Exception {
 
-			Vertex<Long, TreeMap<Long, Integer>> srcVertex = triplet.getSrcVertex();
-			Vertex<Long, TreeMap<Long, Integer>> trgVertex = triplet.getTrgVertex();
+			Vertex<K, TreeMap<K, Integer>> srcVertex = triplet.getSrcVertex();
+			Vertex<K, TreeMap<K, Integer>> trgVertex = triplet.getTrgVertex();
 			int triangles = 0;
 
 			if(trgVertex.getValue().get(srcVertex.getId()) != null) {
-				triangles=trgVertex.getValue().get(srcVertex.getId());
+				triangles = trgVertex.getValue().get(srcVertex.getId());
 			}
-			return new Tuple1<Integer>(triangles);
+			return triangles;
 		}
 	}
 }

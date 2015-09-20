@@ -60,8 +60,7 @@ public class ConnectedComponentsWithRandomisedEdgesITCase extends JavaProgramTes
 
 		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 
-		DataSet<Vertex<Long, Long>> result = graph
-				.run(new ConnectedComponents(100)).getVertices();
+		DataSet<Vertex<Long, Long>> result = graph.run(new ConnectedComponents<Long, NullValue>(100));
 
 		result.writeAsCsv(resultPath, "\n", " ");
 		env.execute();

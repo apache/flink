@@ -19,12 +19,12 @@
 package org.apache.flink.graph.test.library;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.example.utils.TriangleCountData;
 import org.apache.flink.graph.library.GSATriangleCount;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -48,9 +48,9 @@ public class TriangleCountITCase extends MultipleProgramsTestBase {
 		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(TriangleCountData.getDefaultEdgeDataSet(env),
 				env).getUndirected();
 
-		List<Tuple1<Integer>> numberOfTriangles = graph.run(new GSATriangleCount()).collect();
+		List<Integer> numberOfTriangles = graph.run(new GSATriangleCount<Long, NullValue, NullValue>()).collect();
 		expectedResult = TriangleCountData.RESULTED_NUMBER_OF_TRIANGLES;
 
-		compareResultAsTuples(numberOfTriangles, expectedResult);
+		Assert.assertEquals(numberOfTriangles.get(0).intValue(), Integer.parseInt(expectedResult));
 	}
 }

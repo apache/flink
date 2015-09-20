@@ -18,27 +18,32 @@
 
 package org.apache.flink.graph.library;
 
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
+import org.apache.flink.graph.utils.NullValueEdgeMapper;
 import org.apache.flink.types.NullValue;
 
 /**
- * A vertex-centric implementation of the Connected components algorithm.
+ * A vertex-centric implementation of the Connected Components algorithm.
  *
- * Initially, each vertex will have its own ID as a value(is its own component). The vertices propagate their
- * current component ID in iterations, each time adopting a new value from the received neighbor IDs,
+ * This implementation assumes that the vertices of the input Graph are initialized with unique, Long component IDs.
+ * The vertices propagate their current component ID in iterations, each time adopting a new value from the received neighbor IDs,
  * provided that the value is less than the current minimum.
  *
  * The algorithm converges when vertices no longer update their value or when the maximum number of iterations
  * is reached.
+ * 
+ * The result is a DataSet of vertices, where the vertex value corresponds to the assigned component ID.
+ * 
+ * @see {@link org.apache.flink.graph.library.GSAConnectedComponents}
  */
 @SuppressWarnings("serial")
-public class ConnectedComponents implements
-	GraphAlgorithm<Long, Long, NullValue, Graph<Long, Long, NullValue>> {
+public class ConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV, DataSet<Vertex<K, Long>>> {
 
 	private Integer maxIterations;
 
@@ -47,21 +52,24 @@ public class ConnectedComponents implements
 	}
 
 	@Override
-	public Graph<Long, Long, NullValue> run(Graph<Long, Long, NullValue> graph) throws Exception {
+	public DataSet<Vertex<K, Long>> run(Graph<K, Long, EV> graph) throws Exception {
 
-		Graph<Long, Long, NullValue> undirectedGraph = graph.getUndirected();
+		Graph<K, Long, NullValue> undirectedGraph = graph.mapEdges(new NullValueEdgeMapper<K, EV>())
+				.getUndirected();
 
 		// initialize vertex values and run the Vertex Centric Iteration
-		return undirectedGraph.runVertexCentricIteration(new CCUpdater(), new CCMessenger(), maxIterations);
+		return undirectedGraph.runVertexCentricIteration(
+				new CCUpdater<K>(), new CCMessenger<K>(), maxIterations)
+				.getVertices();
 	}
 
 	/**
 	 * Updates the value of a vertex by picking the minimum neighbor ID out of all the incoming messages.
 	 */
-	public static final class CCUpdater extends VertexUpdateFunction<Long, Long, Long> {
+	public static final class CCUpdater<K> extends VertexUpdateFunction<K, Long, Long> {
 
 		@Override
-		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> messages) throws Exception {
+		public void updateVertex(Vertex<K, Long> vertex, MessageIterator<Long> messages) throws Exception {
 			long min = Long.MAX_VALUE;
 
 			for (long msg : messages) {
@@ -78,10 +86,10 @@ public class ConnectedComponents implements
 	/**
 	 * Distributes the minimum ID associated with a given vertex among all the target vertices.
 	 */
-	public static final class CCMessenger extends MessagingFunction<Long, Long, Long, NullValue> {
+	public static final class CCMessenger<K> extends MessagingFunction<K, Long, Long, NullValue> {
 
 		@Override
-		public void sendMessages(Vertex<Long, Long> vertex) throws Exception {
+		public void sendMessages(Vertex<K, Long> vertex) throws Exception {
 			// send current minimum to neighbors
 			sendMessageToAllNeighbors(vertex.getValue());
 		}

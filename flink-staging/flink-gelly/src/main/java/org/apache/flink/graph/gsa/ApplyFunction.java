@@ -27,6 +27,13 @@ import org.apache.flink.util.Collector;
 import java.io.Serializable;
 import java.util.Collection;
 
+/**
+ * The base class for the third and last step of a {@link GatherSumApplyIteration}.
+ *
+ * @param <K> the vertex ID type
+ * @param <VV> the vertex value type
+ * @param <M> the input type (produced by the Sum phase)
+ */
 @SuppressWarnings("serial")
 public abstract class ApplyFunction<K, VV, M> implements Serializable {
 
@@ -51,6 +58,14 @@ public abstract class ApplyFunction<K, VV, M> implements Serializable {
 
 	//---------------------------------------------------------------------------------------------
 
+	/**
+	 * This method is invoked once per superstep, after the {@link SumFunction} 
+	 * in a {@link GatherSumApplyIteration}.
+	 * It updates the Vertex values.
+	 * 
+	 * @param newValue the value computed during the current superstep.
+	 * @param currentValue the current Vertex value.
+	 */
 	public abstract void apply(M newValue, VV currentValue);
 
 	/**

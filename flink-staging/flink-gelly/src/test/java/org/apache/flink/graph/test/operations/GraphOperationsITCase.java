@@ -326,7 +326,6 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expectedResult);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testDifference2() throws Exception {
 		/*

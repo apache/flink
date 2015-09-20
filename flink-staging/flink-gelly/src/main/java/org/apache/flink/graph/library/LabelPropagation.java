@@ -18,12 +18,14 @@
 
 package org.apache.flink.graph.library;
 
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
+import org.apache.flink.graph.utils.NullValueEdgeMapper;
 import org.apache.flink.types.NullValue;
 
 import java.util.HashMap;
@@ -42,8 +44,8 @@ import java.util.Map.Entry;
  */
 @SuppressWarnings("serial")
 
-public class LabelPropagation<K extends Comparable<K>> implements
-	GraphAlgorithm<K, Long, NullValue, Graph<K, Long, NullValue>> {
+public class LabelPropagation<K extends Comparable<K>, EV> implements GraphAlgorithm<K, Long, EV,
+	DataSet<Vertex<K, Long>>> {
 
 	private final int maxIterations;
 
@@ -52,12 +54,12 @@ public class LabelPropagation<K extends Comparable<K>> implements
 	}
 
 	@Override
-	public Graph<K, Long, NullValue> run(Graph<K, Long, NullValue> input) {
+	public DataSet<Vertex<K, Long>> run(Graph<K, Long, EV> input) {
 
 		// iteratively adopt the most frequent label among the neighbors
 		// of each vertex
-		return input.runVertexCentricIteration(new UpdateVertexLabel<K>(), new SendNewLabelToNeighbors<K>(),
-				maxIterations);
+		return input.mapEdges(new NullValueEdgeMapper<K, EV>()).runVertexCentricIteration(new UpdateVertexLabel<K>(), new SendNewLabelToNeighbors<K>(),
+				maxIterations).getVertices();
 	}
 
 	/**

@@ -19,6 +19,8 @@
 package org.apache.flink.graph.library;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
@@ -34,18 +36,21 @@ import java.util.TreeMap;
 /**
  * Community Detection Algorithm.
  *
- * Initially, each vertex is assigned a tuple formed of its own id along with a score equal to 1.0, as value.
+ * This implementation expects Long Vertex values and labels. The Vertex values of the input Graph provide the initial label assignments.
+ * 
+ * Initially, each vertex is assigned a tuple formed of its own initial value along with a score equal to 1.0.
  * The vertices propagate their labels and max scores in iterations, each time adopting the label with the
  * highest score from the list of received messages. The chosen label is afterwards re-scored using the fraction
  * delta/the superstep number. Delta is passed as a parameter and has 0.5 as a default value.
  *
  * The algorithm converges when vertices no longer update their value or when the maximum number of iterations
  * is reached.
+ * 
+ * @param <K> the Vertex ID type 
  *
  * @see <a href="http://arxiv.org/pdf/0808.2633.pdf">article explaining the algorithm in detail</a>
  */
-public class CommunityDetection implements
-	GraphAlgorithm<Long, Long, Double, Graph<Long, Long, Double>> {
+public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Graph<K, Long, Double>> {
 
 	private Integer maxIterations;
 
@@ -58,20 +63,22 @@ public class CommunityDetection implements
 	}
 
 	@Override
-	public Graph<Long, Long, Double> run(Graph<Long, Long, Double> graph) {
+	public Graph<K, Long, Double> run(Graph<K, Long, Double> graph) {
 
-		Graph<Long, Long, Double> undirectedGraph = graph.getUndirected();
+		DataSet<Vertex<K, Tuple2<Long, Double>>> initializedVertices = graph.getVertices()
+				.map(new AddScoreToVertexValuesMapper<K>());
 
-		Graph<Long, Tuple2<Long, Double>, Double> graphWithScoredVertices = undirectedGraph
-				.mapVertices(new AddScoreToVertexValuesMapper());
+		Graph<K, Tuple2<Long, Double>, Double> graphWithScoredVertices =
+				Graph.fromDataSet(initializedVertices, graph.getEdges(), graph.getContext()).getUndirected();
 
-		return graphWithScoredVertices.runVertexCentricIteration(new VertexLabelUpdater(delta),
-				new LabelMessenger(), maxIterations)
-				.mapVertices(new RemoveScoreFromVertexValuesMapper());
+		return graphWithScoredVertices.runVertexCentricIteration(new VertexLabelUpdater<K>(delta),
+				new LabelMessenger<K>(), maxIterations)
+				.mapVertices(new RemoveScoreFromVertexValuesMapper<K>());
 	}
 
 	@SuppressWarnings("serial")
-	public static final class VertexLabelUpdater extends VertexUpdateFunction<Long, Tuple2<Long, Double>, Tuple2<Long, Double>> {
+	public static final class VertexLabelUpdater<K> extends VertexUpdateFunction<
+		K, Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		private Double delta;
 
@@ -80,7 +87,7 @@ public class CommunityDetection implements
 		}
 
 		@Override
-		public void updateVertex(Vertex<Long, Tuple2<Long, Double>> vertex,
+		public void updateVertex(Vertex<K, Tuple2<Long, Double>> vertex,
 								MessageIterator<Tuple2<Long, Double>> inMessages) throws Exception {
 
 			// we would like these two maps to be ordered
@@ -140,34 +147,36 @@ public class CommunityDetection implements
 	}
 
 	@SuppressWarnings("serial")
-	public static final class LabelMessenger extends MessagingFunction<Long, Tuple2<Long, Double>,
+	public static final class LabelMessenger<K> extends MessagingFunction<K, Tuple2<Long, Double>,
 			Tuple2<Long, Double>, Double> {
 
 		@Override
-		public void sendMessages(Vertex<Long, Tuple2<Long, Double>> vertex) throws Exception {
+		public void sendMessages(Vertex<K, Tuple2<Long, Double>> vertex) throws Exception {
 
-			for(Edge<Long, Double> edge : getEdges()) {
+			for(Edge<K, Double> edge : getEdges()) {
 				sendMessageTo(edge.getTarget(), new Tuple2<Long, Double>(vertex.getValue().f0,
 						vertex.getValue().f1 * edge.getValue()));
 			}
-
 		}
 	}
 
 	@SuppressWarnings("serial")
-	public static final class AddScoreToVertexValuesMapper implements MapFunction<Vertex<Long, Long>, Tuple2<Long, Double>> {
+	@ForwardedFields("f0")
+	public static final class AddScoreToVertexValuesMapper<K> implements MapFunction<
+		Vertex<K, Long>, Vertex<K, Tuple2<Long, Double>>> {
 
-		@Override
-		public Tuple2<Long, Double> map(Vertex<Long, Long> vertex) throws Exception {
-			return new Tuple2<Long, Double>(vertex.getValue(), 1.0);
+		public Vertex<K, Tuple2<Long, Double>> map(Vertex<K, Long> vertex) {
+			return new Vertex<K, Tuple2<Long, Double>>(
+					vertex.getId(), new Tuple2<Long, Double>(vertex.getValue(), 1.0));
 		}
 	}
 
 	@SuppressWarnings("serial")
-	public static final class RemoveScoreFromVertexValuesMapper implements MapFunction<Vertex<Long, Tuple2<Long, Double>>, Long> {
+	public static final class RemoveScoreFromVertexValuesMapper<K> implements MapFunction<
+		Vertex<K, Tuple2<Long, Double>>, Long> {
 
 		@Override
-		public Long map(Vertex<Long, Tuple2<Long, Double>> vertex) throws Exception {
+		public Long map(Vertex<K, Tuple2<Long, Double>> vertex) throws Exception {
 			return vertex.getValue().f0;
 		}
 	}

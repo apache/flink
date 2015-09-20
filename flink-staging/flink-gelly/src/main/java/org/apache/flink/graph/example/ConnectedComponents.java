@@ -69,7 +69,7 @@ public class ConnectedComponents implements ProgramDescription {
 		}, env);
 
 		DataSet<Vertex<Long, Long>> verticesWithMinIds = graph
-				.run(new GSAConnectedComponents(maxIterations)).getVertices();
+				.run(new GSAConnectedComponents<Long, NullValue>(maxIterations));
 
 		// emit result
 		if (fileOutput) {

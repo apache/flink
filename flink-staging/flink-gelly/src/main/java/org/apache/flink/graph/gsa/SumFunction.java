@@ -25,6 +25,13 @@ import org.apache.flink.types.Value;
 import java.io.Serializable;
 import java.util.Collection;
 
+/**
+ * The base class for the second step of a {@link GatherSumApplyIteration}.
+ *
+ * @param <VV> the vertex value type
+ * @param <EV> the edge value type
+ * @param <M> the output type
+ */
 @SuppressWarnings("serial")
 public abstract class SumFunction<VV, EV, M> implements Serializable {
 
@@ -48,7 +55,16 @@ public abstract class SumFunction<VV, EV, M> implements Serializable {
 	}
 
 	//---------------------------------------------------------------------------------------------
-
+	/**
+	 * This method is invoked once per superstep, after the {@link GatherFunction} 
+	 * in a {@link GatherSumApplyIteration}.
+	 * It combines the partial values produced by {@link GatherFunction#gather(Neighbor)}
+	 * in pairs, until a single value has been computed.
+	 * 
+	 * @param arg0 the first partial value.
+	 * @param arg1 the second partial value.
+	 * @return the combined value.
+	 */
 	public abstract M sum(M arg0, M arg1);
 
 	/**

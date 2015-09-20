@@ -153,8 +153,7 @@ public class MusicProfiles implements ProgramDescription {
 							public Long map(Tuple2<Long, Long> value) {
 								return value.f1;
 							}
-						}).run(new LabelPropagation<String>(maxIterations))
-				.getVertices();
+						}).run(new LabelPropagation<String, NullValue>(maxIterations));
 
 		if (fileOutput) {
 			verticesWithCommunity.writeAsCsv(communitiesOutputPath, "\n", "\t");

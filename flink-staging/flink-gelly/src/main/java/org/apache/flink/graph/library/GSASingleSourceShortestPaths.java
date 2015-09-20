@@ -19,6 +19,7 @@
 package org.apache.flink.graph.library;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
@@ -31,7 +32,7 @@ import org.apache.flink.graph.gsa.Neighbor;
  * This is an implementation of the Single Source Shortest Paths algorithm, using a gather-sum-apply iteration
  */
 public class GSASingleSourceShortestPaths<K> implements
-	GraphAlgorithm<K, Double, Double, Graph<K, Double, Double>> {
+	GraphAlgorithm<K, Double, Double, DataSet<Vertex<K, Double>>> {
 
 	private final K srcVertexId;
 	private final Integer maxIterations;
@@ -42,11 +43,12 @@ public class GSASingleSourceShortestPaths<K> implements
 	}
 
 	@Override
-	public Graph<K, Double, Double> run(Graph<K, Double, Double> input) {
+	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> input) {
 
 		return input.mapVertices(new InitVerticesMapper<K>(srcVertexId))
 				.runGatherSumApplyIteration(new CalculateDistances(), new ChooseMinDistance(),
-						new UpdateDistance<K>(), maxIterations);
+						new UpdateDistance<K>(), maxIterations)
+						.getVertices();
 	}
 
 	@SuppressWarnings("serial")
