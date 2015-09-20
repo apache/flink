@@ -40,7 +40,7 @@ import java.io.Serializable;
  * @param <C>
  *            Type of the snapshot that will be persisted.
  */
-public interface StateCheckpointer<S, C extends Serializable> {
+public interface StateCheckpointer<S, C extends Serializable> extends Serializable {
 
 	/**
 	 * Takes a snapshot of a given operator state. The snapshot returned will be

@@ -44,7 +44,7 @@ public class StateHandleTest {
 
 		MockHandle<Serializable> h1 = new MockHandle<Serializable>(1);
 
-		OperatorStateHandle opHandle = new OperatorStateHandle(h1, true);
+		OperatorStateHandle opHandle = new OperatorStateHandle(h1, true, null);
 		assertEquals(1, opHandle.getState(this.getClass().getClassLoader()));
 
 		OperatorStateHandle dsHandle = serializeDeserialize(opHandle);
@@ -66,8 +66,8 @@ public class StateHandleTest {
 		MockHandle<Serializable> h2 = new MockHandle<Serializable>(2);
 		StateHandle<Serializable> h3 = new MockHandle<Serializable>(3);
 
-		OperatorStateHandle opH1 = new OperatorStateHandle(h1, true);
-		OperatorStateHandle opH2 = new OperatorStateHandle(h2, false);
+		OperatorStateHandle opH1 = new OperatorStateHandle(h1, true, null);
+		OperatorStateHandle opH2 = new OperatorStateHandle(h2, false, null);
 
 		Map<String, OperatorStateHandle> opHandles = ImmutableMap.of("h1", opH1, "h2", opH2);
 

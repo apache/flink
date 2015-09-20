@@ -21,6 +21,7 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.StateCheckpointer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -308,7 +309,20 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 		
 		@Override
 		public void open(Configuration conf) throws IOException {
-			this.count = getRuntimeContext().getOperatorState("count", 0L, false);
+			this.count = getRuntimeContext().getOperatorState("count", 0L, false,
+					new StateCheckpointer<Long, String>() {
+
+						@Override
+						public String snapshotState(Long state, long id, long ts) {
+							return state.toString();
+						}
+
+						@Override
+						public Long restoreState(String stateSnapshot) {
+							return Long.parseLong(stateSnapshot);
+						}
+
+					});
 		}
 
 		@Override

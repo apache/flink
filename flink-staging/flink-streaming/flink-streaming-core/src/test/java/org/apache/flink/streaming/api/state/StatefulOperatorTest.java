@@ -227,7 +227,7 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public void open(Configuration conf) throws IOException {
-			counter = getRuntimeContext().getOperatorState("counter", 0, false);
+			counter = getRuntimeContext().getOperatorState("counter", 0, false, intCheckpointer);
 			groupCounter = getRuntimeContext().getOperatorState("groupCounter", new MutableInt(0), true);
 			concat = getRuntimeContext().getOperatorState("concat", "", false);
 			try {
@@ -279,19 +279,7 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public void open(Configuration conf) throws IOException {
-			groupCounter = getRuntimeContext().getOperatorState("groupCounter", 0, true,
-					new StateCheckpointer<Integer, String>() {
-
-						@Override
-						public String snapshotState(Integer state, long checkpointId, long checkpointTimestamp) {
-							return state.toString();
-						}
-
-						@Override
-						public Integer restoreState(String stateSnapshot) {
-							return Integer.parseInt(stateSnapshot);
-						}
-					});
+			groupCounter = getRuntimeContext().getOperatorState("groupCounter", 0, true, intCheckpointer);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -308,6 +296,21 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 		}
 
 	}
+	
+	public static StateCheckpointer<Integer, String> intCheckpointer = new StateCheckpointer<Integer, String>() {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public String snapshotState(Integer state, long checkpointId, long checkpointTimestamp) {
+			return state.toString();
+		}
+
+		@Override
+		public Integer restoreState(String stateSnapshot) {
+			return Integer.parseInt(stateSnapshot);
+		}
+	};
 
 	public static class PStateKeyRemovalTestMapper extends RichMapFunction<Integer, String> {
 

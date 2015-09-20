@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.StateCheckpointer;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.util.InstantiationUtil;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -44,6 +45,7 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 
 	private S state;
 	protected StateCheckpointer<S, C> checkpointer;
+	private byte[] serializedCheckpointer;
 	private final StateHandleProvider<Serializable> provider;
 
 	@SuppressWarnings("unchecked")
@@ -80,8 +82,21 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 		return checkpointer;
 	}
 	
+	public byte[] getSerializedCheckpointer() {
+		return serializedCheckpointer;
+	}
+	
 	public void setCheckpointer(StateCheckpointer<S, C> checkpointer) {
 		this.checkpointer = checkpointer;
+		if (checkpointer instanceof BasicCheckpointer) {
+			serializedCheckpointer = null;
+		} else {
+			try {
+				serializedCheckpointer = InstantiationUtil.serializeObject(checkpointer);
+			} catch (IOException e) {
+				throw new RuntimeException("State checkpointer must be Serializable");
+			}
+		}
 	}
 
 	protected StateHandleProvider<Serializable> getStateHandleProvider() {
