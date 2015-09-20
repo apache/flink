@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.operators;
 
 import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.OperatorState;
