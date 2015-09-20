@@ -18,12 +18,11 @@
 
 package org.apache.flink.runtime.operators.sort;
 
-import java.util.Comparator;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
-import org.apache.flink.api.common.typeutils.record.RecordComparator;
-import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
+import org.apache.flink.api.common.typeutils.base.IntComparator;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -31,14 +30,10 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.RandomIntPairGenerator;
 import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator.KeyMode;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator.ValueMode;
-import org.apache.flink.runtime.operators.testutils.TestData.Key;
-import org.apache.flink.runtime.operators.testutils.TestData.Value;
+import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
+import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.runtime.operators.testutils.types.IntPair;
-import org.apache.flink.runtime.operators.testutils.types.IntPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
-import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
 import org.junit.Assert;
@@ -58,7 +53,7 @@ public class ExternalSortITCase {
 
 	private static final int VALUE_LENGTH = 114;
 	
-	private static final Value VAL = new Value("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+	private static final String VAL = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 	private static final int NUM_PAIRS = 200000;
 
@@ -70,9 +65,9 @@ public class ExternalSortITCase {
 
 	private MemoryManager memoryManager;
 	
-	private TypeSerializerFactory<Record> pactRecordSerializer;
+	private TypeSerializerFactory<Tuple2<Integer, String>> pactRecordSerializer;
 	
-	private TypeComparator<Record> pactRecordComparator;
+	private TypeComparator<Tuple2<Integer, String>> pactRecordComparator;
 	
 	private boolean testSuccess;
 
@@ -84,8 +79,8 @@ public class ExternalSortITCase {
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManagerAsync();
 		
-		this.pactRecordSerializer = RecordSerializerFactory.get();
-		this.pactRecordComparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
+		this.pactRecordSerializer = TestData.getIntStringTupleSerializerFactory();
+		this.pactRecordComparator = TestData.getIntStringTupleComparator();
 	}
 
 	@After
@@ -109,15 +104,15 @@ public class ExternalSortITCase {
 	public void testInMemorySort() {
 		try {
 			// comparator
-			final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
+			final TypeComparator<Integer> keyComparator = new IntComparator(true);
 			
-			final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
-			final MutableObjectIterator<Record> source = new TestData.GeneratorIterator(generator, NUM_PAIRS);
+			final TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+			final MutableObjectIterator<Tuple2<Integer, String>> source = new TestData.TupleGeneratorIterator(generator, NUM_PAIRS);
 	
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			
-			Sorter<Record> merger = new UnilateralSortMerger<Record>(this.memoryManager, this.ioManager, 
+			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
 				source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
 					(double)64/78, 2, 0.9f, true);
 	
@@ -125,26 +120,22 @@ public class ExternalSortITCase {
 			LOG.debug("Reading and sorting data...");
 	
 			// check order
-			MutableObjectIterator<Record> iterator = merger.getIterator();
+			MutableObjectIterator<Tuple2<Integer, String>> iterator = merger.getIterator();
 			
 			LOG.debug("Checking results...");
 			int pairsEmitted = 1;
 	
-			Record rec1 = new Record();
-			Record rec2 = new Record();
+			Tuple2<Integer, String> rec1 = new Tuple2<>();
+			Tuple2<Integer, String> rec2 = new Tuple2<>();
 			
 			Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
 			while ((rec2 = iterator.next(rec2)) != null) {
-				final Key k1 = rec1.getField(0, TestData.Key.class);
-				final Key k2 = rec2.getField(0, TestData.Key.class);
 				pairsEmitted++;
 				
-				Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
-				
-				Record tmp = rec1;
+				Assert.assertTrue(keyComparator.compare(rec1.f0, rec2.f0) <= 0);
+
+				Tuple2<Integer, String> tmp = rec1;
 				rec1 = rec2;
-				k1.setKey(k2.getKey());
-				
 				rec2 = tmp;
 			}
 			Assert.assertTrue(NUM_PAIRS == pairsEmitted);
@@ -162,15 +153,15 @@ public class ExternalSortITCase {
 	public void testInMemorySortUsing10Buffers() {
 		try {
 			// comparator
-			final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
+			final TypeComparator<Integer> keyComparator = new IntComparator(true);
 			
-			final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
-			final MutableObjectIterator<Record> source = new TestData.GeneratorIterator(generator, NUM_PAIRS);
+			final TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+			final MutableObjectIterator<Tuple2<Integer, String>> source = new TestData.TupleGeneratorIterator(generator, NUM_PAIRS);
 	
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			
-			Sorter<Record> merger = new UnilateralSortMerger<Record>(this.memoryManager, this.ioManager, 
+			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
 					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
 					(double)64/78, 10, 2, 0.9f, false);
 	
@@ -178,26 +169,22 @@ public class ExternalSortITCase {
 			LOG.debug("Reading and sorting data...");
 	
 			// check order
-			MutableObjectIterator<Record> iterator = merger.getIterator();
+			MutableObjectIterator<Tuple2<Integer, String>> iterator = merger.getIterator();
 			
 			LOG.debug("Checking results...");
 			int pairsEmitted = 1;
 	
-			Record rec1 = new Record();
-			Record rec2 = new Record();
+			Tuple2<Integer, String> rec1 = new Tuple2<>();
+			Tuple2<Integer, String> rec2 = new Tuple2<>();
 			
 			Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
 			while ((rec2 = iterator.next(rec2)) != null) {
-				final Key k1 = rec1.getField(0, TestData.Key.class);
-				final Key k2 = rec2.getField(0, TestData.Key.class);
 				pairsEmitted++;
 				
-				Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
-				
-				Record tmp = rec1;
+				Assert.assertTrue(keyComparator.compare(rec1.f0, rec2.f0) <= 0);
+
+				Tuple2<Integer, String> tmp = rec1;
 				rec1 = rec2;
-				k1.setKey(k2.getKey());
-				
 				rec2 = tmp;
 			}
 			Assert.assertTrue(NUM_PAIRS == pairsEmitted);
@@ -215,15 +202,15 @@ public class ExternalSortITCase {
 	public void testSpillingSort() {
 		try {
 			// comparator
-			final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
+			final TypeComparator<Integer> keyComparator = new IntComparator(true);
 			
-			final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
-			final MutableObjectIterator<Record> source = new TestData.GeneratorIterator(generator, NUM_PAIRS);
+			final TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+			final MutableObjectIterator<Tuple2<Integer, String>> source = new TestData.TupleGeneratorIterator(generator, NUM_PAIRS);
 	
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			
-			Sorter<Record> merger = new UnilateralSortMerger<Record>(this.memoryManager, this.ioManager, 
+			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
 					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
 					(double)16/78, 64, 0.7f, true);
 	
@@ -231,26 +218,22 @@ public class ExternalSortITCase {
 			LOG.debug("Reading and sorting data...");
 	
 			// check order
-			MutableObjectIterator<Record> iterator = merger.getIterator();
+			MutableObjectIterator<Tuple2<Integer, String>> iterator = merger.getIterator();
 			
 			LOG.debug("Checking results...");
 			int pairsEmitted = 1;
 	
-			Record rec1 = new Record();
-			Record rec2 = new Record();
+			Tuple2<Integer, String> rec1 = new Tuple2<>();
+			Tuple2<Integer, String> rec2 = new Tuple2<>();
 			
 			Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
 			while ((rec2 = iterator.next(rec2)) != null) {
-				final Key k1 = rec1.getField(0, TestData.Key.class);
-				final Key k2 = rec2.getField(0, TestData.Key.class);
 				pairsEmitted++;
 				
-				Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
-				
-				Record tmp = rec1;
+				Assert.assertTrue(keyComparator.compare(rec1.f0, rec2.f0) <= 0);
+
+				Tuple2<Integer, String> tmp = rec1;
 				rec1 = rec2;
-				k1.setKey(k2.getKey());
-				
 				rec2 = tmp;
 			}
 			Assert.assertTrue(NUM_PAIRS == pairsEmitted);
@@ -271,15 +254,15 @@ public class ExternalSortITCase {
 			final int PAIRS = 10000000;
 	
 			// comparator
-			final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
+			final TypeComparator<Integer> keyComparator = new IntComparator(true);
 	
-			final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
-			final MutableObjectIterator<Record> source = new TestData.GeneratorIterator(generator, PAIRS);
+			final TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
+			final MutableObjectIterator<Tuple2<Integer, String>> source = new TestData.TupleGeneratorIterator(generator, PAIRS);
 			
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			
-			Sorter<Record> merger = new UnilateralSortMerger<Record>(this.memoryManager, this.ioManager, 
+			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
 					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
 					(double)64/78, 16, 0.7f, false);
 			
@@ -287,26 +270,23 @@ public class ExternalSortITCase {
 			LOG.debug("Emitting data...");
 	
 			// check order
-			MutableObjectIterator<Record> iterator = merger.getIterator();
+			MutableObjectIterator<Tuple2<Integer, String>> iterator = merger.getIterator();
 			
 			LOG.debug("Checking results...");
 			int pairsRead = 1;
 			int nextStep = PAIRS / 20;
 	
-			Record rec1 = new Record();
-			Record rec2 = new Record();
+			Tuple2<Integer, String> rec1 = new Tuple2<>();
+			Tuple2<Integer, String> rec2 = new Tuple2<>();
 			
 			Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
 			while ((rec2 = iterator.next(rec2)) != null) {
-				final Key k1 = rec1.getField(0, TestData.Key.class);
-				final Key k2 = rec2.getField(0, TestData.Key.class);
 				pairsRead++;
 				
-				Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
-				
-				Record tmp = rec1;
+				Assert.assertTrue(keyComparator.compare(rec1.f0, rec2.f0) <= 0);
+
+				Tuple2<Integer, String> tmp = rec1;
 				rec1 = rec2;
-				k1.setKey(k2.getKey());
 				rec2 = tmp;
 				
 				// log
@@ -335,7 +315,7 @@ public class ExternalSortITCase {
 			final RandomIntPairGenerator generator = new RandomIntPairGenerator(12345678, PAIRS);
 			
 			final TypeSerializerFactory<IntPair> serializerFactory = new IntPairSerializer.IntPairSerializerFactory();
-			final TypeComparator<IntPair> comparator = new IntPairComparator();
+			final TypeComparator<IntPair> comparator = new TestData.IntPairComparator();
 			
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");

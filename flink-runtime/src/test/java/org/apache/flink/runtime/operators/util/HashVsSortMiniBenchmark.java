@@ -18,13 +18,12 @@
 
 package org.apache.flink.runtime.operators.util;
 
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
-import org.apache.flink.api.common.typeutils.record.RecordComparator;
-import org.apache.flink.api.common.typeutils.record.RecordPairComparator;
-import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
-import org.apache.flink.api.java.record.functions.JoinFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -37,10 +36,8 @@ import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator.KeyMode;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator.ValueMode;
-import org.apache.flink.types.Record;
+import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
+import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
@@ -78,21 +75,21 @@ public class HashVsSortMiniBenchmark {
 	private IOManager ioManager;
 	private MemoryManager memoryManager;
 	
-	private TypeSerializerFactory<Record> serializer1;
-	private TypeSerializerFactory<Record> serializer2;
-	private TypeComparator<Record> comparator1;
-	private TypeComparator<Record> comparator2;
-	private TypePairComparator<Record, Record> pairComparator11;
+	private TypeSerializerFactory<Tuple2<Integer, String>> serializer1;
+	private TypeSerializerFactory<Tuple2<Integer, String>> serializer2;
+	private TypeComparator<Tuple2<Integer, String>> comparator1;
+	private TypeComparator<Tuple2<Integer, String>> comparator2;
+	private TypePairComparator<Tuple2<Integer, String>, Tuple2<Integer, String>> pairComparator11;
 
 
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		this.serializer1 = RecordSerializerFactory.get();
-		this.serializer2 = RecordSerializerFactory.get();
-		this.comparator1 = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
-		this.comparator2 = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
-		this.pairComparator11 = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class});
+		this.serializer1 = TestData.getIntStringTupleSerializerFactory();
+		this.serializer2 = TestData.getIntStringTupleSerializerFactory();
+		this.comparator1 = TestData.getIntStringTupleComparator();
+		this.comparator2 = TestData.getIntStringTupleComparator();
+		this.pairComparator11 = new GenericPairComparator(this.comparator1, this.comparator2);
 		
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 		this.ioManager = new IOManagerAsync();
@@ -120,31 +117,31 @@ public class HashVsSortMiniBenchmark {
 	public void testSortBothMerge() {
 		try {
 			
-			Generator generator1 = new Generator(SEED1, INPUT_1_SIZE / 10, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-			Generator generator2 = new Generator(SEED2, INPUT_2_SIZE, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+			TestData.TupleGenerator generator1 = new TestData.TupleGenerator(SEED1, INPUT_1_SIZE / 10, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+			TestData.TupleGenerator generator2 = new TestData.TupleGenerator(SEED2, INPUT_2_SIZE, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 
-			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
-			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
+			final TestData.TupleGeneratorIterator input1 = new TestData.TupleGeneratorIterator(generator1, INPUT_1_SIZE);
+			final TestData.TupleGeneratorIterator input2 = new TestData.TupleGeneratorIterator(generator2, INPUT_2_SIZE);
 			
-			final JoinFunction matcher = new NoOpMatcher();
-			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
+			final FlatJoinFunction matcher = new NoOpMatcher();
+			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 			
 			long start = System.nanoTime();
 			
-			final UnilateralSortMerger<Record> sorter1 = new UnilateralSortMerger<Record>(
+			final UnilateralSortMerger<Tuple2<Integer, String>> sorter1 = new UnilateralSortMerger<>(
 					this.memoryManager, this.ioManager, input1, this.parentTask, this.serializer1, 
 					this.comparator1.duplicate(), MEMORY_FOR_SORTER, 128, 0.8f, true);
 			
-			final UnilateralSortMerger<Record> sorter2 = new UnilateralSortMerger<Record>(
+			final UnilateralSortMerger<Tuple2<Integer, String>> sorter2 = new UnilateralSortMerger<>(
 					this.memoryManager, this.ioManager, input2, this.parentTask, this.serializer2, 
 					this.comparator2.duplicate(), MEMORY_FOR_SORTER, 128, 0.8f, true);
 			
-			final MutableObjectIterator<Record> sortedInput1 = sorter1.getIterator();
-			final MutableObjectIterator<Record> sortedInput2 = sorter2.getIterator();
+			final MutableObjectIterator<Tuple2<Integer, String>> sortedInput1 = sorter1.getIterator();
+			final MutableObjectIterator<Tuple2<Integer, String>> sortedInput2 = sorter2.getIterator();
 			
 			// compare with iterator values
-			ReusingMergeInnerJoinIterator<Record, Record, Record> iterator =
-				new ReusingMergeInnerJoinIterator<Record, Record, Record>(sortedInput1, sortedInput2,
+			ReusingMergeInnerJoinIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
+				new ReusingMergeInnerJoinIterator<>(sortedInput1, sortedInput2,
 						this.serializer1.getSerializer(), this.comparator1, this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
 						this.memoryManager, this.ioManager, MEMORY_PAGES_FOR_MERGE, this.parentTask);
 			
@@ -170,21 +167,21 @@ public class HashVsSortMiniBenchmark {
 	@Test
 	public void testBuildFirst() {
 		try {
-			Generator generator1 = new Generator(SEED1, INPUT_1_SIZE / 10, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-			Generator generator2 = new Generator(SEED2, INPUT_2_SIZE, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+			TestData.TupleGenerator generator1 = new TestData.TupleGenerator(SEED1, INPUT_1_SIZE / 10, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+			TestData.TupleGenerator generator2 = new TestData.TupleGenerator(SEED2, INPUT_2_SIZE, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 			
-			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
-			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
+			final TestData.TupleGeneratorIterator input1 = new TestData.TupleGeneratorIterator(generator1, INPUT_1_SIZE);
+			final TestData.TupleGeneratorIterator input2 = new TestData.TupleGeneratorIterator(generator2, INPUT_2_SIZE);
 			
-			final JoinFunction matcher = new NoOpMatcher();
+			final FlatJoinFunction matcher = new NoOpMatcher();
 			
-			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
+			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 			
 			long start = System.nanoTime();
 			
 			// compare with iterator values
-			final ReusingBuildFirstHashMatchIterator<Record, Record, Record> iterator =
-					new ReusingBuildFirstHashMatchIterator<Record, Record, Record>(
+			final ReusingBuildFirstHashMatchIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
+					new ReusingBuildFirstHashMatchIterator<>(
 						input1, input2, this.serializer1.getSerializer(), this.comparator1, 
 							this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
 							this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE, true);
@@ -209,21 +206,21 @@ public class HashVsSortMiniBenchmark {
 	@Test
 	public void testBuildSecond() {
 		try {
-			Generator generator1 = new Generator(SEED1, INPUT_1_SIZE / 10, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-			Generator generator2 = new Generator(SEED2, INPUT_2_SIZE, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+			TestData.TupleGenerator generator1 = new TestData.TupleGenerator(SEED1, INPUT_1_SIZE / 10, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+			TestData.TupleGenerator generator2 = new TestData.TupleGenerator(SEED2, INPUT_2_SIZE, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 			
-			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
-			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
+			final TestData.TupleGeneratorIterator input1 = new TestData.TupleGeneratorIterator(generator1, INPUT_1_SIZE);
+			final TestData.TupleGeneratorIterator input2 = new TestData.TupleGeneratorIterator(generator2, INPUT_2_SIZE);
 			
-			final JoinFunction matcher = new NoOpMatcher();
+			final FlatJoinFunction matcher = new NoOpMatcher();
 			
-			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
+			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 			
 			long start = System.nanoTime();
 			
 			// compare with iterator values
-			ReusingBuildSecondHashMatchIterator<Record, Record, Record> iterator =
-					new ReusingBuildSecondHashMatchIterator<Record, Record, Record>(
+			ReusingBuildSecondHashMatchIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
+					new ReusingBuildSecondHashMatchIterator<>(
 						input1, input2, this.serializer1.getSerializer(), this.comparator1, 
 						this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
 						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE, true);
@@ -246,11 +243,11 @@ public class HashVsSortMiniBenchmark {
 	}
 	
 	
-	private static final class NoOpMatcher extends JoinFunction {
+	private static final class NoOpMatcher implements FlatJoinFunction<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void join(Record rec1, Record rec2, Collector<Record> out) throws Exception {
+		public void join(Tuple2<Integer, String> rec1, Tuple2<Integer, String> rec2, Collector<Tuple2<Integer, String>> out) throws Exception {
 		}
 	}
 }
