@@ -245,7 +245,6 @@ public class LargeRecordHandlerITCase {
 					channel, memMan, memory, out.getBytesInLatestSegment());
 			
 			for (int i = 0; i < NUM_RECORDS; i++) {
-				System.out.println(i);
 				in.seek(offsets.get(i));
 				Tuple3<Long, SomeVeryLongValue, Byte> next = serializer.deserialize(in);
 				
