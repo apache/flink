@@ -40,7 +40,6 @@ import org.apache.flink.configuration._
 import org.apache.flink.core.memory.{HybridMemorySegment, HeapMemorySegment, MemorySegmentFactory, MemoryType}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
-import org.apache.flink.runtime.memory.MemoryManager.HeapMemoryPool
 import org.apache.flink.runtime.messages.TaskMessages._
 import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages, StreamingMode}
@@ -395,7 +394,7 @@ class TaskManager(
                   FailTask(
                     executionID,
                     new Exception(
-                      "Failed to send ExecutionStateChange notification to JobManager"))
+                      "Failed to send ExecutionStateChange notification to JobManager", t))
                 )
               }(context.dispatcher)
             }
