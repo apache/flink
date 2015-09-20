@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.operators.sort;
 
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import org.apache.flink.api.common.ExecutionConfig;
 
 import org.junit.Assert;
 import org.slf4j.Logger;
@@ -30,9 +30,10 @@ import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
-import org.apache.flink.api.common.typeutils.record.RecordComparator;
-import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.typeutils.base.IntComparator;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -40,12 +41,11 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.runtime.operators.testutils.TestData.Key;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator.KeyMode;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator.ValueMode;
+import org.apache.flink.runtime.operators.testutils.TestData.MockTuple2Reader;
+import org.apache.flink.runtime.operators.testutils.TestData.MockTupleSerializerFactory;
+import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
+import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
@@ -72,9 +72,11 @@ public class CombiningUnilateralSortMergerITCase {
 
 	private MemoryManager memoryManager;
 
-	private TypeSerializerFactory<Record> serializerFactory;
+	private TypeSerializerFactory<Tuple2<Integer, String>> serializerFactory1;
+	private TypeSerializerFactory<Tuple2<Integer, Integer>> serializerFactory2;
 	
-	private TypeComparator<Record> comparator;
+	private TypeComparator<Tuple2<Integer, String>> comparator1;
+	private TypeComparator<Tuple2<Integer, Integer>> comparator2;
 
 	@SuppressWarnings("unchecked")
 	@Before
@@ -82,8 +84,12 @@ public class CombiningUnilateralSortMergerITCase {
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManagerAsync();
 		
-		this.serializerFactory = RecordSerializerFactory.get();
-		this.comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
+		this.serializerFactory1 = TestData.getTupleSerializerFactory();
+		this.comparator1 = TestData.getTupleComparator();
+
+		TupleTypeInfo<Tuple2<Integer, Integer>> typeInfo2 = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class);
+		this.serializerFactory2 = new MockTupleSerializerFactory(typeInfo2);
+		this.comparator2 = typeInfo2.createComparator(new int[]{0}, new boolean[]{true}, 0, new ExecutionConfig());
 	}
 
 	@After
@@ -107,32 +113,30 @@ public class CombiningUnilateralSortMergerITCase {
 		int noKeys = 100;
 		int noKeyCnt = 10000;
 
-		MockRecordReader reader = new MockRecordReader();
+		MockTuple2Reader<Tuple2<Integer, Integer>> reader = new MockTuple2Reader<>();
 
 		LOG.debug("initializing sortmerger");
 		
 		TestCountCombiner comb = new TestCountCombiner();
 		
-		Sorter<Record> merger = new CombiningUnilateralSortMerger<Record>(comb, 
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory, this.comparator,
+		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
+				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
 				0.25, 64, 0.7f, false);
 
-		final Record rec = new Record();
-		rec.setField(1, new IntValue(1));
-		final TestData.Key key = new TestData.Key();
+		final Tuple2<Integer, Integer> rec = new Tuple2<>();
+		rec.setField(1, 1);
 		
 		for (int i = 0; i < noKeyCnt; i++) {
 			for (int j = 0; j < noKeys; j++) {
-				key.setKey(j);
-				rec.setField(0, key);
+				rec.setField(j, 0);
 				reader.emit(rec);
 			}
 		}
 		reader.close();
 		
-		MutableObjectIterator<Record> iterator = merger.getIterator();
+		MutableObjectIterator<Tuple2<Integer, Integer>> iterator = merger.getIterator();
 
-		Iterator<Integer> result = getReducingIterator(iterator, serializerFactory.getSerializer(), comparator.duplicate());
+		Iterator<Integer> result = getReducingIterator(iterator, serializerFactory2.getSerializer(), comparator2.duplicate());
 		while (result.hasNext()) {
 			Assert.assertEquals(noKeyCnt, result.next().intValue());
 		}
@@ -148,32 +152,30 @@ public class CombiningUnilateralSortMergerITCase {
 		int noKeys = 100;
 		int noKeyCnt = 10000;
 
-		MockRecordReader reader = new MockRecordReader();
+		MockTuple2Reader<Tuple2<Integer, Integer>> reader = new MockTuple2Reader<>();
 
 		LOG.debug("initializing sortmerger");
 		
 		TestCountCombiner comb = new TestCountCombiner();
 		
-		Sorter<Record> merger = new CombiningUnilateralSortMerger<Record>(comb, 
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory, this.comparator,
+		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
+				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
 				0.01, 64, 0.005f, true);
 
-		final Record rec = new Record();
-		rec.setField(1, new IntValue(1));
-		final TestData.Key key = new TestData.Key();
+		final Tuple2<Integer, Integer> rec = new Tuple2<>();
+		rec.setField(1, 1);
 		
 		for (int i = 0; i < noKeyCnt; i++) {
 			for (int j = 0; j < noKeys; j++) {
-				key.setKey(j);
-				rec.setField(0, key);
+				rec.setField(j, 0);
 				reader.emit(rec);
 			}
 		}
 		reader.close();
 		
-		MutableObjectIterator<Record> iterator = merger.getIterator();
+		MutableObjectIterator<Tuple2<Integer, Integer>> iterator = merger.getIterator();
 
-		Iterator<Integer> result = getReducingIterator(iterator, serializerFactory.getSerializer(), comparator.duplicate());
+		Iterator<Integer> result = getReducingIterator(iterator, serializerFactory2.getSerializer(), comparator2.duplicate());
 		while (result.hasNext()) {
 			Assert.assertEquals(noKeyCnt, result.next().intValue());
 		}
@@ -187,65 +189,60 @@ public class CombiningUnilateralSortMergerITCase {
 	@Test
 	public void testSortAndValidate() throws Exception
 	{
-		final Hashtable<TestData.Key, Integer> countTable = new Hashtable<TestData.Key, Integer>(KEY_MAX);
+		final Hashtable<Integer, Integer> countTable = new Hashtable<>(KEY_MAX);
 		for (int i = 1; i <= KEY_MAX; i++) {
-			countTable.put(new TestData.Key(i), 0);
+			countTable.put(i, 0);
 		}
 
 		// comparator
-		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
+		final TypeComparator<Integer> keyComparator = new IntComparator(true);
 
 		// reader
-		MockRecordReader reader = new MockRecordReader();
+		MockTuple2Reader<Tuple2<Integer, String>> reader = new MockTuple2Reader<>();
 
 		// merge iterator
 		LOG.debug("initializing sortmerger");
 		
 		TestCountCombiner2 comb = new TestCountCombiner2();
 		
-		Sorter<Record> merger = new CombiningUnilateralSortMerger<Record>(comb, 
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory, this.comparator,
+		Sorter<Tuple2<Integer, String>> merger = new CombiningUnilateralSortMerger<>(comb,
+				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory1, this.comparator1,
 				0.25, 2, 0.7f, false);
 
 		// emit data
 		LOG.debug("emitting data");
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
-		Record rec = new Record();
-		final TestData.Value value = new TestData.Value("1");
+		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
+		Tuple2<Integer, String> rec = new Tuple2<>();
 		
 		for (int i = 0; i < NUM_PAIRS; i++) {
 			Assert.assertTrue((rec = generator.next(rec)) != null);
-			final TestData.Key key = rec.getField(0, TestData.Key.class);
-			rec.setField(1, value);
+			final Integer key = rec.f0;
+			rec.setField("1", 1);
 			reader.emit(rec);
 			
-			countTable.put(new TestData.Key(key.getKey()), countTable.get(key) + 1);
+			countTable.put(key, countTable.get(key) + 1);
 		}
 		reader.close();
-		rec = null;
 
 		// check order
-		MutableObjectIterator<Record> iterator = merger.getIterator();
+		MutableObjectIterator<Tuple2<Integer, String>> iterator = merger.getIterator();
 		
 		LOG.debug("checking results");
 		
-		Record rec1 = new Record();
-		Record rec2 = new Record();
+		Tuple2<Integer, String> rec1 = new Tuple2<>();
+		Tuple2<Integer, String> rec2 = new Tuple2<>();
 		
 		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
-		countTable.put(new TestData.Key(rec1.getField(0, TestData.Key.class).getKey()), countTable.get(rec1.getField(0, TestData.Key.class)) - (Integer.parseInt(rec1.getField(1, TestData.Value.class).toString())));
+		countTable.put(rec1.f0, countTable.get(rec1.f0) - (Integer.parseInt(rec1.f1)));
 
 		while ((rec2 = iterator.next(rec2)) != null) {
-			final Key k1 = rec1.getField(0, TestData.Key.class);
-			final Key k2 = rec2.getField(0, TestData.Key.class);
+			int k1 = rec1.f0;
+			int k2 = rec2.f0;
 			
 			Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
-			countTable.put(new TestData.Key(k2.getKey()), countTable.get(k2) - (Integer.parseInt(rec2.getField(1, TestData.Value.class).toString())));
+			countTable.put(k2, countTable.get(k2) - (Integer.parseInt(rec2.f1)));
 			
-			Record tmp = rec1;
 			rec1 = rec2;
-			k1.setKey(k2.getKey());
-			rec2 = tmp;
 		}
 
 		for (Integer cnt : countTable.values()) {
@@ -260,10 +257,10 @@ public class CombiningUnilateralSortMergerITCase {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public static class TestCountCombiner extends RichGroupReduceFunction<Record, Record> {
+	public static class TestCountCombiner extends RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
 		
-		private final IntValue count = new IntValue();
+		private Integer count = 0;
 		
 		public volatile boolean opened = false;
 		
@@ -271,21 +268,21 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		
 		@Override
-		public void combine(Iterable<Record> values, Collector<Record> out) {
-			Record rec = null;
+		public void combine(Iterable<Tuple2<Integer, Integer>> values, Collector<Tuple2<Integer, Integer>> out) {
+			Tuple2<Integer, Integer> rec = new Tuple2<>();
 			int cnt = 0;
-			for (Record next : values) {
+			for (Tuple2<Integer, Integer> next : values) {
 				rec = next;
-				cnt += rec.getField(1, IntValue.class).getValue();
+				cnt += rec.f1;
 			}
 			
-			this.count.setValue(cnt);
-			rec.setField(1, this.count);
+			this.count = cnt;
+			rec.setField(this.count, 1);
 			out.collect(rec);
 		}
 
 		@Override
-		public void reduce(Iterable<Record> values, Collector<Record> out) {}
+		public void reduce(Iterable<Tuple2<Integer, Integer>> values, Collector<Tuple2<Integer, Integer>> out) {}
 		
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -298,7 +295,7 @@ public class CombiningUnilateralSortMergerITCase {
 		}
 	}
 
-	public static class TestCountCombiner2 extends RichGroupReduceFunction<Record, Record> {
+	public static class TestCountCombiner2 extends RichGroupReduceFunction<Tuple2<Integer, String>, Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;
 		
 		public volatile boolean opened = false;
@@ -306,19 +303,19 @@ public class CombiningUnilateralSortMergerITCase {
 		public volatile boolean closed = false;
 		
 		@Override
-		public void combine(Iterable<Record> values, Collector<Record> out) {
-			Record rec = null;
+		public void combine(Iterable<Tuple2<Integer, String>> values, Collector<Tuple2<Integer, String>> out) {
+			Tuple2<Integer, String> rec = new Tuple2<>();
 			int cnt = 0;
-			for (Record next : values) {
+			for (Tuple2<Integer, String> next : values) {
 				rec = next;
-				cnt += Integer.parseInt(rec.getField(1, TestData.Value.class).toString());
+				cnt += Integer.parseInt(rec.f1);
 			}
 
-			out.collect(new Record(rec.getField(0, Key.class), new TestData.Value(cnt + "")));
+			out.collect(new Tuple2(rec.f0, cnt + ""));
 		}
 
 		@Override
-		public void reduce(Iterable<Record> values, Collector<Record> out) {
+		public void reduce(Iterable<Tuple2<Integer, String>> values, Collector<Tuple2<Integer, String>> out) {
 			// yo, nothing, mon
 		}
 		
@@ -333,9 +330,9 @@ public class CombiningUnilateralSortMergerITCase {
 		}
 	}
 	
-	private static Iterator<Integer> getReducingIterator(MutableObjectIterator<Record> data, TypeSerializer<Record> serializer, TypeComparator<Record> comparator) {
+	private static Iterator<Integer> getReducingIterator(MutableObjectIterator<Tuple2<Integer, Integer>> data, TypeSerializer<Tuple2<Integer, Integer>> serializer, TypeComparator<Tuple2<Integer, Integer>>  comparator) {
 		
-		final ReusingKeyGroupedIterator<Record> groupIter = new ReusingKeyGroupedIterator<Record>(data, serializer, comparator);
+		final ReusingKeyGroupedIterator<Tuple2<Integer, Integer>>  groupIter = new ReusingKeyGroupedIterator<> (data, serializer, comparator);
 		
 		return new Iterator<Integer>() {
 			
@@ -360,13 +357,13 @@ public class CombiningUnilateralSortMergerITCase {
 				if (hasNext()) {
 					hasNext = false;
 					
-					Iterator<Record> values = groupIter.getValues();
+					Iterator<Tuple2<Integer, Integer>> values = groupIter.getValues();
 					
-					Record rec = null;
+					Tuple2<Integer, Integer> rec;
 					int cnt = 0;
 					while (values.hasNext()) {
 						rec = values.next();
-						cnt += rec.getField(1, IntValue.class).getValue();
+						cnt += rec.f1;
 					}
 					
 					return cnt;

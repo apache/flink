@@ -18,10 +18,24 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.common.typeutils.base.IntComparator;
+import org.apache.flink.api.java.tuple.Tuple;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
@@ -529,6 +543,249 @@ public final class TestData {
 
 		public void reset() {
 			this.pos = 0;
+		}
+	}
+	
+	private static TupleTypeInfo<Tuple2<Integer, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, String.class);
+	
+	private static TypeSerializerFactory<Tuple2<Integer, String>> serializerFactory = new MockTupleSerializerFactory(typeInfo);
+	
+	public static TupleTypeInfo<Tuple2<Integer, String>> getTupleTypeInfo() {
+		return typeInfo;
+	}
+
+	public static TypeSerializerFactory<Tuple2<Integer, String>> getTupleSerializerFactory() {
+		return serializerFactory;
+	}
+	
+	public static TypeSerializer<Tuple2<Integer, String>> getTupleSerializer(){
+		return serializerFactory.getSerializer();
+	}
+
+	public static TypeComparator<Tuple2<Integer, String>> getTupleComparator() {
+		return getTupleTypeInfo().createComparator(new int[]{0}, new boolean[]{true}, 0, null);
+	}
+
+	public static MutableObjectIterator<Tuple2<Integer, String>> getTupleReader() {
+		return new MockTuple2Reader<Tuple2<Integer, String>>();
+	}
+
+	public static class MockTupleSerializerFactory<T extends Tuple> implements TypeSerializerFactory<T> {
+		private final TupleTypeInfo<T> info;
+
+		public MockTupleSerializerFactory(TupleTypeInfo<T> info) {
+			this.info = info;
+		}
+
+		@Override
+		public void writeParametersToConfig(Configuration config) {
+			throw new UnsupportedOperationException("Not supported yet.");
+		}
+
+		@Override
+		public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException {
+			throw new UnsupportedOperationException("Not supported yet.");
+		}
+
+		@Override
+		public TypeSerializer<T> getSerializer() {
+			return info.createSerializer(null);
+		}
+
+		@Override
+		public Class<T> getDataType() {
+			return info.getTypeClass();
+		}
+	}
+
+	public static class MockTuple2Reader<T extends Tuple2> implements MutableObjectIterator<T> {
+		private final Tuple2 SENTINEL = new Tuple2();
+
+		private final BlockingQueue<Tuple2> queue;
+
+		public MockTuple2Reader() {
+			this.queue = new ArrayBlockingQueue<Tuple2>(32, false);
+		}
+
+		public MockTuple2Reader(int size) {
+			this.queue = new ArrayBlockingQueue<Tuple2>(size, false);
+		}
+
+		@Override
+		public T next(T reuse) {
+			Tuple2 r = null;
+			while (r == null) {
+				try {
+					r = queue.take();
+				} catch (InterruptedException iex) {
+					throw new RuntimeException("Reader was interrupted.");
+				}
+			}
+
+			if (r.equals(SENTINEL)) {
+				// put the sentinel back, to ensure that repeated calls do not block
+				try {
+					queue.put(r);
+				} catch (InterruptedException e) {
+					throw new RuntimeException("Reader was interrupted.");
+				}
+				return null;
+			} else {
+				reuse.setField(r.getField(0), 0);
+				reuse.setField(r.getField(1), 1);
+				return reuse;
+			}
+		}
+
+		@Override
+		public T next() {
+			Tuple2 r = null;
+			while (r == null) {
+				try {
+					r = queue.take();
+				} catch (InterruptedException iex) {
+					throw new RuntimeException("Reader was interrupted.");
+				}
+			}
+
+			if (r.equals(SENTINEL)) {
+				// put the sentinel back, to ensure that repeated calls do not block
+				try {
+					queue.put(r);
+				} catch (InterruptedException e) {
+					throw new RuntimeException("Reader was interrupted.");
+				}
+				return null;
+			} else {
+				Tuple2 result = new Tuple2(r.f0, r.f1);
+				return (T) result;
+			}
+		}
+
+		public void emit(Tuple2 element) throws InterruptedException {
+			queue.put(new Tuple2(element.f0, element.f1));
+		}
+
+		public void close() {
+			try {
+				queue.put(SENTINEL);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
+	
+	public static class IntPairComparator extends TypeComparator<IntPair> {
+
+		private static final long serialVersionUID = 1L;
+
+		private int reference;
+
+		private final TypeComparator[] comparators = new TypeComparator[]{new IntComparator(true)};
+
+		@Override
+		public int hash(IntPair object) {
+			return comparators[0].hash(object.getKey());
+		}
+
+		@Override
+		public void setReference(IntPair toCompare) {
+			this.reference = toCompare.getKey();
+		}
+
+		@Override
+		public boolean equalToReference(IntPair candidate) {
+			return candidate.getKey() == this.reference;
+		}
+
+		@Override
+		public int compareToReference(TypeComparator<IntPair> referencedAccessors) {
+			final IntPairComparator comp = (IntPairComparator) referencedAccessors;
+			return comp.reference - this.reference;
+		}
+
+		@Override
+		public int compare(IntPair first, IntPair second) {
+			return first.getKey() - second.getKey();
+		}
+
+		@Override
+		public int compareSerialized(DataInputView source1, DataInputView source2) throws IOException {
+			return source1.readInt() - source2.readInt();
+		}
+
+		@Override
+		public boolean supportsNormalizedKey() {
+			return true;
+		}
+
+		@Override
+		public int getNormalizeKeyLen() {
+			return 4;
+		}
+
+		@Override
+		public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+			return keyBytes < 4;
+		}
+
+		@Override
+		public void putNormalizedKey(IntPair record, MemorySegment target, int offset, int len) {
+			// see IntValue for a documentation of the logic
+			final int value = record.getKey() - Integer.MIN_VALUE;
+
+			if (len == 4) {
+				target.putIntBigEndian(offset, value);
+			} else if (len <= 0) {
+			} else if (len < 4) {
+				for (int i = 0; len > 0; len--, i++) {
+					target.put(offset + i, (byte) ((value >>> ((3 - i) << 3)) & 0xff));
+				}
+			} else {
+				target.putIntBigEndian(offset, value);
+				for (int i = 4; i < len; i++) {
+					target.put(offset + i, (byte) 0);
+				}
+			}
+		}
+
+		@Override
+		public boolean invertNormalizedKey() {
+			return false;
+		}
+
+		@Override
+		public IntPairComparator duplicate() {
+			return new IntPairComparator();
+		}
+
+		@Override
+		public int extractKeys(Object record, Object[] target, int index) {
+			target[index] = ((IntPair) record).getKey();
+			return 1;
+		}
+
+		@Override
+		public TypeComparator[] getFlatComparators() {
+			return comparators;
+		}
+
+		@Override
+		public boolean supportsSerializationWithKeyNormalization() {
+			return true;
+		}
+
+		@Override
+		public void writeWithKeyNormalization(IntPair record, DataOutputView target) throws IOException {
+			target.writeInt(record.getKey() - Integer.MIN_VALUE);
+			target.writeInt(record.getValue());
+		}
+
+		@Override
+		public IntPair readWithKeyDenormalization(IntPair reuse, DataInputView source) throws IOException {
+			reuse.setKey(source.readInt() + Integer.MIN_VALUE);
+			reuse.setValue(source.readInt());
+			return reuse;
 		}
 	}
 }

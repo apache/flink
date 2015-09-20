@@ -28,14 +28,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.typeutils.GenericPairComparator;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
-import org.apache.flink.api.common.typeutils.record.RecordPairComparator;
 import org.apache.flink.api.common.typeutils.record.RecordSerializer;
-import org.apache.flink.api.java.record.functions.JoinFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -52,10 +53,9 @@ import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator;
 import org.apache.flink.runtime.operators.testutils.TestData.Key;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator.KeyMode;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator.ValueMode;
+import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
+import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
@@ -85,10 +85,10 @@ public class ReusingReOpenableHashTableITCase {
 	private IOManager ioManager;
 	private MemoryManager memoryManager;
 	
-	private TypeSerializer<Record> recordSerializer;
-	private TypeComparator<Record> record1Comparator;
-	private TypeComparator<Record> record2Comparator;
-	private TypePairComparator<Record, Record> recordPairComparator;
+	private TypeSerializer<Tuple2<Integer, String>> recordSerializer;
+	private TypeComparator<Tuple2<Integer, String>> record1Comparator;
+	private TypeComparator<Tuple2<Integer, String>> record2Comparator;
+	private TypePairComparator<Tuple2<Integer, String>, Tuple2<Integer, String>> recordPairComparator;
 	
 	
 	
@@ -103,11 +103,11 @@ public class ReusingReOpenableHashTableITCase {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Before
 	public void beforeTest() {
-		this.recordSerializer = RecordSerializer.get();
+		this.recordSerializer = TestData.getTupleSerializer();
 		
-		this.record1Comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
-		this.record2Comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
-		this.recordPairComparator = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class});
+		this.record1Comparator = TestData.getTupleComparator();
+		this.record2Comparator = TestData.getTupleComparator();
+		this.recordPairComparator = new GenericPairComparator(this.record1Comparator, this.record2Comparator);
 		
 		
 		final int[] keyPos = new int[] {0};
@@ -152,11 +152,11 @@ public class ReusingReOpenableHashTableITCase {
 		int buildSize = 1000;
 		int probeSize = 1000;
 		try {
-			Generator bgen = new Generator(SEED1, 200, 1024, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
-			Generator pgen = new Generator(SEED2, 0, 1024, KeyMode.SORTED, ValueMode.FIX_LENGTH);
+			TestData.TupleGenerator bgen = new TestData.TupleGenerator(SEED1, 200, 1024, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
+			TestData.TupleGenerator pgen = new TestData.TupleGenerator(SEED2, 0, 1024, KeyMode.SORTED, ValueMode.FIX_LENGTH);
 			
-			final TestData.GeneratorIterator buildInput = new TestData.GeneratorIterator(bgen, buildSize);
-			final TestData.GeneratorIterator probeInput = new TestData.GeneratorIterator(pgen, probeSize);
+			final TestData.TupleGeneratorIterator buildInput = new TestData.TupleGeneratorIterator(bgen, buildSize);
+			final TestData.TupleGeneratorIterator probeInput = new TestData.TupleGeneratorIterator(pgen, probeSize);
 			doTest(buildInput,probeInput, bgen, pgen);
 		}
 		catch (Exception e) {
@@ -174,11 +174,11 @@ public class ReusingReOpenableHashTableITCase {
 		int buildSize = 1000;
 		int probeSize = 1000;
 		try {
-			Generator bgen = new Generator(SEED1, 0, 1024, KeyMode.SORTED, ValueMode.FIX_LENGTH);
-			Generator pgen = new Generator(SEED2, 0, 1024, KeyMode.SORTED, ValueMode.FIX_LENGTH);
+			TestData.TupleGenerator bgen = new TestData.TupleGenerator(SEED1, 0, 1024, KeyMode.SORTED, ValueMode.FIX_LENGTH);
+			TestData.TupleGenerator pgen = new TestData.TupleGenerator(SEED2, 0, 1024, KeyMode.SORTED, ValueMode.FIX_LENGTH);
 			
-			final TestData.GeneratorIterator buildInput = new TestData.GeneratorIterator(bgen, buildSize);
-			final TestData.GeneratorIterator probeInput = new TestData.GeneratorIterator(pgen, probeSize);
+			final TestData.TupleGeneratorIterator buildInput = new TestData.TupleGeneratorIterator(bgen, buildSize);
+			final TestData.TupleGeneratorIterator probeInput = new TestData.TupleGeneratorIterator(pgen, probeSize);
 			doTest(buildInput,probeInput, bgen, pgen);
 		}
 		catch (Exception e) {
@@ -197,11 +197,11 @@ public class ReusingReOpenableHashTableITCase {
 		int buildSize = 1000;
 		int probeSize = 1000;
 		try {
-			Generator bgen = new Generator(SEED1, 0, 28, KeyMode.SORTED, ValueMode.FIX_LENGTH);
-			Generator pgen = new Generator(SEED2, 0, 28, KeyMode.SORTED, ValueMode.FIX_LENGTH);
+			TestData.TupleGenerator bgen = new TestData.TupleGenerator(SEED1, 0, 28, KeyMode.SORTED, ValueMode.FIX_LENGTH);
+			TestData.TupleGenerator pgen = new TestData.TupleGenerator(SEED2, 0, 28, KeyMode.SORTED, ValueMode.FIX_LENGTH);
 			
-			final TestData.GeneratorIterator buildInput = new TestData.GeneratorIterator(bgen, buildSize);
-			final TestData.GeneratorIterator probeInput = new TestData.GeneratorIterator(pgen, probeSize);
+			final TestData.TupleGeneratorIterator buildInput = new TestData.TupleGeneratorIterator(bgen, buildSize);
+			final TestData.TupleGeneratorIterator probeInput = new TestData.TupleGeneratorIterator(pgen, probeSize);
 			
 			doTest(buildInput,probeInput, bgen, pgen);
 		}
@@ -211,21 +211,21 @@ public class ReusingReOpenableHashTableITCase {
 		}
 	}
 	
-	private void doTest(TestData.GeneratorIterator buildInput, TestData.GeneratorIterator probeInput, Generator bgen, Generator pgen) throws Exception {
+	private void doTest(TestData.TupleGeneratorIterator buildInput, TestData.TupleGeneratorIterator probeInput, TestData.TupleGenerator bgen, TestData.TupleGenerator pgen) throws Exception {
 		// collect expected data
-		final Map<TestData.Key, Collection<RecordMatch>> expectedFirstMatchesMap = ReusingHashMatchIteratorITCase.matchRecordValues(ReusingHashMatchIteratorITCase.collectRecordData(buildInput), ReusingHashMatchIteratorITCase.collectRecordData(probeInput));
+		final Map<Integer, Collection<RecordMatch>> expectedFirstMatchesMap = ReusingHashMatchIteratorITCase.matchRecordValues(ReusingHashMatchIteratorITCase.collectRecordData(buildInput), ReusingHashMatchIteratorITCase.collectRecordData(probeInput));
 		
-		final List<Map<TestData.Key, Collection<RecordMatch>>> expectedNMatchesMapList = new ArrayList<Map<Key,Collection<RecordMatch>>>(NUM_PROBES);
-		final JoinFunction[] nMatcher = new RecordMatchRemovingJoin[NUM_PROBES];
+		final List<Map<Integer, Collection<RecordMatch>>> expectedNMatchesMapList = new ArrayList<>(NUM_PROBES);
+		final FlatJoinFunction[] nMatcher = new RecordMatchRemovingJoin[NUM_PROBES];
 		for(int i = 0; i < NUM_PROBES; i++) {
-			Map<TestData.Key, Collection<RecordMatch>> tmp;
+			Map<Integer, Collection<RecordMatch>> tmp;
 			expectedNMatchesMapList.add(tmp = deepCopy(expectedFirstMatchesMap));
 			nMatcher[i] = new RecordMatchRemovingJoin(tmp);
 		}
 		
-		final JoinFunction firstMatcher = new RecordMatchRemovingJoin(expectedFirstMatchesMap);
+		final FlatJoinFunction firstMatcher = new RecordMatchRemovingJoin(expectedFirstMatchesMap);
 		
-		final Collector<Record> collector = new DiscardingOutputCollector<Record>();
+		final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 
 		// reset the generators
 		bgen.reset();
@@ -234,8 +234,8 @@ public class ReusingReOpenableHashTableITCase {
 		probeInput.reset();
 
 		// compare with iterator values
-		ReusingBuildFirstReOpenableHashMatchIterator<Record, Record, Record> iterator =
-				new ReusingBuildFirstReOpenableHashMatchIterator<Record, Record, Record>(
+		ReusingBuildFirstReOpenableHashMatchIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
+				new ReusingBuildFirstReOpenableHashMatchIterator<>(
 						buildInput, probeInput, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
 					this.memoryManager, ioManager, this.parentTask, 1.0, true);
@@ -245,7 +245,7 @@ public class ReusingReOpenableHashTableITCase {
 		while (iterator.callWithNextKey(firstMatcher, collector));
 
 		// assert that each expected match was seen for the first input
-		for (Entry<TestData.Key, Collection<RecordMatch>> entry : expectedFirstMatchesMap.entrySet()) {
+		for (Entry<Integer, Collection<RecordMatch>> entry : expectedFirstMatchesMap.entrySet()) {
 			if (!entry.getValue().isEmpty()) {
 				Assert.fail("Collection for key " + entry.getKey() + " is not empty");
 			}
@@ -260,7 +260,7 @@ public class ReusingReOpenableHashTableITCase {
 			while (iterator.callWithNextKey(nMatcher[i], collector));
 			
 			// assert that each expected match was seen for the second input
-			for (Entry<TestData.Key, Collection<RecordMatch>> entry : expectedNMatchesMapList.get(i).entrySet()) {
+			for (Entry<Integer, Collection<RecordMatch>> entry : expectedNMatchesMapList.get(i).entrySet()) {
 				if (!entry.getValue().isEmpty()) {
 					Assert.fail("Collection for key " + entry.getKey() + " is not empty");
 				}
@@ -511,9 +511,9 @@ public class ReusingReOpenableHashTableITCase {
 	}
 	
 	
-	static Map<Key, Collection<RecordMatch>> deepCopy(Map<Key, Collection<RecordMatch>> expectedSecondMatchesMap) {
-		Map<Key, Collection<RecordMatch>> copy = new HashMap<Key, Collection<RecordMatch>>(expectedSecondMatchesMap.size());
-		for(Map.Entry<Key, Collection<RecordMatch>> entry : expectedSecondMatchesMap.entrySet()) {
+	static Map<Integer, Collection<RecordMatch>> deepCopy(Map<Integer, Collection<RecordMatch>> expectedSecondMatchesMap) {
+		Map<Integer, Collection<RecordMatch>> copy = new HashMap<>(expectedSecondMatchesMap.size());
+		for(Map.Entry<Integer, Collection<RecordMatch>> entry : expectedSecondMatchesMap.entrySet()) {
 			List<RecordMatch> matches = new ArrayList<RecordMatch>(entry.getValue().size());
 			for(RecordMatch m : entry.getValue()) {
 				matches.add(m);
