@@ -147,10 +147,15 @@ public class ByteValue implements NormalizableKey<ByteValue>, ResettableValue<By
 	public int getBinaryLength() {
 		return 1;
 	}
-	
+
 	@Override
 	public void copyTo(ByteValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public ByteValue copy() {
+		return new ByteValue(this.value);
 	}
 
 	@Override

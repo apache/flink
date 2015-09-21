@@ -110,9 +110,14 @@ public final class NullValue implements NormalizableKey<NullValue>, CopyableValu
 	public int getBinaryLength() {
 		return 1;
 	}
-	
+
 	@Override
 	public void copyTo(NullValue target) {
+	}
+
+	@Override
+	public NullValue copy() {
+		return NullValue.getInstance();
 	}
 
 	@Override

@@ -154,10 +154,15 @@ public class ShortValue implements NormalizableKey<ShortValue>, ResettableValue<
 	public int getBinaryLength() {
 		return 2;
 	}
-	
+
 	@Override
 	public void copyTo(ShortValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public ShortValue copy() {
+		return new ShortValue(this.value);
 	}
 
 	@Override

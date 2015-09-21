@@ -151,10 +151,15 @@ public class CharValue implements NormalizableKey<CharValue>, ResettableValue<Ch
 	public int getBinaryLength() {
 		return 2;
 	}
-	
+
 	@Override
 	public void copyTo(CharValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public CharValue copy() {
+		return new CharValue(this.value);
 	}
 
 	@Override

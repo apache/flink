@@ -121,10 +121,15 @@ public class FloatValue implements Key<FloatValue>, ResettableValue<FloatValue>,
 	public int getBinaryLength() {
 		return 4;
 	}
-	
+
 	@Override
 	public void copyTo(FloatValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public FloatValue copy() {
+		return new FloatValue(this.value);
 	}
 
 	@Override

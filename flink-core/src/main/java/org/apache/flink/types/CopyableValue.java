@@ -36,6 +36,8 @@ public interface CopyableValue<T> extends Value {
 	int getBinaryLength();
 	
 	void copyTo(T target);
-	
+
+	T copy();
+
 	void copy(DataInputView source, DataOutputView target) throws IOException;
 }
