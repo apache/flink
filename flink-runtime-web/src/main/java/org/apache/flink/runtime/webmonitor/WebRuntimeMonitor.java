@@ -55,6 +55,7 @@ import org.apache.flink.runtime.webmonitor.handlers.SubtaskExecutionAttemptAccum
 import org.apache.flink.runtime.webmonitor.handlers.SubtaskExecutionAttemptDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtasksAllAccumulatorsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtasksTimesHandler;
+import org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -182,7 +183,9 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/jobs/:jobid/exceptions", handler(new JobExceptionsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/accumulators", handler(new JobAccumulatorsHandler(currentGraphs)))
 
-			// this handler serves all the static contents
+			.GET("/task-managers", handler(new TaskManagersHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
+
+						// this handler serves all the static contents
 			.GET("/:*", new StaticFileServerHandler(webRootDir));
 	}
 
