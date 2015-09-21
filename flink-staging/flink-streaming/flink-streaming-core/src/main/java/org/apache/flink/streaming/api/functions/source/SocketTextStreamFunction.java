@@ -17,133 +17,130 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.ConnectException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketException;
+import org.apache.flink.runtime.util.IOUtils;
 
-import org.apache.flink.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SocketTextStreamFunction extends RichSourceFunction<String> {
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 
-	protected static final Logger LOG = LoggerFactory.getLogger(SocketTextStreamFunction.class);
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+/**
+ * A source function that reads strings from a socket. The source will read bytes from the socket stream
+ * and convert them to characters, each byte individually. When the delimiter character is received,
+ * the function will output the current string, and begin a new string.
+ * <p>
+ * The function strips trailing <i>carriage return</i> characters (\r) when the delimiter is the
+ * newline character (\n).
+ * <p>
+ * The function can be set to reconnect to the server socket in case that the stream is closed on the server side.
+ */
+public class SocketTextStreamFunction implements SourceFunction<String> {
 
 	private static final long serialVersionUID = 1L;
+	
+	private static final Logger LOG = LoggerFactory.getLogger(SocketTextStreamFunction.class);
 
-	private String hostname;
-	private int port;
-	private char delimiter;
-	private long maxRetry;
-	private boolean retryForever;
-	private Socket socket;
+	/** Default delay between successive connection attempts */
+	private static final int DEFAULT_CONNECTION_RETRY_SLEEP = 500;
+
+	/** Default connection timeout when connecting to the server socket (infinite) */
 	private static final int CONNECTION_TIMEOUT_TIME = 0;
-	static int CONNECTION_RETRY_SLEEP = 1000;
-	protected long retries;
+	
+	
+	private final String hostname;
+	private final int port;
+	private final char delimiter;
+	private final long maxNumRetries;
+	private final long delayBetweenRetries;
+	
+	private transient Socket currentSocket;
+	
+	private volatile boolean isRunning = true;
 
-	private volatile boolean isRunning;
-
-	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxRetry) {
-		this.hostname = hostname;
+	
+	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxNumRetries) {
+		this(hostname, port, delimiter, maxNumRetries, DEFAULT_CONNECTION_RETRY_SLEEP);
+	}
+	
+	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxNumRetries, long delayBetweenRetries) {
+		checkArgument(port > 0 && port < 65536, "port is out of range");
+		checkArgument(maxNumRetries >= -1, "maxNumRetries must be zero or larger (num retries), or -1 (infinite retries)");
+		checkArgument(delayBetweenRetries >= 0, "delayBetweenRetries must be zero or positive");
+		
+		this.hostname = checkNotNull(hostname, "hostname must not be null");
 		this.port = port;
 		this.delimiter = delimiter;
-		this.maxRetry = maxRetry;
-		this.retryForever = maxRetry < 0;
-	}
-
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		socket = new Socket();
-		socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
-		isRunning = true;
+		this.maxNumRetries = maxNumRetries;
+		this.delayBetweenRetries = delayBetweenRetries;
 	}
 
 	@Override
 	public void run(SourceContext<String> ctx) throws Exception {
-		streamFromSocket(ctx, socket);
-	}
+		final StringBuilder buffer = new StringBuilder();
+		long attempt = 0;
+		
+		while (isRunning) {
+			
+			try (Socket socket = new Socket()) {
+				currentSocket = socket;
+				
+				LOG.info("Connecting to server socket " + hostname + ':' + port);
+				socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
+				BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-	private void streamFromSocket(SourceContext<String> ctx, Socket socket) throws Exception {
-		try {
-			StringBuilder buffer = new StringBuilder();
-			BufferedReader reader = new BufferedReader(new InputStreamReader(
-					socket.getInputStream()));
-
-			while (isRunning) {
 				int data;
-				try {
-					data = reader.read();
-				} catch (SocketException e) {
-					if (!isRunning) {
-						break;
-					} else {
-						throw e;
+				while (isRunning && (data = reader.read()) != -1) {
+					// check if the string is complete
+					if (data != delimiter) {
+						buffer.append((char) data);
 					}
-				}
-
-				if (data == -1) {
-					socket.close();
-					boolean success = false;
-					retries = 0;
-					while ((retries < maxRetry  || retryForever) && !success) {
-						if (!retryForever) {
-							retries++;
+					else {
+						// truncate trailing carriage return
+						if (delimiter == '\n' && buffer.length() > 0 && buffer.charAt(buffer.length() - 1) == '\r') {
+							buffer.setLength(buffer.length() - 1);
 						}
-						LOG.warn("Lost connection to server socket. Retrying in "
-								+ (CONNECTION_RETRY_SLEEP / 1000) + " seconds...");
-						try {
-							socket = new Socket();
-							socket.connect(new InetSocketAddress(hostname, port),
-									CONNECTION_TIMEOUT_TIME);
-							success = true;
-						} catch (ConnectException ce) {
-							Thread.sleep(CONNECTION_RETRY_SLEEP);
-							socket.close();
-						}
+						ctx.collect(buffer.toString());
+						buffer.setLength(0);
 					}
-
-					if (success) {
-						LOG.info("Server socket is reconnected.");
-					} else {
-						LOG.error("Could not reconnect to server socket.");
-						break;
-					}
-					reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-					continue;
-				}
-
-				if (data == delimiter) {
-					ctx.collect(buffer.toString());
-					buffer = new StringBuilder();
-				} else if (data != '\r') { // ignore carriage return
-					buffer.append((char) data);
 				}
 			}
 
-			if (buffer.length() > 0) {
-				ctx.collect(buffer.toString());
+			// if we dropped out of this loop due to an EOF, sleep and retry
+			if (isRunning) {
+				attempt++;
+				if (maxNumRetries == -1 || attempt < maxNumRetries) {
+					LOG.warn("Lost connection to server socket. Retrying in " + delayBetweenRetries + " msecs...");
+					Thread.sleep(delayBetweenRetries);
+				}
+				else {
+					// this should probably be here, but some examples expect simple exists of the stream source
+					// throw new EOFException("Reached end of stream and reconnects are not enabled.");
+					break;
+				}
 			}
-		} finally {
-			socket.close();
+		}
+
+		// collect trailing data
+		if (buffer.length() > 0) {
+			ctx.collect(buffer.toString());
 		}
 	}
 
 	@Override
 	public void cancel() {
 		isRunning = false;
-		if (socket != null && !socket.isClosed()) {
-			try {
-				socket.close();
-			} catch (IOException e) {
-				if (LOG.isErrorEnabled()) {
-					LOG.error("Could not close open socket");
-				}
-			}
+		
+		// we need to close the socket as well, because the Thread.interrupt() function will
+		// not wake the thread in the socketStream.read() method when blocked.
+		Socket theSocket = this.currentSocket;
+		if (theSocket != null) {
+			IOUtils.closeSocket(theSocket);
 		}
 	}
 }

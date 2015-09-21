@@ -18,172 +18,332 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import java.io.DataOutputStream;
+import org.apache.commons.io.IOUtils;
+
+import org.apache.flink.streaming.api.watermark.Watermark;
+
+import org.junit.Test;
+
+import java.io.EOFException;
+import java.io.OutputStreamWriter;
+import java.net.ServerSocket;
 import java.net.Socket;
 
-import org.apache.flink.configuration.Configuration;
-import org.junit.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
-
-import static java.lang.Thread.sleep;
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.verify;
-
-import java.net.ServerSocket;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Tests for the {@link org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction}.
  */
-public class SocketTextStreamFunctionTest{
+public class SocketTextStreamFunctionTest {
 
-	final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
-	private final String host = "127.0.0.1";
-	private final SourceFunction.SourceContext<String> ctx = Mockito.mock(SourceFunction.SourceContext.class);
+	private static final String LOCALHOST = "127.0.0.1";
 
-	public SocketTextStreamFunctionTest() {
+
+	@Test
+	public void testSocketSourceSimpleOutput() throws Exception {
+		ServerSocket server = new ServerSocket(0);
+		Socket channel = null;
+		
+		try {
+			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), '\n', 0);
+	
+			SocketSourceThread runner = new SocketSourceThread(source, "test1", "check");
+			runner.start();
+	
+			channel = server.accept();
+			OutputStreamWriter writer = new OutputStreamWriter(channel.getOutputStream());
+			
+			writer.write("test1\n");
+			writer.write("check\n");
+			writer.flush();
+			runner.waitForNumElements(2);
+
+			runner.cancel();
+			runner.interrupt();
+			
+			runner.waitUntilDone();
+			
+			channel.close();
+		}
+		finally {
+			if (channel != null) {
+				IOUtils.closeQuietly(channel);
+			}
+			IOUtils.closeQuietly(server);
+		}
 	}
 
-	class SocketSource extends Thread {
+	@Test
+	public void testExitNoRetries() throws Exception {
+		ServerSocket server = new ServerSocket(0);
+		Socket channel = null;
 
-		SocketTextStreamFunction socketSource;
+		try {
+			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), '\n', 0);
 
-		public SocketSource(ServerSocket serverSo, int maxRetry) throws Exception {
-			this.socketSource =  new SocketTextStreamFunction(host, serverSo.getLocalPort(), '\n', maxRetry);
+			SocketSourceThread runner = new SocketSourceThread(source);
+			runner.start();
+
+			channel = server.accept();
+			channel.close();
+			
+			try {
+				runner.waitUntilDone();
+			}
+			catch (Exception e) {
+				assertTrue(e.getCause() instanceof EOFException);
+			}
+		}
+		finally {
+			if (channel != null) {
+				IOUtils.closeQuietly(channel);
+			}
+			IOUtils.closeQuietly(server);
+		}
+	}
+
+	@Test
+	public void testSocketSourceOutputWithRetries() throws Exception {
+		ServerSocket server = new ServerSocket(0);
+		Socket channel = null;
+
+		try {
+			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), '\n', 10, 100);
+
+			SocketSourceThread runner = new SocketSourceThread(source, "test1", "check");
+			runner.start();
+
+			// first connection: nothing
+			channel = server.accept();
+			channel.close();
+
+			// second connection: first string
+			channel = server.accept();
+			OutputStreamWriter writer = new OutputStreamWriter(channel.getOutputStream());
+			writer.write("test1\n");
+			writer.close();
+			channel.close();
+
+			// third connection: nothing
+			channel = server.accept();
+			channel.close();
+
+			// forth connection: second string
+			channel = server.accept();
+			writer = new OutputStreamWriter(channel.getOutputStream());
+			writer.write("check\n");
+			writer.flush();
+
+			runner.waitForNumElements(2);
+			runner.cancel();
+			runner.waitUntilDone();
+		}
+		finally {
+			if (channel != null) {
+				IOUtils.closeQuietly(channel);
+			}
+			IOUtils.closeQuietly(server);
+		}
+	}
+
+	@Test
+	public void testSocketSourceOutputInfiniteRetries() throws Exception {
+		ServerSocket server = new ServerSocket(0);
+		Socket channel = null;
+
+		try {
+			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), '\n', -1, 100);
+
+			SocketSourceThread runner = new SocketSourceThread(source, "test1", "check");
+			runner.start();
+
+			// first connection: nothing
+			channel = server.accept();
+			channel.close();
+
+			// second connection: first string
+			channel = server.accept();
+			OutputStreamWriter writer = new OutputStreamWriter(channel.getOutputStream());
+			writer.write("test1\n");
+			writer.close();
+			channel.close();
+
+			// third connection: nothing
+			channel = server.accept();
+			channel.close();
+
+			// forth connection: second string
+			channel = server.accept();
+			writer = new OutputStreamWriter(channel.getOutputStream());
+			writer.write("check\n");
+			writer.flush();
+
+			runner.waitForNumElements(2);
+			runner.cancel();
+			runner.waitUntilDone();
+		}
+		finally {
+			if (channel != null) {
+				IOUtils.closeQuietly(channel);
+			}
+			IOUtils.closeQuietly(server);
+		}
+	}
+
+	@Test
+	public void testSocketSourceOutputAcrossRetries() throws Exception {
+		ServerSocket server = new ServerSocket(0);
+		Socket channel = null;
+
+		try {
+			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), '\n', 10, 100);
+
+			SocketSourceThread runner = new SocketSourceThread(source, "test1", "check1", "check2");
+			runner.start();
+
+			// first connection: nothing
+			channel = server.accept();
+			channel.close();
+
+			// second connection: first string
+			channel = server.accept();
+			OutputStreamWriter writer = new OutputStreamWriter(channel.getOutputStream());
+			writer.write("te");
+			writer.close();
+			channel.close();
+
+			// third connection: nothing
+			channel = server.accept();
+			channel.close();
+
+			// forth connection: second string
+			channel = server.accept();
+			writer = new OutputStreamWriter(channel.getOutputStream());
+			writer.write("st1\n");
+			writer.write("check1\n");
+			writer.write("check2\n");
+			writer.flush();
+
+			runner.waitForNumElements(2);
+			runner.cancel();
+			runner.waitUntilDone();
+		}
+		finally {
+			if (channel != null) {
+				IOUtils.closeQuietly(channel);
+			}
+			IOUtils.closeQuietly(server);
+		}
+	}
+	
+	// ------------------------------------------------------------------------
+
+	private static class SocketSourceThread extends Thread {
+		
+		private final Object sync = new Object();
+		
+		private final SocketTextStreamFunction socketSource;
+		
+		private final String[] expectedData;
+		
+		private volatile Throwable error;
+		private volatile int numElementsReceived;
+		private volatile boolean canceled;
+		private volatile boolean done;
+		
+		public SocketSourceThread(SocketTextStreamFunction socketSource, String... expectedData) {
+			this.socketSource = socketSource;
+			this.expectedData = expectedData;
 		}
 
 		public void run() {
 			try {
-				this.socketSource.open(new Configuration());
-				this.socketSource.run(ctx);
-			}catch(Exception e){
-				error.set(e);
+				SourceFunction.SourceContext<String> ctx = new SourceFunction.SourceContext<String>() {
+					
+					private final Object lock = new Object();
+					
+					@Override
+					public void collect(String element) {
+						int pos = numElementsReceived;
+						
+						// make sure waiter know of us
+						synchronized (sync) {
+							numElementsReceived++;
+							sync.notifyAll();
+						}
+						
+						if (expectedData != null && expectedData.length > pos) {
+							assertEquals(expectedData[pos], element);
+						}
+					}
+
+					@Override
+					public void collectWithTimestamp(String element, long timestamp) {
+						collect(element);
+					}
+
+					@Override
+					public void emitWatermark(Watermark mark) {}
+
+					@Override
+					public Object getCheckpointLock() {
+						return lock;
+					}
+
+					@Override
+					public void close() {}
+				};
+				
+				socketSource.run(ctx);
+			}
+			catch (Throwable t) {
+				synchronized (sync) {
+					if (!canceled) {
+						error = t;
+					}
+					sync.notifyAll();
+				}
+			}
+			finally {
+				synchronized (sync) {
+					done = true;
+					sync.notifyAll();
+				}
+			}
+		}
+		
+		public void cancel() {
+			synchronized (sync) {
+				canceled = true;
+				socketSource.cancel();
+				interrupt();
 			}
 		}
 
-		public void cancel(){
-			this.socketSource.cancel();
-		}
-	}
+		public void waitForNumElements(int numElements) throws InterruptedException {
+			synchronized (sync) {
+				while (error == null && !canceled && !done && numElementsReceived < numElements) {
+					sync.wait();
+				}
 
-	@Test
-	public void testSocketSourceRetryForever() throws Exception{
-		error.set(null);
-		ServerSocket serverSo = new ServerSocket(0);
-		SocketSource source = new SocketSource(serverSo, -1);
-		source.start();
-
-		int count = 0;
-		Socket channel;
-		while (count < 100) {
-			channel = serverSo.accept();
-			count++;
-			channel.close();
-			assertEquals(0, source.socketSource.retries);
-		}
-		source.cancel();
-
-		if (error.get() != null) {
-			Throwable t = error.get();
-			t.printStackTrace();
-			fail("Error in spawned thread: " + t.getMessage());
+				if (error != null) {
+					throw new RuntimeException("Error in source thread", error);
+				}
+				if (canceled) {
+					throw new RuntimeException("canceled");
+				}
+				if (done) {
+					throw new RuntimeException("Exited cleanly before expected number of elements");
+				}
+			}
 		}
 
-		assertEquals(100, count);
-	}
+		public void waitUntilDone() throws InterruptedException {
+			join();
 
-	@Test
-	public void testSocketSourceRetryTenTimes() throws Exception{
-		error.set(null);
-		ServerSocket serverSo = new ServerSocket(0);
-		SocketSource source = new SocketSource(serverSo, 10);
-		source.socketSource.CONNECTION_RETRY_SLEEP = 200;
-
-		assertEquals(0, source.socketSource.retries);
-
-		source.start();
-
-		Socket channel;
-		channel = serverSo.accept();
-		channel.close();
-		serverSo.close();
-		while(source.socketSource.retries < 10){
-			long lastRetry = source.socketSource.retries;
-			sleep(100);
-			assertTrue(source.socketSource.retries >= lastRetry);
-		};
-		assertEquals(10, source.socketSource.retries);
-		source.cancel();
-
-		if (error.get() != null) {
-			Throwable t = error.get();
-			t.printStackTrace();
-			fail("Error in spawned thread: " + t.getMessage());
+			if (error != null) {
+				throw new RuntimeException("Error in source thread", error);
+			}
 		}
-
-		assertEquals(10, source.socketSource.retries);
-	}
-
-	@Test
-	public void testSocketSourceNeverRetry() throws Exception{
-		error.set(null);
-		ServerSocket serverSo = new ServerSocket(0);
-		SocketSource source = new SocketSource(serverSo, 0);
-		source.start();
-
-		Socket channel;
-		channel = serverSo.accept();
-		channel.close();
-		serverSo.close();
-		sleep(2000);
-		source.cancel();
-
-		if (error.get() != null) {
-			Throwable t = error.get();
-			t.printStackTrace();
-			fail("Error in spawned thread: " + t.getMessage());
-		}
-
-		assertEquals(0, source.socketSource.retries);
-	}
-
-	@Test
-	public void testSocketSourceRetryTenTimesWithFirstPass() throws Exception{
-		ArgumentCaptor<String> argument = ArgumentCaptor.forClass(String.class);
-
-		error.set(null);
-		ServerSocket serverSo = new ServerSocket(0);
-		SocketSource source = new SocketSource(serverSo, 10);
-		source.socketSource.CONNECTION_RETRY_SLEEP = 200;
-
-		assertEquals(0, source.socketSource.retries);
-
-		source.start();
-
-		Socket channel;
-		channel = serverSo.accept();
-		DataOutputStream dataOutputStream = new DataOutputStream(channel.getOutputStream());
-		dataOutputStream.write("testFirstSocketpass\n".getBytes());
-		channel.close();
-		serverSo.close();
-		while(source.socketSource.retries < 10){
-			long lastRetry = source.socketSource.retries;
-			sleep(100);
-			assertTrue(source.socketSource.retries >= lastRetry);
-		};
-		assertEquals(10, source.socketSource.retries);
-		source.cancel();
-
-		verify(ctx).collect(argument.capture());
-
-		if (error.get() != null) {
-			Throwable t = error.get();
-			t.printStackTrace();
-			fail("Error in spawned thread: " + t.getMessage());
-		}
-
-		assertEquals("testFirstSocketpass", argument.getValue());
-		assertEquals(10, source.socketSource.retries);
 	}
 }
