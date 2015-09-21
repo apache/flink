@@ -145,4 +145,11 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
       details:
         templateUrl: "partials/jobs/job.config.html"
 
+  .state "taskmanagers",
+    url: "/taskmanagers"
+    views:
+      main:
+        templateUrl: "partials/taskmanagers/index.html"
+        controller: 'TaskManagersController'
+
   $urlRouterProvider.otherwise "/overview"
