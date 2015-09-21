@@ -33,7 +33,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map
 
-/**
+/** TODO better description
  * While building the model different approaches need to be compared.
  * For that purpose the fitParameters are used. Every possibility that might enhance
  * the implementation can be chosen separately by using the following list of parameters:
@@ -72,16 +72,16 @@ class MultinomialNaiveBayes extends Predictor[MultinomialNaiveBayes] {
   import MultinomialNaiveBayes._
 
   //The model, that stores all needed information that are related to one specific word
-  var wordRelatedModelData: Option[DataSet[(String, String, Double)]] =
-    None // (class name -> word -> log P(w|c))
+  //(class name -> word -> log P(w|c))
+  var wordRelatedModelData: Option[DataSet[(String, String, Double)]] = None
 
-  //The model, that stores all needed information that are related to one specifc class+
-  var classRelatedModelData: Option[DataSet[(String, Double, Double)]] =
-    None // (class name -> p(c) -> log p(w|c) not in class)
+  //The model, that stores all needed information that are related to one specifc class
+  //(class name -> p(c) -> log p(w|c) not in class)
+  var classRelatedModelData: Option[DataSet[(String, Double, Double)]] = None
 
   //A data set that stores additional needed information for some of the improvements
-  var improvementData: Option[DataSet[(String, Double)]] =
-    None // (word -> log number of documents in all classes / word frequency in all classes
+  //(word -> log number of documents in all classes / word frequency in all classes
+  var improvementData: Option[DataSet[(String, Double)]] = None
 
   // ============================== Parameter configuration ========================================
 
@@ -143,8 +143,10 @@ class MultinomialNaiveBayes extends Predictor[MultinomialNaiveBayes] {
    * @param wordRelated, the data set representing the wordRelated model
    * @param classRelated, the data set representing the classRelated model
    */
-  def setModelDataSet(wordRelated : DataSet[(String, String, Double)],
-                      classRelated: DataSet[(String, Double, Double)]) : Unit = {
+  def setModelDataSet(
+      wordRelated : DataSet[(String, String, Double)],
+      classRelated: DataSet[(String, Double, Double)])
+    : Unit = {
     this.wordRelatedModelData = Some(wordRelated)
     this.classRelatedModelData = Some(classRelated)
   }
@@ -158,7 +160,7 @@ class MultinomialNaiveBayes extends Predictor[MultinomialNaiveBayes] {
 object MultinomialNaiveBayes {
 
   // ========================================== Parameters =========================================
-
+  // TODO code comments
   case object P1 extends Parameter[Int] {
     override val defaultValue: Option[Int] = Some(0)
   }
@@ -184,20 +186,17 @@ object MultinomialNaiveBayes {
   }
 
   // ======================================== Factory Methods ======================================
-
   def apply(): MultinomialNaiveBayes = {
     new MultinomialNaiveBayes()
   }
 
   // ====================================== Operations =============================================
-
   /**
    * Trains the models to fit the training data. The resulting
    * [[MultinomialNaiveBayes.wordRelatedModelData]] and
    * [[MultinomialNaiveBayes.classRelatedModelData]] are stored in the [[MultinomialNaiveBayes]]
    * instance.
    */
-
 
   implicit val fitNNB = new FitOperation[MultinomialNaiveBayes, (String, String)] {
     /**
@@ -208,9 +207,11 @@ object MultinomialNaiveBayes {
      * @param fitParameters, additional parameters
      * @param input, the to processed data set
      */
-    override def fit(instance: MultinomialNaiveBayes,
-                     fitParameters: ParameterMap,
-                     input: DataSet[(String, String)]): Unit = {
+    override def fit(
+        instance: MultinomialNaiveBayes,
+        fitParameters: ParameterMap,
+        input: DataSet[(String, String)])
+      : Unit = {
 
       val resultingParameters = instance.parameters ++ fitParameters
 
@@ -231,13 +232,11 @@ object MultinomialNaiveBayes {
       //SCHNEIDER/RENNIE 1: ignore/reduce word frequency information
         //the allWordsInClass data set does only contain distinct
         //words for schneiders approach: ndw(cj), nothing changes for rennies approach
-
       val p2 = resultingParameters(P2)
-
       val sr1 = resultingParameters(SR1)
 
-      var allWordsInClass: DataSet[(String, Int)] =
-        null // (class name -> count of all words in that class)
+      // (class name -> count of all words in that class)
+      var allWordsInClass: DataSet[(String, Int)] = null
 
       if (p2 == 0) {
         if (sr1 == 0 || sr1 == 2) {
@@ -267,7 +266,8 @@ object MultinomialNaiveBayes {
           //Count all the words for each class.
           // 1. Map: remove the field that contains the word
           // 2. Reduce: add the count for each word in a class together
-          allWordsInClass = singleWordsInClass.map(singleWords => (singleWords._1, singleWords._3))
+          allWordsInClass = singleWordsInClass
+            .map(singleWords => (singleWords._1, singleWords._3))
             .groupBy(0).reduce {
             (singleWords1, singleWords2) => (singleWords1._1, singleWords1._2 + singleWords2._2)
           } // (class name -> count of all words in that class)
@@ -275,20 +275,18 @@ object MultinomialNaiveBayes {
           //Count all distinct words for each class.
           // 1. Map: remove the field that contains the word, set the word count to 1
           // 2. Reduce: add the count for each word in a class together
-          allWordsInClass = singleWordsInClass.map(singleWords => (singleWords._1, 1))
+          allWordsInClass = singleWordsInClass
+            .map(singleWords => (singleWords._1, 1))
             .groupBy(0).reduce {
             (singleWords1, singleWords2) => (singleWords1._1, singleWords1._2 + singleWords2._2)
           } // (class name -> count of distinct words in that class)
         }
-
       }
-
       //END SCHNEIDER/RENNIE 1
       //END POSSIBILITY 2
 
       //POSSIBILITY 1: way of calculating document count
       val p1 = resultingParameters(P1)
-
       var pc: DataSet[(String, Double)] = null // (class name -> P(c) in class)
 
       if (p1 == 0) {
@@ -341,7 +339,6 @@ object MultinomialNaiveBayes {
       //SCHNEIDER/RENNIE 1: ignore/reduce word frequency information
         //The singleWordsInClass data set must be changed before, the calculation of pwc starts for
         //schneider, it needs this form classname -> word -> number of documents containing wt in cj
-
       if (sr1 == 1) {
         //Calculate the required data set (see above)
         // 1. FlatMap: class -> word -> 1 (one tuple for each document in which this word occurs)
@@ -352,38 +349,32 @@ object MultinomialNaiveBayes {
           .groupBy(0, 1)
           .reduce((line1, line2) => (line1._1, line1._2, line1._3 + line2._3))
       }
-
       //END SCHNEIDER/RENNIE 1
 
       //POSSIBILITY 3: way of calculating pwc
-
       val p3 = resultingParameters(P3)
-
       var pwc: DataSet[(String, String, Double)] = null // (class name -> word -> P(w|c))
 
       if (p3 == 0) {
-
           //Join the singleWordsInClass data set with the allWordsInClass data set to use the
           //information for the calculation of p(w|c).
           val wordsInClass = singleWordsInClass
             .join(allWordsInClass).where(0).equalTo(0) {
-            (single, all) => (single._1, single._2, single._3, all._2)
-          } // (class name -> word -> count of that word -> count of all words in that class)
+              (single, all) => (single._1, single._2, single._3, all._2)
+            } // (class name -> word -> count of that word -> count of all words in that class)
 
           //calculate the P(w|c) value for each word in each class
           // 1. Map: use normal P(w|c) formula
-          pwc = wordsInClass.map(line => (line._1, line._2, (line._3 + 1) /
-            (line._4 + vocabularyCount)))
+          pwc = wordsInClass
+            .map(line => (line._1, line._2, (line._3 + 1) / (line._4 + vocabularyCount)))
 
       } else if (p3 == 1) {
-
         //calculate the P(w|c) value for each word in class
         //  1. Map: use normal P(w|c) formula / use the
-        pwc = singleWordsInClass.map(new RichMapFunction[(String, String, Int),
-          (String, String, Double)] {
+        pwc = singleWordsInClass
+          .map(new RichMapFunction[(String, String, Int), (String, String, Double)] {
 
           var broadcastMap: mutable.Map[String, Int] = mutable.Map[String, Int]()
-
 
           override def open(config: Configuration): Unit = {
             val collection = getRuntimeContext
@@ -399,7 +390,6 @@ object MultinomialNaiveBayes {
         }).withBroadcastSet(allWordsInClass, "allWordsInClass")
 
       }
-
       //END POSSIBILITY 3
 
       //stores all the word related information in one data set
@@ -408,10 +398,11 @@ object MultinomialNaiveBayes {
 
       //store all class related information in one data set
       // 1. Join: P(c) data set and P(w|c) data set not in class and calculate logarithms
-      val classRelatedModelData = pc.join(pwcNotInClass)
+      val classRelatedModelData = pc
+        .join(pwcNotInClass)
         .where(0).equalTo(0) {
-        (line1, line2) => (line1._1, Math.log(line1._2), Math.log(line2._2))
-      } // (class name -> log(P(c)) -> log(P(w|c) not in class))
+          (line1, line2) => (line1._1, Math.log(line1._2), Math.log(line2._2))
+        } // (class name -> log(P(c)) -> log(P(w|c) not in class))
 
       instance.wordRelatedModelData = Some(wordRelatedModelData)
       instance.classRelatedModelData = Some(classRelatedModelData)
@@ -460,12 +451,16 @@ object MultinomialNaiveBayes {
   }
 
   // Model (String, String, Double, Double, Double)
-  implicit def predictNNB = new PredictDataSetOperation[MultinomialNaiveBayes,
-    (Int, String), (Int, String)]() {
+  implicit def predictNNB = new PredictDataSetOperation[
+      MultinomialNaiveBayes,
+      (Int, String),
+      (Int, String)]() {
 
-    override def predictDataSet(instance: MultinomialNaiveBayes,
-                                predictParameters: ParameterMap,
-                                input: DataSet[(Int, String)]): DataSet[(Int, String)] = {
+    override def predictDataSet(
+        instance: MultinomialNaiveBayes,
+        predictParameters: ParameterMap,
+        input: DataSet[(Int, String)])
+    : DataSet[(Int, String)] = {
 
       if (instance.wordRelatedModelData.isEmpty || instance.classRelatedModelData.isEmpty) {
         throw new RuntimeException("The NormalNaiveBayes has not been fitted to the " +
@@ -500,40 +495,6 @@ object MultinomialNaiveBayes {
         (wordR, wordsAC) => (wordsAC._1, wordR._1, wordsAC._2, wordsAC._3, wordR._3)
       }
 
-      /*
-      //generate a data set containing all words that are in model for each id, class pair
-      // 1. FlatMap: Broadcast instead of Join, because Join does not work with so many
-      // duplicate keys
-      val foundWords: DataSet[(Int, String, String, Int, Double)] = wordsAndCount
-        .flatMap(new RichFlatMapFunction[(Int, String, Int), (Int, String, String, Int, Double)] {
-
-        var broadcastMap: mutable.Map[String, (String, Double)] =
-          mutable.Map[String, (String, Double)]() //word -> (class -> log(P(w|c))
-
-        var multiMap: mutable.MultiMap[String, (String,Double)] =
-          mutable.MultiMap[String, (String, Double)]()
-
-        override def open(config: Configuration): Unit = {
-          val collection = getRuntimeContext
-            .getBroadcastVariable[(String, String, Double)]("wordRelatedModelData").asScala
-          for (record <- collection) {
-            broadcastMap.put(record._2, (record._1, record._3))
-          }
-        }
-
-        override def flatMap(value: (Int, String, Int),
-                             out: Collector[(Int, String, String, Int, Double)]): Unit = {
-          if (broadcastMap.contains(value._2)) {
-            val currentTuple = broadcastMap(value._2)
-            out.collect((value._1, currentTuple._1, value._2, value._3, currentTuple._2))
-          }
-        }
-      }).withBroadcastSet(wordRelatedModelData, "wordRelatedModelData")
-      // (id -> class -> word ->  word count -> log(P(w|c))
-
-      foundWords.writeAsText("/Users/jonathanhasenburg/Desktop/nbtemp/foundWords")
-      */
-
       //SCHNEIDER/RENNIE 1: ignore/reduce word frequency information
       //RENNIE 1: transform document frequency
 
@@ -563,20 +524,23 @@ object MultinomialNaiveBayes {
         // 2. Group-Reduce: on id and class, sum all (word count * log(P(w|c))) results
         sumPwcFoundWords = foundWords
           .map(line => (line._1, line._2, line._4 * line._5))
-          .groupBy(0, 1).reduce((line1, line2) =>
-          (line1._1, line1._2, line1._3 + line2._3)) //(id -> class -> sum(log(P(w|c))
+          .groupBy(0, 1)
+          .reduce((line1, line2) =>
+            (line1._1, line1._2, line1._3 + line2._3)) //(id -> class -> sum(log(P(w|c))
       } else if (sr1 == 1 && r1 == 0) {
         //same as sr1 == 0, but there is no multiplication with the word counts
         sumPwcFoundWords = foundWords
           .map(line => (line._1, line._2, line._5))
-          .groupBy(0, 1).reduce((line1, line2) =>
-          (line1._1, line1._2, line1._3 + line2._3)) //(id -> class -> sum(log(P(w|c))
+          .groupBy(0, 1)
+          .reduce((line1, line2) =>
+            (line1._1, line1._2, line1._3 + line2._3)) //(id -> class -> sum(log(P(w|c))
       } else if (sr1 == 2 && r1 == 0) {
         //same es sr1 == 0, but multiplication with log(wordcount + 1)
         sumPwcFoundWords = foundWords
           .map(line => (line._1, line._2, Math.log(line._4 + 1) * line._5))
-          .groupBy(0, 1).reduce((line1, line2) =>
-          (line1._1, line1._2, line1._3 + line2._3)) //(id -> class -> sum(log(P(w|c))
+          .groupBy(0, 1)
+          .reduce((line1, line2) =>
+            (line1._1, line1._2, line1._3 + line2._3)) //(id -> class -> sum(log(P(w|c))
       } else if (sr1 == 0 && r1 == 1) {
         //same as r1 = 0, but the word frequency is multiplied with with log (n_d(c) / n_d(w_t))
         //for that a join with the improvementData data set must be performed first to get the
@@ -585,16 +549,19 @@ object MultinomialNaiveBayes {
                                                             // word frequency in all classes)
         sumPwcFoundWords = foundWords
           .joinWithTiny(improvementData).where(2).equalTo(0) {
-          (found, imp) => (found._1, found._2, found._4 * found._5 * imp._2)
-          }.groupBy(0, 1).reduce((line1, line2) =>
-          (line1._1, line1._2, line1._3 + line2._3)) //(id -> class -> sum(log(P(w|c)) */
+            (found, imp) => (found._1, found._2, found._4 * found._5 * imp._2)
+          }
+          .groupBy(0, 1).reduce((line1, line2) =>
+            (line1._1, line1._2, line1._3 + line2._3)) //(id -> class -> sum(log(P(w|c)) */
       } else if (sr1 == 2 && r1 == 1) {
         //combination of r1 = 1 and sr1 =2
         sumPwcFoundWords = foundWords
           .joinWithTiny(improvementData).where(2).equalTo(0) {
-          (found, imp) => (found._1, found._2, Math.log(found._4 + 1) * found._5 * imp._2)
-        }.groupBy(0, 1).reduce((line1, line2) =>
-          (line1._1, line1._2, line1._3 + line2._3)) //(id -> class -> sum(log(P(w|c)) */
+            (found, imp) => (found._1, found._2, Math.log(found._4 + 1) * found._5 * imp._2)
+          }
+          .groupBy(0, 1)
+          .reduce((line1, line2) =>
+            (line1._1, line1._2, line1._3 + line2._3)) //(id -> class -> sum(log(P(w|c)) */
       }
 
       var sumPwcNotFoundWords: DataSet[(Int, String, Double)] = null
@@ -634,27 +601,26 @@ object MultinomialNaiveBayes {
         }).withBroadcastSet(classRelatedModelData, "classRelatedModelData")
 
       } else {
-        /** if the word frequency is changed (as in SR1 = 1, SR1 = 2, R1 = 1), the
-          * sumPwcNotFoundWords can not be calculated as above. They must be calculated the same way
-          * as for the sumPwcFoundWords data set (because each word frequency for each word is
-          * important).
-          *
-          * Prepare foundWords data set for differenz
-          * 1. Map: discard log(P(w|c) and wordCount from foundWords (id -> class -> word)
-          * = all words that are known in each document for each class
-          *
-          * Prepare wordsAndCounts data set for difference
-          * 1. FlatMap:create for every tuple a (document id -> class -> word -> word count)
-          *    tuple for every class
-          *
-          * Create notFoundWords data set
-          * 1: CoGroup: Only tuples (id, class, word) that are not in preparedFoundWords
-          *
-          * The result is a data set, that contains all words for each document for each class
-          * that are not part of that class and the word counts.
-          *
-          * Then calcualte sumPwcNotfoundWords
-          */
+        //If the word frequency is changed (as in SR1 = 1, SR1 = 2, R1 = 1), the
+        //sumPwcNotFoundWords can not be calculated as above. They must be calculated the same way
+        //as for the sumPwcFoundWords data set (because each word frequency for each word is
+        //important).
+        //
+        //Prepare foundWords data set for differenz
+        // 1. Map: discard log(P(w|c) and wordCount from foundWords (id -> class -> word)
+        //        = all words that are known in each document for each class
+        //
+        //Prepare wordsAndCounts data set for difference
+        // 1. FlatMap:create for every tuple a (document id -> class -> word -> word count)
+        //    tuple for every class
+        //
+        //Create notFoundWords data set
+        // 1: CoGroup: Only tuples (id, class, word) that are not in preparedFoundWords
+        //
+        //The result is a data set, that contains all words for each document for each class
+        //that are not part of that class and the word counts.
+        //
+        //Then calcualte sumPwcNotfoundWords
 
         val preparedFoundWords: DataSet[(Int, String, String)] = foundWords
           .map(line => (line._1, line._2, line._3))
@@ -674,8 +640,8 @@ object MultinomialNaiveBayes {
           sumPwcNotFoundWords = notFoundWords
             .map(new RichMapFunction[(Int, String, String, Int), (Int, String, Double)] {
 
-            var broadcastMap: mutable.Map[String, Double] = mutable
-              .Map[String, Double]() //class -> log(P(w|c) not found word in class)
+            var broadcastMap: mutable.Map[String, Double] = mutable.Map[String, Double]()
+            //class -> log(P(w|c) not found word in class)
 
             override def open(config: Configuration): Unit = {
               val collection = getRuntimeContext
@@ -713,8 +679,8 @@ object MultinomialNaiveBayes {
             (nf, imp) => (nf._1, nf._2, nf._4, imp._2)
           }.map(new RichMapFunction[(Int, String, Int, Double), (Int, String, Double)] {
 
-            var broadcastMap: mutable.Map[String, Double] = mutable
-              .Map[String, Double]() //class -> log(P(w|c) not found word in class)
+            var broadcastMap: mutable.Map[String, Double] = mutable.Map[String, Double]()
+            //(class -> log(P(w|c) not found word in class)
 
             override def open(config: Configuration): Unit = {
               val collection = getRuntimeContext
@@ -762,7 +728,6 @@ object MultinomialNaiveBayes {
             var foundMap = Map[String, Double]()
             var notFoundMap = Map[String, Double]()
 
-            //TODO set currentID from the very beginning to correct value
             var currentID = -1
 
             for (foundV <- foundVs) {
@@ -790,11 +755,8 @@ object MultinomialNaiveBayes {
                 out.collect(currentID, tuple._1, tuple._2)
               }
             }
-
-
         }
       }
-
       //END RENNIE 1
       //END SCHNEIDER/RENNIE 1
 
@@ -863,7 +825,8 @@ object MultinomialNaiveBayes {
    * The second string from the input gets split into its words, for each distinct word a tuple
    * is collected with the Int 1.
    */
-  class SingleDistinctWordSplitter() extends FlatMapFunction[(String, String),
+  class SingleDistinctWordSplitter() extends FlatMapFunction[
+    (String, String),
     (String, String, Int)] {
     override def flatMap(value: (String, String), out: Collector[(String, String, Int)]): Unit = {
       var x: ListBuffer[String] = ListBuffer()
@@ -906,8 +869,10 @@ object MultinomialNaiveBayes {
    * Chooses for each label that class with the highest value
    */
   class CalculateReducer() extends ReduceFunction[(Int, String, Double)] {
-    override def reduce(value1: (Int, String, Double),
-                        value2: (Int, String, Double)): (Int, String, Double) = {
+    override def reduce(
+        value1: (Int, String, Double),
+        value2: (Int, String, Double))
+    : (Int, String, Double) = {
       if (value1._3 > value2._3) {
         value1
       } else {
@@ -919,8 +884,10 @@ object MultinomialNaiveBayes {
   /**
    * Difference of two data sets
    */
-  class DifferenceCoGrouper extends CoGroupFunction[(Int, String, String, Int),
-    (Int, String, String), (Int, String, String, Int)] {
+  class DifferenceCoGrouper extends CoGroupFunction[
+    (Int, String, String, Int),
+    (Int, String, String),
+    (Int, String, String, Int)] {
     override def coGroup(first: lang.Iterable[(Int, String, String, Int)],
                          second: lang.Iterable[(Int, String, String)],
                          out: Collector[(Int, String, String, Int)]): Unit = {
