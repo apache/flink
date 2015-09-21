@@ -35,6 +35,8 @@ notifications:
       - https://webhooks.gitter.im/e/d70a7e674cb9354c77b2
     on_success: always  # options: [always|never|change] default: always
     on_failure: always  # options: [always|never|change] default: always
+  slack:
+    secure: iYjxJn8OkCRslJ30/PcE+EbMiqfKwsvUJiVUEQAEXqCEwZg+wYDsN0ilPQQT0zU16mYWKoMTx71zrOZpjirGq7ww0XZ0wAfXDjgmTxX/DaEdp87uNgTRdQzLV7mQouMKZni28eoa08Rb2NIoLLQ39q7uCu0W/p7vAD2e9xHlBBE=
 
 env:
     global: 
@@ -47,24 +49,10 @@ env:
         - ARTIFACTS_S3_BUCKET="stratosphere-bin"
         - secure: "AECzVxihEhYfnNcrY/wLirTkKkmSATycvTfKsBmxD07bg6BmaVgsOl4degUu4YL50e6agpoWul6irGxTg0bjLMAwg1ZGyRx57NFvNQ7JYDHK6EWmJ7BsK2WO7HiYzfau+ZAaL36WpOMi0UUPpuNXMvULqaE9b4jZqo1Wo/WDcyU="
         - secure: "SNZkMm++fvPbjdreibc4j/XTKy7rOvGvjbvJJLQ01fVDR8ur1FGB5L/CE9tm2Aye75G8br+tJ+gf5cMX8CHL+0VrvuTk5U6flbuM08Pd0pmP64ZncmGfRFKC5qTvt24YR0u3cqxWze8RTkdduz0t8xrEdyCtb94CHs1+RNS+0HA="
-        # javadocs deploy
-        - secure: "f4wACodae0NCaIZtmg/JvP40G/3dE7O6+ONDMbq8P/9dnT5peRB1q7+KZxggRmFSWTMPdPIDI7YxI/rM5wZ3pUN2eX0BpjfANT58OJdgCNXN3Hr9YOa8UykD2h6b+AHpy4G89MG65m73RvNXngHTCQ8SBIfewzeMAhHdD3Fk0u8="
-        # Build artifacts like logs (variables for apache/flink repo and various commiters)
-        - secure: jJQtUL8w2bDqTF5LExDPaWmA6kizCbXhzrutiAGP9ecs79DfklDrD4yr9hSImD3i/vwupRMgI6EW0FKnBBaQU+98U2c71OX6Yk1D8r6EIhYrMOi7FVM7Nt8OIqpoYTQGg+42ol2CTHkCY7qi9ZwCpB5+VeHmsco6XrpJAF2eD4Q=
-        - secure: Mjhhzxus0WS/WDopXBmxkKY9TLGQ8lO1DQvU8fMJjExHz6MHnZW2OxPQikGCteFlp2aMgz5Y4xgzF5HHiJQ+88r5st7KSlmCNrSVSxHc1n7dQAh100viPnFf0ozoYVPsdJDvnYPHYgtUS38XqY9ba//9OZTPi/Hm3/0GKgV4g1w=
-        - secure: dQ4ttzfqjkKBNJDX07rxx0V+BDB0xBVB1R2oNwIcR3/BUEEEFRuoTdVUcEWNJ1GgXxcD4zBbNvCpgePUBFgNokKj7eWf2DYqmQTlwqeBQ9eCp4gybMRuhz4QbuUZ8Zbv+H0bPlfQI0Ne35eXrKylDc/OZspba6NxMmVzPx75cgw=
-        - secure: dfpLCkfmlGXun3riIWoNgoAfyMa8OWKBGj1HlKmyuB8Ub1q42tChK9oQiakERO+b9ucGUcscX5vwmFF2qwE2bQkxupvGND6gypZvwB6yCQ2LE8KaXRZp/CNbgl8kRIdsSc1nw8/D1bdBba5hdZZFWP84kPSdzOv+7tPdUcuYom0=
-        - secure: l7fK14ckh2yjeCYNjKkpezLWHF5jel6YFNWe/d25b8XgVIh1lbbOgWwxrZfLenQRHS1Web+mngGFWXc/e05rA2juUwd2P2YvTICJXQT5fBUrd0jqifXan6J8ntEBeMFdD0HOOwKkEJhyWqlbJXmq9DntdyaXpN7ExZEzlXb8Hu8=
-        - secure: AN8NAUhdrFvwk9j3TxFoTEHCMC7tmqXwVKF6SPJwzmSdVLiSTScQTrN7LVRthgTlr3AD23FRnLHQYiWr2xUXIC7ngaQ7o5UKQamHtIsPjJvceTFVRHcIfZs6qQCgOs47KoBDsnDP+nn4ZbgDNt+N4sMtZo/d/P2Oq3T36L0SkIw=
-        - secure: qXapBSPf9g2ids1ay890EbLvZ80CCl5KxBQK1ZnPV9PW/yyT9Hch+C8XH6z00bhvaysqHNQZ2aGbrMIu632X+YCrs6Rea53BJXnY0yqzWsXlxugx6VLI2UM/G3+PZz4djSdmYpA+5CZMkj/kPRh6f5LjQo8l2oBJq7UEjWoawoc=
-        - secure: ATJu0ZsaGNoV5EsMllmknOziwIvCi5t4v5No+F2qFD3tuKfmsGNyqOLj08EUtFmJ1d9Fn4wNXkDC7UfnLdjGUytU/fNZN3L0ffljJqrIcFX4qaxfMFpEElfbD6xe9w+D1ABqvKg2BuNw8rjXvf5imEXGnzZrBjzfarzUW3DZYx4=
-        - secure: v3adJMRxX2zYh9PYViwdsBocu2dRzCLoM4kAa4OIxwKS/LvoOQmhYytcX4VN4pzjXzRn2IebZ8go/nrzlxOVPL740RhZKHczXDMiBpiieh9l84SoTBmsmbj6u5rg3ZODmQzY3vLJ4SyU4qTzyTYZi1CkzBqm4IXyRMkixhE1/m8=
-        - secure: FmTf7OnCqD4krVZSLYMBz9yOSMUIsssGF7YGOvjTADPBywKrk4uDYT3YGRbEh11owamSFD5Xup2/dOPZP/J2DtbNWdEi5oRRjieVtPO+1uuRCI4xO1d0ht0TKMcSYFhsKmET/ol0kXwdno4lAzapo+9IRgJTMEsKZbhX0/cQ4C4=
-        - secure: XFm7b0lqDi7Opd2MlqJSrqZlwLe4MtOSlEmBMCGooUeMGjpyDTePp8KTVAejgqVmtXOFvzLykWB0mtSFQDWjJ2u9+bJgiktUJCMfqLklTDc+Gk7EWb7EI1E2f7ZBlTHRBdKCsHljuatEfMtXzitrAhOVmBGZe95xN61F8io7ktA=
-        - secure: VNoMS37cCaTivHQg1fFFBX+zn8QWqQd30/FbnZjjWJk1JgB3coJR4/mpu8vSU/NaDtsbu0yEcCHWWU1MvTAy+Ebc3GethTVkl8PyS1Z61DyfJjDl5MOuG3nvAqvITZtAbcmb1hqwOj96Jw6CdKivwYqw8OLHeKSWsMFCF0k/vO4=
-        - secure: xTnuCnUOBWyAvyqbIawvfQ8uETKaSHdIGaZR63KMTkCNk/pnY6Q3ioVy4qaM/ahJZgjrEd/31JjrfSpQdnlkY5TG4EFHq/nY5yRN8w55AzujvW9FjRKGAF5lzvzLCWFueS7kBgE6gkqaQHTMQ7W4b+q66aHs46F9kvy92AgE7Eo=
-        - secure: W3ZTeHd0WwFaBn4mjHde+iW7bgTSLL5ArQEkJUNwjxNXflbl0/1aL46qCw5aRU6JtlaWUjbuHZ5/hJKymgFtDTJafiy2IBVvWi+0kD0HBzhiHOiPx1zst27u8riFqWPoZIBZRkYG+/G0TWcfE/D4idJCtkx17lThgbZ605woZR0=
-        - secure: C1Kkwv2gqBNb9302s8tg8j+5h+V1tJGpiA5Wpj5Fz/OA8IWdgj1vNQO0+rdc+TJlSdc7aH0ggb+kayu/OgKt7JEy1bjBEZ+je7ncfN0ebp/xVlcSELIGv31yjs5hddtidi1IUW00igwN4VyyPGyPRC9s5ikrow9WUWacHDsP0Is=
+        # Build artifacts like logs (variables for apache/flink repo)
+        - secure: "Fm3NK28qN8yLtpJl4VI58biBECpOodMYbYXPVWwa62R7jkhHl2U1s4Xa5ujEgNIDcsUsY66z0V4pU0Es0XLNOY2ajlaFOHTmngzFIXul1r4vuNy0H8okEBjs9Ks0TOWYrE6ndAv1J4/oUsRtehayrriaehn31emXL9c4RSKgaiQ="
+        - secure: "CGcWDpoPLKVPVxFCa+rh5svyrSy7tWTsydsFuLlw5BH5QR57FWH0P5ZBZ31MPppoNNpKEp1V5PBxOH0dUAx8SVNWQFNCsQrOwVpTnTlyl3Cd1udj2hahbB3l+IGf0+O3v2vv6blYm6vJb98NqzZknjdIefDDBfu52ndJy1UqHQw="
+        - secure: "J4IJ7ZG5X+x/2K00kCpj6N/j3wEc6vG59KdDFVZp1WnKH8H0cty2wujZvDhBV+krbqja2MHhXQt/2mDjqm7pkdk1YElDOWsx909aw29wUdDN4yOsxFekIa5jMCrcQxbwzDRal6JmAzCakk51qIEgCYuAKquT0N+oETmnOhmcQe0="
 
 before_script:
    - "gem install --no-document --version 0.8.9 faraday "
