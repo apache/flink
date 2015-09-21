@@ -44,7 +44,10 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 
 	private S state;
 	protected StateCheckpointer<S, C> checkpointer;
-	private final StateHandleProvider<Serializable> provider;
+	protected final StateHandleProvider<Serializable> provider;
+	
+	private boolean restored = true;
+	private Serializable checkpoint = null;
 
 	@SuppressWarnings("unchecked")
 	public StreamOperatorState(StateCheckpointer<S, C> checkpointer, StateHandleProvider<C> provider) {
@@ -59,6 +62,10 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 
 	@Override
 	public S value() throws IOException {
+		if (!restored) {
+			// If the state is not restore it yet, restore at this point
+			restoreWithCheckpointer();
+		}
 		return state;
 	}
 
@@ -66,6 +73,11 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 	public void update(S state) throws IOException {
 		if (state == null) {
 			throw new RuntimeException("Cannot set state to null.");
+		}
+		if (!restored) {
+			// If the value is updated before the restore it is overwritten
+			restored = true;
+			checkpoint = false;
 		}
 		this.state = state;
 	}
@@ -90,14 +102,22 @@ public class StreamOperatorState<S, C extends Serializable> implements OperatorS
 
 	public StateHandle<Serializable> snapshotState(long checkpointId, long checkpointTimestamp)
 			throws Exception {
-		return provider.createStateHandle(checkpointer.snapshotState(value(), checkpointId,
-				checkpointTimestamp));
-
+		// If the state is restored we take a snapshot, otherwise return the last checkpoint
+		return provider.createStateHandle(restored ? checkpointer.snapshotState(value(), checkpointId,
+				checkpointTimestamp) : checkpoint);
 	}
 
-	@SuppressWarnings("unchecked")
 	public void restoreState(StateHandle<Serializable> snapshot, ClassLoader userCodeClassLoader) throws Exception {
-		update(checkpointer.restoreState((C) snapshot.getState(userCodeClassLoader)));
+		// We set the checkpoint for lazy restore
+		checkpoint = snapshot.getState(userCodeClassLoader);
+		restored = false;
+	}
+	
+	@SuppressWarnings("unchecked")
+	private void restoreWithCheckpointer() throws IOException {
+		update(checkpointer.restoreState((C) checkpoint));
+		restored = true;
+		checkpoint = null;
 	}
 
 	public Map<Serializable, S> getPartitionedState() throws Exception {
