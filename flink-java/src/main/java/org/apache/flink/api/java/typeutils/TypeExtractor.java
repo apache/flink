@@ -526,12 +526,33 @@ public class TypeExtractor {
 				} catch (ClassNotFoundException e) {
 					throw new InvalidTypesException("Could not convert GenericArrayType to Class.");
 				}
+
 				return getForClass(classArray);
+			} else {
+				TypeInformation<?> componentInfo = createTypeInfoWithTypeHierarchy(
+					typeHierarchy,
+					genericArray.getGenericComponentType(),
+					in1Type,
+					in2Type);
+
+				Class<OUT> classArray;
+
+				try {
+					String componentClassName = componentInfo.getTypeClass().getName();
+					String resultingClassName;
+
+					if (componentClassName.startsWith("[")) {
+						resultingClassName = "[" + componentClassName;
+					} else {
+						resultingClassName = "[L" + componentClassName + ";";
+					}
+					classArray = (Class<OUT>) Class.forName(resultingClassName);
+				} catch (ClassNotFoundException e) {
+					throw new InvalidTypesException("Could not convert GenericArrayType to Class.");
+				}
+
+				return ObjectArrayTypeInfo.getInfoFor(classArray, componentInfo);
 			}
-			
-			TypeInformation<?> componentInfo = createTypeInfoWithTypeHierarchy(typeHierarchy, genericArray.getGenericComponentType(),
-					in1Type, in2Type);
-			return ObjectArrayTypeInfo.getInfoFor(t, componentInfo);
 		}
 		// objects with generics are treated as Class first
 		else if (t instanceof ParameterizedType) {
@@ -683,8 +704,8 @@ public class TypeExtractor {
 			return parameter;
 		}
 		
-		throw new IllegalArgumentException("The types of the interface " + baseClass.getName() + " could not be inferred. " + 
-						"Support for synthetic interfaces, lambdas, and generic types is limited at this point.");
+		throw new InvalidTypesException("The types of the interface " + baseClass.getName() + " could not be inferred. " + 
+						"Support for synthetic interfaces, lambdas, and generic or raw types is limited at this point");
 	}
 	
 	private static Type getParameterTypeFromGenericType(Class<?> baseClass, ArrayList<Type> typeHierarchy, Type t, int pos) {
@@ -734,7 +755,7 @@ public class TypeExtractor {
 		try {
 			inType = getParameterType(baseClass, typeHierarchy, clazz, inputParamPos);
 		}
-		catch (IllegalArgumentException e) {
+		catch (InvalidTypesException e) {
 			return; // skip input validation e.g. for raw types
 		}
 
@@ -1188,7 +1209,13 @@ public class TypeExtractor {
 			
 			// object arrays
 			else {
-				return ObjectArrayTypeInfo.getInfoFor(clazz);
+				TypeInformation<?> componentTypeInfo = createTypeInfoWithTypeHierarchy(
+					typeHierarchy,
+					clazz.getComponentType(),
+					in1Type,
+					in2Type);
+
+				return ObjectArrayTypeInfo.getInfoFor(clazz, componentTypeInfo);
 			}
 		}
 		
@@ -1481,8 +1508,8 @@ public class TypeExtractor {
 	private static TypeInformation<?> getTypeOfPojoField(TypeInformation<?> pojoInfo, Field field) {
 		for (int j = 0; j < pojoInfo.getArity(); j++) {
 			PojoField pf = ((PojoTypeInfo<?>) pojoInfo).getPojoFieldAt(j);
-			if (pf.field.getName().equals(field.getName())) {
-				return pf.type;
+			if (pf.getField().getName().equals(field.getName())) {
+				return pf.getTypeInformation();
 			}
 		}
 		return null;

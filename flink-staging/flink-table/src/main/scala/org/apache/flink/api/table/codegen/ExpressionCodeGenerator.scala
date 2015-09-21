@@ -249,7 +249,7 @@ abstract class ExpressionCodeGenerator[R](
           s"""
             |boolean $nullTerm = ${childGen.nullTerm};
             |$resultTpe $resultTerm;
-            |if ($nullTerm == null) {
+            |if ($nullTerm) {
             |  $resultTerm = null;
             |} else {
             |  $resultTerm = "" + ${childGen.resultTerm};
@@ -262,8 +262,12 @@ abstract class ExpressionCodeGenerator[R](
         }
         childGen.code + castCode
 
-      case expressions.Cast(child: Expression, tpe: BasicTypeInfo[_]) =>
+      case expressions.Cast(child: Expression, tpe: BasicTypeInfo[_])
+        if child.typeInfo == BasicTypeInfo.STRING_TYPE_INFO =>
         val childGen = generateExpression(child)
+        val fromTpe = typeTermForTypeInfoForCast(child.typeInfo)
+        val toTpe = typeTermForTypeInfoForCast(tpe)
+
         val castCode = if (nullCheck) {
           s"""
             |boolean $nullTerm = ${childGen.nullTerm};
@@ -275,6 +279,27 @@ abstract class ExpressionCodeGenerator[R](
             |$resultTpe $resultTerm =
             |  ${tpe.getTypeClass.getCanonicalName}.valueOf(${childGen.resultTerm});
           """.stripMargin
+        }
+
+        childGen.code + castCode
+
+      case expressions.Cast(child: Expression, tpe: BasicTypeInfo[_])
+          if child.typeInfo.isBasicType =>
+        val childGen = generateExpression(child)
+        val fromTpe = typeTermForTypeInfoForCast(child.typeInfo)
+        val toTpe = typeTermForTypeInfoForCast(tpe)
+        val castCode = if (nullCheck) {
+          s"""
+            |boolean $nullTerm = ${childGen.nullTerm};
+            |$resultTpe $resultTerm;
+            |if ($nullTerm) {
+            |  $resultTerm = null;
+            |} else {
+            |  $resultTerm = ($toTpe)($fromTpe) ${childGen.resultTerm};
+            |}
+          """.stripMargin
+        } else {
+          s"$resultTpe $resultTerm = ($toTpe)($fromTpe) ${childGen.resultTerm};\n"
         }
         childGen.code + castCode
 
@@ -589,14 +614,38 @@ abstract class ExpressionCodeGenerator[R](
 
   protected def typeTermForTypeInfo(tpe: TypeInformation[_]): String = tpe match {
 
-//    case BasicTypeInfo.INT_TYPE_INFO => "int"
-//    case BasicTypeInfo.LONG_TYPE_INFO => "long"
-//    case BasicTypeInfo.SHORT_TYPE_INFO => "short"
-//    case BasicTypeInfo.BYTE_TYPE_INFO => "byte"
-//    case BasicTypeInfo.FLOAT_TYPE_INFO => "float"
-//    case BasicTypeInfo.DOUBLE_TYPE_INFO => "double"
-//    case BasicTypeInfo.BOOLEAN_TYPE_INFO => "boolean"
-//    case BasicTypeInfo.CHAR_TYPE_INFO => "char"
+    // From PrimitiveArrayTypeInfo we would get class "int[]", scala reflections
+    // does not seem to like this, so we manually give the correct type here.
+    case PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO => "int[]"
+    case PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO => "long[]"
+    case PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO => "short[]"
+    case PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO => "byte[]"
+    case PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO => "float[]"
+    case PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO => "double[]"
+    case PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO => "boolean[]"
+    case PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO => "char[]"
+
+    case _ =>
+      tpe.getTypeClass.getCanonicalName
+
+  }
+
+  // when casting we first need to unbox Primitives, for example,
+  // float a = 1.0f;
+  // byte b = (byte) a;
+  // works, but for boxed types we need this:
+  // Float a = 1.0f;
+  // Byte b = (byte)(float) a;
+  protected def typeTermForTypeInfoForCast(tpe: TypeInformation[_]): String = tpe match {
+
+    case BasicTypeInfo.INT_TYPE_INFO => "int"
+    case BasicTypeInfo.LONG_TYPE_INFO => "long"
+    case BasicTypeInfo.SHORT_TYPE_INFO => "short"
+    case BasicTypeInfo.BYTE_TYPE_INFO => "byte"
+    case BasicTypeInfo.FLOAT_TYPE_INFO => "float"
+    case BasicTypeInfo.DOUBLE_TYPE_INFO => "double"
+    case BasicTypeInfo.BOOLEAN_TYPE_INFO => "boolean"
+    case BasicTypeInfo.CHAR_TYPE_INFO => "char"
 
     // From PrimitiveArrayTypeInfo we would get class "int[]", scala reflections
     // does not seem to like this, so we manually give the correct type here.

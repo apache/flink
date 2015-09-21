@@ -27,3 +27,8 @@ angular.module('flinkApp')
   amDurationFormatExtendedFilter.$stateful = angularMomentConfig.statefulFilters
 
   amDurationFormatExtendedFilter
+
+.filter "humanizeText", ->
+  (text) ->
+    # TODO: extend... a lot
+    if text then text.replace(/&gt;/g, ">").replace(/<br\/>/g,"") else ''

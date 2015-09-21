@@ -22,10 +22,10 @@ import java.util.HashMap;
 
 /**
  * Simple utility class that resolves file extensions to MIME types.
- * 
- * <p>There are various solutions built into Java that depend on extra resource and configuration
+ * <p>
+ * There are various solutions built into Java that depend on extra resource and configuration
  * files. They are designed to be composable and extensible, but also unfortunately tricky to control.
- * This is meant to be a simple solution that may eventually be subsumed by a better one.</p>
+ * This is meant to be a simple solution that may eventually be subsumed by a better one.
  */
 public class MimeTypes {
 

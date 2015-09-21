@@ -19,9 +19,9 @@ matrix:
     - jdk: "oraclejdk7" # this will also deploy a uberjar to s3 at some point
       env: PROFILE="-Dhadoop.profile=1"
     - jdk: "openjdk7"
-      env: PROFILE="-P!include-yarn -Dhadoop.version=2.0.0-alpha"
-    - jdk: "oraclejdk7"
-      env: PROFILE="-Dhadoop.version=2.2.0"
+      env: PROFILE="-Dhadoop.version=2.4.0"
+    - jdk: "oraclejdk8"
+      env: PROFILE="-Dhadoop.version=2.5.0 -Dmaven.javadoc.skip=true"
     - jdk: "oraclejdk8"
       env: PROFILE="-Dhadoop.version=2.6.0 -Dscala-2.11 -Pinclude-tez -Dmaven.javadoc.skip=true"
 

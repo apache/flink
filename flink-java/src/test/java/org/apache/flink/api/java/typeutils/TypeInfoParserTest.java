@@ -181,14 +181,14 @@ public class TypeInfoParserTest {
 				+ ">");
 		Assert.assertTrue(ti instanceof PojoTypeInfo);
 		PojoTypeInfo<?> pti = (PojoTypeInfo<?>) ti;
-		Assert.assertEquals("array", pti.getPojoFieldAt(0).field.getName());
-		Assert.assertTrue(pti.getPojoFieldAt(0).type instanceof BasicArrayTypeInfo);
-		Assert.assertEquals("basic", pti.getPojoFieldAt(1).field.getName());
-		Assert.assertTrue(pti.getPojoFieldAt(1).type instanceof BasicTypeInfo);
-		Assert.assertEquals("hadoopCitizen", pti.getPojoFieldAt(2).field.getName());
-		Assert.assertTrue(pti.getPojoFieldAt(2).type instanceof WritableTypeInfo);
-		Assert.assertEquals("tuple", pti.getPojoFieldAt(3).field.getName());
-		Assert.assertTrue(pti.getPojoFieldAt(3).type instanceof TupleTypeInfo);
+		Assert.assertEquals("array", pti.getPojoFieldAt(0).getField().getName());
+		Assert.assertTrue(pti.getPojoFieldAt(0).getTypeInformation() instanceof BasicArrayTypeInfo);
+		Assert.assertEquals("basic", pti.getPojoFieldAt(1).getField().getName());
+		Assert.assertTrue(pti.getPojoFieldAt(1).getTypeInformation() instanceof BasicTypeInfo);
+		Assert.assertEquals("hadoopCitizen", pti.getPojoFieldAt(2).getField().getName());
+		Assert.assertTrue(pti.getPojoFieldAt(2).getTypeInformation() instanceof WritableTypeInfo);
+		Assert.assertEquals("tuple", pti.getPojoFieldAt(3).getField().getName());
+		Assert.assertTrue(pti.getPojoFieldAt(3).getTypeInformation() instanceof TupleTypeInfo);
 	}
 	
 	@Test
@@ -198,12 +198,12 @@ public class TypeInfoParserTest {
 		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
 		Assert.assertTrue(tti.getTypeAt(0) instanceof BasicTypeInfo);
 		Assert.assertTrue(tti.getTypeAt(1) instanceof TupleTypeInfo);
-		TupleTypeInfo<?> tti2 = (TupleTypeInfo<?>) tti.getTypeAt(1);
+		TupleTypeInfo<?> tti2 = (TupleTypeInfo<?>)(Object)tti.getTypeAt(1);
 		Assert.assertTrue(tti2.getTypeAt(0) instanceof BasicTypeInfo);
 		Assert.assertTrue(tti2.getTypeAt(1) instanceof PojoTypeInfo);
 		PojoTypeInfo<?> pti = (PojoTypeInfo<?>) tti2.getTypeAt(1);
-		Assert.assertEquals("basic", pti.getPojoFieldAt(0).field.getName());
-		Assert.assertTrue(pti.getPojoFieldAt(0).type instanceof BasicTypeInfo);
+		Assert.assertEquals("basic", pti.getPojoFieldAt(0).getField().getName());
+		Assert.assertTrue(pti.getPojoFieldAt(0).getTypeInformation() instanceof BasicTypeInfo);
 	}
 	
 	public static class MyWritable implements Writable {
@@ -232,7 +232,7 @@ public class TypeInfoParserTest {
 		TypeInformation<?> ti = TypeInfoParser.parse("java.lang.Class[]");
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
-		Assert.assertEquals(Class.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentType());
+		Assert.assertEquals(Class.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentInfo().getTypeClass());
 		
 		TypeInformation<?> ti2 = TypeInfoParser.parse("Tuple2<Integer,Double>[]");
 

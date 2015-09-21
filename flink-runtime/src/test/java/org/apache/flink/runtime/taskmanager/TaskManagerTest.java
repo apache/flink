@@ -890,7 +890,7 @@ public class TaskManagerTest {
 						Collections.singletonList(igdd),
 						Collections.<BlobKey>emptyList(), 0);
 
-				new Within(d) {
+				new Within(new FiniteDuration(120, TimeUnit.SECONDS)) {
 					@Override
 					protected void run() {
 						// Submit the task
@@ -902,8 +902,12 @@ public class TaskManagerTest {
 
 						// The task should fail after repeated requests
 						assertEquals(msg.getExecutionState(), ExecutionState.FAILED);
-						assertEquals(msg.getError(ClassLoader.getSystemClassLoader()).getClass(),
-								PartitionNotFoundException.class);
+						
+						Throwable error = msg.getError(getClass().getClassLoader());
+						if (error.getClass() != PartitionNotFoundException.class) {
+							error.printStackTrace();
+							fail("Wrong exception: " + error.getMessage());
+						}
 					}
 				};
 			}

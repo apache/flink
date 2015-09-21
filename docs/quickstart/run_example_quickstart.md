@@ -53,7 +53,7 @@ The `kmeans/` directory should now contain two files: `centers` and `points`. Th
 
 
 ## Inspect the Input Data
-Use the `plotPoints.py` tool to review the generated data points. [Download Python Script](quickstart/plotPoints.py)
+Use the `plotPoints.py` tool to review the generated data points. [Download Python Script](plotPoints.py)
 
 ~~~ bash
 python plotPoints.py points ./points input
@@ -145,7 +145,7 @@ Stop Flink when you are done.
 ~~~
 
 ## Analyze the Result
-Use the [Python Script](quickstart/plotPoints.py) again to visualize the result.
+Use the [Python Script](plotPoints.py) again to visualize the result.
 
 ~~~bash
 cd kmeans

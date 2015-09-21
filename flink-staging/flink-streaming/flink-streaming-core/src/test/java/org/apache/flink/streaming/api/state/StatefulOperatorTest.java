@@ -37,6 +37,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.StateCheckpointer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -278,7 +279,19 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public void open(Configuration conf) throws IOException {
-			groupCounter = getRuntimeContext().getOperatorState("groupCounter", 0, true);
+			groupCounter = getRuntimeContext().getOperatorState("groupCounter", 0, true,
+					new StateCheckpointer<Integer, String>() {
+
+						@Override
+						public String snapshotState(Integer state, long checkpointId, long checkpointTimestamp) {
+							return state.toString();
+						}
+
+						@Override
+						public Integer restoreState(String stateSnapshot) {
+							return Integer.parseInt(stateSnapshot);
+						}
+					});
 		}
 
 		@SuppressWarnings("unchecked")

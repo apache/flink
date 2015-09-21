@@ -336,19 +336,6 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>org.apache.curator</groupId>
-				<artifactId>curator-recipes</artifactId>
-				<version>${curator.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.curator</groupId>
-				<artifactId>curator-test</artifactId>
-				<version>${curator.version}</version>
-				<scope>test</scope>
-			</dependency>
-
-			<dependency>
 				<groupId>org.apache.zookeeper</groupId>
 				<artifactId>zookeeper</artifactId>
 				<version>${zookeeper.version}</version>
@@ -741,11 +728,9 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/vendor-local/d3-timeline.js</exclude>
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/FontAwesome.otf</exclude>
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/fontawesome*</exclude>
-						<exclude>flink-runtime-web/web-dashboard/web/css/vendor.css</exclude>
-						<exclude>flink-runtime-web/web-dashboard/web/fonts/FontAwesome.otf</exclude>
-						<exclude>flink-runtime-web/web-dashboard/web/fonts/fontawesome*</exclude>
-						<exclude>flink-runtime-web/web-dashboard/web/js/index.js</exclude>
-                        <exclude>flink-runtime-web/web-dashboard/web/js/vendor.js</exclude>
+
+                        <!-- generated contents -->
+						<exclude>flink-runtime-web/web-dashboard/web/**</exclude>
 
 						<!-- downloaded and generated web libraries. -->
 						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>

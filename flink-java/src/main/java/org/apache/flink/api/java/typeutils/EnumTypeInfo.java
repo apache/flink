@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -38,12 +39,12 @@ public class EnumTypeInfo<T extends Enum<T>> extends TypeInformation<T> implemen
 	private final Class<T> typeClass;
 
 	public EnumTypeInfo(Class<T> typeClass) {
-		if (typeClass == null) {
-			throw new NullPointerException();
-		}
+		Preconditions.checkNotNull(typeClass, "Enum type class must not be null.");
+
 		if (!Enum.class.isAssignableFrom(typeClass) ) {
 			throw new IllegalArgumentException("EnumTypeInfo can only be used for subclasses of " + Enum.class.getName());
 		}
+
 		this.typeClass = typeClass;
 	}
 
@@ -98,13 +99,22 @@ public class EnumTypeInfo<T extends Enum<T>> extends TypeInformation<T> implemen
 	
 	@Override
 	public int hashCode() {
-		return typeClass.hashCode() ^ 0xd3a2646c;
+		return typeClass.hashCode();
 	}
-	
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof EnumTypeInfo;
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof EnumTypeInfo) {
-			return typeClass == ((EnumTypeInfo<?>) obj).typeClass;
+			@SuppressWarnings("unchecked")
+			EnumTypeInfo<T> enumTypeInfo = (EnumTypeInfo<T>) obj;
+
+			return enumTypeInfo.canEqual(this) &&
+				typeClass == enumTypeInfo.typeClass;
 		} else {
 			return false;
 		}

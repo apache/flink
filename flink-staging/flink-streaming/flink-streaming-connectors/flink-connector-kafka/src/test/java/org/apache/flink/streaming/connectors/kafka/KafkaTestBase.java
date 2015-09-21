@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import kafka.admin.AdminUtils;
+import kafka.common.KafkaException;
 import kafka.consumer.ConsumerConfig;
 import kafka.network.SocketServer;
 import kafka.server.KafkaConfig;
@@ -37,18 +38,21 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.internals.ZooKeeperStringSerializer;
 import org.apache.flink.streaming.connectors.kafka.testutils.SuccessException;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
-
 import org.apache.flink.util.TestLogger;
+
 import org.apache.kafka.common.PartitionInfo;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.BindException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -248,25 +252,41 @@ public abstract class KafkaTestBase extends TestLogger {
 												String zookeeperConnectionString) throws Exception {
 		Properties kafkaProperties = new Properties();
 
-		int kafkaPort = NetUtils.getAvailablePort();
-
 		// properties have to be Strings
 		kafkaProperties.put("advertised.host.name", kafkaHost);
-		kafkaProperties.put("port", Integer.toString(kafkaPort));
 		kafkaProperties.put("broker.id", Integer.toString(brokerId));
 		kafkaProperties.put("log.dir", tmpFolder.toString());
 		kafkaProperties.put("zookeeper.connect", zookeeperConnectionString);
-		kafkaProperties.put("message.max.bytes", "" + (50 * 1024 * 1024));
+		kafkaProperties.put("message.max.bytes", String.valueOf(50 * 1024 * 1024));
 		kafkaProperties.put("replica.fetch.max.bytes", String.valueOf(50 * 1024 * 1024));
 		
 		// for CI stability, increase zookeeper session timeout
 		kafkaProperties.put("zookeeper.session.timeout.ms", "20000");
-		
-		KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
 
-		KafkaServer server = new KafkaServer(kafkaConfig, new KafkaLocalSystemTime());
-		server.startup();
-		return server;
+		final int numTries = 5;
+		
+		for (int i = 1; i <= numTries; i++) { 
+			int kafkaPort = NetUtils.getAvailablePort();
+			kafkaProperties.put("port", Integer.toString(kafkaPort));
+			KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
+
+			try {
+				KafkaServer server = new KafkaServer(kafkaConfig, new KafkaLocalSystemTime());
+				server.startup();
+				return server;
+			}
+			catch (KafkaException e) {
+				if (e.getCause() instanceof BindException) {
+					// port conflict, retry...
+					LOG.info("Port conflict when starting Kafka Broker. Retrying...");
+				}
+				else {
+					throw e;
+				}
+			}
+		}
+		
+		throw new Exception("Could not start Kafka after " + numTries + " retries due to port conflicts.");
 	}
 
 	// ------------------------------------------------------------------------

@@ -46,12 +46,15 @@ public class ClassLoaderUtilsTest {
 			jarFileCreator.createJarFile();
 			
 			// validate that the JAR is correct and the test setup is not broken
+			JarFile jarFile = null;
 			try {
-				new JarFile(validJar.getAbsolutePath());
+				jarFile = new JarFile(validJar.getAbsolutePath());
 			}
 			catch (Exception e) {
 				e.printStackTrace();
 				fail("test setup broken: cannot create a valid jar file");
+			} finally {
+				if (jarFile != null) jarFile.close();
 			}
 			
 			// file with some random contents

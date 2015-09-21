@@ -36,6 +36,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
+import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService}
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
@@ -55,7 +56,7 @@ import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
-import org.apache.flink.runtime.webmonitor.WebMonitor
+import org.apache.flink.runtime.webmonitor.{WebMonitorUtils, WebMonitor}
 import org.apache.flink.runtime.{FlinkActor, StreamingMode, LeaderSessionMessageFilter}
 import org.apache.flink.runtime.LogMessages
 import org.apache.flink.runtime.akka.{ListeningBehaviour, AkkaUtils}
@@ -647,7 +648,15 @@ class JobManager(
         executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
         executionGraph.setScheduleMode(jobGraph.getScheduleMode())
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling())
-        executionGraph.setJsonPlan(jobGraph.getJsonPlan())
+        
+        try {
+          executionGraph.setJsonPlan(JsonPlanGenerator.generatePlan(jobGraph))
+        }
+        catch {
+          case t: Throwable =>
+            log.warn("Cannot create JSON plan for job", t)
+            executionGraph.setJsonPlan("{}")
+        }
         
         // initialize the vertices that have a master initialization hook
         // file output formats create directories here, input formats create splits
@@ -862,6 +871,9 @@ class JobManager(
 
   /**
    * Dedicated handler for monitor info request messages.
+   * 
+   * Note that this handler does not fail. Errors while responding to info messages are logged,
+   * but will not cause the actor to crash.
    *
    * @param actorMessage The info request message.
    */
@@ -909,23 +921,27 @@ class JobManager(
                 ourJobs, archiveOverview)
           }(context.dispatcher)
 
-        case _ : RequestStatusWithJobIDsOverview =>
-
-          val ourJobs = createJobStatusWithIDsOverview()
-
-          val numTMs = instanceManager.getNumberOfRegisteredTaskManagers()
-          val numSlotsTotal = instanceManager.getTotalNumberOfSlots()
-          val numSlotsAvailable = instanceManager.getNumberOfAvailableSlots()
-
-          // add to that the jobs from the archive
-          val future = (archive ? RequestJobsWithIDsOverview.getInstance())(timeout)
-          future.onSuccess {
-            case archiveOverview: JobsWithIDsOverview =>
-              theSender ! new StatusWithJobIDsOverview(numTMs, numSlotsTotal, numSlotsAvailable,
-                ourJobs, archiveOverview)
-          }(context.dispatcher)
-
-        case _ => throw new Exception("Unrecognized info message " + actorMessage)
+        case msg : RequestJobDetails => 
+          
+          val ourDetails: Array[JobDetails] = if (msg.shouldIncludeRunning()) {
+            currentJobs.values.map {
+              v => WebMonitorUtils.createDetailsForJob(v._1)
+            }.toArray[JobDetails]
+          } else {
+            null
+          }
+          
+          if (msg.shouldIncludeFinished()) {
+            val future = (archive ? msg)(timeout)
+            future.onSuccess {
+              case archiveDetails: MultipleJobsDetails =>
+                theSender ! new MultipleJobsDetails(ourDetails, archiveDetails.getFinishedJobs())
+            }(context.dispatcher)
+          } else {
+            theSender ! new MultipleJobsDetails(ourDetails, null)
+          }
+          
+        case _ => log.error("Unrecognized info message " + actorMessage)
       }
     }
     catch {

@@ -21,6 +21,7 @@ package org.apache.flink.client;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.junit.Test;
 
@@ -67,7 +68,7 @@ public class RemoteExecutorHostnameResolutionTest {
 		
 		try {
 			InetSocketAddress add = new InetSocketAddress(nonExistingHostname, port);
-			RemoteExecutor exec = new RemoteExecutor(add, Collections.<String>emptyList());
+			RemoteExecutor exec = new RemoteExecutor(add, Collections.<String>emptyList(), new Configuration());
 			exec.executePlan(getProgram());
 			fail("This should fail with an ProgramInvocationException");
 		}

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
+import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 
 /**
  * A collection of utility methods for dealing with operator state.
@@ -41,10 +41,10 @@ public class StateUtils {
 	 * @param <T>
 	 *            Type bound for the
 	 */
-	public static <T extends StateHandle<?>> void setOperatorState(OperatorStateCarrier<?> op,
+	public static <T extends StateHandle<?>> void setOperatorState(StatefulTask<?> op,
 			StateHandle<?> state) throws Exception {
 		@SuppressWarnings("unchecked")
-		OperatorStateCarrier<T> typedOp = (OperatorStateCarrier<T>) op;
+		StatefulTask<T> typedOp = (StatefulTask<T>) op;
 		@SuppressWarnings("unchecked")
 		T typedHandle = (T) state;
 

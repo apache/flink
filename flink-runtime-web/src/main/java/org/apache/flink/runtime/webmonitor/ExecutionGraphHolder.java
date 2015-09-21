@@ -45,9 +45,9 @@ public class ExecutionGraphHolder {
 
 	/** Retrieves the current leading JobManager and its corresponding archive */
 	private final JobManagerArchiveRetriever retriever;
-	
+
 	private final FiniteDuration timeout;
-	
+
 	private final WeakHashMap<JobID, ExecutionGraph> cache = new WeakHashMap<JobID, ExecutionGraph>();
 
 	public ExecutionGraphHolder(JobManagerArchiveRetriever retriever) {
@@ -73,24 +73,27 @@ public class ExecutionGraphHolder {
 		if (cached != null) {
 			return cached;
 		}
-		
+
 		try {
 			ActorGateway jobManager = retriever.getJobManagerGateway();
 
 			if (jobManager != null) {
-
 				Future<Object> future = jobManager.ask(new JobManagerMessages.RequestJob(jid), timeout);
 				Object result = Await.result(future, timeout);
+				
 				if (result instanceof JobManagerMessages.JobNotFound) {
 					return null;
-				} else if (result instanceof JobManagerMessages.JobFound) {
+				}
+				else if (result instanceof JobManagerMessages.JobFound) {
 					ExecutionGraph eg = ((JobManagerMessages.JobFound) result).executionGraph();
 					cache.put(jid, eg);
 					return eg;
-				} else {
+				}
+				else {
 					throw new RuntimeException("Unknown response from JobManager / Archive: " + result);
 				}
-			} else {
+			}
+			else {
 				LOG.warn("No connection to the leading JobManager.");
 				return null;
 			}

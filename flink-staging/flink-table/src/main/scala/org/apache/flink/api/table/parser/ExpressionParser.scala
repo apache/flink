@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.table.parser
 
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.table.ExpressionException
 import org.apache.flink.api.table.plan.As
 import org.apache.flink.api.table.expressions._
@@ -27,8 +28,8 @@ import scala.util.parsing.combinator.{PackratParsers, JavaTokenParsers}
  * Parser for expressions inside a String. This parses exactly the same expressions that
  * would be accepted by the Scala Expression DSL.
  *
- * See [[org.apache.flink.api.scala.expressions.ImplicitExpressionConversions]] and
- * [[org.apache.flink.api.scala.expressions.ImplicitExpressionOperations]] for the constructs
+ * See [[org.apache.flink.api.scala.table.ImplicitExpressionConversions]] and
+ * [[org.apache.flink.api.scala.table.ImplicitExpressionOperations]] for the constructs
  * available in the Scala Expression DSL. This parser must be kept in sync with the Scala DSL
  * lazy valined in the above files.
  */
@@ -107,6 +108,17 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val avg: PackratParser[Expression] =
     (atom <~ ".avg" ^^ { e => Avg(e) }) | (AVG ~ "(" ~> atom <~ ")" ^^ { e => Avg(e) })
 
+  lazy val cast: PackratParser[Expression] =
+    atom <~ ".cast(BYTE)" ^^ { e => Cast(e, BasicTypeInfo.BYTE_TYPE_INFO) } |
+    atom <~ ".cast(SHORT)" ^^ { e => Cast(e, BasicTypeInfo.SHORT_TYPE_INFO) } |
+    atom <~ ".cast(INT)" ^^ { e => Cast(e, BasicTypeInfo.INT_TYPE_INFO) } |
+    atom <~ ".cast(LONG)" ^^ { e => Cast(e, BasicTypeInfo.LONG_TYPE_INFO) } |
+    atom <~ ".cast(FLOAT)" ^^ { e => Cast(e, BasicTypeInfo.FLOAT_TYPE_INFO) } |
+    atom <~ ".cast(DOUBLE)" ^^ { e => Cast(e, BasicTypeInfo.DOUBLE_TYPE_INFO) } |
+    atom <~ ".cast(BOOL)" ^^ { e => Cast(e, BasicTypeInfo.BOOLEAN_TYPE_INFO) } |
+    atom <~ ".cast(BOOLEAN)" ^^ { e => Cast(e, BasicTypeInfo.BOOLEAN_TYPE_INFO) } |
+    atom <~ ".cast(STRING)" ^^ { e => Cast(e, BasicTypeInfo.STRING_TYPE_INFO) }
+
   lazy val as: PackratParser[Expression] = atom ~ ".as(" ~ fieldReference ~ ")" ^^ {
     case e ~ _ ~ as ~ _ => Naming(e, as.name)
   }
@@ -125,7 +137,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val suffix =
     isNull | isNotNull |
-      abs | sum | min | max | count | avg |
+      abs | sum | min | max | count | avg | cast |
       substring | substringWithoutEnd | atom
 
 

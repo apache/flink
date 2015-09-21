@@ -18,25 +18,103 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import com.fasterxml.jackson.core.JsonGenerator;
+
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
+import java.io.StringWriter;
 import java.util.Map;
 
 /**
- * Request handler that returns the JSON program plan of a job graph.
+ * A request handler that provides the details of a job vertex, including id, name, parallelism,
+ * and the runtime and metrics of all its subtasks.
  */
-public class JobVertexDetailsHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
-
+public class JobVertexDetailsHandler extends AbstractJobVertexRequestHandler implements RequestHandler.JsonResponse {
 	
 	public JobVertexDetailsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
-	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
-		String vertexId = params.get(Parameters.JOB_VERTEX_ID);
+	public String handleRequest(ExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
+		final long now = System.currentTimeMillis();
 		
-		return "vertex: " + vertexId;
+		StringWriter writer = new StringWriter();
+		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+
+		gen.writeStartObject();
+
+		gen.writeStringField("id", jobVertex.getJobVertexId().toString());
+		gen.writeStringField("name", jobVertex.getJobVertex().getName());
+		gen.writeNumberField("parallelism", jobVertex.getParallelism());
+		gen.writeNumberField("now", now);
+
+		gen.writeArrayFieldStart("subtasks");
+		int num = 0;
+		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
+			final ExecutionState status = vertex.getExecutionState();
+			
+			InstanceConnectionInfo location = vertex.getCurrentAssignedResourceLocation();
+			String locationString = location == null ? "(unassigned)" : location.getHostname();
+
+			long startTime = vertex.getStateTimestamp(ExecutionState.DEPLOYING);
+			if (startTime == 0) {
+				startTime = -1;
+			}
+			long endTime = status.isTerminal() ? vertex.getStateTimestamp(status) : -1;
+			long duration = startTime > 0 ? ((endTime > 0 ? endTime : now) - startTime) : -1;
+			
+			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> metrics = vertex.getCurrentExecutionAttempt().getFlinkAccumulators();
+			LongCounter readBytes;
+			LongCounter writeBytes;
+			LongCounter readRecords;
+			LongCounter writeRecords;
+			
+			if (metrics != null) {
+				readBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_IN);
+				writeBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_OUT);
+				readRecords = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_IN);
+				writeRecords = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT);
+			}
+			else {
+				readBytes = null;
+				writeBytes = null;
+				readRecords = null;
+				writeRecords = null;
+			}
+			
+			gen.writeStartObject();
+			gen.writeNumberField("subtask", num);
+			gen.writeStringField("status", status.name());
+			gen.writeNumberField("attempt", vertex.getCurrentExecutionAttempt().getAttemptNumber());
+			gen.writeStringField("host", locationString);
+			gen.writeNumberField("start-time", startTime);
+			gen.writeNumberField("end-time", endTime);
+			gen.writeNumberField("duration", duration);
+
+			gen.writeObjectFieldStart("metrics");
+			gen.writeNumberField("read-bytes", readBytes != null ? readBytes.getLocalValuePrimitive() : -1L);
+			gen.writeNumberField("write-bytes", writeBytes != null ? writeBytes.getLocalValuePrimitive() : -1L);
+			gen.writeNumberField("read-records", readRecords != null ? readRecords.getLocalValuePrimitive() : -1L);
+			gen.writeNumberField("write-records",writeRecords != null ? writeRecords.getLocalValuePrimitive() : -1L);
+			gen.writeEndObject();
+			
+			gen.writeEndObject();
+			
+			num++;
+		}
+		gen.writeEndArray();
+		
+		gen.writeEndObject();
+
+		gen.close();
+		return writer.toString();
 	}
 }

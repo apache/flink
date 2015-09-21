@@ -83,7 +83,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 					}
 				}).startNewChain()
 				// populate the coordinate directory so we can proceed to TaskManager failure
-				.map(new Mapper(coordinateDir));				
+				.map(new Mapper(coordinateDir));
 
 		//write result to temporary file
 		result.addSink(new CheckpointedSink(DATA_COUNT));
