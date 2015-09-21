@@ -22,6 +22,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
@@ -408,6 +409,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@Test
 	public void perJobYarnCluster() {
 		LOG.info("Starting perJobYarnCluster()");
+		addTestAppender(JobClient.class, Level.INFO);
 		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"-WordCount.jar"} , "streaming")); // exclude streaming wordcount here.
 		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
 		runWithArgs(new String[]{"run", "-m", "yarn-cluster",
@@ -417,10 +419,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 						"-yjm", "768",
 						"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
-				"Job execution switched to status FINISHED.",
+				"Job execution complete",
 				/* prohibited strings: (we want to see (2/2)) */
 				new String[]{"System.out)(1/1) switched to FINISHED "},
-				RunTypes.CLI_FRONTEND, 0);
+				RunTypes.CLI_FRONTEND, 0, true);
 		LOG.info("Finished perJobYarnCluster()");
 	}
 
@@ -430,6 +432,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@Test
 	public void perJobYarnClusterWithParallelism() {
 		LOG.info("Starting perJobYarnClusterWithParallelism()");
+		// write log messages to stdout as well, so that the runWithArgs() method
+		// is catching the log output
+		addTestAppender(JobClient.class, Level.INFO);
 		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"-WordCount.jar"}, "streaming")); // exclude streaming wordcount here.
 		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
 		runWithArgs(new String[]{"run",
@@ -440,10 +445,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 						"-yjm", "768",
 						"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
-				"Job execution switched to status FINISHED.",
+				"Job execution complete",
 				/* prohibited strings: (we want to see (2/2)) */
 				new String[]{"System.out)(1/1) switched to FINISHED "},
-				RunTypes.CLI_FRONTEND, 0);
+				RunTypes.CLI_FRONTEND, 0, true);
 		LOG.info("Finished perJobYarnClusterWithParallelism()");
 	}
 

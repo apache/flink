@@ -34,6 +34,7 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
 import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
+import org.apache.log4j.spi.LoggingEvent;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -240,8 +241,8 @@ public abstract class YarnTestBase extends TestLogger {
 	 */
 	public static void ensureNoProhibitedStringInLogFiles(final String[] prohibited, final String[] whitelisted) {
 		File cwd = new File("target/"+yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
-		Assert.assertTrue("Expecting directory "+cwd.getAbsolutePath()+" to exist", cwd.exists());
-		Assert.assertTrue("Expecting directory "+cwd.getAbsolutePath()+" to be a directory", cwd.isDirectory());
+		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to exist", cwd.exists());
+		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to be a directory", cwd.isDirectory());
 		
 		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
 			@Override
@@ -390,7 +391,7 @@ public abstract class YarnTestBase extends TestLogger {
 		final int START_TIMEOUT_SECONDS = 60;
 
 		Runner runner = new Runner(args, type);
-		runner.setName("Frontend (CLI/YARN Client) runner thread (runWithArgs()).");
+		runner.setName("Frontend (CLI/YARN Client) runner thread (startWithArgs()).");
 		runner.start();
 
 		for(int second = 0; second <  START_TIMEOUT_SECONDS; second++) {
@@ -414,10 +415,19 @@ public abstract class YarnTestBase extends TestLogger {
 		return null;
 	}
 
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode) {
+		runWithArgs(args,terminateAfterString, failOnStrings, type, returnCode, false);
+	}
 	/**
 	 * The test has been passed once the "terminateAfterString" has been seen.
+	 * @param args Command line arguments for the runner
+	 * @param terminateAfterString the runner is searching the stdout and stderr for this string. as soon as it appears, the test has passed
+	 * @param failOnStrings The runner is searching stdout and stderr for the strings specified here. If one appears, the test has failed
+	 * @param type Set the type of the runner
+	 * @param returnCode Expected return code from the runner.
+	 * @param checkLogForTerminateString  If true, the runner checks also the log4j logger for the terminate string
 	 */
-	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode) {
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode, boolean checkLogForTerminateString) {
 		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
@@ -434,6 +444,7 @@ public abstract class YarnTestBase extends TestLogger {
 		runner.start();
 
 		boolean expectedStringSeen = false;
+		boolean testPassedFromLog4j = false;
 		do {
 			sleep(1000);
 			String outContentString = outContent.toString();
@@ -450,8 +461,17 @@ public abstract class YarnTestBase extends TestLogger {
 					}
 				}
 			}
-			// check output for correct TaskManager startup.
-			if (outContentString.contains(terminateAfterString) || errContentString.contains(terminateAfterString) ) {
+			// check output for the expected terminateAfterString.
+			if(checkLogForTerminateString) {
+				LoggingEvent matchedEvent = UtilsTest.getEventContainingString(terminateAfterString);
+				if(matchedEvent != null) {
+					testPassedFromLog4j = true;
+					LOG.info("Found expected output in logging event {}", matchedEvent);
+				}
+
+			}
+
+			if (outContentString.contains(terminateAfterString) || errContentString.contains(terminateAfterString) || testPassedFromLog4j ) {
 				expectedStringSeen = true;
 				LOG.info("Found expected output in redirected streams");
 				// send "stop" command to command line interface
@@ -469,13 +489,14 @@ public abstract class YarnTestBase extends TestLogger {
 			else {
 				// check if thread died
 				if (!runner.isAlive()) {
-					sendOutput();
 					if (runner.getReturnValue() != 0) {
 						Assert.fail("Runner thread died before the test was finished. Return value = "
 								+ runner.getReturnValue());
 					} else {
 						LOG.info("Runner stopped earlier than expected with return value = 0");
 					}
+					// leave loop: the runner died, so we can not expect new strings to show up.
+					break;
 				}
 			}
 		}

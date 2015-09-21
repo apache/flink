@@ -63,8 +63,17 @@ public class UtilsTest {
 	}
 
 	public static void checkForLogString(String expected) {
+		LoggingEvent found = getEventContainingString(expected);
+		if(found != null) {
+			LOG.info("Found expected string '"+expected+"' in log message "+found);
+			return;
+		}
+		Assert.fail("Unable to find expected string '" + expected + "' in log messages");
+	}
+
+	public static LoggingEvent getEventContainingString(String expected) {
 		if(testAppender == null) {
-			throw new NullPointerException("Initialize it first");
+			throw new NullPointerException("Initialize test appender first");
 		}
 		LoggingEvent found = null;
 		for(LoggingEvent event: testAppender.events) {
@@ -73,11 +82,7 @@ public class UtilsTest {
 				break;
 			}
 		}
-		if(found != null) {
-			LOG.info("Found expected string '"+expected+"' in log message "+found);
-			return;
-		}
-		Assert.fail("Unable to find expected string '" + expected + "' in log messages");
+		return found;
 	}
 
 	public static class TestAppender extends AppenderSkeleton {
