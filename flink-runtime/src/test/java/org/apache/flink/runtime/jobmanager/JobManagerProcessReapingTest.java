@@ -74,6 +74,7 @@ public class JobManagerProcessReapingTest {
 			CommonTestUtils.printLog4jDebugConfig(tempLogFile);
 
 			// start a JobManger process
+			// the log level must be at least INFO, otherwise the bound port cannot be retrieved
 			String[] command = new String[] {
 					javaCommand,
 					"-Dlog.level=DEBUG",
@@ -98,6 +99,8 @@ public class JobManagerProcessReapingTest {
 			ActorRef jobManagerRef = null;
 			Throwable lastError = null;
 
+			// Log message on JobManager must be: Starting JobManager at ...://flink@...:port/..."
+			// otherwise, the pattern does not match and, thus, cannot retrieve the bound port
 			String pattern = "Starting JobManager at [^:]*://flink@[^:]*:(\\d*)/";
 			Pattern r = Pattern.compile(pattern);
 			int jobManagerPort = -1;
