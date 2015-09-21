@@ -25,6 +25,7 @@ import java.util.Map.Entry;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.state.StateCheckpointer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateHandle;
@@ -36,6 +37,7 @@ import org.apache.flink.streaming.api.state.PartitionedStreamOperatorState;
 import org.apache.flink.streaming.api.state.StreamOperatorState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,7 +111,13 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 		if (snapshots.f1 != null) {
 			// We iterate over the states registered for this operator, initialize and restore it
 			for (Entry<String, OperatorStateHandle> snapshot : snapshots.f1.entrySet()) {
-				StreamOperatorState restoredOpState = runtimeContext.getState(snapshot.getKey(), snapshot.getValue().isPartitioned());
+				OperatorStateHandle opStateHandle = snapshot.getValue();
+				StreamOperatorState restoredOpState = runtimeContext.getState(snapshot.getKey(), opStateHandle.isPartitioned());
+				if (opStateHandle.getSerializedCheckpointer() != null) {
+					restoredOpState.setCheckpointer((StateCheckpointer) InstantiationUtil.deserializeObject(
+							opStateHandle.getSerializedCheckpointer(),
+							runtimeContext.getUserCodeClassLoader()));
+				}
 				StateHandle<Serializable> checkpointHandle = snapshot.getValue();
 				restoredOpState.restoreState(checkpointHandle, runtimeContext.getUserCodeClassLoader());
 			}
@@ -117,7 +125,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 		
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@SuppressWarnings("rawtypes")
 	public Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> getStateSnapshotFromFunction(long checkpointId, long timestamp)
 			throws Exception {
 		// Get all the states for the operator
@@ -133,9 +141,10 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 
 			for (Entry<String, StreamOperatorState<?, ?>> state : operatorStates.entrySet()) {
 				boolean isPartitioned = state.getValue() instanceof PartitionedStreamOperatorState;
+				
 				snapshots.put(state.getKey(),
 						new OperatorStateHandle(state.getValue().snapshotState(checkpointId, timestamp),
-								isPartitioned));
+								isPartitioned, state.getValue().getSerializedCheckpointer()));
 			}
 
 			operatorStateSnapshots = snapshots;

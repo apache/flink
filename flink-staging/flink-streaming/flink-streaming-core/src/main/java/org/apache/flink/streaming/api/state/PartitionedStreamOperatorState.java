@@ -143,6 +143,12 @@ public class PartitionedStreamOperatorState<IN, S, C extends Serializable> exten
 	public Map<Serializable, S> getPartitionedState() throws Exception {
 		return stateStore.getPartitionedState();
 	}
+	
+	@Override
+	public void setCheckpointer(StateCheckpointer<S, C> checkpointer) {
+		super.setCheckpointer(checkpointer);
+		stateStore.setCheckPointer(checkpointer);
+	}
 
 	@Override
 	public String toString() {

@@ -27,10 +27,12 @@ public class OperatorStateHandle implements StateHandle<Serializable> {
 	
 	private final StateHandle<Serializable> handle;
 	private final boolean isPartitioned;
+	private final byte[] serializedCheckpointer;
 	
-	public OperatorStateHandle(StateHandle<Serializable> handle, boolean isPartitioned){
+	public OperatorStateHandle(StateHandle<Serializable> handle, boolean isPartitioned, byte[] serializedCheckpointer){
 		this.handle = handle;
 		this.isPartitioned = isPartitioned;
+		this.serializedCheckpointer = serializedCheckpointer;
 	}
 	
 	public boolean isPartitioned(){
@@ -49,6 +51,10 @@ public class OperatorStateHandle implements StateHandle<Serializable> {
 	
 	public StateHandle<Serializable> getHandle() {
 		return handle;
+	}
+	
+	public byte[] getSerializedCheckpointer() {
+		return serializedCheckpointer;
 	}
 
 }
