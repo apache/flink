@@ -35,7 +35,35 @@ public interface CopyableValue<T> extends Value {
 	 */
 	int getBinaryLength();
 	
+	/**
+	 * Performs a deep copy of this object into the {@code target} instance.
+	 *
+	 * @param target Object to copy into.
+	 */
 	void copyTo(T target);
-	
+
+	/**
+	 * Performs a deep copy of this object into a new instance.
+         *
+         * This method is useful for generic user-defined functions to clone a
+         * {@link CopyableValue} when storing multiple objects. With object reuse
+         * a deep copy must be created and type erasure prevents calling new.
+	 *
+	 * @return New object with copied fields.
+	 */
+	T copy();
+
+	/**
+	 * Copies the next serialized instance from {@code source} to {@code target}.
+	 *
+	 * This method is equivalent to calling {@code IOReadableWritable.read(DataInputView)}
+	 * followed by {@code IOReadableWritable.write(DataOutputView)} but does not require
+	 * intermediate deserialization.
+	 *
+	 * @param source Data source for serialized instance.
+	 * @param target Data target for serialized instance.
+	 *
+	 * @see org.apache.flink.core.io.IOReadableWritable
+	 */
 	void copy(DataInputView source, DataOutputView target) throws IOException;
 }

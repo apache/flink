@@ -682,7 +682,12 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		target.ensureSize(this.len);
 		System.arraycopy(this.value, 0, target.value, 0, this.len);
 	}
-	
+
+	@Override
+	public StringValue copy() {
+		return new StringValue(this);
+	}
+
 	@Override
 	public void copy(DataInputView in, DataOutputView target) throws IOException {
 		int len = in.readUnsignedByte();

@@ -122,10 +122,15 @@ public class DoubleValue implements Key<DoubleValue>, ResettableValue<DoubleValu
 	public int getBinaryLength() {
 		return 8;
 	}
-	
+
 	@Override
 	public void copyTo(DoubleValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public DoubleValue copy() {
+		return new DoubleValue(this.value);
 	}
 
 	@Override
