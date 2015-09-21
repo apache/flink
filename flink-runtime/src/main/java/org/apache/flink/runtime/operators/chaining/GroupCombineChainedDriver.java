@@ -48,7 +48,7 @@ import java.util.List;
  * 
  * Acts like a combiner with a custom output type OUT.
  *
- * Sorting and reducing of the elements is performed invididually for each partition without data exchange. This may
+ * Sorting and reducing of the elements is performed individually for each partition without data exchange. This may
  * lead to a partial group reduce.
  *  
  * @param <IN> The data type consumed
@@ -58,9 +58,7 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(GroupCombineChainedDriver.class);
 
-	/**
-	 * Fix length records with a length below this threshold will be in-place sorted, if possible.
-	 */
+	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
 	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
 
 	// --------------------------------------------------------------------------------------------
@@ -174,23 +172,16 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 			if (this.sorter.write(record)) {
 				return;
 			}
-		} catch (IOException e) {
-			throw new ExceptionInChainedStubException(this.taskName, e);
-		}
 
-		// do the actual sorting
-		try {
+			// do the actual sorting
 			sortAndReduce();
-		} catch (Exception e) {
-			throw new ExceptionInChainedStubException(this.taskName, e);
-		}
-		this.sorter.reset();
-
-		try {
+			this.sorter.reset();
+			
 			if (!this.sorter.write(record)) {
 				throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
 			}
-		} catch (IOException e) {
+		}
+		catch (Exception e) {
 			throw new ExceptionInChainedStubException(this.taskName, e);
 		}
 	}
@@ -215,9 +206,9 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
 				// run the reducer
-				final ReusingKeyGroupedIterator<IN> keyIter = new ReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.serializer, this.groupingComparator);
-
-
+				final ReusingKeyGroupedIterator<IN> keyIter = new ReusingKeyGroupedIterator<IN>(
+						sorter.getIterator(), this.serializer, this.groupingComparator);
+				
 				// cache references on the stack
 				final GroupReduceFunction<IN, OUT> stub = this.reducer;
 				final Collector<OUT> output = this.outputCollector;
@@ -231,7 +222,8 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
 				// run the reducer
-				final NonReusingKeyGroupedIterator<IN> keyIter = new NonReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.groupingComparator);
+				final NonReusingKeyGroupedIterator<IN> keyIter = new NonReusingKeyGroupedIterator<IN>(
+						sorter.getIterator(), this.groupingComparator);
 
 
 				// cache references on the stack

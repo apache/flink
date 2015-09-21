@@ -143,22 +143,43 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 		final MutableObjectIterator<T> in = this.taskContext.getInput(0);
 		final TypeSerializer<T> serializer = this.serializer;
 		
-		T value = serializer.createInstance();
+		if (objectReuseEnabled) {
+			T value = serializer.createInstance();
 		
-		while (running && (value = in.next(value)) != null) {
-			
-			// try writing to the sorter first
-			if (this.sorter.write(value)) {
-				continue;
+			while (running && (value = in.next(value)) != null) {
+				
+				// try writing to the sorter first
+				if (this.sorter.write(value)) {
+					continue;
+				}
+		
+				// do the actual sorting, combining, and data writing
+				sortAndCombine();
+				this.sorter.reset();
+				
+				// write the value again
+				if (!this.sorter.write(value)) {
+					throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
+				}
 			}
-	
-			// do the actual sorting, combining, and data writing
-			sortAndCombine();
-			this.sorter.reset();
-			
-			// write the value again
-			if (!this.sorter.write(value)) {
-				throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
+		}
+		else {
+			T value;
+			while (running && (value = in.next()) != null) {
+
+				// try writing to the sorter first
+				if (this.sorter.write(value)) {
+					continue;
+				}
+
+				// do the actual sorting, combining, and data writing
+				sortAndCombine();
+				this.sorter.reset();
+
+				// write the value again
+				if (!this.sorter.write(value)) {
+					throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
+				}
 			}
 		}
 		
@@ -174,11 +195,8 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 			
 			final TypeSerializer<T> serializer = this.serializer;
 			final TypeComparator<T> comparator = this.comparator;
-			
 			final ReduceFunction<T> function = this.reducer;
-			
 			final Collector<T> output = this.output;
-			
 			final MutableObjectIterator<T> input = sorter.getIterator();
 
 			if (objectReuseEnabled) {
@@ -214,7 +232,7 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 					}
 				}
 			} else {
-				T value = input.next(serializer.createInstance());
+				T value = input.next();
 
 				// iterate over key groups
 				while (this.running && value != null) {
@@ -222,7 +240,7 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 					T res = value;
 
 					// iterate within a key group
-					while ((value = input.next(serializer.createInstance())) != null) {
+					while ((value = input.next()) != null) {
 						if (comparator.equalToReference(value)) {
 							// same group, reduce
 							res = function.reduce(res, value);

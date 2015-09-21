@@ -157,29 +157,29 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 		final MutableObjectIterator<IN> in = this.taskContext.getInput(0);
 		final TypeSerializer<IN> serializer = this.serializer;
 
-		IN value = serializer.createInstance();
-
-		while (running && (value = in.next(value)) != null) {
-
-			// try writing to the sorter first
-			if (this.sorter.write(value)) {
-				continue;
+		if (objectReuseEnabled) {
+			IN value = serializer.createInstance();
+	
+			while (running && (value = in.next(value)) != null) {
+				// try writing to the sorter first
+				if (this.sorter.write(value)) {
+					continue;
+				}
+	
+				// do the actual sorting, combining, and data writing
+				sortAndCombineAndRetryWrite(value);
 			}
+		}
+		else {
+			IN value;
+			while (running && (value = in.next()) != null) {
+				// try writing to the sorter first
+				if (this.sorter.write(value)) {
+					continue;
+				}
 
-			// do the actual sorting, combining, and data writing
-			sortAndCombine();
-			this.sorter.reset();
-
-			// write the value again
-			if (!this.sorter.write(value)) {
-				
-				++oversizedRecordCount;
-				LOG.debug("Cannot write record to fresh sort buffer, record is too large. " +
-								"Oversized record count: {}", oversizedRecordCount);
-				
-				// simply forward the record. We need to pass it through the combine function to convert it
-				Iterable<IN> input = Collections.singleton(value);
-				this.combiner.combine(input, this.output);
+				// do the actual sorting, combining, and data writing
+				sortAndCombineAndRetryWrite(value);
 			}
 		}
 
@@ -212,6 +212,24 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 			while (this.running && keyIter.nextKey()) {
 				combiner.combine(keyIter.getValues(), output);
 			}
+		}
+	}
+	
+	private void sortAndCombineAndRetryWrite(IN value) throws Exception {
+		sortAndCombine();
+		this.sorter.reset();
+
+		// write the value again
+		if (!this.sorter.write(value)) {
+
+			++oversizedRecordCount;
+			LOG.debug("Cannot write record to fresh sort buffer, record is too large. " +
+					"Oversized record count: {}", oversizedRecordCount);
+
+			// simply forward the record. We need to pass it through the combine function to convert it
+			Iterable<IN> input = Collections.singleton(value);
+			this.combiner.combine(input, this.output);
+			this.sorter.reset();
 		}
 	}
 
