@@ -219,7 +219,7 @@ The Apache Flink project bundles the following components
 under the Apache License (v 2.0):
 
  - Apache Commons Logging (commons-logging:commons-logging:1.1.1 - http://commons.apache.org/proper/commons-logging/)
- - Apache Commons Codec (commons-codec:commons-codec:1.3 - http://commons.apache.org/proper/commons-codec/)
+ - Apache Commons Codec (commons-codec:commons-codec:1.4 - http://commons.apache.org/proper/commons-codec/)
  - Apache Commons Collections (commons-collections:commons-collections:3.2.1 - http://commons.apache.org/collections/)
  - Apache Commons CLI (commons-cli:commons-cli:1.2 - http://commons.apache.org/cli/)
  - Apache Commons FileUpload (commons-fileupload:commons-fileupload:1.3.1 - http://commons.apache.org/fileupload/)
