@@ -83,11 +83,14 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 		assertEquals("12345", context.getOperatorState("concat", "", false).value());
 		assertEquals((Integer) 5, ((StatefulMapper) map.getUserFunction()).checkpointedCounter);
 
-		byte[] serializedState = InstantiationUtil.serializeObject(map.getStateSnapshotFromFunction(1, 1));
+		byte[] serializedState0 = InstantiationUtil.serializeObject(map.getStateSnapshotFromFunction(1, 1));
+		// Restore state but snapshot again before calling the value
+		byte[] serializedState = InstantiationUtil.serializeObject(createOperatorWithContext(out,
+				new ModKey(2), serializedState0).getStateSnapshotFromFunction(1, 1));
 
 		StreamMap<Integer, String> restoredMap = createOperatorWithContext(out, new ModKey(2), serializedState);
 		StreamingRuntimeContext restoredContext = restoredMap.getRuntimeContext();
-
+		
 		assertEquals((Integer) 5, restoredContext.getOperatorState("counter", 0, false).value());
 		assertEquals(ImmutableMap.of(0, new MutableInt(2), 1, new MutableInt(3)), context.getOperatorStates().get("groupCounter").getPartitionedState());
 		assertEquals("12345", restoredContext.getOperatorState("concat", "", false).value());
@@ -227,7 +230,7 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public void open(Configuration conf) throws IOException {
-			counter = getRuntimeContext().getOperatorState("counter", 0, false);
+			counter = getRuntimeContext().getOperatorState("counter", 0, false, intCheckpointer);
 			groupCounter = getRuntimeContext().getOperatorState("groupCounter", new MutableInt(0), true);
 			concat = getRuntimeContext().getOperatorState("concat", "", false);
 			try {
@@ -279,19 +282,7 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public void open(Configuration conf) throws IOException {
-			groupCounter = getRuntimeContext().getOperatorState("groupCounter", 0, true,
-					new StateCheckpointer<Integer, String>() {
-
-						@Override
-						public String snapshotState(Integer state, long checkpointId, long checkpointTimestamp) {
-							return state.toString();
-						}
-
-						@Override
-						public Integer restoreState(String stateSnapshot) {
-							return Integer.parseInt(stateSnapshot);
-						}
-					});
+			groupCounter = getRuntimeContext().getOperatorState("groupCounter", 0, true, intCheckpointer);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -308,6 +299,21 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 		}
 
 	}
+	
+	public static StateCheckpointer<Integer, String> intCheckpointer = new StateCheckpointer<Integer, String>() {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public String snapshotState(Integer state, long checkpointId, long checkpointTimestamp) {
+			return state.toString();
+		}
+
+		@Override
+		public Integer restoreState(String stateSnapshot) {
+			return Integer.parseInt(stateSnapshot);
+		}
+	};
 
 	public static class PStateKeyRemovalTestMapper extends RichMapFunction<Integer, String> {
 
