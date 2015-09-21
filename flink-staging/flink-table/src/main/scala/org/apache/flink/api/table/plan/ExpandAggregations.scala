@@ -111,7 +111,7 @@ object ExpandAggregations {
         }
       }
 
-      val intermediateAnalyzer = new SelectionAnalyzer(input.outputFields)
+      val intermediateAnalyzer = new SelectionAnalyzer(input)
       val analyzedIntermediates = intermediateFields.toSeq.map(intermediateAnalyzer.analyze)
 
       val finalAnalyzer =

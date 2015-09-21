@@ -15,27 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.expressions.analysis
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.plan.PlanNode
-import org.apache.flink.api.table.trees.Analyzer
+package org.apache.flink.api.table.input
+
+import org.apache.flink.api.table.Table
 
 /**
- * This analyzes selection expressions.
+ * Base class for input formats of [[Table]]s.
+ *
+ * See also [[AdaptiveTableSource]] and [[StaticTableSource]].
  */
-class SelectionAnalyzer(inputFields: Seq[(String, TypeInformation[_])], inputOperation: PlanNode)
-  extends Analyzer[Expression] {
-
-  def this(inputOperation: PlanNode) = this(inputOperation.outputFields, inputOperation)
-
-  def this(inputFields: Seq[(String, TypeInformation[_])]) = this(inputFields, null)
-
-  def rules = Seq(
-    new ResolveFieldReferences(inputFields, inputOperation, false),
-    new VerifyNoNestedAggregates,
-    new InsertAutoCasts,
-    new TypeCheck)
+trait TableSource {
 
 }

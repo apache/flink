@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.environment;
 import com.esotericsoftware.kryo.Serializer;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import org.apache.flink.api.common.AbstractExecutionEnvironment;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -80,7 +81,7 @@ import java.util.List;
  * {@link org.apache.flink.api.java.ExecutionEnvironment} for streaming jobs. An instance of it is
  * necessary to construct streaming topologies.
  */
-public abstract class StreamExecutionEnvironment {
+public abstract class StreamExecutionEnvironment implements AbstractExecutionEnvironment {
 
 	public final static String DEFAULT_JOB_NAME = "Flink Streaming Job";
 

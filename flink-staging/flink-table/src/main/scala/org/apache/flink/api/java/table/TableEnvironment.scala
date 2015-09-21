@@ -17,11 +17,14 @@
  */
 package org.apache.flink.api.java.table
 
+import org.apache.flink.api.common.AbstractExecutionEnvironment
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.{ExecutionEnvironment, DataSet}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.table.Table
+import org.apache.flink.api.table.input.HCatTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 
 /**
  * Environment for working with the Table API.
@@ -29,7 +32,20 @@ import org.apache.flink.streaming.api.datastream.DataStream
  * This can be used to convert [[DataSet]] or [[DataStream]] to a [[Table]] and back again. You
  * can also use the provided methods to create a [[Table]] directly from a data source.
  */
-class TableEnvironment {
+class TableEnvironment(private[flink] val environment: AbstractExecutionEnvironment) {
+
+  private def translatorFromEnv = {
+    if (environment.isInstanceOf[ExecutionEnvironment]) {
+      new JavaBatchTranslator(environment.asInstanceOf[ExecutionEnvironment])
+    }
+    else if (environment.isInstanceOf[StreamExecutionEnvironment]) {
+      new JavaStreamingTranslator(environment.asInstanceOf[StreamExecutionEnvironment])
+    }
+    else {
+      throw new IllegalArgumentException("ExecutionEnvironment is invalid for the " +
+        "Java TableEnvironment.");
+    }
+  }
 
   /**
    * Transforms the given DataSet to a [[org.apache.flink.api.table.Table]].
@@ -45,7 +61,11 @@ class TableEnvironment {
    * are named a and b.
    */
   def fromDataSet[T](set: DataSet[T], fields: String): Table = {
-    new JavaBatchTranslator().createTable(set, fields)
+    val translator = translatorFromEnv
+    if (!translator.isInstanceOf[JavaBatchTranslator]) {
+      throw new IllegalArgumentException("ExecutionEnvironment does not support Java DataSets.")
+    }
+    translator.asInstanceOf[JavaBatchTranslator].createTable(set, fields)
   }
 
   /**
@@ -54,7 +74,11 @@ class TableEnvironment {
    * [[org.apache.flink.api.table.Table]] fields.
    */
   def fromDataSet[T](set: DataSet[T]): Table = {
-    new JavaBatchTranslator().createTable(set)
+    val translator = translatorFromEnv
+    if (!translator.isInstanceOf[JavaBatchTranslator]) {
+      throw new IllegalArgumentException("ExecutionEnvironment does not support Java DataSets.")
+    }
+    translator.asInstanceOf[JavaBatchTranslator].createTable(set)
   }
 
   /**
@@ -71,7 +95,11 @@ class TableEnvironment {
    * are named a and b.
    */
   def fromDataStream[T](set: DataStream[T], fields: String): Table = {
-    new JavaStreamingTranslator().createTable(set, fields)
+    val translator = translatorFromEnv
+    if (!translator.isInstanceOf[JavaStreamingTranslator]) {
+      throw new IllegalArgumentException("ExecutionEnvironment does not support Java DataStreams.")
+    }
+    translator.asInstanceOf[JavaStreamingTranslator].createTable(set, fields)
   }
 
   /**
@@ -80,7 +108,20 @@ class TableEnvironment {
    * [[org.apache.flink.api.table.Table]] fields.
    */
   def fromDataStream[T](set: DataStream[T]): Table = {
-    new JavaStreamingTranslator().createTable(set)
+    val translator = translatorFromEnv
+    if (!translator.isInstanceOf[JavaStreamingTranslator]) {
+      throw new IllegalArgumentException("ExecutionEnvironment does not support Java DataStreams.")
+    }
+    translator.asInstanceOf[JavaStreamingTranslator].createTable(set)
+  }
+
+  /**
+   * Reads a [[org.apache.flink.api.table.Table]] from a HCatalog data source.
+   *
+   * Make sure that the hive-site.xml is included in your class path.
+   */
+  def fromHCat[T](database: String, table: String): Table = {
+    translatorFromEnv.createTable(new HCatTableSource(database, table))
   }
 
   /**
@@ -91,7 +132,11 @@ class TableEnvironment {
    */
   @SuppressWarnings(Array("unchecked"))
   def toDataSet[T](table: Table, clazz: Class[T]): DataSet[T] = {
-    new JavaBatchTranslator().translate[T](table.operation)(
+    val translator = translatorFromEnv
+    if (!translator.isInstanceOf[JavaBatchTranslator]) {
+      throw new IllegalArgumentException("ExecutionEnvironment does not support Java DataSets.")
+    }
+    translator.asInstanceOf[JavaBatchTranslator].translate[T](table.operation)(
       TypeExtractor.createTypeInfo(clazz).asInstanceOf[TypeInformation[T]])
   }
 
@@ -103,9 +148,12 @@ class TableEnvironment {
    */
   @SuppressWarnings(Array("unchecked"))
   def toDataStream[T](table: Table, clazz: Class[T]): DataStream[T] = {
-    new JavaStreamingTranslator().translate[T](table.operation)(
+    val translator = translatorFromEnv
+    if (!translator.isInstanceOf[JavaStreamingTranslator]) {
+      throw new IllegalArgumentException("ExecutionEnvironment does not support Java DataStreams.")
+    }
+    translator.asInstanceOf[JavaStreamingTranslator].translate[T](table.operation)(
       TypeExtractor.createTypeInfo(clazz).asInstanceOf[TypeInformation[T]])
-
   }
 }
 

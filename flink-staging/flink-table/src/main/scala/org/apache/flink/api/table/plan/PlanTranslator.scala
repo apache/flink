@@ -21,6 +21,7 @@ import java.lang.reflect.Modifier
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.table.input.TableSource
 import org.apache.flink.api.table.parser.ExpressionParser
 import org.apache.flink.api.table.expressions.{Expression, Naming, ResolvedFieldReference, UnresolvedFieldReference}
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
@@ -50,6 +51,11 @@ abstract class PlanTranslator {
       inputType: CompositeType[A],
       expressions: Array[Expression],
       resultFields: Seq[(String, TypeInformation[_])]): Table
+
+  /**
+   * Creates a [[Table]] from a given table source.
+   */
+  def createTable(tableSource: TableSource): Table
 
   /**
    * Creates a [[Table]] from the given DataSet or DataStream.
@@ -101,7 +107,7 @@ abstract class PlanTranslator {
         new Table(
           Root(repr, expressions))
 
-      case c: CompositeType[A] => // us ok
+      case c: CompositeType[A] => // is ok
 
       case tpe => throw new ExpressionException("Only DataSets or DataStreams of composite type" +
         "can be transformed to a Table. These would be tuples, case classes and " +

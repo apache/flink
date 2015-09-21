@@ -28,6 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
+import org.apache.flink.api.common.AbstractExecutionEnvironment;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -75,7 +76,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 
 /**
- * The ExecutionEnviroment is the context in which a program is executed. A
+ * The ExecutionEnvironment is the context in which a program is executed. A
  * {@link LocalEnvironment} will cause execution in the current JVM, a
  * {@link RemoteEnvironment} will cause execution on a remote setup.
  * <p>
@@ -92,7 +93,7 @@ import com.google.common.base.Preconditions;
  * @see LocalEnvironment
  * @see RemoteEnvironment
  */
-public abstract class ExecutionEnvironment {
+public abstract class ExecutionEnvironment implements AbstractExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 	

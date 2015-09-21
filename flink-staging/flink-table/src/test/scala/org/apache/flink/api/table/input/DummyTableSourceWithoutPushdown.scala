@@ -15,27 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.expressions.analysis
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.plan.PlanNode
-import org.apache.flink.api.table.trees.Analyzer
+package org.apache.flink.api.table.input
 
-/**
- * This analyzes selection expressions.
- */
-class SelectionAnalyzer(inputFields: Seq[(String, TypeInformation[_])], inputOperation: PlanNode)
-  extends Analyzer[Expression] {
+import org.apache.flink.api.java.tuple.Tuple1
+import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 
-  def this(inputOperation: PlanNode) = this(inputOperation.outputFields, inputOperation)
+class DummyTableSourceWithoutPushdown extends StaticTableSource {
 
-  def this(inputFields: Seq[(String, TypeInformation[_])]) = this(inputFields, null)
+  override def getOutputFieldNames(): Seq[String] = Seq("field")
 
-  def rules = Seq(
-    new ResolveFieldReferences(inputFields, inputOperation, false),
-    new VerifyNoNestedAggregates,
-    new InsertAutoCasts,
-    new TypeCheck)
+  override def createStaticDataStream(env: StreamExecutionEnvironment): DataStream[_] = null
+
+  override def createStaticDataSet(env: ExecutionEnvironment): DataSet[_] = {
+    env.fromElements(
+      new Tuple1[String]("A"),
+      new Tuple1[String]("B"),
+      new Tuple1[String]("C"),
+      new Tuple1[String]("D"))
+  }
 
 }

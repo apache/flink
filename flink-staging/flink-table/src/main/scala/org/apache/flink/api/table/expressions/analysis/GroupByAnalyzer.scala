@@ -19,7 +19,7 @@ package org.apache.flink.api.table.expressions.analysis
 
 import org.apache.flink.api.table._
 import org.apache.flink.api.table.expressions.{ResolvedFieldReference, Expression}
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.plan.PlanNode
 
 import scala.collection.mutable
 
@@ -29,10 +29,10 @@ import org.apache.flink.api.table.trees.{Rule, Analyzer}
 /**
  * Analyzer for grouping expressions. Only field expressions are allowed as grouping expressions.
  */
-class GroupByAnalyzer(inputFields: Seq[(String, TypeInformation[_])])
+class GroupByAnalyzer(inputOperation: PlanNode)
   extends Analyzer[Expression] {
 
-  def rules = Seq(new ResolveFieldReferences(inputFields), CheckGroupExpression)
+  def rules = Seq(new ResolveFieldReferences(inputOperation, false), CheckGroupExpression)
 
   object CheckGroupExpression extends Rule[Expression] {
 
