@@ -71,15 +71,13 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
 	private TypeSerializer<IN> serializer;
 
-	private TypeComparator<IN> sortingComparator;
-
 	private TypeComparator<IN> groupingComparator;
 
 	private AbstractInvokable parent;
 
 	private QuickSort sortAlgo = new QuickSort();
 
-	private MemoryManager memManager;
+	private List<MemorySegment> memory;
 
 	private volatile boolean running = true;
 
@@ -102,28 +100,28 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 		final Configuration stubConfig = this.config.getStubParameters();
 		RegularPactTask.openUserCode(this.reducer, stubConfig);
 
-		// ----------------- Set up the asynchronous sorter -------------------------
-
-		this.memManager = this.parent.getEnvironment().getMemoryManager();
-		final int numMemoryPages = memManager.computeNumberOfPages(this.config.getRelativeMemoryDriver());
+		// ----------------- Set up the sorter -------------------------
 
 		// instantiate the serializer / comparator
 		final TypeSerializerFactory<IN> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
 		final TypeComparatorFactory<IN> sortingComparatorFactory = this.config.getDriverComparator(0, this.userCodeClassLoader);
 		final TypeComparatorFactory<IN> groupingComparatorFactory = this.config.getDriverComparator(1, this.userCodeClassLoader);
 		this.serializer = serializerFactory.getSerializer();
-		this.sortingComparator = sortingComparatorFactory.createComparator();
+		
+		TypeComparator<IN> sortingComparator = sortingComparatorFactory.createComparator();
 		this.groupingComparator = groupingComparatorFactory.createComparator();
 
-		final List<MemorySegment> memory = this.memManager.allocatePages(this.parent, numMemoryPages);
+		MemoryManager memManager = this.parent.getEnvironment().getMemoryManager();
+		final int numMemoryPages = memManager.computeNumberOfPages(this.config.getRelativeMemoryDriver());
+		this.memory = memManager.allocatePages(this.parent, numMemoryPages);
 
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-		if (this.sortingComparator.supportsSerializationWithKeyNormalization() &&
+		if (sortingComparator.supportsSerializationWithKeyNormalization() &&
 			this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
 		{
-			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, this.sortingComparator, memory);
+			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, sortingComparator, memory);
 		} else {
-			this.sorter = new NormalizedKeySorter<IN>(this.serializer, this.sortingComparator.duplicate(), memory);
+			this.sorter = new NormalizedKeySorter<IN>(this.serializer, sortingComparator.duplicate(), memory);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -133,19 +131,30 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
 	@Override
 	public void closeTask() throws Exception {
-		this.memManager.release(this.sorter.dispose());
-
-		if (!this.running) {
-			return;
+		if (this.sorter != null) {
+			this.sorter.dispose();
 		}
+		this.parent.getEnvironment().getMemoryManager().release(this.memory);
 
-		RegularPactTask.closeUserCode(this.reducer);
+		if (this.running) {
+			RegularPactTask.closeUserCode(this.reducer);
+		}
 	}
 
 	@Override
 	public void cancelTask() {
 		this.running = false;
-		this.memManager.release(this.sorter.dispose());
+
+		if (this.sorter != null) {
+			try {
+				this.sorter.dispose();
+			}
+			catch (Exception e) {
+				// may happen during concurrent modification
+			}
+		}
+		
+		this.parent.getEnvironment().getMemoryManager().release(this.memory);
 	}
 
 	// --------------------------------------------------------------------------------------------

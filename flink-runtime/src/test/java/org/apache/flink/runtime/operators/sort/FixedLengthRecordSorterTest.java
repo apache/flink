@@ -33,14 +33,12 @@ import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.runtime.operators.testutils.types.IntPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * 
- */
 public class FixedLengthRecordSorterTest {
 	
 	private static final long SEED = 649180756312423613L;
@@ -125,7 +123,8 @@ public class FixedLengthRecordSorterTest {
 //		System.out.println("RECORDS " + num);
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
@@ -170,7 +169,8 @@ public class FixedLengthRecordSorterTest {
 		Assert.assertEquals("Incorrect number of records", num, count);
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
@@ -225,7 +225,8 @@ public class FixedLengthRecordSorterTest {
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	/**
@@ -276,7 +277,8 @@ public class FixedLengthRecordSorterTest {
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	/**
@@ -318,7 +320,8 @@ public class FixedLengthRecordSorterTest {
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
@@ -345,11 +348,10 @@ public class FixedLengthRecordSorterTest {
 		MutableObjectIterator<IntPair> iter = sorter.getIterator();
 		IntPair readTarget = new IntPair();
 		
-		int current = 0;
-		int last = 0;
+		int current;
+		int last;
 		
 		iter.next(readTarget);
-		//readTarget.getFieldInto(0, last);
 		last = readTarget.getKey();
 		
 		while ((readTarget = iter.next(readTarget)) != null) {
@@ -359,13 +361,11 @@ public class FixedLengthRecordSorterTest {
 			if (cmp > 0) {
 				Assert.fail("Next key is not larger or equal to previous key.");
 			}
-			
-			int tmp = current;
-			current = last;
-			last = tmp;
+			last = current;
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 }

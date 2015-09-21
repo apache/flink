@@ -74,9 +74,9 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 
 	private QuickSort sortAlgo = new QuickSort();
 
-	private MemoryManager memManager;
-
 	private Collector<OUT> output;
+
+	private List<MemorySegment> memory;
 
 	private long oversizedRecordCount;
 
@@ -115,9 +115,8 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 		if (driverStrategy != DriverStrategy.SORTED_GROUP_COMBINE){
 			throw new Exception("Invalid strategy " + driverStrategy + " for group reduce combiner.");
 		}
-
-		this.memManager = this.taskContext.getMemoryManager();
-		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getRelativeMemoryDriver());
+		
+		
 
 		final TypeSerializerFactory<IN> serializerFactory = this.taskContext.getInputSerializer(0);
 		this.serializer = serializerFactory.getSerializer();
@@ -128,8 +127,9 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 		this.combiner = this.taskContext.getStub();
 		this.output = this.taskContext.getOutputCollector();
 
-		final List<MemorySegment> memory = this.memManager.allocatePages(this.taskContext.getOwningNepheleTask(),
-				numMemoryPages);
+		MemoryManager memManager = this.taskContext.getMemoryManager();
+		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getRelativeMemoryDriver());
+		this.memory = memManager.allocatePages(this.taskContext.getOwningNepheleTask(), numMemoryPages);
 
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
 		if (sortingComparator.supportsSerializationWithKeyNormalization() &&
@@ -218,16 +218,26 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 	@Override
 	public void cleanup() throws Exception {
 		if (this.sorter != null) {
-			this.memManager.release(this.sorter.dispose());
+			this.sorter.dispose();
 		}
+
+		this.taskContext.getMemoryManager().release(this.memory);
 	}
 
 	@Override
 	public void cancel() {
 		this.running = false;
+		
 		if (this.sorter != null) {
-			this.memManager.release(this.sorter.dispose());
+			try {
+				this.sorter.dispose();
+			}
+			catch (Exception e) {
+				// may happen during concurrent modification
+			}
 		}
+
+		this.taskContext.getMemoryManager().release(this.memory);
 	}
 
 	/**

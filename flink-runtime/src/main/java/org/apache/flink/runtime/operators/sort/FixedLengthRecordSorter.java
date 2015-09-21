@@ -121,13 +121,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		this.lastEntryOffset = (this.recordsPerSegment - 1) * this.recordSize;
 		this.swapBuffer = new byte[this.recordSize];
 		
-		if (memory instanceof ArrayList<?>) {
-			this.freeMemory = (ArrayList<MemorySegment>) memory;
-		}
-		else {
-			this.freeMemory = new ArrayList<MemorySegment>(memory.size());
-			this.freeMemory.addAll(memory);
-		}
+		this.freeMemory = new ArrayList<MemorySegment>(memory);
 		
 		// create the buffer collections
 		this.sortBuffer = new ArrayList<MemorySegment>(16);
@@ -174,16 +168,10 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		return this.numRecords == 0;
 	}
 	
-	/**
-	 * Collects all memory segments from this sorter.
-	 * 
-	 * @return All memory segments from this sorter.
-	 */
 	@Override
-	public List<MemorySegment> dispose() {
-		this.freeMemory.addAll(this.sortBuffer);
+	public void dispose() {
+		this.freeMemory.clear();
 		this.sortBuffer.clear();
-		return this.freeMemory;
 	}
 	
 	@Override
@@ -195,23 +183,16 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	public long getOccupancy() {
 		return this.sortBufferBytes;
 	}
-	
-	@Override
-	public long getNumRecordBytes() {
-		return this.sortBufferBytes;
-	}
 
 	// -------------------------------------------------------------------------
 	// Retrieving and Writing
 	// -------------------------------------------------------------------------
-
-	/**
-	 * Gets the record at the given logical position.
-	 * 
-	 * @param reuse The reuse object to deserialize the record into.
-	 * @param logicalPosition The logical position of the record.
-	 * @throws IOException Thrown, if an exception occurred during deserialization.
-	 */
+	
+	@Override
+	public T getRecord(int logicalPosition) throws IOException {
+		return getRecord(serializer.createInstance(), logicalPosition);
+	}
+	
 	@Override
 	public T getRecord(T reuse, int logicalPosition) throws IOException {
 		final int buffer = logicalPosition / this.recordsPerSegment;

@@ -342,7 +342,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			}
 
 			// add to empty queue
-			CircularElement<E> element = new CircularElement<E>(i, buffer);
+			CircularElement<E> element = new CircularElement<E>(i, buffer, sortSegments);
 			circularQueues.empty.add(element);
 		}
 
@@ -686,15 +686,18 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		
 		final int id;
 		final InMemorySorter<E> buffer;
+		final List<MemorySegment> memory;
 
 		public CircularElement() {
 			this.id = -1;
 			this.buffer = null;
+			this.memory = null;
 		}
 
-		public CircularElement(int id, InMemorySorter<E> buffer) {
+		public CircularElement(int id, InMemorySorter<E> buffer, List<MemorySegment> memory) {
 			this.id = id;
 			this.buffer = buffer;
+			this.memory = memory;
 		}
 	}
 
@@ -1199,7 +1202,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		public void go() throws IOException {
 			
 			final Queue<CircularElement<E>> cache = new ArrayDeque<CircularElement<E>>();
-			CircularElement<E> element = null;
+			CircularElement<E> element;
 			boolean cacheOnly = false;
 			
 			// ------------------- In-Memory Cache ------------------------
@@ -1236,7 +1239,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				
 				CircularElement<E> circElement;
 				while ((circElement = this.queues.empty.poll()) != null) {
-					memoryForLargeRecordSorting.addAll(circElement.buffer.dispose());
+					circElement.buffer.dispose();
+					memoryForLargeRecordSorting.addAll(circElement.memory);
 				}
 				
 				if (memoryForLargeRecordSorting.isEmpty()) {
@@ -1440,10 +1444,10 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		protected final void disposeSortBuffers(boolean releaseMemory) {
 			while (!this.queues.empty.isEmpty()) {
 				try {
-					final InMemorySorter<?> sorter = this.queues.empty.take().buffer;
-					final List<MemorySegment> sorterMem = sorter.dispose();
+					CircularElement<E> element = this.queues.empty.take();
+					element.buffer.dispose();
 					if (releaseMemory) {
-						this.memManager.release(sorterMem);
+						this.memManager.release(element.memory);
 					}
 				}
 				catch (InterruptedException iex) {
