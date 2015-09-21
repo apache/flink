@@ -614,7 +614,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
 		flinkYarnClient.setTaskManagerCount(1);
 		flinkYarnClient.setJobManagerMemory(768);
-		flinkYarnClient.setTaskManagerMemory(768);
+		flinkYarnClient.setTaskManagerMemory(1024);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 		String confDirPath = System.getenv("FLINK_CONF_DIR");
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
@@ -637,7 +637,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
 				LOG.warn("Interrupted", e);
-				Thread.interrupted();
 			}
 			FlinkYarnClusterStatus status = yarnCluster.getClusterStatus();
 			if(status != null && status.equals(expectedStatus)) {
