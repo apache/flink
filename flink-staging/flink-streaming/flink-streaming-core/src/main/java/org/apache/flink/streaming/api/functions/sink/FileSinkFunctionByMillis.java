@@ -31,11 +31,13 @@ public class FileSinkFunctionByMillis<IN> extends FileSinkFunction<IN> {
 
 	private final long millis;
 	private long lastTime;
+	private long updateTime;
 
 	public FileSinkFunctionByMillis(OutputFormat<IN> format, long millis) {
 		super(format);
 		this.millis = millis;
 		lastTime = System.currentTimeMillis();
+		updateTime = lastTime + millis;
 	}
 
 	/**
@@ -45,7 +47,7 @@ public class FileSinkFunctionByMillis<IN> extends FileSinkFunction<IN> {
 	 */
 	@Override
 	protected boolean updateCondition() {
-		return System.currentTimeMillis() - lastTime >= millis;
+		return System.currentTimeMillis() >= updateTime;
 	}
 
 	/**
@@ -55,5 +57,6 @@ public class FileSinkFunctionByMillis<IN> extends FileSinkFunction<IN> {
 	protected void resetParameters() {
 		tupleList.clear();
 		lastTime = System.currentTimeMillis();
+		updateTime = lastTime + millis;
 	}
 }
