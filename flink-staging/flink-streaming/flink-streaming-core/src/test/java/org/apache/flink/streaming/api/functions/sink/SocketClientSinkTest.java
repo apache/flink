@@ -18,34 +18,36 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.Socket;
+import org.apache.commons.io.IOUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.net.ServerSocket;
-import java.util.concurrent.atomic.AtomicReference;
-
 /**
  * Tests for the {@link org.apache.flink.streaming.api.functions.sink.SocketClientSink}.
  */
-public class SocketClientSinkTest{
+@SuppressWarnings("serial")
+public class SocketClientSinkTest extends TestLogger {
 
-	final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
-	private final String host = "127.0.0.1";
-	private int port;
-	private long retry;
-	private String value;
-	private Thread t1;
-	private ServerSocket server;
-	private SocketClientSink<String> simpleSink;
-	final private String except = "Cannot send message testSocketSinkInvoke";
+	private static final String TEST_MESSAGE = "testSocketSinkInvoke";
+	
+	private static final String EXCEPTION_MESSGAE = "Failed to send message '" + TEST_MESSAGE + "\n'";
+
+	private static final String host = "127.0.0.1";
+	
 
 	private SerializationSchema<String, byte[]> simpleSchema = new SerializationSchema<String, byte[]>() {
 		@Override
@@ -53,39 +55,38 @@ public class SocketClientSinkTest{
 			return element.getBytes();
 		}
 	};
-
-	public SocketClientSinkTest() {
-	}
+	
 
 	@Test
-	public void testSocketSink() throws Exception{
-		error.set(null);
-		value = "";
-		server = new ServerSocket(0);
-		port = server.getLocalPort();
+	public void testSocketSink() throws Exception {
+		final ServerSocket server = new ServerSocket(0);
+		final int port = server.getLocalPort();
 
-		new Thread(new Runnable() {
+		final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
+		
+		Thread sinkRunner = new Thread("Test sink runner") {
 			@Override
 			public void run() {
-				t1 = Thread.currentThread();
-
 				try {
-					simpleSink = new SocketClientSink<String>(host, port, simpleSchema, 0);
+					SocketClientSink<String> simpleSink = new SocketClientSink<>(host, port, simpleSchema, 0);
 					simpleSink.open(new Configuration());
-					simpleSink.invoke("testSocketSinkInvoke");
+					simpleSink.invoke(TEST_MESSAGE + '\n');
 					simpleSink.close();
-				} catch (Exception e){
-					error.set(e);
+				}
+				catch (Throwable t){
+					error.set(t);
 				}
 			}
-		}).start();
+		};
+		
+		sinkRunner.start();
 
 		Socket sk = server.accept();
-		BufferedReader rdr = new BufferedReader(new InputStreamReader(sk
-				.getInputStream()));
-		value = rdr.readLine();
+		BufferedReader rdr = new BufferedReader(new InputStreamReader(sk.getInputStream()));
+		
+		String value = rdr.readLine();
 
-		t1.join();
+		sinkRunner.join();
 		server.close();
 
 		if (error.get() != null) {
@@ -94,202 +95,240 @@ public class SocketClientSinkTest{
 			fail("Error in spawned thread: " + t.getMessage());
 		}
 
-		assertEquals("testSocketSinkInvoke", value);
+		assertEquals(TEST_MESSAGE, value);
 	}
 
 	@Test
-	public void testSocketSinkNoRetry() throws Exception{
-		retry = -1L;
-		error.set(null);
-		server = new ServerSocket(0);
-		port = server.getLocalPort();
+	public void testSinkAutoFlush() throws Exception {
+		final ServerSocket server = new ServerSocket(0);
+		final int port = server.getLocalPort();
 
-		t1 = new Thread(new Runnable() {
+		final SocketClientSink<String> simpleSink = new SocketClientSink<>(host, port, simpleSchema, 0, true);
+		simpleSink.open(new Configuration());
+		
+		final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 
+		Thread sinkRunner = new Thread("Test sink runner") {
 			@Override
 			public void run() {
 				try {
-					t1 = Thread.currentThread();
-					Socket sk = server.accept();
-					sk.close();
-					server.close();
-				} catch (Exception e) {
-					error.set(e);
+					// need two messages here: send a fin to cancel the client state:FIN_WAIT_2 while the server is CLOSE_WAIT
+					simpleSink.invoke(TEST_MESSAGE + '\n');
+				}
+				catch (Throwable t){
+					error.set(t);
 				}
 			}
-		});
-		t1.start();
+		};
 
-		simpleSink = new SocketClientSink<String>(host, port, simpleSchema, 0);
+		sinkRunner.start();
 
-		try {
-			simpleSink.open(new Configuration());
+		Socket sk = server.accept();
+		BufferedReader rdr = new BufferedReader(new InputStreamReader(sk.getInputStream()));
+		String value = rdr.readLine();
 
-			//wait socket server to close
-			t1.join();
-			if (error.get() == null) {
-
-				//firstly send a fin to cancel the client state:FIN_WAIT_2 while the server is CLOSE_WAIT
-				simpleSink.invoke("testSocketSinkInvoke");
-
-				//socket is closed then test "retry"
-				simpleSink.invoke("testSocketSinkInvoke");
-				simpleSink.close();
-			}
-		} catch (Exception e) {
-
-			//check whether throw a exception that reconnect failed.
-			retry = simpleSink.retries;
-			if (!(e instanceof RuntimeException) || e.toString().indexOf(except) == -1){
-				error.set(e);
-			}
-		}
+		sinkRunner.join();
+		simpleSink.close();
+		server.close();
 
 		if (error.get() != null) {
 			Throwable t = error.get();
 			t.printStackTrace();
 			fail("Error in spawned thread: " + t.getMessage());
 		}
-		assertEquals(0, retry);
+
+		assertEquals(TEST_MESSAGE, value);
 	}
 
 	@Test
-	public void testSocketSinkRetryTenTimes() throws Exception{
-		retry = -1L;
-		error.set(null);
-		server = new ServerSocket(0);
-		port = server.getLocalPort();
-
-		t1 = new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-				try {
-					t1 = Thread.currentThread();
-					Socket sk = server.accept();
-					sk.close();
-					server.close();
-				} catch (Exception e) {
-					error.set(e);
-				}
-			}
-		});
-		t1.start();
-
-		simpleSink = new SocketClientSink<String>(host, port, simpleSchema, 10);
-
+	public void testSocketSinkNoRetry() throws Exception {
+		final ServerSocket server = new ServerSocket(0);
+		final int port = server.getLocalPort();
+		
 		try {
-			simpleSink.open(new Configuration());
-
-			//wait socket server to close
-			t1.join();
-			if (error.get() == null) {
-
-				//firstly send a fin to cancel the client state:FIN_WAIT_2 while the server is CLOSE_WAIT
-				simpleSink.invoke("testSocketSinkInvoke");
-
-				//socket is closed then test "retry"
-				simpleSink.invoke("testSocketSinkInvoke");
-				simpleSink.close();
-			}
-		} catch (Exception e) {
-
-			//check whether throw a exception that reconnect failed.
-			retry = simpleSink.retries;
-			if (!(e instanceof RuntimeException) || e.toString().indexOf(except) == -1){
-				error.set(e);
-			}
-		}
-
-		if (error.get() != null) {
-			Throwable t = error.get();
-			t.printStackTrace();
-			fail("Error in spawned thread: " + t.getMessage());
-		}
-		assertEquals(10, retry);
-	}
-
-	@Test
-	public void testSocketSinkRetryAccess() throws Exception{
-
-		//This test the reconnect to server success.
-		//First close the server and let the sink get reconnecting.
-		//Meanwhile, reopen the server to let the sink reconnect success to socket.
-
-		retry = -1L;
-		error.set(null);
-		server = new ServerSocket(0);
-		port = server.getLocalPort();
-
-		t1 = new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-				try {
-					t1 = Thread.currentThread();
-					Socket sk = server.accept();
-					sk.close();
-					server.close();
-					server = null;
-				} catch (Exception e) {
-					error.set(e);
-				}
-			}
-		});
-		t1.start();
-
-		try {
-			simpleSink = new SocketClientSink<String>(host, port, simpleSchema, -1);
-			simpleSink.open(new Configuration());
-
-			t1.join();
-			if (error.get() == null) {
-
-				//firstly send a fin to cancel the client state:FIN_WAIT_2 while the server is CLOSE_WAIT
-				simpleSink.invoke("testSocketSinkInvoke");
-
-				new Thread(new Runnable() {
-
-					@Override
-					public void run() {
-						try {
-							//socket is closed then test "retry"
-							simpleSink.invoke("testSocketSinkInvoke");
-							simpleSink.close();
-						} catch (Exception e) {
-							error.set(e);
-						}
+			final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
+	
+			Thread serverRunner = new Thread("Test server runner") {
+	
+				@Override
+				public void run() {
+					try {
+						Socket sk = server.accept();
+						sk.close();
 					}
-
-				}).start();
-
-				//set a new server to let the retry success.
-				while (simpleSink.retries == 0) {
-					Thread.sleep(1000);
+					catch (Throwable t) {
+						error.set(t);
+					}
 				}
-
-				//reopen socket server for sink access
-				value = "";
-				server = new ServerSocket(port);
-				Socket sk = server.accept();
-				BufferedReader rdr = new BufferedReader(new InputStreamReader(sk
-						.getInputStream()));
-				value = rdr.readLine();
-
-				retry = simpleSink.retries;
+			};
+			serverRunner.start();
+	
+			SocketClientSink<String> simpleSink = new SocketClientSink<>(host, port, simpleSchema, 0, true);
+			simpleSink.open(new Configuration());
+	
+			// wait socket server to close
+			serverRunner.join();
+			if (error.get() != null) {
+				Throwable t = error.get();
+				t.printStackTrace();
+				fail("Error in server thread: " + t.getMessage());
 			}
+			
+			try {
+				// socket should be closed, so this should trigger a re-try
+				// need two messages here: send a fin to cancel the client state:FIN_WAIT_2 while the server is CLOSE_WAIT
+				simpleSink.invoke(TEST_MESSAGE + '\n');
+				simpleSink.invoke(TEST_MESSAGE + '\n');
+				fail("This should have failed with an exception");
+			}
+			catch (IOException e) {
+				// check whether throw a exception that reconnect failed.
+				assertTrue("Wrong exception", e.getMessage().contains(EXCEPTION_MESSGAE));
+			}
+			catch (Exception e) {
+				fail("wrong exception: " + e.getClass().getName() + " - " + e.getMessage());
+			}
+			
+			assertEquals(0, simpleSink.getCurrentNumberOfRetries());
+		}
+		finally {
+			IOUtils.closeQuietly(server);
+		}
+	}
 
-		} catch (Exception e) {
-			error.set(e);
+	@Test
+	public void testSocketSinkRetryThreeTimes() throws Exception {
+		final ServerSocket server = new ServerSocket(0);
+		final int port = server.getLocalPort();
+		
+		final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
+
+		Thread serverRunner = new Thread("Test server runner") {
+			@Override
+			public void run() {
+				try {
+					Socket sk = server.accept();
+					sk.close();
+				}
+				catch (Throwable t) {
+					error.set(t);
+				}
+				finally {
+					// close the server now to prevent reconnects
+					IOUtils.closeQuietly(server);
+				}
+			}
+		};
+
+		serverRunner.start();
+
+		SocketClientSink<String> simpleSink = new SocketClientSink<>(host, port, simpleSchema, 3);
+		simpleSink.open(new Configuration());
+
+		// wait socket server to close
+		serverRunner.join();
+		if (error.get() != null) {
+			Throwable t = error.get();
+			t.printStackTrace();
+			fail("Error in server thread: " + t.getMessage());
 		}
 
+		try {
+			// socket should be closed, so this should trigger a re-try
+			// need two messages here: send a fin to cancel the client state:FIN_WAIT_2 while the server is CLOSE_WAIT
+			simpleSink.invoke(TEST_MESSAGE + '\n');
+			simpleSink.invoke(TEST_MESSAGE + '\n');
+		}
+		catch (IOException e) {
+			// check whether throw a exception that reconnect failed.
+			assertTrue("Wrong exception", e.getMessage().contains(EXCEPTION_MESSGAE));
+		}
+		catch (Exception e) {
+			fail("wrong exception: " + e.getClass().getName() + " - " + e.getMessage());
+		}
+
+		assertEquals(3, simpleSink.getCurrentNumberOfRetries());
+	}
+
+	/**
+	 * This test the reconnect to server success.
+	 * First close the server and let the sink get reconnecting.
+	 * Meanwhile, reopen the server to let the sink reconnect success to socket.
+	 */
+	@Test
+	public void testSocketSinkRetryAccess() throws Exception {
+		final ServerSocket server1 = new ServerSocket(0);
+		final int port = server1.getLocalPort();
+
+		final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
+
+		// start a server, for the sink's open() method to connect against
+		// the server is immediately shut down again
+		Thread serverRunner = new Thread("Test server runner") {
+
+			@Override
+			public void run() {
+				try {
+					Socket sk = server1.accept();
+					sk.close();
+				}
+				catch (Throwable t) {
+					error.set(t);
+				}
+				finally {
+					IOUtils.closeQuietly(server1);
+				}
+			}
+		};
+		serverRunner.start();
+
+		final SocketClientSink<String> simpleSink = new SocketClientSink<>(host, port, simpleSchema, -1, true);
+		simpleSink.open(new Configuration());
+
+		// wait until the server is shut down
+		serverRunner.join();
+		if (error.get() != null) {
+			Throwable t = error.get();
+			t.printStackTrace();
+			fail("Error in server thread: " + t.getMessage());
+		}
+
+		// run some data output on the sink. this should fail due to the inactive server, but retry
+		Thread sinkRunner = new Thread("Test sink runner") {
+
+			@Override
+			public void run() {
+				try {
+					// need two messages here: send a fin to cancel the client state:FIN_WAIT_2 while the server is CLOSE_WAIT
+					simpleSink.invoke(TEST_MESSAGE + '\n');
+					simpleSink.invoke(TEST_MESSAGE + '\n');
+				}
+				catch (Throwable t) {
+					error.set(t);
+				}
+			}
+		};
+		sinkRunner.start();
+		
+		// we start another server now, which will make the sink complete its task
+		ServerSocket server2 = new ServerSocket(port);
+		Socket sk = server2.accept();
+		BufferedReader rdr = new BufferedReader(new InputStreamReader(sk.getInputStream()));
+		String value = rdr.readLine();
+		int retry = simpleSink.getCurrentNumberOfRetries();
+		
+		// let the sink finish
+		sinkRunner.join();
+
+		// make sure that the sink did not throw an error
 		if (error.get() != null) {
 			Throwable t = error.get();
 			t.printStackTrace();
 			fail("Error in spawned thread: " + t.getMessage());
 		}
 
-		assertEquals("testSocketSinkInvoke", value);
+		// validate state and results
+		assertEquals(TEST_MESSAGE, value);
 		assertTrue(retry > 0);
 	}
 }
