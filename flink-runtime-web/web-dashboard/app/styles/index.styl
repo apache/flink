@@ -124,6 +124,9 @@ sidebar-width-small = 160px
     margin-bottom: 20px
 
 .table
+  .table
+    background-color: transparent
+
   th
     font-weight: normal
     color: #999999
@@ -142,6 +145,44 @@ sidebar-width-small = 160px
         
   &.table-inner
     background-color: transparent
+
+  &.table-properties
+    table-layout: fixed
+    white-space: nowrap
+    td
+      width: 50%
+      white-space: nowrap
+      overflow: hidden
+      text-overflow: ellipsis
+
+  &.table-body-hover
+    > tbody
+      border-top: none
+      border-left: 2px solid transparent
+      &.active
+        border-left: 2px solid #000000
+      &:hover, &.active
+        td:not(.tab-column)
+          background-color: #f0f0f0
+        td.tab-column li.active
+          background-color: #f0f0f0
+      
+  &.table-activable
+    th.tab-column, td.tab-column
+      border-top: none
+      width: 47px
+
+    td.tab-column
+      border-right: 1px solid #dddddd
+      
+    td
+      position: relative
+      
+  .small-label
+    text-transform: uppercase
+    font-size: 13px
+    color: #999999
+
 
 .panel
   &.panel-dashboard

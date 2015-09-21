@@ -30,44 +30,6 @@
       top: 10px
       right: 10px
 
-.table
-  &.table-properties
-    table-layout: fixed
-    white-space: nowrap
-    td
-      width: 50%
-      white-space: nowrap
-      overflow: hidden
-      text-overflow: ellipsis
-
-  &.table-body-hover
-    > tbody
-      border-top: none
-      border-left: 2px solid transparent
-      &.active
-        border-left: 2px solid #000000
-      &:hover, &.active
-        td:not(.tab-column)
-          background-color: #f0f0f0
-        td.tab-column li.active
-          background-color: #f0f0f0
-      
-  &.table-activable
-    th.tab-column, td.tab-column
-      border-top: none
-      width: 47px
-
-    td.tab-column
-      border-right: 1px solid #dddddd
-      
-    td
-      position: relative
-      
-  .small-label
-    text-transform: uppercase
-    font-size: 13px
-    color: #999999
-
 
 .label-group
   .label
@@ -81,9 +43,3 @@
     
     &.label-black
       background-color: #000000
-
-    // &:first-child
-    //   border-radius(4px 0 0 4px)
-
-    // &:last-child
-    //   border-radius(0 4px 4px 0)
